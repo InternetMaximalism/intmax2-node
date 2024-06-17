@@ -1,0 +1,13 @@
+.vscode
+.idea
+build
+**/*.pb.go
+**/*.pb.gw.go
+**/*.gen.go
+intmax2-node
+**/mock_*
+vendor
+.env
+docs/swagger/node
+internal/pb/gen
+third_party/OpenAPI/node

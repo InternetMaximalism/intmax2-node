@@ -1,0 +1,70 @@
+networks:
+  intmax2-node:
+
+services:
+  intmax2-node-service:
+    container_name: intmax2-node-service
+    image: 'intmax2-node-service:dev'
+    working_dir: /app
+    command: sh -c "./intmax2-node migrate --action up && ./intmax2-node run"
+    env_file:
+      - env.docker.node
+    restart: always
+    build:
+      context: ../
+      dockerfile: ./build/Dockerfile
+      args:
+        SWAGGER_HOST_URL: ${SWAGGER_HOST_URL}
+        SWAGGER_BASE_PATH: ${SWAGGER_BASE_PATH}
+    volumes:
+      - ../scripts/x509:/app/x509
+    networks:
+      - intmax2-node
+    depends_on:
+      - intmax2-node-ot-collector
+      - intmax2-node-postgres
+    ports:
+      - '8780:80'
+      - '8781:10000'
+
+  intmax2-node-postgres:
+    container_name: intmax2-node-postgres
+    image: 'postgres:15.3-alpine3.17'
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=pass
+      - POSTGRES_DB=state
+    ports:
+      - '15432:5432'
+    networks:
+      - intmax2-node
+    volumes:
+      - ./sql_dbs/intmax2-node-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  intmax2-node-ot-collector:
+    container_name: intmax2-node-ot-collector
+    image: "otel/opentelemetry-collector-contrib:0.37.1"
+    networks:
+      - intmax2-node
+    ports:
+      - "4317:4317"        # OTLP gRPC receiver
+      - "4318:4318"        # OTLP HTTP receiver
+    volumes:
+      - ./open-telemetry-collector-config.yaml:/etc/otel/config.yaml
+    depends_on:
+      - intmax2-node-jaeger-all-in-one
+
+  intmax2-node-jaeger-all-in-one:
+    container_name: intmax2-node-jaeger-all-in-one
+    image: "jaegertracing/all-in-one:latest"
+    networks:
+      - intmax2-node
+    ports:
+      - "16686:16686"
+      - "14268"
+      - "14250"

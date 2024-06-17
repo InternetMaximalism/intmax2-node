@@ -1,0 +1,17 @@
+.vscode
+.idea
+*.pb.go
+*.pb.gw.go
+*.gen.go
+intmax2-node
+mock_*
+mocks/
+vendor
+.env
+cmd/examples/*
+!cmd/examples/.gitkeep
+build/sql_dbs/*
+!build/sql_dbs/.gitkeep
+build/env.docker.node
+internal/pb/gen
+third_party/OpenAPI/node
