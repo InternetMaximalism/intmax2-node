@@ -15,7 +15,6 @@ type ServiceBlockchain interface {
 	WriteBlockchain
 	ChainSB
 	WalletSB
-	RollupSB
 }
 
 type GenericCommandsSB interface {
@@ -33,8 +32,4 @@ type WalletSB interface {
 		ctx context.Context,
 		address common.Address,
 	) (bal *big.Int, err error)
-}
-
-type RollupSB interface {
-	BlockBuilderUrl(ctx context.Context) (string, error)
 }

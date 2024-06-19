@@ -43,7 +43,7 @@ make build-up
 * (node) Serving health on http://0.0.0.0:80/health
 * (node) Serving prometheus metric on http://0.0.0.0:80/prometheus
 * (node) Serving OpenAPI Documentation on http://0.0.0.0:80/swagger/
-* (node) Serving JSON OpenAPI Documentation on http://0.0.0.0:80/users/apidocs.swagger.json
+* (node) Serving JSON OpenAPI Documentation on http://0.0.0.0:80/node/apidocs.swagger.json
 
 ## Configuration
 Available Commands:
@@ -62,6 +62,7 @@ Available Commands:
   mnemonic_account   Generate Ethereum account from mnemonic
   private_key_wallet Generate Ethereum wallet from private key
   run                run command
+  stop               stop block builder command
 
 Flags:
   -h, --help   help for app
@@ -78,7 +79,18 @@ Usage:
 app run [flags]
 
 Flags:
--h, --help   help for run
+  -h, --help   help for run
+```
+### Command `./intmax2-node stop --help`
+```
+# ./intmax2-node stop --help
+stop block builder command
+
+Usage:
+  app stop [flags]
+
+Flags:
+  -h, --help   help for stop
 ```
 ### Command `./intmax2-node migrate --help`
 ```
@@ -163,10 +175,9 @@ When a node starts, it tries to find and remember its external address in this o
 |   | **BLOCKCHAIN**                                   |                                                                    |                                                                                                                                            |
 |   | BLOCKCHAIN_SCROLL_NETWORK_CHAIN_ID               |                                                                    | the Scroll blockchain network ID. Chain ID must be equal: ScrollSepolia = `534351`; Scroll = `534352`                                      |
 |   | BLOCKCHAIN_SCROLL_MIN_BALANCE                    | 100000000000000000                                                 | the Scroll blockchain balance minimal value for node start (min value equal or more then 0.1ETH)                                           |
+|   | BLOCKCHAIN_SCROLL_STAKE_BALANCE                  | 100000000000000000                                                 | the Scroll blockchain balance value for stake with block builder update (min value equal or more then 0.1ETH)                              |
 | * | BLOCKCHAIN_ROLLUP_CONTRACT_ADDRESS               |                                                                    | the Rollup Contract address in the Scroll blockchain                                                                                       |
 | * | BLOCKCHAIN_TEMPLATE_CONTRACT_ROLLUP_PATH         | templates/contracts/Rollup.json                                    | path to a file with information template for Rollup contract                                                                               |
-| * | BLOCKCHAIN_EVENT_ENCODE_BLOCK_BUILDER_UPDATED    | 0x                                                                 | event encode for `BLOCK_BUILDER_UPDATED` of Rollup contract                                                                                |
-| * | BLOCKCHAIN_EVENT_NAME_BLOCK_BUILDER_UPDATED      | BlockBuilderUpdated                                                | event name for `BLOCK_BUILDER_UPDATED` of Rollup contract                                                                                  |
 |   | **WALLET**                                       |                                                                    |                                                                                                                                            |
 |   | WALLET_PRIVATE_KEY_HEX                           |                                                                    | (pk) private key for wallet address recognizing                                                                                            |
 |   | WALLET_MNEMONIC_VALUE                            |                                                                    | (mnemonic) mnemonic for recovery private key                                                                                               |

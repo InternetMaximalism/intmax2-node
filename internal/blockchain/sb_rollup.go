@@ -4,10 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	errorsB "intmax2-node/internal/blockchain/errors"
-	"intmax2-node/internal/mnemonic_wallet"
-	modelsMW "intmax2-node/internal/mnemonic_wallet/models"
 	"intmax2-node/internal/open_telemetry"
 	"math/big"
 	"strings"
@@ -128,53 +125,17 @@ func (sb *serviceBlockchain) transactorOfContractRollup(
 	return resp, nil
 }
 
-func (sb *serviceBlockchain) BlockBuilderUrl(ctx context.Context) (url string, err error) {
-	const (
-		hName      = "ServiceBlockchain func:BlockBuilderUrl"
-		addressKey = "address"
-		methodKey  = "blockBuilderUrl"
-		emptyKey   = ""
-	)
-
-	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
-	defer span.End()
-
-	var pk string
-	pk, err = sb.recognizingPrivateKey(spanCtx)
-	if err != nil {
-		open_telemetry.MarkSpanError(spanCtx, err)
-		return emptyKey, errors.Join(errorsB.ErrRecognizingPrivateKeyFail, err)
-	}
-
-	var w *modelsMW.Wallet
-	w, err = mnemonic_wallet.New().WalletFromPrivateKeyHex(pk)
-	if err != nil {
-		open_telemetry.MarkSpanError(spanCtx, err)
-		return emptyKey, errors.Join(errorsB.ErrWalletAddressNotRecognized, err)
-	}
-
-	span.SetAttributes(attribute.String(addressKey, w.WalletAddress.String()))
-
-	var data []interface{}
-	data, err = sb.callContractRollup(spanCtx, methodKey, w.WalletAddress)
-	if err != nil {
-		open_telemetry.MarkSpanError(spanCtx, err)
-		return emptyKey, errors.Join(errorsB.ErrCallRollupContractFail, err)
-	}
-
-	resp := *abi.ConvertType(data[0], new(string)).(*string)
-
-	return strings.TrimSpace(resp), nil
-}
-
 func (sb *serviceBlockchain) UpdateBlockBuilder(
 	ctx context.Context,
 	url string,
 ) (err error) {
 	const (
-		hName     = "ServiceBlockchain func:UpdateBlockBuilder"
-		urlKey    = "url"
-		methodKey = "updateBlockBuilder"
+		hName      = "ServiceBlockchain func:UpdateBlockBuilder"
+		urlKey     = "url"
+		valueKey   = "value"
+		int0StrKey = "0"
+		int1Key    = 1
+		methodKey  = "updateBlockBuilder"
 	)
 
 	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName,
@@ -183,11 +144,58 @@ func (sb *serviceBlockchain) UpdateBlockBuilder(
 		))
 	defer span.End()
 
+	var (
+		value  *big.Int
+		tryNum int
+	)
+	defer func() {
+		if value == nil {
+			span.SetAttributes(attribute.String(valueKey, int0StrKey))
+		} else {
+			span.SetAttributes(attribute.String(valueKey, value.String()))
+		}
+	}()
+	for {
+		_, err = sb.transactorOfContractRollup(
+			spanCtx,
+			value,
+			methodKey,
+			url,
+		)
+		if err != nil {
+			if strings.Contains(err.Error(), errorsB.ErrInsufficientStakeAmountStr) {
+				value = &sb.cfg.Blockchain.ScrollNetworkStakeBalance
+				if tryNum < int1Key {
+					tryNum++
+					continue
+				}
+				errorsB.InsufficientFunds = true
+			}
+
+			open_telemetry.MarkSpanError(spanCtx, err)
+			return errors.Join(errorsB.ErrApplyTransactOfContractRollupFail, err)
+		}
+		break
+	}
+
+	return nil
+}
+
+func (sb *serviceBlockchain) StopBlockBuilder(
+	ctx context.Context,
+) (err error) {
+	const (
+		hName     = "ServiceBlockchain func:StopBlockBuilder"
+		methodKey = "stopBlockBuilder"
+	)
+
+	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
+	defer span.End()
+
 	_, err = sb.transactorOfContractRollup(
 		spanCtx,
 		nil,
 		methodKey,
-		url,
 	)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)

@@ -7,6 +7,7 @@ import (
 	"intmax2-node/cmd/mnemonic_account"
 	"intmax2-node/cmd/private_key_wallet"
 	"intmax2-node/cmd/server"
+	"intmax2-node/cmd/stop_block_builder"
 	"intmax2-node/configs"
 	"intmax2-node/internal/blockchain"
 	"intmax2-node/internal/cli"
@@ -81,6 +82,7 @@ func main() {
 		generate_account.NewCmd(log),
 		mnemonic_account.NewCmd(log),
 		private_key_wallet.NewCmd(log),
+		stop_block_builder.NewCmd(ctx, log, bc),
 	)
 	if err != nil {
 		const msg = "cli: %v"

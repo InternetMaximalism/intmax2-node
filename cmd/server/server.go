@@ -6,6 +6,7 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
 	"intmax2-node/docs/swagger"
+	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/network_service"
 	"intmax2-node/internal/pb/gateway"
@@ -58,20 +59,13 @@ func NewServerCmd(s *Server) *cobra.Command {
 			}
 
 			updBB := func() {
-				sbURL, errURL := s.SB.BlockBuilderUrl(s.Context)
+				errURL := s.SB.UpdateBlockBuilder(s.Context, network_service.NodeExternalAddress.Address.Address())
 				if errURL != nil {
-					const msg = "getting the Block Builder URL error occurred: %v"
-					s.Log.Fatalf(msg, errURL.Error())
-				}
-				if !strings.EqualFold(sbURL, network_service.NodeExternalAddress.Address.Address()) {
-					errURL = s.SB.UpdateBlockBuilder(s.Context, network_service.NodeExternalAddress.Address.Address())
-					if errURL != nil {
-						const msg = "update the Block Builder URL in blockchain error occurred: %v"
-						s.Log.Fatalf(msg, errURL.Error())
+					const msg = "update the Block Builder URL in blockchain error occurred: %v"
+					if strings.Contains(errURL.Error(), errorsB.ErrInsufficientStakeAmountStr) {
+						s.Log.Fatalf(msg, errorsB.ErrInsufficientStakeAmountStr)
 					}
-					const updMsg = "The node address was update into Rollup contract from %q to %q"
-					fmt.Println(fmt.Sprintf(updMsg, sbURL, network_service.NodeExternalAddress.Address.Address()))
-
+					s.Log.Fatalf(msg, errURL.Error())
 				}
 				const myAddrIs = "My address is"
 				fmt.Println(myAddrIs, network_service.NodeExternalAddress.Address.Address())

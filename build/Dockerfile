@@ -30,5 +30,5 @@ RUN make
 
 FROM alpine:3.19 as intmax2-run-env
 COPY --from=intmax2-build-env /src/intmax2-node /app/intmax2-node
-COPY --from=intmax2-build-env /src/templates/contracts /app/templates/contracts
+COPY --from=intmax2-build-env /src/third_party/contracts /app/third_party/contracts
 WORKDIR /app
