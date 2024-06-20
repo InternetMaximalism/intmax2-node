@@ -13,4 +13,7 @@ type RollupW interface {
 		ctx context.Context,
 		url string,
 	) error
+	StopBlockBuilder(
+		ctx context.Context,
+	) error
 }

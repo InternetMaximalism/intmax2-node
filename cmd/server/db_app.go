@@ -6,6 +6,8 @@ import (
 	"github.com/dimiro1/health"
 )
 
+//go:generate mockgen -destination=mock_db_app.go -package=server -source=db_app.go
+
 type SQLDriverApp interface {
 	GenericCommandsApp
 	ServiceCommands

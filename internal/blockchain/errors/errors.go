@@ -6,6 +6,8 @@ import (
 
 var InsufficientFunds bool
 
+const ErrInsufficientStakeAmountStr = "Insufficient stake amount"
+
 // ErrInsufficientFundsStr error: insufficient funds: insufficient funds.
 const ErrInsufficientFundsStr = "insufficient funds: insufficient funds"
 
