@@ -20,6 +20,9 @@ const ErrInvalidSequenceStr = "invalid sequence: invalid sequence"
 // Err520ScrollWebServerStr error: 520: Web server is returning an unknown error.
 const Err520ScrollWebServerStr = "520: Web server is returning an unknown error"
 
+// Err502ScrollWebServerStr error: 502: Bad gateway.
+const Err502ScrollWebServerStr = "502: Bad gateway"
+
 // ErrStdinProcessingFail error: stdin processing error occurred.
 var ErrStdinProcessingFail = errors.New("stdin processing error occurred")
 

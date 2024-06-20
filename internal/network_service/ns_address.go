@@ -118,12 +118,12 @@ func (ns *networkService) ExternalAddress(ctx context.Context) (ExternalAddress,
 
 			return NewExternalAddress(
 				mappedAddr.IP, emptyKey, mappedAddr.Port, int0Key, ProxyExternalAddressType,
-				ns.cfg.Network.HTTPSUse,
+				ns.cfg.Network.HTTPSUse || ns.cfg.HTTP.TLSUse,
 			), nil
 		default:
 			return NewExternalAddress(
 				xorAddr.IP, emptyKey, xorAddr.Port, int0Key, ProxyExternalAddressType,
-				ns.cfg.Network.HTTPSUse,
+				ns.cfg.Network.HTTPSUse || ns.cfg.HTTP.TLSUse,
 			), nil
 		}
 	case <-spanCtx.Done():
@@ -165,7 +165,7 @@ func (ns *networkService) GatewayAddress(ctx context.Context) (address ExternalA
 	if strings.EqualFold(localIPv4, extAddr.IP().String()) {
 		return NewExternalAddress(
 			extAddr.IP(), emptyKey, httpPort, httpPort, DirectExternalAddressType,
-			ns.cfg.Network.HTTPSUse,
+			ns.cfg.Network.HTTPSUse || ns.cfg.HTTP.TLSUse,
 		), nil
 	}
 
@@ -208,7 +208,7 @@ func (ns *networkService) NATDiscover(
 	if err == nil && int(mapPort) == extAddr.Port() {
 		return NewExternalAddress(
 			extAddr.IP(), extAddr.Domain(), extAddr.Port(), internalPort, NatDiscoverExternalAddressType,
-			ns.cfg.Network.HTTPSUse,
+			ns.cfg.Network.HTTPSUse || ns.cfg.HTTP.TLSUse,
 		), nil
 	}
 	if err != nil {

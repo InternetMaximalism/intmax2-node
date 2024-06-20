@@ -45,7 +45,8 @@ func (sb *serviceBlockchain) WalletBalance(
 	for {
 		bn, err = c.BlockNumber(spanCtx)
 		if err != nil {
-			if strings.Contains(err.Error(), errorsB.Err520ScrollWebServerStr) {
+			if strings.Contains(err.Error(), errorsB.Err520ScrollWebServerStr) ||
+				strings.Contains(err.Error(), errorsB.Err502ScrollWebServerStr) {
 				<-time.After(time.Second)
 				continue
 			}
@@ -59,7 +60,8 @@ func (sb *serviceBlockchain) WalletBalance(
 	for {
 		bal, err = c.BalanceAt(spanCtx, address, new(big.Int).SetUint64(bn))
 		if err != nil {
-			if strings.Contains(err.Error(), errorsB.Err520ScrollWebServerStr) {
+			if strings.Contains(err.Error(), errorsB.Err520ScrollWebServerStr) ||
+				strings.Contains(err.Error(), errorsB.Err502ScrollWebServerStr) {
 				<-time.After(time.Second)
 				continue
 			}

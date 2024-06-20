@@ -49,7 +49,8 @@ func (sb *serviceBlockchain) callContractRollup(
 			args...,
 		)
 		if err != nil {
-			if strings.Contains(err.Error(), errorsB.Err520ScrollWebServerStr) {
+			if strings.Contains(err.Error(), errorsB.Err520ScrollWebServerStr) ||
+				strings.Contains(err.Error(), errorsB.Err502ScrollWebServerStr) {
 				<-time.After(time.Second)
 				continue
 			}
@@ -107,6 +108,7 @@ func (sb *serviceBlockchain) transactorOfContractRollup(
 		)
 		if err != nil {
 			if strings.Contains(err.Error(), errorsB.Err520ScrollWebServerStr) ||
+				strings.Contains(err.Error(), errorsB.Err502ScrollWebServerStr) ||
 				strings.Contains(err.Error(), errorsB.ErrInvalidSequenceStr) {
 				<-time.After(time.Second)
 				continue

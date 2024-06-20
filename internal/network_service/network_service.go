@@ -210,7 +210,7 @@ func (ns *networkService) CheckNetwork(ctx context.Context) (err error) {
 					ns.cfg.Network.Port,
 					int0Key,
 					HandInputExternalAddressType,
-					ns.cfg.Network.HTTPSUse,
+					ns.cfg.Network.HTTPSUse || ns.cfg.HTTP.TLSUse,
 				)
 			} else {
 				NodeExternalAddress.Address = NewExternalAddress(
@@ -219,7 +219,7 @@ func (ns *networkService) CheckNetwork(ctx context.Context) (err error) {
 					ns.cfg.Network.Port,
 					int0Key,
 					HandInputExternalAddressType,
-					ns.cfg.Network.HTTPSUse,
+					ns.cfg.Network.HTTPSUse || ns.cfg.HTTP.TLSUse,
 				)
 			}
 
@@ -243,7 +243,7 @@ func (ns *networkService) CheckNetwork(ctx context.Context) (err error) {
 		ns.cfg.Network.Port,
 		int0Key,
 		EnvInitExternalAddressType,
-		ns.cfg.Network.HTTPSUse,
+		ns.cfg.Network.HTTPSUse || ns.cfg.HTTP.TLSUse,
 	)
 
 	return nil

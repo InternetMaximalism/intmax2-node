@@ -91,7 +91,7 @@ func Run(
 
 	errCh = make(chan error, 1)
 
-	const servingGRPC = "%sServing gRPC server on http://%s"
+	const servingGRPC = "%sServing gRPC server on %s"
 	log.Infof(servingGRPC, name, addr)
 	go func() {
 		errCh <- s.Serve(lis)
