@@ -229,21 +229,41 @@ func Run(ctx context.Context, config *Params) (Gateway, chan error) { // nolint:
 	}
 
 	const (
-		servingGW         = "%sServing HTTP on http://%s"
-		servingStatus     = "%sServing status on http://%s%s"
-		servingHealth     = "%sServing health on http://%s%s"
-		servingPrometheus = "%sServing prometheus metric on http://%s%s"
-		servingOAPI       = "%sServing OpenAPI Documentation on http://%s%s"
-		servingJSON       = "%sServing JSON OpenAPI Documentation on http://%s%s"
+		httpKey           = "http://"
+		httpNameKey       = "HTTP"
+		httpsKey          = "https://"
+		httpsNameKey      = "HTTPS"
+		servingGW         = "%sServing %s on %s%s"
+		servingStatus     = "%sServing status on %s%s%s"
+		servingHealth     = "%sServing health on %s%s%s"
+		servingPrometheus = "%sServing prometheus metric on %s%s%s"
+		servingOAPI       = "%sServing OpenAPI Documentation on %s%s%s"
+		servingJSON       = "%sServing JSON OpenAPI Documentation on %s%s%s"
 	)
-	l.Infof(servingGW, gw.config.Name, gw.config.GatewayAddr)
-	l.Infof(servingStatus, gw.config.Name, config.GatewayAddr, statusPath)
-	l.Infof(servingHealth, gw.config.Name, config.GatewayAddr, healthPath)
-	l.Infof(servingPrometheus, gw.config.Name, config.GatewayAddr, prometheusPath)
-	l.Infof(servingOAPI, gw.config.Name, config.GatewayAddr, openAPIPath)
-	l.Infof(servingJSON, gw.config.Name, config.GatewayAddr, swaggerURI)
+	schema := httpKey
+	serveType := httpNameKey
+	if cfg.HTTP.TLSUse {
+		schema = httpsKey
+		serveType = httpsNameKey
+	}
+	l.Infof(servingGW, gw.config.Name, serveType, schema, gw.config.GatewayAddr)
+	l.Infof(servingStatus, gw.config.Name, schema, config.GatewayAddr, statusPath)
+	l.Infof(servingHealth, gw.config.Name, schema, config.GatewayAddr, healthPath)
+	l.Infof(servingPrometheus, gw.config.Name, schema, config.GatewayAddr, prometheusPath)
+	l.Infof(servingOAPI, gw.config.Name, schema, config.GatewayAddr, openAPIPath)
+	l.Infof(servingJSON, gw.config.Name, schema, config.GatewayAddr, swaggerURI)
 	go func() {
-		errCh <- gwServer.ListenAndServe()
+		if cfg.HTTP.TLSUse {
+			gwServer.TLSConfig = &tls.Config{
+				ServerName:   cfg.APP.CADomainName,
+				Certificates: []tls.Certificate{creds},
+				RootCAs:      ca,
+				MinVersion:   tls.VersionTLS13,
+			}
+			errCh <- gwServer.ListenAndServeTLS(cfg.APP.PEMPathClientCert, cfg.APP.PEMPathClientKey)
+		} else {
+			errCh <- gwServer.ListenAndServe()
+		}
 		if err = gwServer.Shutdown(ctx); err != nil {
 			const msg = "%sShutdown gRPC-Gateway error: %s"
 			l.Errorf(msg, gw.config.Name, err)

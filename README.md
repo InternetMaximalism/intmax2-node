@@ -37,7 +37,7 @@ make build-up
 ## Service connections
 
 ### Connections
-* (node) Serving gRPC server on http://0.0.0.0:10000
+* (node) Serving gRPC server on 0.0.0.0:10000
 * (node) Serving HTTP on http://0.0.0.0:80
 * (node) Serving status on http://0.0.0.0:80/status
 * (node) Serving health on http://0.0.0.0:80/health
@@ -199,6 +199,7 @@ When a node starts, it tries to find and remember its external address in this o
 |   | HTTP_CORS_ALLOW_METHODS                          | OPTIONS                                                            | (node) allowed http methods                                                                                                                |
 |   | HTTP_CORS_ALLOW_HEADS                            | Accept;Authorization;Content-Type;X-CSRF-Token;X-User-Id;X-Api-Key | (node) allowed http heads                                                                                                                  |
 |   | HTTP_CORS_EXPOSE_HEADS                           |                                                                    | (node) exposed http methods                                                                                                                |
+|   | HTTP_TLS_USE                                     | false                                                              | (node) flag of turn off (false) or turn on (true) about use HTTPS                                                                          |
 |   | COOKIE_SECURE                                    | false                                                              | (node) flag of turn off (false) or turn on (true) the cookie secure (HTTP)                                                                 |
 |   | COOKIE_DOMAIN                                    |                                                                    | (node) name of domain for cookie                                                                                                           |
 |   | COOKIE_SAME_SITE_STRICT_MODE                     | false                                                              | (node) flag of turn off (false) or turn on (true) the cookie same site strict mode                                                         |

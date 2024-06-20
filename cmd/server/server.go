@@ -105,7 +105,7 @@ func NewServerCmd(s *Server) *cobra.Command {
 										nil, emptyNATDiscoverKey,
 										int0NATDiscoverKey, int0NATDiscoverKey,
 										network_service.NatDiscoverExternalAddressType,
-										s.Config.Network.HTTPSUse,
+										s.Config.Network.HTTPSUse || s.Config.HTTP.TLSUse,
 									)
 									updBB()
 								}()
