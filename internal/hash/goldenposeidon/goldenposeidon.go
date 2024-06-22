@@ -155,6 +155,58 @@ func Hash(inpBI [NROUNDSF]uint64, capBI [CAPLEN]uint64) [CAPLEN]uint64 {
 	}
 }
 
+// / Hash a message without any padding step. Note that this can enable length-extension attacks.
+// / However, it is still collision-resistant in cases where the input has a fixed length.
+func hashNToMNoPad(
+	inputs []*ffg.Element,
+	numOutputs int,
+) []*ffg.Element {
+	if numOutputs <= 0 {
+		panic("numOutputs must be greater than 0")
+	}
+
+	perm := [mLen]*ffg.Element{}
+	for i := 0; i < mLen; i++ {
+		perm[i] = zero()
+	}
+
+	// Absorb all input chunks.
+	for i := 0; i < len(inputs); i += NROUNDSF {
+		for j := 0; j < NROUNDSF; j++ {
+			if i+j < len(inputs) {
+				perm[j] = inputs[i+j]
+			} else {
+				perm[j] = zero()
+			}
+		}
+		perm = Permute(perm)
+	}
+
+	// Squeeze until we have the desired number of outputs.
+	outputs := []*ffg.Element{}
+	for {
+		for _, item := range perm[0:NROUNDSF] {
+			outputs = append(outputs, item)
+			if len(outputs) == numOutputs {
+				return outputs
+			}
+		}
+		perm = Permute(perm)
+	}
+}
+
+func HashNoPad(
+	inputs []*ffg.Element,
+) *PoseidonHashOut {
+	outputs := hashNToMNoPad(inputs, NUM_HASH_OUT_ELTS)
+	result := NewPoseidonHashOut()
+	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
+		result.Elements[i].Set(outputs[i])
+	}
+
+	return result
+}
+
 type PoseidonHashOut struct {
 	Elements [NUM_HASH_OUT_ELTS]ffg.Element
 }
@@ -190,7 +242,7 @@ func (h *PoseidonHashOut) SetRandom() (*PoseidonHashOut, error) {
 func (h *PoseidonHashOut) Marshal() []byte {
 	a := []byte{}
 	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
-		b := h.Elements[i].Marshal()
+		b := reverseBytes(h.Elements[i].Marshal())
 		a = append(a, b[:]...)
 	}
 
@@ -208,10 +260,19 @@ func (h *PoseidonHashOut) Unmarshal(data []byte) error {
 	}
 
 	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
-		h.Elements[i].SetBytes(data[i*elementSize : (i+1)*elementSize])
+		r := reverseBytes(data[i*elementSize : (i+1)*elementSize])
+		h.Elements[i].SetBytes(r)
 	}
 
 	return nil
+}
+
+func reverseBytes(data []byte) []byte {
+	reversed := make([]byte, len(data))
+	for i := range data {
+		reversed[i] = data[len(data)-1-i]
+	}
+	return reversed
 }
 
 func HexToHash(s string) *PoseidonHashOut {

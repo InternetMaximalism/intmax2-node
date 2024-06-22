@@ -133,8 +133,8 @@ func TestComputeMerkleProof(t *testing.T) {
 	}
 	siblings, root, err := mt.ComputeMerkleProof(1, leaves)
 	require.NoError(t, err)
-	require.Equal(t, "0x8f99bfc8e3c79c87bc1e3accd2506a94d1e84ab49993360709672bbb313cb044", root.String())
-	expectedProof := []string{"0x83fc198de31e1b2b1a8212d2430fbb7766c13d9ad305637dea3759065606475d", "0xb91f6096aeb158ffc7cff0f97558493e992c8df45bffd3df16cb0a4f65970cd6", "0x2860c88e066333d93757b2418944a4a14261c8b22fff425a9a72e2243f837b31", "0x61e00af7295ce05a9a247cc59da2de6446fb94bfe956c05f67703a0cc73ca542", "0x5154921a064626448cc1b30d2e2c0947167d7cf3bf854d27f522eaa0af88a040"}
+	require.Equal(t, "0xad1d6575a142d2bb0dfe324d17ccc36df4719e5adbc546c11310524d8aa922cb", root.String())
+	expectedProof := []string{"0x83fc198de31e1b2b1a8212d2430fbb7766c13d9ad305637dea3759065606475d", "0x541aa343e422c6af36eccf5fbc687aa58d9de38364398e106715e816904ea7f8", "0x84108b427bf14dcdcd31f8090a6f8d60b88e00bb5f110474abf801b6e0a568ec", "0x5ae05c29f70ae06164dea29dc57c249a5fc056e9bf94fb4642a53cc70c3a7067", "0x442646061a92545147092c2e0db3c18c274d85bff37c7d1640a088afa0ea22f5"}
 	for i := 0; i < len(siblings); i++ {
 		require.Equal(t, expectedProof[i], siblings[i].String())
 	}
