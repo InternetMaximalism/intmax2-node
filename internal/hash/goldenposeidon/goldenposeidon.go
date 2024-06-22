@@ -1,0 +1,263 @@
+package goldenposeidon
+
+/// The implementation is the same as in the link below, but with the addition of the Permute function.
+/// https://github.com/iden3/go-iden3-crypto/blob/e5cf066b8be3da9a3df9544c65818df189fdbebe/goldenposeidon/poseidon.go
+///
+/// The following implementations were also referred to.
+/// - utility functions related to Poseidon hash
+///   https://github.com/0xPolygonZero/plonky2/blob/b600142cd454b95eba403fa1f86f582ff8688c79/plonky2/src/hash/hashing.rs
+
+import (
+	"encoding/hex"
+	"fmt"
+	"math/big"
+
+	"github.com/iden3/go-iden3-crypto/ffg"
+	poseidon "github.com/iden3/go-iden3-crypto/goldenposeidon"
+)
+
+const (
+	NROUNDSF          = poseidon.NROUNDSF
+	NROUNDSP          = poseidon.NROUNDSP
+	CAPLEN            = poseidon.CAPLEN
+	mLen              = 12 // poseidon.mLen
+	NUM_HASH_OUT_ELTS = 4
+	ALPHA             = 7
+)
+
+var (
+	S = poseidon.S
+	C = poseidon.C
+	P = poseidon.P
+	M = poseidon.M
+)
+
+func zero() *ffg.Element {
+	return ffg.NewElement()
+}
+
+var big7 = big.NewInt(ALPHA)
+
+// exp7 performs x^7 mod p
+func exp7(a *ffg.Element) {
+	a.Exp(*a, big7)
+}
+
+// exp7state perform exp7 for whole state
+func exp7state(state []*ffg.Element) {
+	for i := 0; i < len(state); i++ {
+		exp7(state[i])
+	}
+}
+
+// ark computes Add-Round Key, from the paper https://eprint.iacr.org/2019/458.pdf
+func ark(state []*ffg.Element, it int) {
+	for i := 0; i < len(state); i++ {
+		state[i].Add(state[i], C[it+i])
+	}
+}
+
+// mix returns [[matrix]] * [vector]
+func mix(state []*ffg.Element, opt bool) []*ffg.Element {
+	mul := zero()
+	newState := make([]*ffg.Element, mLen)
+	for i := 0; i < mLen; i++ {
+		newState[i] = zero()
+	}
+	for i := 0; i < mLen; i++ {
+		newState[i].SetUint64(0)
+		for j := 0; j < mLen; j++ {
+			if opt {
+				mul.Mul(P[j][i], state[j])
+			} else {
+				mul.Mul(M[j][i], state[j])
+			}
+			newState[i].Add(newState[i], mul)
+		}
+	}
+	return newState
+}
+
+// Hash computes the hash for the given inputs
+// nolint:gocritic
+func Permute(input [mLen]*ffg.Element) [mLen]*ffg.Element {
+	state := make([]*ffg.Element, mLen)
+	for i := 0; i < mLen; i++ {
+		state[i] = input[i]
+	}
+	for i := 0; i < mLen; i++ {
+		state[i].Add(state[i], C[i])
+	}
+
+	for r := 0; r < NROUNDSF/2; r++ {
+		exp7state(state)
+		ark(state, (r+1)*mLen)
+		state = mix(state, r == NROUNDSF/2-1)
+	}
+
+	for r := 0; r < NROUNDSP; r++ {
+		exp7(state[0])
+		state[0].Add(state[0], C[(NROUNDSF/2+1)*mLen+r])
+
+		s0 := zero()
+		mul := zero()
+		mul.Mul(S[(mLen*2-1)*r], state[0])
+		s0.Add(s0, mul)
+		for i := 1; i < mLen; i++ {
+			mul.Mul(S[(mLen*2-1)*r+i], state[i])
+			s0.Add(s0, mul)
+			mul.Mul(S[(mLen*2-1)*r+mLen+i-1], state[0])
+			state[i].Add(state[i], mul)
+		}
+		state[0] = s0
+	}
+
+	for r := 0; r < NROUNDSF/2; r++ {
+		exp7state(state)
+		if r < NROUNDSF/2-1 {
+			ark(state, (NROUNDSF/2+1+r)*mLen+NROUNDSP)
+		}
+
+		state = mix(state, false)
+	}
+
+	result := [mLen]*ffg.Element{}
+	for i := 0; i < mLen; i++ {
+		result[i] = state[i]
+	}
+
+	return result
+}
+
+func Hash(inpBI [NROUNDSF]uint64, capBI [CAPLEN]uint64) [CAPLEN]uint64 {
+	input := [mLen]*ffg.Element{
+		ffg.NewElement().SetUint64(inpBI[0]),
+		ffg.NewElement().SetUint64(inpBI[1]),
+		ffg.NewElement().SetUint64(inpBI[2]),
+		ffg.NewElement().SetUint64(inpBI[3]),
+		ffg.NewElement().SetUint64(inpBI[4]),
+		ffg.NewElement().SetUint64(inpBI[5]),
+		ffg.NewElement().SetUint64(inpBI[6]),
+		ffg.NewElement().SetUint64(inpBI[7]),
+		ffg.NewElement().SetUint64(capBI[0]),
+		ffg.NewElement().SetUint64(capBI[1]),
+		ffg.NewElement().SetUint64(capBI[2]),
+		ffg.NewElement().SetUint64(capBI[3]),
+	}
+
+	output := Permute(input)
+
+	return [CAPLEN]uint64{
+		output[0].ToUint64Regular(),
+		output[1].ToUint64Regular(),
+		output[2].ToUint64Regular(),
+		output[3].ToUint64Regular(),
+	}
+}
+
+type PoseidonHashOut struct {
+	Elements [NUM_HASH_OUT_ELTS]ffg.Element
+}
+
+func NewPoseidonHashOut() *PoseidonHashOut {
+	h := new(PoseidonHashOut)
+	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
+		h.Elements[i] = *new(ffg.Element).SetZero()
+	}
+
+	return h
+}
+
+func (dst *PoseidonHashOut) Set(src *PoseidonHashOut) *PoseidonHashOut {
+	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
+		dst.Elements[i] = src.Elements[i]
+	}
+
+	return dst
+}
+
+func (h *PoseidonHashOut) SetRandom() (*PoseidonHashOut, error) {
+	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
+		_, err := h.Elements[i].SetRandom()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return h, nil
+}
+
+func (h *PoseidonHashOut) Marshal() []byte {
+	a := []byte{}
+	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
+		b := h.Elements[i].Marshal()
+		a = append(a, b[:]...)
+	}
+
+	return a
+}
+
+func (h *PoseidonHashOut) String() string {
+	return "0x" + hex.EncodeToString(h.Marshal())
+}
+
+func (h *PoseidonHashOut) Unmarshal(data []byte) error {
+	const elementSize = 8
+	if len(data) != NUM_HASH_OUT_ELTS*elementSize {
+		return fmt.Errorf("invalid data size: %d", len(data))
+	}
+
+	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
+		h.Elements[i].SetBytes(data[i*elementSize : (i+1)*elementSize])
+	}
+
+	return nil
+}
+
+func HexToHash(s string) *PoseidonHashOut {
+	if has0xPrefix(s) {
+		s = s[2:]
+	}
+
+	data, err := hex.DecodeString(s)
+	if err != nil {
+		panic(err)
+	}
+
+	result := new(PoseidonHashOut)
+	err = result.Unmarshal(data)
+	if err != nil {
+		panic(err)
+	}
+
+	return result
+}
+
+// has0xPrefix validates str begins with '0x' or '0X'.
+func has0xPrefix(str string) bool {
+	return len(str) >= 2 && str[0] == '0' && (str[1] == 'x' || str[1] == 'X')
+}
+
+func Compress(input1, input2 *PoseidonHashOut) *PoseidonHashOut {
+	if input1 == nil || input2 == nil {
+		return nil
+	}
+
+	input := [mLen]*ffg.Element{}
+	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
+		input[i] = new(ffg.Element).Set(&input1.Elements[i])
+	}
+	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
+		input[i+NUM_HASH_OUT_ELTS] = new(ffg.Element).Set(&input2.Elements[i])
+	}
+	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
+		input[i+NUM_HASH_OUT_ELTS*2] = zero()
+	}
+	output := Permute(input)
+	result := new(PoseidonHashOut)
+	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
+		result.Elements[i] = *output[i]
+	}
+
+	return result
+}
