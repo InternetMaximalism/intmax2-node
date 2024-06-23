@@ -79,6 +79,7 @@ func main() {
 			NS:      ns,
 		}),
 		migrator.NewMigratorCmd(ctx, log, dbApp),
+		server.NewDepositCmd(ctx, cfg, log),
 		generate_account.NewCmd(log),
 		mnemonic_account.NewCmd(log),
 		private_key_wallet.NewCmd(log),
