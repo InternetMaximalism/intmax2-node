@@ -6,6 +6,7 @@ import "protoc-gen-openapiv2/options/annotations.proto";
 import "google/rpc/status.proto";
 import "google/protobuf/empty.proto";
 
+import "node/v1/block_builder_service.proto";
 import "node/v1/info_service.proto";
 
 // Defines the import path that should be used to import the generated package,

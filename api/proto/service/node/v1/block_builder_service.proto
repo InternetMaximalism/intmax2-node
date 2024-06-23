@@ -1,0 +1,189 @@
+syntax = "proto3";
+
+package node.v1;
+
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+import "tagger/tagger.proto";
+
+import "node/v1/generic.proto";
+
+// Defines the import path that should be used to import the generated package,
+// and the package name.
+option go_package = ".;node";
+
+service BlockBuilderService {
+  // HealthCheck returns the health check block builder info
+  //
+  // ## HealthCheck returns the health check block builder info
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse) {
+    option (google.api.http) = {
+      get: "/v1"
+    };
+  }
+  // Transaction returns the info about create new transaction
+  //
+  // ## Transaction returns the info about create new transaction
+  rpc Transaction(TransactionRequest) returns (TransactionResponse) {
+    option (google.api.http) = {
+      post: "/v1/transaction"
+      body: "*"
+    };
+  }
+  // BlockProposed returns the info about requests and retrieves the Merkle proof of a block containing the user's transaction, if available
+  //
+  // ## BlockProposed returns the info about requests and retrieves the Merkle proof of a block containing the user's transaction, if available
+  rpc BlockProposed(BlockProposedRequest) returns (BlockProposedResponse) {
+    option (google.api.http) = {
+      post: "/v1/block/proposed"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      responses: {
+        key: "404"
+        value: {
+          description: "Not found error"
+          schema: {
+            json_schema: {
+              ref: ".google.rpc.Status"
+            }
+          }
+        }
+      }
+    };
+  }
+  // BlockSignature returns the info about sends the signature to approve the proposed block by signing the tx tree root
+  //
+  // ## BlockSignature returns the info about sends the signature to approve the proposed block by signing the tx tree root
+  rpc BlockSignature(BlockSignatureRequest) returns (BlockSignatureResponse) {
+    option (google.api.http) = {
+      post: "/v1/block/signature"
+      body: "*"
+    };
+  }
+  // Info returns the info about retrieves the block builder's Scroll address, transaction fee, and difficulty
+  //
+  // ## Info returns the info about retrieves the block builder's Scroll address, transaction fee, and difficulty
+  rpc Info(InfoRequest) returns (InfoResponse) {
+    option (google.api.http) = {
+      get: "/v1/info"
+    };
+  }
+}
+
+// HealthCheckRequest describes request to get info about the health check block builder
+message HealthCheckRequest {}
+
+// HealthCheckResponse describes response to get info about the health check block builder
+message HealthCheckResponse {
+  // the success flag
+  bool success = 1 [json_name="success", (tagger.tags)="json:\"success,omitempty\""];
+}
+
+// RecipientTransferDataTransactionRequest describes recipient of request to get info about the create new transaction
+message RecipientTransferDataTransactionRequest {
+  // the address type of recipient
+  AddressType address_type = 10 [json_name="addressType", (tagger.tags)="json:\"addressType,omitempty\""];
+  //  the address of recipient
+  string      address = 20 [json_name="address", (tagger.tags)="json:\"address,omitempty\""];
+}
+
+// TransferDataTransactionRequest describes the data of transaction
+message TransferDataTransactionRequest {
+  // the recipient info
+  RecipientTransferDataTransactionRequest recipient = 10 [json_name="recipient", (tagger.tags) = "json:\"recipient,omitempty\""];
+  // the amount value
+  string amount = 20 [json_name="amount", (tagger.tags) = "json:\"amount,omitempty\""];
+  // the salt value
+  string salt = 30 [json_name="salt", (tagger.tags) = "json:\"salt,omitempty\""];
+}
+
+// TransactionRequest describes request to get info about the create new transaction
+message TransactionRequest {
+  // hash of the fee transfer request sent to the block builder
+  string fee_transfer_hash = 10 [json_name="feeTransferHash", (tagger.tags)="json:\"feeTransferHash,omitempty\""];
+  // the Poseidon hash of transfer tree root and token index
+  string transfer_hash = 20 [json_name="transferHash", (tagger.tags)="json:\"transferHash,omitempty\""];
+  // the number of transactions executed with this public key
+  string nonce = 30 [json_name="nonce", (tagger.tags)="json:\"nonce,omitempty\""];
+  // the PoW nonce
+  string pow_nonce = 40 [json_name="powNonce", (tagger.tags)="json:\"powNonce,omitempty\""];
+  // the transfer data of the transaction
+  repeated TransferDataTransactionRequest transfer_data = 50 [json_name="transferData", (tagger.tags)="json:\"transferData,omitempty\""];
+  // the transfer data of the transaction fee
+  repeated TransferDataTransactionRequest fee_transfer_data = 60 [json_name="feeTransferData", (tagger.tags)="json:\"feeTransferData,omitempty\""];
+}
+
+// DataTransactionResponse describes the data of response to get info about the create new transaction
+message DataTransactionResponse {
+  // the message about result of request
+  string message = 10 [json_name="message", (tagger.tags)="json:\"message,omitempty\""];
+}
+
+// TransactionRequest describes response to get info about the create new transaction
+message TransactionResponse {
+  // the success flag
+  bool success = 1 [json_name="success", (tagger.tags)="json:\"success,omitempty\""];
+  // the info about the request's result
+  DataTransactionResponse data = 10 [json_name="data", (tagger.tags)="json:\"data,omitempty\""];
+}
+
+// BlockProposedRequest describes request about retrieves the Merkle proof of a block containing the user's transaction, if available
+message BlockProposedRequest {
+  // the hash of the user's transaction
+  string tx_hash = 10 [json_name="txHash", (tagger.tags)="json:\"txHash,omitempty\""];
+}
+
+// DataBlockProposedResponse describes the data of response about retrieves the Merkle proof of a block containing the user's transaction, if available
+message DataBlockProposedResponse {
+  // the transaction tree root hash
+  string tx_root = 10 [json_name="txRoot", (tagger.tags)="json:\"txRoot,omitempty\""];
+  // the Merkle proof from the tx tree for the specified tx_hash
+  repeated string tx_tree_merkle_proof = 20 [json_name="txTreeMerkleProof", (tagger.tags)="json:\"txTreeMerkleProof,omitempty\""];
+}
+
+// BlockProposedResponse describes response about retrieves the Merkle proof of a block containing the user's transaction, if available
+message BlockProposedResponse {
+  // the success flag
+  bool success = 1 [json_name="success", (tagger.tags)="json:\"success,omitempty\""];
+  // the info about the request's result
+  DataBlockProposedResponse data = 10 [json_name="data", (tagger.tags)="json:\"data,omitempty\""];
+}
+
+// BlockSignatureRequest describes request about sends the signature to approve the proposed block by signing the tx tree root
+message BlockSignatureRequest {
+  // the transaction tree root hash
+  string tx_root = 10 [json_name="txRoot", (tagger.tags)="json:\"txRoot,omitempty\""];
+  // the user's signature
+  string signature = 20 [json_name="signature", (tagger.tags)="json:\"signature,omitempty\""];
+  // the proof of sufficient balance after sending
+  string enough_balance_proof = 30 [json_name="enoughBalanceProof", (tagger.tags)="json:\"enoughBalanceProof,omitempty\""];
+}
+
+// DataBlockSignatureResponse describes the data of response about sends the signature to approve the proposed block by signing the tx tree root
+message DataBlockSignatureResponse {
+  // the message about result of request
+  string message = 10 [json_name="message", (tagger.tags)="json:\"message,omitempty\""];
+}
+
+// BlockSignatureResponse describes response about sends the signature to approve the proposed block by signing the tx tree root
+message BlockSignatureResponse {
+  // the success flag
+  bool success = 1 [json_name="success", (tagger.tags)="json:\"success,omitempty\""];
+  // the info about the request's result
+  DataBlockSignatureResponse data = 10 [json_name="data", (tagger.tags)="json:\"data,omitempty\""];
+}
+
+
+// InfoRequest describes request about retrieves the block builder's Scroll address, transaction fee, and difficulty
+message InfoRequest {}
+
+// InfoResponse describes response about retrieves the block builder's Scroll address, transaction fee, and difficulty
+message InfoResponse {
+  // the block builder's Scroll address
+  string scroll_address = 10 [json_name="scrollAddress", (tagger.tags)="json:\"scrollAddress,omitempty\""];
+  // the mapping of token addresses in INTMAX to fees payable in those tokens
+  map<string,string> transfer_fee = 20 [json_name="transferFee", (tagger.tags)="json:\"transferFee,omitempty\""];
+  // the PoW difficulty value
+  string difficulty = 30 [json_name="difficulty", (tagger.tags)="json:\"difficulty,omitempty\""];
+}

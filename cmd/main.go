@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/dimiro1/health"
 	"intmax2-node/cmd/generate_account"
 	"intmax2-node/cmd/migrator"
 	"intmax2-node/cmd/mnemonic_account"
@@ -63,6 +64,7 @@ func main() {
 
 	bc := blockchain.New(ctx, cfg)
 	ns := network_service.New(cfg)
+	hc := health.NewHandler()
 
 	wg := sync.WaitGroup{}
 
@@ -77,6 +79,7 @@ func main() {
 			WG:      &wg,
 			SB:      bc,
 			NS:      ns,
+			HC:      &hc,
 		}),
 		migrator.NewMigratorCmd(ctx, log, dbApp),
 		generate_account.NewCmd(log),

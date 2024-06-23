@@ -3,6 +3,8 @@ package server
 import (
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
+
+	"github.com/dimiro1/health"
 )
 
 type Server struct {
@@ -11,6 +13,7 @@ type Server struct {
 	dbApp            SQLDriverApp
 	commands         Commands
 	cookieForAuthUse bool
+	hc               *health.Handler
 }
 
 // New initializes a new Server struct.
@@ -20,6 +23,7 @@ func New(
 	dbApp SQLDriverApp,
 	commands Commands,
 	cookieForAuthUse bool,
+	hc *health.Handler,
 ) *Server {
 	const (
 		srv  = "server"
@@ -32,6 +36,7 @@ func New(
 		dbApp:            dbApp,
 		commands:         commands,
 		cookieForAuthUse: cookieForAuthUse,
+		hc:               hc,
 	}
 }
 

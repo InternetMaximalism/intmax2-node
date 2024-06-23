@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package node.v1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
+
+// Defines the import path that should be used to import the generated package,
+// and the package name.
+option go_package = ".;node";
+
+// AddressType describes type of address
+enum AddressType {
+  // the INTMAX address type
+  INTMAX = 0;
+  // the ETHEREUM address type
+  ETHEREUM = 1;
+}

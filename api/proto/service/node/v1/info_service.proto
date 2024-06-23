@@ -10,6 +10,8 @@ option go_package = ".;node";
 
 service InfoService {
   // Version returns the build service info
+  //
+  // ## Version returns the build service info
   rpc Version(VersionRequest) returns (VersionResponse) {
     option (google.api.http) = {
       get: "/v1/version"
