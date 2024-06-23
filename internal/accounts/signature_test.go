@@ -82,14 +82,14 @@ func TestAggregatedSignature(t *testing.T) {
 	t.Parallel()
 
 	// Generate key pairs for both parties.
-	accounts := make([]*PrivateKey, 3)
-	for i := 0; i < len(accounts); i++ {
+	keyPairs := make([]*PrivateKey, 3)
+	for i := 0; i < len(keyPairs); i++ {
 		keyPair, err := GenerateKey()
 
 		if err != nil {
 			t.Fatalf("Error generating keys: %v", err)
 		}
-		accounts[i] = keyPair
+		keyPairs[i] = keyPair
 	}
 
 	txTreeRoot := [32]byte{}
@@ -100,13 +100,13 @@ func TestAggregatedSignature(t *testing.T) {
 	}
 
 	publicKeysHash := []byte("publicKeysHash") // dummy
-	weightedAccounts := make([]*PrivateKey, len(accounts))
-	for i, keyPair := range accounts {
-		weightedAccounts[i] = keyPair.WeightByHash(publicKeysHash)
+	weightedkeyPairs := make([]*PrivateKey, len(keyPairs))
+	for i, keyPair := range keyPairs {
+		weightedkeyPairs[i] = keyPair.WeightByHash(publicKeysHash)
 	}
 
-	signatures := make([]*bn254.G2Affine, len(accounts))
-	for i, keyPair := range accounts {
+	signatures := make([]*bn254.G2Affine, len(keyPairs))
+	for i, keyPair := range keyPairs {
 		signature, err := keyPair.WeightByHash(publicKeysHash).Sign(flattenTxTreeRoot)
 		if err != nil {
 			t.Fatalf("Error signing to tx root: %v", err)
@@ -120,9 +120,9 @@ func TestAggregatedSignature(t *testing.T) {
 	}
 
 	aggregatedPublicKey := new(bn254.G1Affine)
-	for _, keyPair := range accounts {
+	for _, keyPair := range keyPairs {
 		weightedPublicKey := keyPair.Public().WeightByHash(publicKeysHash)
-		aggregatedPublicKey.Add(aggregatedPublicKey, weightedPublicKey.G1Affine())
+		aggregatedPublicKey.Add(aggregatedPublicKey, weightedPublicKey.Pk)
 	}
 
 	err = VerifySignature(aggregatedSignature, NewPublicKey(aggregatedPublicKey), flattenTxTreeRoot)

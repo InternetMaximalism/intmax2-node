@@ -115,10 +115,6 @@ func (pk *PublicKey) Unmarshal(buf []byte) error {
 	return nil
 }
 
-func (pk *PublicKey) G1Affine() *bn254.G1Affine {
-	return pk.Pk
-}
-
 func (pk *PublicKey) String() string {
 	return pk.Pk.String()
 }
