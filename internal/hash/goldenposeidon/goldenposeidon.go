@@ -155,8 +155,8 @@ func Hash(inpBI [NROUNDSF]uint64, capBI [CAPLEN]uint64) [CAPLEN]uint64 {
 	}
 }
 
-// / Hash a message without any padding step. Note that this can enable length-extension attacks.
-// / However, it is still collision-resistant in cases where the input has a fixed length.
+// Hash a message without any padding step. Note that this can enable length-extension attacks.
+// However, it is still collision-resistant in cases where the input has a fixed length.
 func hashNToMNoPad(
 	inputs []*ffg.Element,
 	numOutputs int,
