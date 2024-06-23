@@ -4,43 +4,31 @@ import (
 	"crypto/aes"
 	"crypto/sha256"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestECDHKeyExchangeAndAES(t *testing.T) {
 	t.Parallel()
 
 	// Generate key pairs for both parties
-	keyPairA, err := GenerateKey()
-	if err != nil {
-		t.Fatalf("Error generating keys: %v", err)
-	}
+	keyPairA := GenerateKey()
+	keyPairB := GenerateKey()
 
-	keyPairB, err := GenerateKey()
-	if err != nil {
-		t.Fatalf("Error generating keys: %v", err)
-	}
-
+	// Generate shared secret
 	sharedSecretA := keyPairA.ECDH(keyPairB.Public())
 
+	// Should be the same as above
 	sharedSecretB := keyPairB.ECDH(keyPairA.Public())
-	if !sharedSecretA.Equal(sharedSecretB) {
-		t.Fatalf("wrong shared secrets")
-	}
+	assert.Equal(t, sharedSecretA, sharedSecretB, "wrong shared secrets")
 
 	aesKey := sha256.Sum256(sharedSecretA.Marshal())
 
 	plaintext := []byte("This is a secret message.")
 	iv, ciphertext, err := EncryptAES(aesKey[:], plaintext)
-	if err != nil {
-		t.Fatalf("Error encrypting message: %v", err)
-	}
+	assert.NoError(t, err)
 
 	decrypted, err := DecryptAES(aesKey[:], iv, ciphertext[aes.BlockSize:])
-	if err != nil {
-		t.Fatalf("Error decrypting message: %v", err)
-	}
-
-	if string(decrypted) != string(plaintext) {
-		t.Fatalf("wrong decrypted message")
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, string(decrypted), string(plaintext))
 }

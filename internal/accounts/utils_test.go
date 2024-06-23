@@ -14,17 +14,12 @@ func TestEncodeDecodeG1CurvePoint(t *testing.T) {
 	t.Parallel()
 
 	randomScalar, err := new(fr.Element).SetRandom()
-	if err != nil {
-		t.Fatalf("Error generating random scalar: %v", err)
-	}
+	assert.NoError(t, err)
 
 	point := new(bn254.G1Affine).ScalarMultiplicationBase(randomScalar.BigInt(new(big.Int)))
 	encoded := EncodeG1CurvePoint(point)
 	decoded, err := DecodeG1CurvePoint(encoded)
-	if err != nil {
-		t.Fatalf("Error decoding curve point: %v", err)
-	}
-
+	assert.NoError(t, err)
 	assert.Equal(t, point, decoded, "Decoded point is different from the original one")
 }
 
@@ -35,9 +30,6 @@ func TestEncodeDecodeG2CurvePoint(t *testing.T) {
 	require.NoError(t, err)
 	encoded := EncodeG2CurvePoint(point)
 	decoded, err := DecodeG2CurvePoint(encoded)
-	if err != nil {
-		t.Fatalf("Error decoding curve point: %v", err)
-	}
-
+	assert.NoError(t, err)
 	assert.Equal(t, point, decoded, "Decoded point is different from the original one")
 }
