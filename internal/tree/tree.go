@@ -7,14 +7,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
-// type KeccakMerkleTree struct {
-// 	height      uint8
-// 	zeroHashes  []common.Hash
-// 	count       uint32
-// 	siblings    []common.Hash
-// 	currentRoot common.Hash
-// }
-
 type poseidonHashOut = goldenposeidon.PoseidonHashOut
 
 type PoseidonMerkleTree struct {

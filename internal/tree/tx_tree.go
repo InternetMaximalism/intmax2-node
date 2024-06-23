@@ -19,6 +19,7 @@ func (t *Tx) Set(tx *Tx) *Tx {
 	return t
 }
 
+// Testing purposes only
 func (t *Tx) SetRandom() (*Tx, error) {
 	var err error
 	t.FeeTransferHash, err = new(poseidonHashOut).SetRandom()
@@ -33,7 +34,7 @@ func (t *Tx) SetRandom() (*Tx, error) {
 	return t, nil
 }
 
-func (t *Tx) ToFeSlice() []*ffg.Element {
+func (t *Tx) ToFieldElementSlice() []*ffg.Element {
 	result := make([]*ffg.Element, 8)
 	for i := 0; i < goldenposeidon.NUM_HASH_OUT_ELTS; i++ {
 		result[i] = new(ffg.Element).Set(&t.FeeTransferHash.Elements[i])
@@ -46,7 +47,7 @@ func (t *Tx) ToFeSlice() []*ffg.Element {
 }
 
 func (t *Tx) Hash() *poseidonHashOut {
-	input := t.ToFeSlice()
+	input := t.ToFieldElementSlice()
 	return goldenposeidon.HashNoPad(input)
 }
 
