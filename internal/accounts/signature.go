@@ -53,11 +53,16 @@ func VerifySignature(signature *bn254.G2Affine, publicKey *PublicKey, message []
 	return nil
 }
 
+// WeightByHash calculates a weighted private key based on the provided hash.
+// It first computes a coefficient using the hash and the public key, then
+// returns a new PrivateKey instance with the public key scaled by this coefficient.
 func (pk *PublicKey) WeightByHash(hash []byte) *PublicKey {
 	coeff := hashToWeight(&pk.Pk.X, hash)
 	return pk.weight(coeff)
 }
 
+// weight applies the given coefficient to the public key,
+// returning a new weighted PublicKey instance.
 func (pk *PublicKey) weight(coeff *big.Int) *PublicKey {
 	weighted := new(PublicKey)
 	weighted.Pk = new(bn254.G1Affine).ScalarMultiplication(pk.Pk, coeff)
@@ -65,11 +70,16 @@ func (pk *PublicKey) weight(coeff *big.Int) *PublicKey {
 	return weighted
 }
 
+// WeightByHash calculates a weighted private key based on the provided hash.
+// It first computes a coefficient using the hash and the public key, then
+// returns a new PrivateKey instance with the private key and public key scaled by this coefficient.
 func (a *PrivateKey) WeightByHash(publicKeysHash []byte) *PrivateKey {
 	coeff := hashToWeight(&a.Pk.X, publicKeysHash)
 	return a.weight(coeff)
 }
 
+// weight applies the given coefficient to the private key and public key,
+// returning a new weighted PrivateKey instance.
 func (a *PrivateKey) weight(coeff *big.Int) *PrivateKey {
 	weighted := new(PrivateKey)
 	weighted.sk = new(big.Int).Mul(a.sk, coeff)
@@ -78,6 +88,8 @@ func (a *PrivateKey) weight(coeff *big.Int) *PrivateKey {
 	return weighted
 }
 
+// HashToFieldElementSlice converts a hash to a slice of ffg.Elements, ensuring the hash is padded
+// to a multiple of 4 bytes.
 func HashToFieldElementSlice(hash []byte) ([]*ffg.Element, error) {
 	const uint32ByteSize = 4
 	hashByteSize := len(hash)
@@ -94,6 +106,9 @@ func HashToFieldElementSlice(hash []byte) ([]*ffg.Element, error) {
 	return flattenTxTreeRoot, nil
 }
 
+// hashToWeight calculates a weighting factor (coefficient) based on the public key and hash.
+// It combines the public key and hash into a byte slice, converts it to field elements,
+// and derive the weight.
 func hashToWeight(myPublicKey *fp.Element, hash []byte) *big.Int {
 	p := myPublicKey.Bytes()
 	flatten := []byte{}

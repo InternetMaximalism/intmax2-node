@@ -82,11 +82,14 @@ func newPrivateKey(privateKey *big.Int) (*PrivateKey, error) {
 	return a, nil
 }
 
+// checkValidPublicKey verifies that the y coordinate of the given public key is an even number.
+// It returns an error if the y coordinate is not even.
 func checkValidPublicKey(publicKey *PublicKey) error {
-	// The y coordinate of the public key should be even number.
-	publicKeyInt := publicKey.Pk.Y.BigInt(new(big.Int))
 	const parityDivisor = 2
+	publicKeyInt := publicKey.Pk.Y.BigInt(new(big.Int))
 	parity := new(big.Int).Mod(publicKeyInt, big.NewInt(parityDivisor))
+
+	// Check if the parity is zero
 	if parity.Cmp(big.NewInt(0)) != 0 {
 		return errors.New("invalid private key: the y coordinate of public key should be even number")
 	}
@@ -94,6 +97,8 @@ func checkValidPublicKey(publicKey *PublicKey) error {
 	return nil
 }
 
+// GenerateKey generates a new PrivateKey instance with a valid public key.
+// It generates a random private key, ensuring it is between 1 and the order of the scalar field.
 func GenerateKey() *PrivateKey {
 	// Generate a random private key.
 	// Private key is a random number between 1 and the order of the scalar field.
@@ -112,6 +117,9 @@ func GenerateKey() *PrivateKey {
 	return a
 }
 
+// NewINTMAXAccountFromECDSAKey creates a new PrivateKey instance for an INTMAX account
+// from an existing ECDSA private key. It returns an error if the derived private key is invalid,
+// but the probability of such an event is extremely low.
 func NewINTMAXAccountFromECDSAKey(pk *ecdsa.PrivateKey) (*PrivateKey, error) {
 	data := pk.D.Bytes()
 	salt := []byte("INTMAX")
