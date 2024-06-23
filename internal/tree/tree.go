@@ -20,7 +20,7 @@ type PoseidonMerkleTree struct {
 // NewPoseidonMerkleTreeWithLeaves creates new PoseidonMerkleTree by giving leaf nodes.
 func NewPoseidonMerkleTree(height uint8, initialLeaves []*poseidonHashOut, zeroHash *poseidonHashOut) (*PoseidonMerkleTree, error) {
 	mt := &PoseidonMerkleTree{
-		zeroHashes: generateZeroHashes(height),
+		zeroHashes: generateZeroHashes(height, zeroHash),
 		height:     height,
 		count:      uint64(len(initialLeaves)),
 	}
@@ -73,9 +73,9 @@ func (mt *PoseidonMerkleTree) BuildMerkleRoot(leaves []*poseidonHashOut) (*posei
 	return ns[0][0], nil
 }
 
-func generateZeroHashes(height uint8) []*poseidonHashOut {
+func generateZeroHashes(height uint8, zeroHash *poseidonHashOut) []*poseidonHashOut {
 	var zeroHashes = []*poseidonHashOut{
-		new(poseidonHashOut),
+		new(poseidonHashOut).Set(zeroHash),
 	}
 	// This generates a leaf = HashZero in position 0. In the rest of the positions that are equivalent to the ascending levels,
 	// we set the hashes of the nodes. So all nodes from level i=5 will have the same value and same children nodes.
@@ -86,24 +86,24 @@ func generateZeroHashes(height uint8) []*poseidonHashOut {
 }
 
 // ComputeMerkleProof computes the merkleProof and root given the leaves of the tree
-func (mt *PoseidonMerkleTree) ComputeMerkleProof(gerIndex uint64, leaves []*poseidonHashOut) (siblings []*poseidonHashOut, root poseidonHashOut, err error) {
+func (mt *PoseidonMerkleTree) ComputeMerkleProof(index uint64, leaves []*poseidonHashOut) (siblings []*poseidonHashOut, root poseidonHashOut, err error) {
 	var ns [][]*poseidonHashOut
 	if len(leaves) == 0 {
 		leaves = append(leaves, mt.zeroHashes[0])
 	}
-	index := gerIndex
+	proofIndex := index
 	for h := uint8(0); h < mt.height; h++ {
 		if len(leaves)%2 == 1 {
 			leaves = append(leaves, mt.zeroHashes[h])
 		}
-		if index%2 == 1 {
+		if proofIndex%2 == 1 {
 			// If it is odd
-			siblings = append(siblings, leaves[index-1])
+			siblings = append(siblings, leaves[proofIndex-1])
 		} else if len(leaves) > 1 {
-			if index >= uint64(len(leaves)) {
-				siblings = append(siblings, leaves[index-1])
+			if proofIndex >= uint64(len(leaves)) {
+				siblings = append(siblings, leaves[proofIndex-1])
 			} else {
-				siblings = append(siblings, leaves[index+1])
+				siblings = append(siblings, leaves[proofIndex+1])
 			}
 		}
 
@@ -120,7 +120,7 @@ func (mt *PoseidonMerkleTree) ComputeMerkleProof(gerIndex uint64, leaves []*pose
 		// Find the index of the leave in the next level of the tree.
 		// Divide the index by 2 to find the position in the upper level
 		const half = 2
-		index = uint64(float64(index) / half)
+		proofIndex = uint64(float64(proofIndex) / half)
 		ns = nsi
 		leaves = hashes
 	}

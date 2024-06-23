@@ -11,48 +11,48 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFeSliceToBigInt(t *testing.T) {
+func TestFieldElementSliceToBigInt(t *testing.T) {
 	t.Parallel()
 
 	uintSlice := []uint64{1, 2}
-	feSlice := []*ffg.Element{}
+	fieldElementSlice := []*ffg.Element{}
 	for _, v := range uintSlice {
-		feSlice = append(feSlice, ffg.NewElementFromUint64(v))
+		fieldElementSlice = append(fieldElementSlice, ffg.NewElementFromUint64(v))
 	}
-	actual := FeSliceToBigInt(feSlice)
+	actual := FieldElementSliceToBigInt(fieldElementSlice)
 	a, ok := new(big.Int).SetString("200000001", 16)
 	assert.True(t, ok)
 	expected := new(fp.Element).SetBigInt(a)
 	assert.Equal(t, actual, expected)
 
 	uintSlice = []uint64{1, 2, 3}
-	feSlice = []*ffg.Element{}
+	fieldElementSlice = []*ffg.Element{}
 	for _, v := range uintSlice {
-		feSlice = append(feSlice, ffg.NewElementFromUint64(v))
+		fieldElementSlice = append(fieldElementSlice, ffg.NewElementFromUint64(v))
 	}
-	actual = FeSliceToBigInt(feSlice)
+	actual = FieldElementSliceToBigInt(fieldElementSlice)
 	a, ok = new(big.Int).SetString("55340232229718589441", 10)
 	assert.True(t, ok)
 	expected = new(fp.Element).SetBigInt(a)
 	assert.Equal(t, expected, actual)
 
 	uintSlice = []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9}
-	feSlice = []*ffg.Element{}
+	fieldElementSlice = []*ffg.Element{}
 	for _, v := range uintSlice {
-		feSlice = append(feSlice, ffg.NewElementFromUint64(v))
+		fieldElementSlice = append(fieldElementSlice, ffg.NewElementFromUint64(v))
 	}
-	actual = FeSliceToBigInt(feSlice)
+	actual = FieldElementSliceToBigInt(fieldElementSlice)
 	a, ok = new(big.Int).SetString("13381388375079396747702625564911137379397638293461898465501511720667989245944", 10)
 	assert.True(t, ok)
 	expected = new(fp.Element).SetBigInt(a)
 	assert.Equal(t, expected, actual)
 
 	uintSlice = []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
-	feSlice = []*ffg.Element{}
+	fieldElementSlice = []*ffg.Element{}
 	for _, v := range uintSlice {
-		feSlice = append(feSlice, ffg.NewElementFromUint64(v))
+		fieldElementSlice = append(fieldElementSlice, ffg.NewElementFromUint64(v))
 	}
-	actual = FeSliceToBigInt(feSlice)
+	actual = FieldElementSliceToBigInt(fieldElementSlice)
 	a, ok = new(big.Int).SetString("13267190979198767422712211918368298814746222286259698739437271243137716783425", 10)
 	assert.True(t, ok)
 	expected = new(fp.Element).SetBigInt(a)
@@ -63,11 +63,11 @@ func TestHashToFq2(t *testing.T) {
 	t.Parallel()
 
 	uintSlice := []uint64{1, 2}
-	feSlice := []*ffg.Element{}
+	fieldElementSlice := []*ffg.Element{}
 	for _, v := range uintSlice {
-		feSlice = append(feSlice, ffg.NewElementFromUint64(v))
+		fieldElementSlice = append(fieldElementSlice, ffg.NewElementFromUint64(v))
 	}
-	actual := HashToFq2(feSlice)
+	actual := HashToFq2(fieldElementSlice)
 	fmt.Printf("actual: (%v, %v)\n", actual.A0.Marshal(), actual.A1.Marshal())
 }
 
@@ -96,10 +96,10 @@ func TestHashToG2(t *testing.T) {
 	t.Parallel()
 
 	uintSlice := []uint64{1, 2}
-	feSlice := []*ffg.Element{}
+	fieldElementSlice := []*ffg.Element{}
 	for _, v := range uintSlice {
-		feSlice = append(feSlice, ffg.NewElementFromUint64(v))
+		fieldElementSlice = append(fieldElementSlice, ffg.NewElementFromUint64(v))
 	}
-	actual := HashToG2(feSlice)
+	actual := HashToG2(fieldElementSlice)
 	fmt.Printf("actual: %v\n", actual)
 }
