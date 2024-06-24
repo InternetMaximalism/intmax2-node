@@ -45,8 +45,8 @@ func (ns *networkService) networkValidator() (err error) {
 			if net.ParseIP(ipOrDomain) == nil &&
 				validation.Validate(ipOrDomain, validation.Required, validation.By(func(value interface{}) error {
 					const mockEmailValidator = "mock@"
-					val, ok := value.(string)
-					if !ok {
+					val, okEV := value.(string)
+					if !okEV {
 						return ErrValueInvalid
 					}
 
@@ -98,7 +98,7 @@ func (ns *networkService) Check(ctx context.Context) (res health.Health) {
 	}
 
 	if NodeExternalAddress.Address.Domain() == emptyKey &&
-		NodeExternalAddress.Address.Domain() == NodeExternalAddress.Address.IP().String() {
+		NodeExternalAddress.Address.IP().String() == emptyKey {
 		res.Down()
 		return res
 	}

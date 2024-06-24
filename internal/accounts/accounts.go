@@ -4,11 +4,14 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/sha512"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
+	isUtils "github.com/prodadidb/go-validation/is/utils"
 )
 
 type PublicKey struct {
@@ -34,6 +37,27 @@ type PrivateKey struct {
 // Multiply generator of G1 with private key.
 func privateKeyToPublicKey(privateKey *big.Int) PublicKey {
 	return PublicKey{Pk: new(bn254.G1Affine).ScalarMultiplicationBase(privateKey)}
+}
+
+// HexToPrivateKey creates a new PrivateKey instance with a validated private key.
+// If the resulting public key is invalid, it returns an error.
+func HexToPrivateKey(hexPrivateKey string) (*PrivateKey, error) {
+	if !isUtils.IsHexadecimal(hexPrivateKey) {
+		return nil, errors.New("the HEX private key must be valid")
+	}
+
+	decKey, err := hex.DecodeString(hexPrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode private key: %w", err)
+	}
+
+	var pk *PrivateKey
+	pk, err = NewPrivateKey(new(big.Int).SetBytes(decKey))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new private key: %w", err)
+	}
+
+	return pk, nil
 }
 
 // NewPrivateKey creates a new PrivateKey instance with a validated private key.

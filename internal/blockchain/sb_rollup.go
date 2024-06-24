@@ -16,7 +16,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-func (sb *serviceBlockchain) callContractRollup(
+func (sb *serviceBlockchain) callContractRollup( // nolint:unused
 	ctx context.Context,
 	method string,
 	args ...any,
@@ -69,7 +69,10 @@ func (sb *serviceBlockchain) transactorOfContractRollup(
 	value *big.Int,
 	method string,
 	args ...any,
-) (resp *types.Transaction, err error) {
+) (
+	resp *types.Transaction, // nolint:unparam
+	err error,
+) {
 	const (
 		hName       = "ServiceBlockchain func:transactOfContractRollup"
 		methodKey   = "method"

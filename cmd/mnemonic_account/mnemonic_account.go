@@ -12,7 +12,7 @@ import (
 func NewCmd(log logger.Logger) *cobra.Command {
 	const (
 		use   = "mnemonic_account"
-		short = "Generate Ethereum account from mnemonic"
+		short = "Generate Ethereum and IntMax accounts from mnemonic"
 	)
 
 	cmd := cobra.Command{

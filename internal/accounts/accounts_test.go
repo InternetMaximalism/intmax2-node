@@ -1,11 +1,13 @@
 package accounts
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"github.com/stretchr/testify/assert"
 )
@@ -35,6 +37,22 @@ func TestShouldNotGenerateInvalidAccount(t *testing.T) {
 	expectedError := "invalid private key: the y coordinate of public key should be even number"
 	assert.Equal(t, expectedError, err.Error())
 	assert.Nil(t, a)
+}
+
+func TestHexToPrivateKey(t *testing.T) {
+	t.Parallel()
+
+	pk, err := NewPrivateKey(big.NewInt(2))
+	assert.NoError(t, err)
+	assert.NotNil(t, pk)
+
+	var pk2 *PrivateKey
+	pk2, err = HexToPrivateKey(hexutil.Encode(pk.BigInt().Bytes())[2:])
+	assert.NoError(t, err)
+	assert.NotNil(t, pk2)
+
+	assert.Equal(t, 0, bytes.Compare(pk.PublicKey.Pk.Marshal(), pk2.PublicKey.Pk.Marshal()))
+	assert.Equal(t, 0, bytes.Compare(pk.Pk.Marshal(), pk2.Pk.Marshal()))
 }
 
 func TestNewPrivateKey(t *testing.T) {

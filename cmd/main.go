@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-	"github.com/dimiro1/health"
+	"intmax2-node/cmd/ethereum_private_key_wallet"
 	"intmax2-node/cmd/generate_account"
+	"intmax2-node/cmd/intmax_private_key_wallet"
 	"intmax2-node/cmd/migrator"
 	"intmax2-node/cmd/mnemonic_account"
-	"intmax2-node/cmd/private_key_wallet"
 	"intmax2-node/cmd/server"
 	"intmax2-node/cmd/stop_block_builder"
 	"intmax2-node/configs"
@@ -20,6 +20,8 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+
+	"github.com/dimiro1/health"
 )
 
 func main() {
@@ -85,7 +87,8 @@ func main() {
 		server.NewDepositCmd(ctx, cfg, log),
 		generate_account.NewCmd(log),
 		mnemonic_account.NewCmd(log),
-		private_key_wallet.NewCmd(log),
+		ethereum_private_key_wallet.NewCmd(log),
+		intmax_private_key_wallet.NewCmd(log),
 		stop_block_builder.NewCmd(ctx, log, bc),
 	)
 	if err != nil {

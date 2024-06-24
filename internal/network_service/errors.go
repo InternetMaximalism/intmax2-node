@@ -20,8 +20,8 @@ var ErrStunServerDoFail = errors.New("failed to do with stun server")
 // ErrStunServerGetFromFail error: failed to get-from stun server.
 var ErrStunServerGetFromFail = errors.New("failed to get-from stun server")
 
-// ErrContextCancel error: context was cancelled.
-var ErrContextCancel = errors.New("context was cancelled")
+// ErrContextCancel error: context was canceled.
+var ErrContextCancel = errors.New("context was canceled")
 
 // ErrNetInterfaceAddrFail error: failed to get net interface address list.
 var ErrNetInterfaceAddrFail = errors.New("failed to get net interface address list")

@@ -91,7 +91,7 @@ func (sb *serviceBlockchain) CheckPrivateKey(ctx context.Context) (err error) {
 	}
 
 	var bal *big.Int
-	bal, err = sb.WalletBalance(spanCtx, w.WalletAddress)
+	bal, err = sb.WalletBalance(spanCtx, *w.WalletAddress)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
 		return errors.Join(errorsB.ErrGettingWalletBalanceErrorOccurred, err)
@@ -195,7 +195,7 @@ func (sb *serviceBlockchain) ethClient(
 	return c, cancel, nil
 }
 
-func (sb *serviceBlockchain) callContract(
+func (sb *serviceBlockchain) callContract( // nolint:unused
 	ctx context.Context,
 	contractAddress common.Address,
 	contractAbiPath, method string,
@@ -335,7 +335,7 @@ func (sb *serviceBlockchain) contractTransactor(
 	}
 
 	var nonce uint64
-	nonce, err = c.PendingNonceAt(spanCtx, w.WalletAddress)
+	nonce, err = c.PendingNonceAt(spanCtx, *w.WalletAddress)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
 		return nil, errors.Join(errorsB.ErrPendingNonceAtFail, err)
