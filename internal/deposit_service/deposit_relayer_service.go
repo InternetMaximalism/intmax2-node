@@ -19,8 +19,8 @@ const depositThreshold uint64 = 128
 const duration = 1 * time.Hour
 
 type DepositIndices struct {
-	LastSeenDepositIndex      uint64
-	LastProcessedDepositIndex uint64
+	LastSeenDepositIndex      *uint64
+	LastProcessedDepositIndex *uint64
 }
 
 func isBlockTimeExceeded(client *ethclient.Client, blockNumber uint64) (bool, error) {
@@ -62,20 +62,24 @@ func fetchDepositIndices(ctx context.Context, liquidity *bindings.Liquidity) (De
 		lastProcessedDepositIndexCh <- result{index, err}
 	}()
 
-	lastSeenDepositResult := <-lastSeenDepositIndexCh
-	if lastSeenDepositResult.err != nil {
-		return DepositIndices{}, lastSeenDepositResult.err
+	var di DepositIndices
+	for {
+		if di.LastSeenDepositIndex != nil && di.LastProcessedDepositIndex != nil {
+			return di, nil
+		}
+		select {
+		case lastSeenDepositResult := <-lastSeenDepositIndexCh:
+			if lastSeenDepositResult.err != nil {
+				return DepositIndices{}, lastSeenDepositResult.err
+			}
+			di.LastSeenDepositIndex = &lastSeenDepositResult.index
+		case lastProcessedDepositResult := <-lastProcessedDepositIndexCh:
+			if lastProcessedDepositResult.err != nil {
+				return DepositIndices{}, lastProcessedDepositResult.err
+			}
+			di.LastProcessedDepositIndex = &lastProcessedDepositResult.index
+		}
 	}
-
-	lastProcessedDepositResult := <-lastProcessedDepositIndexCh
-	if lastProcessedDepositResult.err != nil {
-		return DepositIndices{}, lastProcessedDepositResult.err
-	}
-
-	return DepositIndices{
-		LastSeenDepositIndex:      lastSeenDepositResult.index,
-		LastProcessedDepositIndex: lastProcessedDepositResult.index,
-	}, nil
 }
 
 func submitDepositRoot(ctx context.Context, cfg *configs.Config, client *ethclient.Client, liquidity *bindings.Liquidity, maxLastSeenDepositIndex uint64) (*types.Receipt, error) {
@@ -148,7 +152,7 @@ func DepositRelayer(ctx context.Context, cfg *configs.Config, log logger.Logger)
 		log.Fatalf("Failed to fetch deposit indices: %v", err.Error())
 	}
 
-	shouldSubmit, err := shouldProcessDeposits(client, liquidity, indices.LastSeenDepositIndex, indices.LastProcessedDepositIndex)
+	shouldSubmit, err := shouldProcessDeposits(client, liquidity, *indices.LastSeenDepositIndex, *indices.LastProcessedDepositIndex)
 	if err != nil {
 		log.Fatalf("Error in threshold and time diff check: %v", err)
 		return
@@ -158,9 +162,13 @@ func DepositRelayer(ctx context.Context, cfg *configs.Config, log logger.Logger)
 		return
 	}
 
-	receipt, err := submitDepositRoot(ctx, cfg, client, liquidity, indices.LastSeenDepositIndex)
+	receipt, err := submitDepositRoot(ctx, cfg, client, liquidity, *indices.LastSeenDepositIndex)
 	if err != nil {
 		log.Fatalf("Failed to submit deposit root: %v", err.Error())
+	}
+
+	if receipt == nil {
+		return
 	}
 
 	if receipt.Status == types.ReceiptStatusSuccessful {
