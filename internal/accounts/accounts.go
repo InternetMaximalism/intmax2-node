@@ -19,6 +19,12 @@ func NewPublicKey(pk *bn254.G1Affine) *PublicKey {
 	return &PublicKey{Pk: pk}
 }
 
+func (pk *PublicKey) Set(other *PublicKey) *PublicKey {
+	pk.Pk = new(bn254.G1Affine).Set(other.Pk)
+
+	return pk
+}
+
 type PrivateKey struct {
 	PublicKey
 	sk *big.Int

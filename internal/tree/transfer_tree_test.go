@@ -1,12 +1,13 @@
 package tree
 
 import (
-	"crypto/rand"
-	"fmt"
 	"intmax2-node/internal/hash/goldenposeidon"
+	"intmax2-node/internal/types"
 	"math/big"
+	"math/rand"
 	"testing"
 
+	"github.com/iden3/go-iden3-crypto/ffg"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -14,59 +15,24 @@ const uint256Bits = 256
 
 var maxUint256 = new(big.Int).Lsh(big.NewInt(1), uint256Bits)
 
-func TestTransferData(t *testing.T) {
-	// transferTree := transferTree{
-	// 	Root: "0x5d9c1d8d9e1b2e1e1b2b1a8212d2430fbb7766c13d9ad305637dea3759065606",
-	// }
-
-	// transferTreeHash := transferTree.Hash()
-	// assert.Equal(t, "0x5d9c1d8d9e1b2e1e1b2b1a8212d2430fbb7766c13d9ad305637dea3759065606", transferTreeHash.String())
-
-	address := make([]byte, 32)
-	_, err := rand.Read(address)
-	assert.NoError(t, err)
-	recipient := GenericAddress{
-		addressType: EthereumAddressType,
-		address:     address,
-	}
-	fmt.Printf("recipient: %+v\n", recipient.String())
-
-	amount, err := rand.Int(rand.Reader, maxUint256)
-	assert.NoError(t, err)
-	salt, err := new(poseidonHashOut).SetRandom()
-	assert.NoError(t, err)
-	transferData := Transfer{
-		Recipient:  recipient,
-		TokenIndex: 0,
-		Amount:     amount,
-		Salt:       salt,
-	}
-	fmt.Printf("transfer data: %+v\n", transferData)
-
-	flattenedTransfer := transferData.Marshal()
-	fmt.Printf("flattened transfer: %+v\n", len(flattenedTransfer))
-
-	transferHash := transferData.Hash()
-	fmt.Printf("transfer hash: %+v\n", transferHash)
-}
-
 func TestTransferTree(t *testing.T) {
-	transfers := make([]*Transfer, 8)
+	r := rand.New(rand.NewSource(0))
+	transfers := make([]*types.Transfer, 8)
 
 	for i := 0; i < 8; i++ {
 		address := make([]byte, 32)
-		_, err := rand.Read(address)
+		_, err := r.Read(address)
 		assert.NoError(t, err)
-		recipient := GenericAddress{
-			addressType: EthereumAddressType,
-			address:     address,
-		}
-
-		amount, err := rand.Int(rand.Reader, maxUint256)
+		recipient, err := types.NewINTMAXAddress(address)
 		assert.NoError(t, err)
-		salt, err := new(poseidonHashOut).SetRandom()
+		amount := new(big.Int).Rand(r, maxUint256)
 		assert.NoError(t, err)
-		transferData := Transfer{
+		salt := new(poseidonHashOut)
+		salt.Elements[0] = *new(ffg.Element).SetUint64(1)
+		salt.Elements[1] = *new(ffg.Element).SetUint64(2)
+		salt.Elements[2] = *new(ffg.Element).SetUint64(3)
+		salt.Elements[3] = *new(ffg.Element).SetUint64(4)
+		transferData := types.Transfer{
 			Recipient:  recipient,
 			TokenIndex: 0,
 			Amount:     amount,
