@@ -164,8 +164,12 @@ func DepositAnalyzer(ctx context.Context, cfg *configs.Config, log logger.Logger
 		log.Fatalf("Failed to reject deposits: %v", err.Error())
 	}
 
+	if receipt == nil {
+		return
+	}
+
 	if receipt.Status == types.ReceiptStatusSuccessful {
-		log.Infof("Successfully reject deposits")
+		log.Infof("Successfully analyze %d deposits, %d rejects", len(events), len(rejectedIndices))
 	} else {
 		log.Infof("Failed to reject deposits")
 	}
