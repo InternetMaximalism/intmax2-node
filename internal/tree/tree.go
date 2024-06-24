@@ -1,5 +1,8 @@
 package tree
 
+/// This is a modification of the code from the following URL:
+/// https://github.com/0xPolygonHermez/zkevm-node/blob/develop/l1infotree/hash.go
+
 import (
 	"fmt"
 	"intmax2-node/internal/hash/goldenposeidon"
