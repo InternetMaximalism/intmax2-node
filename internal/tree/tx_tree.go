@@ -52,7 +52,7 @@ func (t *Tx) Hash() *poseidonHashOut {
 }
 
 type TxTree struct {
-	leaves []*Tx
+	Leaves []*Tx
 	inner  *PoseidonMerkleTree
 }
 
@@ -75,7 +75,7 @@ func NewTxTree(height uint8, initialLeaves []*Tx, zeroHash *poseidonHashOut) (*T
 	}
 
 	return &TxTree{
-		leaves: leaves,
+		Leaves: leaves,
 		inner:  t,
 	}, nil
 }
@@ -96,10 +96,10 @@ func (t *TxTree) AddLeaf(index uint64, leaf *Tx) (root *poseidonHashOut, err err
 		return nil, err
 	}
 
-	if int(index) != len(t.leaves) {
+	if int(index) != len(t.Leaves) {
 		return nil, errors.New("index is not equal to the length of leaves")
 	}
-	t.leaves = append(t.leaves, new(Tx).Set(leaf))
+	t.Leaves = append(t.Leaves, new(Tx).Set(leaf))
 
 	return root, nil
 }

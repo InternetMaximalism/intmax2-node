@@ -1,7 +1,6 @@
 package accounts
 
 import (
-	"encoding/binary"
 	"errors"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"math/big"
@@ -86,24 +85,6 @@ func (a *PrivateKey) weight(coeff *big.Int) *PrivateKey {
 	weighted.PublicKey = *a.Public().weight(coeff)
 
 	return weighted
-}
-
-// HashToFieldElementSlice converts a hash to a slice of ffg.Elements, ensuring the hash is padded
-// to a multiple of 4 bytes.
-func HashToFieldElementSlice(hash []byte) ([]*ffg.Element, error) {
-	const uint32ByteSize = 4
-	hashByteSize := len(hash)
-	numLimbs := (hashByteSize + uint32ByteSize - 1) / uint32ByteSize // rounds up the division
-	for len(hash) != numLimbs*uint32ByteSize {
-		hash = append(hash, 0)
-	}
-	flattenTxTreeRoot := make([]*ffg.Element, numLimbs)
-	for i := 0; i < len(flattenTxTreeRoot); i++ {
-		v := binary.BigEndian.Uint32(hash[uint32ByteSize*i : uint32ByteSize*(i+1)])
-		flattenTxTreeRoot[i] = new(ffg.Element).SetUint64(uint64(v))
-	}
-
-	return flattenTxTreeRoot, nil
 }
 
 // hashToWeight calculates a weighting factor (coefficient) based on the public key and hash.

@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"encoding/hex"
+	"intmax2-node/internal/finite_field"
 	"testing"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
@@ -66,8 +67,7 @@ func TestAggregatedSignature(t *testing.T) {
 
 	txTreeRoot := [32]byte{}
 	rand.Read(txTreeRoot[:])
-	flattenTxTreeRoot, err := HashToFieldElementSlice(txTreeRoot[:])
-	assert.NoError(t, err)
+	flattenTxTreeRoot := finite_field.BytesToFieldElementSlice(txTreeRoot[:])
 
 	publicKeysHash := []byte("publicKeysHash") // dummy
 	weightedkeyPairs := make([]*PrivateKey, len(keyPairs))
@@ -93,6 +93,6 @@ func TestAggregatedSignature(t *testing.T) {
 		aggregatedPublicKey.Add(aggregatedPublicKey, weightedPublicKey.Pk)
 	}
 
-	err = VerifySignature(aggregatedSignature, NewPublicKey(aggregatedPublicKey), flattenTxTreeRoot)
+	err := VerifySignature(aggregatedSignature, NewPublicKey(aggregatedPublicKey), flattenTxTreeRoot)
 	assert.NoError(t, err)
 }
