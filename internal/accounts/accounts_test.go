@@ -2,7 +2,6 @@ package accounts
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
 	"math/big"
 	"testing"
@@ -55,16 +54,10 @@ func TestRegenerateAccount(t *testing.T) {
 	assert.Equal(t, big.NewInt(2), a.BigInt())
 }
 
-func TestGenerateAccount(t *testing.T) {
-	t.Parallel()
-
-	GenerateKey()
-}
-
 func TestNewINTMAXAccountFromEthereumKey(t *testing.T) {
 	t.Parallel()
 
-	ethereumPrivateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	ethereumPrivateKey, err := ecdsa.GenerateKey(secp256k1.S256(), rand.Reader)
 	assert.NoError(t, err)
 
 	_, err = NewINTMAXAccountFromECDSAKey(ethereumPrivateKey)
@@ -74,12 +67,7 @@ func TestNewINTMAXAccountFromEthereumKey(t *testing.T) {
 func TestMarshalUnmarshal(t *testing.T) {
 	t.Parallel()
 
-	ethereumPrivateKey, err := ecdsa.GenerateKey(secp256k1.S256(), rand.Reader)
-	assert.NoError(t, err)
-
-	account, err := NewINTMAXAccountFromECDSAKey(ethereumPrivateKey)
-	assert.NoError(t, err)
-
+	account := GenerateKey()
 	marshaled := account.Public().Marshal()
 
 	var publicKey PublicKey

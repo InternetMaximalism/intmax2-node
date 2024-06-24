@@ -239,6 +239,16 @@ func (h *PoseidonHashOut) SetRandom() (*PoseidonHashOut, error) {
 	return h, nil
 }
 
+func (h *PoseidonHashOut) Equal(other *PoseidonHashOut) bool {
+	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
+		if !h.Elements[i].Equal(&other.Elements[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (h *PoseidonHashOut) Marshal() []byte {
 	a := []byte{}
 	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
