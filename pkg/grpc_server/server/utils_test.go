@@ -29,6 +29,7 @@ func Start(
 	cfg *configs.Config,
 	log logger.Logger,
 	dbApp server.SQLDriverApp,
+	hc *health.Handler,
 ) (gRPCServerStop func(), gwServer *http.Server) {
 	s := httptest.NewServer(nil)
 	s.Close()
@@ -52,7 +53,7 @@ func Start(
 		OptionsSuccessStatus: cfg.HTTP.CORSStatusCode,
 	})
 
-	srv := server.New(log, cfg, dbApp, commands, cfg.HTTP.CookieForAuthUse)
+	srv := server.New(log, cfg, dbApp, commands, cfg.HTTP.CookieForAuthUse, hc)
 	ctx = context.WithValue(ctx, consts.AppConfigs, cfg)
 
 	const (
@@ -70,12 +71,12 @@ func Start(
 		addr, // listen incoming host:port for gRPC server
 		func(sr grpc.ServiceRegistrar) {
 			node.RegisterInfoServiceServer(sr, srv)
+			node.RegisterBlockBuilderServiceServer(sr, srv)
 		},
 	)
 
 	// healthCheck
-	healthCheck := health.NewHandler()
-	healthCheck.AddInfo(app, map[string]any{
+	hc.AddInfo(app, map[string]any{
 		version:   buildvars.Version,
 		buildtime: buildvars.BuildTime,
 	})
@@ -89,9 +90,10 @@ func Start(
 			GatewayAddr:        strings.TrimPrefix(s2.URL, httpSplitter), // listen incoming host:port for rest api
 			DialAddr:           addr,                                     // connect to gRPC server host:port
 			HTTPTimeout:        tm,
-			HealthCheckHandler: healthCheck,
+			HealthCheckHandler: hc,
 			Services: []gateway.RegisterServiceHandlerFunc{
 				node.RegisterInfoServiceHandler,
+				node.RegisterBlockBuilderServiceHandler,
 			},
 			CorsHandler: c.Handler,
 			Swagger: &gateway.Swagger{

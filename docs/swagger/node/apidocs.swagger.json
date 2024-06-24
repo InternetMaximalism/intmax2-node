@@ -7,6 +7,9 @@
   },
   "tags": [
     {
+      "name": "BlockBuilderService"
+    },
+    {
       "name": "InfoService"
     }
   ],
@@ -23,9 +26,196 @@
     "application/json"
   ],
   "paths": {
+    "/v1": {
+      "get": {
+        "summary": "HealthCheck returns the health check block builder info",
+        "description": "## HealthCheck returns the health check block builder info",
+        "operationId": "BlockBuilderService_HealthCheck",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1HealthCheckResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "tags": [
+          "BlockBuilderService"
+        ]
+      }
+    },
+    "/v1/block/proposed": {
+      "post": {
+        "summary": "BlockProposed returns the info about requests and retrieves the Merkle proof of a block containing the user's transaction, if available",
+        "description": "## BlockProposed returns the info about requests and retrieves the Merkle proof of a block containing the user's transaction, if available",
+        "operationId": "BlockBuilderService_BlockProposed",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BlockProposedResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "404": {
+            "description": "Not found error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BlockProposedRequest"
+            }
+          }
+        ],
+        "tags": [
+          "BlockBuilderService"
+        ]
+      }
+    },
+    "/v1/block/signature": {
+      "post": {
+        "summary": "BlockSignature returns the info about sends the signature to approve the proposed block by signing the tx tree root",
+        "description": "## BlockSignature returns the info about sends the signature to approve the proposed block by signing the tx tree root",
+        "operationId": "BlockBuilderService_BlockSignature",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BlockSignatureResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BlockSignatureRequest"
+            }
+          }
+        ],
+        "tags": [
+          "BlockBuilderService"
+        ]
+      }
+    },
+    "/v1/info": {
+      "get": {
+        "summary": "Info returns the info about retrieves the block builder's Scroll address, transaction fee, and difficulty",
+        "description": "## Info returns the info about retrieves the block builder's Scroll address, transaction fee, and difficulty",
+        "operationId": "BlockBuilderService_Info",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1InfoResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "tags": [
+          "BlockBuilderService"
+        ]
+      }
+    },
+    "/v1/transaction": {
+      "post": {
+        "summary": "Transaction returns the info about create new transaction",
+        "description": "## Transaction returns the info about create new transaction",
+        "operationId": "BlockBuilderService_Transaction",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1TransactionResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1TransactionRequest"
+            }
+          }
+        ],
+        "tags": [
+          "BlockBuilderService"
+        ]
+      }
+    },
     "/v1/version": {
       "get": {
         "summary": "Version returns the build service info",
+        "description": "## Version returns the build service info",
         "operationId": "InfoService_Version",
         "responses": {
           "200": {
@@ -92,6 +282,224 @@
         }
       },
       "description": "The `Status` type defines a logical error model that is suitable for\ndifferent programming environments, including REST APIs and RPC APIs. It is\nused by [gRPC](https://github.com/grpc). Each `Status` message contains\nthree pieces of data: error code, error message, and error details.\n\nYou can find out more about this error model and how to work with it in the\n[API Design Guide](https://cloud.google.com/apis/design/errors)."
+    },
+    "v1AddressType": {
+      "type": "string",
+      "enum": [
+        "INTMAX",
+        "ETHEREUM"
+      ],
+      "default": "INTMAX",
+      "description": "- INTMAX: the INTMAX address type\n - ETHEREUM: the ETHEREUM address type",
+      "title": "AddressType describes type of address"
+    },
+    "v1BlockProposedRequest": {
+      "type": "object",
+      "properties": {
+        "txHash": {
+          "type": "string",
+          "title": "the hash of the user's transaction"
+        }
+      },
+      "title": "BlockProposedRequest describes request about retrieves the Merkle proof of a block containing the user's transaction, if available"
+    },
+    "v1BlockProposedResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "the success flag"
+        },
+        "data": {
+          "$ref": "#/definitions/v1DataBlockProposedResponse",
+          "title": "the info about the request's result"
+        }
+      },
+      "title": "BlockProposedResponse describes response about retrieves the Merkle proof of a block containing the user's transaction, if available"
+    },
+    "v1BlockSignatureRequest": {
+      "type": "object",
+      "properties": {
+        "txRoot": {
+          "type": "string",
+          "title": "the transaction tree root hash"
+        },
+        "signature": {
+          "type": "string",
+          "title": "the user's signature"
+        },
+        "enoughBalanceProof": {
+          "type": "string",
+          "title": "the proof of sufficient balance after sending"
+        }
+      },
+      "title": "BlockSignatureRequest describes request about sends the signature to approve the proposed block by signing the tx tree root"
+    },
+    "v1BlockSignatureResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "the success flag"
+        },
+        "data": {
+          "$ref": "#/definitions/v1DataBlockSignatureResponse",
+          "title": "the info about the request's result"
+        }
+      },
+      "title": "BlockSignatureResponse describes response about sends the signature to approve the proposed block by signing the tx tree root"
+    },
+    "v1DataBlockProposedResponse": {
+      "type": "object",
+      "properties": {
+        "txRoot": {
+          "type": "string",
+          "title": "the transaction tree root hash"
+        },
+        "txTreeMerkleProof": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "the Merkle proof from the tx tree for the specified tx_hash"
+        }
+      },
+      "title": "DataBlockProposedResponse describes the data of response about retrieves the Merkle proof of a block containing the user's transaction, if available"
+    },
+    "v1DataBlockSignatureResponse": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "title": "the message about result of request"
+        }
+      },
+      "title": "DataBlockSignatureResponse describes the data of response about sends the signature to approve the proposed block by signing the tx tree root"
+    },
+    "v1DataTransactionResponse": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "title": "the message about result of request"
+        }
+      },
+      "title": "DataTransactionResponse describes the data of response to get info about the create new transaction"
+    },
+    "v1HealthCheckResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "the success flag"
+        }
+      },
+      "title": "HealthCheckResponse describes response to get info about the health check block builder"
+    },
+    "v1InfoResponse": {
+      "type": "object",
+      "properties": {
+        "scrollAddress": {
+          "type": "string",
+          "title": "the block builder's Scroll address"
+        },
+        "transferFee": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "the mapping of token addresses in INTMAX to fees payable in those tokens"
+        },
+        "difficulty": {
+          "type": "string",
+          "title": "the PoW difficulty value"
+        }
+      },
+      "title": "InfoResponse describes response about retrieves the block builder's Scroll address, transaction fee, and difficulty"
+    },
+    "v1RecipientTransferDataTransactionRequest": {
+      "type": "object",
+      "properties": {
+        "addressType": {
+          "$ref": "#/definitions/v1AddressType",
+          "title": "the address type of recipient"
+        },
+        "address": {
+          "type": "string",
+          "title": "the address of recipient"
+        }
+      },
+      "title": "RecipientTransferDataTransactionRequest describes recipient of request to get info about the create new transaction"
+    },
+    "v1TransactionRequest": {
+      "type": "object",
+      "properties": {
+        "feeTransferHash": {
+          "type": "string",
+          "title": "hash of the fee transfer request sent to the block builder"
+        },
+        "transferHash": {
+          "type": "string",
+          "title": "the Poseidon hash of transfer tree root and token index"
+        },
+        "nonce": {
+          "type": "string",
+          "title": "the number of transactions executed with this public key"
+        },
+        "powNonce": {
+          "type": "string",
+          "title": "the PoW nonce"
+        },
+        "transferData": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1TransferDataTransactionRequest"
+          },
+          "title": "the transfer data of the transaction"
+        },
+        "feeTransferData": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1TransferDataTransactionRequest"
+          },
+          "title": "the transfer data of the transaction fee"
+        }
+      },
+      "title": "TransactionRequest describes request to get info about the create new transaction"
+    },
+    "v1TransactionResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "the success flag"
+        },
+        "data": {
+          "$ref": "#/definitions/v1DataTransactionResponse",
+          "title": "the info about the request's result"
+        }
+      },
+      "title": "TransactionRequest describes response to get info about the create new transaction"
+    },
+    "v1TransferDataTransactionRequest": {
+      "type": "object",
+      "properties": {
+        "recipient": {
+          "$ref": "#/definitions/v1RecipientTransferDataTransactionRequest",
+          "title": "the recipient info"
+        },
+        "amount": {
+          "type": "string",
+          "title": "the amount value"
+        },
+        "salt": {
+          "type": "string",
+          "title": "the salt value"
+        }
+      },
+      "title": "TransferDataTransactionRequest describes the data of transaction"
     },
     "v1VersionResponse": {
       "type": "object",

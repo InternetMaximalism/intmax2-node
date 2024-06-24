@@ -13,14 +13,14 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func TestNew(t *testing.T) {
-	const intValue4 = 3
-	assert.NoError(t, configs.LoadDotEnv(intValue4))
+func TestUseCaseGetVersion(t *testing.T) {
+	const int3Key = 3
+	assert.NoError(t, configs.LoadDotEnv(int3Key))
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	t.Run("uc_get_version", func(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
 		info := &intGetVersion.Version{
 			Version:   uuid.New().String(),
 			BuildTime: uuid.New().String(),

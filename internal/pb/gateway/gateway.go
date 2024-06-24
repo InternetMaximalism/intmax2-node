@@ -64,7 +64,7 @@ type Params struct {
 	Logger                logger.Logger
 	GatewayAddr, DialAddr string
 	HTTPTimeout           time.Duration
-	HealthCheckHandler    health.Handler
+	HealthCheckHandler    *health.Handler
 	Services              []RegisterServiceHandlerFunc
 	CorsHandler           func(http.Handler) http.Handler
 	Swagger               *Swagger
@@ -145,7 +145,6 @@ func Run(ctx context.Context, config *Params) (Gateway, chan error) { // nolint:
 		runtime.WithMarshalerOption(runtime.MIMEWildcard, &runtime.HTTPBodyMarshaler{
 			Marshaler: &runtime.JSONPb{
 				MarshalOptions: protojson.MarshalOptions{
-					UseProtoNames:   true,
 					EmitUnpopulated: true,
 				},
 				UnmarshalOptions: protojson.UnmarshalOptions{

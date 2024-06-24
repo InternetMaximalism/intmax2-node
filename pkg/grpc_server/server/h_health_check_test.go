@@ -3,8 +3,7 @@ package server_test
 import (
 	"context"
 	"intmax2-node/configs"
-	"intmax2-node/configs/buildvars"
-	getVersion "intmax2-node/internal/use_cases/get_version"
+	healthCheck "intmax2-node/internal/use_cases/health_check"
 	"intmax2-node/internal/use_cases/mocks"
 	"intmax2-node/pkg/logger"
 	"net/http"
@@ -13,13 +12,12 @@ import (
 	"testing"
 
 	"github.com/dimiro1/health"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"
 	"go.uber.org/mock/gomock"
 )
 
-func TestHandlerVersion(t *testing.T) {
+func TestHandlerHealthCheck(t *testing.T) {
 	const int3Key = 3
 	assert.NoError(t, configs.LoadDotEnv(int3Key))
 
@@ -33,7 +31,11 @@ func TestHandlerVersion(t *testing.T) {
 	log := logger.New(cfg.LOG.Level, cfg.LOG.TimeFormat, cfg.LOG.JSON, cfg.LOG.IsLogLine)
 
 	dbApp := NewMockSQLDriverApp(ctrl)
+
 	hc := health.NewHandler()
+	hcTestImpl := newHcTest()
+	const hcName = "test"
+	hc.AddChecker(hcName, hcTestImpl)
 
 	const (
 		path1 = "../../../"
@@ -56,26 +58,34 @@ func TestHandlerVersion(t *testing.T) {
 	grpcServerStop, gwServer := Start(cmd, ctx, cfg, log, dbApp, &hc)
 	defer grpcServerStop()
 
-	getVer := mocks.NewMockUseCaseGetVersion(ctrl)
+	uc := mocks.NewMockUseCaseHealthCheck(ctrl)
 
 	cases := []struct {
 		desc       string
-		info       *getVersion.Version
-		prepare    func(version *getVersion.Version)
+		prepare    func(want bool)
+		success    bool
 		wantStatus int
 	}{
 		{
-			desc: "Success",
-			info: &getVersion.Version{
-				Version:   uuid.New().String(),
-				BuildTime: uuid.New().String(),
+			desc: "Success equal false",
+			prepare: func(want bool) {
+				cmd.EXPECT().HealthCheck(gomock.Any()).Return(uc)
+				uc.EXPECT().Do(gomock.Any()).Return(&healthCheck.HealthCheck{
+					Success: want,
+				})
 			},
-			prepare: func(info *getVersion.Version) {
-				buildvars.Version = info.Version
-				buildvars.BuildTime = info.BuildTime
-				cmd.EXPECT().GetVersion(gomock.Any(), gomock.Any()).Return(getVer)
-				getVer.EXPECT().Do(gomock.Any()).Return(info)
+			success:    false,
+			wantStatus: http.StatusOK,
+		},
+		{
+			desc: "Success equal true",
+			prepare: func(want bool) {
+				cmd.EXPECT().HealthCheck(gomock.Any()).Return(uc)
+				uc.EXPECT().Do(gomock.Any()).Return(&healthCheck.HealthCheck{
+					Success: want,
+				})
 			},
+			success:    true,
 			wantStatus: http.StatusOK,
 		},
 	}
@@ -83,11 +93,13 @@ func TestHandlerVersion(t *testing.T) {
 	for i := range cases {
 		t.Run(cases[i].desc, func(t *testing.T) {
 			if cases[i].prepare != nil {
-				cases[i].prepare(cases[i].info)
+				cases[i].prepare(cases[i].success)
 			}
 
+			hcTestImpl.IsOK(cases[i].success)
+
 			w := httptest.NewRecorder()
-			r := httptest.NewRequest(http.MethodGet, "http://"+gwServer.Addr+"/v1/version", http.NoBody)
+			r := httptest.NewRequest(http.MethodGet, "http://"+gwServer.Addr+"/v1", http.NoBody)
 
 			gwServer.Handler.ServeHTTP(w, r)
 
@@ -95,8 +107,33 @@ func TestHandlerVersion(t *testing.T) {
 				t.Log(w.Body.String())
 			}
 
-			assert.Equal(t, cases[i].info.Version, gjson.Get(w.Body.String(), "version").String())
-			assert.Equal(t, cases[i].info.BuildTime, gjson.Get(w.Body.String(), "buildtime").String())
+			assert.Equal(t, cases[i].success, gjson.Get(w.Body.String(), "success").Bool())
 		})
 	}
+}
+
+type hcTest interface {
+	Check(ctx context.Context) health.Health
+	IsOK(ok bool)
+}
+
+type hcTestStruct struct {
+	ok bool
+}
+
+func newHcTest() hcTest {
+	return &hcTestStruct{}
+}
+
+func (hc *hcTestStruct) Check(_ context.Context) (res health.Health) {
+	res.Down()
+	if hc.ok {
+		res.Up()
+	}
+
+	return res
+}
+
+func (hc *hcTestStruct) IsOK(ok bool) {
+	hc.ok = ok
 }

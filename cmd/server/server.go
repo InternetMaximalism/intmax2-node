@@ -35,6 +35,7 @@ type Server struct {
 	DbApp   SQLDriverApp
 	SB      ServiceBlockchain
 	NS      NetworkService
+	HC      *health.Handler
 }
 
 func NewServerCmd(s *Server) *cobra.Command {
@@ -162,7 +163,7 @@ func (s *Server) Start() error {
 		})
 	}
 
-	srv := server.New(s.Log, s.Config, s.DbApp, server.NewCommands(), s.Config.HTTP.CookieForAuthUse)
+	srv := server.New(s.Log, s.Config, s.DbApp, server.NewCommands(), s.Config.HTTP.CookieForAuthUse, s.HC)
 	ctx := context.WithValue(s.Context, consts.AppConfigs, s.Config)
 
 	const (
@@ -183,18 +184,18 @@ func (s *Server) Start() error {
 		s.Config.GRPC.Addr(), // listen incoming host:port for gRPC server
 		func(s grpc.ServiceRegistrar) {
 			node.RegisterInfoServiceServer(s, srv)
+			node.RegisterBlockBuilderServiceServer(s, srv)
 		},
 	)
 
 	// healthCheck
-	healthCheck := health.NewHandler()
-	healthCheck.AddChecker(sqlDBApp, s.DbApp)
-	healthCheck.AddInfo(app, map[string]any{
+	s.HC.AddChecker(sqlDBApp, s.DbApp)
+	s.HC.AddInfo(app, map[string]any{
 		version:   buildvars.Version,
 		buildtime: buildvars.BuildTime,
 	})
-	healthCheck.AddChecker(checkSB, s.SB)
-	healthCheck.AddChecker(checkNS, s.NS)
+	s.HC.AddChecker(checkSB, s.SB)
+	s.HC.AddChecker(checkNS, s.NS)
 
 	// run web -> gRPC gateway
 	gw, grpcGwErr := gateway.Run(
@@ -205,9 +206,10 @@ func (s *Server) Start() error {
 			GatewayAddr:        s.Config.HTTP.Addr(), // listen incoming host:port for rest api
 			DialAddr:           s.Config.GRPC.Addr(), // connect to gRPC server host:port
 			HTTPTimeout:        tm,
-			HealthCheckHandler: healthCheck,
+			HealthCheckHandler: s.HC,
 			Services: []gateway.RegisterServiceHandlerFunc{
 				node.RegisterInfoServiceHandler,
+				node.RegisterBlockBuilderServiceHandler,
 			},
 			CorsHandler: c.Handler,
 			Swagger: &gateway.Swagger{
