@@ -13,7 +13,6 @@ import (
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/cosmos/go-bip39"
 	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/google/uuid"
@@ -115,8 +114,8 @@ func (mw *mnemonicWallet) WalletFromMnemonic(
 		return nil, errors.Join(ErrNewINTMAXAccountFromECDSAKeyFail, err)
 	}
 
-	intMaxWalletAddress := common.BytesToAddress(intMaxPK.PublicKey.Marshal())
-	intMaxPrivateKeyHex := hexutil.Encode(intMaxPK.BigInt().Bytes())[2:]
+	intMaxWalletAddress := intMaxPK.PublicKey.ToAddress()
+	intMaxPrivateKeyHex := intMaxPK.String()
 
 	w = &models.Wallet{
 		WalletAddress:       &address,
@@ -124,7 +123,7 @@ func (mw *mnemonicWallet) WalletFromMnemonic(
 		Mnemonic:            mnemonic,
 		DerivationPath:      mnemonicDerivationPath,
 		Password:            password,
-		IntMaxWalletAddress: &intMaxWalletAddress,
+		IntMaxWalletAddress: intMaxWalletAddress.String(),
 		IntMaxPrivateKey:    intMaxPrivateKeyHex,
 		PK:                  privateKeyECDSA,
 	}
@@ -159,13 +158,13 @@ func (mw *mnemonicWallet) WalletFromPrivateKeyHex(
 		return nil, errors.Join(ErrNewINTMAXAccountFromECDSAKeyFail, err)
 	}
 
-	intMaxWalletAddress := common.BytesToAddress(intMaxPK.PublicKey.Marshal())
-	intMaxPrivateKeyHex := hexutil.Encode(intMaxPK.BigInt().Bytes())[2:]
+	intMaxWalletAddress := intMaxPK.PublicKey.ToAddress()
+	intMaxPrivateKeyHex := intMaxPK.String()
 
 	w = &models.Wallet{
 		WalletAddress:       &address,
 		PrivateKey:          privateKeyHex,
-		IntMaxWalletAddress: &intMaxWalletAddress,
+		IntMaxWalletAddress: intMaxWalletAddress.String(),
 		IntMaxPrivateKey:    intMaxPrivateKeyHex,
 		PK:                  pk,
 	}

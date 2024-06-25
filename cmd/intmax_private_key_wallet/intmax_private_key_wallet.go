@@ -5,8 +5,6 @@ import (
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet/models"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/spf13/cobra"
 )
 
@@ -50,11 +48,11 @@ func NewCmd(log logger.Logger) *cobra.Command {
 			l.Fatalf(msg, err)
 		}
 
-		intMaxWalletAddress := common.BytesToAddress(pk.PublicKey.Marshal())
-		intMaxPrivateKeyHex := hexutil.Encode(pk.BigInt().Bytes())[2:]
+		intMaxWalletAddress := pk.PublicKey.ToAddress()
+		intMaxPrivateKeyHex := pk.String()
 
 		w = &models.Wallet{
-			IntMaxWalletAddress: &intMaxWalletAddress,
+			IntMaxWalletAddress: intMaxWalletAddress.String(),
 			IntMaxPrivateKey:    intMaxPrivateKeyHex,
 		}
 
