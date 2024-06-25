@@ -55,14 +55,15 @@ Usage:
   app [command]
 
 Available Commands:
-  completion         Generate the autocompletion script for the specified shell
-  generate_account   Generate new Ethereum account
-  help               Help about any command
-  migrate            Execute migration
-  mnemonic_account   Generate Ethereum account from mnemonic
-  private_key_wallet Generate Ethereum wallet from private key
-  run                run command
-  stop               stop block builder command
+  completion                  Generate the autocompletion script for the specified shell
+  ethereum_private_key_wallet Generate Ethereum and IntMax wallets from Ethereum private key
+  generate_account            Generate new Ethereum and IntMax accounts
+  help                        Help about any command
+  intmax_private_key_wallet   Generate IntMax wallet from IntMax private key
+  migrate                     Execute migration
+  mnemonic_account            Generate Ethereum and IntMax accounts from mnemonic
+  run                         run command
+  stop                        stop block builder command
 
 Flags:
   -h, --help   help for app
@@ -111,7 +112,7 @@ Flags:
 ### Command `./intmax2-node generate_account --help`
 ```
 # ./intmax2-node generate_account --help
-Generate new Ethereum account
+Generate new Ethereum and IntMax accounts
 
 Usage:
   app generate_account [flags]
@@ -125,7 +126,7 @@ Flags:
 ### Command `./intmax2-node mnemonic_account --help`
 ```
 # ./intmax2-node mnemonic_account --help
-Generate Ethereum account from mnemonic
+Generate Ethereum and IntMax accounts from mnemonic
 
 Usage:
   app mnemonic_account [flags]
@@ -137,10 +138,22 @@ Flags:
       --mnemonic string            mnemonic flag. use as --mnemonic "mnemonic1 mnemonic2 ... mnemonic24"
       --mnemonic_password string   mnemonic_password flag. use as --mnemonic_password "pass"
 ```
-### Command `./intmax2-node private_key_wallet --help`
+### Command `./intmax2-node ethereum_private_key_wallet --help`
 ```
-# ./intmax2-node private_key_wallet --help
-Generate Ethereum wallet from private key
+# ./intmax2-node ethereum_private_key_wallet --help
+Generate Ethereum and IntMax wallets from Ethereum private key
+
+Usage:
+  app private_key_wallet [flags]
+
+Flags:
+  -h, --help                 help for private_key_wallet
+      --private_key string   private_key flag. use as --private_key "__PRIVATE_KEY_IN_HEX_WITHOUT_0x__"
+```
+### Command `./intmax2-node intmax_private_key_wallet --help`
+```
+# ./intmax2-node intmax_private_key_wallet --help
+Generate IntMax wallet from IntMax private key
 
 Usage:
   app private_key_wallet [flags]

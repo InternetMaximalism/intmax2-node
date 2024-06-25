@@ -4,10 +4,9 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"errors"
+	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/mnemonic_wallet/models"
 	"strings"
-
-	"github.com/prodadidb/go-validation/is/utils"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil/hdkeychain"
@@ -17,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/google/uuid"
+	isUtils "github.com/prodadidb/go-validation/is/utils"
 )
 
 type mnemonicWallet struct{}
@@ -108,13 +108,24 @@ func (mw *mnemonicWallet) WalletFromMnemonic(
 
 	address := crypto.PubkeyToAddress(*publicKeyECDSA)
 
+	var intMaxPK *intMaxAcc.PrivateKey
+	intMaxPK, err = intMaxAcc.NewINTMAXAccountFromECDSAKey(privateKeyECDSA)
+	if err != nil {
+		return nil, errors.Join(ErrNewINTMAXAccountFromECDSAKeyFail, err)
+	}
+
+	intMaxWalletAddress := intMaxPK.PublicKey.ToAddress()
+	intMaxPrivateKeyHex := intMaxPK.String()
+
 	w = &models.Wallet{
-		WalletAddress:  address,
-		PrivateKey:     privateKeyHex,
-		Mnemonic:       mnemonic,
-		DerivationPath: mnemonicDerivationPath,
-		Password:       password,
-		PK:             privateKeyECDSA,
+		WalletAddress:       &address,
+		PrivateKey:          privateKeyHex,
+		Mnemonic:            mnemonic,
+		DerivationPath:      mnemonicDerivationPath,
+		Password:            password,
+		IntMaxWalletAddress: intMaxWalletAddress.String(),
+		IntMaxPrivateKey:    intMaxPrivateKeyHex,
+		PK:                  privateKeyECDSA,
 	}
 
 	return w, nil
@@ -123,7 +134,7 @@ func (mw *mnemonicWallet) WalletFromMnemonic(
 func (mw *mnemonicWallet) WalletFromPrivateKeyHex(
 	privateKeyHex string,
 ) (w *models.Wallet, err error) {
-	if !utils.IsHexadecimal(privateKeyHex) {
+	if !isUtils.IsHexadecimal(privateKeyHex) {
 		return nil, ErrPrivateKeyHexInvalid
 	}
 
@@ -141,10 +152,21 @@ func (mw *mnemonicWallet) WalletFromPrivateKeyHex(
 
 	address := crypto.PubkeyToAddress(*publicKeyECDSA)
 
+	var intMaxPK *intMaxAcc.PrivateKey
+	intMaxPK, err = intMaxAcc.NewINTMAXAccountFromECDSAKey(pk)
+	if err != nil {
+		return nil, errors.Join(ErrNewINTMAXAccountFromECDSAKeyFail, err)
+	}
+
+	intMaxWalletAddress := intMaxPK.PublicKey.ToAddress()
+	intMaxPrivateKeyHex := intMaxPK.String()
+
 	w = &models.Wallet{
-		WalletAddress: address,
-		PrivateKey:    privateKeyHex,
-		PK:            pk,
+		WalletAddress:       &address,
+		PrivateKey:          privateKeyHex,
+		IntMaxWalletAddress: intMaxWalletAddress.String(),
+		IntMaxPrivateKey:    intMaxPrivateKeyHex,
+		PK:                  pk,
 	}
 
 	return w, nil

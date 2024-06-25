@@ -1,14 +1,19 @@
 package accounts
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/sha512"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	isUtils "github.com/prodadidb/go-validation/is/utils"
 )
 
 type PublicKey struct {
@@ -25,6 +30,10 @@ func (pk *PublicKey) Set(other *PublicKey) *PublicKey {
 	return pk
 }
 
+func (pk *PublicKey) String() string {
+	return hex.EncodeToString(pk.Pk.Marshal())
+}
+
 type PrivateKey struct {
 	PublicKey
 	sk *big.Int
@@ -34,6 +43,27 @@ type PrivateKey struct {
 // Multiply generator of G1 with private key.
 func privateKeyToPublicKey(privateKey *big.Int) PublicKey {
 	return PublicKey{Pk: new(bn254.G1Affine).ScalarMultiplicationBase(privateKey)}
+}
+
+// HexToPrivateKey creates a new PrivateKey instance with a validated private key.
+// If the resulting public key is invalid, it returns an error.
+func HexToPrivateKey(hexPrivateKey string) (*PrivateKey, error) {
+	if !isUtils.IsHexadecimal(hexPrivateKey) {
+		return nil, errors.New("the HEX private key must be valid")
+	}
+
+	decKey, err := hex.DecodeString(hexPrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode private key: %w", err)
+	}
+
+	var pk *PrivateKey
+	pk, err = NewPrivateKey(new(big.Int).SetBytes(decKey))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new private key: %w", err)
+	}
+
+	return pk, nil
 }
 
 // NewPrivateKey creates a new PrivateKey instance with a validated private key.
@@ -168,8 +198,10 @@ func (a *PrivateKey) BigInt() *big.Int {
 	return a.sk
 }
 
+// String returns the private key as a hex string.
+// It returns a 32-byte hex string without 0x.
 func (a *PrivateKey) String() string {
-	return a.sk.String()
+	return hex.EncodeToString(a.Marshal())
 }
 
 func (pk *PublicKey) Equal(other *PublicKey) bool {
@@ -191,6 +223,61 @@ func (pk *PublicKey) Unmarshal(buf []byte) error {
 	return nil
 }
 
-func (pk *PublicKey) String() string {
-	return pk.Pk.String()
+type Address [32]byte
+
+// ToAddress converts the public key to an address.
+// It returns a 32-byte hex string with 0x.
+func (pk *PublicKey) ToAddress() Address {
+	result := [32]byte{}
+	copy(result[:], pk.Pk.X.Marshal())
+
+	return Address(result)
+}
+
+// ToAddress converts the private key to an address.
+// It returns a 32-byte hex string with 0x.
+func (a *PrivateKey) ToAddress() Address {
+	return a.PublicKey.ToAddress()
+}
+
+func (a Address) Bytes() []byte {
+	return a[:]
+}
+
+func (a Address) String() string {
+	return hexutil.Encode(a[:])
+}
+
+func (a Address) hex() []byte {
+	var buf [len(a)*2 + 2]byte
+	copy(buf[:2], "0x")
+	hex.Encode(buf[2:], a[:])
+	return buf[:]
+}
+
+// Format implements fmt.Formatter.
+// Address supports the %v, %s, %q, %x, %X and %d format verbs.
+func (a Address) Format(s fmt.State, c rune) {
+	switch c {
+	case 'v', 's':
+		s.Write(a.hex())
+	case 'q':
+		q := []byte{'"'}
+		s.Write(q)
+		s.Write(a.hex())
+		s.Write(q)
+	case 'x', 'X':
+		hex := a.hex()
+		if !s.Flag('#') {
+			hex = hex[2:]
+		}
+		if c == 'X' {
+			hex = bytes.ToUpper(hex)
+		}
+		s.Write(hex)
+	case 'd':
+		fmt.Fprint(s, ([len(a)]byte)(a))
+	default:
+		fmt.Fprintf(s, "%%!%c(address=%x)", c, a)
+	}
 }

@@ -1,8 +1,8 @@
-package private_key_wallet
+package intmax_private_key_wallet
 
 import (
+	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/logger"
-	"intmax2-node/internal/mnemonic_wallet"
 	"intmax2-node/internal/mnemonic_wallet/models"
 
 	"github.com/spf13/cobra"
@@ -10,8 +10,8 @@ import (
 
 func NewCmd(log logger.Logger) *cobra.Command {
 	const (
-		use   = "private_key_wallet"
-		short = "Generate Ethereum wallet from private key"
+		use   = "intmax_private_key_wallet"
+		short = "Generate IntMax wallet from IntMax private key"
 	)
 
 	cmd := cobra.Command{
@@ -38,14 +38,22 @@ func NewCmd(log logger.Logger) *cobra.Command {
 
 		var (
 			err error
+			pk  *intMaxAcc.PrivateKey
 			w   *models.Wallet
 		)
-		w, err = mnemonic_wallet.New().WalletFromPrivateKeyHex(
-			privateKeyInHex,
-		)
+
+		pk, err = intMaxAcc.HexToPrivateKey(privateKeyInHex)
 		if err != nil {
-			const msg = "failed to get wallet from private key: %+v"
+			const msg = "failed to get private key: %v"
 			l.Fatalf(msg, err)
+		}
+
+		intMaxWalletAddress := pk.PublicKey.ToAddress()
+		intMaxPrivateKeyHex := pk.String()
+
+		w = &models.Wallet{
+			IntMaxWalletAddress: intMaxWalletAddress.String(),
+			IntMaxPrivateKey:    intMaxPrivateKeyHex,
 		}
 
 		var wb []byte

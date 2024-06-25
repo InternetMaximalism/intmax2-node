@@ -10,12 +10,14 @@ import (
 )
 
 type Wallet struct {
-	WalletAddress  common.Address    `json:"wallet_address"`
-	PrivateKey     string            `json:"private_key"`
-	DerivationPath string            `json:"derivation_path,omitempty"`
-	Mnemonic       string            `json:"mnemonic,omitempty"`
-	Password       string            `json:"password,omitempty"`
-	PK             *ecdsa.PrivateKey `json:"-"`
+	WalletAddress       *common.Address   `json:"wallet_address,omitempty"`
+	PrivateKey          string            `json:"private_key,omitempty"`
+	DerivationPath      string            `json:"derivation_path,omitempty"`
+	Mnemonic            string            `json:"mnemonic,omitempty"`
+	Password            string            `json:"password,omitempty"`
+	IntMaxWalletAddress string            `json:"intmax_wallet_address"`
+	IntMaxPrivateKey    string            `json:"intmax_private_key"`
+	PK                  *ecdsa.PrivateKey `json:"-"`
 }
 
 func (w *Wallet) Marshal() ([]byte, error) {

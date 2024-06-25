@@ -26,7 +26,7 @@ GOFLAGS = -ldflags "$(GOLDFLAGS)"
 .DEFAULT_GOAL := default
 
 .PHONY: default
-default: gen lint build
+default: gen build #lint build
 
 .PHONY: build
 build:

@@ -52,3 +52,6 @@ var ErrNewMnemonicFail = errors.New("failed to create new mnemonic")
 
 // ErrWalletFromMnemonicFail error: failed to recover wallet from mnemonic.
 var ErrWalletFromMnemonicFail = errors.New("failed to recover wallet from mnemonic")
+
+// ErrNewINTMAXAccountFromECDSAKeyFail error: failed to create new INTMAX account from ECDSA key.
+var ErrNewINTMAXAccountFromECDSAKeyFail = errors.New("failed to create new INTMAX account from ECDSA key")
