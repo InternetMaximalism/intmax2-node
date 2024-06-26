@@ -14,6 +14,8 @@ type Server struct {
 	commands         Commands
 	cookieForAuthUse bool
 	hc               *health.Handler
+	pow              PoWNonce
+	worker           Worker
 }
 
 // New initializes a new Server struct.
@@ -24,6 +26,8 @@ func New(
 	commands Commands,
 	cookieForAuthUse bool,
 	hc *health.Handler,
+	pow PoWNonce,
+	worker Worker,
 ) *Server {
 	const (
 		srv  = "server"
@@ -37,6 +41,8 @@ func New(
 		commands:         commands,
 		cookieForAuthUse: cookieForAuthUse,
 		hc:               hc,
+		pow:              pow,
+		worker:           worker,
 	}
 }
 

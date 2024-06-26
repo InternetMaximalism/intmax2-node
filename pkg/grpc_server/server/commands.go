@@ -1,10 +1,13 @@
 package server
 
 import (
+	"intmax2-node/configs"
 	getVersion "intmax2-node/internal/use_cases/get_version"
 	healthCheck "intmax2-node/internal/use_cases/health_check"
+	"intmax2-node/internal/use_cases/transaction"
 	ucGetVersion "intmax2-node/pkg/use_cases/get_version"
 	ucHealthCheck "intmax2-node/pkg/use_cases/health_check"
+	ucTransaction "intmax2-node/pkg/use_cases/transaction"
 
 	"github.com/dimiro1/health"
 )
@@ -14,6 +17,11 @@ import (
 type Commands interface {
 	GetVersion(version, buildTime string) getVersion.UseCaseGetVersion
 	HealthCheck(hc *health.Handler) healthCheck.UseCaseHealthCheck
+	Transaction(
+		cfg *configs.Config,
+		dbApp SQLDriverApp,
+		worker Worker,
+	) transaction.UseCaseTransaction
 }
 
 type commands struct{}
@@ -28,4 +36,12 @@ func (c *commands) GetVersion(version, buildTime string) getVersion.UseCaseGetVe
 
 func (c *commands) HealthCheck(hc *health.Handler) healthCheck.UseCaseHealthCheck {
 	return ucHealthCheck.New(hc)
+}
+
+func (c *commands) Transaction(
+	cfg *configs.Config,
+	dbApp SQLDriverApp,
+	worker Worker,
+) transaction.UseCaseTransaction {
+	return ucTransaction.New(cfg, dbApp, worker)
 }

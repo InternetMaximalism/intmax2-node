@@ -33,7 +33,14 @@ func TestSignatureByINTMAXAccount(t *testing.T) {
 	signature, err := keyPair.Sign(flattenMessage)
 	assert.NoError(t, err)
 
+	addr := keyPair.Public().ToAddress().String()
+	pubKey, err := intMaxAcc.NewPublicKeyFromAddressHex(addr)
+	assert.NoError(t, err)
+
 	err = intMaxAcc.VerifySignature(signature, keyPair.Public(), flattenMessage)
+	assert.NoError(t, err)
+
+	err = intMaxAcc.VerifySignature(signature, pubKey, flattenMessage)
 	assert.NoError(t, err)
 }
 

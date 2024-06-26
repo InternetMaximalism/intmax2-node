@@ -26,6 +26,7 @@ func TestTransferTree(t *testing.T) {
 		assert.NoError(t, err)
 		recipient, err := intMaxtypes.NewINTMAXAddress(address)
 		assert.NoError(t, err)
+		assert.NotNil(t, recipient)
 		amount := new(big.Int).Rand(r, maxUint256)
 		assert.NoError(t, err)
 		salt := new(intMaxTree.PoseidonHashOut)

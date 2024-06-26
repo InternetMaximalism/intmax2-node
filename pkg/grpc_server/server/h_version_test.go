@@ -32,7 +32,9 @@ func TestHandlerVersion(t *testing.T) {
 	cfg := configs.New()
 	log := logger.New(cfg.LOG.Level, cfg.LOG.TimeFormat, cfg.LOG.JSON, cfg.LOG.IsLogLine)
 
+	pw := NewMockPoWNonce(ctrl)
 	dbApp := NewMockSQLDriverApp(ctrl)
+	worker := NewMockWorker(ctrl)
 	hc := health.NewHandler()
 
 	const (
@@ -53,7 +55,7 @@ func TestHandlerVersion(t *testing.T) {
 
 	cmd := NewMockCommands(ctrl)
 
-	grpcServerStop, gwServer := Start(cmd, ctx, cfg, log, dbApp, &hc)
+	grpcServerStop, gwServer := Start(cmd, ctx, cfg, log, dbApp, &hc, pw, worker)
 	defer grpcServerStop()
 
 	getVer := mocks.NewMockUseCaseGetVersion(ctrl)
