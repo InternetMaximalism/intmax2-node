@@ -1,4 +1,4 @@
-package deposit
+package deposit_service
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"github.com/holiman/uint256"
 )
 
-//go:generate mockgen -destination=mock_db_app.go -package=deposit -source=db_app.go
+//go:generate mockgen -destination=mock_db_app_test.go -package=deposit_service_test -source=db_app.go
 
 type SQLDriverApp interface {
 	GenericCommandsApp

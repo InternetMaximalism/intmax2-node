@@ -2,11 +2,17 @@ package deposit_service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/logger"
+	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
+	errorsDB "intmax2-node/pkg/sql_db/errors"
+	"math/big"
 	"sync"
+
+	"github.com/holiman/uint256"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -126,6 +132,7 @@ func DepositAnalyzer(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
+	db SQLDriverApp,
 	sb ServiceBlockchain,
 ) {
 	link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
@@ -144,12 +151,45 @@ func DepositAnalyzer(
 		log.Fatalf("Failed to instantiate a Liquidity contract: %v", err.Error())
 	}
 
+	// example -- start
+	const (
+		msgTestF = "Failed to fetch token by tokenIndex with DBApp: %v"
+		msgTestC = "Failed to create token by tokenIndex with DBApp: %v"
+		tokenIdx = "adasdasdsa"
+	)
+	var token *mDBApp.Token
+	token, err = db.TokenByIndex(tokenIdx)
+	if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
+		panic(fmt.Sprintf(msgTestF, err.Error()))
+	}
+	log.Printf("----------- 1 %+v\n", token)
+
+	const int11111Key = 11111
+	var tokenID uint256.Int
+	_ = tokenID.SetFromBig(new(big.Int).SetInt64(int64(int11111Key)))
+	var vvv *mDBApp.Token
+	vvv, err = db.CreateToken(tokenIdx, "", &tokenID)
+	if err != nil {
+		panic(fmt.Sprintf(msgTestC, err.Error()))
+	}
+	log.Printf("---------- 2 %+v\n", vvv)
+
+	token, err = db.TokenByIndex(tokenIdx)
+	if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
+		panic(fmt.Sprintf(msgTestF, err.Error()))
+	}
+	if errors.Is(err, errorsDB.ErrNotFound) {
+		panic(fmt.Sprintf(msgTestF, err.Error()))
+	}
+	log.Printf("----------- 3 %+v\n", token)
+	// example -- finish
+
 	lastSeenDepositIndex, err := liquidity.GetLastSeenDepositIndex(&bind.CallOpts{
 		Pending: false,
 		Context: ctx,
 	})
 	if err != nil {
-		log.Fatalf("Failed to get last seen deposit index: %v", err.Error())
+		panic(fmt.Sprintf("Failed to get last seen deposit index: %v", err.Error()))
 	}
 
 	lastSeenBlockNumber, err := fetchBlockNumberByDepositIndex(liquidity, lastSeenDepositIndex)
