@@ -1,6 +1,7 @@
-package goldenposeidon
+package goldenposeidon_test
 
 import (
+	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	"testing"
 
 	"github.com/iden3/go-iden3-crypto/ffg"
@@ -10,7 +11,7 @@ import (
 func TestChallenger(t *testing.T) {
 	t.Parallel()
 
-	challenger := NewChallenger()
+	challenger := intMaxGP.NewChallenger()
 
 	uintSlice := []uint64{1, 2}
 	feSlice := []*ffg.Element{}

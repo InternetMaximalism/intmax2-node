@@ -253,7 +253,7 @@ func (h *PoseidonHashOut) Marshal() []byte {
 	a := []byte{}
 	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
 		b := reverseBytes(h.Elements[i].Marshal())
-		a = append(a, b[:]...)
+		a = append(a, b...)
 	}
 
 	return a

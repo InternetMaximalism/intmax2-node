@@ -1,153 +1,175 @@
 package tree
 
 import (
+	"errors"
 	"fmt"
 	"intmax2-node/internal/hash/goldenposeidon"
-
-	"github.com/ethereum/go-ethereum/log"
 )
 
-type poseidonHashOut = goldenposeidon.PoseidonHashOut
+type PoseidonHashOut = goldenposeidon.PoseidonHashOut
 
 type PoseidonMerkleTree struct {
 	height      uint8
-	zeroHashes  []*poseidonHashOut
+	zeroHashes  []*PoseidonHashOut
 	count       uint64
-	siblings    []*poseidonHashOut
-	currentRoot poseidonHashOut
+	siblings    []*PoseidonHashOut
+	currentRoot PoseidonHashOut
 }
 
-// NewPoseidonMerkleTreeWithLeaves creates new PoseidonMerkleTree by giving leaf nodes.
-func NewPoseidonMerkleTree(height uint8, initialLeaves []*poseidonHashOut, zeroHash *poseidonHashOut) (*PoseidonMerkleTree, error) {
-	mt := &PoseidonMerkleTree{
+// NewPoseidonMerkleTree creates new PoseidonMerkleTree by giving leaf nodes.
+func NewPoseidonMerkleTree(
+	height uint8,
+	initialLeaves []*PoseidonHashOut,
+	zeroHash *PoseidonHashOut,
+) (mt *PoseidonMerkleTree, err error) {
+	mt = &PoseidonMerkleTree{
 		zeroHashes: generateZeroHashes(height, zeroHash),
 		height:     height,
 		count:      uint64(len(initialLeaves)),
 	}
-	var err error
+
 	mt.siblings, mt.currentRoot, err = mt.initSiblings(initialLeaves)
 	if err != nil {
-		log.Error("error initializing si siblings. Error: ", err)
-		return nil, err
+		return nil, errors.Join(ErrInitSISiblings, err)
 	}
-	log.Debug("Initial count: ", mt.count)
-	log.Debug("Initial root: ", mt.currentRoot)
+
 	return mt, nil
 }
 
-func buildIntermediate(leaves []*poseidonHashOut) (nodes [][]*poseidonHashOut, hashes []*poseidonHashOut) {
-	// var (
-	// 	nodes  [][]*poseidonHashOut
-	// 	hashes []*poseidonHashOut
-	// )
-	for i := 0; i < len(leaves); i += 2 {
-		var left, right = i, i + 1
+func buildIntermediate(leaves []*PoseidonHashOut) (nodes [][]*PoseidonHashOut, hashes []*PoseidonHashOut) {
+	const (
+		int0Key = 0
+		int1Key = 1
+		int2Key = 2
+	)
+
+	for i := int0Key; i < len(leaves); i += int2Key {
+		var left, right = i, i + int1Key
 		h := goldenposeidon.Compress(leaves[left], leaves[right])
-		nodes = append(nodes, []*poseidonHashOut{h, leaves[left], leaves[right]})
+		nodes = append(nodes, []*PoseidonHashOut{h, leaves[left], leaves[right]})
 		hashes = append(hashes, h)
 	}
+
 	return nodes, hashes
 }
 
 // BuildMerkleRoot computes the root given the leaves of the tree
-func (mt *PoseidonMerkleTree) BuildMerkleRoot(leaves []*poseidonHashOut) (*poseidonHashOut, error) {
-	var (
-		nodes [][][]*poseidonHashOut
-		ns    [][]*poseidonHashOut
+func (mt *PoseidonMerkleTree) BuildMerkleRoot(leaves []*PoseidonHashOut) (*PoseidonHashOut, error) {
+	const (
+		int0Key = 0
+		int1Key = 1
+		int2Key = 2
 	)
-	if len(leaves) == 0 {
-		leaves = append(leaves, mt.zeroHashes[0])
+
+	var (
+		nodes [][][]*PoseidonHashOut
+		ns    [][]*PoseidonHashOut
+	)
+	if len(leaves) == int0Key {
+		leaves = append(leaves, mt.zeroHashes[int0Key])
 	}
 
-	for h := uint8(0); h < mt.height; h++ {
-		if len(leaves)%2 == 1 {
+	for h := uint8(int0Key); h < mt.height; h++ {
+		if len(leaves)%int2Key == int1Key {
 			leaves = append(leaves, mt.zeroHashes[h])
 		}
 		ns, leaves = buildIntermediate(leaves)
 		nodes = append(nodes, ns)
 	}
-	if len(ns) != 1 {
-		return nil, fmt.Errorf("error: more than one root detected: %+v", nodes)
+	if len(ns) != int1Key {
+		return nil, fmt.Errorf("%s: %+v", ErrBuildMerkleRootMoreThenOne.Error(), nodes)
 	}
 
-	return ns[0][0], nil
+	return ns[int0Key][int0Key], nil
 }
 
-func generateZeroHashes(height uint8, zeroHash *poseidonHashOut) []*poseidonHashOut {
-	var zeroHashes = []*poseidonHashOut{
-		new(poseidonHashOut).Set(zeroHash),
+func generateZeroHashes(height uint8, zeroHash *PoseidonHashOut) []*PoseidonHashOut {
+	const (
+		int1Key = 1
+	)
+	var zeroHashes = []*PoseidonHashOut{
+		new(PoseidonHashOut).Set(zeroHash),
 	}
 	// This generates a leaf = HashZero in position 0. In the rest of the positions that are equivalent to the ascending levels,
 	// we set the hashes of the nodes. So all nodes from level i=5 will have the same value and same children nodes.
-	for i := 1; i <= int(height); i++ {
-		zeroHashes = append(zeroHashes, goldenposeidon.Compress(zeroHashes[i-1], zeroHashes[i-1]))
+	for i := int1Key; i <= int(height); i++ {
+		zeroHashes = append(zeroHashes, goldenposeidon.Compress(zeroHashes[i-int1Key], zeroHashes[i-int1Key]))
 	}
 	return zeroHashes
 }
 
 // ComputeMerkleProof computes the merkleProof and root given the leaves of the tree
-func (mt *PoseidonMerkleTree) ComputeMerkleProof(index uint64, leaves []*poseidonHashOut) (siblings []*poseidonHashOut, root poseidonHashOut, err error) {
-	var ns [][]*poseidonHashOut
-	if len(leaves) == 0 {
-		leaves = append(leaves, mt.zeroHashes[0])
+func (mt *PoseidonMerkleTree) ComputeMerkleProof(index uint64, leaves []*PoseidonHashOut) (siblings []*PoseidonHashOut, root PoseidonHashOut, err error) {
+	const (
+		int0Key = 0
+		int1Key = 1
+		int2Key = 2
+	)
+	var ns [][]*PoseidonHashOut
+	if len(leaves) == int0Key {
+		leaves = append(leaves, mt.zeroHashes[int0Key])
 	}
 	proofIndex := index
-	for h := uint8(0); h < mt.height; h++ {
-		if len(leaves)%2 == 1 {
+	for h := uint8(int0Key); h < mt.height; h++ {
+		if len(leaves)%int2Key == int1Key {
 			leaves = append(leaves, mt.zeroHashes[h])
 		}
-		if proofIndex%2 == 1 {
+		if proofIndex%int2Key == int1Key {
 			// If it is odd
-			siblings = append(siblings, leaves[proofIndex-1])
-		} else if len(leaves) > 1 {
+			siblings = append(siblings, leaves[proofIndex-int1Key])
+		} else if len(leaves) > int1Key {
 			if proofIndex >= uint64(len(leaves)) {
-				siblings = append(siblings, leaves[proofIndex-1])
+				siblings = append(siblings, leaves[proofIndex-int1Key])
 			} else {
-				siblings = append(siblings, leaves[proofIndex+1])
+				siblings = append(siblings, leaves[proofIndex+int1Key])
 			}
 		}
 
 		var (
-			nsi    [][]*poseidonHashOut
-			hashes []*poseidonHashOut
+			nsi    [][]*PoseidonHashOut
+			hashes []*PoseidonHashOut
 		)
-		for i := 0; i < len(leaves); i += 2 {
-			var left, right = i, i + 1
+		for i := int0Key; i < len(leaves); i += int2Key {
+			var left, right = i, i + int1Key
 			h := goldenposeidon.Compress(leaves[left], leaves[right])
-			nsi = append(nsi, []*poseidonHashOut{h, leaves[left], leaves[right]})
+			nsi = append(nsi, []*PoseidonHashOut{h, leaves[left], leaves[right]})
 			hashes = append(hashes, h)
 		}
 		// Find the index of the leave in the next level of the tree.
 		// Divide the index by 2 to find the position in the upper level
-		const half = 2
-		proofIndex = uint64(float64(proofIndex) / half)
+		proofIndex = uint64(float64(proofIndex) / int2Key)
 		ns = nsi
 		leaves = hashes
 	}
-	if len(ns) != 1 {
-		return nil, poseidonHashOut{}, fmt.Errorf("error: more than one root detected: %+v", ns)
+	if len(ns) != int1Key {
+		return nil, PoseidonHashOut{}, fmt.Errorf("%s: %+v", ErrBuildMerkleRootMoreThenOne, ns)
 	}
 
-	return siblings, *ns[0][0], nil
+	return siblings, *ns[int0Key][int0Key], nil
 }
 
 // AddLeaf adds new leaves to the tree and computes the new root
-func (mt *PoseidonMerkleTree) AddLeaf(index uint64, leaf *poseidonHashOut) (*poseidonHashOut, error) {
+func (mt *PoseidonMerkleTree) AddLeaf(index uint64, leaf *PoseidonHashOut) (*PoseidonHashOut, error) {
 	if index != mt.count {
-		return nil, fmt.Errorf("mismatched leaf count: %d, expected: %d", index, mt.count)
+		const msg = "mismatched leaf count: %d, expected: %d"
+		return nil, fmt.Errorf(msg, index, mt.count)
 	}
-	cur := new(poseidonHashOut).Set(leaf)
+	cur := new(PoseidonHashOut).Set(leaf)
 	isFilledSubTree := true
 
-	for h := uint8(0); h < mt.height; h++ {
-		if index&(1<<h) > 0 {
+	const (
+		int0Key = 0
+		int1Key = 1
+	)
+	for h := uint8(int0Key); h < mt.height; h++ {
+		if index&(int1Key<<h) > int0Key {
 			child := cur
 			parent := goldenposeidon.Compress(mt.siblings[h], child)
 			cur = parent
 		} else {
 			if isFilledSubTree {
 				// we will update the sibling when the sub tree is complete
-				mt.siblings[h] = new(poseidonHashOut).Set(cur)
+				mt.siblings[h] = new(PoseidonHashOut).Set(cur)
 				// we have a left child in this layer, it means the right child is empty so the sub tree is not completed
 				isFilledSubTree = false
 			}
@@ -164,20 +186,23 @@ func (mt *PoseidonMerkleTree) AddLeaf(index uint64, leaf *poseidonHashOut) (*pos
 
 // initSiblings returns the siblings of the node at the given index.
 // it is used to initialize the siblings array in the beginning.
-func (mt *PoseidonMerkleTree) initSiblings(initialLeaves []*poseidonHashOut) (siblings []*poseidonHashOut, root poseidonHashOut, err error) {
+func (mt *PoseidonMerkleTree) initSiblings(initialLeaves []*PoseidonHashOut) (siblings []*PoseidonHashOut, root PoseidonHashOut, err error) {
 	if mt.count != uint64(len(initialLeaves)) {
-		return nil, poseidonHashOut{}, fmt.Errorf("error: mt.count and initialLeaves length mismatch")
+		return nil, PoseidonHashOut{}, ErrInitSiblingsFail
 	}
-	if mt.count == 0 {
-		for h := 0; h < int(mt.height); h++ {
-			left := new(poseidonHashOut)
+
+	const (
+		int0Key = 0
+	)
+	if mt.count == int0Key {
+		for h := int0Key; h < int(mt.height); h++ {
+			left := new(PoseidonHashOut)
 			copy(left.Elements[:], mt.zeroHashes[h].Elements[:])
 			siblings = append(siblings, left)
 		}
 		root, err := mt.BuildMerkleRoot(initialLeaves) // nolint:govet
 		if err != nil {
-			log.Error("error calculating initial root: ", err)
-			return nil, poseidonHashOut{}, err
+			return nil, PoseidonHashOut{}, errors.Join(ErrCalculateInitMerkelRootFail, err)
 		}
 		return siblings, *root, nil
 	}
@@ -186,6 +211,10 @@ func (mt *PoseidonMerkleTree) initSiblings(initialLeaves []*poseidonHashOut) (si
 }
 
 // GetCurrentRootCountAndSiblings returns the latest root, count and sibblings
-func (mt *PoseidonMerkleTree) GetCurrentRootCountAndSiblings() (root poseidonHashOut, count uint64, siblings []*poseidonHashOut) {
+func (mt *PoseidonMerkleTree) GetCurrentRootCountAndSiblings() (root PoseidonHashOut, count uint64, siblings []*PoseidonHashOut) {
 	return mt.currentRoot, mt.count, mt.siblings
+}
+
+func (mt *PoseidonMerkleTree) CurrentRoot() PoseidonHashOut {
+	return mt.currentRoot
 }

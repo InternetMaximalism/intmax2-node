@@ -1,8 +1,9 @@
-package tree
+package tree_test
 
 import (
-	"intmax2-node/internal/hash/goldenposeidon"
-	"intmax2-node/internal/types"
+	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
+	intMaxTree "intmax2-node/internal/tree"
+	intMaxTypes "intmax2-node/internal/types"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,51 +11,51 @@ import (
 )
 
 func TestTxTree(t *testing.T) {
-	zeroTx := types.Tx{
-		FeeTransferHash:  goldenposeidon.NewPoseidonHashOut(),
-		TransferTreeRoot: goldenposeidon.NewPoseidonHashOut(),
+	zeroTx := intMaxTypes.Tx{
+		FeeTransferHash:  intMaxGP.NewPoseidonHashOut(),
+		TransferTreeRoot: intMaxGP.NewPoseidonHashOut(),
 	}
 	zeroTxHash := zeroTx.Hash()
-	initialLeaves := make([]*types.Tx, 0)
-	mt, err := NewTxTree(3, initialLeaves, zeroTxHash)
+	initialLeaves := make([]*intMaxTypes.Tx, 0)
+	mt, err := intMaxTree.NewTxTree(3, initialLeaves, zeroTxHash)
 	require.Nil(t, err)
 
-	leaves := make([]*types.Tx, 8)
+	leaves := make([]*intMaxTypes.Tx, 8)
 	for i := 0; i < 4; i++ {
-		leaves[i], _ = new(types.Tx).SetRandom()
+		leaves[i], _ = new(intMaxTypes.Tx).SetRandom()
 		_, err := mt.AddLeaf(uint64(i), leaves[i])
 		require.Nil(t, err)
 	}
 
-	expectedRoot := goldenposeidon.Compress(
-		goldenposeidon.Compress(goldenposeidon.Compress(leaves[0].Hash(), leaves[1].Hash()), goldenposeidon.Compress(leaves[2].Hash(), leaves[3].Hash())),
-		goldenposeidon.Compress(goldenposeidon.Compress(zeroTxHash, zeroTxHash), goldenposeidon.Compress(zeroTxHash, zeroTxHash)),
+	expectedRoot := intMaxGP.Compress(
+		intMaxGP.Compress(intMaxGP.Compress(leaves[0].Hash(), leaves[1].Hash()), intMaxGP.Compress(leaves[2].Hash(), leaves[3].Hash())),
+		intMaxGP.Compress(intMaxGP.Compress(zeroTxHash, zeroTxHash), intMaxGP.Compress(zeroTxHash, zeroTxHash)),
 	)
 	// expectedRoot :=
-	// 	goldenposeidon.Compress(goldenposeidon.Compress(leaves[0].Hash(), leaves[1].Hash()), goldenposeidon.Compress(leaves[2].Hash(), leaves[3].Hash()))
+	// 	intMaxGP.Compress(intMaxGP.Compress(leaves[0].Hash(), leaves[1].Hash()), intMaxGP.Compress(leaves[2].Hash(), leaves[3].Hash()))
 	actualRoot, _, _ := mt.GetCurrentRootCountAndSiblings()
 	assert.Equal(t, expectedRoot.Elements, actualRoot.Elements)
 
-	leaves[4], _ = new(types.Tx).SetRandom()
+	leaves[4], _ = new(intMaxTypes.Tx).SetRandom()
 	_, err = mt.AddLeaf(4, leaves[4])
 	require.Nil(t, err)
 
-	expectedRoot = goldenposeidon.Compress(
-		goldenposeidon.Compress(goldenposeidon.Compress(leaves[0].Hash(), leaves[1].Hash()), goldenposeidon.Compress(leaves[2].Hash(), leaves[3].Hash())),
-		goldenposeidon.Compress(goldenposeidon.Compress(leaves[4].Hash(), zeroTxHash), goldenposeidon.Compress(zeroTxHash, zeroTxHash)),
+	expectedRoot = intMaxGP.Compress(
+		intMaxGP.Compress(intMaxGP.Compress(leaves[0].Hash(), leaves[1].Hash()), intMaxGP.Compress(leaves[2].Hash(), leaves[3].Hash())),
+		intMaxGP.Compress(intMaxGP.Compress(leaves[4].Hash(), zeroTxHash), intMaxGP.Compress(zeroTxHash, zeroTxHash)),
 	)
 	actualRoot, _, _ = mt.GetCurrentRootCountAndSiblings()
 	assert.Equal(t, expectedRoot.Elements, actualRoot.Elements)
 
 	for i := 5; i < 8; i++ {
-		leaves[i], _ = new(types.Tx).SetRandom()
+		leaves[i], _ = new(intMaxTypes.Tx).SetRandom()
 		_, err := mt.AddLeaf(uint64(i), leaves[i])
 		require.Nil(t, err)
 	}
 
-	expectedRoot = goldenposeidon.Compress(
-		goldenposeidon.Compress(goldenposeidon.Compress(leaves[0].Hash(), leaves[1].Hash()), goldenposeidon.Compress(leaves[2].Hash(), leaves[3].Hash())),
-		goldenposeidon.Compress(goldenposeidon.Compress(leaves[4].Hash(), leaves[5].Hash()), goldenposeidon.Compress(leaves[6].Hash(), leaves[7].Hash())),
+	expectedRoot = intMaxGP.Compress(
+		intMaxGP.Compress(intMaxGP.Compress(leaves[0].Hash(), leaves[1].Hash()), intMaxGP.Compress(leaves[2].Hash(), leaves[3].Hash())),
+		intMaxGP.Compress(intMaxGP.Compress(leaves[4].Hash(), leaves[5].Hash()), intMaxGP.Compress(leaves[6].Hash(), leaves[7].Hash())),
 	)
 	actualRoot, _, _ = mt.GetCurrentRootCountAndSiblings()
 	assert.Equal(t, expectedRoot.Elements, actualRoot.Elements)

@@ -9,6 +9,6 @@ func (s *Server) BlockProposed(
 	ctx context.Context,
 	req *node.BlockProposedRequest,
 ) (*node.BlockProposedResponse, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }

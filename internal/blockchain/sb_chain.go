@@ -17,9 +17,16 @@ import (
 
 var ErrScrollChainIDInvalid = fmt.Errorf(errorsB.ErrScrollChainIDInvalidStr, ScrollMainNetChainID, ScrollSepoliaChainID)
 
+var ErrEthereumChainIDInvalid = fmt.Errorf(
+	errorsB.ErrEthereumChainIDInvalidStr, EthereumMainNetChainID, EthereumSepoliaChainID,
+)
+
 type ChainIDType string
 
 const (
+	EthereumMainNetChainID ChainIDType = "1"
+	EthereumSepoliaChainID ChainIDType = "11155111"
+
 	ScrollMainNetChainID ChainIDType = "534352"
 	ScrollSepoliaChainID ChainIDType = "534351"
 )
@@ -27,6 +34,9 @@ const (
 type ChainLinkEvmJSONRPC string
 
 const (
+	EthereumMainNetChainLinkEvmJSONRPC ChainLinkEvmJSONRPC = "https://mainnet.infura.io/v3"
+	EthereumSepoliaChainLinkEvmJSONRPC ChainLinkEvmJSONRPC = "https://rpc.sepolia.org"
+
 	ScrollMainNetChainLinkEvmJSONRPC ChainLinkEvmJSONRPC = "https://rpc.scroll.io"
 	ScrollSepoliaChainLinkEvmJSONRPC ChainLinkEvmJSONRPC = "https://sepolia-rpc.scroll.io"
 )
@@ -34,6 +44,9 @@ const (
 type ChainLinkExplorer string
 
 const (
+	EthereumMainNetChainLinkExplorer ChainLinkExplorer = "https://etherscan.io"
+	EthereumSepoliaChainLinkExplorer ChainLinkExplorer = "https://sepolia.etherscan.io"
+
 	ScrollMainNetChainLinkExplorer ChainLinkExplorer = "https://sepolia.scrollscan.com"
 	ScrollSepoliaChainLinkExplorer ChainLinkExplorer = "https://scrollscan.com"
 )
@@ -130,4 +143,98 @@ func (sb *serviceBlockchain) ScrollNetworkChainLinkExplorer(ctx context.Context)
 	}
 
 	return string(ScrollSepoliaChainLinkExplorer), nil
+}
+
+func (sb *serviceBlockchain) ethereumNetworkChainIDValidator() error {
+	return validation.Validate(sb.cfg.Blockchain.EthereumNetworkChainID,
+		validation.Required,
+		validation.In(
+			string(EthereumMainNetChainID), string(EthereumSepoliaChainID),
+		),
+	)
+}
+
+func (sb *serviceBlockchain) SetupEthereumNetworkChainID(ctx context.Context) error {
+	const (
+		hName = "ServiceBlockchain func:SetupEthereumNetworkChainID"
+	)
+
+	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
+	defer span.End()
+
+	err := sb.ethereumNetworkChainIDValidator()
+	if err != nil {
+		const (
+			enterMSG = "Enter the Ethereum network chain-ID:"
+			crlf     = '\n'
+		)
+		fmt.Printf(enterMSG)
+		var chainID string
+		chainID, err = bufio.NewReader(os.Stdin).ReadString(crlf)
+		if err != nil {
+			open_telemetry.MarkSpanError(spanCtx, err)
+			return errors.Join(errorsB.ErrStdinProcessingFail, err)
+		}
+		sb.cfg.Blockchain.EthereumNetworkChainID = strings.TrimSpace(chainID)
+	}
+
+	err = sb.ethereumNetworkChainIDValidator()
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return errors.Join(ErrEthereumChainIDInvalid, err)
+	}
+
+	return nil
+}
+
+func (sb *serviceBlockchain) EthereumNetworkChainLinkEvmJSONRPC(ctx context.Context) (string, error) {
+	const (
+		hName                     = "ServiceBlockchain func:EthereumNetworkChainLinkEvmJSONRPC"
+		ethereumNetworkChainIDKey = "ethereum_network_chain_id"
+		emptyKey                  = ""
+	)
+
+	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName,
+		trace.WithAttributes(
+			attribute.String(ethereumNetworkChainIDKey, sb.cfg.Blockchain.EthereumNetworkChainID),
+		))
+	defer span.End()
+
+	err := sb.ethereumNetworkChainIDValidator()
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return emptyKey, errors.Join(ErrEthereumChainIDInvalid, err)
+	}
+
+	if strings.EqualFold(sb.cfg.Blockchain.EthereumNetworkChainID, string(EthereumMainNetChainID)) {
+		return string(EthereumMainNetChainLinkEvmJSONRPC), nil
+	}
+
+	return string(EthereumSepoliaChainLinkEvmJSONRPC), nil
+}
+
+func (sb *serviceBlockchain) EthereumNetworkChainLinkExplorer(ctx context.Context) (string, error) {
+	const (
+		hName                     = "ServiceBlockchain func:EthereumNetworkChainLinkExplorer"
+		ethereumNetworkChainIDKey = "ethereum_network_chain_id"
+		emptyKey                  = ""
+	)
+
+	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName,
+		trace.WithAttributes(
+			attribute.String(ethereumNetworkChainIDKey, sb.cfg.Blockchain.EthereumNetworkChainID),
+		))
+	defer span.End()
+
+	err := sb.ethereumNetworkChainIDValidator()
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return emptyKey, errors.Join(ErrEthereumChainIDInvalid, err)
+	}
+
+	if strings.EqualFold(sb.cfg.Blockchain.ScrollNetworkChainID, string(ScrollMainNetChainID)) {
+		return string(ScrollMainNetChainLinkExplorer), nil
+	}
+
+	return string(EthereumSepoliaChainLinkExplorer), nil
 }

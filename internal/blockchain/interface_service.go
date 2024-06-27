@@ -17,13 +17,17 @@ type ServiceBlockchain interface {
 
 type GenericCommandsSB interface {
 	Check(ctx context.Context) (res health.Health)
-	CheckPrivateKey(ctx context.Context) (err error)
+	CheckScrollPrivateKey(ctx context.Context) (err error)
+	CheckEthereumPrivateKey(ctx context.Context) (err error)
 }
 
 type ChainSB interface {
 	SetupScrollNetworkChainID(ctx context.Context) error
 	ScrollNetworkChainLinkEvmJSONRPC(ctx context.Context) (string, error)
 	ScrollNetworkChainLinkExplorer(ctx context.Context) (string, error)
+	SetupEthereumNetworkChainID(ctx context.Context) error
+	EthereumNetworkChainLinkEvmJSONRPC(ctx context.Context) (string, error)
+	EthereumNetworkChainLinkExplorer(ctx context.Context) (string, error)
 }
 
 type WalletSB interface {

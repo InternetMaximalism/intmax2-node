@@ -47,7 +47,7 @@ func NewServerCmd(s *Server) *cobra.Command {
 		Use:   use,
 		Short: short,
 		Run: func(cmd *cobra.Command, args []string) {
-			err := s.SB.CheckPrivateKey(s.Context)
+			err := s.SB.CheckScrollPrivateKey(s.Context)
 			if err != nil {
 				const msg = "check private key error occurred: %v"
 				s.Log.Fatalf(msg, err.Error())

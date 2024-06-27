@@ -9,6 +9,6 @@ func (s *Server) Info(
 	ctx context.Context,
 	req *node.InfoRequest,
 ) (*node.InfoResponse, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }

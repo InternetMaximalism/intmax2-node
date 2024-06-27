@@ -56,6 +56,7 @@ Usage:
 
 Available Commands:
   completion                  Generate the autocompletion script for the specified shell
+  deposit                     Manage deposit
   ethereum_private_key_wallet Generate Ethereum and IntMax wallets from Ethereum private key
   generate_account            Generate new Ethereum and IntMax accounts
   help                        Help about any command
@@ -150,17 +151,44 @@ Flags:
   -h, --help                 help for private_key_wallet
       --private_key string   private_key flag. use as --private_key "__PRIVATE_KEY_IN_HEX_WITHOUT_0x__"
 ```
-### Command `./intmax2-node intmax_private_key_wallet --help`
+### Command `./intmax2-node deposit --help`
 ```
-# ./intmax2-node intmax_private_key_wallet --help
-Generate IntMax wallet from IntMax private key
+# ./intmax2-node deposit --help
+Manage deposit
 
 Usage:
-  app private_key_wallet [flags]
+  app deposit [command]
+
+Available Commands:
+  analyzer    Run deposit analyzer service
+  relayer     Run deposit relayer service
 
 Flags:
-  -h, --help                 help for private_key_wallet
-      --private_key string   private_key flag. use as --private_key "__PRIVATE_KEY_IN_HEX_WITHOUT_0x__"
+  -h, --help   help for deposit
+
+Use "app deposit [command] --help" for more information about a command.
+```
+### Command `./intmax2-node deposit analyzer --help`
+```
+# ./intmax2-node deposit analyzer --help
+Run deposit analyzer service
+
+Usage:
+  app deposit analyzer [flags]
+
+Flags:
+  -h, --help   help for analyzer
+```
+### Command `./intmax2-node deposit relayer --help`
+```
+# ./intmax2-node deposit relayer --help
+Run deposit relayer service
+
+Usage:
+  app deposit relayer [flags]
+
+Flags:
+  -h, --help   help for relayer
 ```
 
 ## Network
@@ -191,6 +219,8 @@ When a node starts, it tries to find and remember its external address in this o
 |   | BLOCKCHAIN_SCROLL_STAKE_BALANCE                  | 100000000000000000                                                 | the Scroll blockchain balance value for stake with block builder update (min value equal or more then 0.1ETH)                              |
 | * | BLOCKCHAIN_ROLLUP_CONTRACT_ADDRESS               |                                                                    | the Rollup Contract address in the Scroll blockchain                                                                                       |
 | * | BLOCKCHAIN_TEMPLATE_CONTRACT_ROLLUP_PATH         | templates/contracts/Rollup.json                                    | path to a file with information template for Rollup contract                                                                               |
+|   | BLOCKCHAIN_ETHEREUM_NETWORK_CHAIN_ID             |                                                                    | the Ethereum blockchain network ID. Chain ID must be equal: Sepolia = `11155111`; Ethereum = `1`                                           |
+|   | BLOCKCHAIN_ETHEREUM_PRIVATE_KEY_HEX              |                                                                    | (pk) Ethereum private key                                                                                                                  |
 |   | **WALLET**                                       |                                                                    |                                                                                                                                            |
 |   | WALLET_PRIVATE_KEY_HEX                           |                                                                    | (pk) private key for wallet address recognizing                                                                                            |
 |   | WALLET_MNEMONIC_VALUE                            |                                                                    | (mnemonic) mnemonic for recovery private key                                                                                               |

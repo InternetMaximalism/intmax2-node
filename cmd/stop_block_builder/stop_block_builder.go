@@ -21,7 +21,7 @@ func NewCmd(
 		Use:   use,
 		Short: short,
 		Run: func(cmd *cobra.Command, args []string) {
-			err := sb.CheckPrivateKey(ctx)
+			err := sb.CheckScrollPrivateKey(ctx)
 			if err != nil {
 				const msg = "check private key error occurred: %v"
 				log.Fatalf(msg, err.Error())

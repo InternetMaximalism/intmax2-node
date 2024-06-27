@@ -19,7 +19,7 @@ type ServiceBlockchain interface {
 
 type GenericCommandsSB interface {
 	Check(ctx context.Context) (res health.Health)
-	CheckPrivateKey(ctx context.Context) (err error)
+	CheckScrollPrivateKey(ctx context.Context) (err error)
 }
 
 type ChainSB interface {

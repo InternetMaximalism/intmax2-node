@@ -208,7 +208,6 @@ func (_Liquidity *LiquidityCaller) RollupContract(opts *bind.CallOpts) (common.A
 	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
 
 	return out0, err
-
 }
 
 // RollupContract is a free data retrieval call binding the contract method 0x6a49c47d.
@@ -239,7 +238,6 @@ func (_Liquidity *LiquidityCaller) ScrollMessenger(opts *bind.CallOpts) (common.
 	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
 
 	return out0, err
-
 }
 
 // ScrollMessenger is a free data retrieval call binding the contract method 0xaa8fc35b.
@@ -270,7 +268,6 @@ func (_Liquidity *LiquidityCaller) GetDeposit(opts *bind.CallOpts, depositIndex 
 	out0 := *abi.ConvertType(out[0], new(ILiquidityDepositData)).(*ILiquidityDepositData)
 
 	return out0, err
-
 }
 
 // GetDeposit is a free data retrieval call binding the contract method 0xae59a6b2.
@@ -301,7 +298,6 @@ func (_Liquidity *LiquidityCaller) GetDepositCounter(opts *bind.CallOpts) (uint6
 	out0 := *abi.ConvertType(out[0], new(uint64)).(*uint64)
 
 	return out0, err
-
 }
 
 // GetDepositCounter is a free data retrieval call binding the contract method 0xd28906c9.
@@ -332,7 +328,6 @@ func (_Liquidity *LiquidityCaller) GetLastProcessedDepositIndex(opts *bind.CallO
 	out0 := *abi.ConvertType(out[0], new(uint64)).(*uint64)
 
 	return out0, err
-
 }
 
 // GetLastProcessedDepositIndex is a free data retrieval call binding the contract method 0x107ef267.
@@ -363,7 +358,6 @@ func (_Liquidity *LiquidityCaller) GetLastSeenDepositIndex(opts *bind.CallOpts) 
 	out0 := *abi.ConvertType(out[0], new(uint64)).(*uint64)
 
 	return out0, err
-
 }
 
 // GetLastSeenDepositIndex is a free data retrieval call binding the contract method 0xbeb1e041.
@@ -394,7 +388,6 @@ func (_Liquidity *LiquidityCaller) GetTokenIndex(opts *bind.CallOpts, tokenType 
 	out0 := *abi.ConvertType(out[0], new(uint32)).(*uint32)
 
 	return out0, err
-
 }
 
 // GetTokenIndex is a free data retrieval call binding the contract method 0x381175f6.
@@ -425,7 +418,6 @@ func (_Liquidity *LiquidityCaller) GetTokenInfo(opts *bind.CallOpts, tokenIndex 
 	out0 := *abi.ConvertType(out[0], new(ILiquidityTokenInfo)).(*ILiquidityTokenInfo)
 
 	return out0, err
-
 }
 
 // GetTokenInfo is a free data retrieval call binding the contract method 0xcbd90cd0.
@@ -666,7 +658,6 @@ type LiquidityCanceledDeposit struct {
 //
 // Solidity: event CanceledDeposit(uint64 indexed depositIndex)
 func (_Liquidity *LiquidityFilterer) FilterCanceledDeposit(opts *bind.FilterOpts, depositIndex []uint64) (*LiquidityCanceledDepositIterator, error) {
-
 	var depositIndexRule []interface{}
 	for _, depositIndexItem := range depositIndex {
 		depositIndexRule = append(depositIndexRule, depositIndexItem)
@@ -683,7 +674,6 @@ func (_Liquidity *LiquidityFilterer) FilterCanceledDeposit(opts *bind.FilterOpts
 //
 // Solidity: event CanceledDeposit(uint64 indexed depositIndex)
 func (_Liquidity *LiquidityFilterer) WatchCanceledDeposit(opts *bind.WatchOpts, sink chan<- *LiquidityCanceledDeposit, depositIndex []uint64) (event.Subscription, error) {
-
 	var depositIndexRule []interface{}
 	for _, depositIndexItem := range depositIndex {
 		depositIndexRule = append(depositIndexRule, depositIndexItem)
@@ -814,7 +804,6 @@ type LiquidityDeposited struct {
 //
 // Solidity: event Deposited(bytes32 indexed recipient, uint64 indexed depositIndex, address indexed sender, uint32 tokenIndex, uint256 amount)
 func (_Liquidity *LiquidityFilterer) FilterDeposited(opts *bind.FilterOpts, recipient [][32]byte, depositIndex []uint64, sender []common.Address) (*LiquidityDepositedIterator, error) {
-
 	var recipientRule []interface{}
 	for _, recipientItem := range recipient {
 		recipientRule = append(recipientRule, recipientItem)
@@ -839,7 +828,6 @@ func (_Liquidity *LiquidityFilterer) FilterDeposited(opts *bind.FilterOpts, reci
 //
 // Solidity: event Deposited(bytes32 indexed recipient, uint64 indexed depositIndex, address indexed sender, uint32 tokenIndex, uint256 amount)
 func (_Liquidity *LiquidityFilterer) WatchDeposited(opts *bind.WatchOpts, sink chan<- *LiquidityDeposited, recipient [][32]byte, depositIndex []uint64, sender []common.Address) (event.Subscription, error) {
-
 	var recipientRule []interface{}
 	for _, recipientItem := range recipient {
 		recipientRule = append(recipientRule, recipientItem)

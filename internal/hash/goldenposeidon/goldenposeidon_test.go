@@ -1,6 +1,7 @@
-package goldenposeidon
+package goldenposeidon_test
 
 import (
+	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,10 +17,10 @@ func TestHash(t *testing.T) {
 	bm1 := prime - 1
 	bM := prime
 
-	h := Hash([NROUNDSF]uint64{b0, b0, b0, b0, b0, b0, b0, b0},
-		[CAPLEN]uint64{b0, b0, b0, b0})
+	h := intMaxGP.Hash([intMaxGP.NROUNDSF]uint64{b0, b0, b0, b0, b0, b0, b0, b0},
+		[intMaxGP.CAPLEN]uint64{b0, b0, b0, b0})
 	assert.Equal(t,
-		[CAPLEN]uint64{
+		[intMaxGP.CAPLEN]uint64{
 			4330397376401421145,
 			14124799381142128323,
 			8742572140681234676,
@@ -27,10 +28,10 @@ func TestHash(t *testing.T) {
 		}, h,
 	)
 
-	h = Hash([NROUNDSF]uint64{1, 2, b0, b0, b0, b0, b0, b0},
-		[CAPLEN]uint64{b0, b0, b0, b0})
+	h = intMaxGP.Hash([intMaxGP.NROUNDSF]uint64{1, 2, b0, b0, b0, b0, b0, b0},
+		[intMaxGP.CAPLEN]uint64{b0, b0, b0, b0})
 	assert.Equal(t,
-		[CAPLEN]uint64{
+		[intMaxGP.CAPLEN]uint64{
 			17222278624453642754,
 			11209788157740309596,
 			13716685746781302004,
@@ -38,10 +39,10 @@ func TestHash(t *testing.T) {
 		}, h,
 	)
 
-	h = Hash([NROUNDSF]uint64{b1, b1, b1, b1, b1, b1, b1, b1},
-		[CAPLEN]uint64{b1, b1, b1, b1})
+	h = intMaxGP.Hash([intMaxGP.NROUNDSF]uint64{b1, b1, b1, b1, b1, b1, b1, b1},
+		[intMaxGP.CAPLEN]uint64{b1, b1, b1, b1})
 	assert.Equal(t,
-		[CAPLEN]uint64{
+		[intMaxGP.CAPLEN]uint64{
 			16428316519797902711,
 			13351830238340666928,
 			682362844289978626,
@@ -49,10 +50,10 @@ func TestHash(t *testing.T) {
 		}, h,
 	)
 
-	h = Hash([NROUNDSF]uint64{b1, b1, b1, b1, b1, b1, b1, b1},
-		[CAPLEN]uint64{b1, b1, b1, b1})
+	h = intMaxGP.Hash([intMaxGP.NROUNDSF]uint64{b1, b1, b1, b1, b1, b1, b1, b1},
+		[intMaxGP.CAPLEN]uint64{b1, b1, b1, b1})
 	assert.Equal(t,
-		[CAPLEN]uint64{
+		[intMaxGP.CAPLEN]uint64{
 			16428316519797902711,
 			13351830238340666928,
 			682362844289978626,
@@ -60,12 +61,12 @@ func TestHash(t *testing.T) {
 		}, h,
 	)
 
-	h = Hash(
-		[NROUNDSF]uint64{bm1, bm1, bm1, bm1, bm1, bm1, bm1, bm1},
-		[CAPLEN]uint64{bm1, bm1, bm1, bm1},
+	h = intMaxGP.Hash(
+		[intMaxGP.NROUNDSF]uint64{bm1, bm1, bm1, bm1, bm1, bm1, bm1, bm1},
+		[intMaxGP.CAPLEN]uint64{bm1, bm1, bm1, bm1},
 	)
 	assert.Equal(t,
-		[CAPLEN]uint64{
+		[intMaxGP.CAPLEN]uint64{
 			13691089994624172887,
 			15662102337790434313,
 			14940024623104903507,
@@ -73,10 +74,10 @@ func TestHash(t *testing.T) {
 		}, h,
 	)
 
-	h = Hash([NROUNDSF]uint64{bM, bM, bM, bM, bM, bM, bM, bM},
-		[CAPLEN]uint64{b0, b0, b0, b0})
+	h = intMaxGP.Hash([intMaxGP.NROUNDSF]uint64{bM, bM, bM, bM, bM, bM, bM, bM},
+		[intMaxGP.CAPLEN]uint64{b0, b0, b0, b0})
 	assert.Equal(t,
-		[CAPLEN]uint64{
+		[intMaxGP.CAPLEN]uint64{
 			4330397376401421145,
 			14124799381142128323,
 			8742572140681234676,
@@ -84,7 +85,7 @@ func TestHash(t *testing.T) {
 		}, h,
 	)
 
-	h = Hash([NROUNDSF]uint64{
+	h = intMaxGP.Hash([intMaxGP.NROUNDSF]uint64{
 		uint64(923978),
 		uint64(235763497586),
 		uint64(9827635653498),
@@ -93,9 +94,9 @@ func TestHash(t *testing.T) {
 		uint64(230295874986745876),
 		uint64(6254867324987),
 		uint64(2087),
-	}, [CAPLEN]uint64{b0, b0, b0, b0})
+	}, [intMaxGP.CAPLEN]uint64{b0, b0, b0, b0})
 	assert.Equal(t,
-		[CAPLEN]uint64{
+		[intMaxGP.CAPLEN]uint64{
 			1892171027578617759,
 			984732815927439256,
 			7866041765487844082,

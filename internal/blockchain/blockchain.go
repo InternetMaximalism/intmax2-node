@@ -60,9 +60,9 @@ func (sb *serviceBlockchain) Check(_ context.Context) (res health.Health) {
 	return res
 }
 
-func (sb *serviceBlockchain) CheckPrivateKey(ctx context.Context) (err error) {
+func (sb *serviceBlockchain) CheckScrollPrivateKey(ctx context.Context) (err error) {
 	const (
-		hName = "ServiceBlockchain func:CheckPrivateKey"
+		hName = "ServiceBlockchain func:CheckScrollPrivateKey"
 
 		minus1Key = -1
 	)
@@ -77,10 +77,10 @@ func (sb *serviceBlockchain) CheckPrivateKey(ctx context.Context) (err error) {
 	}
 
 	var pk string
-	pk, err = sb.recognizingPrivateKey(spanCtx)
+	pk, err = sb.recognizingScrollPrivateKey(spanCtx)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
-		return errors.Join(errorsB.ErrRecognizingPrivateKeyFail, err)
+		return errors.Join(errorsB.ErrRecognizingScrollPrivateKeyFail, err)
 	}
 
 	var w *modelsMW.Wallet
@@ -105,11 +105,34 @@ func (sb *serviceBlockchain) CheckPrivateKey(ctx context.Context) (err error) {
 	return nil
 }
 
-func (sb *serviceBlockchain) recognizingPrivateKey(
+func (sb *serviceBlockchain) CheckEthereumPrivateKey(ctx context.Context) (err error) {
+	const (
+		hName = "ServiceBlockchain func:CheckEthereumPrivateKey"
+	)
+
+	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
+	defer span.End()
+
+	err = sb.SetupEthereumNetworkChainID(spanCtx)
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return errors.Join(errorsB.ErrSetupEthereumNetworkChainIDFail, err)
+	}
+
+	_, err = sb.recognizingEthereumPrivateKey(spanCtx)
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return errors.Join(errorsB.ErrRecognizingEthereumPrivateKeyFail, err)
+	}
+
+	return nil
+}
+
+func (sb *serviceBlockchain) recognizingScrollPrivateKey(
 	ctx context.Context,
 ) (string, error) {
 	const (
-		hName    = "ServiceBlockchain func:recognizingPrivateKey"
+		hName    = "ServiceBlockchain func:recognizingScrollPrivateKey"
 		emptyKey = ""
 	)
 
@@ -153,6 +176,47 @@ func (sb *serviceBlockchain) recognizingPrivateKey(
 	}
 
 	return sb.cfg.Wallet.PrivateKeyHex, nil
+}
+
+func (sb *serviceBlockchain) recognizingEthereumPrivateKey(
+	ctx context.Context,
+) (string, error) {
+	const (
+		hName    = "ServiceBlockchain func:recognizingEthereumPrivateKey"
+		emptyKey = ""
+	)
+
+	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
+	defer span.End()
+
+	_, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(
+		sb.cfg.Blockchain.EthereumPrivateKeyHex,
+	)
+	if err != nil {
+		const enterMSG = "Enter private key:"
+		fmt.Printf(enterMSG)
+		var (
+			text   string
+			bytePK []byte
+		)
+		bytePK, err = term.ReadPassword(syscall.Stdin)
+		if err != nil {
+			open_telemetry.MarkSpanError(spanCtx, err)
+			return emptyKey, errors.Join(errorsB.ErrStdinProcessingFail, err)
+		}
+		text = string(bytePK)
+		_, err = mnemonic_wallet.New().WalletFromPrivateKeyHex(
+			text,
+		)
+		if err != nil {
+			open_telemetry.MarkSpanError(spanCtx, err)
+			return emptyKey, errors.Join(errorsB.ErrWalletAddressNotRecognized, err)
+		}
+		sb.cfg.Blockchain.EthereumPrivateKeyHex = text
+		fmt.Println(emptyKey)
+	}
+
+	return sb.cfg.Blockchain.EthereumPrivateKeyHex, nil
 }
 
 func (sb *serviceBlockchain) ethClient(
@@ -321,10 +385,10 @@ func (sb *serviceBlockchain) contractTransactor(
 	defer cancel()
 
 	var pk string
-	pk, err = sb.recognizingPrivateKey(spanCtx)
+	pk, err = sb.recognizingScrollPrivateKey(spanCtx)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
-		return nil, errors.Join(errorsB.ErrRecognizingPrivateKeyFail, err)
+		return nil, errors.Join(errorsB.ErrRecognizingScrollPrivateKeyFail, err)
 	}
 
 	var w *modelsMW.Wallet
