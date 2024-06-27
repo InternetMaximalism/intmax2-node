@@ -6,7 +6,7 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
 	"intmax2-node/docs/swagger"
-	errorsB "intmax2-node/internal/blockchain/errors"
+	"intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/network_service"
 	"intmax2-node/internal/pb/gateway"
@@ -33,6 +33,7 @@ type Server struct {
 	Config  *configs.Config
 	Log     logger.Logger
 	DbApp   SQLDriverApp
+	BBR     BlockBuilderRegistryService
 	SB      ServiceBlockchain
 	NS      NetworkService
 	HC      *health.Handler
@@ -60,11 +61,11 @@ func NewServerCmd(s *Server) *cobra.Command {
 			}
 
 			updBB := func() {
-				errURL := s.SB.UpdateBlockBuilder(s.Context, network_service.NodeExternalAddress.Address.Address())
+				errURL := s.BBR.UpdateBlockBuilder(s.Context, network_service.NodeExternalAddress.Address.Address())
 				if errURL != nil {
 					const msg = "update the Block Builder URL in blockchain error occurred: %v"
-					if strings.Contains(errURL.Error(), errorsB.ErrInsufficientStakeAmountStr) {
-						s.Log.Fatalf(msg, errorsB.ErrInsufficientStakeAmountStr)
+					if strings.Contains(errURL.Error(), errors.ErrInsufficientStakeAmountStr) {
+						s.Log.Fatalf(msg, errors.ErrInsufficientStakeAmountStr)
 					}
 					s.Log.Fatalf(msg, errURL.Error())
 				}

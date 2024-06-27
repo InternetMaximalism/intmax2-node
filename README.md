@@ -55,6 +55,7 @@ Usage:
   app [command]
 
 Available Commands:
+  block_builder               Manage block builder
   completion                  Generate the autocompletion script for the specified shell
   deposit                     Manage deposit
   ethereum_private_key_wallet Generate Ethereum and IntMax wallets from Ethereum private key
@@ -64,7 +65,6 @@ Available Commands:
   migrate                     Execute migration
   mnemonic_account            Generate Ethereum and IntMax accounts from mnemonic
   run                         run command
-  stop                        stop block builder command
 
 Flags:
   -h, --help   help for app
@@ -82,17 +82,6 @@ app run [flags]
 
 Flags:
   -h, --help   help for run
-```
-### Command `./intmax2-node stop --help`
-```
-# ./intmax2-node stop --help
-stop block builder command
-
-Usage:
-  app stop [flags]
-
-Flags:
-  -h, --help   help for stop
 ```
 ### Command `./intmax2-node migrate --help`
 ```
@@ -150,6 +139,57 @@ Usage:
 Flags:
   -h, --help                 help for private_key_wallet
       --private_key string   private_key flag. use as --private_key "__PRIVATE_KEY_IN_HEX_WITHOUT_0x__"
+```
+### Command `./intmax2-node block_builder --help`
+```
+# ./intmax2-node block_builder --help
+Manage block builder
+
+Usage:
+  app block_builder [command]
+
+Available Commands:
+  info        Returns the block builder info
+  stop        Stop block builder
+  unstake     Unstake block builder
+
+Flags:
+  -h, --help   help for block_builder
+
+Use "app block_builder [command] --help" for more information about a command.
+```
+### Command `./intmax2-node block_builder info --help`
+```
+# ./intmax2-node block_builder info --help
+Returns the block builder info
+
+Usage:
+  app block_builder info [flags]
+
+Flags:
+  -h, --help   help for info
+```
+### Command `./intmax2-node block_builder stop --help`
+```
+# ./intmax2-node block_builder stop --help
+Stop block builder
+
+Usage:
+  app block_builder stop [flags]
+
+Flags:
+  -h, --help   help for stop
+```
+### Command `./intmax2-node block_builder unstake --help`
+```
+# ./intmax2-node block_builder unstake --help
+Unstake block builder
+
+Usage:
+  app block_builder unstake [flags]
+
+Flags:
+  -h, --help   help for unstake
 ```
 ### Command `./intmax2-node deposit --help`
 ```

@@ -1,14 +1,13 @@
-package stop_block_builder
+package block_builder
 
 import (
 	"context"
 )
 
-//go:generate mockgen -destination=mock_blockchain_service.go -package=stop_block_builder -source=blockchain_service.go
+//go:generate mockgen -destination=mock_blockchain_service.go -package=block_builder -source=blockchain_service.go
 
 type ServiceBlockchain interface {
 	GenericCommandsSB
-	WriteBlockchain
 }
 
 type GenericCommandsSB interface {
