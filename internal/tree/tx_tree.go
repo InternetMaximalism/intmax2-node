@@ -12,8 +12,8 @@ type TxTree struct {
 
 const TX_TREE_HEIGHT = 7
 
-func NewTxTree(height uint8, initialLeaves []*types.Tx, zeroHash *poseidonHashOut) (*TxTree, error) {
-	initialLeafHashes := make([]*poseidonHashOut, len(initialLeaves))
+func NewTxTree(height uint8, initialLeaves []*types.Tx, zeroHash *PoseidonHashOut) (*TxTree, error) {
+	initialLeafHashes := make([]*PoseidonHashOut, len(initialLeaves))
 	for i, leaf := range initialLeaves {
 		initialLeafHashes[i] = leaf.Hash()
 	}
@@ -34,30 +34,32 @@ func NewTxTree(height uint8, initialLeaves []*types.Tx, zeroHash *poseidonHashOu
 	}, nil
 }
 
-func (t *TxTree) BuildMerkleRoot(leaves []*poseidonHashOut) (root *poseidonHashOut, err error) {
+func (t *TxTree) BuildMerkleRoot(leaves []*PoseidonHashOut) (root *PoseidonHashOut, err error) {
 	return t.inner.BuildMerkleRoot(leaves)
 }
 
 // GetCurrentRootCountAndSiblings returns the latest root, count and sibblings
-func (t *TxTree) GetCurrentRootCountAndSiblings() (root poseidonHashOut, count uint64, siblings []*poseidonHashOut) {
+func (t *TxTree) GetCurrentRootCountAndSiblings() (root PoseidonHashOut, count uint64, siblings []*PoseidonHashOut) {
 	return t.inner.GetCurrentRootCountAndSiblings()
 }
 
-func (t *TxTree) AddLeaf(index uint64, leaf *types.Tx) (root *poseidonHashOut, err error) {
+func (t *TxTree) AddLeaf(index uint64, leaf *types.Tx) (root *PoseidonHashOut, err error) {
 	leafHash := leaf.Hash()
 	root, err = t.inner.AddLeaf(index, leafHash)
 	if err != nil {
-		return nil, err
+		return nil, errors.Join(ErrAddLeafFail, err)
 	}
 
 	if int(index) != len(t.Leaves) {
-		return nil, errors.New("index is not equal to the length of leaves")
+		return nil, ErrLeafInputIndexInvalid
 	}
 	t.Leaves = append(t.Leaves, new(types.Tx).Set(leaf))
 
 	return root, nil
 }
 
-func (t *TxTree) ComputeMerkleProof(index uint64, leaves []*poseidonHashOut) (siblings []*poseidonHashOut, root poseidonHashOut, err error) {
+func (t *TxTree) ComputeMerkleProof(
+	index uint64, leaves []*PoseidonHashOut,
+) (siblings []*PoseidonHashOut, root PoseidonHashOut, err error) {
 	return t.inner.ComputeMerkleProof(index, leaves)
 }

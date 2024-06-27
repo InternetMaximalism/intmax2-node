@@ -1,11 +1,12 @@
 package server
 
 import (
-	"github.com/dimiro1/health"
 	getVersion "intmax2-node/internal/use_cases/get_version"
 	healthCheck "intmax2-node/internal/use_cases/health_check"
 	ucGetVersion "intmax2-node/pkg/use_cases/get_version"
 	ucHealthCheck "intmax2-node/pkg/use_cases/health_check"
+
+	"github.com/dimiro1/health"
 )
 
 //go:generate mockgen -destination=mock_commands_test.go -package=server_test -source=commands.go

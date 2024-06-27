@@ -1,12 +1,15 @@
-package accounts
+package accounts_test
 
 import (
 	"bytes"
 	"crypto/ecdsa"
 	"crypto/rand"
+	"errors"
+	intMaxAcc "intmax2-node/internal/accounts"
 	"math/big"
 	"testing"
 
+	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"github.com/stretchr/testify/assert"
@@ -15,39 +18,36 @@ import (
 func TestShouldNotGenerateNilAccount(t *testing.T) {
 	t.Parallel()
 
-	a, err := NewPrivateKey(nil)
-	expectedError := "private key should not be nil"
-	assert.Equal(t, expectedError, err.Error())
+	a, err := intMaxAcc.NewPrivateKey(nil)
+	assert.True(t, errors.Is(err, intMaxAcc.ErrInputPrivateKeyEmpty))
 	assert.Nil(t, a)
 }
 
 func TestShouldNotGenerateZeroAccount(t *testing.T) {
 	t.Parallel()
 
-	a, err := NewPrivateKey(big.NewInt(0))
-	expectedError := "private key should not be zero"
-	assert.Equal(t, expectedError, err.Error())
+	a, err := intMaxAcc.NewPrivateKey(big.NewInt(0))
+	assert.True(t, errors.Is(err, intMaxAcc.ErrInputPrivateKeyIsZero))
 	assert.Nil(t, a)
 }
 
 func TestShouldNotGenerateInvalidAccount(t *testing.T) {
 	t.Parallel()
 
-	a, err := NewPrivateKey(big.NewInt(3))
-	expectedError := "invalid private key: the y coordinate of public key should be even number"
-	assert.Equal(t, expectedError, err.Error())
+	a, err := intMaxAcc.NewPrivateKey(big.NewInt(3))
+	assert.True(t, errors.Is(err, intMaxAcc.ErrPrivateKeyWithPublicKeyInvalid))
 	assert.Nil(t, a)
 }
 
 func TestHexToPrivateKey(t *testing.T) {
 	t.Parallel()
 
-	pk, err := NewPrivateKey(big.NewInt(2))
+	pk, err := intMaxAcc.NewPrivateKey(big.NewInt(2))
 	assert.NoError(t, err)
 	assert.NotNil(t, pk)
 
-	var pk2 *PrivateKey
-	pk2, err = HexToPrivateKey(hexutil.Encode(pk.BigInt().Bytes())[2:])
+	var pk2 *intMaxAcc.PrivateKey
+	pk2, err = intMaxAcc.HexToPrivateKey(hexutil.Encode(pk.BigInt().Bytes())[2:])
 	assert.NoError(t, err)
 	assert.NotNil(t, pk2)
 
@@ -58,7 +58,7 @@ func TestHexToPrivateKey(t *testing.T) {
 func TestNewPrivateKey(t *testing.T) {
 	t.Parallel()
 
-	_, err := NewPrivateKey(big.NewInt(2))
+	_, err := intMaxAcc.NewPrivateKey(big.NewInt(2))
 	assert.NoError(t, err)
 }
 
@@ -66,7 +66,7 @@ func TestRegenerateAccount(t *testing.T) {
 	t.Parallel()
 
 	p := big.NewInt(-2)
-	a, err := newPrivateKey(p)
+	a, err := intMaxAcc.NewPrivateKeyWithReCalcPubKeyIfPkNegates(p)
 
 	assert.NoError(t, err)
 	assert.Equal(t, big.NewInt(2), a.BigInt())
@@ -78,18 +78,23 @@ func TestNewINTMAXAccountFromEthereumKey(t *testing.T) {
 	ethereumPrivateKey, err := ecdsa.GenerateKey(secp256k1.S256(), rand.Reader)
 	assert.NoError(t, err)
 
-	_, err = NewINTMAXAccountFromECDSAKey(ethereumPrivateKey)
+	_, err = intMaxAcc.NewINTMAXAccountFromECDSAKey(ethereumPrivateKey)
 	assert.NoError(t, err)
 }
 
 func TestMarshalUnmarshal(t *testing.T) {
 	t.Parallel()
 
-	account := GenerateKey()
+	privateKey, err := rand.Int(rand.Reader, new(big.Int).Sub(fr.Modulus(), big.NewInt(1)))
+	assert.NoError(t, err)
+	privateKey.Add(privateKey, big.NewInt(1))
+	account, err := intMaxAcc.NewPrivateKeyWithReCalcPubKeyIfPkNegates(privateKey)
+	assert.NoError(t, err)
 	marshaled := account.Public().Marshal()
 
-	var publicKey PublicKey
-	publicKey.Unmarshal(marshaled)
+	var publicKey intMaxAcc.PublicKey
+	err = publicKey.Unmarshal(marshaled)
+	assert.NoError(t, err)
 
 	assert.True(t, publicKey.Equal(account.Public()))
 }

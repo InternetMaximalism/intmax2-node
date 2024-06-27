@@ -9,6 +9,6 @@ func (s *Server) BlockSignature(
 	ctx context.Context,
 	req *node.BlockSignatureRequest,
 ) (*node.BlockSignatureResponse, error) {
-	//TODO implement me
+	// TODO implement me
 	panic("implement me")
 }

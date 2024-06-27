@@ -1,7 +1,8 @@
-package types
+package types_test
 
 import (
 	"intmax2-node/internal/hash/goldenposeidon"
+	intMaxTypes "intmax2-node/internal/types"
 	"testing"
 
 	"github.com/iden3/go-iden3-crypto/ffg"
@@ -9,7 +10,7 @@ import (
 )
 
 func TestTxHash(t *testing.T) {
-	tx := Tx{
+	tx := intMaxTypes.Tx{
 		FeeTransferHash:  goldenposeidon.HexToHash("0x83fc198de31e1b2b1a8212d2430fbb7766c13d9ad305637dea3759065606475d"),
 		TransferTreeRoot: goldenposeidon.HexToHash("0xb32f96fad8af99f3b3cb90dfbb4849f73435dbee1877e4ac2c213127379549ce"),
 	}
@@ -19,11 +20,11 @@ func TestTxHash(t *testing.T) {
 }
 
 func TestRandomTxHash(t *testing.T) {
-	feeTransferHash, err := new(poseidonHashOut).SetRandom()
+	feeTransferHash, err := new(intMaxTypes.PoseidonHashOut).SetRandom()
 	assert.Nil(t, err)
-	transferTreeRoot, err := new(poseidonHashOut).SetRandom()
+	transferTreeRoot, err := new(intMaxTypes.PoseidonHashOut).SetRandom()
 	assert.Nil(t, err)
-	tx := Tx{
+	tx := intMaxTypes.Tx{
 		FeeTransferHash:  feeTransferHash,
 		TransferTreeRoot: transferTreeRoot,
 	}
@@ -43,7 +44,7 @@ func TestRandomTxHash(t *testing.T) {
 		new(ffg.Element).SetZero(),
 		new(ffg.Element).SetZero(),
 	})
-	expected := poseidonHashOut{
+	expected := intMaxTypes.PoseidonHashOut{
 		Elements: [4]ffg.Element{
 			*permutedTx[0],
 			*permutedTx[1],

@@ -10,20 +10,24 @@ type TransferTree struct {
 	inner  *PoseidonMerkleTree
 }
 
-func NewTransferTree(height uint8, initialLeaves []*types.Transfer, zeroHash *poseidonHashOut) (*TransferTree, error) {
-	initialLeafHashes := make([]*poseidonHashOut, len(initialLeaves))
-	for i, leaf := range initialLeaves {
-		initialLeafHashes[i] = leaf.Hash()
+func NewTransferTree(
+	height uint8,
+	initialLeaves []*types.Transfer,
+	zeroHash *PoseidonHashOut,
+) (*TransferTree, error) {
+	initialLeafHashes := make([]*PoseidonHashOut, len(initialLeaves))
+	for key := range initialLeaves {
+		initialLeafHashes[key] = initialLeaves[key].Hash()
 	}
 
 	t, err := NewPoseidonMerkleTree(height, initialLeafHashes, zeroHash)
 	if err != nil {
-		return nil, err
+		return nil, errors.Join(ErrNewPoseidonMerkleTreeFail, err)
 	}
 
 	leaves := make([]*types.Transfer, len(initialLeaves))
-	for i, leaf := range initialLeaves {
-		leaves[i] = new(types.Transfer).Set(leaf)
+	for key := range initialLeaves {
+		leaves[key] = new(types.Transfer).Set(initialLeaves[key])
 	}
 
 	return &TransferTree{
@@ -32,29 +36,29 @@ func NewTransferTree(height uint8, initialLeaves []*types.Transfer, zeroHash *po
 	}, nil
 }
 
-func (t *TransferTree) BuildMerkleRoot(leaves []*poseidonHashOut) (*poseidonHashOut, error) {
+func (t *TransferTree) BuildMerkleRoot(leaves []*PoseidonHashOut) (*PoseidonHashOut, error) {
 	return t.inner.BuildMerkleRoot(leaves)
 }
 
-func (t *TransferTree) GetCurrentRootCountAndSiblings() (poseidonHashOut, uint64, []*poseidonHashOut) {
+func (t *TransferTree) GetCurrentRootCountAndSiblings() (_ PoseidonHashOut, _ uint64, _ []*PoseidonHashOut) {
 	return t.inner.GetCurrentRootCountAndSiblings()
 }
 
-func (t *TransferTree) AddLeaf(index uint64, leaf *types.Transfer) (root *poseidonHashOut, err error) {
+func (t *TransferTree) AddLeaf(index uint64, leaf *types.Transfer) (root *PoseidonHashOut, err error) {
 	leafHash := leaf.Hash()
 	root, err = t.inner.AddLeaf(index, leafHash)
 	if err != nil {
-		return nil, err
+		return nil, errors.Join(ErrAddLeafFail, err)
 	}
 
 	if int(index) != len(t.Leaves) {
-		return nil, errors.New("index is not equal to the length of leaves")
+		return nil, ErrLeafInputIndexInvalid
 	}
 	t.Leaves = append(t.Leaves, new(types.Transfer).Set(leaf))
 
 	return root, nil
 }
 
-func (t *TransferTree) ComputeMerkleProof(index uint64, leaves []*poseidonHashOut) (siblings []*poseidonHashOut, root poseidonHashOut, err error) {
+func (t *TransferTree) ComputeMerkleProof(index uint64, leaves []*PoseidonHashOut) (siblings []*PoseidonHashOut, root PoseidonHashOut, err error) {
 	return t.inner.ComputeMerkleProof(index, leaves)
 }

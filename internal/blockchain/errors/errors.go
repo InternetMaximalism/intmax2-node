@@ -4,7 +4,7 @@ import (
 	"errors"
 )
 
-var InsufficientFunds bool
+var InsufficientFunds, InsufficientFundsLiquidity bool
 
 const ErrInsufficientStakeAmountStr = "Insufficient stake amount"
 
@@ -29,10 +29,15 @@ var ErrStdinProcessingFail = errors.New("stdin processing error occurred")
 // ErrWalletAddressNotRecognized error: wallet address not recognized.
 var ErrWalletAddressNotRecognized = errors.New("wallet address not recognized")
 
-// ErrRecognizingPrivateKeyFail error: failed to recognized private key.
-var ErrRecognizingPrivateKeyFail = errors.New("failed to recognized private key")
+// ErrRecognizingScrollPrivateKeyFail error: failed to recognized the Scroll private key.
+var ErrRecognizingScrollPrivateKeyFail = errors.New("failed to recognized the Scroll private key")
+
+// ErrRecognizingEthereumPrivateKeyFail error: failed to recognized the Ethereum private key.
+var ErrRecognizingEthereumPrivateKeyFail = errors.New("failed to recognized the Ethereum private key")
 
 const ErrScrollChainIDInvalidStr = "the scroll chain ID must be equal: %s, %s"
+
+const ErrEthereumChainIDInvalidStr = "the ethereum chain ID must be equal: %s, %s"
 
 // ErrParseChainIDFail error: failed to parse chain ID.
 var ErrParseChainIDFail = errors.New("failed to parse chain ID")
@@ -40,6 +45,11 @@ var ErrParseChainIDFail = errors.New("failed to parse chain ID")
 // ErrSetupScrollNetworkChainIDFail error: failed to setup scroll network chain ID.
 var ErrSetupScrollNetworkChainIDFail = errors.New(
 	"failed to setup scroll network chain ID",
+)
+
+// ErrSetupEthereumNetworkChainIDFail error: failed to setup ethereum network chain ID.
+var ErrSetupEthereumNetworkChainIDFail = errors.New(
+	"failed to setup ethereum network chain ID",
 )
 
 // ErrCreateNewClientOfRPCEthFail error: failed to create new RPC Eth client.

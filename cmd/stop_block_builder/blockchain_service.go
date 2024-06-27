@@ -12,5 +12,5 @@ type ServiceBlockchain interface {
 }
 
 type GenericCommandsSB interface {
-	CheckPrivateKey(ctx context.Context) (err error)
+	CheckScrollPrivateKey(ctx context.Context) (err error)
 }

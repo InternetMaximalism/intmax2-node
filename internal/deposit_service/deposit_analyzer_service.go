@@ -16,7 +16,11 @@ import (
 
 const AMLRejectionThreshold = 70
 
-func fetchNewDeposits(ctx context.Context, liquidity *bindings.Liquidity, startBlock uint64) ([]*bindings.LiquidityDeposited, uint64, map[uint32]bool, error) {
+func fetchNewDeposits(
+	ctx context.Context,
+	liquidity *bindings.Liquidity,
+	startBlock uint64,
+) (_ []*bindings.LiquidityDeposited, _ uint64, _ map[uint32]bool, _ error) {
 	nextBlock := startBlock + 1
 	iterator, err := liquidity.FilterDeposited(&bind.FilterOpts{
 		Start:   nextBlock,
@@ -86,12 +90,20 @@ func getTokenInfoMap(ctx context.Context, liquidity *bindings.Liquidity, tokenIn
 	return tokenInfoMap, nil
 }
 
-func fetchAMLScore(sender string, contractAddress string) uint32 {
+func fetchAMLScore(sender string, contractAddress string) uint32 { // nolint:gocritic
+	const int50Key = 50
 	// TODO: Implement a real AML score fetching function
-	return 50
+	return int50Key
 }
 
-func rejectDeposits(ctx context.Context, cfg *configs.Config, client *ethclient.Client, liquidity *bindings.Liquidity, maxLastSeenDepositIndex uint64, rejectedIndices []uint64) (*types.Receipt, error) {
+func rejectDeposits(
+	ctx context.Context,
+	cfg *configs.Config,
+	client *ethclient.Client,
+	liquidity *bindings.Liquidity,
+	maxLastSeenDepositIndex uint64,
+	rejectedIndices []uint64,
+) (*types.Receipt, error) {
 	transactOpts, err := createTransactor(cfg)
 	if err != nil {
 		return nil, err
@@ -110,8 +122,19 @@ func rejectDeposits(ctx context.Context, cfg *configs.Config, client *ethclient.
 	return receipt, nil
 }
 
-func DepositAnalyzer(ctx context.Context, cfg *configs.Config, log logger.Logger) {
-	client, err := newClient(cfg.Blockchain.EthreumNetworkRpcURL)
+func DepositAnalyzer(
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
+	sb ServiceBlockchain,
+) {
+	link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+
+	var client *ethclient.Client
+	client, err = newClient(link)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}

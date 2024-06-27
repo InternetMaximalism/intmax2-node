@@ -1,12 +1,16 @@
-package types
+package types_test
 
 import (
+	"crypto/rand"
 	"intmax2-node/internal/accounts"
 	"intmax2-node/internal/finite_field"
+	intMaxTypes "intmax2-node/internal/types"
+	"math/big"
 	"sort"
 	"testing"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
+	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 )
@@ -14,7 +18,11 @@ import (
 func TestPublicKeyBlockValidation(t *testing.T) {
 	keyPairs := make([]*accounts.PrivateKey, 128)
 	for i := 0; i < len(keyPairs); i++ {
-		keyPairs[i] = accounts.GenerateKey()
+		privateKey, err := rand.Int(rand.Reader, new(big.Int).Sub(fr.Modulus(), big.NewInt(1)))
+		assert.NoError(t, err)
+		privateKey.Add(privateKey, big.NewInt(1))
+		keyPairs[i], err = accounts.NewPrivateKeyWithReCalcPubKeyIfPkNegates(privateKey)
+		assert.NoError(t, err)
 	}
 
 	// Sort by x-coordinate of public key
@@ -22,9 +30,9 @@ func TestPublicKeyBlockValidation(t *testing.T) {
 		return keyPairs[i].Pk.X.Cmp(&keyPairs[j].Pk.X) > 0
 	})
 
-	senders := make([]Sender, 128)
+	senders := make([]intMaxTypes.Sender, 128)
 	for i, keyPair := range keyPairs {
-		senders[i] = Sender{
+		senders[i] = intMaxTypes.Sender{
 			PublicKey: keyPair.Public(),
 			AccountID: 0,
 			IsSigned:  true,
@@ -35,17 +43,17 @@ func TestPublicKeyBlockValidation(t *testing.T) {
 	defaultPublicKey.Pk.X.SetOne()
 	defaultPublicKey.Pk.Y.SetZero() // NOTE: This is not a valid public key
 	for i := len(keyPairs); i < len(senders); i++ {
-		senders[i] = Sender{
+		senders[i] = intMaxTypes.Sender{
 			PublicKey: defaultPublicKey,
 			AccountID: 0,
 			IsSigned:  false,
 		}
 	}
 
-	txRoot, err := new(poseidonHashOut).SetRandom()
+	txRoot, err := new(intMaxTypes.PoseidonHashOut).SetRandom()
 	assert.NoError(t, err)
 
-	senderPublicKeys := make([]byte, len(senders)*numPublicKeyBytes)
+	senderPublicKeys := make([]byte, len(senders)*intMaxTypes.NumPublicKeyBytes)
 	for i, pk := range senders {
 		senderPublicKey := pk.PublicKey.Pk.X.Bytes() // Only x coordinate is used
 		copy(senderPublicKeys[32*i:32*(i+1)], senderPublicKey[:])
@@ -66,8 +74,8 @@ func TestPublicKeyBlockValidation(t *testing.T) {
 		aggregatedSignature.Add(aggregatedSignature, signature)
 	}
 
-	blockContent := NewBlockContent(
-		PublicKeySenderType,
+	blockContent := intMaxTypes.NewBlockContent(
+		intMaxTypes.PublicKeySenderType,
 		senders,
 		*txRoot,
 		aggregatedSignature,
@@ -78,7 +86,11 @@ func TestPublicKeyBlockValidation(t *testing.T) {
 func TestAccountIDBlockValidation(t *testing.T) {
 	keyPairs := make([]*accounts.PrivateKey, 1)
 	for i := 0; i < len(keyPairs); i++ {
-		keyPairs[i] = accounts.GenerateKey()
+		privateKey, err := rand.Int(rand.Reader, new(big.Int).Sub(fr.Modulus(), big.NewInt(1)))
+		assert.NoError(t, err)
+		privateKey.Add(privateKey, big.NewInt(1))
+		keyPairs[i], err = accounts.NewPrivateKeyWithReCalcPubKeyIfPkNegates(privateKey)
+		assert.NoError(t, err)
 	}
 
 	// Sort by x-coordinate of public key
@@ -86,9 +98,9 @@ func TestAccountIDBlockValidation(t *testing.T) {
 		return keyPairs[i].Pk.X.Cmp(&keyPairs[j].Pk.X) > 0
 	})
 
-	senders := make([]Sender, 2)
+	senders := make([]intMaxTypes.Sender, 2)
 	for i, keyPair := range keyPairs {
-		senders[i] = Sender{
+		senders[i] = intMaxTypes.Sender{
 			PublicKey: keyPair.Public(),
 			AccountID: uint64(i) + 1,
 			IsSigned:  true,
@@ -99,17 +111,17 @@ func TestAccountIDBlockValidation(t *testing.T) {
 	defaultPublicKey.Pk.X.SetOne()
 	defaultPublicKey.Pk.Y.SetZero() // NOTE: This is not a valid public key
 	for i := len(keyPairs); i < len(senders); i++ {
-		senders[i] = Sender{
+		senders[i] = intMaxTypes.Sender{
 			PublicKey: defaultPublicKey,
 			AccountID: 0,
 			IsSigned:  false,
 		}
 	}
 
-	txRoot, err := new(poseidonHashOut).SetRandom()
+	txRoot, err := new(intMaxTypes.PoseidonHashOut).SetRandom()
 	assert.NoError(t, err)
 
-	senderPublicKeys := make([]byte, len(senders)*numPublicKeyBytes)
+	senderPublicKeys := make([]byte, len(senders)*intMaxTypes.NumPublicKeyBytes)
 	for i, sender := range senders {
 		if sender.IsSigned {
 			senderPublicKey := sender.PublicKey.Pk.X.Bytes() // Only x coordinate is used
@@ -136,8 +148,8 @@ func TestAccountIDBlockValidation(t *testing.T) {
 		}
 	}
 
-	blockContent := NewBlockContent(
-		AccountIDSenderType,
+	blockContent := intMaxTypes.NewBlockContent(
+		intMaxTypes.AccountIDSenderType,
 		senders,
 		*txRoot,
 		aggregatedSignature,

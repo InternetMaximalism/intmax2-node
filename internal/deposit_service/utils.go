@@ -24,12 +24,16 @@ func newClient(url string) (*ethclient.Client, error) {
 }
 
 func createTransactor(cfg *configs.Config) (*bind.TransactOpts, error) {
-	privateKey, err := crypto.HexToECDSA(cfg.Blockchain.PRIVATE_KEY)
+	privateKey, err := crypto.HexToECDSA(cfg.Blockchain.EthereumPrivateKeyHex)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load private key: %w", err)
 	}
 
-	chainID, err := strconv.ParseInt(cfg.Blockchain.EthreumNetworkChainID, 10, 64)
+	const (
+		int10Key = 10
+		int64Key = 64
+	)
+	chainID, err := strconv.ParseInt(cfg.Blockchain.EthereumNetworkChainID, int10Key, int64Key)
 	if err != nil {
 		return nil, fmt.Errorf("invalid chain ID: %w", err)
 	}

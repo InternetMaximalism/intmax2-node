@@ -136,8 +136,19 @@ func shouldProcessDeposits(client *ethclient.Client, liquidity *bindings.Liquidi
 	return true, nil
 }
 
-func DepositRelayer(ctx context.Context, cfg *configs.Config, log logger.Logger) {
-	client, err := newClient(cfg.Blockchain.EthreumNetworkRpcURL)
+func DepositRelayer(
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
+	sb ServiceBlockchain,
+) {
+	link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+
+	var client *ethclient.Client
+	client, err = newClient(link)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}

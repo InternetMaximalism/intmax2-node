@@ -3,7 +3,6 @@ package accounts
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"crypto/rand"
 	"crypto/sha512"
 	"encoding/hex"
 	"errors"
@@ -49,18 +48,18 @@ func privateKeyToPublicKey(privateKey *big.Int) PublicKey {
 // If the resulting public key is invalid, it returns an error.
 func HexToPrivateKey(hexPrivateKey string) (*PrivateKey, error) {
 	if !isUtils.IsHexadecimal(hexPrivateKey) {
-		return nil, errors.New("the HEX private key must be valid")
+		return nil, ErrHEXPrivateKeyInvalid
 	}
 
 	decKey, err := hex.DecodeString(hexPrivateKey)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode private key: %w", err)
+		return nil, errors.Join(ErrDecodePrivateKeyFail, err)
 	}
 
 	var pk *PrivateKey
 	pk, err = NewPrivateKey(new(big.Int).SetBytes(decKey))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new private key: %w", err)
+		return nil, errors.Join(ErrCreatePrivateKeyFail, err)
 	}
 
 	return pk, nil
@@ -69,19 +68,20 @@ func HexToPrivateKey(hexPrivateKey string) (*PrivateKey, error) {
 // NewPrivateKey creates a new PrivateKey instance with a validated private key.
 // If the resulting public key is invalid, it returns an error.
 func NewPrivateKey(privateKey *big.Int) (*PrivateKey, error) {
+	const int0Key = 0
 	if privateKey == nil {
-		return nil, errors.New("private key should not be nil")
+		return nil, ErrInputPrivateKeyEmpty
 	}
-	if privateKey.Cmp(new(big.Int).Mod(privateKey, fr.Modulus())) != 0 {
-		return nil, errors.New("private key should be less than the order of the scalar field")
+	if privateKey.Cmp(new(big.Int).Mod(privateKey, fr.Modulus())) != int0Key {
+		return nil, ErrInputPrivateKeyInvalid
 	}
-	if privateKey.Cmp(big.NewInt(0)) == 0 {
-		return nil, errors.New("private key should not be zero")
+	if privateKey.Cmp(big.NewInt(int0Key)) == int0Key {
+		return nil, ErrInputPrivateKeyIsZero
 	}
 
 	publicKey := privateKeyToPublicKey(privateKey)
 	if err := checkValidPublicKey(&publicKey); err != nil {
-		return nil, err
+		return nil, errors.Join(ErrValidPublicKeyFail, err)
 	}
 
 	a := new(PrivateKey)
@@ -91,15 +91,19 @@ func NewPrivateKey(privateKey *big.Int) (*PrivateKey, error) {
 	return a, nil
 }
 
-// newPrivateKey creates a new PrivateKey instance.
+// NewPrivateKeyWithReCalcPubKeyIfPkNegates creates a new PrivateKey instance.
 // If the resulting public key is invalid, it negates the private key and recalculates the public key.
 // Therefore, the output private key may differ from the input value.
-func newPrivateKey(privateKey *big.Int) (*PrivateKey, error) {
+func NewPrivateKeyWithReCalcPubKeyIfPkNegates(privateKey *big.Int) (*PrivateKey, error) {
+	const (
+		int0Key = 0
+	)
+
 	if privateKey == nil {
-		return nil, errors.New("private key should not be nil")
+		return nil, ErrInputPrivateKeyEmpty
 	}
-	if new(big.Int).Mod(privateKey, fr.Modulus()).Cmp(big.NewInt(0)) == 0 {
-		return nil, errors.New("private key should not be zero")
+	if new(big.Int).Mod(privateKey, fr.Modulus()).Cmp(big.NewInt(int0Key)) == int0Key {
+		return nil, ErrInputPrivateKeyIsZero
 	}
 
 	publicKey := privateKeyToPublicKey(privateKey)
@@ -107,7 +111,7 @@ func newPrivateKey(privateKey *big.Int) (*PrivateKey, error) {
 		privateKey = new(big.Int).Neg(privateKey)
 		publicKey = privateKeyToPublicKey(privateKey)
 		if err = checkValidPublicKey(&publicKey); err != nil {
-			return nil, errors.New("invalid private key: the y coordinate of public key should be even number")
+			return nil, errors.Join(ErrValidPublicKeyFail, err)
 		}
 	}
 
@@ -121,36 +125,19 @@ func newPrivateKey(privateKey *big.Int) (*PrivateKey, error) {
 // checkValidPublicKey verifies that the y coordinate of the given public key is an even number.
 // It returns an error if the y coordinate is not even.
 func checkValidPublicKey(publicKey *PublicKey) error {
-	const parityDivisor = 2
+	const (
+		int0Key       = 0
+		parityDivisor = 2
+	)
 	publicKeyInt := publicKey.Pk.Y.BigInt(new(big.Int))
 	parity := new(big.Int).Mod(publicKeyInt, big.NewInt(parityDivisor))
 
 	// Check if the parity is zero
-	if parity.Cmp(big.NewInt(0)) != 0 {
-		return errors.New("invalid private key: the y coordinate of public key should be even number")
+	if parity.Cmp(big.NewInt(int0Key)) != int0Key {
+		return ErrPrivateKeyWithPublicKeyInvalid
 	}
 
 	return nil
-}
-
-// GenerateKey generates a new PrivateKey instance with a valid public key.
-// It generates a random private key, ensuring it is between 1 and the order of the scalar field.
-func GenerateKey() *PrivateKey {
-	// Generate a random private key.
-	// Private key is a random number between 1 and the order of the scalar field.
-	privateKey, err := rand.Int(rand.Reader, new(big.Int).Sub(fr.Modulus(), big.NewInt(1)))
-	if err != nil {
-		panic(err)
-	}
-
-	privateKey.Add(privateKey, big.NewInt(1))
-
-	a, err := newPrivateKey(privateKey)
-	if err != nil {
-		panic(err)
-	}
-
-	return a
 }
 
 // NewINTMAXAccountFromECDSAKey creates a new PrivateKey instance for an INTMAX account
@@ -168,7 +155,7 @@ func NewINTMAXAccountFromECDSAKey(pk *ecdsa.PrivateKey) (*PrivateKey, error) {
 	// privateKey = digest (mod order)
 	privateKey := new(big.Int).SetBytes(digest)
 
-	return newPrivateKey(privateKey)
+	return NewPrivateKeyWithReCalcPubKeyIfPkNegates(privateKey)
 }
 
 // ECDH calculates the shared secret between my private key and partner's public key.
@@ -228,7 +215,8 @@ type Address [32]byte
 // ToAddress converts the public key to an address.
 // It returns a 32-byte hex string with 0x.
 func (pk *PublicKey) ToAddress() Address {
-	result := [32]byte{}
+	const int32Key = 32
+	result := [int32Key]byte{}
 	copy(result[:], pk.Pk.X.Marshal())
 
 	return Address(result)
@@ -249,9 +237,13 @@ func (a Address) String() string {
 }
 
 func (a Address) hex() []byte {
-	var buf [len(a)*2 + 2]byte
-	copy(buf[:2], "0x")
-	hex.Encode(buf[2:], a[:])
+	const (
+		h0xKey  = "0x"
+		int2Key = 2
+	)
+	var buf [len(a)*int2Key + int2Key]byte
+	copy(buf[:int2Key], h0xKey)
+	hex.Encode(buf[int2Key:], a[:])
 	return buf[:]
 }
 
@@ -260,24 +252,24 @@ func (a Address) hex() []byte {
 func (a Address) Format(s fmt.State, c rune) {
 	switch c {
 	case 'v', 's':
-		s.Write(a.hex())
+		_, _ = s.Write(a.hex())
 	case 'q':
 		q := []byte{'"'}
-		s.Write(q)
-		s.Write(a.hex())
-		s.Write(q)
+		_, _ = s.Write(q)
+		_, _ = s.Write(a.hex())
+		_, _ = s.Write(q)
 	case 'x', 'X':
-		hex := a.hex()
+		enc := a.hex()
 		if !s.Flag('#') {
-			hex = hex[2:]
+			enc = enc[2:]
 		}
 		if c == 'X' {
-			hex = bytes.ToUpper(hex)
+			enc = bytes.ToUpper(enc)
 		}
-		s.Write(hex)
+		_, _ = s.Write(enc)
 	case 'd':
-		fmt.Fprint(s, ([len(a)]byte)(a))
+		_, _ = fmt.Fprint(s, [len(a)]byte(a))
 	default:
-		fmt.Fprintf(s, "%%!%c(address=%x)", c, a)
+		_, _ = fmt.Fprintf(s, "%%!%c(address=%x)", c, a)
 	}
 }

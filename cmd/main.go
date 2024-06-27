@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"intmax2-node/cmd/deposit"
 	"intmax2-node/cmd/ethereum_private_key_wallet"
 	"intmax2-node/cmd/generate_account"
 	"intmax2-node/cmd/intmax_private_key_wallet"
@@ -84,7 +85,13 @@ func main() {
 			HC:      &hc,
 		}),
 		migrator.NewMigratorCmd(ctx, log, dbApp),
-		server.NewDepositCmd(ctx, cfg, log),
+		deposit.NewDepositCmd(&deposit.Deposit{
+			Context: ctx,
+			Config:  cfg,
+			Log:     log,
+			DbApp:   dbApp,
+			SB:      bc,
+		}),
 		generate_account.NewCmd(log),
 		mnemonic_account.NewCmd(log),
 		ethereum_private_key_wallet.NewCmd(log),
