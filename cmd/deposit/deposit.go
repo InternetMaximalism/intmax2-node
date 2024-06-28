@@ -53,7 +53,14 @@ func analyzerCmd(d *Deposit) *cobra.Command {
 			l.Fatalf(msg, err.Error())
 		}
 
-		service.DepositAnalyzer(d.Context, d.Config, d.Log, d.SB)
+		err = d.DbApp.Exec(d.Context, nil, func(db interface{}, _ interface{}) (err error) {
+			q := db.(SQLDriverApp)
+			return newCommands().DepositAnalyzer(d.Config, l, q, d.SB).Do(d.Context)
+		})
+		if err != nil {
+			const msg = "failed to processing deposit analyzer: %v"
+			l.Fatalf(msg, err.Error())
+		}
 	}
 
 	return &cmd
