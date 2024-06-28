@@ -4,9 +4,7 @@ import (
 	"errors"
 )
 
-var InsufficientFunds, InsufficientFundsLiquidity bool
-
-const ErrInsufficientStakeAmountStr = "Insufficient stake amount"
+var InsufficientFunds bool
 
 // ErrInsufficientFundsStr error: insufficient funds: insufficient funds.
 const ErrInsufficientFundsStr = "insufficient funds: insufficient funds"
@@ -23,6 +21,15 @@ const Err520ScrollWebServerStr = "520: Web server is returning an unknown error"
 // Err502ScrollWebServerStr error: 502: Bad gateway.
 const Err502ScrollWebServerStr = "502: Bad gateway"
 
+// ErrBlockBuilderNotFoundStr error: Block builder not found.
+const ErrBlockBuilderNotFoundStr = "Block builder not found"
+
+// ErrCantUnStakeBlockBuilderStr error: Cannot unstake within one day of the last block submission.
+const ErrCantUnStakeBlockBuilderStr = "Cannot unstake within one day of the last block submission"
+
+// ErrInsufficientStakeAmountStr error: Insufficient stake amount.
+const ErrInsufficientStakeAmountStr = "Insufficient stake amount"
+
 // ErrStdinProcessingFail error: stdin processing error occurred.
 var ErrStdinProcessingFail = errors.New("stdin processing error occurred")
 
@@ -35,8 +42,10 @@ var ErrRecognizingScrollPrivateKeyFail = errors.New("failed to recognized the Sc
 // ErrRecognizingEthereumPrivateKeyFail error: failed to recognized the Ethereum private key.
 var ErrRecognizingEthereumPrivateKeyFail = errors.New("failed to recognized the Ethereum private key")
 
+// ErrScrollChainIDInvalidStr error: the scroll chain ID must be equal: %s, %s.
 const ErrScrollChainIDInvalidStr = "the scroll chain ID must be equal: %s, %s"
 
+// ErrEthereumChainIDInvalidStr error: the ethereum chain ID must be equal: %s, %s.
 const ErrEthereumChainIDInvalidStr = "the ethereum chain ID must be equal: %s, %s"
 
 // ErrParseChainIDFail error: failed to parse chain ID.
@@ -73,41 +82,3 @@ var ErrScrollNetworkChainLinkEvmJSONRPCFail = errors.New(
 
 // ErrMostBlockNumberFail error: failed to get block number.
 var ErrMostBlockNumberFail = errors.New("failed to get most block number")
-
-// ErrReadContractTemplateFile error: failed to read contract template file.
-var ErrReadContractTemplateFile = errors.New(
-	"failed to read contract template file",
-)
-
-// ErrGetAbiFail error: failed to get abi.
-var ErrGetAbiFail = errors.New("failed to get abi")
-
-// ErrCallContractFromBlockchainFail error: failed to call contract from blockchain.
-var ErrCallContractFromBlockchainFail = errors.New("failed to call contract from blockchain")
-
-// ErrCallContractFail error: failed to call contract.
-var ErrCallContractFail = errors.New("failed to call contract")
-
-// ErrCallRollupContractFail error: failed to call rollup contract.
-var ErrCallRollupContractFail = errors.New("failed to call rollup contract")
-
-// ErrPendingNonceAtFail error: failed to pending nonceAt.
-var ErrPendingNonceAtFail = errors.New("failed to pending nonceAt")
-
-// ErrChainIDFormCtxFail error: failed to get chainID from context.
-var ErrChainIDFormCtxFail = errors.New("failed to get chainID from context")
-
-// ErrSuggestGasPriceFail error: failed to suggest gas price.
-var ErrSuggestGasPriceFail = errors.New("failed to suggest gas price")
-
-// ErrNewKeyedTransactorWithChainIDFail error: failed to get new keyed transactor with chainID.
-var ErrNewKeyedTransactorWithChainIDFail = errors.New("failed to get new keyed transactor with chainID")
-
-// ErrApplyBoundContractTransactorFail error: failed to apply bound contract transactor.
-var ErrApplyBoundContractTransactorFail = errors.New("failed to apply bound contract transactor")
-
-// ErrApplyContractTransactorFail error: failed to apply contract transactor.
-var ErrApplyContractTransactorFail = errors.New("failed to apply contract transactor")
-
-// ErrApplyTransactOfContractRollupFail error: failed to apply transactor of Rollup contract.
-var ErrApplyTransactOfContractRollupFail = errors.New("failed to apply transactor of Rollup contract")

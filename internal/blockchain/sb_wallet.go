@@ -15,12 +15,12 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-func (sb *serviceBlockchain) WalletBalance(
+func (sb *serviceBlockchain) walletBalance(
 	ctx context.Context,
 	address common.Address,
 ) (bal *big.Int, err error) {
 	const (
-		hName            = "ServiceBlockchain func:WalletBalance"
+		hName            = "ServiceBlockchain func:walletBalance"
 		walletAddressKey = "wallet_address"
 	)
 

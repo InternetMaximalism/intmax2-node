@@ -10,25 +10,14 @@ import (
 	modelsMW "intmax2-node/internal/mnemonic_wallet/models"
 	"intmax2-node/internal/open_telemetry"
 	"math/big"
-	"os"
-	"strings"
 	"syscall"
 
 	"github.com/dimiro1/health"
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/holiman/uint256"
-	"github.com/tidwall/gjson"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/term"
-)
-
-const (
-	TransactorChainIDCtx = "transactor_chain_id"
 )
 
 type serviceBlockchain struct {
@@ -91,7 +80,7 @@ func (sb *serviceBlockchain) CheckScrollPrivateKey(ctx context.Context) (err err
 	}
 
 	var bal *big.Int
-	bal, err = sb.WalletBalance(spanCtx, *w.WalletAddress)
+	bal, err = sb.walletBalance(spanCtx, *w.WalletAddress)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
 		return errors.Join(errorsB.ErrGettingWalletBalanceErrorOccurred, err)
@@ -257,192 +246,4 @@ func (sb *serviceBlockchain) ethClient(
 	}
 
 	return c, cancel, nil
-}
-
-func (sb *serviceBlockchain) callContract( // nolint:unused
-	ctx context.Context,
-	contractAddress common.Address,
-	contractAbiPath, method string,
-	args ...any,
-) (resp []interface{}, err error) {
-	const (
-		hName              = "ServiceBlockchain func:callContract"
-		chainIDKey         = "chain_id"
-		contractAddressKey = "contract_address"
-		contractAbiPathKey = "contract_abi_path"
-		methodKey          = "method"
-		argsKey            = "args"
-		abiKey             = "abi"
-	)
-
-	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName,
-		trace.WithAttributes(
-			attribute.String(chainIDKey, sb.cfg.Blockchain.ScrollNetworkChainID),
-			attribute.String(contractAddressKey, contractAddress.Hex()),
-			attribute.String(contractAbiPathKey, contractAbiPath),
-			attribute.String(methodKey, method),
-			attribute.StringSlice(argsKey, func() (ret []string) {
-				for key := range args {
-					ret = append(ret, fmt.Sprintf("%+v", args[key]))
-				}
-				return ret
-			}()),
-		))
-	defer span.End()
-
-	var templateBytes []byte
-	templateBytes, err = os.ReadFile(contractAbiPath)
-	if err != nil {
-		open_telemetry.MarkSpanError(spanCtx, err)
-		return nil, errors.Join(errorsB.ErrReadContractTemplateFile, err)
-	}
-
-	var abiJSON abi.ABI
-	abiJSON, err = abi.JSON(strings.NewReader(gjson.GetBytes(templateBytes, abiKey).String()))
-	if err != nil {
-		open_telemetry.MarkSpanError(spanCtx, err)
-		return nil, errors.Join(errorsB.ErrGetAbiFail, err)
-	}
-
-	var (
-		c      *ethclient.Client
-		cancel func()
-	)
-	c, cancel, err = sb.ethClient(spanCtx)
-	if err != nil {
-		open_telemetry.MarkSpanError(spanCtx, err)
-		return nil, errors.Join(errorsB.ErrCreateEthClientFail, err)
-	}
-	defer cancel()
-
-	err = bind.NewBoundContract(
-		contractAddress, abiJSON, c, nil, nil,
-	).Call(&bind.CallOpts{Context: spanCtx}, &resp, method, args...)
-	if err != nil {
-		open_telemetry.MarkSpanError(spanCtx, err)
-		return nil, errors.Join(errorsB.ErrCallContractFromBlockchainFail, err)
-	}
-
-	return resp, nil
-}
-
-func (sb *serviceBlockchain) contractTransactor(
-	ctx context.Context,
-	contractAddress common.Address,
-	contractAbiPath string,
-	value *big.Int,
-	method string, args ...any,
-) (resp *types.Transaction, err error) {
-	const (
-		hName              = "ServiceBlockchain func:contractTransactor"
-		chainIDKey         = "chain_id"
-		contractAddressKey = "contract_address"
-		contractAbiPathKey = "contract_abi_path"
-		methodKey          = "method"
-		argsKey            = "args"
-		abiKey             = "abi"
-		intKey             = 0
-	)
-
-	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName,
-		trace.WithAttributes(
-			attribute.String(chainIDKey, sb.cfg.Blockchain.ScrollNetworkChainID),
-			attribute.String(contractAddressKey, contractAddress.Hex()),
-			attribute.String(contractAbiPathKey, contractAbiPath),
-			attribute.String(methodKey, method),
-			attribute.StringSlice(argsKey, func() (ret []string) {
-				for key := range args {
-					ret = append(ret, fmt.Sprintf("%+v", args[key]))
-				}
-				return ret
-			}()),
-		))
-	defer span.End()
-
-	var templateBytes []byte
-	templateBytes, err = os.ReadFile(contractAbiPath)
-	if err != nil {
-		open_telemetry.MarkSpanError(spanCtx, err)
-		return nil, errors.Join(errorsB.ErrReadContractTemplateFile, err)
-	}
-
-	var abiJSON abi.ABI
-	abiJSON, err = abi.JSON(strings.NewReader(gjson.GetBytes(templateBytes, abiKey).String()))
-	if err != nil {
-		open_telemetry.MarkSpanError(spanCtx, err)
-		return nil, errors.Join(errorsB.ErrGetAbiFail, err)
-	}
-
-	var (
-		c      *ethclient.Client
-		cancel func()
-	)
-	c, cancel, err = sb.ethClient(spanCtx)
-	if err != nil {
-		open_telemetry.MarkSpanError(spanCtx, err)
-		return nil, errors.Join(errorsB.ErrCreateEthClientFail, err)
-	}
-	defer cancel()
-
-	var pk string
-	pk, err = sb.recognizingScrollPrivateKey(spanCtx)
-	if err != nil {
-		open_telemetry.MarkSpanError(spanCtx, err)
-		return nil, errors.Join(errorsB.ErrRecognizingScrollPrivateKeyFail, err)
-	}
-
-	var w *modelsMW.Wallet
-	w, err = mnemonic_wallet.New().WalletFromPrivateKeyHex(pk)
-	if err != nil {
-		open_telemetry.MarkSpanError(spanCtx, err)
-		return nil, errors.Join(errorsB.ErrWalletAddressNotRecognized, err)
-	}
-
-	var nonce uint64
-	nonce, err = c.PendingNonceAt(spanCtx, *w.WalletAddress)
-	if err != nil {
-		open_telemetry.MarkSpanError(spanCtx, err)
-		return nil, errors.Join(errorsB.ErrPendingNonceAtFail, err)
-	}
-
-	var chainID *big.Int
-	chainID, err = c.ChainID(spanCtx)
-	if err != nil {
-		open_telemetry.MarkSpanError(spanCtx, err)
-		return nil, errors.Join(errorsB.ErrChainIDFormCtxFail, err)
-	}
-
-	var gasPrice *big.Int
-	gasPrice, err = c.SuggestGasPrice(spanCtx)
-	if err != nil {
-		open_telemetry.MarkSpanError(spanCtx, err)
-		return nil, errors.Join(errorsB.ErrSuggestGasPriceFail, err)
-	}
-
-	var txOpts *bind.TransactOpts
-	txOpts, err = bind.NewKeyedTransactorWithChainID(w.PK, chainID)
-	if err != nil {
-		open_telemetry.MarkSpanError(spanCtx, err)
-		return nil, errors.Join(errorsB.ErrNewKeyedTransactorWithChainIDFail, err)
-	}
-
-	if value == nil {
-		value = big.NewInt(intKey) /** in wei */
-	}
-
-	txOpts.Nonce = big.NewInt(int64(nonce))
-	txOpts.Value = value /** in wei */
-	txOpts.GasLimit = uint64(intKey)
-	txOpts.GasPrice = gasPrice /** big.NewInt(1082420000000000) */
-	txOpts.Context = context.WithValue(txOpts.Context, TransactorChainIDCtx, chainID)
-
-	resp, err = bind.NewBoundContract(
-		contractAddress, abiJSON, nil, c, nil,
-	).Transact(txOpts, method, args...)
-	if err != nil {
-		open_telemetry.MarkSpanError(spanCtx, err)
-		return nil, errors.Join(errorsB.ErrApplyBoundContractTransactorFail, err)
-	}
-
-	return resp, nil
 }

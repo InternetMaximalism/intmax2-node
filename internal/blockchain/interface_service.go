@@ -2,17 +2,13 @@ package blockchain
 
 import (
 	"context"
-	"math/big"
 
 	"github.com/dimiro1/health"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 type ServiceBlockchain interface {
 	GenericCommandsSB
-	WriteBlockchain
 	ChainSB
-	WalletSB
 }
 
 type GenericCommandsSB interface {
@@ -28,11 +24,4 @@ type ChainSB interface {
 	SetupEthereumNetworkChainID(ctx context.Context) error
 	EthereumNetworkChainLinkEvmJSONRPC(ctx context.Context) (string, error)
 	EthereumNetworkChainLinkExplorer(ctx context.Context) (string, error)
-}
-
-type WalletSB interface {
-	WalletBalance(
-		ctx context.Context,
-		address common.Address,
-	) (bal *big.Int, err error)
 }
