@@ -6,10 +6,9 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/logger"
+	"intmax2-node/pkg/utils"
 	"math/big"
 	"time"
-
-	"intmax2-node/pkg/utils"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"

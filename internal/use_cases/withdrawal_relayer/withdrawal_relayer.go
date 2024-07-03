@@ -1,4 +1,4 @@
-package deposit_analyzer
+package withdrawal_relayer
 
 import "context"
 
