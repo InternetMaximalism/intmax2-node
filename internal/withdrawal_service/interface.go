@@ -9,8 +9,8 @@ type ScrollMessengerResponse struct {
 	ErrCode int    `json:"errcode"`
 	ErrMsg  string `json:"errmsg"`
 	Data    struct {
-		Results []ScrollMessengerResult `json:"results"`
-		Total   int                     `json:"total"`
+		Results []*ScrollMessengerResult `json:"results"`
+		Total   int                      `json:"total"`
 	} `json:"data"`
 }
 
