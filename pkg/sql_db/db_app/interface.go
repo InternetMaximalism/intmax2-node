@@ -3,6 +3,7 @@ package db_app
 import (
 	"context"
 	"intmax2-node/pkg/sql_db/db_app/models"
+	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 
 	"github.com/dimiro1/health"
 	"github.com/holiman/uint256"
@@ -12,6 +13,7 @@ type SQLDb interface {
 	GenericCommands
 	ServiceCommands
 	Tokens
+	Withdrawals
 }
 
 type GenericCommands interface {
@@ -32,4 +34,9 @@ type Tokens interface {
 		tokenID *uint256.Int,
 	) (*models.Token, error)
 	TokenByIndex(tokenIndex string) (*models.Token, error)
+}
+
+type Withdrawals interface {
+	CreateWithdrawal(w *mDBApp.Withdrawal) (*mDBApp.Withdrawal, error)
+	FindWithdrawals(status mDBApp.WithdrawalStatus) (*[]mDBApp.Withdrawal, error)
 }

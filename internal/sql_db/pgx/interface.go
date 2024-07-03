@@ -12,6 +12,7 @@ type PGX interface {
 	GenericCommands
 	ServiceCommands
 	Tokens
+	Withdrawals
 }
 
 type GenericCommands interface {
@@ -32,4 +33,9 @@ type Tokens interface {
 		tokenID *uint256.Int,
 	) (*mDBApp.Token, error)
 	TokenByIndex(tokenIndex string) (*mDBApp.Token, error)
+}
+
+type Withdrawals interface {
+	CreateWithdrawal(w *mDBApp.Withdrawal) (*mDBApp.Withdrawal, error)
+	FindWithdrawals(status mDBApp.WithdrawalStatus) (*[]mDBApp.Withdrawal, error)
 }

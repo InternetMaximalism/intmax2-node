@@ -1,10 +1,10 @@
-package withdrawal_relayer
+package withdrawal_aggregator
 
 import (
 	"context"
 )
 
-//go:generate mockgen -destination=mock_blockchain_service_test.go -package=withdrawal_relayer_test -source=blockchain_service.go
+//go:generate mockgen -destination=mock_blockchain_service_test.go -package=withdrawal_aggregator_test -source=blockchain_service.go
 
 type ServiceBlockchain interface {
 	GenericCommandsSB

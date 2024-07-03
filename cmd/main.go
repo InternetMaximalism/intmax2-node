@@ -100,6 +100,7 @@ func main() {
 			Context: ctx,
 			Config:  cfg,
 			Log:     log,
+			DbApp:   dbApp,
 			SB:      bc,
 		}),
 		generate_account.NewCmd(log),
