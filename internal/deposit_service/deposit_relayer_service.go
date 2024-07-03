@@ -9,6 +9,8 @@ import (
 	"math/big"
 	"time"
 
+	"intmax2-node/pkg/utils"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -83,7 +85,7 @@ func fetchDepositIndices(ctx context.Context, liquidity *bindings.Liquidity) (De
 }
 
 func submitDepositRoot(ctx context.Context, cfg *configs.Config, client *ethclient.Client, liquidity *bindings.Liquidity, maxLastSeenDepositIndex uint64) (*types.Receipt, error) {
-	transactOpts, err := createTransactor(cfg)
+	transactOpts, err := utils.CreateTransactor(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +115,7 @@ func shouldProcessDeposits(client *ethclient.Client, liquidity *bindings.Liquidi
 	}
 
 	nextDepositIndex := lastProcessedDepositIndex + 1
-	lastProcessedBlockNumber, err := fetchBlockNumberByDepositIndex(liquidity, nextDepositIndex)
+	lastProcessedBlockNumber, err := utils.FetchBlockNumberByDepositIndex(liquidity, nextDepositIndex)
 	if err != nil {
 		return false, fmt.Errorf("failed to get last block number: %w", err)
 	}
@@ -148,7 +150,7 @@ func DepositRelayer(
 	}
 
 	var client *ethclient.Client
-	client, err = newClient(link)
+	client, err = utils.NewClient(link)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
