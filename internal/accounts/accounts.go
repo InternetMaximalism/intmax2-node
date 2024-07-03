@@ -79,7 +79,7 @@ func NewPrivateKey(privateKey *big.Int) (*PrivateKey, error) {
 		return nil, ErrInputPrivateKeyIsZero
 	}
 
-	publicKey := privateKeyToPublicKey(privateKey)
+	publicKey := privateKeyToPublicKey(new(big.Int).Set(privateKey))
 	if err := checkValidPublicKey(&publicKey); err != nil {
 		return nil, errors.Join(ErrValidPublicKeyFail, err)
 	}
@@ -222,10 +222,58 @@ func (pk *PublicKey) ToAddress() Address {
 	return Address(result)
 }
 
+func (pk *PublicKey) FromAddressString(address string) error {
+	recoverAddress, err := AddressFromString(address)
+	if err != nil {
+		return err
+	}
+
+	publicKey, err := recoverAddress.Public()
+	if err != nil {
+		return err
+	}
+
+	pk.Pk = publicKey.Pk
+
+	return nil
+}
+
 // ToAddress converts the private key to an address.
 // It returns a 32-byte hex string with 0x.
 func (a *PrivateKey) ToAddress() Address {
 	return a.PublicKey.ToAddress()
+}
+
+func AddressFromString(s string) (Address, error) {
+	if len(s) != 66 || s[:2] != "0x" {
+		return Address{}, ErrAddressInvalid
+	}
+	b, err := hexutil.Decode(s)
+	if err != nil {
+		return Address{}, errors.Join(ErrDecodeAddressFail, err)
+	}
+
+	return AddressFromBytes(b)
+}
+
+func AddressFromBytes(b []byte) (Address, error) {
+	if len(b) != 32 {
+		return Address{}, ErrAddressInvalid
+	}
+	var address Address
+	copy(address[:], b)
+	return address, nil
+}
+
+func (a Address) Public() (*PublicKey, error) {
+	b := a.Bytes()
+	b[0] |= 0x80
+	point := new(bn254.G1Affine)
+	_, err := point.SetBytes(b)
+	if err != nil {
+		return nil, err
+	}
+	return NewPublicKey(point), nil
 }
 
 func (a Address) Bytes() []byte {

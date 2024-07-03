@@ -98,3 +98,19 @@ func TestMarshalUnmarshal(t *testing.T) {
 
 	assert.True(t, publicKey.Equal(account.Public()))
 }
+
+func TestAddressToPublicKey(t *testing.T) {
+	t.Parallel()
+
+	account, err := intMaxAcc.NewPrivateKeyWithReCalcPubKeyIfPkNegates(big.NewInt(3))
+	assert.NoError(t, err)
+
+	accountAddress := account.ToAddress()
+	address := accountAddress.String()
+
+	publicKey := new(intMaxAcc.PublicKey)
+	err = publicKey.FromAddressString(address)
+	assert.NoError(t, err)
+
+	assert.True(t, account.PublicKey.Equal(publicKey))
+}
