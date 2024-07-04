@@ -78,10 +78,10 @@ func NewBlockContent(
 
 	publicKeysHash := crypto.Keccak256(senderPublicKeys)
 
-	aggregatedPublicKey := accounts.NewPublicKey(new(bn254.G1Affine))
+	aggregatedPublicKey := new(accounts.PublicKey)
 	for _, sender := range bc.Senders {
 		if sender.IsSigned {
-			aggregatedPublicKey.Pk.Add(aggregatedPublicKey.Pk, sender.PublicKey.WeightByHash(publicKeysHash).Pk)
+			aggregatedPublicKey.Add(aggregatedPublicKey, sender.PublicKey.WeightByHash(publicKeysHash))
 		}
 	}
 	bc.AggregatedPublicKey = new(accounts.PublicKey).Set(aggregatedPublicKey)
@@ -173,12 +173,12 @@ func (bc *BlockContent) IsValid() error {
 				}
 
 				publicKeysHash := crypto.Keccak256(senderPublicKeys)
-				aggregatedPublicKey := accounts.NewPublicKey(new(bn254.G1Affine))
+				aggregatedPublicKey := new(accounts.PublicKey)
 				for key := range bc.Senders {
 					if bc.Senders[key].IsSigned {
-						aggregatedPublicKey.Pk.Add(
-							aggregatedPublicKey.Pk,
-							bc.Senders[key].PublicKey.WeightByHash(publicKeysHash).Pk,
+						aggregatedPublicKey.Add(
+							aggregatedPublicKey,
+							bc.Senders[key].PublicKey.WeightByHash(publicKeysHash),
 						)
 					}
 				}

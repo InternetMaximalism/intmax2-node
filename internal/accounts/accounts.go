@@ -37,6 +37,18 @@ func (pk *PublicKey) String() string {
 	return hex.EncodeToString(pk.Pk.Marshal())
 }
 
+// NewDummyPublicKey returns the point which the x coordinate is 1.
+//
+// NOTE: If the x coordinate is 0, there is no corresponding y value.
+func NewDummyPublicKey() *PublicKey {
+	const dummyPublicKeyY = 2
+	point := new(bn254.G1Affine)
+	point.X.SetOne()
+	point.Y.SetInt64(dummyPublicKeyY)
+
+	return &PublicKey{Pk: point}
+}
+
 // Add two public keys as elliptic curve points.
 func (pk *PublicKey) Add(a, b *PublicKey) *PublicKey {
 	if pk.Pk == nil {
@@ -257,7 +269,8 @@ func (a *PrivateKey) ToAddress() Address {
 }
 
 func NewAddressFromHex(s string) (Address, error) {
-	if len(s) != 66 || s[:2] != "0x" {
+	const int66Key = 66
+	if len(s) != int66Key || s[:2] != "0x" {
 		return Address{}, ErrAddressInvalid
 	}
 	b, err := hexutil.Decode(s)
@@ -269,7 +282,8 @@ func NewAddressFromHex(s string) (Address, error) {
 }
 
 func NewAddressFromBytes(b []byte) (Address, error) {
-	if len(b) != 32 {
+	const addressByteSize = 32
+	if len(b) != addressByteSize {
 		return Address{}, ErrAddressInvalid
 	}
 	var address Address
@@ -278,8 +292,9 @@ func NewAddressFromBytes(b []byte) (Address, error) {
 }
 
 func (a Address) Public() (*PublicKey, error) {
+	const mCompressedSmallest byte = 0b10 << 6
 	b := a.Bytes()
-	b[0] |= 0x80
+	b[0] |= mCompressedSmallest
 	point := new(bn254.G1Affine)
 	_, err := point.SetBytes(b)
 	if err != nil {

@@ -10,8 +10,6 @@ import (
 	"github.com/iden3/go-iden3-crypto/ffg"
 )
 
-const uint32ByteSize = 4
-
 // Calculate the signature of the message using the private key as follows:
 // messagePoint = hashToG2(message)
 // signature = privateKey * messagePoint
@@ -105,7 +103,10 @@ func hashToWeight(myPublicKey *fp.Element, hash []byte) *big.Int {
 	challenger := goldenposeidon.NewChallenger()
 	challenger.ObserveElements(flatten2)
 
-	const bn254OrderByteSize = 32
+	const (
+		bn254OrderByteSize = 32
+		uint32ByteSize     = 4
+	)
 	output := challenger.GetNChallenges(bn254OrderByteSize / uint32ByteSize)
 
 	a := goldenposeidon.FieldElementSliceToBigInt(output)

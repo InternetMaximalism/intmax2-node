@@ -15,6 +15,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestDummyPublicKey(t *testing.T) {
+	t.Parallel()
+
+	pk := intMaxAcc.NewDummyPublicKey()
+	assert.NotNil(t, pk)
+}
+
 func TestShouldNotGenerateNilAccount(t *testing.T) {
 	t.Parallel()
 
