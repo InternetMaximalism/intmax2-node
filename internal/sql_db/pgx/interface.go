@@ -37,5 +37,5 @@ type Tokens interface {
 
 type Withdrawals interface {
 	CreateWithdrawal(w *mDBApp.Withdrawal) (*mDBApp.Withdrawal, error)
-	FindWithdrawals(status mDBApp.WithdrawalStatus) (*[]mDBApp.Withdrawal, error)
+	FindWithdrawalsByGroupStatus(status mDBApp.WithdrawalGroupStatus) (*[]mDBApp.Withdrawal, error)
 }

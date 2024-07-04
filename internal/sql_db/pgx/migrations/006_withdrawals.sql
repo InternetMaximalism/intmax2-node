@@ -1,8 +1,14 @@
 -- +migrate Up
 
-CREATE TABLE withdrawals (
+CREATE TABLE withdrawal_groups (
     id uuid not null default uuid_generate_v4(),
     status int not null,
+    created_at timestamptz not null default now(),
+    PRIMARY KEY (id)
+);
+
+CREATE TABLE withdrawals (
+    id uuid not null default uuid_generate_v4(),
     recipient varchar(64) not null,
     token_index int not null,
     amount varchar(32) not null,
@@ -14,6 +20,7 @@ CREATE TABLE withdrawals (
     block_number int not null,
     enough_balance_proof varchar(255) not null,
     created_at timestamptz not null default now(),
+    group_id uuid references withdrawal_groups(id),
     PRIMARY KEY (id)
 );
 

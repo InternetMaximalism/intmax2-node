@@ -13,12 +13,11 @@ import (
 func (p *pgx) CreateWithdrawal(w *mDBApp.Withdrawal) (*mDBApp.Withdrawal, error) {
 	const (
 		query = ` INSERT INTO withdrawals
-              (id, status, recipient, token_index, amount, salt, transfer_hash, transfer_merkle_proof, transaction, tx_merkle_proof, block_number, enough_balance_proof, created_at)
+              (id, recipient, token_index, amount, salt, transfer_hash, transfer_merkle_proof, transaction, tx_merkle_proof, block_number, enough_balance_proof, created_at)
               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) `
 	)
 
 	id := uuid.New().String()
-	status := mDBApp.PENDING
 	recipient := w.Recipient
 	tokenIndex := w.TokenIndex
 	amount := w.Amount
@@ -45,7 +44,6 @@ func (p *pgx) CreateWithdrawal(w *mDBApp.Withdrawal) (*mDBApp.Withdrawal, error)
 		p.ctx,
 		query,
 		id,
-		status,
 		recipient,
 		tokenIndex,
 		amount,
@@ -63,15 +61,12 @@ func (p *pgx) CreateWithdrawal(w *mDBApp.Withdrawal) (*mDBApp.Withdrawal, error)
 	}
 
 	var tDBApp *mDBApp.Withdrawal
-	// tDBApp, err = p.TokenByIndex(tokenIndex)
-	// if err != nil {
-	// 	return nil, err
-	// }
+	// TODO:
 
 	return tDBApp, nil
 }
 
-func (p *pgx) FindWithdrawals(status mDBApp.WithdrawalStatus) (*[]mDBApp.Withdrawal, error) {
+func (p *pgx) FindWithdrawalsByGroupStatus(status mDBApp.WithdrawalGroupStatus) (*[]mDBApp.Withdrawal, error) {
 	const (
 		q = ` SELECT id, status, created_at FROM withdrawals WHERE status = $1 `
 	)
@@ -87,7 +82,7 @@ func (p *pgx) FindWithdrawals(status mDBApp.WithdrawalStatus) (*[]mDBApp.Withdra
 		var w mDBApp.Withdrawal
 		err := rows.Scan(
 			&w.ID,
-			&w.Status,
+			// &w.Status,
 			&w.CreatedAt,
 		)
 		if err != nil {

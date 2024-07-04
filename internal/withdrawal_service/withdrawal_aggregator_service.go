@@ -94,12 +94,12 @@ func SubmitWithdrawals(ctx context.Context, cfg *configs.Config, log logger.Logg
 }
 
 func (w *WithdrawalAggregatorService) getWithdrawalsFromDB() (*[]mDBApp.Withdrawal, error) {
-	withdrawals, err := w.db.FindWithdrawals(mDBApp.PENDING)
+	withdrawals, err := w.db.FindWithdrawalsByGroupStatus(mDBApp.PENDING)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find withdrawals: %w", err)
 	}
 	if withdrawals == nil {
-		return nil, fmt.Errorf("failed to get withdrawals because of nil withdrawals")
+		return nil, fmt.Errorf("failed to get withdrawals because withdrawals is nil")
 	}
 
 	return withdrawals, nil

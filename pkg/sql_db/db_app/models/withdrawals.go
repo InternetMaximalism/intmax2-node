@@ -2,10 +2,10 @@ package models
 
 import "time"
 
-type WithdrawalStatus int
+type WithdrawalGroupStatus int
 
 const (
-	PENDING WithdrawalStatus = iota
+	PENDING WithdrawalGroupStatus = iota
 	PROCESSING
 	SUCCESS
 	FAILED
@@ -30,7 +30,6 @@ type TxMerkleProof struct {
 
 type Withdrawal struct {
 	ID                  string              `json:"id"`
-	Status              WithdrawalStatus    `json:"status"`
 	Recipient           string              `json:"recipient"`
 	TokenIndex          int                 `json:"token_index"`
 	Amount              string              `json:"amount"`
@@ -41,5 +40,6 @@ type Withdrawal struct {
 	TxMerkleProof       TxMerkleProof       `json:"tx_merkle_proof"`
 	BlockNumber         int                 `json:"block_number"`
 	EnoughBalanceProof  string              `json:"enough_balance_proof"`
+	GroupID             *string             `json:"group_id"`
 	CreatedAt           time.Time           `json:"created_at"`
 }
