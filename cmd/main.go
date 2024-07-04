@@ -10,6 +10,7 @@ import (
 	"intmax2-node/cmd/migrator"
 	"intmax2-node/cmd/mnemonic_account"
 	"intmax2-node/cmd/server"
+	"intmax2-node/cmd/withdrawal"
 	"intmax2-node/configs"
 	"intmax2-node/internal/block_builder_registry_service"
 	"intmax2-node/internal/blockchain"
@@ -93,6 +94,12 @@ func main() {
 			Config:  cfg,
 			Log:     log,
 			DbApp:   dbApp,
+			SB:      bc,
+		}),
+		withdrawal.NewWithdrawCmd(&withdrawal.Withdrawal{
+			Context: ctx,
+			Config:  cfg,
+			Log:     log,
 			SB:      bc,
 		}),
 		generate_account.NewCmd(log),

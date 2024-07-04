@@ -1,4 +1,4 @@
-package deposit_service
+package utils
 
 import (
 	"fmt"
@@ -14,7 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-func newClient(url string) (*ethclient.Client, error) {
+func NewClient(url string) (*ethclient.Client, error) {
 	ethClient, err := ethclient.Dial(url)
 	if err != nil {
 		log.Fatalf("error connecting to rpc service: %+v", err)
@@ -23,7 +23,7 @@ func newClient(url string) (*ethclient.Client, error) {
 	return ethClient, nil
 }
 
-func createTransactor(cfg *configs.Config) (*bind.TransactOpts, error) {
+func CreateTransactor(cfg *configs.Config) (*bind.TransactOpts, error) {
 	privateKey, err := crypto.HexToECDSA(cfg.Blockchain.EthereumPrivateKeyHex)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load private key: %w", err)
@@ -45,7 +45,7 @@ func createTransactor(cfg *configs.Config) (*bind.TransactOpts, error) {
 	return transactOpts, nil
 }
 
-func fetchBlockNumberByDepositIndex(liquidity *bindings.Liquidity, depositIndex uint64) (uint64, error) {
+func FetchBlockNumberByDepositIndex(liquidity *bindings.Liquidity, depositIndex uint64) (uint64, error) {
 	if depositIndex == 0 {
 		return 0, nil
 	}
@@ -67,4 +67,13 @@ func fetchBlockNumberByDepositIndex(liquidity *bindings.Liquidity, depositIndex 
 	}
 
 	return blockNumber, nil
+}
+
+func StringToBigInt(s string) (*big.Int, error) {
+	const int10Key = 10
+	i := new(big.Int)
+	if _, success := i.SetString(s, int10Key); !success {
+		return nil, fmt.Errorf("failed to convert string to big.Int: %s", s)
+	}
+	return i, nil
 }

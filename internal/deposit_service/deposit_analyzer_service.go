@@ -9,6 +9,7 @@ import (
 	"intmax2-node/internal/logger"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	errorsDB "intmax2-node/pkg/sql_db/errors"
+	"intmax2-node/pkg/utils"
 	"math/big"
 	"sync"
 
@@ -110,7 +111,7 @@ func rejectDeposits(
 	maxLastSeenDepositIndex uint64,
 	rejectedIndices []uint64,
 ) (*types.Receipt, error) {
-	transactOpts, err := createTransactor(cfg)
+	transactOpts, err := utils.CreateTransactor(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +142,7 @@ func DepositAnalyzer(
 	}
 
 	var client *ethclient.Client
-	client, err = newClient(link)
+	client, err = utils.NewClient(link)
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
@@ -192,7 +193,7 @@ func DepositAnalyzer(
 		panic(fmt.Sprintf("Failed to get last seen deposit index: %v", err.Error()))
 	}
 
-	lastSeenBlockNumber, err := fetchBlockNumberByDepositIndex(liquidity, lastSeenDepositIndex)
+	lastSeenBlockNumber, err := utils.FetchBlockNumberByDepositIndex(liquidity, lastSeenDepositIndex)
 	if err != nil {
 		log.Fatalf("Failed to get last block number: %v", err.Error())
 	}
