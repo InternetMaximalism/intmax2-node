@@ -15,6 +15,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestDummyPublicKey(t *testing.T) {
+	t.Parallel()
+
+	pk := intMaxAcc.NewDummyPublicKey()
+	assert.NotNil(t, pk)
+}
+
 func TestShouldNotGenerateNilAccount(t *testing.T) {
 	t.Parallel()
 
@@ -97,4 +104,19 @@ func TestMarshalUnmarshal(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.True(t, publicKey.Equal(account.Public()))
+}
+
+func TestAddressToPublicKey(t *testing.T) {
+	t.Parallel()
+
+	account, err := intMaxAcc.NewPrivateKeyWithReCalcPubKeyIfPkNegates(big.NewInt(3))
+	assert.NoError(t, err)
+
+	accountAddress := account.ToAddress()
+	address := accountAddress.String()
+
+	publicKey, err := intMaxAcc.NewPublicKeyFromAddressHex(address)
+	assert.NoError(t, err)
+
+	assert.True(t, account.PublicKey.Equal(publicKey))
 }

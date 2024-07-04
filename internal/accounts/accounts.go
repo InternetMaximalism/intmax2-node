@@ -19,8 +19,12 @@ type PublicKey struct {
 	Pk *bn254.G1Affine
 }
 
-func NewPublicKey(pk *bn254.G1Affine) *PublicKey {
-	return &PublicKey{Pk: pk}
+func NewPublicKey(pk *bn254.G1Affine) (*PublicKey, error) {
+	publicKey := PublicKey{Pk: pk}
+	if err := checkValidPublicKey(&publicKey); err != nil {
+		return nil, err
+	}
+	return &publicKey, nil
 }
 
 func (pk *PublicKey) Set(other *PublicKey) *PublicKey {
@@ -31,6 +35,28 @@ func (pk *PublicKey) Set(other *PublicKey) *PublicKey {
 
 func (pk *PublicKey) String() string {
 	return hex.EncodeToString(pk.Pk.Marshal())
+}
+
+// NewDummyPublicKey returns the point which the x coordinate is 1.
+//
+// NOTE: If the x coordinate is 0, there is no corresponding y value.
+func NewDummyPublicKey() *PublicKey {
+	const dummyPublicKeyY = 2
+	point := new(bn254.G1Affine)
+	point.X.SetOne()
+	point.Y.SetInt64(dummyPublicKeyY)
+
+	return &PublicKey{Pk: point}
+}
+
+// Add two public keys as elliptic curve points.
+func (pk *PublicKey) Add(a, b *PublicKey) *PublicKey {
+	if pk.Pk == nil {
+		pk.Pk = new(bn254.G1Affine)
+	}
+
+	pk.Pk = new(bn254.G1Affine).Add(a.Pk, b.Pk)
+	return pk
 }
 
 type PrivateKey struct {
@@ -79,7 +105,7 @@ func NewPrivateKey(privateKey *big.Int) (*PrivateKey, error) {
 		return nil, ErrInputPrivateKeyIsZero
 	}
 
-	publicKey := privateKeyToPublicKey(privateKey)
+	publicKey := privateKeyToPublicKey(new(big.Int).Set(privateKey))
 	if err := checkValidPublicKey(&publicKey); err != nil {
 		return nil, errors.Join(ErrValidPublicKeyFail, err)
 	}
@@ -222,10 +248,60 @@ func (pk *PublicKey) ToAddress() Address {
 	return Address(result)
 }
 
+func NewPublicKeyFromAddressHex(address string) (*PublicKey, error) {
+	recoverAddress, err := NewAddressFromHex(address)
+	if err != nil {
+		return nil, err
+	}
+
+	publicKey, err := recoverAddress.Public()
+	if err != nil {
+		return nil, err
+	}
+
+	return publicKey, nil
+}
+
 // ToAddress converts the private key to an address.
 // It returns a 32-byte hex string with 0x.
 func (a *PrivateKey) ToAddress() Address {
 	return a.PublicKey.ToAddress()
+}
+
+func NewAddressFromHex(s string) (Address, error) {
+	const int66Key = 66
+	if len(s) != int66Key || s[:2] != "0x" {
+		return Address{}, ErrAddressInvalid
+	}
+	b, err := hexutil.Decode(s)
+	if err != nil {
+		return Address{}, errors.Join(ErrDecodeAddressFail, err)
+	}
+
+	return NewAddressFromBytes(b)
+}
+
+func NewAddressFromBytes(b []byte) (Address, error) {
+	const addressByteSize = 32
+	if len(b) != addressByteSize {
+		return Address{}, ErrAddressInvalid
+	}
+	var address Address
+	copy(address[:], b)
+	return address, nil
+}
+
+func (a Address) Public() (*PublicKey, error) {
+	const mCompressedSmallest byte = 0b10 << 6
+	b := a.Bytes()
+	b[0] |= mCompressedSmallest
+	point := new(bn254.G1Affine)
+	_, err := point.SetBytes(b)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewPublicKey(point)
 }
 
 func (a Address) Bytes() []byte {
