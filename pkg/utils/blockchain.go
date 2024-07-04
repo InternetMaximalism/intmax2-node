@@ -70,8 +70,9 @@ func FetchBlockNumberByDepositIndex(liquidity *bindings.Liquidity, depositIndex 
 }
 
 func StringToBigInt(s string) (*big.Int, error) {
+	const int10Key = 10
 	i := new(big.Int)
-	if _, success := i.SetString(s, 10); !success {
+	if _, success := i.SetString(s, int10Key); !success {
 		return nil, fmt.Errorf("failed to convert string to big.Int: %s", s)
 	}
 	return i, nil
