@@ -108,8 +108,7 @@ func TestAddressToPublicKey(t *testing.T) {
 	accountAddress := account.ToAddress()
 	address := accountAddress.String()
 
-	publicKey := new(intMaxAcc.PublicKey)
-	err = publicKey.FromAddressString(address)
+	publicKey, err := intMaxAcc.NewPublicKeyFromAddressHex(address)
 	assert.NoError(t, err)
 
 	assert.True(t, account.PublicKey.Equal(publicKey))

@@ -19,8 +19,12 @@ type PublicKey struct {
 	Pk *bn254.G1Affine
 }
 
-func NewPublicKey(pk *bn254.G1Affine) *PublicKey {
-	return &PublicKey{Pk: pk}
+func NewPublicKey(pk *bn254.G1Affine) (*PublicKey, error) {
+	publicKey := PublicKey{Pk: pk}
+	if err := checkValidPublicKey(&publicKey); err != nil {
+		return nil, err
+	}
+	return &publicKey, nil
 }
 
 func (pk *PublicKey) Set(other *PublicKey) *PublicKey {
@@ -31,6 +35,16 @@ func (pk *PublicKey) Set(other *PublicKey) *PublicKey {
 
 func (pk *PublicKey) String() string {
 	return hex.EncodeToString(pk.Pk.Marshal())
+}
+
+// Add two public keys as elliptic curve points.
+func (pk *PublicKey) Add(a, b *PublicKey) *PublicKey {
+	if pk.Pk == nil {
+		pk.Pk = new(bn254.G1Affine)
+	}
+
+	pk.Pk = new(bn254.G1Affine).Add(a.Pk, b.Pk)
+	return pk
 }
 
 type PrivateKey struct {
@@ -222,20 +236,18 @@ func (pk *PublicKey) ToAddress() Address {
 	return Address(result)
 }
 
-func (pk *PublicKey) FromAddressString(address string) error {
-	recoverAddress, err := AddressFromString(address)
+func NewPublicKeyFromAddressHex(address string) (*PublicKey, error) {
+	recoverAddress, err := NewAddressFromHex(address)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	publicKey, err := recoverAddress.Public()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	pk.Pk = publicKey.Pk
-
-	return nil
+	return publicKey, nil
 }
 
 // ToAddress converts the private key to an address.
@@ -244,7 +256,7 @@ func (a *PrivateKey) ToAddress() Address {
 	return a.PublicKey.ToAddress()
 }
 
-func AddressFromString(s string) (Address, error) {
+func NewAddressFromHex(s string) (Address, error) {
 	if len(s) != 66 || s[:2] != "0x" {
 		return Address{}, ErrAddressInvalid
 	}
@@ -253,10 +265,10 @@ func AddressFromString(s string) (Address, error) {
 		return Address{}, errors.Join(ErrDecodeAddressFail, err)
 	}
 
-	return AddressFromBytes(b)
+	return NewAddressFromBytes(b)
 }
 
-func AddressFromBytes(b []byte) (Address, error) {
+func NewAddressFromBytes(b []byte) (Address, error) {
 	if len(b) != 32 {
 		return Address{}, ErrAddressInvalid
 	}
@@ -273,7 +285,8 @@ func (a Address) Public() (*PublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewPublicKey(point), nil
+
+	return NewPublicKey(point)
 }
 
 func (a Address) Bytes() []byte {
