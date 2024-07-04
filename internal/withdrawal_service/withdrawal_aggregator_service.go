@@ -76,7 +76,7 @@ func AggregateWithdrawals(ctx context.Context, cfg *configs.Config, log logger.L
 	}
 
 	for _, withdrawal := range *withdrawals {
-		_, err := generateZKProof(withdrawal.ID, withdrawal.Recipient, withdrawal.TokenIndex, withdrawal.Amount, withdrawal.Salt, withdrawal.TransferHash)
+		_, err := withdrawalAggregatorService.generateZKProof(withdrawal.ID, withdrawal.Recipient, withdrawal.TokenIndex, withdrawal.Amount, withdrawal.Salt, withdrawal.TransferHash)
 		if err != nil {
 			panic(fmt.Sprintf("Failed to retrieve withdrawals %v", err.Error()))
 		}
@@ -105,9 +105,7 @@ func (w *WithdrawalAggregatorService) getWithdrawalsFromDB() (*[]mDBApp.Withdraw
 	return withdrawals, nil
 }
 
-func generateZKProof(id string, recipient string, tokenIndex int, amount string, salt string, blockHash string) (error, error) {
-	apiUrl := "http://localhost:8080/proof"
-
+func (w *WithdrawalAggregatorService) generateZKProof(id string, recipient string, tokenIndex int, amount string, salt string, blockHash string) (error, error) {
 	requestBody := map[string]interface{}{
 		"id":         id,
 		"recipient":  recipient,
@@ -121,7 +119,7 @@ func generateZKProof(id string, recipient string, tokenIndex int, amount string,
 		return nil, fmt.Errorf("failed to marshal JSON request body: %w", err)
 	}
 
-	resp, err := http.Post(apiUrl, "application/json", bytes.NewBuffer(jsonBody))
+	resp, err := http.Post(w.cfg.API.WithdrawalProverApiURL, "application/json", bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to request API: %w", err)
 	}

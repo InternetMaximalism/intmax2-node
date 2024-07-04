@@ -99,7 +99,7 @@ func WithdrawalRelayer(ctx context.Context, cfg *configs.Config, log logger.Logg
 
 func (w *WithdrawalRelayerService) fetchClaimableScrollMessengerRequests() ([]*ScrollMessengerResult, error) {
 	apiUrl := fmt.Sprintf("%s/api/l2/unclaimed/withdrawals?address=%s&page_size=10&page=%d",
-		w.cfg.Blockchain.ScrollBridgeApiUrl,
+		w.cfg.Blockchain.ScrollBridgeApiURL,
 		w.cfg.Blockchain.ScrollMessengerL2ContractAddress,
 		defaultPage,
 	)
