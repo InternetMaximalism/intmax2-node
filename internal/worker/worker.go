@@ -32,6 +32,7 @@ type kvInfo struct {
 	CtxCancel        context.CancelFunc
 	KvDB             *bolt.DB
 	TransfersCounter int32
+	Delivered        bool
 	Processing       bool
 	Receiver         chan func() error
 }
@@ -181,18 +182,13 @@ func (w *worker) newTempFile(dir string) error {
 		for {
 			select {
 			case <-w.files.FilesList[currentFile].Ctx.Done():
-				if w.files != nil &&
-					w.files.FilesList[currentFile] != nil &&
-					w.files.FilesList[currentFile].Receiver != nil {
-					close(w.files.FilesList[currentFile].Receiver)
-					_ = w.files.FilesList[currentFile].KvDB.Close()
-					w.files.FilesList[currentFile].Receiver = nil
-				}
+				w.files.FilesList[currentFile].Delivered = true
+				_ = w.files.FilesList[currentFile].KvDB.Close()
 				return
 			case fn := <-w.files.FilesList[currentFile].Receiver:
 				errTx := fn()
 				if errTx != nil {
-					fmt.Println(errTx)
+					w.log.Errorf("%+v", errTx)
 				}
 			}
 		}
@@ -237,7 +233,10 @@ func (w *worker) AvailableFiles() (list []*os.File) {
 		if w.files.CurrentFile.Name() != key.Name() &&
 			atomic.LoadInt32(&w.files.FilesList[key].TransfersCounter) == 0 &&
 			!w.files.FilesList[key].Processing {
-			w.files.FilesList[key].CtxCancel()
+			if !w.files.FilesList[key].Delivered {
+				w.files.FilesList[key].CtxCancel()
+				continue
+			}
 			list = append(list, key)
 		}
 	}
@@ -273,17 +272,19 @@ func (w *worker) Start(ctx context.Context, ticker *time.Ticker) error {
 			}
 
 			list := w.AvailableFiles()
-			if len(list) > 0 {
-				if atomic.LoadInt32(&w.numWorkers) < w.maxWorkers {
-					w.files.FilesList[list[0]].Processing = true
-					atomic.AddInt32(&w.numWorkers, 1)
-					go func() {
-						err = w.postProcessing(ctx, list[0])
-						if err != nil {
-							const msg = "failed to apply post processing"
-							w.log.WithError(err).Errorf(msg)
-						}
-					}()
+			for key := range list {
+				if w.files.FilesList[list[key]].Delivered {
+					if atomic.LoadInt32(&w.numWorkers) < w.maxWorkers {
+						w.files.FilesList[list[key]].Processing = true
+						atomic.AddInt32(&w.numWorkers, 1)
+						go func(f *os.File) {
+							err = w.postProcessing(ctx, f)
+							if err != nil {
+								const msg = "failed to apply post processing"
+								w.log.WithError(err).Errorf(msg)
+							}
+						}(list[key])
+					}
 				}
 			}
 		case f := <-w.trHashes.Cleaner:
