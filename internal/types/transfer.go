@@ -53,6 +53,15 @@ func (ga *GenericAddress) Equal(other *GenericAddress) bool {
 	return true
 }
 
+func NewDefaultGenericAddress() GenericAddress {
+	defaultAddress := [20]byte{}
+
+	return GenericAddress{
+		addressType: EthereumAddressType,
+		address:     defaultAddress[:],
+	}
+}
+
 func NewEthereumAddress(address []byte) (GenericAddress, error) {
 	const int20Key = 20
 	if len(address) != int20Key {
@@ -89,6 +98,14 @@ func (td *Transfer) Set(transferData *Transfer) *Transfer {
 	td.TokenIndex = transferData.TokenIndex
 	td.Amount = transferData.Amount
 	td.Salt = transferData.Salt
+	return td
+}
+
+func (td *Transfer) SetZero() *Transfer {
+	td.Recipient = NewDefaultGenericAddress()
+	td.TokenIndex = 0
+	td.Amount = big.NewInt(0)
+	td.Salt = new(PoseidonHashOut).SetZero()
 	return td
 }
 
