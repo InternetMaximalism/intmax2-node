@@ -17,4 +17,6 @@ type Blockchain struct {
 
 	BlockBuilderRegistryContractAddress string `env:"BLOCKCHAIN_BLOCK_BUILDER_REGISTRY_CONTRACT_ADDRESS"`
 	LiquidityContractAddress            string `env:"BLOCKCHAIN_LIQUIDITY_CONTRACT_ADDRESS"`
+
+	MaxCounterOfTransaction int `env:"BLOCKCHAIN_MAX_COUNTER_OF_TRANSACTION" envDefault:"128"`
 }

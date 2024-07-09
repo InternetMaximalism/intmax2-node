@@ -16,6 +16,7 @@ type Wallet struct {
 	Mnemonic            string            `json:"mnemonic,omitempty"`
 	Password            string            `json:"password,omitempty"`
 	IntMaxWalletAddress string            `json:"intmax_wallet_address"`
+	IntMaxPublicKey     string            `json:"intmax_public_key"`
 	IntMaxPrivateKey    string            `json:"intmax_private_key"`
 	PK                  *ecdsa.PrivateKey `json:"-"`
 }

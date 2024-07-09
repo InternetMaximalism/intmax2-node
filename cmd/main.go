@@ -17,6 +17,8 @@ import (
 	"intmax2-node/internal/cli"
 	"intmax2-node/internal/network_service"
 	"intmax2-node/internal/open_telemetry"
+	"intmax2-node/internal/pow"
+	"intmax2-node/internal/worker"
 	"intmax2-node/pkg/logger"
 	"intmax2-node/pkg/sql_db/db_app"
 	"os"
@@ -67,10 +69,15 @@ func main() {
 		return
 	}
 
+	w := worker.New(cfg, log, dbApp)
 	bc := blockchain.New(ctx, cfg)
 	ns := network_service.New(cfg)
 	hc := health.NewHandler()
 	bbr := block_builder_registry_service.New(cfg, bc)
+
+	pw := pow.New(cfg.PoW.Difficulty)
+	pWorker := pow.NewWorker(cfg.PoW.Workers, pw)
+	pwNonce := pow.NewPoWNonce(pw, pWorker)
 
 	wg := sync.WaitGroup{}
 
@@ -87,6 +94,8 @@ func main() {
 			SB:      bc,
 			NS:      ns,
 			HC:      &hc,
+			PoW:     pwNonce,
+			Worker:  w,
 		}),
 		migrator.NewMigratorCmd(ctx, log, dbApp),
 		deposit.NewDepositCmd(&deposit.Deposit{

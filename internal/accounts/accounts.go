@@ -12,6 +12,7 @@ import (
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/iden3/go-iden3-crypto/ffg"
 	isUtils "github.com/prodadidb/go-validation/is/utils"
 )
 
@@ -172,16 +173,41 @@ func checkValidPublicKey(publicKey *PublicKey) error {
 func NewINTMAXAccountFromECDSAKey(pk *ecdsa.PrivateKey) (*PrivateKey, error) {
 	data := pk.D.Bytes()
 	salt := []byte("INTMAX")
-
 	hasher := sha512.New()
-	_, _ = hasher.Write(salt)
-	_, _ = hasher.Write(data)
-	digest := hasher.Sum(nil)
-
-	// privateKey = digest (mod order)
-	privateKey := new(big.Int).SetBytes(digest)
-
-	return NewPrivateKeyWithReCalcPubKeyIfPkNegates(privateKey)
+	for {
+		_, _ = hasher.Write(salt)
+		_, _ = hasher.Write(data)
+		digest := hasher.Sum(nil)
+		privateKey := new(big.Int).SetBytes(digest)
+		account, err := NewPrivateKeyWithReCalcPubKeyIfPkNegates(privateKey)
+		if err != nil {
+			continue
+		}
+		accountAddress := account.ToAddress()
+		address := accountAddress.String()
+		_, err = NewPublicKeyFromAddressHex(address)
+		if err != nil {
+			continue
+		}
+		message := make([]*ffg.Element, 1)
+		for i := 0; i < len(message); i++ {
+			message[i] = new(ffg.Element).SetBytes(data)
+		}
+		sign, err := account.Sign(message)
+		if err != nil {
+			continue
+		}
+		var publicKey *PublicKey
+		publicKey, err = NewPublicKeyFromAddressHex(address)
+		if err != nil {
+			continue
+		}
+		err = VerifySignature(sign, publicKey, message)
+		if err != nil {
+			continue
+		}
+		return account, nil
+	}
 }
 
 // ECDH calculates the shared secret between my private key and partner's public key.

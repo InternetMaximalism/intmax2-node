@@ -10,7 +10,7 @@ import (
 	"github.com/iden3/go-iden3-crypto/ffg"
 )
 
-// Calculate the signature of the message using the private key as follows:
+// Sign is calculate the signature of the message using the private key as follows:
 // messagePoint = hashToG2(message)
 // signature = privateKey * messagePoint
 func (a PrivateKey) Sign(message []*ffg.Element) (*bn254.G2Affine, error) {
@@ -28,7 +28,7 @@ func (a PrivateKey) Sign(message []*ffg.Element) (*bn254.G2Affine, error) {
 	return signature, nil
 }
 
-// Verify the signature of the message using the public key as follows:
+// VerifySignature is verify the signature of the message using the public key as follows:
 // e(publicKey, hashToG2(message)) = e(G1, signature), where G1 is the generator of the group
 func VerifySignature(signature *bn254.G2Affine, publicKey *PublicKey, message []*ffg.Element) error {
 	messagePoint := goldenposeidon.HashToG2(message)

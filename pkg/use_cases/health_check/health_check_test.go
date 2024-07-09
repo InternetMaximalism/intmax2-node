@@ -3,8 +3,6 @@ package health_check_test
 import (
 	"context"
 	"intmax2-node/configs"
-	healthCheck "intmax2-node/internal/use_cases/health_check"
-	"intmax2-node/internal/use_cases/mocks"
 	ucHealthCheck "intmax2-node/pkg/use_cases/health_check"
 	"testing"
 
@@ -20,8 +18,6 @@ func TestUseCaseHealthCheck(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	pkgUC := mocks.NewMockUseCaseHealthCheck(ctrl)
-
 	hc := health.NewHandler()
 	hcTestImpl := newHcTest()
 	const hcName = "test"
@@ -31,33 +27,20 @@ func TestUseCaseHealthCheck(t *testing.T) {
 
 	cases := []struct {
 		desc    string
-		prepare func(hc *healthCheck.HealthCheck)
 		success bool
 	}{
 		{
-			desc: "Is down",
-			prepare: func(hc *healthCheck.HealthCheck) {
-				pkgUC.EXPECT().Do(gomock.Any()).Return(hc)
-			},
+			desc:    "Is down",
 			success: false,
 		},
 		{
-			desc: "Is up",
-			prepare: func(hc *healthCheck.HealthCheck) {
-				pkgUC.EXPECT().Do(gomock.Any()).Return(hc)
-			},
+			desc:    "Is up",
 			success: true,
 		},
 	}
 
 	for i := range cases {
 		t.Run(cases[i].desc, func(t *testing.T) {
-			if cases[i].prepare != nil {
-				cases[i].prepare(&healthCheck.HealthCheck{
-					Success: cases[i].success,
-				})
-			}
-
 			ctx := context.TODO()
 
 			hcTestImpl.IsOK(cases[i].success)
@@ -66,7 +49,6 @@ func TestUseCaseHealthCheck(t *testing.T) {
 			} else {
 				assert.False(t, uc.Do(ctx).Success)
 			}
-			assert.Equal(t, uc.Do(ctx).Success, pkgUC.Do(ctx).Success)
 		})
 	}
 }

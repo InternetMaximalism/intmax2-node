@@ -30,6 +30,8 @@ func Start(
 	log logger.Logger,
 	dbApp server.SQLDriverApp,
 	hc *health.Handler,
+	pow server.PoWNonce,
+	worker server.Worker,
 ) (gRPCServerStop func(), gwServer *http.Server) {
 	s := httptest.NewServer(nil)
 	s.Close()
@@ -53,7 +55,7 @@ func Start(
 		OptionsSuccessStatus: cfg.HTTP.CORSStatusCode,
 	})
 
-	srv := server.New(log, cfg, dbApp, commands, cfg.HTTP.CookieForAuthUse, hc)
+	srv := server.New(log, cfg, dbApp, commands, cfg.HTTP.CookieForAuthUse, hc, pow, worker)
 	ctx = context.WithValue(ctx, consts.AppConfigs, cfg)
 
 	const (

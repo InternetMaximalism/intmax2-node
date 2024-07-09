@@ -12,8 +12,10 @@ option go_package = ".;node";
 
 // AddressType describes type of address
 enum AddressType {
+  // the EMPTY address type
+  EMPTY = 0;
   // the INTMAX address type
-  INTMAX = 0;
+  INTMAX = 1;
   // the ETHEREUM address type
-  ETHEREUM = 1;
+  ETHEREUM = 2;
 }

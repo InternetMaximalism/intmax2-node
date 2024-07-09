@@ -2,6 +2,7 @@ package pgx
 
 import (
 	"context"
+	"encoding/json"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 
 	"github.com/dimiro1/health"
@@ -12,6 +13,7 @@ type PGX interface {
 	GenericCommands
 	ServiceCommands
 	Tokens
+	TxMerkleProofs
 }
 
 type GenericCommands interface {
@@ -32,4 +34,13 @@ type Tokens interface {
 		tokenID *uint256.Int,
 	) (*mDBApp.Token, error)
 	TokenByIndex(tokenIndex string) (*mDBApp.Token, error)
+}
+
+type TxMerkleProofs interface {
+	CreateTxMerkleProofs(
+		senderPublicKey, txHash string,
+		txTreeIndex *uint256.Int,
+		txMerkleProof json.RawMessage,
+	) (*mDBApp.TxMerkleProofs, error)
+	TxMerkleProofsByID(id string) (*mDBApp.TxMerkleProofs, error)
 }
