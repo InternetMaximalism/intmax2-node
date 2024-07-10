@@ -3,6 +3,7 @@ syntax = "proto3";
 package node.v1;
 
 import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
 import "protoc-gen-openapiv2/options/annotations.proto";
 import "tagger/tagger.proto";
 
@@ -92,26 +93,30 @@ message RecipientTransferDataTransactionRequest {
 message TransferDataTransactionRequest {
   // the recipient info
   RecipientTransferDataTransactionRequest recipient = 10 [json_name="recipient", (tagger.tags) = "json:\"recipient,omitempty\""];
+  // the token index value
+  string token_index = 20 [json_name="tokenIndex", (tagger.tags) = "json:\"tokenIndex,omitempty\""];
   // the amount value
-  string amount = 20 [json_name="amount", (tagger.tags) = "json:\"amount,omitempty\""];
+  string amount = 30 [json_name="amount", (tagger.tags) = "json:\"amount,omitempty\""];
   // the salt value
-  string salt = 30 [json_name="salt", (tagger.tags) = "json:\"salt,omitempty\""];
+  string salt = 40 [json_name="salt", (tagger.tags) = "json:\"salt,omitempty\""];
 }
 
 // TransactionRequest describes request to get info about the create new transaction
 message TransactionRequest {
-  // hash of the fee transfer request sent to the block builder
-  string fee_transfer_hash = 10 [json_name="feeTransferHash", (tagger.tags)="json:\"feeTransferHash,omitempty\""];
+  // the sender's INTMAX address
+  string sender = 10 [json_name="sender", (tagger.tags)="json:\"sender,omitempty\""];
   // the Poseidon hash of transfer tree root and token index
   string transfer_hash = 20 [json_name="transferHash", (tagger.tags)="json:\"transferHash,omitempty\""];
   // the number of transactions executed with this public key
-  string nonce = 30 [json_name="nonce", (tagger.tags)="json:\"nonce,omitempty\""];
+  uint64 nonce = 30 [json_name="nonce", (tagger.tags)="json:\"nonce,omitempty\""];
   // the PoW nonce
   string pow_nonce = 40 [json_name="powNonce", (tagger.tags)="json:\"powNonce,omitempty\""];
   // the transfer data of the transaction
   repeated TransferDataTransactionRequest transfer_data = 50 [json_name="transferData", (tagger.tags)="json:\"transferData,omitempty\""];
-  // the transfer data of the transaction fee
-  repeated TransferDataTransactionRequest fee_transfer_data = 60 [json_name="feeTransferData", (tagger.tags)="json:\"feeTransferData,omitempty\""];
+  // the expiration of request
+  google.protobuf.Timestamp expiration = 70 [json_name="expiration", (tagger.tags)="json:\"expiration,omitempty\""];
+  // the signature of request (the hash calculated from transfersHash, nonce, powNonce, sender, and expiration)
+  string signature = 80 [json_name="signature", (tagger.tags)="json:\"signature,omitempty\""];
 }
 
 // DataTransactionResponse describes the data of response to get info about the create new transaction

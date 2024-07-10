@@ -30,7 +30,9 @@ func TestHandlerHealthCheck(t *testing.T) {
 	cfg := configs.New()
 	log := logger.New(cfg.LOG.Level, cfg.LOG.TimeFormat, cfg.LOG.JSON, cfg.LOG.IsLogLine)
 
+	pw := NewMockPoWNonce(ctrl)
 	dbApp := NewMockSQLDriverApp(ctrl)
+	worker := NewMockWorker(ctrl)
 
 	hc := health.NewHandler()
 	hcTestImpl := newHcTest()
@@ -55,7 +57,7 @@ func TestHandlerHealthCheck(t *testing.T) {
 
 	cmd := NewMockCommands(ctrl)
 
-	grpcServerStop, gwServer := Start(cmd, ctx, cfg, log, dbApp, &hc)
+	grpcServerStop, gwServer := Start(cmd, ctx, cfg, log, dbApp, &hc, pw, worker)
 	defer grpcServerStop()
 
 	uc := mocks.NewMockUseCaseHealthCheck(ctrl)

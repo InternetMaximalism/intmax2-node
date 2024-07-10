@@ -37,6 +37,8 @@ type Server struct {
 	SB      ServiceBlockchain
 	NS      NetworkService
 	HC      *health.Handler
+	PoW     PoWNonce
+	Worker  Worker
 }
 
 func NewServerCmd(s *Server) *cobra.Command {
@@ -48,7 +50,13 @@ func NewServerCmd(s *Server) *cobra.Command {
 		Use:   use,
 		Short: short,
 		Run: func(cmd *cobra.Command, args []string) {
-			err := s.SB.CheckScrollPrivateKey(s.Context)
+			err := s.Worker.Init()
+			if err != nil {
+				const msg = "init the worker error occurred: %v"
+				s.Log.Fatalf(msg, err.Error())
+			}
+
+			err = s.SB.CheckScrollPrivateKey(s.Context)
 			if err != nil {
 				const msg = "check private key error occurred: %v"
 				s.Log.Fatalf(msg, err.Error())
@@ -135,7 +143,26 @@ func NewServerCmd(s *Server) *cobra.Command {
 					wg.Done()
 					s.WG.Done()
 				}()
-				if err = s.Start(); err != nil {
+				ticker := time.NewTicker(s.Config.Worker.TimeoutForCheckCurrentFile)
+				defer func() {
+					if ticker != nil {
+						ticker.Stop()
+					}
+				}()
+				if err = s.Worker.Start(s.Context, ticker); err != nil {
+					const msg = "failed to start worker: %+v"
+					s.Log.Fatalf(msg, err.Error())
+				}
+			}()
+
+			wg.Add(1)
+			s.WG.Add(1)
+			go func() {
+				defer func() {
+					wg.Done()
+					s.WG.Done()
+				}()
+				if err = s.Init(); err != nil {
 					const msg = "failed to start api: %+v"
 					s.Log.Fatalf(msg, err.Error())
 				}
@@ -146,7 +173,7 @@ func NewServerCmd(s *Server) *cobra.Command {
 	}
 }
 
-func (s *Server) Start() error {
+func (s *Server) Init() error {
 	tm := time.Duration(s.Config.HTTP.Timeout) * time.Second
 
 	var c *cors.Cors
@@ -164,7 +191,9 @@ func (s *Server) Start() error {
 		})
 	}
 
-	srv := server.New(s.Log, s.Config, s.DbApp, server.NewCommands(), s.Config.HTTP.CookieForAuthUse, s.HC)
+	srv := server.New(
+		s.Log, s.Config, s.DbApp, server.NewCommands(), s.Config.HTTP.CookieForAuthUse, s.HC, s.PoW, s.Worker,
+	)
 	ctx := context.WithValue(s.Context, consts.AppConfigs, s.Config)
 
 	const (

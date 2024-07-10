@@ -17,6 +17,7 @@ func TestTransferData(t *testing.T) {
 	}
 	recipient, err := intMaxTypes.NewINTMAXAddress(address)
 	assert.NoError(t, err)
+	assert.NotNil(t, recipient)
 	amount := new(big.Int).SetUint64(100)
 	assert.NoError(t, err)
 	salt := new(intMaxTypes.PoseidonHashOut)

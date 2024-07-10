@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/binary"
 	"encoding/hex"
+	intMaxAccTypes "intmax2-node/internal/accounts/types"
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"math/big"
@@ -10,24 +11,17 @@ import (
 	"github.com/iden3/go-iden3-crypto/ffg"
 )
 
-const (
-	// EthereumAddressType represents an Ethereum address type
-	EthereumAddressType = "ETHEREUM"
-	// INTMAXAddressType represents an INTMAX address type
-	INTMAXAddressType = "INTMAX"
-)
-
 // GenericAddress struct to hold address and its type
 type GenericAddress struct {
-	// AddressType can be "ETHEREUM" or "INTMAX"
-	addressType string
-	// If AddressType is ETHEREUM, then the address should be a 20-byte value.
-	// If AddressType is INTMAX, then the address should be a 32-byte value.
-	address []byte
+	// TypeOfAddress can be "ETHEREUM" or "INTMAX"
+	TypeOfAddress string
+	// If TypeOfAddress is ETHEREUM, then the address should be a 20-byte value.
+	// If TypeOfAddress is INTMAX, then the address should be a 32-byte value.
+	Address []byte
 }
 
 func (ga *GenericAddress) Marshal() []byte {
-	return ga.address
+	return ga.Address
 }
 
 func (ga *GenericAddress) String() string {
@@ -35,59 +29,59 @@ func (ga *GenericAddress) String() string {
 }
 
 func (ga *GenericAddress) AddressType() string {
-	return ga.addressType
+	return ga.TypeOfAddress
 }
 
 func (ga *GenericAddress) Equal(other *GenericAddress) bool {
-	if ga.addressType != other.addressType {
+	if ga.TypeOfAddress != other.TypeOfAddress {
 		return false
 	}
-	if len(ga.address) != len(other.address) {
+	if len(ga.Address) != len(other.Address) {
 		return false
 	}
-	for i := range ga.address {
-		if ga.address[i] != other.address[i] {
+	for i := range ga.Address {
+		if ga.Address[i] != other.Address[i] {
 			return false
 		}
 	}
 	return true
 }
 
-func NewDefaultGenericAddress() GenericAddress {
+func NewDefaultGenericAddress() *GenericAddress {
 	defaultAddress := [20]byte{}
 
-	return GenericAddress{
-		addressType: EthereumAddressType,
-		address:     defaultAddress[:],
+	return &GenericAddress{
+		TypeOfAddress: intMaxAccTypes.EthereumAddressType,
+		Address:       defaultAddress[:],
 	}
 }
 
-func NewEthereumAddress(address []byte) (GenericAddress, error) {
+func NewEthereumAddress(address []byte) (*GenericAddress, error) {
 	const int20Key = 20
 	if len(address) != int20Key {
-		return GenericAddress{}, ErrETHAddressInvalid
+		return nil, ErrETHAddressInvalid
 	}
 
-	return GenericAddress{
-		addressType: EthereumAddressType,
-		address:     address,
+	return &GenericAddress{
+		TypeOfAddress: intMaxAccTypes.EthereumAddressType,
+		Address:       address,
 	}, nil
 }
 
-func NewINTMAXAddress(address []byte) (GenericAddress, error) {
+func NewINTMAXAddress(address []byte) (*GenericAddress, error) {
 	const int32Key = 32
 	if len(address) != int32Key {
-		return GenericAddress{}, ErrINTMAXAddressInvalid
+		return nil, ErrINTMAXAddressInvalid
 	}
 
-	return GenericAddress{
-		addressType: INTMAXAddressType,
-		address:     address,
+	return &GenericAddress{
+		TypeOfAddress: intMaxAccTypes.INTMAXAddressType,
+		Address:       address,
 	}, nil
 }
 
 type Transfer struct {
-	Recipient  GenericAddress
+	Recipient  *GenericAddress
 	TokenIndex uint32
 	Amount     *big.Int
 	Salt       *PoseidonHashOut
@@ -139,7 +133,7 @@ func (td *Transfer) Hash() *PoseidonHashOut {
 
 func (td *Transfer) Equal(other *Transfer) bool {
 	switch {
-	case !td.Recipient.Equal(&other.Recipient),
+	case !td.Recipient.Equal(other.Recipient),
 		td.TokenIndex != other.TokenIndex,
 		td.Amount.Cmp(other.Amount) != 0,
 		!td.Salt.Equal(other.Salt):
