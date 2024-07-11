@@ -2,6 +2,7 @@ package types_test
 
 import (
 	"intmax2-node/internal/hash/goldenposeidon"
+	"intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"math/big"
 	"testing"
@@ -61,14 +62,19 @@ func TestTxHash(t *testing.T) {
 		TokenIndex: 0,
 		Recipient:  recipientGenericAddress,
 	}
-	tx := intMaxTypes.Tx{
-		Nonce:     1,
-		PowNonce:  0xc1,
-		Transfers: transfers,
-	}
+
+	transferTree, err := tree.NewTransferTree(7, nil, new(intMaxTypes.Transfer).SetZero().Hash())
+	assert.NoError(t, err)
+	transferTreeRoot, _, _ := transferTree.GetCurrentRootCountAndSiblings()
+
+	tx, err := intMaxTypes.NewTx(
+		&transferTreeRoot,
+		1,
+	)
+	assert.NoError(t, err)
 
 	txHash := tx.Hash()
-	assert.Equal(t, "0x6c924e688516950a28f33af9435ddb279a84e7934421eed491d29cdf73ec5e5d", txHash.String())
+	assert.Equal(t, "0x378999af8ce0013df99b58c799161f711150fa56c8255c432235a2e0b9fd605f", txHash.String())
 }
 
 // func TestRandomTxHash(t *testing.T) {

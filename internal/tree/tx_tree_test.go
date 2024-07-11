@@ -11,7 +11,15 @@ import (
 )
 
 func TestTxTree(t *testing.T) {
-	zeroTx := new(intMaxTypes.Tx).SetZero()
+	zeroTransfer := new(intMaxTypes.Transfer).SetZero()
+	transferTree, err := intMaxTree.NewTransferTree(7, nil, zeroTransfer.Hash())
+	assert.NoError(t, err)
+	transferTreeRoot, _, _ := transferTree.GetCurrentRootCountAndSiblings()
+	zeroTx, err := intMaxTypes.NewTx(
+		&transferTreeRoot,
+		0,
+	)
+	require.Nil(t, err)
 	zeroTxHash := zeroTx.Hash()
 	initialLeaves := make([]*intMaxTypes.Tx, 0)
 	mt, err := intMaxTree.NewTxTree(3, initialLeaves, zeroTxHash)
@@ -19,7 +27,8 @@ func TestTxTree(t *testing.T) {
 
 	leaves := make([]*intMaxTypes.Tx, 8)
 	for i := 0; i < 4; i++ {
-		leaves[i], err = intMaxTypes.NewTxWithPartialTransfers(uint64(i), 0xc1, []intMaxTypes.Transfer{})
+		leaves[i] = new(intMaxTypes.Tx).Set(zeroTx)
+		leaves[i].Nonce = uint64(i)
 		require.Nil(t, err)
 		_, err := mt.AddLeaf(uint64(i), leaves[i])
 		require.Nil(t, err)
@@ -34,7 +43,8 @@ func TestTxTree(t *testing.T) {
 	actualRoot, _, _ := mt.GetCurrentRootCountAndSiblings()
 	assert.Equal(t, expectedRoot.Elements, actualRoot.Elements)
 
-	leaves[4], err = intMaxTypes.NewTxWithPartialTransfers(4, 0xc1, []intMaxTypes.Transfer{})
+	leaves[4] = new(intMaxTypes.Tx).Set(zeroTx)
+	leaves[4].Nonce = uint64(4)
 	assert.Nil(t, err)
 	_, err = mt.AddLeaf(4, leaves[4])
 	require.Nil(t, err)
@@ -47,7 +57,8 @@ func TestTxTree(t *testing.T) {
 	assert.Equal(t, expectedRoot.Elements, actualRoot.Elements)
 
 	for i := 5; i < 8; i++ {
-		leaves[i], err = intMaxTypes.NewTxWithPartialTransfers(uint64(i), 0xc1, []intMaxTypes.Transfer{})
+		leaves[i] = new(intMaxTypes.Tx).Set(zeroTx)
+		leaves[i].Nonce = uint64(i)
 		assert.Nil(t, err)
 		_, err := mt.AddLeaf(uint64(i), leaves[i])
 		require.Nil(t, err)

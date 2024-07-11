@@ -471,9 +471,9 @@ func (w *worker) CurrentRootCountAndSiblingsFromRW(
 	transferRoot, count, siblings := transferTree.GetCurrentRootCountAndSiblings()
 
 	return &CurrentRootCountAndSiblings{
-		TransferRoot: transferRoot,
-		Count:        count,
-		Siblings:     siblings,
+		TxTreeRoot: transferRoot,
+		Count:      count,
+		Siblings:   siblings,
 	}, err
 }
 

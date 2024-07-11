@@ -9,9 +9,9 @@ import (
 )
 
 type CurrentRootCountAndSiblings struct {
-	TransferRoot tree.PoseidonHashOut
-	Count        uint64
-	Siblings     []*tree.PoseidonHashOut
+	TxTreeRoot tree.PoseidonHashOut
+	Count      uint64
+	Siblings   []*tree.PoseidonHashOut
 }
 
 type ReceiverWorker struct {
