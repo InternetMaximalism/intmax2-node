@@ -2,6 +2,7 @@ package tree
 
 import (
 	"errors"
+	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/types"
 )
 
@@ -59,7 +60,15 @@ func (t *TxTree) AddLeaf(index uint64, leaf *types.Tx) (root *PoseidonHashOut, e
 }
 
 func (t *TxTree) ComputeMerkleProof(
-	index uint64, leaves []*PoseidonHashOut,
+	index uint64,
 ) (siblings []*PoseidonHashOut, root PoseidonHashOut, err error) {
+	leaves := make([]*goldenposeidon.PoseidonHashOut, 1<<t.inner.height)
+	for i, leaf := range t.Leaves {
+		leaves[i] = leaf.Hash()
+	}
+	for i := len(t.Leaves); i < len(leaves); i++ {
+		leaves[i] = t.inner.zeroHashes[0]
+	}
+
 	return t.inner.ComputeMerkleProof(index, leaves)
 }

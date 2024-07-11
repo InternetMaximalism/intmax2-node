@@ -121,6 +121,23 @@ func TestUseCaseTransaction(t *testing.T) {
 	assert.NoError(t, err)
 
 	for i := range cases {
+		tx, err := intMaxTypes.NewTx(
+			&transferTreeRoot,
+			cases[i].input.Nonce,
+		)
+		assert.NoError(t, err)
+		txTree.AddLeaf(uint64(i), tx)
+	}
+
+	// NOTE: The Block Builder stores the Merkle proofs obtained here in storage
+	// and passes the Merkle proof for the user's transaction when
+	// a `GET /block/proposed` request is received from the user.
+	for i := range cases {
+		_, _, err := txTree.ComputeMerkleProof(uint64(i))
+		assert.NoError(t, err)
+	}
+
+	for i := range cases {
 		worker.EXPECT().Receiver(gomock.Any()).Times(1)
 		t.Run(cases[i].desc, func(t *testing.T) {
 			if cases[i].prepare != nil {
@@ -134,13 +151,6 @@ func TestUseCaseTransaction(t *testing.T) {
 				assert.NoError(t, uc.Do(ctx, cases[i].input))
 			}
 		})
-
-		tx, err := intMaxTypes.NewTx(
-			&transferTreeRoot,
-			cases[i].input.Nonce,
-		)
-		assert.NoError(t, err)
-		txTree.AddLeaf(uint64(i), tx)
 	}
 }
 
