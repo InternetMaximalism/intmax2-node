@@ -39,16 +39,14 @@ func (u *uc) Do(ctx context.Context, input *transaction.UCTransactionInput) (err
 		transferHashKey = "transfer_hash"
 	)
 
-	if input == nil {
-		return errors.New("input is nil")
-	}
-
 	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName,
 		trace.WithAttributes(
 			attribute.String(senderKey, input.DecodeSender.ToAddress().String()),
 			attribute.String(transferHashKey, input.TransfersHash),
 		))
 	defer span.End()
+
+	// TODO: check 0.1 ETH with Rollup contract
 
 	transferData := make([]*intMaxTypes.Transfer, len(input.TransferData))
 	for key := range input.TransferData {

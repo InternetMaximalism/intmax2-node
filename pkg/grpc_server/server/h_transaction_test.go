@@ -150,6 +150,13 @@ func TestHandlerTransaction(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
+			desc:       "Invalid signature",
+			prepare:    func() {},
+			body:       fmt.Sprintf(`{"transfersHash":"0x","nonce":%d,"powNonce":%q,"signature":%q}`, 0, uuid.New().String(), uuid.New().String()),
+			message:    "expiration: must be a valid value; nonce: cannot be blank; powNonce: must be a valid value; sender: cannot be blank; signature: must be a valid value; transferData: cannot be blank.",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
 			desc:       "Empty transferData",
 			prepare:    func() {},
 			body:       fmt.Sprintf(`{"transfersHash":"0x","nonce":%d,"powNonce":"0x","transferData":[]}`, 0),

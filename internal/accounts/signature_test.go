@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/finite_field"
+	"intmax2-node/internal/mnemonic_wallet"
 	"math/big"
 	"testing"
 
@@ -17,10 +18,18 @@ func TestSignatureByINTMAXAccount(t *testing.T) {
 	t.Parallel()
 
 	// Generate key pairs for both parties
-	privateKey, err := rand.Int(rand.Reader, new(big.Int).Sub(fr.Modulus(), big.NewInt(1)))
+	const (
+		mnPassword = ""
+		derivation = "m/44'/60'/0'/0/0"
+	)
+
+	w, err := mnemonic_wallet.New().WalletGenerator(derivation, mnPassword)
 	assert.NoError(t, err)
-	privateKey.Add(privateKey, big.NewInt(1))
-	keyPair, err := intMaxAcc.NewPrivateKeyWithReCalcPubKeyIfPkNegates(privateKey)
+
+	pk, err := intMaxAcc.HexToPrivateKey(w.IntMaxPrivateKey)
+	assert.NoError(t, err)
+
+	keyPair, err := intMaxAcc.NewPrivateKeyWithReCalcPubKeyIfPkNegates(pk.BigInt())
 	assert.NoError(t, err)
 
 	messageHex := "99947e33d5d672d82b7f221f4899e31b574314692b3ecd6a01693a7c38af1271"

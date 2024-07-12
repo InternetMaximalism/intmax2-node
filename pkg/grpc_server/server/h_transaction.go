@@ -2,10 +2,12 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"intmax2-node/internal/open_telemetry"
 	"intmax2-node/internal/pb/gen/service/node"
 	"intmax2-node/internal/use_cases/transaction"
+	"intmax2-node/internal/worker"
 	"intmax2-node/pkg/grpc_server/utils"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -72,8 +74,12 @@ func (s *Server) Transaction(
 	})
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
-		const msg = "failed to commit transaction with DB App: %+v"
+		if errors.Is(err, worker.ErrReceiverWorkerDuplicate) {
+			const msg = "the transfersHash must be unique"
+			return &resp, utils.BadRequest(spanCtx, fmt.Errorf(msg))
+		}
 
+		const msg = "failed to commit transaction with DB App: %+v"
 		return &resp, utils.Internal(spanCtx, s.log, msg, err)
 	}
 
