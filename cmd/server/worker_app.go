@@ -8,6 +8,11 @@ import (
 
 type Worker interface {
 	Init() (err error)
-	Start(ctx context.Context, ticker *time.Ticker) error
+	Start(
+		ctx context.Context,
+		tickerCurrentFile, tickerSignaturesAvailableFiles *time.Ticker,
+	) error
 	Receiver(input *worker.ReceiverWorker) error
+	TrHash(trHash string) (*worker.TransferHashesWithSenderAndFile, error)
+	TxTreeByAvailableFile(sf *worker.TransferHashesWithSenderAndFile) (txTreeRoot *worker.TxTree, err error)
 }

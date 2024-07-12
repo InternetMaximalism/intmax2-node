@@ -60,6 +60,7 @@ func (u *uc) Do(ctx context.Context, input *transaction.UCTransactionInput) (err
 
 	err = u.w.Receiver(&worker.ReceiverWorker{
 		Sender:       input.DecodeSender.ToAddress().String(),
+		Nonce:        input.Nonce,
 		TransferHash: input.TransfersHash,
 		TransferData: transferData,
 	})

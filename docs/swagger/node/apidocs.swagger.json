@@ -297,6 +297,10 @@
     "v1BlockProposedRequest": {
       "type": "object",
       "properties": {
+        "sender": {
+          "type": "string",
+          "title": "the sender's INTMAX address"
+        },
         "txHash": {
           "type": "string",
           "title": "the hash of the user's transaction"

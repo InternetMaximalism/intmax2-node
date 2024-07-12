@@ -51,10 +51,17 @@ func TestWorkerReceiver(t *testing.T) {
 	err = w.Init()
 	assert.NoError(t, err)
 
-	ticker := time.NewTicker(cfg.Worker.TimeoutForCheckCurrentFile)
+	tickerCurrentFile := time.NewTicker(cfg.Worker.TimeoutForCheckCurrentFile)
 	defer func() {
-		if ticker != nil {
-			ticker.Stop()
+		if tickerCurrentFile != nil {
+			tickerCurrentFile.Stop()
+		}
+	}()
+
+	tickerSignaturesAvailableFiles := time.NewTicker(cfg.Worker.TimeoutForSignaturesAvailableFiles)
+	defer func() {
+		if tickerSignaturesAvailableFiles != nil {
+			tickerSignaturesAvailableFiles.Stop()
 		}
 	}()
 
@@ -63,7 +70,7 @@ func TestWorkerReceiver(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err = w.Start(ctx, ticker)
+		err = w.Start(ctx, tickerCurrentFile, tickerSignaturesAvailableFiles)
 		assert.NoError(t, err)
 	}()
 

@@ -143,13 +143,19 @@ func NewServerCmd(s *Server) *cobra.Command {
 					wg.Done()
 					s.WG.Done()
 				}()
-				ticker := time.NewTicker(s.Config.Worker.TimeoutForCheckCurrentFile)
+				tickerCurrentFile := time.NewTicker(s.Config.Worker.TimeoutForCheckCurrentFile)
 				defer func() {
-					if ticker != nil {
-						ticker.Stop()
+					if tickerCurrentFile != nil {
+						tickerCurrentFile.Stop()
 					}
 				}()
-				if err = s.Worker.Start(s.Context, ticker); err != nil {
+				tickerSignaturesAvailableFiles := time.NewTicker(s.Config.Worker.TimeoutForSignaturesAvailableFiles)
+				defer func() {
+					if tickerSignaturesAvailableFiles != nil {
+						tickerSignaturesAvailableFiles.Stop()
+					}
+				}()
+				if err = s.Worker.Start(s.Context, tickerCurrentFile, tickerSignaturesAvailableFiles); err != nil {
 					const msg = "failed to start worker: %+v"
 					s.Log.Fatalf(msg, err.Error())
 				}
