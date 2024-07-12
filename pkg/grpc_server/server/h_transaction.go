@@ -29,12 +29,12 @@ func (s *Server) Transaction(
 	defer span.End()
 
 	input := transaction.UCTransactionInput{
-		Sender:       req.Sender,
-		TransferHash: req.TransferHash,
-		Nonce:        req.Nonce,
-		PowNonce:     req.PowNonce,
-		Expiration:   req.Expiration.AsTime(),
-		Signature:    req.Signature,
+		Sender:        req.Sender,
+		TransfersHash: req.TransfersHash,
+		Nonce:         req.Nonce,
+		PowNonce:      req.PowNonce,
+		Expiration:    req.Expiration.AsTime(),
+		Signature:     req.Signature,
 	}
 
 	for key := range req.TransferData {

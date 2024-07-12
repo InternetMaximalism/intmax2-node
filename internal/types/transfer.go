@@ -48,7 +48,8 @@ func (ga *GenericAddress) Equal(other *GenericAddress) bool {
 }
 
 func NewDefaultGenericAddress() *GenericAddress {
-	defaultAddress := [20]byte{}
+	const int20Key = 20
+	defaultAddress := [int20Key]byte{}
 
 	return &GenericAddress{
 		TypeOfAddress: intMaxAccTypes.EthereumAddressType,
