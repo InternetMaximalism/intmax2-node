@@ -125,34 +125,41 @@ func TestHandlerTransaction(t *testing.T) {
 		{
 			desc:       "Empty body",
 			prepare:    func() {},
-			message:    "expiration: must be a valid value; nonce: cannot be blank; powNonce: cannot be blank; sender: cannot be blank; signature: cannot be blank; transferData: cannot be blank; transferHash: cannot be blank.",
+			message:    "expiration: must be a valid value; nonce: cannot be blank; powNonce: cannot be blank; sender: cannot be blank; signature: cannot be blank; transferData: cannot be blank; transfersHash: cannot be blank.",
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			desc:       "Invalid transferHash",
+			desc:       "Invalid transfersHash",
 			prepare:    func() {},
-			body:       fmt.Sprintf(`{"transferHash":%q}`, uuid.New().String()),
-			message:    "expiration: must be a valid value; nonce: cannot be blank; powNonce: cannot be blank; sender: cannot be blank; signature: cannot be blank; transferData: cannot be blank; transferHash: must be a valid value.",
+			body:       fmt.Sprintf(`{"transfersHash":%q}`, uuid.New().String()),
+			message:    "expiration: must be a valid value; nonce: cannot be blank; powNonce: cannot be blank; sender: cannot be blank; signature: cannot be blank; transferData: cannot be blank; transfersHash: must be a valid value.",
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			desc:       "Invalid nonce",
 			prepare:    func() {},
-			body:       fmt.Sprintf(`{"transferHash":"0x","nonce":%d}`, uuid.New().ID()),
+			body:       fmt.Sprintf(`{"transfersHash":"0x","nonce":%d}`, uuid.New().ID()),
 			message:    "expiration: must be a valid value; nonce: must be a valid value; powNonce: cannot be blank; sender: cannot be blank; signature: cannot be blank; transferData: cannot be blank.",
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			desc:       "Invalid powNonce",
 			prepare:    func() {},
-			body:       fmt.Sprintf(`{"transferHash":"0x","nonce":%d,"powNonce":%q}`, 0, uuid.New().String()),
+			body:       fmt.Sprintf(`{"transfersHash":"0x","nonce":%d,"powNonce":%q}`, 0, uuid.New().String()),
 			message:    "expiration: must be a valid value; nonce: cannot be blank; powNonce: must be a valid value; sender: cannot be blank; signature: cannot be blank; transferData: cannot be blank.",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			desc:       "Invalid signature",
+			prepare:    func() {},
+			body:       fmt.Sprintf(`{"transfersHash":"0x","nonce":%d,"powNonce":%q,"signature":%q}`, 0, uuid.New().String(), uuid.New().String()),
+			message:    "expiration: must be a valid value; nonce: cannot be blank; powNonce: must be a valid value; sender: cannot be blank; signature: must be a valid value; transferData: cannot be blank.",
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			desc:       "Empty transferData",
 			prepare:    func() {},
-			body:       fmt.Sprintf(`{"transferHash":"0x","nonce":%d,"powNonce":"0x","transferData":[]}`, 0),
+			body:       fmt.Sprintf(`{"transfersHash":"0x","nonce":%d,"powNonce":"0x","transferData":[]}`, 0),
 			message:    "expiration: must be a valid value; nonce: cannot be blank; powNonce: must be a valid value; sender: cannot be blank; signature: cannot be blank; transferData: cannot be blank.",
 			wantStatus: http.StatusBadRequest,
 		},
@@ -160,7 +167,7 @@ func TestHandlerTransaction(t *testing.T) {
 		{
 			desc:    fmt.Sprintf("Invalid transferData (more then %d items)", cfg.Blockchain.MaxCounterOfTransaction),
 			prepare: func() {},
-			body: fmt.Sprintf(`{"transferHash":"0x","nonce":%d,"powNonce":"0x","transferData":[%s]}`, 1, func() string {
+			body: fmt.Sprintf(`{"transfersHash":"0x","nonce":%d,"powNonce":"0x","transferData":[%s]}`, 1, func() string {
 				maxCOfTr := cfg.Blockchain.MaxCounterOfTransaction + 1
 				arr := make([]string, maxCOfTr)
 				for i := 0; i < maxCOfTr; i++ {
@@ -174,79 +181,79 @@ func TestHandlerTransaction(t *testing.T) {
 		{
 			desc:       "Empty data of transferData",
 			prepare:    func() {},
-			body:       fmt.Sprintf(`{"transferHash":"0x","nonce":%d,"powNonce":"0x","transferData":[{}]}`, 1),
+			body:       fmt.Sprintf(`{"transfersHash":"0x","nonce":%d,"powNonce":"0x","transferData":[{}]}`, 1),
 			message:    "expiration: must be a valid value; powNonce: must be a valid value; sender: cannot be blank; signature: cannot be blank; transferData: (0: (amount: cannot be blank; recipient: cannot be blank; salt: cannot be blank; tokenIndex: cannot be blank.).).",
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			desc:       "Invalid transferData.0.amount",
 			prepare:    func() {},
-			body:       fmt.Sprintf(`{"transferHash":"0x","nonce":%d,"powNonce":"0x","transferData":[{"amount":%q}]}`, 1, uuid.New().String()),
+			body:       fmt.Sprintf(`{"transfersHash":"0x","nonce":%d,"powNonce":"0x","transferData":[{"amount":%q}]}`, 1, uuid.New().String()),
 			message:    "expiration: must be a valid value; powNonce: must be a valid value; sender: cannot be blank; signature: cannot be blank; transferData: (0: (amount: must be a valid value; recipient: cannot be blank; salt: cannot be blank; tokenIndex: cannot be blank.).).",
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			desc:       "Invalid transferData.0.salt",
 			prepare:    func() {},
-			body:       fmt.Sprintf(`{"transferHash":"0x","nonce":%d,"powNonce":"0x","transferData":[{"amount":%q,"salt":%q}]}`, 1, strconv.FormatUint(uint64(uuid.New().ID()), 10), uuid.New().String()),
+			body:       fmt.Sprintf(`{"transfersHash":"0x","nonce":%d,"powNonce":"0x","transferData":[{"amount":%q,"salt":%q}]}`, 1, strconv.FormatUint(uint64(uuid.New().ID()), 10), uuid.New().String()),
 			message:    "expiration: must be a valid value; powNonce: must be a valid value; sender: cannot be blank; signature: cannot be blank; transferData: (0: (recipient: cannot be blank; salt: must be a valid value; tokenIndex: cannot be blank.).).",
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			desc:       "Invalid transferData.0.tokenIndex",
 			prepare:    func() {},
-			body:       fmt.Sprintf(`{"transferHash":"0x","nonce":%d,"powNonce":"0x","transferData":[{"amount":%q,"salt":"0x","tokenIndex":%q}]}`, 1, strconv.FormatUint(uint64(uuid.New().ID()), 10), uuid.New().String()),
+			body:       fmt.Sprintf(`{"transfersHash":"0x","nonce":%d,"powNonce":"0x","transferData":[{"amount":%q,"salt":"0x","tokenIndex":%q}]}`, 1, strconv.FormatUint(uint64(uuid.New().ID()), 10), uuid.New().String()),
 			message:    "expiration: must be a valid value; powNonce: must be a valid value; sender: cannot be blank; signature: cannot be blank; transferData: (0: (recipient: cannot be blank; salt: must be a valid value; tokenIndex: must be a valid value.).).",
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			desc:       "Empty transferData.0.recipient",
 			prepare:    func() {},
-			body:       fmt.Sprintf(`{"transferHash":"0x","nonce":%d,"powNonce":"0x","transferData":[{"amount":%q,"salt":"0x","tokenIndex":%q}]}`, 1, strconv.FormatUint(uint64(uuid.New().ID()), 10), strconv.FormatUint(uint64(uuid.New().ID()), 10)),
+			body:       fmt.Sprintf(`{"transfersHash":"0x","nonce":%d,"powNonce":"0x","transferData":[{"amount":%q,"salt":"0x","tokenIndex":%q}]}`, 1, strconv.FormatUint(uint64(uuid.New().ID()), 10), strconv.FormatUint(uint64(uuid.New().ID()), 10)),
 			message:    "expiration: must be a valid value; powNonce: must be a valid value; sender: cannot be blank; signature: cannot be blank; transferData: (0: (recipient: cannot be blank; salt: must be a valid value.).).",
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			desc:       "Empty transferData.0.recipient.address and Invalid transferData.0.recipient.addressType",
 			prepare:    func() {},
-			body:       fmt.Sprintf(`{"transferHash":"0x","nonce":%d,"powNonce":"0x","transferData":[{"amount":%q,"salt":"0x","tokenIndex":%q,"recipient":{}}]}`, 1, strconv.FormatUint(uint64(uuid.New().ID()), 10), strconv.FormatUint(uint64(uuid.New().ID()), 10)),
+			body:       fmt.Sprintf(`{"transfersHash":"0x","nonce":%d,"powNonce":"0x","transferData":[{"amount":%q,"salt":"0x","tokenIndex":%q,"recipient":{}}]}`, 1, strconv.FormatUint(uint64(uuid.New().ID()), 10), strconv.FormatUint(uint64(uuid.New().ID()), 10)),
 			message:    "expiration: must be a valid value; powNonce: must be a valid value; sender: cannot be blank; signature: cannot be blank; transferData: (0: (recipient: (address: cannot be blank; addressType: must be a valid value.); salt: must be a valid value.).).",
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			desc:       "Invalid transferData.0.recipient.addressType",
 			prepare:    func() {},
-			body:       fmt.Sprintf(`{"transferHash":"0x","nonce":%d,"powNonce":"0x","transferData":[{"amount":%q,"salt":"0x","tokenIndex":%q,"recipient":{"address_type":%q}}]}`, 1, strconv.FormatUint(uint64(uuid.New().ID()), 10), strconv.FormatUint(uint64(uuid.New().ID()), 10), uuid.New().String()),
+			body:       fmt.Sprintf(`{"transfersHash":"0x","nonce":%d,"powNonce":"0x","transferData":[{"amount":%q,"salt":"0x","tokenIndex":%q,"recipient":{"address_type":%q}}]}`, 1, strconv.FormatUint(uint64(uuid.New().ID()), 10), strconv.FormatUint(uint64(uuid.New().ID()), 10), uuid.New().String()),
 			message:    "expiration: must be a valid value; powNonce: must be a valid value; sender: cannot be blank; signature: cannot be blank; transferData: (0: (recipient: (address: cannot be blank; addressType: must be a valid value.); salt: must be a valid value.).).",
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			desc:       "Empty transferData.0.recipient.address (transferData.0.recipient.addressType=INTMAX)",
 			prepare:    func() {},
-			body:       fmt.Sprintf(`{"transferHash":"0x","nonce":%d,"powNonce":"0x","transferData":[{"amount":%q,"salt":"0x","tokenIndex":%q,"recipient":{"address_type":%q}}]}`, 1, strconv.FormatUint(uint64(uuid.New().ID()), 10), strconv.FormatUint(uint64(uuid.New().ID()), 10), intMaxAccTypes.INTMAXAddressType),
+			body:       fmt.Sprintf(`{"transfersHash":"0x","nonce":%d,"powNonce":"0x","transferData":[{"amount":%q,"salt":"0x","tokenIndex":%q,"recipient":{"address_type":%q}}]}`, 1, strconv.FormatUint(uint64(uuid.New().ID()), 10), strconv.FormatUint(uint64(uuid.New().ID()), 10), intMaxAccTypes.INTMAXAddressType),
 			message:    "expiration: must be a valid value; powNonce: must be a valid value; sender: cannot be blank; signature: cannot be blank; transferData: (0: (recipient: (address: cannot be blank.); salt: must be a valid value.).).",
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			desc:       "Invalid transferData.0.recipient.address (transferData.0.recipient.addressType=INTMAX)",
 			prepare:    func() {},
-			body:       fmt.Sprintf(`{"transferHash":"0x","nonce":%d,"powNonce":"0x","transferData":[{"amount":%q,"salt":"0x","tokenIndex":%q,"recipient":{"address_type":%q,"address":%q}}]}`, 1, strconv.FormatUint(uint64(uuid.New().ID()), 10), strconv.FormatUint(uint64(uuid.New().ID()), 10), intMaxAccTypes.INTMAXAddressType, uuid.New().String()),
+			body:       fmt.Sprintf(`{"transfersHash":"0x","nonce":%d,"powNonce":"0x","transferData":[{"amount":%q,"salt":"0x","tokenIndex":%q,"recipient":{"address_type":%q,"address":%q}}]}`, 1, strconv.FormatUint(uint64(uuid.New().ID()), 10), strconv.FormatUint(uint64(uuid.New().ID()), 10), intMaxAccTypes.INTMAXAddressType, uuid.New().String()),
 			message:    "expiration: must be a valid value; powNonce: must be a valid value; sender: cannot be blank; signature: cannot be blank; transferData: (0: (recipient: (address: must be a valid value.); salt: must be a valid value.).).",
 			wantStatus: http.StatusBadRequest,
 		},
 		// transferData - finish
-		// check transferHash with transferData - start
+		// check transfersHash with transferData - start
 		{
 			desc: "Valid request with transaction to ETHEREUM address",
 			prepare: func() {
 				dbApp.EXPECT().Exec(gomock.Any(), gomock.Any(), gomock.Any())
 			},
-			body:       fmt.Sprintf(`{"sender":%q,"expiration":%q,"signature":%q,"transferHash":"0x22a09569aeffa766a1c0d8d5dd9d3fb3e5b4567700b8cbac3b4eceedeacee793","nonce":%d,"powNonce":%q,"transferData":[{"amount":"10","salt":"0x0100000000000000020000000000000003000000000000000400000000000000","tokenIndex":"0","recipient":{"address_type":%q,"address":%q}}]}`, intMaxAddressKey, expiration.Format(time.RFC3339), signature, nonce, powNonce, intMaxAccTypes.EthereumAddressType, ethAddressKey),
+			body:       fmt.Sprintf(`{"sender":%q,"expiration":%q,"signature":%q,"transfersHash":"0x22a09569aeffa766a1c0d8d5dd9d3fb3e5b4567700b8cbac3b4eceedeacee793","nonce":%d,"powNonce":%q,"transferData":[{"amount":"10","salt":"0x0100000000000000020000000000000003000000000000000400000000000000","tokenIndex":"0","recipient":{"address_type":%q,"address":%q}}]}`, intMaxAddressKey, expiration.Format(time.RFC3339), signature, nonce, powNonce, intMaxAccTypes.EthereumAddressType, ethAddressKey),
 			success:    true,
 			dataMsg:    transaction.SuccessMsg,
 			wantStatus: http.StatusOK,
 		},
-		// check transferHash with transferData - finish
+		// check transfersHash with transferData - finish
 	}
 
 	for i := range cases {

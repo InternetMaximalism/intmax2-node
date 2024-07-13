@@ -39,7 +39,7 @@ func (input *UCTransactionInput) Valid(cfg *configs.Config, pow PoWNonce) error 
 			}
 			return input.DecodeSender
 		}())),
-		validation.Field(&input.TransferHash, validation.Required, input.isHexDecode()),
+		validation.Field(&input.TransfersHash, validation.Required, input.isHexDecode()),
 		validation.Field(&input.PowNonce, validation.Required, input.isPoW(pow)),
 		validation.Field(&input.TransferData, validation.Required, input.transferDataLength(cfg), validation.Each(
 			validation.Required, input.isTransferData(func() *TransferDataTransaction {
@@ -55,7 +55,7 @@ func (input *UCTransactionInput) Valid(cfg *configs.Config, pow PoWNonce) error 
 				}
 				return input.TransferData[iTxData-1]
 			}()),
-		), input.checkHashWithData(&input.TransferHash)),
+		), input.checkHashWithData(&input.TransfersHash)),
 		validation.Field(&input.Nonce, validation.Required, input.nonceMaxLength(cfg)),
 		validation.Field(&input.Expiration, validation.Required, validation.By(func(value interface{}) error {
 			v, ok := value.(time.Time)
@@ -85,7 +85,7 @@ func (input *UCTransactionInput) Valid(cfg *configs.Config, pow PoWNonce) error 
 			)
 
 			message := make([]*ffg.Element, int5Key)
-			message[int0Key] = new(ffg.Element).SetBytes([]byte(input.TransferHash))
+			message[int0Key] = new(ffg.Element).SetBytes([]byte(input.TransfersHash))
 			message[int1Key] = new(ffg.Element).SetBytes(new(big.Int).SetInt64(int64(input.Nonce)).Bytes())
 			var powNonce uint256.Int
 			err := powNonce.SetFromHex(input.PowNonce)
@@ -164,7 +164,7 @@ func (input *UCTransactionInput) isPoW(pow PoWNonce) validation.Rule {
 			return ErrValueInvalid
 		}
 
-		err = pow.Verify(v, []byte(input.TransferHash))
+		err = pow.Verify(v, []byte(input.TransfersHash))
 		if err != nil {
 			return ErrValueInvalid
 		}

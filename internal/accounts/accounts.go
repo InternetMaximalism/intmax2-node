@@ -291,7 +291,7 @@ func NewPublicKeyFromAddressHex(address string) (*PublicKey, error) {
 // ToAddress converts the private key to an address.
 // It returns a 32-byte hex string with 0x.
 func (a *PrivateKey) ToAddress() Address {
-	return a.PublicKey.ToAddress()
+	return a.Public().ToAddress()
 }
 
 func NewAddressFromHex(s string) (Address, error) {

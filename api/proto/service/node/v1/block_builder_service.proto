@@ -106,7 +106,7 @@ message TransactionRequest {
   // the sender's INTMAX address
   string sender = 10 [json_name="sender", (tagger.tags)="json:\"sender,omitempty\""];
   // the Poseidon hash of transfer tree root and token index
-  string transfer_hash = 20 [json_name="transferHash", (tagger.tags)="json:\"transferHash,omitempty\""];
+  string transfers_hash = 20 [json_name="transfersHash", (tagger.tags)="json:\"transfersHash,omitempty\""];
   // the number of transactions executed with this public key
   uint64 nonce = 30 [json_name="nonce", (tagger.tags)="json:\"nonce,omitempty\""];
   // the PoW nonce

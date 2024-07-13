@@ -9,6 +9,7 @@ package goldenposeidon
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math/big"
 
@@ -239,6 +240,14 @@ func (h *PoseidonHashOut) SetRandom() (*PoseidonHashOut, error) {
 	return h, nil
 }
 
+func (h *PoseidonHashOut) SetZero() *PoseidonHashOut {
+	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
+		h.Elements[i].SetZero()
+	}
+
+	return h
+}
+
 func (h *PoseidonHashOut) Equal(other *PoseidonHashOut) bool {
 	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
 		if !h.Elements[i].Equal(&other.Elements[i]) {
@@ -275,6 +284,28 @@ func (h *PoseidonHashOut) Unmarshal(data []byte) error {
 	}
 
 	return nil
+}
+
+func (h PoseidonHashOut) MarshalJSON() ([]byte, error) {
+	hashOutHex := "0x" + hex.EncodeToString(h.Marshal())
+	return json.Marshal(hashOutHex)
+}
+
+func (h *PoseidonHashOut) UnmarshalJSON(data []byte) error {
+	var hexStr string
+	err := json.Unmarshal(data, &hexStr)
+	if err != nil {
+		return err
+	}
+	if !has0xPrefix(hexStr) {
+		return fmt.Errorf("invalid hex string: %s", hexStr)
+	}
+	hashOutHex, err := hex.DecodeString(hexStr[2:])
+	if err != nil {
+		return err
+	}
+
+	return h.Unmarshal(hashOutHex)
 }
 
 func reverseBytes(data []byte) []byte {

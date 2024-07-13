@@ -43,3 +43,9 @@ var ErrETHAddressInvalid = errors.New("the Ethereum address should be 20 bytes")
 
 // ErrINTMAXAddressInvalid error: the INTMAX address should be 32 bytes.
 var ErrINTMAXAddressInvalid = errors.New("the INTMAX address should be 32 bytes")
+
+// ErrNonceTooLarge error: nonce is too large.
+var ErrNonceTooLarge = errors.New("nonce is too large")
+
+// ErrPowNonceTooLarge error: PoW nonce is too large.
+var ErrPowNonceTooLarge = errors.New("PoW nonce is too large")

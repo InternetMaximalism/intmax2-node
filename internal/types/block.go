@@ -40,7 +40,7 @@ type BlockContent struct {
 	Senders []Sender
 
 	// TxRoot is the root hash of the transactions in the block
-	TxRoot PoseidonHashOut
+	TxTreeRoot PoseidonHashOut
 
 	// AggregatedSignature is the aggregated signature of the block
 	AggregatedSignature *bn254.G2Affine
@@ -54,7 +54,7 @@ type BlockContent struct {
 func NewBlockContent(
 	senderType string,
 	senders []Sender,
-	txRoot PoseidonHashOut,
+	txTreeRoot PoseidonHashOut,
 	aggregatedSignature *bn254.G2Affine,
 ) *BlockContent {
 	const (
@@ -65,7 +65,7 @@ func NewBlockContent(
 	bc.SenderType = senderType
 	bc.Senders = make([]Sender, len(senders))
 	copy(bc.Senders, senders)
-	bc.TxRoot.Set(&txRoot)
+	bc.TxTreeRoot.Set(&txTreeRoot)
 	bc.AggregatedSignature = new(bn254.G2Affine).Set(aggregatedSignature)
 
 	senderPublicKeys := make([]byte, len(bc.Senders)*NumPublicKeyBytes)
@@ -86,7 +86,7 @@ func NewBlockContent(
 	}
 	bc.AggregatedPublicKey = new(accounts.PublicKey).Set(aggregatedPublicKey)
 
-	messagePoint := goldenposeidon.HashToG2(finite_field.BytesToFieldElementSlice(bc.TxRoot.Marshal()))
+	messagePoint := goldenposeidon.HashToG2(finite_field.BytesToFieldElementSlice(bc.TxTreeRoot.Marshal()))
 	bc.MessagePoint = &messagePoint
 
 	return &bc
@@ -198,7 +198,7 @@ func (bc *BlockContent) IsValid() error {
 					return ErrBlockContentAggSignEmpty
 				}
 
-				message := finite_field.BytesToFieldElementSlice(bc.TxRoot.Marshal())
+				message := finite_field.BytesToFieldElementSlice(bc.TxTreeRoot.Marshal())
 				err := accounts.VerifySignature(bc.AggregatedSignature, bc.AggregatedPublicKey, message)
 				if err != nil {
 					return err
@@ -222,7 +222,7 @@ func (bc *BlockContent) Marshal() []byte {
 	} else {
 		data = append(data, int1Key)
 	}
-	data = append(data, bc.TxRoot.Marshal()...)
+	data = append(data, bc.TxTreeRoot.Marshal()...)
 
 	// TODO: need check
 	for key := range bc.Senders {
@@ -270,7 +270,7 @@ func (bc *BlockContent) Rollup() []byte {
 	)
 
 	var data []byte
-	data = append(data, bc.TxRoot.Marshal()...)
+	data = append(data, bc.TxTreeRoot.Marshal()...)
 	data = append(data, bc.MessagePoint.Marshal()...)
 	data = append(data, bc.AggregatedSignature.Marshal()...)
 	data = append(data, bc.AggregatedPublicKey.Marshal()...)
