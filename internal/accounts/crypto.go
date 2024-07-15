@@ -47,18 +47,20 @@ func DecryptWithAES(key, iv, ciphertext []byte) ([]byte, error) {
 }
 
 func EncryptWithAEAD(key, plaintext []byte) (nonce, ciphertext []byte, err error) {
-	block, err := aes.NewCipher(key)
+	var block cipher.Block
+	block, err = aes.NewCipher(key)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	aesgcm, err := cipher.NewGCM(block)
+	var aesgcm cipher.AEAD
+	aesgcm, err = cipher.NewGCM(block)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	nonce = make([]byte, aesgcm.NonceSize())
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
 		return nil, nil, err
 	}
 
@@ -100,13 +102,18 @@ type BN254G1Curve struct{}
 
 // Params returns the parameters for the curve.
 func (c *BN254G1Curve) Params() *elliptic.CurveParams {
+	const (
+		int3Key   = 3
+		int254Key = 254
+	)
+
 	generator := new(bn254.G1Affine).ScalarMultiplicationBase(big.NewInt(1))
 	P := fp.Modulus()
 	N := fr.Modulus()
-	B := big.NewInt(3)
+	B := big.NewInt(int3Key)
 	Gx := generator.X.BigInt(new(big.Int))
 	Gy := generator.Y.BigInt(new(big.Int))
-	BitSize := 254
+	BitSize := int254Key
 	Name := "BN254G1"
 	return &elliptic.CurveParams{
 		P:       P,
@@ -185,28 +192,40 @@ func (c *BN254G1Curve) ScalarBaseMult(k []byte) (x, y *big.Int) {
 }
 
 func (c *BN254G1Curve) Marshal(x, y *big.Int) []byte {
+	const (
+		int0Key = 0
+		int1Key = 1
+		int4Key = 4
+	)
+
 	xFp := new(fp.Element).SetBigInt(x)
 	yFp := new(fp.Element).SetBigInt(y)
 
 	p := bn254.G1Affine{X: *xFp, Y: *yFp}
 
 	b := p.Marshal()
-	res := make([]byte, 1+len(b))
-	res[0] = 4
-	copy(res[1:], b)
+	res := make([]byte, int1Key+len(b))
+	res[int0Key] = int4Key
+	copy(res[int1Key:], b)
 
 	return res
 }
 
 func (c *BN254G1Curve) Unmarshal(data []byte) (x, y *big.Int) {
+	const (
+		int0Key = 0
+		int1Key = 1
+		int4Key = 4
+	)
+
 	// mUncompressed
-	if data[0] != 4 {
+	if data[int0Key] != int4Key {
 		fmt.Printf("invalid compression flag")
 		return nil, nil
 	}
 
-	buffer := make([]byte, len(data)-1)
-	copy(buffer, data[1:])
+	buffer := make([]byte, len(data)-int1Key)
+	copy(buffer, data[int1Key:])
 
 	p1 := new(bn254.G1Affine)
 	err := p1.Unmarshal(buffer)
