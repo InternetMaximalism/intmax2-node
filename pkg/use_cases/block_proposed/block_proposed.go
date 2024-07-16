@@ -38,7 +38,7 @@ func (u *uc) Do(
 	}
 
 	for key := range input.TxTree.SenderTransfers {
-		resp.TxTreeMerkleProof[key] = input.TxTree.SenderTransfers[key].TxTreeLeaveHash.String()
+		resp.TxTreeMerkleProof[key] = input.TxTree.SenderTransfers[key].TxTreeLeafHash.String()
 	}
 
 	return &resp, nil

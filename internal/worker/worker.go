@@ -284,7 +284,7 @@ func (w *worker) TxTreeByAvailableFile(sf *TransferHashesWithSenderAndFile) (txT
 			f.Delivered &&
 			f.Timestamp != nil && f.Timestamp.UTC().Add(
 			w.cfg.Worker.TimeoutForSignaturesAvailableFiles,
-		).UnixNano() < time.Now().UTC().UnixNano():
+		).UnixNano() <= time.Now().UTC().UnixNano():
 		for {
 			if !f.Processing {
 				// transfersHash exists, tx tree exists, signature collection for tx tree completed
@@ -470,7 +470,7 @@ func (w *worker) registerReceiver(input *ReceiverWorker) (err error) {
 
 		txTreeRoot.SenderTransfers = append(txTreeRoot.SenderTransfers, &st)
 
-		var txTreeLeaveHash []*intMaxTree.PoseidonHashOut
+		var txTreeLeafHash []*intMaxTree.PoseidonHashOut
 		for key := range txTreeRoot.SenderTransfers {
 			var currTx *intMaxTypes.Tx
 			currTx, err = intMaxTypes.NewTx(
@@ -483,16 +483,16 @@ func (w *worker) registerReceiver(input *ReceiverWorker) (err error) {
 
 			txTreeRoot.SenderTransfers[key].TxHash = currTx.Hash()
 
-			txTreeRoot.SenderTransfers[key].TxTreeLeaveHash, err = txTree.AddLeaf(uint64(key), currTx)
+			txTreeRoot.SenderTransfers[key].TxTreeLeafHash, err = txTree.AddLeaf(uint64(key), currTx)
 			if err != nil {
 				return errors.Join(ErrAddLeafIntoTxTreeFail, err)
 			}
-			txTreeLeaveHash = append(txTreeLeaveHash, txTreeRoot.SenderTransfers[key].TxTreeLeaveHash)
+			txTreeLeafHash = append(txTreeLeafHash, txTreeRoot.SenderTransfers[key].TxTreeLeafHash)
 
 			txTreeRoot.LeafIndexes[txTreeRoot.SenderTransfers[key].ReceiverWorker.TransferHash] = uint64(key)
 		}
 
-		txTreeRoot.TxTreeHash, err = txTree.BuildMerkleRoot(txTreeLeaveHash)
+		txTreeRoot.TxTreeHash, err = txTree.BuildMerkleRoot(txTreeLeafHash)
 		if err != nil {
 			return errors.Join(ErrTxTreeBuildMerkleRootFail, err)
 		}
@@ -628,7 +628,7 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 					)
 
 					var cmp ComputeMerkleProof
-					cmp.Root = *txTreeRoot.SenderTransfers[key].TxTreeLeaveHash
+					cmp.Root = *txTreeRoot.SenderTransfers[key].TxTreeLeafHash
 					cmp.Siblings = txTreeRoot.SenderTransfers[key].TxTreeSiblings
 
 					var bCMP []byte
