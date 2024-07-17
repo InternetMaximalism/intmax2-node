@@ -9,16 +9,17 @@ type UCBlockSignature struct {
 }
 
 type Plonky2Proof struct {
-	PublicInputs []string `json:"publicInputs"`
-	Proof        string   `json:"proof"`
+	PublicInputs []uint64 `json:"publicInputs"`
+	Proof        []byte   `json:"proof"`
 }
 
 func (dst *Plonky2Proof) Set(src *Plonky2Proof) *Plonky2Proof {
-	dst.PublicInputs = make([]string, len(src.PublicInputs))
+	dst.PublicInputs = make([]uint64, len(src.PublicInputs))
 	copy(dst.PublicInputs, src.PublicInputs)
-	dst.Proof = src.Proof
+	dst.Proof = make([]byte, len(src.Proof))
+	copy(dst.Proof, src.Proof)
 
-	return nil
+	return dst
 }
 
 type EnoughBalanceProofInput struct {
@@ -30,7 +31,7 @@ func (dst *EnoughBalanceProofInput) Set(src *EnoughBalanceProofInput) *EnoughBal
 	dst.PrevBalanceProof = new(Plonky2Proof).Set(src.PrevBalanceProof)
 	dst.TransferStepProof = new(Plonky2Proof).Set(src.TransferStepProof)
 
-	return nil
+	return dst
 }
 
 type UCBlockSignatureInput struct {

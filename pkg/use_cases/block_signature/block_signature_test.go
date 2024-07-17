@@ -3,10 +3,13 @@ package block_signature_test
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"intmax2-node/configs"
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/mnemonic_wallet"
+	"os"
+	"strconv"
 	"testing"
 
 	intMaxAcc "intmax2-node/internal/accounts"
@@ -17,6 +20,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 )
+
+var ErrCannotOpenBinaryFile = errors.New("cannot open binary file")
+
+var ErrCannotGetFileInformation = errors.New("cannot get file information")
+
+var ErrCannotReadBinaryFile = errors.New("cannot read binary file")
+
+var ErrCannotParseJson = errors.New("cannot parse JSON")
 
 func TestUseCaseTransaction(t *testing.T) {
 	const int3Key = 3
@@ -58,24 +69,25 @@ func TestUseCaseTransaction(t *testing.T) {
 	signature, err := signer.Sign(flattenMessage)
 	assert.NoError(t, err)
 
+	publicInputs, err := readPlonky2PublicInputsJson("balance_proof_public_inputs.json")
+	assert.NoError(t, err)
+	proof, err := readPlonky2ProofBinary("balance_proof_public_inputs.json")
+	assert.NoError(t, err)
+
 	enoughBalanceProof := &blockSignature.EnoughBalanceProofInput{
 		PrevBalanceProof: &blockSignature.Plonky2Proof{
-			PublicInputs: []string{
-				"2726224824249046055", "14025881618846813748", "5361314524880173070", "2912484915938769214",
-			},
-			Proof: "0x99396b28",
+			PublicInputs: publicInputs,
+			Proof:        proof,
 		},
 		TransferStepProof: &blockSignature.Plonky2Proof{
-			PublicInputs: []string{
-				"2726224824249046055", "14025881618846813748", "5361314524880173070", "2912484915938769214",
+			PublicInputs: []uint64{
+				2726224824249046055, 14025881618846813748, 5361314524880173070, 2912484915938769214,
 			},
-			Proof: "0x99396b28",
-		},
-	} // dummy
+			Proof: []byte{0x99, 0x39, 0x6b, 0x28},
+		}, // dummy
+	}
 	wrongEnoughBalanceProof := new(blockSignature.EnoughBalanceProofInput).Set(enoughBalanceProof)
-	wrongEnoughBalanceProof.PrevBalanceProof.PublicInputs = []string{
-		"2726224824249046055", "14025881618846813748", "5361314524880173070", "2912484915938769215",
-	} // dummy
+	wrongEnoughBalanceProof.PrevBalanceProof.PublicInputs[0] = 2726224824249046055
 
 	cases := []struct {
 		desc  string
@@ -125,4 +137,72 @@ func TestUseCaseTransaction(t *testing.T) {
 			}
 		})
 	}
+}
+
+func readPlonky2ProofBinary(filePath string) ([]byte, error) {
+	// Open file
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, errors.Join(ErrCannotOpenBinaryFile, err)
+	}
+	defer file.Close()
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return nil, errors.Join(ErrCannotGetFileInformation, err)
+	}
+
+	// Create buffer
+	fileSize := fileInfo.Size()
+	buffer := make([]byte, fileSize)
+
+	// Read file content
+	_, err = file.Read(buffer)
+	if err != nil {
+		return nil, errors.Join(ErrCannotReadBinaryFile, err)
+	}
+
+	return buffer, nil
+}
+
+func readPlonky2PublicInputsJson(filePath string) ([]uint64, error) {
+	// Open file
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, errors.Join(ErrCannotOpenBinaryFile, err)
+	}
+	defer file.Close()
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return nil, errors.Join(ErrCannotGetFileInformation, err)
+	}
+
+	// Create buffer
+	fileSize := fileInfo.Size()
+	buffer := make([]byte, fileSize)
+
+	// Read file content
+	_, err = file.Read(buffer)
+	if err != nil {
+		return nil, errors.Join(ErrCannotReadBinaryFile, err)
+	}
+
+	// Parse JSON
+	var publicInputsStr []string
+	err = json.Unmarshal(buffer, &publicInputsStr)
+	if err != nil {
+		return nil, errors.Join(ErrCannotParseJson, err)
+	}
+
+	publicInputs := make([]uint64, len(publicInputsStr))
+	for i, publicInputStr := range publicInputsStr {
+		publicInput, err := strconv.ParseUint(publicInputStr, 10, 64)
+		if err != nil {
+			return nil, errors.Join(ErrCannotParseJson, err)
+		}
+		publicInputs[i] = publicInput
+	}
+
+	return publicInputs, nil
 }
