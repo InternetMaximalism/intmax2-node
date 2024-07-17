@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"intmax2-node/internal/open_telemetry"
 	"intmax2-node/internal/pb/gen/service/node"
 	"intmax2-node/internal/use_cases/block_proposed"
@@ -30,8 +29,10 @@ func (s *Server) BlockProposed(
 	defer span.End()
 
 	input := block_proposed.UCBlockProposedInput{
-		Sender: req.Sender,
-		TxHash: req.TxHash,
+		Sender:     req.Sender,
+		TxHash:     req.TxHash,
+		Expiration: req.Expiration.AsTime(),
+		Signature:  req.Signature,
 	}
 
 	err := input.Valid(s.worker)
@@ -44,8 +45,8 @@ func (s *Server) BlockProposed(
 	ucBP, err = s.commands.BlockProposed().Do(spanCtx, &input)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
-		const msg = "failed to get block proposed: %w"
-		return &resp, utils.BadRequest(spanCtx, fmt.Errorf(msg, err))
+		const msg = "failed to get block proposed: %v"
+		return &resp, utils.Internal(spanCtx, s.log, msg, err)
 	}
 
 	resp.Success = true

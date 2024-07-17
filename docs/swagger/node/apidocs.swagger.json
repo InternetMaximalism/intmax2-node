@@ -304,6 +304,15 @@
         "txHash": {
           "type": "string",
           "title": "the hash of the user's transaction"
+        },
+        "expiration": {
+          "type": "string",
+          "format": "date-time",
+          "title": "the expiration of request"
+        },
+        "signature": {
+          "type": "string",
+          "title": "the signature of request (the hash calculated from txHash, sender, and expiration)"
         }
       },
       "title": "BlockProposedRequest describes request about retrieves the Merkle proof of a block containing the user's transaction, if available"

@@ -2,6 +2,7 @@ package worker_test
 
 import (
 	"context"
+	"errors"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/mnemonic_wallet"
@@ -158,6 +159,242 @@ func TestWorkerReceiver(t *testing.T) {
 		}
 		<-time.After(10 * time.Second)
 	}
+
+	if cancel != nil {
+		cancel()
+	}
+
+	wg.Wait()
+}
+
+func TestWorkerReceiverNotUniqueTransfer(t *testing.T) {
+	const int2Key = 2
+	assert.NoError(t, configs.LoadDotEnv(int2Key))
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer func() {
+		if cancel != nil {
+			cancel()
+		}
+	}()
+
+	var err error
+
+	cfg := configs.New()
+	log := logger.New(cfg.LOG.Level, cfg.LOG.TimeFormat, cfg.LOG.JSON, cfg.LOG.IsLogLine)
+
+	dbApp := NewMockSQLDriverApp(ctrl)
+
+	w := worker.New(cfg, log, dbApp)
+
+	cfg.Worker.Path = "./mocks/worker"
+	cfg.Worker.PathCleanInStart = true
+
+	err = w.Init()
+	assert.NoError(t, err)
+
+	tickerCurrentFile := time.NewTicker(cfg.Worker.TimeoutForCheckCurrentFile)
+	defer func() {
+		if tickerCurrentFile != nil {
+			tickerCurrentFile.Stop()
+		}
+	}()
+
+	tickerSignaturesAvailableFiles := time.NewTicker(cfg.Worker.TimeoutForSignaturesAvailableFiles)
+	defer func() {
+		if tickerSignaturesAvailableFiles != nil {
+			tickerSignaturesAvailableFiles.Stop()
+		}
+	}()
+
+	wg := sync.WaitGroup{}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err = w.Start(ctx, tickerCurrentFile, tickerSignaturesAvailableFiles)
+		assert.NoError(t, err)
+	}()
+
+	const (
+		derivation = "m/44'/60'/0'/0/0"
+		nonceIndex = 1
+		emptyKey   = ""
+	)
+	amount := new(big.Int).SetInt64(int64(1))
+
+	sender, err := mnemonic_wallet.New().WalletGenerator(derivation, emptyKey)
+	assert.NoError(t, err)
+
+	recipient, err := mnemonic_wallet.New().WalletGenerator(derivation, emptyKey)
+	assert.NoError(t, err)
+
+	salt := new(intMaxTypes.PoseidonHashOut)
+	salt.Elements[0] = *new(ffg.Element).SetUint64(0)
+	salt.Elements[1] = *new(ffg.Element).SetUint64(0)
+	salt.Elements[2] = *new(ffg.Element).SetUint64(0)
+	salt.Elements[3] = *new(ffg.Element).SetUint64(uint64(nonceIndex))
+	tx := intMaxTypes.Transfer{
+		TokenIndex: 0,
+		Amount:     amount,
+		Salt:       salt,
+	}
+
+	var publicKey *intMaxAcc.PublicKey
+	publicKey, err = intMaxAcc.NewPublicKeyFromAddressHex(recipient.IntMaxWalletAddress)
+	assert.NoError(t, err)
+
+	var gaAddr *intMaxTypes.GenericAddress
+	gaAddr, err = intMaxTypes.NewINTMAXAddress(publicKey.ToAddress().Bytes())
+	assert.NoError(t, err)
+
+	tx.Recipient = gaAddr
+
+	rw := &worker.ReceiverWorker{
+		Sender:       sender.IntMaxWalletAddress,
+		Nonce:        nonceIndex,
+		TransferHash: hexutil.Encode(keccak256.Hash(tx.Hash().Marshal())),
+		TransferData: []*intMaxTypes.Transfer{&tx},
+	}
+
+	err = w.Receiver(rw)
+	assert.NoError(t, err)
+
+	err = w.Receiver(rw)
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, worker.ErrReceiverWorkerDuplicate))
+
+	if cancel != nil {
+		cancel()
+	}
+
+	wg.Wait()
+}
+
+func TestWorkerReceiverUniqueTransferByNonce(t *testing.T) {
+	const int2Key = 2
+	assert.NoError(t, configs.LoadDotEnv(int2Key))
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer func() {
+		if cancel != nil {
+			cancel()
+		}
+	}()
+
+	var err error
+
+	cfg := configs.New()
+	log := logger.New(cfg.LOG.Level, cfg.LOG.TimeFormat, cfg.LOG.JSON, cfg.LOG.IsLogLine)
+
+	dbApp := NewMockSQLDriverApp(ctrl)
+
+	w := worker.New(cfg, log, dbApp)
+
+	cfg.Worker.Path = "./mocks/worker"
+	cfg.Worker.PathCleanInStart = true
+
+	err = w.Init()
+	assert.NoError(t, err)
+
+	tickerCurrentFile := time.NewTicker(cfg.Worker.TimeoutForCheckCurrentFile)
+	defer func() {
+		if tickerCurrentFile != nil {
+			tickerCurrentFile.Stop()
+		}
+	}()
+
+	tickerSignaturesAvailableFiles := time.NewTicker(cfg.Worker.TimeoutForSignaturesAvailableFiles)
+	defer func() {
+		if tickerSignaturesAvailableFiles != nil {
+			tickerSignaturesAvailableFiles.Stop()
+		}
+	}()
+
+	wg := sync.WaitGroup{}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err = w.Start(ctx, tickerCurrentFile, tickerSignaturesAvailableFiles)
+		assert.NoError(t, err)
+	}()
+
+	const (
+		derivation = "m/44'/60'/0'/0/0"
+		emptyKey   = ""
+	)
+
+	nonceIndex := 0
+	amount := new(big.Int).SetInt64(int64(1))
+
+	sender, err := mnemonic_wallet.New().WalletGenerator(derivation, emptyKey)
+	assert.NoError(t, err)
+
+	recipient, err := mnemonic_wallet.New().WalletGenerator(derivation, emptyKey)
+	assert.NoError(t, err)
+
+	salt := new(intMaxTypes.PoseidonHashOut)
+	salt.Elements[0] = *new(ffg.Element).SetUint64(0)
+	salt.Elements[1] = *new(ffg.Element).SetUint64(0)
+	salt.Elements[2] = *new(ffg.Element).SetUint64(0)
+	salt.Elements[3] = *new(ffg.Element).SetUint64(uint64(1))
+
+	tx := intMaxTypes.Transfer{
+		TokenIndex: 0,
+		Amount:     amount,
+		Salt:       salt,
+	}
+
+	var publicKey *intMaxAcc.PublicKey
+	publicKey, err = intMaxAcc.NewPublicKeyFromAddressHex(recipient.IntMaxWalletAddress)
+	assert.NoError(t, err)
+
+	var gaAddr *intMaxTypes.GenericAddress
+	gaAddr, err = intMaxTypes.NewINTMAXAddress(publicKey.ToAddress().Bytes())
+	assert.NoError(t, err)
+
+	tx.Recipient = gaAddr
+
+	rw := &worker.ReceiverWorker{
+		Sender:       sender.IntMaxWalletAddress,
+		Nonce:        uint64(nonceIndex),
+		TransferHash: hexutil.Encode(keccak256.Hash(tx.Hash().Marshal())),
+		TransferData: []*intMaxTypes.Transfer{&tx},
+	}
+
+	err = w.Receiver(rw)
+	assert.NoError(t, err)
+
+	nonceIndex++
+	tx2 := intMaxTypes.Transfer{
+		TokenIndex: 0,
+		Amount:     amount,
+		Salt:       salt,
+	}
+
+	tx2.Recipient = gaAddr
+
+	assert.Equal(t,
+		hexutil.Encode(keccak256.Hash(tx.Hash().Marshal())),
+		hexutil.Encode(keccak256.Hash(tx2.Hash().Marshal())),
+	)
+
+	rw2 := &worker.ReceiverWorker{
+		Sender:       sender.IntMaxWalletAddress,
+		Nonce:        uint64(nonceIndex),
+		TransferHash: hexutil.Encode(keccak256.Hash(tx2.Hash().Marshal())),
+		TransferData: []*intMaxTypes.Transfer{&tx2},
+	}
+
+	err = w.Receiver(rw2)
+	assert.NoError(t, err)
 
 	if cancel != nil {
 		cancel()

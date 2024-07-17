@@ -70,8 +70,8 @@ var ErrCurrentRootCountAndSiblingsFromRW = errors.New(
 // ErrCreateTxMerkleProofsFail error: failed to create the tx merkle proofs.
 var ErrCreateTxMerkleProofsFail = errors.New("failed to create the tx merkle proofs")
 
-// ErrTransfersHashNotFound error: the transfers hash not found.
-var ErrTransfersHashNotFound = errors.New("the transfers hash not found")
+// ErrTransactionHashNotFound error: the transaction not found.
+var ErrTransactionHashNotFound = errors.New("the transaction hash not found")
 
 // ErrNewTxTreeFail error: failed to create new tx tree.
 var ErrNewTxTreeFail = errors.New("failed to create new tx tree")

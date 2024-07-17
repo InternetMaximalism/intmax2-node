@@ -6,7 +6,6 @@ import (
 	"intmax2-node/internal/use_cases/block_proposed"
 
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // uc describes use case
@@ -25,12 +24,18 @@ func (u *uc) Do(
 		txHashKey = "tx_hash"
 	)
 
-	_, span := open_telemetry.Tracer().Start(ctx, hName,
-		trace.WithAttributes(
-			attribute.String(senderKey, input.DecodeSender.ToAddress().String()),
-			attribute.String(txHashKey, input.TxHash),
-		))
+	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
 	defer span.End()
+
+	if input == nil {
+		open_telemetry.MarkSpanError(spanCtx, ErrUCInputEmpty)
+		return nil, ErrUCInputEmpty
+	}
+
+	span.SetAttributes(
+		attribute.String(senderKey, input.DecodeSender.ToAddress().String()),
+		attribute.String(txHashKey, input.TxHash),
+	)
 
 	resp := block_proposed.UCBlockProposed{
 		TxRoot:            input.TxTree.TxTreeHash.String(),

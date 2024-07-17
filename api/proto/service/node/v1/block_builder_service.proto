@@ -139,6 +139,10 @@ message BlockProposedRequest {
   string sender = 10 [json_name="sender", (tagger.tags)="json:\"sender,omitempty\""];
   // the hash of the user's transaction
   string tx_hash = 20 [json_name="txHash", (tagger.tags)="json:\"txHash,omitempty\""];
+  // the expiration of request
+  google.protobuf.Timestamp expiration = 70 [json_name="expiration", (tagger.tags)="json:\"expiration,omitempty\""];
+  // the signature of request (the hash calculated from txHash, sender, and expiration)
+  string signature = 80 [json_name="signature", (tagger.tags)="json:\"signature,omitempty\""];
 }
 
 // DataBlockProposedResponse describes the data of response about retrieves the Merkle proof of a block containing the user's transaction, if available

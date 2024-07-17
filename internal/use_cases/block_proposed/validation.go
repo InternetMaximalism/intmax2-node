@@ -4,7 +4,12 @@ import (
 	"errors"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/worker"
+	"math/big"
 	"strings"
+	"time"
+
+	"github.com/consensys/gnark-crypto/ecc/bn254"
+	"github.com/iden3/go-iden3-crypto/ffg"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/prodadidb/go-validation"
@@ -13,8 +18,8 @@ import (
 // ErrValueInvalid error: value must be valid.
 var ErrValueInvalid = errors.New("must be a valid value")
 
-// ErrTransfersHashNotFound error: the transfers hash not found.
-var ErrTransfersHashNotFound = errors.New("the transfers hash not found")
+// ErrTransactionHashNotFound error: the transaction hash not found.
+var ErrTransactionHashNotFound = errors.New("the transaction hash not found")
 
 // ErrTxTreeNotBuild error: the tx tree not build.
 var ErrTxTreeNotBuild = errors.New("the tx tree not build")
@@ -33,6 +38,61 @@ func (input *UCBlockProposedInput) Valid(w Worker) error {
 		validation.Field(&input.TxHash,
 			validation.Required, input.isHexDecode(), input.isExistsTxHash(w),
 		),
+		validation.Field(&input.Expiration, validation.Required, validation.By(func(value interface{}) error {
+			v, ok := value.(time.Time)
+			if !ok {
+				return ErrValueInvalid
+			}
+
+			if time.Now().UTC().UnixNano() > v.UnixNano() {
+				return ErrValueInvalid
+			}
+
+			return nil
+		})),
+		validation.Field(&input.Signature, validation.Required, validation.By(func(value interface{}) (err error) {
+			v, ok := value.(string)
+			if !ok {
+				return ErrValueInvalid
+			}
+
+			const (
+				int0Key = 0
+				int1Key = 1
+				int2Key = 2
+				int3Key = 3
+			)
+
+			message := make([]*ffg.Element, int3Key)
+			message[int0Key] = new(ffg.Element).SetBytes([]byte(input.TxHash))
+			message[int1Key] = new(ffg.Element).SetBytes([]byte(input.Sender))
+			message[int2Key] = new(ffg.Element).SetBytes(new(big.Int).SetInt64(input.Expiration.Unix()).Bytes())
+
+			var publicKey *intMaxAcc.PublicKey
+			publicKey, err = intMaxAcc.NewPublicKeyFromAddressHex(input.Sender)
+			if err != nil {
+				return ErrValueInvalid
+			}
+
+			var sb []byte
+			sb, err = hexutil.Decode(v)
+			if err != nil {
+				return ErrValueInvalid
+			}
+
+			sign := bn254.G2Affine{}
+			err = sign.Unmarshal(sb)
+			if err != nil {
+				return ErrValueInvalid
+			}
+
+			err = intMaxAcc.VerifySignature(&sign, publicKey, message)
+			if err != nil {
+				return ErrValueInvalid
+			}
+
+			return nil
+		})),
 	)
 }
 
@@ -79,11 +139,11 @@ func (input *UCBlockProposedInput) isExistsTxHash(w Worker) validation.Rule {
 			return ErrValueInvalid
 		}
 
-		var info *worker.TransferHashesWithSenderAndFile
+		var info *worker.TransactionHashesWithSenderAndFile
 		info, err = w.TrHash(v)
-		if err != nil && errors.Is(err, worker.ErrTransfersHashNotFound) ||
+		if err != nil && errors.Is(err, worker.ErrTransactionHashNotFound) ||
 			!strings.EqualFold(info.Sender, input.Sender) {
-			return ErrTransfersHashNotFound
+			return ErrTransactionHashNotFound
 		}
 
 		var txTree *worker.TxTree
@@ -91,7 +151,7 @@ func (input *UCBlockProposedInput) isExistsTxHash(w Worker) validation.Rule {
 		if err != nil {
 			switch {
 			case errors.Is(err, worker.ErrTxTreeByAvailableFileFail):
-				return ErrTransfersHashNotFound
+				return ErrTransactionHashNotFound
 			case errors.Is(err, worker.ErrTxTreeNotFound):
 				return ErrTxTreeNotBuild
 			case errors.Is(err, worker.ErrTxTreeSignatureCollectionComplete):

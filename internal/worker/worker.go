@@ -31,14 +31,14 @@ const (
 )
 
 type kvInfo struct {
-	Ctx              context.Context
-	CtxCancel        context.CancelFunc
-	KvDB             *bolt.DB
-	TransfersCounter int32
-	Delivered        bool
-	Processing       bool
-	Timestamp        *time.Time
-	Receiver         chan func() error
+	Ctx                 context.Context
+	CtxCancel           context.CancelFunc
+	KvDB                *bolt.DB
+	TransactionsCounter int32
+	Delivered           bool
+	Processing          bool
+	Timestamp           *time.Time
+	Receiver            chan func() error
 }
 
 type fileInfo struct {
@@ -56,14 +56,14 @@ type workerFileList struct {
 	Cleaner     chan func()
 }
 
-type TransferHashesWithSenderAndFile struct {
+type TransactionHashesWithSenderAndFile struct {
 	Sender string
 	File   *os.File
 }
 
-type transferHashesList struct {
+type transactionHashesList struct {
 	sync.Mutex
-	Hashes  map[string]*TransferHashesWithSenderAndFile
+	Hashes  map[string]*TransactionHashesWithSenderAndFile
 	Cleaner chan func()
 }
 
@@ -72,7 +72,7 @@ type worker struct {
 	log        logger.Logger
 	dbApp      SQLDriverApp
 	files      *workerFileList
-	trHashes   *transferHashesList
+	trHashes   *transactionHashesList
 	numWorkers int32
 	maxWorkers int32
 }
@@ -86,8 +86,8 @@ func New(cfg *configs.Config, log logger.Logger, dbApp SQLDriverApp) Worker {
 			FilesList: make(map[*os.File]*fileInfo),
 			Cleaner:   make(chan func(), int1024Key),
 		},
-		trHashes: &transferHashesList{
-			Hashes:  make(map[string]*TransferHashesWithSenderAndFile),
+		trHashes: &transactionHashesList{
+			Hashes:  make(map[string]*TransactionHashesWithSenderAndFile),
 			Cleaner: make(chan func(), int1024Key),
 		},
 		maxWorkers: cfg.Worker.MaxCounter,
@@ -246,7 +246,7 @@ func (w *worker) CurrentFileName() string {
 func (w *worker) AvailableFiles() (list []*os.File) {
 	for key := range w.files.FilesList {
 		if w.files.CurrentFile.Name() != key.Name() &&
-			atomic.LoadInt32(&w.files.FilesList[key].TransfersCounter) == 0 &&
+			atomic.LoadInt32(&w.files.FilesList[key].TransactionsCounter) == 0 &&
 			!w.files.FilesList[key].Processing {
 			if !w.files.FilesList[key].Delivered {
 				w.files.FilesList[key].CtxCancel()
@@ -264,7 +264,7 @@ func (w *worker) AvailableFiles() (list []*os.File) {
 	return list
 }
 
-func (w *worker) TxTreeByAvailableFile(sf *TransferHashesWithSenderAndFile) (txTreeRoot *TxTree, err error) {
+func (w *worker) TxTreeByAvailableFile(sf *TransactionHashesWithSenderAndFile) (txTreeRoot *TxTree, err error) {
 	f, ok := w.files.FilesList[sf.File]
 	if !ok {
 		// transfersHash not found
@@ -274,13 +274,13 @@ func (w *worker) TxTreeByAvailableFile(sf *TransferHashesWithSenderAndFile) (txT
 	switch {
 	case
 		w.files.CurrentFile.Name() == sf.File.Name(),
-		atomic.LoadInt32(&f.TransfersCounter) != 0,
+		atomic.LoadInt32(&f.TransactionsCounter) != 0,
 		!f.Delivered:
 		// transfersHash exists, tx tree not found
 		return nil, ErrTxTreeNotFound
 	case
 		w.files.CurrentFile.Name() != sf.File.Name() &&
-			atomic.LoadInt32(&f.TransfersCounter) == 0 &&
+			atomic.LoadInt32(&f.TransactionsCounter) == 0 &&
 			f.Delivered &&
 			f.Timestamp != nil && f.Timestamp.UTC().Add(
 			w.cfg.Worker.TimeoutForSignaturesAvailableFiles,
@@ -293,7 +293,7 @@ func (w *worker) TxTreeByAvailableFile(sf *TransferHashesWithSenderAndFile) (txT
 		}
 	case
 		w.files.CurrentFile.Name() != sf.File.Name() &&
-			atomic.LoadInt32(&f.TransfersCounter) == 0 &&
+			atomic.LoadInt32(&f.TransactionsCounter) == 0 &&
 			f.Delivered &&
 			f.Timestamp != nil && f.Timestamp.UTC().Add(
 			w.cfg.Worker.TimeoutForSignaturesAvailableFiles,
@@ -391,20 +391,36 @@ func (w *worker) Receiver(input *ReceiverWorker) error {
 		return ErrReceiverWorkerEmpty
 	}
 
+	crcs, err := w.currentRootCountAndSiblingsFromRW(input)
+	if err != nil {
+		return errors.Join(ErrCurrentRootCountAndSiblingsFromRW, err)
+	}
+
+	var currTx *intMaxTypes.Tx
+	currTx, err = intMaxTypes.NewTx(
+		&crcs.TransferTreeRoot,
+		input.Nonce,
+	)
+	if err != nil {
+		return errors.Join(ErrNewTxFail, err)
+	}
+
 	w.trHashes.Lock()
 	defer w.trHashes.Unlock()
 
-	_, ok := w.trHashes.Hashes[input.TransferHash]
+	_, ok := w.trHashes.Hashes[currTx.Hash().String()]
 	if ok {
 		return ErrReceiverWorkerDuplicate
 	}
 
-	w.trHashes.Hashes[input.TransferHash] = &TransferHashesWithSenderAndFile{
+	input.TxHash = currTx
+
+	w.trHashes.Hashes[currTx.Hash().String()] = &TransactionHashesWithSenderAndFile{
 		Sender: input.Sender,
 		File:   w.files.CurrentFile,
 	}
 
-	err := w.registerReceiver(input)
+	err = w.registerReceiver(input)
 	if err != nil {
 		return errors.Join(ErrRegisterReceiverFail, err)
 	}
@@ -418,7 +434,7 @@ func (w *worker) registerReceiver(input *ReceiverWorker) (err error) {
 	}
 
 	current := w.files.CurrentFile
-	atomic.AddInt32(&w.files.FilesList[current].TransfersCounter, 1)
+	atomic.AddInt32(&w.files.FilesList[current].TransactionsCounter, 1)
 	w.files.FilesList[current].UsersCounter[input.Sender] = input.Sender
 	w.files.FilesList[current].Hashes[input.TransferHash] = input.TransferHash
 
@@ -489,7 +505,7 @@ func (w *worker) registerReceiver(input *ReceiverWorker) (err error) {
 			}
 			txTreeLeafHash = append(txTreeLeafHash, txTreeRoot.SenderTransfers[key].TxTreeLeafHash)
 
-			txTreeRoot.LeafIndexes[txTreeRoot.SenderTransfers[key].ReceiverWorker.TransferHash] = uint64(key)
+			txTreeRoot.LeafIndexes[txTreeRoot.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String()] = uint64(key)
 		}
 
 		txTreeRoot.TxTreeHash, err = txTree.BuildMerkleRoot(txTreeLeafHash)
@@ -499,7 +515,9 @@ func (w *worker) registerReceiver(input *ReceiverWorker) (err error) {
 
 		for key := range txTreeRoot.SenderTransfers {
 			var cmp ComputeMerkleProof
-			cmp.Siblings, _, err = txTree.ComputeMerkleProof(txTreeRoot.LeafIndexes[txTreeRoot.SenderTransfers[key].ReceiverWorker.TransferHash])
+			cmp.Siblings, _, err = txTree.ComputeMerkleProof(
+				txTreeRoot.LeafIndexes[txTreeRoot.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String()],
+			)
 			if err != nil {
 				err = errors.Join(ErrTxTreeComputeMerkleProofFail, err)
 				return err
@@ -523,7 +541,7 @@ func (w *worker) registerReceiver(input *ReceiverWorker) (err error) {
 			return errors.Join(ErrTxCommitKVStoreFail, err)
 		}
 
-		atomic.AddInt32(&w.files.FilesList[current].TransfersCounter, -1)
+		atomic.AddInt32(&w.files.FilesList[current].TransactionsCounter, -1)
 
 		return nil
 	}
@@ -572,17 +590,17 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 					return err
 				}
 
-				var transferHashes []string
+				var trHashes []string
 				for key := range txTreeRoot.SenderTransfers {
-					transferHashes = append(transferHashes, txTreeRoot.SenderTransfers[key].ReceiverWorker.TransferHash)
+					trHashes = append(trHashes, txTreeRoot.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String())
 				}
 				defer func() {
-					for keyT := range transferHashes {
-						delete(w.files.FilesList[f].Hashes, transferHashes[keyT])
+					for keyT := range trHashes {
+						delete(w.files.FilesList[f].Hashes, trHashes[keyT])
 						w.trHashes.Cleaner <- func() {
 							w.trHashes.Lock()
 							defer w.trHashes.Unlock()
-							delete(w.trHashes.Hashes, transferHashes[keyT])
+							delete(w.trHashes.Hashes, trHashes[keyT])
 						}
 					}
 				}()
@@ -616,15 +634,15 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 				}
 
 				for key := range txTreeRoot.SenderTransfers {
-					_, ok := w.files.FilesList[f].Hashes[txTreeRoot.SenderTransfers[key].ReceiverWorker.TransferHash]
+					_, ok := w.files.FilesList[f].Hashes[txTreeRoot.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String()]
 					if !ok {
-						err = ErrTransfersHashNotFound
+						err = ErrTransactionHashNotFound
 						return err
 					}
 
 					var txIndex uint256.Int
 					_ = txIndex.SetUint64(
-						txTreeRoot.LeafIndexes[txTreeRoot.SenderTransfers[key].ReceiverWorker.TransferHash],
+						txTreeRoot.LeafIndexes[txTreeRoot.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String()],
 					)
 
 					var cmp ComputeMerkleProof
@@ -688,13 +706,13 @@ func (w *worker) currentRootCountAndSiblingsFromRW(
 	}, err
 }
 
-func (w *worker) TrHash(trHash string) (*TransferHashesWithSenderAndFile, error) {
+func (w *worker) TrHash(trHash string) (*TransactionHashesWithSenderAndFile, error) {
 	w.trHashes.Lock()
 	defer w.trHashes.Unlock()
 
 	info, ok := w.trHashes.Hashes[trHash]
 	if !ok {
-		return nil, ErrTransfersHashNotFound
+		return nil, ErrTransactionHashNotFound
 	}
 
 	return info, nil

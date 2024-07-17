@@ -4,7 +4,10 @@ import (
 	"context"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/worker"
+	"time"
 )
+
+//go:generate mockgen -destination=../mocks/mock_block_proposed.go -package=mocks -source=block_proposed.go
 
 type UCBlockProposed struct {
 	TxRoot            string
@@ -16,6 +19,8 @@ type UCBlockProposedInput struct {
 	DecodeSender *intMaxAcc.PublicKey `json:"-"`
 	TxHash       string               `json:"txHash"`
 	TxTree       *worker.TxTree       `json:"-"`
+	Expiration   time.Time            `json:"expiration"`
+	Signature    string               `json:"signature"`
 }
 
 // UseCaseBlockProposed describes BlockProposed contract.

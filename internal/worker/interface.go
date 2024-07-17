@@ -22,6 +22,7 @@ type CurrentRootCountAndSiblings struct {
 type ReceiverWorker struct {
 	Sender       string                  `json:"sender"`
 	Nonce        uint64                  `json:"nonce"`
+	TxHash       *intMaxTypes.Tx         `json:"txHash"`
 	TransferHash string                  `json:"transferHash"`
 	TransferData []*intMaxTypes.Transfer `json:"transferData"`
 }
@@ -52,6 +53,6 @@ type Worker interface {
 	CurrentDir() string
 	CurrentFileName() string
 	AvailableFiles() (list []*os.File)
-	TrHash(trHash string) (*TransferHashesWithSenderAndFile, error)
-	TxTreeByAvailableFile(sf *TransferHashesWithSenderAndFile) (txTreeRoot *TxTree, err error)
+	TrHash(trHash string) (*TransactionHashesWithSenderAndFile, error)
+	TxTreeByAvailableFile(sf *TransactionHashesWithSenderAndFile) (txTreeRoot *TxTree, err error)
 }
