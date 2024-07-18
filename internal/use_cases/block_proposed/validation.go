@@ -2,6 +2,7 @@ package block_proposed
 
 import (
 	"errors"
+	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/worker"
 	"math/big"
@@ -58,6 +59,7 @@ func (input *UCBlockProposedInput) Valid(w Worker) error {
 
 			message, err := MakeSendTransactionMessage(input.TxHash, input.Sender, input.Expiration)
 			if err != nil {
+				fmt.Printf("MakeSendTransactionMessage error: %v\n", err)
 				return ErrValueInvalid
 			}
 
@@ -102,6 +104,7 @@ func MakeSendTransactionMessage(inputTxHash string, inputSender string, inputExp
 	message[int1Key] = new(ffg.Element).SetBytes([]byte(inputSender))
 	message[int2Key] = new(ffg.Element).SetBytes(new(big.Int).SetInt64(inputExpiration.Unix()).Bytes())
 
+	// TODO
 	// const (
 	// 	int1Key = 1
 	// 	int4Key = 4
