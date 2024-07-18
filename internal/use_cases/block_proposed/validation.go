@@ -56,17 +56,10 @@ func (input *UCBlockProposedInput) Valid(w Worker) error {
 				return ErrValueInvalid
 			}
 
-			const (
-				int0Key = 0
-				int1Key = 1
-				int2Key = 2
-				int3Key = 3
-			)
-
-			message := make([]*ffg.Element, int3Key)
-			message[int0Key] = new(ffg.Element).SetBytes([]byte(input.TxHash))
-			message[int1Key] = new(ffg.Element).SetBytes([]byte(input.Sender))
-			message[int2Key] = new(ffg.Element).SetBytes(new(big.Int).SetInt64(input.Expiration.Unix()).Bytes())
+			message, err := MakeSendTransactionMessage(input.TxHash, input.Sender, input.Expiration)
+			if err != nil {
+				return ErrValueInvalid
+			}
 
 			var publicKey *intMaxAcc.PublicKey
 			publicKey, err = intMaxAcc.NewPublicKeyFromAddressHex(input.Sender)
@@ -94,6 +87,54 @@ func (input *UCBlockProposedInput) Valid(w Worker) error {
 			return nil
 		})),
 	)
+}
+
+func MakeSendTransactionMessage(inputTxHash string, inputSender string, inputExpiration time.Time) ([]*ffg.Element, error) {
+	const (
+		int0Key = 0
+		int1Key = 1
+		int2Key = 2
+		int3Key = 3
+	)
+
+	message := make([]*ffg.Element, int3Key)
+	message[int0Key] = new(ffg.Element).SetBytes([]byte(inputTxHash))
+	message[int1Key] = new(ffg.Element).SetBytes([]byte(inputSender))
+	message[int2Key] = new(ffg.Element).SetBytes(new(big.Int).SetInt64(inputExpiration.Unix()).Bytes())
+
+	// const (
+	// 	int1Key = 1
+	// 	int4Key = 4
+	// 	int8Key = 8
+	// )
+
+	// message := make([]*ffg.Element, int4Key+int8Key+int1Key)
+	// txHash := new(goldenposeidon.PoseidonHashOut)
+	// err := txHash.Unmarshal(hexutil.MustDecode(inputTxHash))
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// expiration := new(big.Int).SetInt64(inputExpiration.Unix())
+
+	// senderAddress, err := intMaxAcc.NewAddressFromHex(inputSender)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// for i := range txHash.Elements {
+	// 	message[i] = new(ffg.Element).Set(&txHash.Elements[i])
+	// }
+
+	// for i := 0; i < int8Key; i++ {
+	// 	message[int4Key+i] = new(ffg.Element).SetBytes(senderAddress[int4Key*i : int4Key*(i+1)])
+	// }
+
+	// if expiration.Cmp(ffg.Modulus()) >= 0 {
+	// 	return nil, ErrValueInvalid
+	// }
+	// message[int4Key+int8Key] = new(ffg.Element).SetBytes(expiration.Bytes())
+
+	return message, nil
 }
 
 func (input *UCBlockProposedInput) isSender(pbKey *intMaxAcc.PublicKey) validation.Rule {

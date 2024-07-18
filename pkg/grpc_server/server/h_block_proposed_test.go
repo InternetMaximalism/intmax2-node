@@ -14,7 +14,6 @@ import (
 	"intmax2-node/pkg/logger"
 	ucBlockProposed "intmax2-node/pkg/use_cases/block_proposed"
 	"io"
-	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -25,7 +24,6 @@ import (
 	"github.com/dimiro1/health"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/google/uuid"
-	"github.com/iden3/go-iden3-crypto/ffg"
 	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"
 	"go.uber.org/mock/gomock"
@@ -94,10 +92,8 @@ func TestHandlerBlockProposed(t *testing.T) {
 		keyPair, err := intMaxAcc.NewPrivateKeyWithReCalcPubKeyIfPkNegates(pk.BigInt())
 		assert.NoError(t, err)
 
-		message := make([]*ffg.Element, 3)
-		message[0] = new(ffg.Element).SetBytes([]byte(txHashKey))
-		message[1] = new(ffg.Element).SetBytes([]byte(w.IntMaxWalletAddress))
-		message[2] = new(ffg.Element).SetBytes(new(big.Int).SetInt64(expiration.Unix()).Bytes())
+		message, err := block_proposed.MakeSendTransactionMessage(txHashKey, w.IntMaxWalletAddress, expiration)
+		assert.NoError(t, err)
 
 		sign, err := keyPair.Sign(message)
 		assert.NoError(t, err)

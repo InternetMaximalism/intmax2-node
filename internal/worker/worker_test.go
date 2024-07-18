@@ -7,6 +7,7 @@ import (
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/mnemonic_wallet"
 	"intmax2-node/internal/mnemonic_wallet/models"
+	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/worker"
 	"intmax2-node/pkg/logger"
@@ -100,7 +101,9 @@ func TestWorkerReceiver(t *testing.T) {
 			recipientsList[index], err = mnemonic_wallet.New().WalletGenerator(derivation, emptyKey)
 			assert.NoError(t, err)
 
-			var txs []*intMaxTypes.Transfer
+			zeroTransfer := new(intMaxTypes.Transfer).SetZero()
+			transferTree, err := intMaxTree.NewTransferTree(6, nil, zeroTransfer.Hash())
+			assert.NoError(t, err)
 			for nonceIndex := 0; nonceIndex < 2; nonceIndex++ {
 				salt := new(intMaxTypes.PoseidonHashOut)
 				salt.Elements[0] = *new(ffg.Element).SetUint64(0)
@@ -133,17 +136,18 @@ func TestWorkerReceiver(t *testing.T) {
 
 					tx.Recipient = gaAddr
 				}
-				txs = append(txs, &tx)
+				transferTree.AddLeaf(uint64(nonceIndex), &tx)
 			}
-			hashTrList := make([][]byte, len(txs))
-			for key := range txs {
-				hashTrList[key] = txs[key].Hash().Marshal()
+			hashTrList := make([][]byte, len(transferTree.Leaves))
+			for key := range transferTree.Leaves {
+				hashTrList[key] = transferTree.Leaves[key].Hash().Marshal()
 			}
 
+			transferTreeRoot, _, _ := transferTree.GetCurrentRootCountAndSiblings()
 			rw := &worker.ReceiverWorker{
 				Sender:       sendersList[index].IntMaxWalletAddress,
-				TransferHash: hexutil.Encode(keccak256.Hash(hashTrList...)),
-				TransferData: txs,
+				TransferHash: transferTreeRoot.String(), // hex
+				TransferData: transferTree.Leaves,
 			}
 
 			receiversListForWorker = append(receiversListForWorker, rw)
