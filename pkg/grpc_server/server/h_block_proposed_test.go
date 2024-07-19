@@ -92,7 +92,7 @@ func TestHandlerBlockProposed(t *testing.T) {
 		keyPair, err := intMaxAcc.NewPrivateKeyWithReCalcPubKeyIfPkNegates(pk.BigInt())
 		assert.NoError(t, err)
 
-		message, err := block_proposed.MakeSendTransactionMessage(txHashKey, w.IntMaxWalletAddress, expiration)
+		message, err := block_proposed.MakeMessage(txHashKey, w.IntMaxWalletAddress, expiration)
 		assert.NoError(t, err)
 
 		sign, err := keyPair.Sign(message)

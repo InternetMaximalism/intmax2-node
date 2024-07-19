@@ -29,7 +29,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/google/uuid"
-	"github.com/holiman/uint256"
 	"github.com/iden3/go-iden3-crypto/ffg"
 	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"
@@ -102,15 +101,8 @@ func TestHandlerTransaction(t *testing.T) {
 		keyPair, err := intMaxAcc.NewPrivateKeyWithReCalcPubKeyIfPkNegates(pk.BigInt())
 		assert.NoError(t, err)
 
-		message := make([]*ffg.Element, 5)
-		message[0] = new(ffg.Element).SetBytes([]byte(trHashKey))
-		message[1] = new(ffg.Element).SetBytes(new(big.Int).SetInt64(int64(nonce)).Bytes())
-		var pwN uint256.Int
-		err = pwN.SetFromHex(powNonce)
+		message, err := transaction.MakeMessage(trHashKey, nonce, powNonce, w.IntMaxWalletAddress, expiration)
 		assert.NoError(t, err)
-		message[2] = new(ffg.Element).SetBytes(pwN.Bytes())
-		message[3] = new(ffg.Element).SetBytes([]byte(w.IntMaxWalletAddress))
-		message[4] = new(ffg.Element).SetBytes(new(big.Int).SetInt64(expiration.Unix()).Bytes())
 
 		sign, err := keyPair.Sign(message)
 		assert.NoError(t, err)

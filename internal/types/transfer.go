@@ -124,7 +124,7 @@ func (td *Transfer) Marshal() []byte {
 	), td.Salt.Marshal()...)
 }
 
-func (td *Transfer) ToFieldElementSlice() []*ffg.Element {
+func (td *Transfer) ToFieldElementSlice() []ffg.Element {
 	return finite_field.BytesToFieldElementSlice(td.Marshal())
 }
 
