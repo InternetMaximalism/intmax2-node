@@ -74,7 +74,7 @@ func WriteFixedSizeBytes(buf *Buffer, data []byte, numDataBytes int) {
 }
 
 func WriteBytes(buf *Buffer, data []byte) {
-	WriteUint64(buf, uint64(len(data)))
+	_ = WriteUint64(buf, uint64(len(data)))
 	WriteFixedSizeBytes(buf, data, len(data))
 }
 

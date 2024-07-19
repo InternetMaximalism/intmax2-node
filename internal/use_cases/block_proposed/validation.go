@@ -3,16 +3,11 @@ package block_proposed
 import (
 	"errors"
 	intMaxAcc "intmax2-node/internal/accounts"
-	"intmax2-node/internal/finite_field"
-	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/worker"
-	"math/big"
 	"strings"
 	"time"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
-	"github.com/iden3/go-iden3-crypto/ffg"
-
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/prodadidb/go-validation"
 )
@@ -89,42 +84,6 @@ func (input *UCBlockProposedInput) Valid(w Worker) error {
 			return nil
 		})),
 	)
-}
-
-func MakeMessage(inputTxHash string, inputSender string, inputExpiration time.Time) ([]ffg.Element, error) {
-	const (
-		int1Key = 1
-		int4Key = 4
-		int8Key = 8
-	)
-
-	message := finite_field.NewBuffer(make([]ffg.Element, int4Key+int8Key+int1Key))
-	txHash := new(goldenposeidon.PoseidonHashOut)
-	txHashBytes, err := hexutil.Decode(inputTxHash)
-	if err != nil {
-		return nil, err
-	}
-	err = txHash.Unmarshal(txHashBytes)
-	if err != nil {
-		return nil, err
-	}
-	expiration := new(big.Int).SetInt64(inputExpiration.Unix())
-
-	senderAddress, err := intMaxAcc.NewAddressFromHex(inputSender)
-	if err != nil {
-		return nil, err
-	}
-
-	finite_field.WritePoseidonHashOut(message, txHash)
-
-	finite_field.WriteFixedSizeBytes(message, senderAddress.Bytes(), 32)
-
-	if expiration.Cmp(ffg.Modulus()) >= 0 {
-		return nil, ErrValueInvalid
-	}
-	finite_field.WriteUint64(message, expiration.Uint64())
-
-	return message.Inner(), nil
 }
 
 func (input *UCBlockProposedInput) isSender(pbKey *intMaxAcc.PublicKey) validation.Rule {

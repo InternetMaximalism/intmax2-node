@@ -12,9 +12,12 @@ import (
 	"intmax2-node/internal/worker"
 	"intmax2-node/pkg/logger"
 	"math/big"
+	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -25,6 +28,8 @@ import (
 )
 
 func TestWorkerReceiver(t *testing.T) {
+	t.Parallel()
+
 	const int2Key = 2
 	assert.NoError(t, configs.LoadDotEnv(int2Key))
 
@@ -47,7 +52,7 @@ func TestWorkerReceiver(t *testing.T) {
 
 	w := worker.New(cfg, log, dbApp)
 
-	cfg.Worker.Path = "./mocks/worker"
+	cfg.Worker.Path = "./mocks/worker/" + strings.ReplaceAll(uuid.New().String(), "-", "")
 	cfg.Worker.PathCleanInStart = true
 
 	err = w.Init()
@@ -87,8 +92,10 @@ func TestWorkerReceiver(t *testing.T) {
 	assert.NoError(t, err)
 	var receiversListForWorker []*worker.ReceiverWorker
 	userCounterCheck := userCounter
+	t.Log("Current userCounter: ", userCounterCheck)
 	dbApp.EXPECT().Exec(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, _ interface{}, executor func(d interface{}, input interface{}) error) (err error) {
 		userCounterCheck--
+		t.Log("Current userCounter: ", userCounterCheck)
 		return nil
 	}).AnyTimes()
 	for index := 0; index < userCounter; index++ {
@@ -136,7 +143,8 @@ func TestWorkerReceiver(t *testing.T) {
 
 					tx.Recipient = gaAddr
 				}
-				transferTree.AddLeaf(uint64(nonceIndex), &tx)
+				_, err = transferTree.AddLeaf(uint64(nonceIndex), &tx)
+				assert.NoError(t, err)
 			}
 			hashTrList := make([][]byte, len(transferTree.Leaves))
 			for key := range transferTree.Leaves {
@@ -172,6 +180,8 @@ func TestWorkerReceiver(t *testing.T) {
 }
 
 func TestWorkerReceiverNotUniqueTransfer(t *testing.T) {
+	t.Parallel()
+
 	const int2Key = 2
 	assert.NoError(t, configs.LoadDotEnv(int2Key))
 
@@ -194,7 +204,7 @@ func TestWorkerReceiverNotUniqueTransfer(t *testing.T) {
 
 	w := worker.New(cfg, log, dbApp)
 
-	cfg.Worker.Path = "./mocks/worker"
+	cfg.Worker.Path = "./mocks/worker/" + strings.ReplaceAll(uuid.New().String(), "-", "")
 	cfg.Worker.PathCleanInStart = true
 
 	err = w.Init()
@@ -279,6 +289,8 @@ func TestWorkerReceiverNotUniqueTransfer(t *testing.T) {
 }
 
 func TestWorkerReceiverUniqueTransferByNonce(t *testing.T) {
+	t.Parallel()
+
 	const int2Key = 2
 	assert.NoError(t, configs.LoadDotEnv(int2Key))
 
@@ -301,7 +313,7 @@ func TestWorkerReceiverUniqueTransferByNonce(t *testing.T) {
 
 	w := worker.New(cfg, log, dbApp)
 
-	cfg.Worker.Path = "./mocks/worker"
+	cfg.Worker.Path = "./mocks/worker/" + strings.ReplaceAll(uuid.New().String(), "-", "")
 	cfg.Worker.PathCleanInStart = true
 
 	err = w.Init()
