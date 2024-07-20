@@ -13,6 +13,8 @@ type PGX interface {
 	GenericCommands
 	ServiceCommands
 	Tokens
+	Signatures
+	Transactions
 	TxMerkleProofs
 }
 
@@ -36,11 +38,24 @@ type Tokens interface {
 	TokenByIndex(tokenIndex string) (*mDBApp.Token, error)
 }
 
+type Signatures interface {
+	CreateSignature(signature string) (*mDBApp.Signature, error)
+	SignatureByID(txID string) (*mDBApp.Signature, error)
+}
+
+type Transactions interface {
+	CreateTransaction(
+		senderPublicKey, txHash, signatureID string,
+	) (*mDBApp.Transactions, error)
+	TransactionByID(txID string) (*mDBApp.Transactions, error)
+}
+
 type TxMerkleProofs interface {
 	CreateTxMerkleProofs(
-		senderPublicKey, txHash string,
+		senderPublicKey, txHash, txID string,
 		txTreeIndex *uint256.Int,
 		txMerkleProof json.RawMessage,
 	) (*mDBApp.TxMerkleProofs, error)
 	TxMerkleProofsByID(id string) (*mDBApp.TxMerkleProofs, error)
+	TxMerkleProofsByTxHash(txHash string) (*mDBApp.TxMerkleProofs, error)
 }

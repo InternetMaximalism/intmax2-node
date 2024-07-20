@@ -189,9 +189,9 @@ func NewINTMAXAccountFromECDSAKey(pk *ecdsa.PrivateKey) (*PrivateKey, error) {
 		if err != nil {
 			continue
 		}
-		message := make([]*ffg.Element, 1)
+		message := make([]ffg.Element, 1)
 		for i := 0; i < len(message); i++ {
-			message[i] = new(ffg.Element).SetBytes(data)
+			message[i].SetBytes(data)
 		}
 		sign, err := account.Sign(message)
 		if err != nil {

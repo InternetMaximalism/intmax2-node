@@ -13,8 +13,6 @@ import (
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/holiman/uint256"
-	"github.com/iden3/go-iden3-crypto/ffg"
 	"github.com/iden3/go-iden3-crypto/keccak256"
 	"github.com/prodadidb/go-validation"
 )
@@ -75,26 +73,10 @@ func (input *UCTransactionInput) Valid(cfg *configs.Config, pow PoWNonce) error 
 				return ErrValueInvalid
 			}
 
-			const (
-				int0Key = 0
-				int1Key = 1
-				int2Key = 2
-				int3Key = 3
-				int4Key = 4
-				int5Key = 5
-			)
-
-			message := make([]*ffg.Element, int5Key)
-			message[int0Key] = new(ffg.Element).SetBytes([]byte(input.TransfersHash))
-			message[int1Key] = new(ffg.Element).SetBytes(new(big.Int).SetInt64(int64(input.Nonce)).Bytes())
-			var powNonce uint256.Int
-			err := powNonce.SetFromHex(input.PowNonce)
+			message, err := MakeMessage(input.TransfersHash, input.Nonce, input.PowNonce, input.Sender, input.Expiration)
 			if err != nil {
 				return ErrValueInvalid
 			}
-			message[int2Key] = new(ffg.Element).SetBytes(powNonce.Bytes())
-			message[int3Key] = new(ffg.Element).SetBytes([]byte(input.Sender))
-			message[int4Key] = new(ffg.Element).SetBytes(new(big.Int).SetInt64(input.Expiration.Unix()).Bytes())
 
 			var publicKey *intMaxAcc.PublicKey
 			publicKey, err = intMaxAcc.NewPublicKeyFromAddressHex(input.Sender)

@@ -10,7 +10,6 @@ import (
 	"intmax2-node/internal/worker"
 
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // uc describes use case
@@ -39,12 +38,18 @@ func (u *uc) Do(ctx context.Context, input *transaction.UCTransactionInput) (err
 		transferHashKey = "transfer_hash"
 	)
 
-	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName,
-		trace.WithAttributes(
-			attribute.String(senderKey, input.DecodeSender.ToAddress().String()),
-			attribute.String(transferHashKey, input.TransfersHash),
-		))
+	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
 	defer span.End()
+
+	if input == nil {
+		open_telemetry.MarkSpanError(spanCtx, ErrUCInputEmpty)
+		return ErrUCInputEmpty
+	}
+
+	span.SetAttributes(
+		attribute.String(senderKey, input.DecodeSender.ToAddress().String()),
+		attribute.String(transferHashKey, input.TransfersHash),
+	)
 
 	// TODO: check 0.1 ETH with Rollup contract
 
@@ -60,6 +65,7 @@ func (u *uc) Do(ctx context.Context, input *transaction.UCTransactionInput) (err
 
 	err = u.w.Receiver(&worker.ReceiverWorker{
 		Sender:       input.DecodeSender.ToAddress().String(),
+		Nonce:        input.Nonce,
 		TransferHash: input.TransfersHash,
 		TransferData: transferData,
 	})

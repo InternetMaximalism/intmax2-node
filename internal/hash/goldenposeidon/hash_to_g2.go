@@ -28,7 +28,7 @@ func FieldElementSliceToBigInt(inputs []*ffg.Element) *fp.Element {
 	return value
 }
 
-func HashToFq2(inputs []*ffg.Element) bn254.E2 {
+func HashToFq2(inputs []ffg.Element) bn254.E2 {
 	challenger := NewChallenger()
 	challenger.ObserveElements(inputs)
 
@@ -81,7 +81,7 @@ func MapToG2(u bn254.E2) bn254.G2Affine {
 	return ClearCofactor(a)
 }
 
-func HashToG2(inputs []*ffg.Element) bn254.G2Affine {
+func HashToG2(inputs []ffg.Element) bn254.G2Affine {
 	u := HashToFq2(inputs)
 	return MapToG2(u)
 }

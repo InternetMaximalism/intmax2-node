@@ -75,8 +75,8 @@ func (s *Server) Transaction(
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
 		if errors.Is(err, worker.ErrReceiverWorkerDuplicate) {
-			const msg = "the transfersHash must be unique"
-			return &resp, utils.BadRequest(spanCtx, fmt.Errorf(msg))
+			const msg = "%s"
+			return &resp, utils.BadRequest(spanCtx, fmt.Errorf(msg, transaction.NotUniqueMsg))
 		}
 
 		const msg = "failed to commit transaction with DB App: %+v"

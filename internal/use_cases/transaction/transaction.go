@@ -10,7 +10,10 @@ import (
 
 //go:generate mockgen -destination=../mocks/mock_transaction.go -package=mocks -source=transaction.go
 
-const SuccessMsg = "Transaction accepted and verified."
+const (
+	SuccessMsg   = "Transaction accepted and verified."
+	NotUniqueMsg = "Transaction must be unique."
+)
 
 type RecipientTransferDataTransaction struct {
 	AddressType string `json:"addressType"`

@@ -159,9 +159,9 @@ func Hash(inpBI [NROUNDSF]uint64, capBI [CAPLEN]uint64) [CAPLEN]uint64 {
 // Hash a message without any padding step. Note that this can enable length-extension attacks.
 // However, it is still collision-resistant in cases where the input has a fixed length.
 func hashNToMNoPad(
-	inputs []*ffg.Element,
+	inputs []ffg.Element,
 	numOutputs int,
-) []*ffg.Element {
+) []ffg.Element {
 	if numOutputs <= 0 {
 		panic("numOutputs must be greater than 0")
 	}
@@ -175,7 +175,7 @@ func hashNToMNoPad(
 	for i := 0; i < len(inputs); i += NROUNDSF {
 		for j := 0; j < NROUNDSF; j++ {
 			if i+j < len(inputs) {
-				perm[j] = inputs[i+j]
+				perm[j] = &inputs[i+j]
 			} else {
 				perm[j] = zero()
 			}
@@ -184,10 +184,10 @@ func hashNToMNoPad(
 	}
 
 	// Squeeze until we have the desired number of outputs.
-	outputs := []*ffg.Element{}
+	outputs := []ffg.Element{}
 	for {
 		for _, item := range perm[0:NROUNDSF] {
-			outputs = append(outputs, item)
+			outputs = append(outputs, *item)
 			if len(outputs) == numOutputs {
 				return outputs
 			}
@@ -197,12 +197,12 @@ func hashNToMNoPad(
 }
 
 func HashNoPad(
-	inputs []*ffg.Element,
+	inputs []ffg.Element,
 ) *PoseidonHashOut {
 	outputs := hashNToMNoPad(inputs, NUM_HASH_OUT_ELTS)
 	result := NewPoseidonHashOut()
 	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
-		result.Elements[i].Set(outputs[i])
+		result.Elements[i].Set(&outputs[i])
 	}
 
 	return result
