@@ -39,10 +39,10 @@ func (u *uc) Do(
 		attribute.String(encryptedDepositKey, input.EncryptedDeposit),
 	)
 
-	// TODO: Implement backup balance post logic here.
+	// TODO: Implement backup deposit logic here.
 
 	resp := backup_deposit.UCPostBackupDeposit{
-		Message: "Transfer data backup successful.",
+		Message: "Deposit data backup successful.",
 	}
 
 	return &resp, nil

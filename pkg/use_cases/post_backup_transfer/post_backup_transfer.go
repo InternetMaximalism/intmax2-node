@@ -2,8 +2,11 @@ package post_backup_transfer
 
 import (
 	"context"
+	"encoding/binary"
 	"intmax2-node/internal/open_telemetry"
+	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/backup_transfer"
+	"io"
 
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -39,11 +42,32 @@ func (u *uc) Do(
 		attribute.String(encryptedTransferKey, input.EncryptedTransfer),
 	)
 
-	// TODO: Implement backup balance post logic here.
+	// TODO: Implement backup transfer logic here.
 
 	resp := backup_transfer.UCPostBackupTransfer{
 		Message: "Transfer data backup successful.",
 	}
 
 	return &resp, nil
+}
+
+func WriteTransfer(buf io.Writer, transfer *intMaxTypes.Transfer) error {
+	_, err := buf.Write(transfer.Recipient.Marshal())
+	if err != nil {
+		return err
+	}
+	err = binary.Write(buf, binary.LittleEndian, transfer.TokenIndex)
+	if err != nil {
+		return err
+	}
+	_, err = buf.Write(transfer.Amount.Bytes())
+	if err != nil {
+		return err
+	}
+	_, err = buf.Write(transfer.Salt.Marshal())
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
