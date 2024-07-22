@@ -64,9 +64,9 @@ func TestHashToFq2(t *testing.T) {
 	t.Parallel()
 
 	uintSlice := []uint64{1, 2}
-	fieldElementSlice := []*ffg.Element{}
+	fieldElementSlice := []ffg.Element{}
 	for _, v := range uintSlice {
-		fieldElementSlice = append(fieldElementSlice, ffg.NewElementFromUint64(v))
+		fieldElementSlice = append(fieldElementSlice, *ffg.NewElementFromUint64(v))
 	}
 	actual := intMaxGP.HashToFq2(fieldElementSlice)
 	fmt.Printf("actual: (%v, %v)\n", actual.A0.Marshal(), actual.A1.Marshal())
@@ -96,9 +96,9 @@ func TestHashToG2(t *testing.T) {
 	t.Parallel()
 
 	uintSlice := []uint64{1, 2}
-	fieldElementSlice := []*ffg.Element{}
+	fieldElementSlice := []ffg.Element{}
 	for _, v := range uintSlice {
-		fieldElementSlice = append(fieldElementSlice, ffg.NewElementFromUint64(v))
+		fieldElementSlice = append(fieldElementSlice, *ffg.NewElementFromUint64(v))
 	}
 	actual := intMaxGP.HashToG2(fieldElementSlice)
 	fmt.Printf("actual: %v\n", actual)

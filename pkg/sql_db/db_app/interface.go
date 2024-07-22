@@ -13,6 +13,8 @@ type SQLDb interface {
 	GenericCommands
 	ServiceCommands
 	Tokens
+	Signatures
+	Transactions
 	TxMerkleProofs
 }
 
@@ -36,11 +38,24 @@ type Tokens interface {
 	TokenByIndex(tokenIndex string) (*models.Token, error)
 }
 
+type Signatures interface {
+	CreateSignature(signature string) (*models.Signature, error)
+	SignatureByID(txID string) (*models.Signature, error)
+}
+
+type Transactions interface {
+	CreateTransaction(
+		senderPublicKey, txHash, signatureID string,
+	) (*models.Transactions, error)
+	TransactionByID(txID string) (*models.Transactions, error)
+}
+
 type TxMerkleProofs interface {
 	CreateTxMerkleProofs(
-		senderPublicKey, txHash string,
+		senderPublicKey, txHash, txID string,
 		txTreeIndex *uint256.Int,
 		txMerkleProof json.RawMessage,
 	) (*models.TxMerkleProofs, error)
 	TxMerkleProofsByID(id string) (*models.TxMerkleProofs, error)
+	TxMerkleProofsByTxHash(txHash string) (*models.TxMerkleProofs, error)
 }

@@ -6,10 +6,15 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	intMaxAccTypes "intmax2-node/internal/accounts/types"
+	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/mnemonic_wallet"
 	"intmax2-node/internal/pow"
+	intMaxTree "intmax2-node/internal/tree"
+	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/transaction"
+	"intmax2-node/internal/worker"
 	"intmax2-node/pkg/logger"
+	ucTransaction "intmax2-node/pkg/use_cases/transaction"
 	"io"
 	"math/big"
 	"net/http"
@@ -21,9 +26,9 @@ import (
 	"time"
 
 	"github.com/dimiro1/health"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/google/uuid"
-	"github.com/holiman/uint256"
 	"github.com/iden3/go-iden3-crypto/ffg"
 	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"
@@ -44,7 +49,7 @@ func TestHandlerTransaction(t *testing.T) {
 	log := logger.New(cfg.LOG.Level, cfg.LOG.TimeFormat, cfg.LOG.JSON, cfg.LOG.IsLogLine)
 
 	dbApp := NewMockSQLDriverApp(ctrl)
-	worker := NewMockWorker(ctrl)
+	wrk := NewMockWorker(ctrl)
 	hc := health.NewHandler()
 
 	pw := pow.New(cfg.PoW.Difficulty)
@@ -75,6 +80,7 @@ func TestHandlerTransaction(t *testing.T) {
 		derivation = "m/44'/60'/0'/0/0"
 
 		nonce            = 1
+		amount           = 10
 		powNonce         = "0x23206"
 		trHashKey        = "0x22a09569aeffa766a1c0d8d5dd9d3fb3e5b4567700b8cbac3b4eceedeacee793"
 		ethAddressKey    = "0xD7fa191fB4F255f7Af801966819382edDA19E09C"
@@ -85,7 +91,7 @@ func TestHandlerTransaction(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, w.IntMaxWalletAddress, intMaxAddressKey)
 
-	expiration := time.Now().Add(60 * time.Second)
+	expiration := time.Now().Add(60 * time.Minute)
 
 	var signature string
 	{
@@ -95,22 +101,50 @@ func TestHandlerTransaction(t *testing.T) {
 		keyPair, err := intMaxAcc.NewPrivateKeyWithReCalcPubKeyIfPkNegates(pk.BigInt())
 		assert.NoError(t, err)
 
-		message := make([]*ffg.Element, 5)
-		message[0] = new(ffg.Element).SetBytes([]byte(trHashKey))
-		message[1] = new(ffg.Element).SetBytes(new(big.Int).SetInt64(int64(nonce)).Bytes())
-		var pwN uint256.Int
-		err = pwN.SetFromHex(powNonce)
+		message, err := transaction.MakeMessage(trHashKey, nonce, powNonce, w.IntMaxWalletAddress, expiration)
 		assert.NoError(t, err)
-		message[2] = new(ffg.Element).SetBytes(pwN.Bytes())
-		message[3] = new(ffg.Element).SetBytes([]byte(w.IntMaxWalletAddress))
-		message[4] = new(ffg.Element).SetBytes(new(big.Int).SetInt64(expiration.Unix()).Bytes())
 
 		sign, err := keyPair.Sign(message)
 		assert.NoError(t, err)
 		signature = hexutil.Encode(sign.Marshal())
 	}
 
-	grpcServerStop, gwServer := Start(cmd, ctx, cfg, log, dbApp, &hc, pwNonce, worker)
+	var currTx *intMaxTypes.Tx
+	{
+		salt := new(intMaxTypes.PoseidonHashOut)
+		salt.Elements[0] = *new(ffg.Element).SetUint64(uint64(1))
+		salt.Elements[1] = *new(ffg.Element).SetUint64(uint64(2))
+		salt.Elements[2] = *new(ffg.Element).SetUint64(uint64(3))
+		salt.Elements[3] = *new(ffg.Element).SetUint64(uint64(4))
+
+		var gaAddr *intMaxTypes.GenericAddress
+		gaAddr, err = intMaxTypes.NewEthereumAddress(common.HexToAddress(ethAddressKey).Bytes())
+		assert.NoError(t, err)
+
+		tx := intMaxTypes.Transfer{
+			Recipient:  gaAddr,
+			TokenIndex: 0,
+			Amount:     new(big.Int).SetInt64(int64(amount)),
+			Salt:       salt,
+		}
+
+		transferTree, err := intMaxTree.NewTransferTree(
+			intMaxTree.TX_TREE_HEIGHT,
+			[]*intMaxTypes.Transfer{&tx},
+			intMaxGP.NewPoseidonHashOut(),
+		)
+		assert.NoError(t, err)
+
+		transferRoot, _, _ := transferTree.GetCurrentRootCountAndSiblings()
+
+		currTx, err = intMaxTypes.NewTx(
+			&transferRoot,
+			uint64(nonce),
+		)
+		assert.NoError(t, err)
+	}
+
+	grpcServerStop, gwServer := Start(cmd, ctx, cfg, log, dbApp, &hc, pwNonce, wrk)
 	defer grpcServerStop()
 
 	cases := []struct {
@@ -242,13 +276,42 @@ func TestHandlerTransaction(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		// transferData - finish
+		// uc error - start
+		{
+			desc: fmt.Sprintf("Error: %s", transaction.NotUniqueMsg),
+			prepare: func() {
+				dbApp.EXPECT().Exec(gomock.Any(), gomock.Any(), gomock.Any()).Return(worker.ErrReceiverWorkerDuplicate)
+			},
+			body:       fmt.Sprintf(`{"sender":%q,"expiration":%q,"signature":%q,"transfersHash":"0x22a09569aeffa766a1c0d8d5dd9d3fb3e5b4567700b8cbac3b4eceedeacee793","nonce":%d,"powNonce":%q,"transferData":[{"amount":"%d","salt":"0x0100000000000000020000000000000003000000000000000400000000000000","tokenIndex":"0","recipient":{"address_type":%q,"address":%q}}]}`, intMaxAddressKey, expiration.Format(time.RFC3339), signature, nonce, powNonce, amount, intMaxAccTypes.EthereumAddressType, ethAddressKey),
+			message:    transaction.NotUniqueMsg,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			desc: "Internal server error",
+			prepare: func() {
+				dbApp.EXPECT().Exec(gomock.Any(), gomock.Any(), gomock.Any()).Return(ucTransaction.ErrUCInputEmpty)
+			},
+			body:       fmt.Sprintf(`{"sender":%q,"expiration":%q,"signature":%q,"transfersHash":"0x22a09569aeffa766a1c0d8d5dd9d3fb3e5b4567700b8cbac3b4eceedeacee793","nonce":%d,"powNonce":%q,"transferData":[{"amount":"%d","salt":"0x0100000000000000020000000000000003000000000000000400000000000000","tokenIndex":"0","recipient":{"address_type":%q,"address":%q}}]}`, intMaxAddressKey, expiration.Format(time.RFC3339), signature, nonce, powNonce, amount, intMaxAccTypes.EthereumAddressType, ethAddressKey),
+			message:    "Internal server error",
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			desc: "Internal server error",
+			prepare: func() {
+				dbApp.EXPECT().Exec(gomock.Any(), gomock.Any(), gomock.Any()).Return(ucTransaction.ErrTransferWorkerReceiverFail)
+			},
+			body:       fmt.Sprintf(`{"sender":%q,"expiration":%q,"signature":%q,"transfersHash":"0x22a09569aeffa766a1c0d8d5dd9d3fb3e5b4567700b8cbac3b4eceedeacee793","nonce":%d,"powNonce":%q,"transferData":[{"amount":"%d","salt":"0x0100000000000000020000000000000003000000000000000400000000000000","tokenIndex":"0","recipient":{"address_type":%q,"address":%q}}]}`, intMaxAddressKey, expiration.Format(time.RFC3339), signature, nonce, powNonce, amount, intMaxAccTypes.EthereumAddressType, ethAddressKey),
+			message:    "Internal server error",
+			wantStatus: http.StatusInternalServerError,
+		},
+		// uc error - finish
 		// check transfersHash with transferData - start
 		{
 			desc: "Valid request with transaction to ETHEREUM address",
 			prepare: func() {
 				dbApp.EXPECT().Exec(gomock.Any(), gomock.Any(), gomock.Any())
 			},
-			body:       fmt.Sprintf(`{"sender":%q,"expiration":%q,"signature":%q,"transfersHash":"0x22a09569aeffa766a1c0d8d5dd9d3fb3e5b4567700b8cbac3b4eceedeacee793","nonce":%d,"powNonce":%q,"transferData":[{"amount":"10","salt":"0x0100000000000000020000000000000003000000000000000400000000000000","tokenIndex":"0","recipient":{"address_type":%q,"address":%q}}]}`, intMaxAddressKey, expiration.Format(time.RFC3339), signature, nonce, powNonce, intMaxAccTypes.EthereumAddressType, ethAddressKey),
+			body:       fmt.Sprintf(`{"sender":%q,"expiration":%q,"signature":%q,"transfersHash":"0x22a09569aeffa766a1c0d8d5dd9d3fb3e5b4567700b8cbac3b4eceedeacee793","nonce":%d,"powNonce":%q,"transferData":[{"amount":"%d","salt":"0x0100000000000000020000000000000003000000000000000400000000000000","tokenIndex":"0","recipient":{"address_type":%q,"address":%q}}]}`, intMaxAddressKey, expiration.Format(time.RFC3339), signature, nonce, powNonce, amount, intMaxAccTypes.EthereumAddressType, ethAddressKey),
 			success:    true,
 			dataMsg:    transaction.SuccessMsg,
 			wantStatus: http.StatusOK,
@@ -265,6 +328,9 @@ func TestHandlerTransaction(t *testing.T) {
 			var body io.Reader
 			body = http.NoBody
 			if bd := strings.TrimSpace(cases[i].body); bd != "" {
+				if cases[i].wantStatus == http.StatusOK {
+					t.Log("-------- currTx", currTx.Hash().String())
+				}
 				t.Log("-------- input body", bd)
 				body = strings.NewReader(bd)
 			}

@@ -6,9 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
+	intMaxAcc "intmax2-node/internal/accounts"
 	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
-	"intmax2-node/internal/tree"
+	intMaxTree "intmax2-node/internal/tree"
+	intMaxTypes "intmax2-node/internal/types"
+	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"io/fs"
 	"os"
 	"sort"
@@ -28,13 +31,14 @@ const (
 )
 
 type kvInfo struct {
-	Ctx              context.Context
-	CtxCancel        context.CancelFunc
-	KvDB             *bolt.DB
-	TransfersCounter int32
-	Delivered        bool
-	Processing       bool
-	Receiver         chan func() error
+	Ctx                 context.Context
+	CtxCancel           context.CancelFunc
+	KvDB                *bolt.DB
+	TransactionsCounter int32
+	Delivered           bool
+	Processing          bool
+	Timestamp           *time.Time
+	Receiver            chan func() error
 }
 
 type fileInfo struct {
@@ -52,9 +56,14 @@ type workerFileList struct {
 	Cleaner     chan func()
 }
 
-type transferHashesList struct {
+type TransactionHashesWithSenderAndFile struct {
+	Sender string
+	File   *os.File
+}
+
+type transactionHashesList struct {
 	sync.Mutex
-	Hashes  map[string]string
+	Hashes  map[string]*TransactionHashesWithSenderAndFile
 	Cleaner chan func()
 }
 
@@ -63,7 +72,7 @@ type worker struct {
 	log        logger.Logger
 	dbApp      SQLDriverApp
 	files      *workerFileList
-	trHashes   *transferHashesList
+	trHashes   *transactionHashesList
 	numWorkers int32
 	maxWorkers int32
 }
@@ -77,8 +86,8 @@ func New(cfg *configs.Config, log logger.Logger, dbApp SQLDriverApp) Worker {
 			FilesList: make(map[*os.File]*fileInfo),
 			Cleaner:   make(chan func(), int1024Key),
 		},
-		trHashes: &transferHashesList{
-			Hashes:  make(map[string]string),
+		trHashes: &transactionHashesList{
+			Hashes:  make(map[string]*TransactionHashesWithSenderAndFile),
 			Cleaner: make(chan func(), int1024Key),
 		},
 		maxWorkers: cfg.Worker.MaxCounter,
@@ -176,6 +185,12 @@ func (w *worker) newTempFile(dir string) error {
 		Hashes:       make(map[string]string),
 	}
 
+	if w.files.CurrentFile != nil {
+		if _, ok := w.files.FilesList[w.files.CurrentFile]; ok {
+			tm := time.Now().UTC()
+			w.files.FilesList[w.files.CurrentFile].Timestamp = &tm
+		}
+	}
 	w.files.CurrentFile = currentFile
 
 	go func() {
@@ -231,7 +246,7 @@ func (w *worker) CurrentFileName() string {
 func (w *worker) AvailableFiles() (list []*os.File) {
 	for key := range w.files.FilesList {
 		if w.files.CurrentFile.Name() != key.Name() &&
-			atomic.LoadInt32(&w.files.FilesList[key].TransfersCounter) == 0 &&
+			atomic.LoadInt32(&w.files.FilesList[key].TransactionsCounter) == 0 &&
 			!w.files.FilesList[key].Processing {
 			if !w.files.FilesList[key].Delivered {
 				w.files.FilesList[key].CtxCancel()
@@ -249,13 +264,85 @@ func (w *worker) AvailableFiles() (list []*os.File) {
 	return list
 }
 
-func (w *worker) Start(ctx context.Context, ticker *time.Ticker) error {
+func (w *worker) TxTreeByAvailableFile(sf *TransactionHashesWithSenderAndFile) (txTreeRoot *TxTree, err error) {
+	f, ok := w.files.FilesList[sf.File]
+	if !ok {
+		// transfersHash not found
+		return nil, ErrTxTreeByAvailableFileFail
+	}
+
+	switch {
+	case
+		w.files.CurrentFile.Name() == sf.File.Name(),
+		atomic.LoadInt32(&f.TransactionsCounter) != 0,
+		!f.Delivered:
+		// transfersHash exists, tx tree not found
+		return nil, ErrTxTreeNotFound
+	case
+		w.files.CurrentFile.Name() != sf.File.Name() &&
+			atomic.LoadInt32(&f.TransactionsCounter) == 0 &&
+			f.Delivered &&
+			f.Timestamp != nil && f.Timestamp.UTC().Add(
+			w.cfg.Worker.TimeoutForSignaturesAvailableFiles,
+		).UnixNano() <= time.Now().UTC().UnixNano():
+		for {
+			if !f.Processing {
+				// transfersHash exists, tx tree exists, signature collection for tx tree completed
+				return nil, ErrTxTreeSignatureCollectionComplete
+			}
+		}
+	case
+		w.files.CurrentFile.Name() != sf.File.Name() &&
+			atomic.LoadInt32(&f.TransactionsCounter) == 0 &&
+			f.Delivered &&
+			f.Timestamp != nil && f.Timestamp.UTC().Add(
+			w.cfg.Worker.TimeoutForSignaturesAvailableFiles,
+		).UnixNano() > time.Now().UTC().UnixNano():
+		for {
+			if !f.Processing {
+				break
+			}
+		}
+	}
+
+	var kv *bolt.DB
+	kv, err = w.kvStore(sf.File.Name())
+	if err != nil {
+		err = errors.Join(ErrKVStoreFail, err)
+		return nil, err
+	}
+	defer func() {
+		_ = kv.Close()
+	}()
+
+	err = kv.View(func(tx *bolt.Tx) (err error) {
+		b := tx.Bucket([]byte(bucket))
+		s := b.Get([]byte(sf.Sender))
+
+		err = json.Unmarshal(s, &txTreeRoot)
+		if err != nil {
+			return errors.Join(ErrUnmarshalFail, err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, errors.Join(ErrViewBucketKVStoreFail, err)
+	}
+
+	return txTreeRoot, err
+}
+
+func (w *worker) Start(
+	ctx context.Context,
+	tickerCurrentFile, tickerSignaturesAvailableFiles *time.Ticker,
+) error {
 	for {
 		select {
 		case <-ctx.Done():
-			ticker.Stop()
+			tickerCurrentFile.Stop()
 			return nil
-		case <-ticker.C:
+		case <-tickerCurrentFile.C:
 			st, err := w.files.CurrentFile.Stat()
 			if err != nil {
 				return errors.Join(ErrStatCurrentFileFail, err)
@@ -270,15 +357,19 @@ func (w *worker) Start(ctx context.Context, ticker *time.Ticker) error {
 					return errors.Join(ErrCreateNewTempFileFail, err)
 				}
 			}
-
+		case <-tickerSignaturesAvailableFiles.C:
 			list := w.AvailableFiles()
 			for key := range list {
-				if w.files.FilesList[list[key]].Delivered {
+				if w.files.FilesList[list[key]].Delivered &&
+					w.files.FilesList[list[key]].Timestamp != nil &&
+					w.files.FilesList[list[key]].Timestamp.UTC().Add(
+						w.cfg.Worker.TimeoutForSignaturesAvailableFiles,
+					).UnixNano() < time.Now().UTC().UnixNano() {
 					if atomic.LoadInt32(&w.numWorkers) < w.maxWorkers {
 						w.files.FilesList[list[key]].Processing = true
 						atomic.AddInt32(&w.numWorkers, 1)
 						go func(f *os.File) {
-							err = w.postProcessing(ctx, f)
+							err := w.postProcessing(ctx, f)
 							if err != nil {
 								const msg = "failed to apply post processing"
 								w.log.WithError(err).Errorf(msg)
@@ -300,17 +391,36 @@ func (w *worker) Receiver(input *ReceiverWorker) error {
 		return ErrReceiverWorkerEmpty
 	}
 
+	crcs, err := w.currentRootCountAndSiblingsFromRW(input)
+	if err != nil {
+		return errors.Join(ErrCurrentRootCountAndSiblingsFromRW, err)
+	}
+
+	var currTx *intMaxTypes.Tx
+	currTx, err = intMaxTypes.NewTx(
+		&crcs.TransferTreeRoot,
+		input.Nonce,
+	)
+	if err != nil {
+		return errors.Join(ErrNewTxFail, err)
+	}
+
 	w.trHashes.Lock()
 	defer w.trHashes.Unlock()
 
-	_, ok := w.trHashes.Hashes[input.TransferHash]
+	_, ok := w.trHashes.Hashes[currTx.Hash().String()]
 	if ok {
 		return ErrReceiverWorkerDuplicate
 	}
 
-	w.trHashes.Hashes[input.TransferHash] = input.Sender
+	input.TxHash = currTx
 
-	err := w.registerReceiver(input)
+	w.trHashes.Hashes[currTx.Hash().String()] = &TransactionHashesWithSenderAndFile{
+		Sender: input.Sender,
+		File:   w.files.CurrentFile,
+	}
+
+	err = w.registerReceiver(input)
 	if err != nil {
 		return errors.Join(ErrRegisterReceiverFail, err)
 	}
@@ -324,15 +434,9 @@ func (w *worker) registerReceiver(input *ReceiverWorker) (err error) {
 	}
 
 	current := w.files.CurrentFile
-	atomic.AddInt32(&w.files.FilesList[current].TransfersCounter, 1)
+	atomic.AddInt32(&w.files.FilesList[current].TransactionsCounter, 1)
 	w.files.FilesList[current].UsersCounter[input.Sender] = input.Sender
 	w.files.FilesList[current].Hashes[input.TransferHash] = input.TransferHash
-
-	var bi []byte
-	bi, err = json.Marshal(input)
-	if err != nil {
-		return errors.Join(ErrMarshalFail, err)
-	}
 
 	w.files.FilesList[current].Receiver <- func() error {
 		var tx *bolt.Tx
@@ -346,7 +450,88 @@ func (w *worker) registerReceiver(input *ReceiverWorker) (err error) {
 
 		b := tx.Bucket([]byte(bucket))
 
-		err = b.Put([]byte(input.TransferHash), bi)
+		var (
+			s          []byte
+			crcs       *CurrentRootCountAndSiblings
+			txTreeRoot TxTree
+		)
+		s = b.Get([]byte(input.Sender))
+		if s != nil {
+			err = json.Unmarshal(s, &txTreeRoot)
+			if err != nil {
+				return errors.Join(ErrUnmarshalFail, err)
+			}
+		} else {
+			txTreeRoot = TxTree{}
+			txTreeRoot.Sender = input.Sender
+		}
+
+		txTreeRoot.LeafIndexes = make(map[string]uint64)
+
+		zeroHash := new(intMaxTypes.PoseidonHashOut).SetZero()
+		var txTree *intMaxTree.TxTree
+		txTree, err = intMaxTree.NewTxTree(intMaxTree.TX_TREE_HEIGHT, []*intMaxTypes.Tx{}, zeroHash)
+		if err != nil {
+			return errors.Join(ErrNewTxTreeFail, err)
+		}
+
+		crcs, err = w.currentRootCountAndSiblingsFromRW(input)
+		if err != nil {
+			return errors.Join(ErrCurrentRootCountAndSiblingsFromRW, err)
+		}
+
+		var st SenderTransfers
+		st.ReceiverWorker = input
+		st.CurrentRootCountAndSiblings = crcs
+
+		txTreeRoot.SenderTransfers = append(txTreeRoot.SenderTransfers, &st)
+
+		var txTreeLeafHash []*intMaxTree.PoseidonHashOut
+		for key := range txTreeRoot.SenderTransfers {
+			var currTx *intMaxTypes.Tx
+			currTx, err = intMaxTypes.NewTx(
+				&txTreeRoot.SenderTransfers[key].CurrentRootCountAndSiblings.TransferTreeRoot,
+				txTreeRoot.SenderTransfers[key].ReceiverWorker.Nonce,
+			)
+			if err != nil {
+				return errors.Join(ErrNewTxFail, err)
+			}
+
+			txTreeRoot.SenderTransfers[key].TxHash = currTx.Hash()
+
+			txTreeRoot.SenderTransfers[key].TxTreeLeafHash, err = txTree.AddLeaf(uint64(key), currTx)
+			if err != nil {
+				return errors.Join(ErrAddLeafIntoTxTreeFail, err)
+			}
+			txTreeLeafHash = append(txTreeLeafHash, txTreeRoot.SenderTransfers[key].TxTreeLeafHash)
+
+			txTreeRoot.LeafIndexes[txTreeRoot.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String()] = uint64(key)
+		}
+
+		txTreeRoot.TxTreeHash, err = txTree.BuildMerkleRoot(txTreeLeafHash)
+		if err != nil {
+			return errors.Join(ErrTxTreeBuildMerkleRootFail, err)
+		}
+
+		for key := range txTreeRoot.SenderTransfers {
+			var cmp ComputeMerkleProof
+			cmp.Siblings, _, err = txTree.ComputeMerkleProof(
+				txTreeRoot.LeafIndexes[txTreeRoot.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String()],
+			)
+			if err != nil {
+				err = errors.Join(ErrTxTreeComputeMerkleProofFail, err)
+				return err
+			}
+			txTreeRoot.SenderTransfers[key].TxTreeSiblings = cmp.Siblings
+		}
+
+		var bST []byte
+		bST, err = json.Marshal(&txTreeRoot)
+		if err != nil {
+			return errors.Join(ErrMarshalFail, err)
+		}
+
+		err = b.Put([]byte(input.Sender), bST)
 		if err != nil {
 			return errors.Join(ErrPutBucketKVStoreFail, err)
 		}
@@ -356,7 +541,7 @@ func (w *worker) registerReceiver(input *ReceiverWorker) (err error) {
 			return errors.Join(ErrTxCommitKVStoreFail, err)
 		}
 
-		atomic.AddInt32(&w.files.FilesList[current].TransfersCounter, -1)
+		atomic.AddInt32(&w.files.FilesList[current].TransactionsCounter, -1)
 
 		return nil
 	}
@@ -398,46 +583,90 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 			err = w.dbApp.Exec(ctx, nil, func(d interface{}, _ interface{}) (err error) {
 				q := d.(SQLDriverApp)
 
-				var rw ReceiverWorker
-				err = json.Unmarshal(v, &rw)
+				var txTreeRoot TxTree
+				err = json.Unmarshal(v, &txTreeRoot)
 				if err != nil {
 					err = errors.Join(ErrUnmarshalFail, err)
 					return err
 				}
 
-				_, ok := w.files.FilesList[f].Hashes[rw.TransferHash]
-				if !ok {
+				var trHashes []string
+				for key := range txTreeRoot.SenderTransfers {
+					trHashes = append(trHashes, txTreeRoot.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String())
+				}
+				defer func() {
+					for keyT := range trHashes {
+						delete(w.files.FilesList[f].Hashes, trHashes[keyT])
+						w.trHashes.Cleaner <- func() {
+							w.trHashes.Lock()
+							defer w.trHashes.Unlock()
+							delete(w.trHashes.Hashes, trHashes[keyT])
+						}
+					}
+				}()
+
+				const emptySignature = ""
+				if txTreeRoot.Signature == emptySignature {
 					return nil
 				}
 
-				var srcs *CurrentRootCountAndSiblings
-				srcs, err = w.CurrentRootCountAndSiblingsFromRW(&rw)
+				var sign *mDBApp.Signature
+				sign, err = q.CreateSignature(txTreeRoot.Signature)
 				if err != nil {
-					err = errors.Join(ErrCurrentRootCountAndSiblingsFromRW, err)
+					err = errors.Join(ErrCreateSignatureFail, err)
 					return err
 				}
 
-				var bytesSRCS []byte
-				bytesSRCS, err = json.Marshal(&srcs)
+				var publicKey *intMaxAcc.PublicKey
+				publicKey, err = intMaxAcc.NewPublicKeyFromAddressHex(txTreeRoot.Sender)
 				if err != nil {
-					err = errors.Join(ErrMarshalFail, err)
+					err = errors.Join(ErrNewPublicKeyFromAddressHexFail, err)
 					return err
 				}
 
-				var txIndex uint256.Int
-				_ = txIndex.SetUint64(uint64(len(rw.TransferData)))
-				_, err = q.CreateTxMerkleProofs(rw.Sender, rw.TransferHash, &txIndex, bytesSRCS)
+				var transaction *mDBApp.Transactions
+				transaction, err = q.CreateTransaction(
+					publicKey.String(), txTreeRoot.TxTreeHash.String(), sign.SignatureID,
+				)
 				if err != nil {
-					err = errors.Join(ErrCreateTxMerkleProofsFail, err)
+					err = errors.Join(ErrCreateTransactionFail, err)
 					return err
 				}
 
-				delete(w.files.FilesList[f].Hashes, rw.TransferHash)
+				for key := range txTreeRoot.SenderTransfers {
+					_, ok := w.files.FilesList[f].Hashes[txTreeRoot.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String()]
+					if !ok {
+						err = ErrTransactionHashNotFound
+						return err
+					}
 
-				w.trHashes.Cleaner <- func() {
-					w.trHashes.Lock()
-					defer w.trHashes.Unlock()
-					delete(w.trHashes.Hashes, rw.TransferHash)
+					var txIndex uint256.Int
+					_ = txIndex.SetUint64(
+						txTreeRoot.LeafIndexes[txTreeRoot.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String()],
+					)
+
+					var cmp ComputeMerkleProof
+					cmp.Root = *txTreeRoot.SenderTransfers[key].TxTreeLeafHash
+					cmp.Siblings = txTreeRoot.SenderTransfers[key].TxTreeSiblings
+
+					var bCMP []byte
+					bCMP, err = json.Marshal(&cmp)
+					if err != nil {
+						err = errors.Join(ErrMarshalFail, err)
+						return err
+					}
+
+					_, err = q.CreateTxMerkleProofs(
+						publicKey.String(),
+						txTreeRoot.SenderTransfers[key].TxHash.String(),
+						transaction.TxID,
+						&txIndex,
+						bCMP,
+					)
+					if err != nil {
+						err = errors.Join(ErrCreateTxMerkleProofsFail, err)
+						return err
+					}
 				}
 
 				return nil
@@ -456,11 +685,11 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 	return nil
 }
 
-func (w *worker) CurrentRootCountAndSiblingsFromRW(
+func (w *worker) currentRootCountAndSiblingsFromRW(
 	rw *ReceiverWorker,
 ) (*CurrentRootCountAndSiblings, error) {
-	transferTree, err := tree.NewTransferTree(
-		uint8(len(rw.TransferData)),
+	transferTree, err := intMaxTree.NewTransferTree(
+		intMaxTree.TX_TREE_HEIGHT,
 		rw.TransferData,
 		intMaxGP.NewPoseidonHashOut(),
 	)
@@ -471,10 +700,22 @@ func (w *worker) CurrentRootCountAndSiblingsFromRW(
 	transferRoot, count, siblings := transferTree.GetCurrentRootCountAndSiblings()
 
 	return &CurrentRootCountAndSiblings{
-		TxTreeRoot: transferRoot,
-		Count:      count,
-		Siblings:   siblings,
+		TransferTreeRoot: transferRoot,
+		Count:            count,
+		Siblings:         siblings,
 	}, err
+}
+
+func (w *worker) TrHash(trHash string) (*TransactionHashesWithSenderAndFile, error) {
+	w.trHashes.Lock()
+	defer w.trHashes.Unlock()
+
+	info, ok := w.trHashes.Hashes[trHash]
+	if !ok {
+		return nil, ErrTransactionHashNotFound
+	}
+
+	return info, nil
 }
 
 func (w *worker) kvStore(filename string) (*bolt.DB, error) {

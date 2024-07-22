@@ -21,9 +21,10 @@ type GenericCommandsApp interface {
 
 type TxMerkleProofs interface {
 	CreateTxMerkleProofs(
-		senderPublicKey, txHash string,
+		senderPublicKey, txHash, txID string,
 		txTreeIndex *uint256.Int,
 		txMerkleProof json.RawMessage,
 	) (*mDBApp.TxMerkleProofs, error)
 	TxMerkleProofsByID(id string) (*mDBApp.TxMerkleProofs, error)
+	TxMerkleProofsByTxHash(txHash string) (*mDBApp.TxMerkleProofs, error)
 }

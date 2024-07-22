@@ -47,16 +47,16 @@ func (t *Tx) Set(tx *Tx) *Tx {
 // 	return t, nil
 // }
 
-func (t *Tx) ToFieldElementSlice() []*ffg.Element {
+func (t *Tx) ToFieldElementSlice() []ffg.Element {
 	const (
 		int0Key = 0
 		int4Key = 4
 	)
-	result := make([]*ffg.Element, int4Key+1)
+	result := make([]ffg.Element, int4Key+1)
 	for i := int0Key; i < goldenposeidon.NUM_HASH_OUT_ELTS; i++ {
-		result[i] = new(ffg.Element).Set(&t.TransferTreeRoot.Elements[i])
+		result[i].Set(&t.TransferTreeRoot.Elements[i])
 	}
-	result[int4Key] = new(ffg.Element).SetUint64(t.Nonce)
+	result[int4Key].SetUint64(t.Nonce)
 
 	return result
 }

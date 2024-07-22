@@ -13,7 +13,7 @@ import (
 // Sign is calculate the signature of the message using the private key as follows:
 // messagePoint = hashToG2(message)
 // signature = privateKey * messagePoint
-func (a PrivateKey) Sign(message []*ffg.Element) (*bn254.G2Affine, error) {
+func (a PrivateKey) Sign(message []ffg.Element) (*bn254.G2Affine, error) {
 	if a.sk == nil {
 		err := errors.New("private key is nil")
 		return nil, err
@@ -30,7 +30,7 @@ func (a PrivateKey) Sign(message []*ffg.Element) (*bn254.G2Affine, error) {
 
 // VerifySignature is verify the signature of the message using the public key as follows:
 // e(publicKey, hashToG2(message)) = e(G1, signature), where G1 is the generator of the group
-func VerifySignature(signature *bn254.G2Affine, publicKey *PublicKey, message []*ffg.Element) error {
+func VerifySignature(signature *bn254.G2Affine, publicKey *PublicKey, message []ffg.Element) error {
 	messagePoint := goldenposeidon.HashToG2(message)
 
 	g1Generator := new(bn254.G1Affine).ScalarMultiplicationBase(big.NewInt(1))
@@ -96,9 +96,9 @@ func hashToWeight(myPublicKey *fp.Element, hash []byte) *big.Int {
 	flatten = append(flatten, p[:]...)
 	flatten = append(flatten, hash...)
 
-	flatten2 := make([]*ffg.Element, len(flatten))
+	flatten2 := make([]ffg.Element, len(flatten))
 	for i, v := range flatten {
-		flatten2[i] = new(ffg.Element).SetUint64(uint64(uint32(v)))
+		flatten2[i].SetUint64(uint64(uint32(v)))
 	}
 	challenger := goldenposeidon.NewChallenger()
 	challenger.ObserveElements(flatten2)
