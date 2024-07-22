@@ -95,10 +95,10 @@ type Transfer struct {
 }
 
 func (td *Transfer) Set(transferData *Transfer) *Transfer {
-	td.Recipient.Set(transferData.Recipient)
+	td.Recipient = new(GenericAddress).Set(transferData.Recipient)
 	td.TokenIndex = transferData.TokenIndex
-	td.Amount.Set(transferData.Amount)
-	td.Salt.Set(transferData.Salt)
+	td.Amount = new(big.Int).Set(transferData.Amount)
+	td.Salt = new(PoseidonHashOut).Set(transferData.Salt)
 	return td
 }
 
