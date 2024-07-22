@@ -41,11 +41,13 @@ func Write(buf *Buffer, data interface{}) error {
 }
 
 func WriteGoldilocksField(buf *Buffer, data *ffg.Element) {
+	buf.Grow(1)
 	buf.buf[buf.off].Set(data)
 	buf.off++
 }
 
 func WritePoseidonHashOut(buf *Buffer, data *goldenposeidon.PoseidonHashOut) {
+	buf.Grow(len(data.Elements))
 	for i := 0; i < len(data.Elements); i++ {
 		WriteGoldilocksField(buf, &data.Elements[i])
 	}
@@ -66,6 +68,8 @@ func WriteFixedSizeBytes(buf *Buffer, data []byte, numDataBytes int) {
 	for len(data) < numDataBytes {
 		data = append(data, 0)
 	}
+
+	buf.Grow(numDataBytes / int4Key)
 	for i := 0; i < numDataBytes; i += int4Key {
 		m := min(numDataBytes, i+int4Key)
 		d := new(ffg.Element).SetBytes(data[i:m])
@@ -76,6 +80,18 @@ func WriteFixedSizeBytes(buf *Buffer, data []byte, numDataBytes int) {
 func WriteBytes(buf *Buffer, data []byte) {
 	_ = WriteUint64(buf, uint64(len(data)))
 	WriteFixedSizeBytes(buf, data, len(data))
+}
+
+func (b *Buffer) Available() int { return cap(b.buf) - len(b.buf) }
+
+// Grow grows the buffer's capacity, if necessary, to guarantee space for another n elements.
+func (b *Buffer) Grow(n int) {
+	a := b.Available()
+	if a < n {
+		buf := make([]ffg.Element, len(b.buf)+n)
+		copy(buf, b.buf)
+		b.buf = buf
+	}
 }
 
 // BytesToFieldElementSlice converts a hash to a slice of ffg.Elements, ensuring the hash is padded

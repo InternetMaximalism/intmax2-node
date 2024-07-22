@@ -20,6 +20,12 @@ type GenericAddress struct {
 	Address []byte
 }
 
+func (ga *GenericAddress) Set(genericAddress *GenericAddress) *GenericAddress {
+	ga.TypeOfAddress = genericAddress.TypeOfAddress
+	copy(ga.Address, genericAddress.Address)
+	return ga
+}
+
 func (ga *GenericAddress) Marshal() []byte {
 	return ga.Address
 }
@@ -89,10 +95,10 @@ type Transfer struct {
 }
 
 func (td *Transfer) Set(transferData *Transfer) *Transfer {
-	td.Recipient = transferData.Recipient
+	td.Recipient = new(GenericAddress).Set(transferData.Recipient)
 	td.TokenIndex = transferData.TokenIndex
-	td.Amount = transferData.Amount
-	td.Salt = transferData.Salt
+	td.Amount = new(big.Int).Set(transferData.Amount)
+	td.Salt = new(PoseidonHashOut).Set(transferData.Salt)
 	return td
 }
 

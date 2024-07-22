@@ -10,6 +10,8 @@ type TransferTree struct {
 	inner  *PoseidonMerkleTree
 }
 
+const TRANSFER_TREE_HEIGHT = 6
+
 func NewTransferTree(
 	height uint8,
 	initialLeaves []*types.Transfer,
