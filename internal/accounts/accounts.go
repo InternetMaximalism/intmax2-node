@@ -243,6 +243,21 @@ func (a *PrivateKey) String() string {
 	return hex.EncodeToString(a.Marshal())
 }
 
+func NewPrivateKeyFromString(s string) (*PrivateKey, error) {
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return nil, err
+	}
+
+	pk := new(PrivateKey)
+	err = pk.Unmarshal(b)
+	if err != nil {
+		return nil, err
+	}
+
+	return pk, nil
+}
+
 func (pk *PublicKey) Equal(other *PublicKey) bool {
 	return pk.Pk.Equal(other.Pk)
 }
