@@ -100,7 +100,7 @@ func MakeSamplePostBackupTransactionRequest(t *testing.T, cfg *configs.Config) *
 	senderPrivateKey, err := intMaxAcc.HexToPrivateKey(w.IntMaxPrivateKey)
 	assert.NoError(t, err)
 	plaintext := bytes.NewBuffer(make([]byte, 0))
-	err = ucPostBackupTransaction.MakeTransfers(plaintext, transfers)
+	err = ucPostBackupTransaction.WriteTransfers(plaintext, transfers)
 	assert.NoError(t, err)
 	encryptedTx, err := intMaxAcc.EncryptECIES(rand.Reader, senderPrivateKey.Public(), plaintext.Bytes())
 	assert.NoError(t, err)

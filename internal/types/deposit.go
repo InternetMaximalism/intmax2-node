@@ -8,8 +8,10 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
+const numHashBytes = 32
+
 type DepositLeaf struct {
-	RecipientSaltHash [32]byte
+	RecipientSaltHash [numHashBytes]byte
 	TokenIndex        uint32
 	Amount            *big.Int
 }
@@ -22,7 +24,7 @@ func (dd *DepositLeaf) Set(deposit *DepositLeaf) *DepositLeaf {
 }
 
 func (dd *DepositLeaf) SetZero() *DepositLeaf {
-	dd.RecipientSaltHash = [32]byte{}
+	dd.RecipientSaltHash = [numHashBytes]byte{}
 	dd.TokenIndex = 0
 	dd.Amount = big.NewInt(0)
 	return dd

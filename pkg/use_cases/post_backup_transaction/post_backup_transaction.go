@@ -55,15 +55,13 @@ func (u *uc) Do(
 	return &resp, nil
 }
 
-func MakeTransfers(buf io.Writer, transfers []*intMaxTypes.Transfer) error {
-	err := binary.Write(buf, binary.LittleEndian, int64(len(transfers)))
-	if err != nil {
+func WriteTransfers(buf io.Writer, transfers []*intMaxTypes.Transfer) error {
+	if err := binary.Write(buf, binary.LittleEndian, int64(len(transfers))); err != nil {
 		return err
 	}
 
 	for _, transfer := range transfers {
-		err := post_backup_transfer.WriteTransfer(buf, transfer)
-		if err != nil {
+		if err := post_backup_transfer.WriteTransfer(buf, transfer); err != nil {
 			return err
 		}
 	}
@@ -80,7 +78,11 @@ func MakeMessage(senderAddress intMaxAcc.Address, blockNumber uint32, encryptedT
 	bufferSize := int8Key + 1 + len(encryptedTx)/int4Key + 1
 	buf := finite_field.NewBuffer(make([]ffg.Element, bufferSize))
 	finite_field.WriteFixedSizeBytes(buf, senderAddress.Bytes(), int32Key)
-	finite_field.WriteUint64(buf, uint64(blockNumber))
+	err := finite_field.WriteUint64(buf, uint64(blockNumber))
+	// blockNumber is uint32, so it should be safe to cast to uint64
+	if err != nil {
+		panic(err)
+	}
 	finite_field.WriteFixedSizeBytes(buf, encryptedTx, len(encryptedTx))
 
 	return buf.Inner()
