@@ -17,6 +17,7 @@ type SQLDb interface {
 	Transactions
 	TxMerkleProofs
 	EventBlockNumbers
+	Balances
 }
 
 type GenericCommands interface {
@@ -66,4 +67,11 @@ type EventBlockNumbers interface {
 	UpsertEventBlockNumber(eventName string, blockNumber int64) (*models.EventBlockNumber, error)
 	EventBlockNumberByEventName(eventName string) (*models.EventBlockNumber, error)
 	EventBlockNumbersByEventNames(eventNames []string) ([]*models.EventBlockNumber, error)
+}
+
+type Balances interface {
+	CreateBalance(userAddress, tokenAddress, balance string) (*models.Balance, error)
+	BalanceByID(id string) (*models.Balance, error)
+	BalanceByUserAndTokenIndex(userAddress, tokenIndex string) (*models.Balance, error)
+	BalanceByUserAndTokenInfo(userAddress, tokenAddress, tokenID string) (*models.Balance, error)
 }

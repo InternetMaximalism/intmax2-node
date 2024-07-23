@@ -12,6 +12,7 @@ import (
 type SQLDriverApp interface {
 	GenericCommandsApp
 	TokensApp
+	BalanceApp
 }
 
 type GenericCommandsApp interface {
@@ -25,4 +26,9 @@ type TokensApp interface {
 	) (*mDBApp.Token, error)
 	TokenByIndex(tokenIndex string) (*mDBApp.Token, error)
 	TokenByTokenInfo(tokenAddress, tokenID string) (*mDBApp.Token, error)
+}
+
+type BalanceApp interface {
+	BalanceByUserAndTokenIndex(userAddress, tokenIndex string) (*mDBApp.Balance, error)
+	BalanceByUserAndTokenInfo(userAddress, tokenAddress, tokenID string) (*mDBApp.Balance, error)
 }

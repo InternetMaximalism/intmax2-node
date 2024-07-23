@@ -82,7 +82,7 @@ func (p *pgx) TokenByIndex(tokenIndex string) (*mDBApp.Token, error) {
 func (p *pgx) TokenByTokenInfo(tokenAddress, tokenID string) (*mDBApp.Token, error) {
 	const (
 		q = ` SELECT id, token_index, token_address, token_id, created_at
-              FROM tokens WHERE token_address = $1 AND token_id = $2`
+              FROM tokens WHERE token_address = $1 AND token_id = $2 `
 	)
 
 	var t models.Token

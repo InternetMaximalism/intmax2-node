@@ -146,7 +146,7 @@ func SyncBalance(
 		os.Exit(1)
 	}
 
-	balance, err := GetUserBalance(userPublicKey.ToAddress(), tokenIndex)
+	balance, err := GetUserBalance(db, userPublicKey.ToAddress(), tokenIndex)
 	if err != nil {
 		fmt.Printf(ErrFailedToGetBalance+": %v\n", err)
 		os.Exit(1)
@@ -312,9 +312,23 @@ func (b *BalanceState) GetBalance(tokenIndex uint32) *big.Int {
 	return balanceData
 }
 
-func GetUserBalance(userAddress intMaxAcc.Address, tokenIndex uint32) (*big.Int, error) {
-	// TODO: Implement this function
-	return big.NewInt(0), nil
+func GetUserBalance(db SQLDriverApp, userAddress intMaxAcc.Address, tokenIndex uint32) (*big.Int, error) {
+	tokenIndexStr := strconv.FormatUint(uint64(tokenIndex), 10)
+	balanceData, err := db.BalanceByUserAndTokenIndex(userAddress.String(), tokenIndexStr)
+	if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
+		panic(fmt.Sprintf(ErrFetchTokenByTokenAddressAndTokenIDWithDBApp, err.Error()))
+	}
+	if errors.Is(err, errorsDB.ErrNotFound) {
+		fmt.Printf("Balance not found for user %s and token index %d\n", userAddress.String(), tokenIndex)
+		return big.NewInt(0), nil
+	}
+
+	balanceDataInt, ok := new(big.Int).SetString(balanceData.Balance, 10)
+	if !ok {
+		return nil, fmt.Errorf("failed to convert balance to int: %v", err)
+	}
+
+	return balanceDataInt, nil
 }
 
 func MakeSampleBalanceState(userAddress intMaxAcc.Address) (BalanceState, error) {

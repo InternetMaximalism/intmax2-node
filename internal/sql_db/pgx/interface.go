@@ -17,6 +17,7 @@ type PGX interface {
 	Transactions
 	TxMerkleProofs
 	EventBlockNumbers
+	Balances
 }
 
 type GenericCommands interface {
@@ -66,4 +67,11 @@ type EventBlockNumbers interface {
 	UpsertEventBlockNumber(eventName string, blockNumber int64) (*mDBApp.EventBlockNumber, error)
 	EventBlockNumberByEventName(eventName string) (*mDBApp.EventBlockNumber, error)
 	EventBlockNumbersByEventNames(eventNames []string) ([]*mDBApp.EventBlockNumber, error)
+}
+
+type Balances interface {
+	CreateBalance(userAddress, tokenAddress, balance string) (*mDBApp.Balance, error)
+	BalanceByID(id string) (*mDBApp.Balance, error)
+	BalanceByUserAndTokenIndex(userAddress, tokenIndex string) (*mDBApp.Balance, error)
+	BalanceByUserAndTokenInfo(userAddress, tokenAddress, tokenID string) (*mDBApp.Balance, error)
 }
