@@ -34,7 +34,7 @@ func New(
 
 func (u *uc) Do(ctx context.Context, args []string, userAddress string) (err error) {
 	const (
-		hName = "UseCase SyncBalance"
+		hName = "UseCase GetBalance"
 	)
 
 	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
@@ -42,7 +42,7 @@ func (u *uc) Do(ctx context.Context, args []string, userAddress string) (err err
 
 	defer func() {
 		if r := recover(); r != nil {
-			const msg = "exec of balance synchronizer error occurred: %w"
+			const msg = "exec of fetching balance error occurred: %w"
 			err = fmt.Errorf(msg, fmt.Errorf("%+v", r))
 			open_telemetry.MarkSpanError(spanCtx, err)
 		}
