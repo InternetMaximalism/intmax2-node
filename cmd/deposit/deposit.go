@@ -3,7 +3,6 @@ package deposit
 import (
 	"context"
 	"intmax2-node/configs"
-	service "intmax2-node/internal/deposit_service"
 	"intmax2-node/internal/logger"
 
 	"github.com/spf13/cobra"
@@ -86,7 +85,14 @@ func relayerCmd(d *Deposit) *cobra.Command {
 			l.Fatalf(msg, err.Error())
 		}
 
-		service.DepositRelayer(d.Context, d.Config, d.Log, d.SB)
+		err = d.DbApp.Exec(d.Context, nil, func(db interface{}, _ interface{}) (err error) {
+			q := db.(SQLDriverApp)
+			return newCommands().DepositRelayer(d.Config, l, q, d.SB).Do(d.Context)
+		})
+		if err != nil {
+			const msg = "failed to processing deposit analyzer: %v"
+			l.Fatalf(msg, err.Error())
+		}
 	}
 
 	return &cmd

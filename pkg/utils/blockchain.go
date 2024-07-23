@@ -3,13 +3,11 @@ package utils
 import (
 	"fmt"
 	"intmax2-node/configs"
-	"intmax2-node/internal/bindings"
 	"log"
 	"math/big"
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
@@ -43,30 +41,6 @@ func CreateTransactor(cfg *configs.Config) (*bind.TransactOpts, error) {
 	}
 
 	return transactOpts, nil
-}
-
-func FetchBlockNumberByDepositIndex(liquidity *bindings.Liquidity, depositIndex uint64) (uint64, error) {
-	if depositIndex == 0 {
-		return 0, nil
-	}
-
-	iterator, err := liquidity.FilterDeposited(&bind.FilterOpts{
-		Start: 0,
-		End:   nil,
-	}, [][32]byte{}, []uint64{depositIndex}, []common.Address{})
-	if err != nil {
-		return 0, fmt.Errorf("failed to filter logs: %v", err)
-	}
-
-	var blockNumber uint64
-	for iterator.Next() {
-		if iterator.Error() != nil {
-			return 0, fmt.Errorf("error encountered: %v", iterator.Error())
-		}
-		blockNumber = iterator.Event.Raw.BlockNumber
-	}
-
-	return blockNumber, nil
 }
 
 func StringToBigInt(s string) (*big.Int, error) {

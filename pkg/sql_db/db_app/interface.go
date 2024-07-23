@@ -64,4 +64,5 @@ type TxMerkleProofs interface {
 type EventBlockNumbers interface {
 	UpsertEventBlockNumber(eventName string, blockNumber int64) (*models.EventBlockNumber, error)
 	EventBlockNumberByEventName(eventName string) (*models.EventBlockNumber, error)
+	EventBlockNumbersByEventNames(eventNames []string) ([]*models.EventBlockNumber, error)
 }

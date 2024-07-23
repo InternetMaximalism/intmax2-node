@@ -37,6 +37,39 @@ func (p *pgx) UpsertEventBlockNumber(eventName string, blockNumber int64) (*mDBA
 	return eDBApp, nil
 }
 
+func (p *pgx) EventBlockNumbersByEventNames(eventNames []string) ([]*mDBApp.EventBlockNumber, error) {
+	const q = `
+        SELECT event_name, last_processed_block_number
+        FROM event_block_numbers
+        WHERE event_name = ANY($1)
+    `
+	rows, err := p.query(p.ctx, q, eventNames)
+	if err != nil {
+		return nil, errPgx.Err(err)
+	}
+	defer rows.Close()
+
+	var results []*mDBApp.EventBlockNumber
+	for rows.Next() {
+		var e models.EventBlockNumber
+		err := rows.Scan(
+			&e.EventName,
+			&e.LastProcessedBlockNumber,
+		)
+		if err != nil {
+			return nil, errPgx.Err(err)
+		}
+		eDBApp := p.eToDBApp(&e)
+		results = append(results, &eDBApp)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, errPgx.Err(err)
+	}
+
+	return results, nil
+}
+
 func (p *pgx) EventBlockNumberByEventName(eventName string) (*mDBApp.EventBlockNumber, error) {
 	const q = `
 	    SELECT event_name, last_processed_block_number
