@@ -2,18 +2,13 @@ package deposit_service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/logger"
-	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
-	errorsDB "intmax2-node/pkg/sql_db/errors"
 	"intmax2-node/pkg/utils"
 	"math/big"
 	"sync"
-
-	"github.com/holiman/uint256"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -27,32 +22,34 @@ func fetchNewDeposits(
 	ctx context.Context,
 	liquidity *bindings.Liquidity,
 	startBlock uint64,
-) (_ []*bindings.LiquidityDeposited, _ uint64, _ map[uint32]bool, _ error) {
+) (_ []*bindings.LiquidityDeposited, _ *big.Int, _ map[uint32]bool, _ error) {
 	nextBlock := startBlock + 1
 	iterator, err := liquidity.FilterDeposited(&bind.FilterOpts{
 		Start:   nextBlock,
 		End:     nil,
 		Context: ctx,
-	}, [][32]byte{}, []uint64{}, []common.Address{})
+	}, []*big.Int{}, []common.Address{})
 	if err != nil {
-		return nil, 0, nil, fmt.Errorf("failed to filter logs: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to filter logs: %w", err)
 	}
 
+	defer iterator.Close()
+
 	var events []*bindings.LiquidityDeposited
-	var maxLastSeenDepositIndex uint64
+	maxLastSeenDepositIndex := new(big.Int)
 	tokenIndexMap := make(map[uint32]bool)
 
 	for iterator.Next() {
-		if iterator.Error() != nil {
-			return nil, 0, nil, fmt.Errorf("error encountered: %w", iterator.Error())
-		}
 		event := iterator.Event
 		events = append(events, event)
 		tokenIndexMap[event.TokenIndex] = true
-
-		if event.DepositIndex > maxLastSeenDepositIndex {
-			maxLastSeenDepositIndex = event.DepositIndex
+		if event.DepositId.Cmp(maxLastSeenDepositIndex) > 0 {
+			maxLastSeenDepositIndex.Set(event.DepositId)
 		}
+	}
+
+	if err := iterator.Error(); err != nil {
+		return nil, nil, nil, fmt.Errorf("error encountered while iterating: %w", err)
 	}
 
 	return events, maxLastSeenDepositIndex, tokenIndexMap, nil
@@ -103,22 +100,22 @@ func fetchAMLScore(sender string, contractAddress string) uint32 { // nolint:goc
 	return int50Key
 }
 
-func rejectDeposits(
+func analyzeDeposits(
 	ctx context.Context,
 	cfg *configs.Config,
 	client *ethclient.Client,
 	liquidity *bindings.Liquidity,
-	maxLastSeenDepositIndex uint64,
-	rejectedIndices []uint64,
+	upToDepositId *big.Int,
+	rejectDepositIndices []*big.Int,
 ) (*types.Receipt, error) {
 	transactOpts, err := utils.CreateTransactor(cfg)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create transactor: %w", err)
 	}
 
-	tx, err := liquidity.RejectDeposits(transactOpts, maxLastSeenDepositIndex, rejectedIndices)
+	tx, err := liquidity.AnalyzeDeposits(transactOpts, upToDepositId, rejectDepositIndices)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send RejectDeposits transaction: %w", err)
+		return nil, fmt.Errorf("failed to send AnalyzeDeposits transaction: %w", err)
 	}
 
 	receipt, err := bind.WaitMined(ctx, client, tx)
@@ -127,6 +124,30 @@ func rejectDeposits(
 	}
 
 	return receipt, nil
+}
+
+func FetchBlockNumberByDepositsAnalyzed(liquidity *bindings.Liquidity, depositIndex uint64) (uint64, error) {
+	if depositIndex == 0 {
+		return 0, nil
+	}
+
+	iterator, err := liquidity.FilterDepositsAnalyzed(&bind.FilterOpts{
+		Start: 0,
+		End:   nil,
+	}, []*big.Int{})
+	if err != nil {
+		return 0, fmt.Errorf("failed to filter logs: %v", err)
+	}
+
+	var blockNumber uint64
+	for iterator.Next() {
+		if iterator.Error() != nil {
+			return 0, fmt.Errorf("error exncountered: %v", iterator.Error())
+		}
+		blockNumber = iterator.Event.Raw.BlockNumber
+	}
+
+	return blockNumber, nil
 }
 
 func DepositAnalyzer(
@@ -146,59 +167,22 @@ func DepositAnalyzer(
 	if err != nil {
 		log.Fatalf(err.Error())
 	}
+	defer client.Close()
 
 	liquidity, err := bindings.NewLiquidity(common.HexToAddress(cfg.Blockchain.LiquidityContractAddress), client)
 	if err != nil {
 		log.Fatalf("Failed to instantiate a Liquidity contract: %v", err.Error())
 	}
 
-	// example -- start
-	const (
-		msgTestF = "Failed to fetch token by tokenIndex with DBApp: %v"
-		msgTestC = "Failed to create token by tokenIndex with DBApp: %v"
-		tokenIdx = "adasdasdsa"
-	)
-	var token *mDBApp.Token
-	token, err = db.TokenByIndex(tokenIdx)
-	if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
-		panic(fmt.Sprintf(msgTestF, err.Error()))
-	}
-	log.Printf("----------- 1 %+v\n", token)
+	// TODO: get last deposit analyze block number from DB
+	depositAnalyzeBlockNumber := uint64(0)
+	lastDepositAnalyzedBlockNumber, err := FetchBlockNumberByDepositsAnalyzed(liquidity, depositAnalyzeBlockNumber)
 
-	const int11111Key = 11111
-	var tokenID uint256.Int
-	_ = tokenID.SetFromBig(new(big.Int).SetInt64(int64(int11111Key)))
-	var vvv *mDBApp.Token
-	vvv, err = db.CreateToken(tokenIdx, "", &tokenID)
 	if err != nil {
-		panic(fmt.Sprintf(msgTestC, err.Error()))
-	}
-	log.Printf("---------- 2 %+v\n", vvv)
-
-	token, err = db.TokenByIndex(tokenIdx)
-	if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
-		panic(fmt.Sprintf(msgTestF, err.Error()))
-	}
-	if errors.Is(err, errorsDB.ErrNotFound) {
-		panic(fmt.Sprintf(msgTestF, err.Error()))
-	}
-	log.Printf("----------- 3 %+v\n", token)
-	// example -- finish
-
-	lastSeenDepositIndex, err := liquidity.GetLastSeenDepositIndex(&bind.CallOpts{
-		Pending: false,
-		Context: ctx,
-	})
-	if err != nil {
-		panic(fmt.Sprintf("Failed to get last seen deposit index: %v", err.Error()))
+		log.Fatalf("Failed to get last deposit analyzed block number: %v", err.Error())
 	}
 
-	lastSeenBlockNumber, err := utils.FetchBlockNumberByDepositIndex(liquidity, lastSeenDepositIndex)
-	if err != nil {
-		log.Fatalf("Failed to get last block number: %v", err.Error())
-	}
-
-	events, maxLastSeenDepositIndex, tokenIndexMap, err := fetchNewDeposits(ctx, liquidity, lastSeenBlockNumber)
+	events, maxLastSeenDepositIndex, tokenIndexMap, err := fetchNewDeposits(ctx, liquidity, lastDepositAnalyzedBlockNumber)
 	if err != nil {
 		log.Fatalf("Failed to fetch new deposits: %v", err.Error())
 	}
@@ -213,30 +197,32 @@ func DepositAnalyzer(
 		log.Fatalf("Failed to get token info map: %v", err.Error())
 	}
 
-	var rejectedIndices []uint64
+	var rejectDepositIndices []*big.Int
 	for _, event := range events {
 		contractAddress := tokenInfoMap[event.TokenIndex]
 		score := fetchAMLScore(event.Sender.Hex(), contractAddress.Hex())
-
 		if score > AMLRejectionThreshold {
-			rejectedIndices = append(rejectedIndices, event.DepositIndex)
+			rejectDepositIndices = append(rejectDepositIndices, new(big.Int).SetUint64(uint64(event.TokenIndex)))
 		}
 	}
 
-	receipt, err := rejectDeposits(ctx, cfg, client, liquidity, maxLastSeenDepositIndex, rejectedIndices)
+	receipt, err := analyzeDeposits(ctx, cfg, client, liquidity, maxLastSeenDepositIndex, rejectDepositIndices)
 	if err != nil {
-		log.Fatalf("Failed to reject deposits: %v", err.Error())
+		log.Fatalf("Failed to analyze deposits: %v", err.Error())
 	}
 
 	if receipt == nil {
 		return
 	}
 
-	if receipt.Status == types.ReceiptStatusSuccessful {
-		log.Infof("Successfully analyze %d deposits, %d rejects", len(events), len(rejectedIndices))
-	} else {
-		log.Infof("Failed to reject deposits")
+	switch receipt.Status {
+	case types.ReceiptStatusSuccessful:
+		log.Infof("Successfully analyzed %d deposits, %d rejections", len(events), len(rejectDepositIndices))
+	case types.ReceiptStatusFailed:
+		log.Errorf("Transaction failed: deposit analysis unsuccessful")
+	default:
+		log.Warnf("Unexpected transaction status: %d", receipt.Status)
 	}
 
-	log.Infof("Tx Hash: %v", receipt.TxHash.String())
+	log.Infof("Transaction hash: %s", receipt.TxHash.Hex())
 }
