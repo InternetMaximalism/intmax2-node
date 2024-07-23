@@ -1,9 +1,11 @@
 package pgx
 
 import (
+	"fmt"
 	errPgx "intmax2-node/internal/sql_db/pgx/errors"
 	"intmax2-node/internal/sql_db/pgx/models"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -38,12 +40,24 @@ func (p *pgx) UpsertEventBlockNumber(eventName string, blockNumber int64) (*mDBA
 }
 
 func (p *pgx) EventBlockNumbersByEventNames(eventNames []string) ([]*mDBApp.EventBlockNumber, error) {
-	const q = `
+	placeholder := make([]string, len(eventNames))
+	for i := range eventNames {
+		placeholder[i] = fmt.Sprintf("$%d", i+1)
+	}
+	placeholderStr := strings.Join(placeholder, ", ")
+
+	q := fmt.Sprintf(`
         SELECT event_name, last_processed_block_number
         FROM event_block_numbers
-        WHERE event_name = ANY($1)
-    `
-	rows, err := p.query(p.ctx, q, eventNames)
+        WHERE event_name IN (%s)
+    `, placeholderStr)
+
+	args := make([]interface{}, len(eventNames))
+	for i, name := range eventNames {
+		args[i] = name
+	}
+
+	rows, err := p.query(p.ctx, q, args...)
 	if err != nil {
 		return nil, errPgx.Err(err)
 	}

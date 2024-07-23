@@ -171,6 +171,7 @@ func relayDeposits(ctx context.Context, cfg *configs.Config, client *ethclient.C
 	return receipt, nil
 }
 
+// TODO: TxManager Class that stops processing if there are any pending transactions.
 func DepositRelayer(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, sb ServiceBlockchain) {
 	link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
 	if err != nil {

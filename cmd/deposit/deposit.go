@@ -90,7 +90,7 @@ func relayerCmd(d *Deposit) *cobra.Command {
 			return newCommands().DepositRelayer(d.Config, l, q, d.SB).Do(d.Context)
 		})
 		if err != nil {
-			const msg = "failed to processing deposit analyzer: %v"
+			const msg = "failed to processing deposit relayer: %v"
 			l.Fatalf(msg, err.Error())
 		}
 	}

@@ -1,16 +1,11 @@
 package models
 
-import (
-	"time"
-)
-
 const (
-	DepositsAnalyzed = "DepositsAnalyzed"
+	DepositsAnalyzedEvent = "DepositsAnalyzed"
+	DepositsRelayedEvent  = "DepositsRelayed"
 )
 
 type EventBlockNumber struct {
-	ID                       string
 	EventName                string
 	LastProcessedBlockNumber int64
-	CreatedAt                time.Time
 }
