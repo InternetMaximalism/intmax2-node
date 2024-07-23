@@ -2,10 +2,15 @@ package deposit_service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/logger"
+
+	"github.com/jackc/pgx/v5"
+
+	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"intmax2-node/pkg/utils"
 	"math/big"
 	"sync"
@@ -17,30 +22,6 @@ import (
 )
 
 const AMLRejectionThreshold = 70
-
-func fetchLastDepositAnalyzedBlockNumber(liquidity *bindings.Liquidity, depositIndex uint64) (uint64, error) {
-	if depositIndex == 0 {
-		return 0, nil
-	}
-
-	iterator, err := liquidity.FilterDepositsAnalyzed(&bind.FilterOpts{
-		Start: 0,
-		End:   nil,
-	}, []*big.Int{})
-	if err != nil {
-		return 0, fmt.Errorf("failed to filter logs: %v", err)
-	}
-
-	var blockNumber uint64
-	for iterator.Next() {
-		if iterator.Error() != nil {
-			return 0, fmt.Errorf("error exncountered: %v", iterator.Error())
-		}
-		blockNumber = iterator.Event.Raw.BlockNumber
-	}
-
-	return blockNumber, nil
-}
 
 func fetchNewDeposits(
 	ctx context.Context,
@@ -150,6 +131,7 @@ func analyzeDeposits(
 	return receipt, nil
 }
 
+// TODO: TxManager Class that stops processing if there are any pending transactions.
 func DepositAnalyzer(
 	ctx context.Context,
 	cfg *configs.Config,
@@ -174,15 +156,33 @@ func DepositAnalyzer(
 		log.Fatalf("Failed to instantiate a Liquidity contract: %v", err.Error())
 	}
 
-	// TODO: get last deposit analyze block number from DB
-	depositAnalyzeBlockNumber := uint64(0)
-	lastDepositAnalyzedBlockNumber, err := fetchLastDepositAnalyzedBlockNumber(liquidity, depositAnalyzeBlockNumber)
+	event, err := db.EventBlockNumberByEventName(mDBApp.DepositsAnalyzedEvent)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) || err.Error() == "not found" {
+			event = &mDBApp.EventBlockNumber{
+				EventName:                mDBApp.DepositsAnalyzedEvent,
+				LastProcessedBlockNumber: 0,
+			}
+		} else {
+			log.Fatalf("Error fetching event block number: %v", err.Error())
+		}
+	} else if event == nil {
+		event = &mDBApp.EventBlockNumber{
+			EventName:                mDBApp.DepositsAnalyzedEvent,
+			LastProcessedBlockNumber: 0,
+		}
+	}
 
+	lastEventInfo, err := fetchLastDepositAnalyzedEvent(liquidity, uint64(event.LastProcessedBlockNumber))
 	if err != nil {
 		log.Fatalf("Failed to get last deposit analyzed block number: %v", err.Error())
 	}
+	if lastEventInfo == nil || lastEventInfo.BlockNumber == nil {
+		log.Errorf("Last event info or block number is nil")
+		return
+	}
 
-	events, maxLastSeenDepositIndex, tokenIndexMap, err := fetchNewDeposits(ctx, liquidity, lastDepositAnalyzedBlockNumber)
+	events, maxLastSeenDepositIndex, tokenIndexMap, err := fetchNewDeposits(ctx, liquidity, *lastEventInfo.BlockNumber)
 	if err != nil {
 		log.Fatalf("Failed to fetch new deposits: %v", err.Error())
 	}
@@ -217,12 +217,19 @@ func DepositAnalyzer(
 
 	switch receipt.Status {
 	case types.ReceiptStatusSuccessful:
-		log.Infof("Successfully analyzed %d deposits, %d rejections", len(events), len(rejectDepositIndices))
+		log.Infof("Successfully deposit analyzed %d deposits, %d rejections", len(events), len(rejectDepositIndices))
 	case types.ReceiptStatusFailed:
-		log.Errorf("Transaction failed: deposit analysis unsuccessful")
+		log.Errorf("Transaction failed: deposit analyzed unsuccessful")
 	default:
 		log.Warnf("Unexpected transaction status: %d", receipt.Status)
 	}
 
 	log.Infof("Transaction hash: %s", receipt.TxHash.Hex())
+
+	updatedEvent, err := db.UpsertEventBlockNumber(mDBApp.DepositsAnalyzedEvent, int64(*lastEventInfo.BlockNumber))
+	if err != nil {
+		log.Errorf("Failed to upsert event block number: %v", err)
+		return
+	}
+	log.Infof("Updated DepositsAnalyzedEvent block number to %d", updatedEvent.LastProcessedBlockNumber)
 }

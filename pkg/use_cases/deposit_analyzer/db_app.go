@@ -12,6 +12,7 @@ import (
 type SQLDriverApp interface {
 	GenericCommandsApp
 	TokensApp
+	EventBlockNumbers
 }
 
 type GenericCommandsApp interface {
@@ -24,4 +25,9 @@ type TokensApp interface {
 		tokenID *uint256.Int,
 	) (*mDBApp.Token, error)
 	TokenByIndex(tokenIndex string) (*mDBApp.Token, error)
+}
+
+type EventBlockNumbers interface {
+	UpsertEventBlockNumber(eventName string, blockNumber int64) (*mDBApp.EventBlockNumber, error)
+	EventBlockNumberByEventName(eventName string) (*mDBApp.EventBlockNumber, error)
 }
