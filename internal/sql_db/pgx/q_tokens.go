@@ -79,6 +79,30 @@ func (p *pgx) TokenByIndex(tokenIndex string) (*mDBApp.Token, error) {
 	return &tDBApp, nil
 }
 
+func (p *pgx) TokenByTokenInfo(tokenAddress, tokenID string) (*mDBApp.Token, error) {
+	const (
+		q = ` SELECT id, token_index, token_address, token_id, created_at
+              FROM tokens WHERE token_address = $1 AND token_id = $2`
+	)
+
+	var t models.Token
+	err := errPgx.Err(p.queryRow(p.ctx, q, tokenAddress, tokenID).
+		Scan(
+			&t.ID,
+			&t.TokenIndex,
+			&t.TokenAddress,
+			&t.TokenID,
+			&t.CreatedAt,
+		))
+	if err != nil {
+		return nil, err
+	}
+
+	tDBApp := p.tToDBApp(&t)
+
+	return &tDBApp, nil
+}
+
 func (p *pgx) tToDBApp(t *models.Token) mDBApp.Token {
 	const emptyKey = ""
 

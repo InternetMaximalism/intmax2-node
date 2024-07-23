@@ -2,16 +2,19 @@ package balance_service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/deposit_service"
 	"intmax2-node/internal/logger"
+	errorsDB "intmax2-node/pkg/sql_db/errors"
 	"intmax2-node/pkg/utils"
 	"log"
 	"math/big"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -55,8 +58,8 @@ func parseTokenInfo(args []string) TokenInfo {
 	var (
 		ok           bool
 		tokenType    uint8
-		tokenAddress common.Address
-		tokenID      *big.Int
+		tokenAddress = common.Address{}
+		tokenID      = big.NewInt(0)
 	)
 
 	switch tokenTypeStr {
@@ -128,7 +131,7 @@ func SyncBalance(
 ) {
 	tokenInfo := parseTokenInfo(args)
 
-	tokenIndex, err := GetTokenIndex(ctx, cfg, sb, tokenInfo)
+	tokenIndex, err := GetTokenIndex(ctx, cfg, db, sb, tokenInfo)
 	if err != nil {
 		fmt.Println(ErrTokenNotFound, err)
 		os.Exit(1)
@@ -152,18 +155,21 @@ func SyncBalance(
 func GetTokenIndex(
 	ctx context.Context,
 	cfg *configs.Config,
+	db SQLDriverApp,
 	sb deposit_service.ServiceBlockchain,
 	tokenInfo TokenInfo,
 ) (uint32, error) {
-	tokenIndexMap := map[TokenInfo]uint32{}
 	zeroAddress := common.Address{}
-	tokenIndexMap[TokenInfo{TokenType: 0, TokenAddress: zeroAddress, TokenID: big.NewInt(0)}] = 0
+	fmt.Printf("zeroAddress: %v\n", zeroAddress)
 
 	// 1. Check local file for token address mapping
-	localTokenIndex, ok := getLocalTokenIndex(&tokenIndexMap, tokenInfo)
-	if ok {
+	fmt.Println("Checking local token index map")
+	localTokenIndex, err := getLocalTokenIndex(db, tokenInfo)
+	if err == nil {
+		fmt.Printf("Local token index: %d\n", localTokenIndex)
 		return localTokenIndex, nil
 	}
+	fmt.Println("End checking local token index map")
 
 	// 2. Check liquidity contract for token mapping
 	return getTokenIndexFromLiquidityContract(ctx, cfg, sb, tokenInfo)
@@ -208,11 +214,25 @@ func GetTokenInfoMap(ctx context.Context, liquidity *bindings.Liquidity, tokenIn
 	return tokenInfoMap, nil
 }
 
-func getLocalTokenIndex(tokenIndexMap *TokenIndexMap, tokenInfo TokenInfo) (uint32, bool) {
-	// TODO: Implement token address mapping
-	value, ok := (*tokenIndexMap)[tokenInfo]
+func getLocalTokenIndex(db SQLDriverApp, tokenInfo TokenInfo) (uint32, error) {
+	tokenAddressStr := tokenInfo.TokenAddress.String()
+	tokenIDStr := fmt.Sprintf("%d", tokenInfo.TokenID)
+	fmt.Printf("tokenIDStr: %v\n", tokenInfo)
 
-	return value, ok
+	token, err := db.TokenByTokenInfo(tokenAddressStr, tokenIDStr)
+	if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
+		panic(fmt.Sprintf(ErrFetchTokenByTokenAddressAndTokenIDWithDBApp, err.Error()))
+	}
+	if errors.Is(err, errorsDB.ErrNotFound) {
+		return 0, errors.Join(errors.New(ErrTokenNotFound), err)
+	}
+
+	tokenIndex, err := strconv.ParseUint(token.TokenIndex, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("failed to convert token index to int: %v", err)
+	}
+
+	return uint32(tokenIndex), err
 }
 
 func getTokenIndexFromLiquidityContract(
@@ -264,18 +284,3 @@ func getUserBalance(userAddress intMaxAcc.Address, tokenIndex uint32) (string, e
 
 	return "0", nil
 }
-
-// func getEncryptedBalanceData(intmaxTokenAddress string) []byte {
-// 	// TODO: Implement data retrieval from data store vault
-// 	return []byte{}
-// }
-
-// func decryptBalanceData(encryptedData []byte) ([]byte, error) {
-// 	// TODO: Implement decryption using user's public key
-// 	return []byte{}, nil
-// }
-
-// func formatBalance(decryptedData []byte) string {
-// 	// TODO: Implement balance formatting
-// 	return "0"
-// }

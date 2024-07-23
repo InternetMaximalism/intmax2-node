@@ -37,6 +37,7 @@ type Tokens interface {
 		tokenID *uint256.Int,
 	) (*models.Token, error)
 	TokenByIndex(tokenIndex string) (*models.Token, error)
+	TokenByTokenInfo(tokenAddress, tokenID string) (*models.Token, error)
 }
 
 type Signatures interface {

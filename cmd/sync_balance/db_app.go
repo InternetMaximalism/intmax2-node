@@ -24,4 +24,5 @@ type TokensApp interface {
 		tokenID *uint256.Int,
 	) (*mDBApp.Token, error)
 	TokenByIndex(tokenIndex string) (*mDBApp.Token, error)
+	TokenByTokenInfo(tokenAddress, tokenID string) (*mDBApp.Token, error)
 }
