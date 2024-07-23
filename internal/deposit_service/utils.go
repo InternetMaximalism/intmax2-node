@@ -23,6 +23,8 @@ func fetchLastDepositAnalyzedEvent(liquidity *bindings.Liquidity, startBlockNumb
 		return nil, fmt.Errorf("failed to filter logs: %v", err)
 	}
 
+	defer iterator.Close()
+
 	var lastEvent *DepositEventInfo
 
 	for iterator.Next() {

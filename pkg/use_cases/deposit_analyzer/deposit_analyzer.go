@@ -37,6 +37,8 @@ func (u *uc) Do(ctx context.Context) (err error) {
 		hName = "UseCase DepositAnalyzer"
 	)
 
+	u.log.Infof("Starting DepositAnalyzer")
+
 	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
 	defer span.End()
 
@@ -45,6 +47,8 @@ func (u *uc) Do(ctx context.Context) (err error) {
 			const msg = "exec of deposit analyzer error occurred: %w"
 			err = fmt.Errorf(msg, fmt.Errorf("%+v", r))
 			open_telemetry.MarkSpanError(spanCtx, err)
+		} else {
+			u.log.Infof("Completed DepositAnalyzer")
 		}
 	}()
 
