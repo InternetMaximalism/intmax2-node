@@ -71,6 +71,7 @@ type EventBlockNumbers interface {
 
 type Balances interface {
 	CreateBalance(userAddress, tokenAddress, balance string) (*mDBApp.Balance, error)
+	UpdateBalanceByID(balanceID, balance string) (*mDBApp.Balance, error)
 	BalanceByID(id string) (*mDBApp.Balance, error)
 	BalanceByUserAndTokenIndex(userAddress, tokenIndex string) (*mDBApp.Balance, error)
 	BalanceByUserAndTokenInfo(userAddress, tokenAddress, tokenID string) (*mDBApp.Balance, error)

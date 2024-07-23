@@ -71,6 +71,7 @@ type EventBlockNumbers interface {
 
 type Balances interface {
 	CreateBalance(userAddress, tokenAddress, balance string) (*models.Balance, error)
+	UpdateBalanceByID(balanceID, balance string) (*models.Balance, error)
 	BalanceByID(id string) (*models.Balance, error)
 	BalanceByUserAndTokenIndex(userAddress, tokenIndex string) (*models.Balance, error)
 	BalanceByUserAndTokenInfo(userAddress, tokenAddress, tokenID string) (*models.Balance, error)

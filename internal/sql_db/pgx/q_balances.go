@@ -20,7 +20,7 @@ func (p *pgx) CreateBalance(userAddress, tokenIndex, balance string) (*mDBApp.Ba
 
 	const (
 		q = ` INSERT INTO balances
-              (id, user, token_index, balance, created_at)
+              (id, user_address, token_index, balance, created_at)
               VALUES ($1, $2, $3, $4, $5) `
 	)
 
@@ -32,6 +32,27 @@ func (p *pgx) CreateBalance(userAddress, tokenIndex, balance string) (*mDBApp.Ba
 
 	var bDBApp *mDBApp.Balance
 	bDBApp, err = p.BalanceByID(s.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return bDBApp, nil
+}
+
+func (p *pgx) UpdateBalanceByID(balanceID, balance string) (*mDBApp.Balance, error) {
+	const (
+		q = ` UPDATE balances
+			  SET balance = $1, updated_at = $2
+			  WHERE balance_id = $3 `
+	)
+
+	_, err := p.exec(p.ctx, q, balance, time.Now().UTC(), balanceID)
+	if err != nil {
+		return nil, errPgx.Err(err)
+	}
+
+	var bDBApp *mDBApp.Balance
+	bDBApp, err = p.BalanceByID(balanceID)
 	if err != nil {
 		return nil, err
 	}
