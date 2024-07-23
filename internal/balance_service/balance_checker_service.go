@@ -9,6 +9,7 @@ import (
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/deposit_service"
 	"intmax2-node/internal/logger"
+	intMaxTypes "intmax2-node/internal/types"
 	errorsDB "intmax2-node/pkg/sql_db/errors"
 	"intmax2-node/pkg/utils"
 	"log"
@@ -145,7 +146,7 @@ func SyncBalance(
 		os.Exit(1)
 	}
 
-	balance, err := getUserBalance(userPublicKey.ToAddress(), tokenIndex)
+	balance, err := GetUserBalance(userPublicKey.ToAddress(), tokenIndex)
 	if err != nil {
 		fmt.Printf(ErrFailedToGetBalance+": %v\n", err)
 		os.Exit(1)
@@ -164,10 +165,8 @@ func GetTokenIndex(
 	// Check local DB for token index
 	localTokenIndex, err := getLocalTokenIndex(db, tokenInfo)
 	if err == nil {
-		fmt.Printf("Local token index: %d\n", localTokenIndex)
 		return localTokenIndex, nil
 	}
-	fmt.Println("End checking local token index map")
 
 	// Check liquidity contract for token index
 	return getTokenIndexFromLiquidityContract(ctx, cfg, sb, tokenInfo)
@@ -232,6 +231,7 @@ func getLocalTokenIndex(db SQLDriverApp, tokenInfo TokenInfo) (uint32, error) {
 	return uint32(tokenIndex), err
 }
 
+// Get token index from liquidity contract
 func getTokenIndexFromLiquidityContract(
 	ctx context.Context,
 	cfg *configs.Config,
@@ -254,7 +254,6 @@ func getTokenIndexFromLiquidityContract(
 		log.Fatalf("Failed to instantiate a Liquidity contract: %v", err.Error())
 	}
 
-	// 2. Get token index from liquidity contract
 	tokenIndex, err := liquidity.GetTokenIndex(&bind.CallOpts{
 		Pending: false,
 		Context: ctx,
@@ -266,18 +265,75 @@ func getTokenIndexFromLiquidityContract(
 	return tokenIndex, nil
 }
 
-func getUserBalance(userAddress intMaxAcc.Address, tokenIndex uint32) (string, error) {
-	// // 1. Get balance data from data store vault
-	// encryptedData := getEncryptedBalanceData(intmaxTokenAddress)
+type BalanceState struct {
+	BalanceProof *intMaxTypes.Plonky2Proof
+	BalanceData  map[uint32]*big.Int
+	Txs          []intMaxTypes.Tx
+	Transfers    []intMaxTypes.Transfer
+	Deposits     []intMaxTypes.Transfer
+}
 
-	// // 2. Decrypt data with user's public key
-	// decryptedData, err := decryptBalanceData(encryptedData)
-	// if err != nil {
-	// 	return "", fmt.Errorf("failed to decrypt balance data: %v", err)
-	// }
+func NewBalanceState(
+	balanceProof *intMaxTypes.Plonky2Proof,
+	balanceData map[uint32]*big.Int,
+	txs []intMaxTypes.Tx,
+	transfers []intMaxTypes.Transfer,
+	deposits []intMaxTypes.Transfer,
+) *BalanceState {
+	return &BalanceState{
+		BalanceProof: balanceProof,
+		BalanceData:  balanceData,
+		Txs:          txs,
+		Transfers:    transfers,
+		Deposits:     deposits,
+	}
+}
 
-	// // 3. Format and return balance
-	// return formatBalance(decryptedData), nil
+func (b *BalanceState) SetZero() *BalanceState {
+	b.BalanceProof = nil
+	b.BalanceData = make(map[uint32]*big.Int, 0)
+	b.Txs = make([]intMaxTypes.Tx, 0)
+	b.Transfers = make([]intMaxTypes.Transfer, 0)
+	b.Deposits = make([]intMaxTypes.Transfer, 0)
 
-	return "0", nil
+	return b
+}
+
+func (b *BalanceState) SetBalance(tokenIndex uint32, amount *big.Int) {
+	b.BalanceData[tokenIndex] = amount
+}
+
+func (b *BalanceState) GetBalance(tokenIndex uint32) *big.Int {
+	balanceData, ok := b.BalanceData[tokenIndex]
+	if !ok {
+		return big.NewInt(0)
+	}
+
+	return balanceData
+}
+
+func GetUserBalance(userAddress intMaxAcc.Address, tokenIndex uint32) (*big.Int, error) {
+	// TODO: Implement this function
+	return big.NewInt(0), nil
+}
+
+func MakeSampleBalanceState(userAddress intMaxAcc.Address) (BalanceState, error) {
+	balanceData := make(map[uint32]*big.Int)
+	balanceData[0] = big.NewInt(100)
+	balanceData[1] = big.NewInt(200)
+
+	balanceProof, err := intMaxTypes.MakeSamplePlonky2Proof()
+	if err != nil {
+		return BalanceState{}, fmt.Errorf("failed to make sample plonky2 proof: %v", err)
+	}
+
+	balanceState := BalanceState{
+		BalanceProof: balanceProof,
+		BalanceData:  balanceData,
+		Txs:          []intMaxTypes.Tx{},
+		Transfers:    []intMaxTypes.Transfer{},
+		Deposits:     []intMaxTypes.Transfer{},
+	}
+
+	return balanceState, nil
 }
