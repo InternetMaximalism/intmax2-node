@@ -33,14 +33,20 @@ func NewBalanceCmd(b *Balance) *cobra.Command {
 
 func syncBalanceCmd(b *Balance) *cobra.Command {
 	const (
-		use   = "sync"
-		short = "Synchronize balance of specified INTMAX account"
+		use                    = "sync"
+		short                  = "Synchronize balance of specified INTMAX account"
+		userAddressKey         = "user-address"
+		emptyKey               = ""
+		userAddressDescription = "specify user address. use as --user-address \"0x0000000000000000000000000000000000000000000000000000000000000000\""
 	)
 
 	cmd := cobra.Command{
 		Use:   use,
 		Short: short,
 	}
+
+	var userAddress string
+	cmd.PersistentFlags().StringVar(&userAddress, userAddressKey, emptyKey, userAddressDescription)
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		l := b.Log.WithFields(logger.Fields{"module": use})
@@ -54,7 +60,7 @@ func syncBalanceCmd(b *Balance) *cobra.Command {
 		err = b.DbApp.Exec(b.Context, nil, func(db interface{}, _ interface{}) (err error) {
 			q := db.(SQLDriverApp)
 
-			return newCommands().SyncBalance(b.Config, b.Log, q, b.SB).Do(b.Context, args)
+			return newCommands().SyncBalance(b.Config, b.Log, q, b.SB).Do(b.Context, args, userAddress)
 		})
 		if err != nil {
 			const msg = "failed to processing synchronize balance: %v"

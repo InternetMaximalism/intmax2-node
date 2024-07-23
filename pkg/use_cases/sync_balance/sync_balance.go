@@ -32,7 +32,7 @@ func New(
 	}
 }
 
-func (u *uc) Do(ctx context.Context, args []string) (err error) {
+func (u *uc) Do(ctx context.Context, args []string, userAddress string) (err error) {
 	const (
 		hName = "UseCase SyncBalance"
 	)
@@ -48,7 +48,7 @@ func (u *uc) Do(ctx context.Context, args []string) (err error) {
 		}
 	}()
 
-	service.SyncBalance(spanCtx, u.cfg, u.log, u.db, u.sb, args)
+	service.SyncBalance(spanCtx, u.cfg, u.log, u.db, u.sb, args, userAddress)
 
 	return err
 }

@@ -128,7 +128,9 @@ func SyncBalance(
 	db SQLDriverApp,
 	sb ServiceBlockchain,
 	args []string,
+	userAddress string,
 ) {
+	// userAddress := "0x030644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd3"
 	tokenInfo := parseTokenInfo(args)
 
 	tokenIndex, err := GetTokenIndex(ctx, cfg, db, sb, tokenInfo)
@@ -137,13 +139,13 @@ func SyncBalance(
 		os.Exit(1)
 	}
 
-	userAccount, err := intMaxAcc.NewPrivateKey(big.NewInt(2))
+	userPublicKey, err := intMaxAcc.NewPublicKeyFromAddressHex(userAddress)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		fmt.Printf("fail to parse user address: %v\n", err)
+		os.Exit(1)
 	}
-	userAddress := userAccount.ToAddress()
 
-	balance, err := getUserBalance(userAddress, tokenIndex)
+	balance, err := getUserBalance(userPublicKey.ToAddress(), tokenIndex)
 	if err != nil {
 		fmt.Printf(ErrFailedToGetBalance+": %v\n", err)
 		os.Exit(1)
@@ -159,11 +161,7 @@ func GetTokenIndex(
 	sb deposit_service.ServiceBlockchain,
 	tokenInfo TokenInfo,
 ) (uint32, error) {
-	zeroAddress := common.Address{}
-	fmt.Printf("zeroAddress: %v\n", zeroAddress)
-
-	// 1. Check local file for token address mapping
-	fmt.Println("Checking local token index map")
+	// Check local DB for token index
 	localTokenIndex, err := getLocalTokenIndex(db, tokenInfo)
 	if err == nil {
 		fmt.Printf("Local token index: %d\n", localTokenIndex)
@@ -171,7 +169,7 @@ func GetTokenIndex(
 	}
 	fmt.Println("End checking local token index map")
 
-	// 2. Check liquidity contract for token mapping
+	// Check liquidity contract for token index
 	return getTokenIndexFromLiquidityContract(ctx, cfg, sb, tokenInfo)
 }
 
@@ -217,7 +215,6 @@ func GetTokenInfoMap(ctx context.Context, liquidity *bindings.Liquidity, tokenIn
 func getLocalTokenIndex(db SQLDriverApp, tokenInfo TokenInfo) (uint32, error) {
 	tokenAddressStr := tokenInfo.TokenAddress.String()
 	tokenIDStr := fmt.Sprintf("%d", tokenInfo.TokenID)
-	fmt.Printf("tokenIDStr: %v\n", tokenInfo)
 
 	token, err := db.TokenByTokenInfo(tokenAddressStr, tokenIDStr)
 	if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {

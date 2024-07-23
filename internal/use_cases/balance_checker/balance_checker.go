@@ -6,5 +6,5 @@ import "context"
 
 // UseCaseDepositAnalyzer describes DepositAnalyzer contract.
 type UseCaseBalanceChecker interface {
-	Do(ctx context.Context, args []string) error
+	Do(ctx context.Context, args []string, userAddress string) error
 }
