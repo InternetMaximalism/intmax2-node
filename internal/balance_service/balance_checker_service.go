@@ -131,6 +131,18 @@ func SyncBalance(
 	args []string,
 	userAddress string,
 ) {
+	fmt.Println("Not implemented")
+}
+
+func GetBalance(
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
+	db SQLDriverApp,
+	sb ServiceBlockchain,
+	args []string,
+	userAddress string,
+) {
 	// userAddress := "0x030644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd3"
 	tokenInfo := parseTokenInfo(args)
 

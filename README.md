@@ -241,6 +241,21 @@ Usage:
 Flags:
   -h, --help   help for relayer
 ```
+### Command `./intmax2-node balance get`
+```
+# ./intmax2-node balance get --help
+Get balance of specified INTMAX account
+
+Usage:
+  app balance get [flags]
+
+Flags:
+  -h, --help                  help for get
+      --user-address string   specify user address. use as --user-address "0x0000000000000000000000000000000000000000000000000000000000000000"
+
+Example:
+  ./intmax2-node balance get erc20 0x0000000000000000000000000000000000000001 --user-address 0x030644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd3
+```
 
 ## Network
 When a node starts, it tries to find and remember its external address in this order:
