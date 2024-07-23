@@ -41,15 +41,15 @@ func fetchNewDeposits(
 	defer iterator.Close()
 
 	var events []*bindings.LiquidityDeposited
-	maxLastSeenDepositIndex := new(big.Int)
+	maxDepositIndex := new(big.Int)
 	tokenIndexMap := make(map[uint32]bool)
 
 	for iterator.Next() {
 		event := iterator.Event
 		events = append(events, event)
 		tokenIndexMap[event.TokenIndex] = true
-		if event.DepositId.Cmp(maxLastSeenDepositIndex) > 0 {
-			maxLastSeenDepositIndex.Set(event.DepositId)
+		if event.DepositId.Cmp(maxDepositIndex) > 0 {
+			maxDepositIndex.Set(event.DepositId)
 		}
 	}
 
@@ -57,7 +57,7 @@ func fetchNewDeposits(
 		return nil, nil, nil, fmt.Errorf("error encountered while iterating: %w", err)
 	}
 
-	return events, maxLastSeenDepositIndex, tokenIndexMap, nil
+	return events, maxDepositIndex, tokenIndexMap, nil
 }
 
 func getTokenInfoMap(ctx context.Context, liquidity *bindings.Liquidity, tokenIndexMap map[uint32]bool) (map[uint32]common.Address, error) {
@@ -182,7 +182,7 @@ func DepositAnalyzer(
 		return
 	}
 
-	events, maxLastSeenDepositIndex, tokenIndexMap, err := fetchNewDeposits(ctx, liquidity, *lastEventInfo.BlockNumber)
+	events, maxDepositIndex, tokenIndexMap, err := fetchNewDeposits(ctx, liquidity, *lastEventInfo.BlockNumber)
 	if err != nil {
 		log.Fatalf("Failed to fetch new deposits: %v", err.Error())
 	}
@@ -206,7 +206,7 @@ func DepositAnalyzer(
 		}
 	}
 
-	receipt, err := analyzeDeposits(ctx, cfg, client, liquidity, maxLastSeenDepositIndex, rejectDepositIndices)
+	receipt, err := analyzeDeposits(ctx, cfg, client, liquidity, maxDepositIndex, rejectDepositIndices)
 	if err != nil {
 		log.Fatalf("Failed to analyze deposits: %v", err.Error())
 	}
