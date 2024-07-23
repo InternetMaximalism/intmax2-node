@@ -7,7 +7,7 @@ import (
 	service "intmax2-node/internal/deposit_service"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
-	depositAnalyzer "intmax2-node/internal/use_cases/deposit_analyzer"
+	depositRelayer "intmax2-node/internal/use_cases/deposit_relayer"
 )
 
 // uc describes use case
@@ -23,7 +23,7 @@ func New(
 	log logger.Logger,
 	db SQLDriverApp,
 	sb ServiceBlockchain,
-) depositAnalyzer.UseCaseDepositAnalyzer {
+) depositRelayer.UseCaseDepositRelayer {
 	return &uc{
 		cfg: cfg,
 		log: log,
@@ -34,8 +34,10 @@ func New(
 
 func (u *uc) Do(ctx context.Context) (err error) {
 	const (
-		hName = "UseCase DepositAnalyzer"
+		hName = "UseCase DepositRelayer"
 	)
+
+	u.log.Infof("Starting DepositRelayer")
 
 	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
 	defer span.End()
@@ -45,6 +47,8 @@ func (u *uc) Do(ctx context.Context) (err error) {
 			const msg = "exec of deposit analyzer error occurred: %w"
 			err = fmt.Errorf(msg, fmt.Errorf("%+v", r))
 			open_telemetry.MarkSpanError(spanCtx, err)
+		} else {
+			u.log.Infof("Completed DepositRelayer")
 		}
 	}()
 
