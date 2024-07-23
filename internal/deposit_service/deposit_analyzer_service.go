@@ -18,6 +18,30 @@ import (
 
 const AMLRejectionThreshold = 70
 
+func fetchLastDepositAnalyzedBlockNumber(liquidity *bindings.Liquidity, depositIndex uint64) (uint64, error) {
+	if depositIndex == 0 {
+		return 0, nil
+	}
+
+	iterator, err := liquidity.FilterDepositsAnalyzed(&bind.FilterOpts{
+		Start: 0,
+		End:   nil,
+	}, []*big.Int{})
+	if err != nil {
+		return 0, fmt.Errorf("failed to filter logs: %v", err)
+	}
+
+	var blockNumber uint64
+	for iterator.Next() {
+		if iterator.Error() != nil {
+			return 0, fmt.Errorf("error exncountered: %v", iterator.Error())
+		}
+		blockNumber = iterator.Event.Raw.BlockNumber
+	}
+
+	return blockNumber, nil
+}
+
 func fetchNewDeposits(
 	ctx context.Context,
 	liquidity *bindings.Liquidity,
@@ -126,30 +150,6 @@ func analyzeDeposits(
 	return receipt, nil
 }
 
-func FetchBlockNumberByDepositsAnalyzed(liquidity *bindings.Liquidity, depositIndex uint64) (uint64, error) {
-	if depositIndex == 0 {
-		return 0, nil
-	}
-
-	iterator, err := liquidity.FilterDepositsAnalyzed(&bind.FilterOpts{
-		Start: 0,
-		End:   nil,
-	}, []*big.Int{})
-	if err != nil {
-		return 0, fmt.Errorf("failed to filter logs: %v", err)
-	}
-
-	var blockNumber uint64
-	for iterator.Next() {
-		if iterator.Error() != nil {
-			return 0, fmt.Errorf("error exncountered: %v", iterator.Error())
-		}
-		blockNumber = iterator.Event.Raw.BlockNumber
-	}
-
-	return blockNumber, nil
-}
-
 func DepositAnalyzer(
 	ctx context.Context,
 	cfg *configs.Config,
@@ -176,7 +176,7 @@ func DepositAnalyzer(
 
 	// TODO: get last deposit analyze block number from DB
 	depositAnalyzeBlockNumber := uint64(0)
-	lastDepositAnalyzedBlockNumber, err := FetchBlockNumberByDepositsAnalyzed(liquidity, depositAnalyzeBlockNumber)
+	lastDepositAnalyzedBlockNumber, err := fetchLastDepositAnalyzedBlockNumber(liquidity, depositAnalyzeBlockNumber)
 
 	if err != nil {
 		log.Fatalf("Failed to get last deposit analyzed block number: %v", err.Error())
