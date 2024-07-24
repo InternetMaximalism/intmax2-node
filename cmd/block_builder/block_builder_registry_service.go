@@ -2,7 +2,7 @@ package block_builder
 
 import (
 	"context"
-	"intmax2-node/internal/bindings"
+	"intmax2-node/internal/block_builder_registry_service"
 )
 
 //go:generate mockgen -destination=mock_block_builder_registry_service.go -package=block_builder -source=block_builder_registry_service.go
@@ -10,7 +10,7 @@ import (
 type BlockBuilderRegistryService interface {
 	GetBlockBuilder(
 		ctx context.Context,
-	) (*bindings.IBlockBuilderRegistryBlockBuilderInfo, error)
+	) (*block_builder_registry_service.IBlockBuilderRegistryBlockBuilderInfo, error)
 	UpdateBlockBuilder(
 		ctx context.Context,
 		url string,
