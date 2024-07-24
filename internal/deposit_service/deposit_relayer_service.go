@@ -93,7 +93,11 @@ func DepositRelayer(ctx context.Context, cfg *configs.Config, log logger.Logger,
 	}
 
 	if !shouldSubmit {
-		log.Infof("Deposits will not be processed at this time. Unprocessed deposit count: %d, Last relayed block number: %d", unprocessedDepositCount, *depositIndices.LastDepositRelayedEventInfo.BlockNumber)
+		log.Infof(
+			"Deposits will not be processed at this time. Unprocessed deposit count: %d, Last relayed block number: %d",
+			unprocessedDepositCount,
+			*depositIndices.LastDepositRelayedEventInfo.BlockNumber,
+		)
 		return
 	}
 
