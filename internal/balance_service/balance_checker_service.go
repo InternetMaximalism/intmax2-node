@@ -266,12 +266,15 @@ func getTokenIndexFromLiquidityContract(
 		log.Fatalf("Failed to instantiate a Liquidity contract: %v", err.Error())
 	}
 
-	tokenIndex, err := liquidity.GetTokenIndex(&bind.CallOpts{
+	ok, tokenIndex, err := liquidity.GetTokenIndex(&bind.CallOpts{
 		Pending: false,
 		Context: ctx,
 	}, tokenInfo.TokenType, tokenInfo.TokenAddress, tokenInfo.TokenID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get token index from liquidity contract: %v", err)
+	}
+	if !ok {
+		return 0, errors.New(ErrTokenNotFound)
 	}
 
 	return tokenIndex, nil

@@ -36,6 +36,13 @@ type DepositLibDeposit struct {
 	Amount            *big.Int
 }
 
+// DepositQueueLibDepositData is an auto generated low-level Go binding around an user-defined struct.
+type DepositQueueLibDepositData struct {
+	DepositHash [32]byte
+	Sender      common.Address
+	IsRejected  bool
+}
+
 // ITokenDataTokenInfo is an auto generated low-level Go binding around an user-defined struct.
 type ITokenDataTokenInfo struct {
 	TokenType    uint8
@@ -45,7 +52,7 @@ type ITokenDataTokenInfo struct {
 
 // LiquidityMetaData contains all meta data concerning the Liquidity contract.
 var LiquidityMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[],\"name\":\"AccessControlBadConfirmation\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"neededRole\",\"type\":\"bytes32\"}],\"name\":\"AccessControlUnauthorizedAccount\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"target\",\"type\":\"address\"}],\"name\":\"AddressEmptyCode\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"AddressInsufficientBalance\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"depositId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"front\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"rear\",\"type\":\"uint256\"}],\"name\":\"DepositIdIsNotInQueue\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"implementation\",\"type\":\"address\"}],\"name\":\"ERC1967InvalidImplementation\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"ERC1967NonPayable\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"FailedInnerCall\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidAmount\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"depositDataHash\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"calculatedHash\",\"type\":\"bytes32\"}],\"name\":\"InvalidDepositHash\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidInitialization\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidTokenAddress\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidTokenInfo\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidValue\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidWithdrawalAddress\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"NotInitializing\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"OnlyRecipientCanCancelDeposit\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"ReentrancyGuardReentrantCall\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"token\",\"type\":\"address\"}],\"name\":\"SafeERC20FailedOperation\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"SenderIsNotScrollMessenger\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"upToDepositId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lastDepositId\",\"type\":\"uint256\"}],\"name\":\"TriedAnalyzeNotExists\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"upToDepositId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lastAnalyzedDepositId\",\"type\":\"uint256\"}],\"name\":\"TriedCollectDepositsNotAnalyzedYet\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"rejectIndex\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lastAnalyzedDepositId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"upToDepositId\",\"type\":\"uint256\"}],\"name\":\"TriedToRejectOutOfRange\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"UUPSUnauthorizedCallContext\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"slot\",\"type\":\"bytes32\"}],\"name\":\"UUPSUnsupportedProxiableUUID\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"upToDepositId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lastAnalyzedDepositId\",\"type\":\"uint256\"}],\"name\":\"UpToDepositIdIsTooOld\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"WithdrawalAddressNotSet\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"withdrawalHash\",\"type\":\"bytes32\"}],\"name\":\"WithdrawalNotFound\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"lastProcessedClaimableWithdrawalId\",\"type\":\"uint256\"}],\"name\":\"ClaimableWithdrawalsProcessed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"depositId\",\"type\":\"uint256\"}],\"name\":\"DepositCanceled\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"depositId\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"recipientSaltHash\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"requestedAt\",\"type\":\"uint256\"}],\"name\":\"Deposited\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"lastAnalyzedDepositId\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256[]\",\"name\":\"rejectedIndices\",\"type\":\"uint256[]\"}],\"name\":\"DepositsAnalyzed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"lastRelayedDepositId\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"bytes\",\"name\":\"message\",\"type\":\"bytes\"}],\"name\":\"DepositsRelayed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"newGasLimit\",\"type\":\"uint32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"messageNonce\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"bytes\",\"name\":\"message\",\"type\":\"bytes\"}],\"name\":\"DepositsReplayed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"lastProcessedDirectWithdrawalId\",\"type\":\"uint256\"}],\"name\":\"DirectWithdrawalsProcessed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint64\",\"name\":\"version\",\"type\":\"uint64\"}],\"name\":\"Initialized\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"previousAdminRole\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"newAdminRole\",\"type\":\"bytes32\"}],\"name\":\"RoleAdminChanged\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"}],\"name\":\"RoleGranted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"}],\"name\":\"RoleRevoked\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"implementation\",\"type\":\"address\"}],\"name\":\"Upgraded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"withdrawalHash\",\"type\":\"bytes32\"}],\"name\":\"WithdrawalClaimable\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"ANALYZER\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"DEFAULT_ADMIN_ROLE\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"UPGRADE_INTERFACE_VERSION\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"initialERC20Tokens\",\"type\":\"address[]\"}],\"name\":\"__TokenData_init\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"upToDepositId\",\"type\":\"uint256\"},{\"internalType\":\"uint256[]\",\"name\":\"rejectDepositIndices\",\"type\":\"uint256[]\"}],\"name\":\"analyzeDeposits\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"depositId\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"recipientSaltHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"internalType\":\"structDepositLib.Deposit\",\"name\":\"deposit\",\"type\":\"tuple\"}],\"name\":\"cancelDeposit\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"id\",\"type\":\"uint256\"}],\"internalType\":\"structWithdrawalLib.Withdrawal[]\",\"name\":\"withdrawals\",\"type\":\"tuple[]\"}],\"name\":\"claimWithdrawals\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"recipientSaltHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"tokenId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"depositERC1155\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"recipientSaltHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"depositERC20\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"recipientSaltHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"tokenId\",\"type\":\"uint256\"}],\"name\":\"depositERC721\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"recipientSaltHash\",\"type\":\"bytes32\"}],\"name\":\"depositETH\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"}],\"name\":\"getRoleAdmin\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"}],\"name\":\"getTokenInfo\",\"outputs\":[{\"components\":[{\"internalType\":\"enumITokenData.TokenType\",\"name\":\"tokenType\",\"type\":\"uint8\"},{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"tokenId\",\"type\":\"uint256\"}],\"internalType\":\"structITokenData.TokenInfo\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"grantRole\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"hasRole\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_l1ScrollMessenger\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_rollup\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_withdrawal\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_analyzer\",\"type\":\"address\"},{\"internalType\":\"address[]\",\"name\":\"initialERC20Tokens\",\"type\":\"address[]\"}],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"lastProcessedClaimableWithdrawalId\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"lastProcessedDirectWithdrawalId\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_lastProcessedClaimableWithdrawalId\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"withdrawalHahes\",\"type\":\"bytes32[]\"}],\"name\":\"processClaimableWithdrawals\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_lastProcessedDirectWithdrawalId\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"id\",\"type\":\"uint256\"}],\"internalType\":\"structWithdrawalLib.Withdrawal[]\",\"name\":\"withdrawals\",\"type\":\"tuple[]\"}],\"name\":\"processDirectWithdrawals\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_lastProcessedDirectWithdrawalId\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"id\",\"type\":\"uint256\"}],\"internalType\":\"structWithdrawalLib.Withdrawal[]\",\"name\":\"withdrawals\",\"type\":\"tuple[]\"},{\"internalType\":\"uint256\",\"name\":\"_lastProcessedClaimableWithdrawalId\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"withdrawalHahes\",\"type\":\"bytes32[]\"}],\"name\":\"processWithdrawals\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"proxiableUUID\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"upToDepositId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"}],\"name\":\"relayDeposits\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"callerConfirmation\",\"type\":\"address\"}],\"name\":\"renounceRole\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"message\",\"type\":\"bytes\"},{\"internalType\":\"uint32\",\"name\":\"newGasLimit\",\"type\":\"uint32\"},{\"internalType\":\"uint256\",\"name\":\"messageNonce\",\"type\":\"uint256\"}],\"name\":\"replayDeposits\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"revokeRole\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes4\",\"name\":\"interfaceId\",\"type\":\"bytes4\"}],\"name\":\"supportsInterface\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"newImplementation\",\"type\":\"address\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"upgradeToAndCall\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[],\"name\":\"AccessControlBadConfirmation\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"neededRole\",\"type\":\"bytes32\"}],\"name\":\"AccessControlUnauthorizedAccount\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"target\",\"type\":\"address\"}],\"name\":\"AddressEmptyCode\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"AddressInsufficientBalance\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"implementation\",\"type\":\"address\"}],\"name\":\"ERC1967InvalidImplementation\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"ERC1967NonPayable\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"FailedInnerCall\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidAmount\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"depositDataHash\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"calculatedHash\",\"type\":\"bytes32\"}],\"name\":\"InvalidDepositHash\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidInitialization\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidTokenAddress\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidTokenInfo\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidValue\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidWithdrawalAddress\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"NotInitializing\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"OnlyRecipientCanCancelDeposit\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"ReentrancyGuardReentrantCall\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"token\",\"type\":\"address\"}],\"name\":\"SafeERC20FailedOperation\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"SenderIsNotScrollMessenger\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"upToDepositId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lastDepositId\",\"type\":\"uint256\"}],\"name\":\"TriedAnalyzeNotExists\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"upToDepositId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lastAnalyzedDepositId\",\"type\":\"uint256\"}],\"name\":\"TriedCollectDepositsNotAnalyzedYet\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"rejectIndex\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lastAnalyzedDepositId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"upToDepositId\",\"type\":\"uint256\"}],\"name\":\"TriedToRejectOutOfRange\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"UUPSUnauthorizedCallContext\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"slot\",\"type\":\"bytes32\"}],\"name\":\"UUPSUnsupportedProxiableUUID\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"upToDepositId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lastAnalyzedDepositId\",\"type\":\"uint256\"}],\"name\":\"UpToDepositIdIsTooOld\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"WithdrawalAddressNotSet\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"withdrawalHash\",\"type\":\"bytes32\"}],\"name\":\"WithdrawalNotFound\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"lastProcessedClaimableWithdrawalId\",\"type\":\"uint256\"}],\"name\":\"ClaimableWithdrawalsProcessed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"depositId\",\"type\":\"uint256\"}],\"name\":\"DepositCanceled\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"depositId\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"recipientSaltHash\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"requestedAt\",\"type\":\"uint256\"}],\"name\":\"Deposited\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"lastAnalyzedDepositId\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256[]\",\"name\":\"rejectedIndices\",\"type\":\"uint256[]\"}],\"name\":\"DepositsAnalyzed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"lastRelayedDepositId\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"bytes\",\"name\":\"message\",\"type\":\"bytes\"}],\"name\":\"DepositsRelayed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"lastProcessedDirectWithdrawalId\",\"type\":\"uint256\"}],\"name\":\"DirectWithdrawalsProcessed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint64\",\"name\":\"version\",\"type\":\"uint64\"}],\"name\":\"Initialized\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"previousAdminRole\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"newAdminRole\",\"type\":\"bytes32\"}],\"name\":\"RoleAdminChanged\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"}],\"name\":\"RoleGranted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"}],\"name\":\"RoleRevoked\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"implementation\",\"type\":\"address\"}],\"name\":\"Upgraded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"withdrawalHash\",\"type\":\"bytes32\"}],\"name\":\"WithdrawalClaimable\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"ANALYZER\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"DEFAULT_ADMIN_ROLE\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"UPGRADE_INTERFACE_VERSION\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"initialERC20Tokens\",\"type\":\"address[]\"}],\"name\":\"__TokenData_init\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"upToDepositId\",\"type\":\"uint256\"},{\"internalType\":\"uint256[]\",\"name\":\"rejectDepositIds\",\"type\":\"uint256[]\"}],\"name\":\"analyzeDeposits\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"depositId\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"recipientSaltHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"internalType\":\"structDepositLib.Deposit\",\"name\":\"deposit\",\"type\":\"tuple\"}],\"name\":\"cancelDeposit\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"id\",\"type\":\"uint256\"}],\"internalType\":\"structWithdrawalLib.Withdrawal[]\",\"name\":\"withdrawals\",\"type\":\"tuple[]\"}],\"name\":\"claimWithdrawals\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"recipientSaltHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"tokenId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"depositERC1155\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"recipientSaltHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"depositERC20\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"recipientSaltHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"tokenId\",\"type\":\"uint256\"}],\"name\":\"depositERC721\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"recipientSaltHash\",\"type\":\"bytes32\"}],\"name\":\"depositETH\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"depositId\",\"type\":\"uint256\"}],\"name\":\"getDepositData\",\"outputs\":[{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"depositHash\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"},{\"internalType\":\"bool\",\"name\":\"isRejected\",\"type\":\"bool\"}],\"internalType\":\"structDepositQueueLib.DepositData\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getLastAnalyzedDepositId\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getLastDepositId\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getLastRelayedDepositId\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"}],\"name\":\"getRoleAdmin\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"enumITokenData.TokenType\",\"name\":\"tokenType\",\"type\":\"uint8\"},{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"tokenId\",\"type\":\"uint256\"}],\"name\":\"getTokenIndex\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"},{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"}],\"name\":\"getTokenInfo\",\"outputs\":[{\"components\":[{\"internalType\":\"enumITokenData.TokenType\",\"name\":\"tokenType\",\"type\":\"uint8\"},{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"tokenId\",\"type\":\"uint256\"}],\"internalType\":\"structITokenData.TokenInfo\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"grantRole\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"hasRole\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_l1ScrollMessenger\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_rollup\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_withdrawal\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_analyzer\",\"type\":\"address\"},{\"internalType\":\"address[]\",\"name\":\"initialERC20Tokens\",\"type\":\"address[]\"}],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_lastProcessedClaimableWithdrawalId\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"withdrawalHahes\",\"type\":\"bytes32[]\"}],\"name\":\"processClaimableWithdrawals\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_lastProcessedDirectWithdrawalId\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"id\",\"type\":\"uint256\"}],\"internalType\":\"structWithdrawalLib.Withdrawal[]\",\"name\":\"withdrawals\",\"type\":\"tuple[]\"}],\"name\":\"processDirectWithdrawals\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_lastProcessedDirectWithdrawalId\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"id\",\"type\":\"uint256\"}],\"internalType\":\"structWithdrawalLib.Withdrawal[]\",\"name\":\"withdrawals\",\"type\":\"tuple[]\"},{\"internalType\":\"uint256\",\"name\":\"_lastProcessedClaimableWithdrawalId\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"withdrawalHahes\",\"type\":\"bytes32[]\"}],\"name\":\"processWithdrawals\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"proxiableUUID\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"upToDepositId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"}],\"name\":\"relayDeposits\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"callerConfirmation\",\"type\":\"address\"}],\"name\":\"renounceRole\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"revokeRole\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes4\",\"name\":\"interfaceId\",\"type\":\"bytes4\"}],\"name\":\"supportsInterface\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"newImplementation\",\"type\":\"address\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"upgradeToAndCall\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
 }
 
 // LiquidityABI is the input ABI used to generate the binding from.
@@ -287,6 +294,130 @@ func (_Liquidity *LiquidityCallerSession) UPGRADEINTERFACEVERSION() (string, err
 	return _Liquidity.Contract.UPGRADEINTERFACEVERSION(&_Liquidity.CallOpts)
 }
 
+// GetDepositData is a free data retrieval call binding the contract method 0xc13819b6.
+//
+// Solidity: function getDepositData(uint256 depositId) view returns((bytes32,address,bool))
+func (_Liquidity *LiquidityCaller) GetDepositData(opts *bind.CallOpts, depositId *big.Int) (DepositQueueLibDepositData, error) {
+	var out []interface{}
+	err := _Liquidity.contract.Call(opts, &out, "getDepositData", depositId)
+
+	if err != nil {
+		return *new(DepositQueueLibDepositData), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(DepositQueueLibDepositData)).(*DepositQueueLibDepositData)
+
+	return out0, err
+
+}
+
+// GetDepositData is a free data retrieval call binding the contract method 0xc13819b6.
+//
+// Solidity: function getDepositData(uint256 depositId) view returns((bytes32,address,bool))
+func (_Liquidity *LiquiditySession) GetDepositData(depositId *big.Int) (DepositQueueLibDepositData, error) {
+	return _Liquidity.Contract.GetDepositData(&_Liquidity.CallOpts, depositId)
+}
+
+// GetDepositData is a free data retrieval call binding the contract method 0xc13819b6.
+//
+// Solidity: function getDepositData(uint256 depositId) view returns((bytes32,address,bool))
+func (_Liquidity *LiquidityCallerSession) GetDepositData(depositId *big.Int) (DepositQueueLibDepositData, error) {
+	return _Liquidity.Contract.GetDepositData(&_Liquidity.CallOpts, depositId)
+}
+
+// GetLastAnalyzedDepositId is a free data retrieval call binding the contract method 0x6af5e3bd.
+//
+// Solidity: function getLastAnalyzedDepositId() view returns(uint256)
+func (_Liquidity *LiquidityCaller) GetLastAnalyzedDepositId(opts *bind.CallOpts) (*big.Int, error) {
+	var out []interface{}
+	err := _Liquidity.contract.Call(opts, &out, "getLastAnalyzedDepositId")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetLastAnalyzedDepositId is a free data retrieval call binding the contract method 0x6af5e3bd.
+//
+// Solidity: function getLastAnalyzedDepositId() view returns(uint256)
+func (_Liquidity *LiquiditySession) GetLastAnalyzedDepositId() (*big.Int, error) {
+	return _Liquidity.Contract.GetLastAnalyzedDepositId(&_Liquidity.CallOpts)
+}
+
+// GetLastAnalyzedDepositId is a free data retrieval call binding the contract method 0x6af5e3bd.
+//
+// Solidity: function getLastAnalyzedDepositId() view returns(uint256)
+func (_Liquidity *LiquidityCallerSession) GetLastAnalyzedDepositId() (*big.Int, error) {
+	return _Liquidity.Contract.GetLastAnalyzedDepositId(&_Liquidity.CallOpts)
+}
+
+// GetLastDepositId is a free data retrieval call binding the contract method 0xdd9ea299.
+//
+// Solidity: function getLastDepositId() view returns(uint256)
+func (_Liquidity *LiquidityCaller) GetLastDepositId(opts *bind.CallOpts) (*big.Int, error) {
+	var out []interface{}
+	err := _Liquidity.contract.Call(opts, &out, "getLastDepositId")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetLastDepositId is a free data retrieval call binding the contract method 0xdd9ea299.
+//
+// Solidity: function getLastDepositId() view returns(uint256)
+func (_Liquidity *LiquiditySession) GetLastDepositId() (*big.Int, error) {
+	return _Liquidity.Contract.GetLastDepositId(&_Liquidity.CallOpts)
+}
+
+// GetLastDepositId is a free data retrieval call binding the contract method 0xdd9ea299.
+//
+// Solidity: function getLastDepositId() view returns(uint256)
+func (_Liquidity *LiquidityCallerSession) GetLastDepositId() (*big.Int, error) {
+	return _Liquidity.Contract.GetLastDepositId(&_Liquidity.CallOpts)
+}
+
+// GetLastRelayedDepositId is a free data retrieval call binding the contract method 0x67517837.
+//
+// Solidity: function getLastRelayedDepositId() view returns(uint256)
+func (_Liquidity *LiquidityCaller) GetLastRelayedDepositId(opts *bind.CallOpts) (*big.Int, error) {
+	var out []interface{}
+	err := _Liquidity.contract.Call(opts, &out, "getLastRelayedDepositId")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetLastRelayedDepositId is a free data retrieval call binding the contract method 0x67517837.
+//
+// Solidity: function getLastRelayedDepositId() view returns(uint256)
+func (_Liquidity *LiquiditySession) GetLastRelayedDepositId() (*big.Int, error) {
+	return _Liquidity.Contract.GetLastRelayedDepositId(&_Liquidity.CallOpts)
+}
+
+// GetLastRelayedDepositId is a free data retrieval call binding the contract method 0x67517837.
+//
+// Solidity: function getLastRelayedDepositId() view returns(uint256)
+func (_Liquidity *LiquidityCallerSession) GetLastRelayedDepositId() (*big.Int, error) {
+	return _Liquidity.Contract.GetLastRelayedDepositId(&_Liquidity.CallOpts)
+}
+
 // GetRoleAdmin is a free data retrieval call binding the contract method 0x248a9ca3.
 //
 // Solidity: function getRoleAdmin(bytes32 role) view returns(bytes32)
@@ -316,6 +447,38 @@ func (_Liquidity *LiquiditySession) GetRoleAdmin(role [32]byte) ([32]byte, error
 // Solidity: function getRoleAdmin(bytes32 role) view returns(bytes32)
 func (_Liquidity *LiquidityCallerSession) GetRoleAdmin(role [32]byte) ([32]byte, error) {
 	return _Liquidity.Contract.GetRoleAdmin(&_Liquidity.CallOpts, role)
+}
+
+// GetTokenIndex is a free data retrieval call binding the contract method 0x381175f6.
+//
+// Solidity: function getTokenIndex(uint8 tokenType, address tokenAddress, uint256 tokenId) view returns(bool, uint32)
+func (_Liquidity *LiquidityCaller) GetTokenIndex(opts *bind.CallOpts, tokenType uint8, tokenAddress common.Address, tokenId *big.Int) (bool, uint32, error) {
+	var out []interface{}
+	err := _Liquidity.contract.Call(opts, &out, "getTokenIndex", tokenType, tokenAddress, tokenId)
+
+	if err != nil {
+		return *new(bool), *new(uint32), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+	out1 := *abi.ConvertType(out[1], new(uint32)).(*uint32)
+
+	return out0, out1, err
+
+}
+
+// GetTokenIndex is a free data retrieval call binding the contract method 0x381175f6.
+//
+// Solidity: function getTokenIndex(uint8 tokenType, address tokenAddress, uint256 tokenId) view returns(bool, uint32)
+func (_Liquidity *LiquiditySession) GetTokenIndex(tokenType uint8, tokenAddress common.Address, tokenId *big.Int) (bool, uint32, error) {
+	return _Liquidity.Contract.GetTokenIndex(&_Liquidity.CallOpts, tokenType, tokenAddress, tokenId)
+}
+
+// GetTokenIndex is a free data retrieval call binding the contract method 0x381175f6.
+//
+// Solidity: function getTokenIndex(uint8 tokenType, address tokenAddress, uint256 tokenId) view returns(bool, uint32)
+func (_Liquidity *LiquidityCallerSession) GetTokenIndex(tokenType uint8, tokenAddress common.Address, tokenId *big.Int) (bool, uint32, error) {
+	return _Liquidity.Contract.GetTokenIndex(&_Liquidity.CallOpts, tokenType, tokenAddress, tokenId)
 }
 
 // GetTokenInfo is a free data retrieval call binding the contract method 0xcbd90cd0.
@@ -378,68 +541,6 @@ func (_Liquidity *LiquiditySession) HasRole(role [32]byte, account common.Addres
 // Solidity: function hasRole(bytes32 role, address account) view returns(bool)
 func (_Liquidity *LiquidityCallerSession) HasRole(role [32]byte, account common.Address) (bool, error) {
 	return _Liquidity.Contract.HasRole(&_Liquidity.CallOpts, role, account)
-}
-
-// LastProcessedClaimableWithdrawalId is a free data retrieval call binding the contract method 0x32ddb179.
-//
-// Solidity: function lastProcessedClaimableWithdrawalId() view returns(uint256)
-func (_Liquidity *LiquidityCaller) LastProcessedClaimableWithdrawalId(opts *bind.CallOpts) (*big.Int, error) {
-	var out []interface{}
-	err := _Liquidity.contract.Call(opts, &out, "lastProcessedClaimableWithdrawalId")
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// LastProcessedClaimableWithdrawalId is a free data retrieval call binding the contract method 0x32ddb179.
-//
-// Solidity: function lastProcessedClaimableWithdrawalId() view returns(uint256)
-func (_Liquidity *LiquiditySession) LastProcessedClaimableWithdrawalId() (*big.Int, error) {
-	return _Liquidity.Contract.LastProcessedClaimableWithdrawalId(&_Liquidity.CallOpts)
-}
-
-// LastProcessedClaimableWithdrawalId is a free data retrieval call binding the contract method 0x32ddb179.
-//
-// Solidity: function lastProcessedClaimableWithdrawalId() view returns(uint256)
-func (_Liquidity *LiquidityCallerSession) LastProcessedClaimableWithdrawalId() (*big.Int, error) {
-	return _Liquidity.Contract.LastProcessedClaimableWithdrawalId(&_Liquidity.CallOpts)
-}
-
-// LastProcessedDirectWithdrawalId is a free data retrieval call binding the contract method 0xdebc9946.
-//
-// Solidity: function lastProcessedDirectWithdrawalId() view returns(uint256)
-func (_Liquidity *LiquidityCaller) LastProcessedDirectWithdrawalId(opts *bind.CallOpts) (*big.Int, error) {
-	var out []interface{}
-	err := _Liquidity.contract.Call(opts, &out, "lastProcessedDirectWithdrawalId")
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// LastProcessedDirectWithdrawalId is a free data retrieval call binding the contract method 0xdebc9946.
-//
-// Solidity: function lastProcessedDirectWithdrawalId() view returns(uint256)
-func (_Liquidity *LiquiditySession) LastProcessedDirectWithdrawalId() (*big.Int, error) {
-	return _Liquidity.Contract.LastProcessedDirectWithdrawalId(&_Liquidity.CallOpts)
-}
-
-// LastProcessedDirectWithdrawalId is a free data retrieval call binding the contract method 0xdebc9946.
-//
-// Solidity: function lastProcessedDirectWithdrawalId() view returns(uint256)
-func (_Liquidity *LiquidityCallerSession) LastProcessedDirectWithdrawalId() (*big.Int, error) {
-	return _Liquidity.Contract.LastProcessedDirectWithdrawalId(&_Liquidity.CallOpts)
 }
 
 // ProxiableUUID is a free data retrieval call binding the contract method 0x52d1902d.
@@ -527,23 +628,23 @@ func (_Liquidity *LiquidityTransactorSession) TokenDataInit(initialERC20Tokens [
 
 // AnalyzeDeposits is a paid mutator transaction binding the contract method 0xd9013ab8.
 //
-// Solidity: function analyzeDeposits(uint256 upToDepositId, uint256[] rejectDepositIndices) returns()
-func (_Liquidity *LiquidityTransactor) AnalyzeDeposits(opts *bind.TransactOpts, upToDepositId *big.Int, rejectDepositIndices []*big.Int) (*types.Transaction, error) {
-	return _Liquidity.contract.Transact(opts, "analyzeDeposits", upToDepositId, rejectDepositIndices)
+// Solidity: function analyzeDeposits(uint256 upToDepositId, uint256[] rejectDepositIds) returns()
+func (_Liquidity *LiquidityTransactor) AnalyzeDeposits(opts *bind.TransactOpts, upToDepositId *big.Int, rejectDepositIds []*big.Int) (*types.Transaction, error) {
+	return _Liquidity.contract.Transact(opts, "analyzeDeposits", upToDepositId, rejectDepositIds)
 }
 
 // AnalyzeDeposits is a paid mutator transaction binding the contract method 0xd9013ab8.
 //
-// Solidity: function analyzeDeposits(uint256 upToDepositId, uint256[] rejectDepositIndices) returns()
-func (_Liquidity *LiquiditySession) AnalyzeDeposits(upToDepositId *big.Int, rejectDepositIndices []*big.Int) (*types.Transaction, error) {
-	return _Liquidity.Contract.AnalyzeDeposits(&_Liquidity.TransactOpts, upToDepositId, rejectDepositIndices)
+// Solidity: function analyzeDeposits(uint256 upToDepositId, uint256[] rejectDepositIds) returns()
+func (_Liquidity *LiquiditySession) AnalyzeDeposits(upToDepositId *big.Int, rejectDepositIds []*big.Int) (*types.Transaction, error) {
+	return _Liquidity.Contract.AnalyzeDeposits(&_Liquidity.TransactOpts, upToDepositId, rejectDepositIds)
 }
 
 // AnalyzeDeposits is a paid mutator transaction binding the contract method 0xd9013ab8.
 //
-// Solidity: function analyzeDeposits(uint256 upToDepositId, uint256[] rejectDepositIndices) returns()
-func (_Liquidity *LiquidityTransactorSession) AnalyzeDeposits(upToDepositId *big.Int, rejectDepositIndices []*big.Int) (*types.Transaction, error) {
-	return _Liquidity.Contract.AnalyzeDeposits(&_Liquidity.TransactOpts, upToDepositId, rejectDepositIndices)
+// Solidity: function analyzeDeposits(uint256 upToDepositId, uint256[] rejectDepositIds) returns()
+func (_Liquidity *LiquidityTransactorSession) AnalyzeDeposits(upToDepositId *big.Int, rejectDepositIds []*big.Int) (*types.Transaction, error) {
+	return _Liquidity.Contract.AnalyzeDeposits(&_Liquidity.TransactOpts, upToDepositId, rejectDepositIds)
 }
 
 // CancelDeposit is a paid mutator transaction binding the contract method 0x6ef5475b.
@@ -817,27 +918,6 @@ func (_Liquidity *LiquiditySession) RenounceRole(role [32]byte, callerConfirmati
 // Solidity: function renounceRole(bytes32 role, address callerConfirmation) returns()
 func (_Liquidity *LiquidityTransactorSession) RenounceRole(role [32]byte, callerConfirmation common.Address) (*types.Transaction, error) {
 	return _Liquidity.Contract.RenounceRole(&_Liquidity.TransactOpts, role, callerConfirmation)
-}
-
-// ReplayDeposits is a paid mutator transaction binding the contract method 0xf33e7c11.
-//
-// Solidity: function replayDeposits(bytes message, uint32 newGasLimit, uint256 messageNonce) payable returns()
-func (_Liquidity *LiquidityTransactor) ReplayDeposits(opts *bind.TransactOpts, message []byte, newGasLimit uint32, messageNonce *big.Int) (*types.Transaction, error) {
-	return _Liquidity.contract.Transact(opts, "replayDeposits", message, newGasLimit, messageNonce)
-}
-
-// ReplayDeposits is a paid mutator transaction binding the contract method 0xf33e7c11.
-//
-// Solidity: function replayDeposits(bytes message, uint32 newGasLimit, uint256 messageNonce) payable returns()
-func (_Liquidity *LiquiditySession) ReplayDeposits(message []byte, newGasLimit uint32, messageNonce *big.Int) (*types.Transaction, error) {
-	return _Liquidity.Contract.ReplayDeposits(&_Liquidity.TransactOpts, message, newGasLimit, messageNonce)
-}
-
-// ReplayDeposits is a paid mutator transaction binding the contract method 0xf33e7c11.
-//
-// Solidity: function replayDeposits(bytes message, uint32 newGasLimit, uint256 messageNonce) payable returns()
-func (_Liquidity *LiquidityTransactorSession) ReplayDeposits(message []byte, newGasLimit uint32, messageNonce *big.Int) (*types.Transaction, error) {
-	return _Liquidity.Contract.ReplayDeposits(&_Liquidity.TransactOpts, message, newGasLimit, messageNonce)
 }
 
 // RevokeRole is a paid mutator transaction binding the contract method 0xd547741f.
@@ -1612,142 +1692,6 @@ func (_Liquidity *LiquidityFilterer) WatchDepositsRelayed(opts *bind.WatchOpts, 
 func (_Liquidity *LiquidityFilterer) ParseDepositsRelayed(log types.Log) (*LiquidityDepositsRelayed, error) {
 	event := new(LiquidityDepositsRelayed)
 	if err := _Liquidity.contract.UnpackLog(event, "DepositsRelayed", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// LiquidityDepositsReplayedIterator is returned from FilterDepositsReplayed and is used to iterate over the raw logs and unpacked data for DepositsReplayed events raised by the Liquidity contract.
-type LiquidityDepositsReplayedIterator struct {
-	Event *LiquidityDepositsReplayed // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *LiquidityDepositsReplayedIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(LiquidityDepositsReplayed)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(LiquidityDepositsReplayed)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *LiquidityDepositsReplayedIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *LiquidityDepositsReplayedIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// LiquidityDepositsReplayed represents a DepositsReplayed event raised by the Liquidity contract.
-type LiquidityDepositsReplayed struct {
-	NewGasLimit  uint32
-	MessageNonce *big.Int
-	Message      []byte
-	Raw          types.Log // Blockchain specific contextual infos
-}
-
-// FilterDepositsReplayed is a free log retrieval operation binding the contract event 0xf5c12b2d2cfce1b0a26156801ec4afed5e94b6fd3cbe492e197b66e59fbe944f.
-//
-// Solidity: event DepositsReplayed(uint32 newGasLimit, uint256 messageNonce, bytes message)
-func (_Liquidity *LiquidityFilterer) FilterDepositsReplayed(opts *bind.FilterOpts) (*LiquidityDepositsReplayedIterator, error) {
-
-	logs, sub, err := _Liquidity.contract.FilterLogs(opts, "DepositsReplayed")
-	if err != nil {
-		return nil, err
-	}
-	return &LiquidityDepositsReplayedIterator{contract: _Liquidity.contract, event: "DepositsReplayed", logs: logs, sub: sub}, nil
-}
-
-// WatchDepositsReplayed is a free log subscription operation binding the contract event 0xf5c12b2d2cfce1b0a26156801ec4afed5e94b6fd3cbe492e197b66e59fbe944f.
-//
-// Solidity: event DepositsReplayed(uint32 newGasLimit, uint256 messageNonce, bytes message)
-func (_Liquidity *LiquidityFilterer) WatchDepositsReplayed(opts *bind.WatchOpts, sink chan<- *LiquidityDepositsReplayed) (event.Subscription, error) {
-
-	logs, sub, err := _Liquidity.contract.WatchLogs(opts, "DepositsReplayed")
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(LiquidityDepositsReplayed)
-				if err := _Liquidity.contract.UnpackLog(event, "DepositsReplayed", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseDepositsReplayed is a log parse operation binding the contract event 0xf5c12b2d2cfce1b0a26156801ec4afed5e94b6fd3cbe492e197b66e59fbe944f.
-//
-// Solidity: event DepositsReplayed(uint32 newGasLimit, uint256 messageNonce, bytes message)
-func (_Liquidity *LiquidityFilterer) ParseDepositsReplayed(log types.Log) (*LiquidityDepositsReplayed, error) {
-	event := new(LiquidityDepositsReplayed)
-	if err := _Liquidity.contract.UnpackLog(event, "DepositsReplayed", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
