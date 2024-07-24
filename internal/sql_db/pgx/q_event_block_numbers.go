@@ -66,7 +66,7 @@ func (p *pgx) EventBlockNumbersByEventNames(eventNames []string) ([]*mDBApp.Even
 	var results []*mDBApp.EventBlockNumber
 	for rows.Next() {
 		var e models.EventBlockNumber
-		err := rows.Scan(
+		err = rows.Scan(
 			&e.EventName,
 			&e.LastProcessedBlockNumber,
 		)
@@ -77,7 +77,7 @@ func (p *pgx) EventBlockNumbersByEventNames(eventNames []string) ([]*mDBApp.Even
 		results = append(results, &eDBApp)
 	}
 
-	if err := rows.Err(); err != nil {
+	if err = rows.Err(); err != nil {
 		return nil, errPgx.Err(err)
 	}
 

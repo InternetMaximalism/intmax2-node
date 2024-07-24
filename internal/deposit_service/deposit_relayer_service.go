@@ -19,6 +19,7 @@ import (
 
 const depositThreshold uint64 = 128
 const duration = 1 * time.Hour
+const FixedDepositValueInWei = 1e17 // 0.1 ETH in Wei
 
 type DepositIndices struct {
 	LastDepositAnalyzedEventInfo *DepositEventInfo
@@ -141,7 +142,7 @@ func (d *DepositRelayerService) getBlockNumberEvents() (map[string]*mDBApp.Event
 	return results, nil
 }
 
-func (d *DepositRelayerService) fetchLastDepositEventIndices(depositAnalyzedBlockNumber uint64, depositRelayedBlockNumber uint64) (DepositIndices, error) {
+func (d *DepositRelayerService) fetchLastDepositEventIndices(depositAnalyzedBlockNumber, depositRelayedBlockNumber uint64) (DepositIndices, error) {
 	type result struct {
 		eventInfo *DepositEventInfo
 		err       error
@@ -217,16 +218,16 @@ func (d *DepositRelayerService) shouldProcessDeposits(unprocessedDepositCount, r
 	return true, nil
 }
 
-func (d *DepositRelayerService) relayDeposits(maxLastSeenDepositIndex uint64, numDepositsToRelay uint64) (*types.Receipt, error) {
+func (d *DepositRelayerService) relayDeposits(maxLastSeenDepositIndex, numDepositsToRelay uint64) (*types.Receipt, error) {
 	transactOpts, err := utils.CreateTransactor(d.cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	transactOpts.Value = big.NewInt(0).Mul(big.NewInt(1e17), big.NewInt(1)) // NOTE: Fixed Value 0.1 ETH
+	transactOpts.Value = big.NewInt(FixedDepositValueInWei)
 	gasLimit := calculateRelayDepositsGasLimit(numDepositsToRelay)
 
-	tx, err := d.liquidity.RelayDeposits(transactOpts, new(big.Int).SetUint64(uint64(maxLastSeenDepositIndex)), new(big.Int).SetUint64(uint64(gasLimit)))
+	tx, err := d.liquidity.RelayDeposits(transactOpts, new(big.Int).SetUint64(maxLastSeenDepositIndex), new(big.Int).SetUint64(gasLimit))
 	if err != nil {
 		return nil, fmt.Errorf("failed to send RelayDeposits transaction: %w", err)
 	}
