@@ -175,25 +175,24 @@ func relayDeposits(ctx context.Context, cfg *configs.Config, client *ethclient.C
 func DepositRelayer(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, sb ServiceBlockchain) {
 	link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
 	if err != nil {
-		log.Fatalf(err.Error())
+		panic(fmt.Sprintf("Failed to get Ethereum network chain link: %v", err.Error()))
 	}
 
 	var client *ethclient.Client
 	client, err = utils.NewClient(link)
 	if err != nil {
-		log.Fatalf(err.Error())
+		panic(fmt.Sprintf("Failed to create new client: %v", err.Error()))
 	}
 	defer client.Close()
 
 	liquidity, err := bindings.NewLiquidity(common.HexToAddress(cfg.Blockchain.LiquidityContractAddress), client)
 	if err != nil {
-		log.Fatalf("Failed to instantiate a Liquidity contract: %v", err.Error())
+		panic(fmt.Sprintf("Failed to instantiate a Liquidity contract: %v", err.Error()))
 	}
 
 	blockNumberEvents, err := getBlockNumberEvents(db)
 	if err != nil {
-		log.Errorf("Failed to get block number events: %v", err)
-		return
+		panic(fmt.Sprintf("Failed to get block number events: %v", err.Error()))
 	}
 
 	depositIndices, err := fetchLastDepositEventIndices(
@@ -202,7 +201,7 @@ func DepositRelayer(ctx context.Context, cfg *configs.Config, log logger.Logger,
 		uint64(blockNumberEvents[mDBApp.DepositsRelayedEvent].LastProcessedBlockNumber),
 	)
 	if err != nil {
-		log.Fatalf("Failed to fetch deposit indices: %v", err.Error())
+		panic(fmt.Sprintf("Failed to fetch deposit indices: %v", err.Error()))
 	}
 
 	unprocessedDepositCount := *depositIndices.LastDepositAnalyzedEventInfo.LastDepositId - *depositIndices.LastDepositRelayedEventInfo.LastDepositId
@@ -213,8 +212,7 @@ func DepositRelayer(ctx context.Context, cfg *configs.Config, log logger.Logger,
 		*depositIndices.LastDepositRelayedEventInfo.BlockNumber,
 	)
 	if err != nil {
-		log.Fatalf("Error in threshold and time diff check: %v", err)
-		return
+		panic(fmt.Sprintf("Error in threshold and time diff check: %v", err.Error()))
 	}
 
 	if !shouldSubmit {
@@ -223,24 +221,18 @@ func DepositRelayer(ctx context.Context, cfg *configs.Config, log logger.Logger,
 
 	receipt, err := relayDeposits(ctx, cfg, client, liquidity, *depositIndices.LastDepositAnalyzedEventInfo.LastDepositId, unprocessedDepositCount)
 	if err != nil {
-		log.Fatalf("Failed to relay deposits: %v", err.Error())
+		panic(fmt.Sprintf("Failed to relay deposits: %v", err.Error()))
 	}
 
 	if receipt == nil {
 		return
 	}
 
-	if receipt.Status == types.ReceiptStatusSuccessful {
-		log.Infof("Successfully relay deposits")
-	} else {
-		log.Infof("Failed to relay deposits")
-	}
-
 	switch receipt.Status {
 	case types.ReceiptStatusSuccessful:
 		log.Infof("Successfully relay deposits")
 	case types.ReceiptStatusFailed:
-		log.Errorf("Transaction failed: relay deposits unsuccessful")
+		panic("Transaction failed: relay deposits unsuccessful")
 	default:
 		log.Warnf("Unexpected transaction status: %d", receipt.Status)
 	}
@@ -249,8 +241,7 @@ func DepositRelayer(ctx context.Context, cfg *configs.Config, log logger.Logger,
 
 	updatedEvent, err := db.UpsertEventBlockNumber(mDBApp.DepositsRelayedEvent, int64(*depositIndices.LastDepositRelayedEventInfo.BlockNumber))
 	if err != nil {
-		log.Errorf("Failed to upsert event block number: %v", err)
-		return
+		panic(fmt.Sprintf("Failed to upsert event block number: %v", err.Error()))
 	}
 	log.Infof("Updated DepositsRelayedEvent block number to %d", updatedEvent.LastProcessedBlockNumber)
 }
