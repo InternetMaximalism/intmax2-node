@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"intmax2-node/internal/bindings"
+	"intmax2-node/internal/block_builder_registry_service"
 	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/logger"
 
@@ -59,7 +59,7 @@ func infoCmd(
 			l.Fatalf(msg, err.Error())
 		}
 
-		var info *bindings.IBlockBuilderRegistryBlockBuilderInfo
+		var info *block_builder_registry_service.IBlockBuilderRegistryBlockBuilderInfo
 		info, err = bbr.GetBlockBuilder(ctx)
 		if err != nil {
 			const msg = "get the block builder info error occurred: %v"
