@@ -120,21 +120,22 @@ func DepositAnalyzer(ctx context.Context, cfg *configs.Config, log logger.Logger
 	}
 
 	if receipt == nil {
-		return
+		panic("Received nil receipt for transaction")
 	}
 
 	switch receipt.Status {
 	case types.ReceiptStatusSuccessful:
-		log.Infof("Successfully deposit analyzed %d deposits, %d rejections", len(events), len(rejectDepositIndices))
+		log.Infof("Successfully deposit analyzed %d deposits, %d rejections. Transaction Hash: %v", len(events), len(rejectDepositIndices), receipt.TxHash.Hex())
 	case types.ReceiptStatusFailed:
-		panic("Transaction failed: deposit analyzed unsuccessful")
+		panic(fmt.Sprintf("Transaction failed: deposit analyzed unsuccessful. Transaction Hash: %v", receipt.TxHash.Hex()))
 	default:
-		log.Warnf("Unexpected transaction status: %d", receipt.Status)
+		panic(fmt.Sprintf("Unexpected transaction status: %d. Transaction Hash: %v", receipt.Status, receipt.TxHash.Hex()))
 	}
 
-	log.Infof("Transaction hash: %s", receipt.TxHash.Hex())
-
-	updateEventBlockNumber(db, log, mDBApp.DepositsAnalyzedEvent, int64(*lastEventInfo.BlockNumber))
+	err = updateEventBlockNumber(db, log, mDBApp.DepositsAnalyzedEvent, int64(*lastEventInfo.BlockNumber))
+	if err != nil {
+		panic(fmt.Sprintf("Failed to update event block number: %v", err.Error()))
+	}
 }
 
 func (d *DepositAnalyzerService) fetchLastDepositAnalyzedEvent(startBlockNumber uint64) (*DepositEventInfo, error) {

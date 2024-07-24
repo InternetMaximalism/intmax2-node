@@ -115,10 +115,11 @@ func fetchDepositEvent(liquidity *bindings.Liquidity, startBlockNumber uint64, d
 	return event, nil
 }
 
-func updateEventBlockNumber(db SQLDriverApp, log logger.Logger, eventName string, blockNumber int64) {
+func updateEventBlockNumber(db SQLDriverApp, log logger.Logger, eventName string, blockNumber int64) error {
 	updatedEvent, err := db.UpsertEventBlockNumber(eventName, blockNumber)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to upsert event block number: %v", err.Error()))
+		return err
 	}
 	log.Infof("Updated %s block number to %d", eventName, updatedEvent.LastProcessedBlockNumber)
+	return nil
 }
