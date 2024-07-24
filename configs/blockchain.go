@@ -14,6 +14,7 @@ type Blockchain struct {
 
 	EthereumNetworkChainID string `env:"BLOCKCHAIN_ETHEREUM_NETWORK_CHAIN_ID"`
 	EthereumPrivateKeyHex  string `env:"BLOCKCHAIN_ETHEREUM_PRIVATE_KEY_HEX"`
+	EthereumNetworkRpcUrl  string `env:"BLOCKCHAIN_ETHEREUM_NETWORK_RPC_URL"`
 
 	BlockBuilderRegistryContractAddress string `env:"BLOCKCHAIN_BLOCK_BUILDER_REGISTRY_CONTRACT_ADDRESS"`
 	LiquidityContractAddress            string `env:"BLOCKCHAIN_LIQUIDITY_CONTRACT_ADDRESS"`

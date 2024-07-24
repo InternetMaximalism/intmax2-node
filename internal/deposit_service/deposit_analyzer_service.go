@@ -1,3 +1,4 @@
+//nolint:gocritic
 package deposit_service
 
 import (
@@ -31,13 +32,13 @@ type DepositAnalyzerService struct {
 	liquidity *bindings.Liquidity
 }
 
-func newDepositAnalyzerService(ctx context.Context, cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) (*DepositAnalyzerService, error) {
-	link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
-	}
+func newDepositAnalyzerService(ctx context.Context, cfg *configs.Config, log logger.Logger, _ ServiceBlockchain) (*DepositAnalyzerService, error) {
+	// link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
+	// if err != nil {
+	//   return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
+	// }
 
-	client, err := utils.NewClient(link)
+	client, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new client: %w", err)
 	}
