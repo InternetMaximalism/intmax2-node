@@ -4,7 +4,6 @@ import (
 	"context"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
-	service "intmax2-node/internal/withdrawal_service"
 
 	"github.com/spf13/cobra"
 )
@@ -52,7 +51,11 @@ func relayerCmd(w *Withdrawal) *cobra.Command {
 			l.Fatalf(msg, err.Error())
 		}
 
-		service.WithdrawalRelayer(w.Context, w.Config, w.Log, w.SB)
+		err = newCommands().WithdrawalRelayer(w.Context, w.Config, l, w.SB).Do(w.Context)
+		if err != nil {
+			const msg = "failed to processing withdrawal relayer: %v"
+			l.Fatalf(msg, err.Error())
+		}
 	}
 
 	return &cmd
