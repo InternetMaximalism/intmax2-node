@@ -230,6 +230,17 @@ Usage:
 Flags:
   -h, --help   help for relayer
 ```
+### Command `./intmax2-node withdrawal relayer --help`
+```
+# ./intmax2-node withdrawal relayer --help
+Run withdrawal relayer service
+
+Usage:
+  app withdrawal relayer [flags]
+
+Flags:
+  -h, --help   help for relayer
+```
 
 ## Network
 When a node starts, it tries to find and remember its external address in this order:
@@ -261,8 +272,10 @@ When a node starts, it tries to find and remember its external address in this o
 |   | BLOCKCHAIN_SCROLL_MIN_BALANCE                    | 100000000000000000                                                 | the Scroll blockchain balance minimal value for node start (min value equal or more then 0.1ETH)                                           |
 |   | BLOCKCHAIN_SCROLL_STAKE_BALANCE                  | 100000000000000000                                                 | the Scroll blockchain balance value for stake with block builder update (min value equal or more then 0.1ETH)                              |
 |   | BLOCKCHAIN_SCROLL_BRIDGE_API_URL                 |                                                                    | the Scroll bridge api url                                                                                                                  |
+|   | BLOCKCHAIN_SCROLL_MESSENGER_L1_CONTRACT_ADDRESS  |                                                                    | the Scroll messagenger contract address on L1 Mainnet                                                                                      |
 |   | BLOCKCHAIN_SCROLL_MESSENGER_L2_CONTRACT_ADDRESS  |                                                                    | the Scroll messagenger contract address on L2 Scroll                                                                                       |
 | * | BLOCKCHAIN_ROLLUP_CONTRACT_ADDRESS               |                                                                    | the Rollup Contract address in the Scroll blockchain                                                                                       |
+| * | BLOCKCHAIN_WITHDRAWAL_CONTRACT_ADDRESS           |                                                                    | the Withdrawal Contract address in the Scroll blockchain                                                                                   |
 | * | BLOCKCHAIN_TEMPLATE_CONTRACT_ROLLUP_PATH         | templates/contracts/Rollup.json                                    | path to a file with information template for Rollup contract                                                                               |
 |   | BLOCKCHAIN_ETHEREUM_NETWORK_CHAIN_ID             |                                                                    | the Ethereum blockchain network ID. Chain ID must be equal: Sepolia = `11155111`; Ethereum = `1`                                           |
 |   | BLOCKCHAIN_ETHEREUM_PRIVATE_KEY_HEX              |                                                                    | (pk) Ethereum private key                                                                                                                  |
