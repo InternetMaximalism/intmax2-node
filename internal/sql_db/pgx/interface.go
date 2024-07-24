@@ -16,6 +16,7 @@ type PGX interface {
 	Signatures
 	Transactions
 	TxMerkleProofs
+	EventBlockNumbers
 }
 
 type GenericCommands interface {
@@ -58,4 +59,10 @@ type TxMerkleProofs interface {
 	) (*mDBApp.TxMerkleProofs, error)
 	TxMerkleProofsByID(id string) (*mDBApp.TxMerkleProofs, error)
 	TxMerkleProofsByTxHash(txHash string) (*mDBApp.TxMerkleProofs, error)
+}
+
+type EventBlockNumbers interface {
+	UpsertEventBlockNumber(eventName string, blockNumber int64) (*mDBApp.EventBlockNumber, error)
+	EventBlockNumberByEventName(eventName string) (*mDBApp.EventBlockNumber, error)
+	EventBlockNumbersByEventNames(eventNames []string) ([]*mDBApp.EventBlockNumber, error)
 }

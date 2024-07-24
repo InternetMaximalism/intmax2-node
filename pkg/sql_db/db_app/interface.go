@@ -16,6 +16,7 @@ type SQLDb interface {
 	Signatures
 	Transactions
 	TxMerkleProofs
+	EventBlockNumbers
 }
 
 type GenericCommands interface {
@@ -58,4 +59,10 @@ type TxMerkleProofs interface {
 	) (*models.TxMerkleProofs, error)
 	TxMerkleProofsByID(id string) (*models.TxMerkleProofs, error)
 	TxMerkleProofsByTxHash(txHash string) (*models.TxMerkleProofs, error)
+}
+
+type EventBlockNumbers interface {
+	UpsertEventBlockNumber(eventName string, blockNumber int64) (*models.EventBlockNumber, error)
+	EventBlockNumberByEventName(eventName string) (*models.EventBlockNumber, error)
+	EventBlockNumbersByEventNames(eventNames []string) ([]*models.EventBlockNumber, error)
 }
