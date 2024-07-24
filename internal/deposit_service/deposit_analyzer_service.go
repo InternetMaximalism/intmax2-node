@@ -196,7 +196,7 @@ func (d *DepositAnalyzerService) fetchNewDeposits(startBlock uint64) (_ []*bindi
 		}
 	}
 
-	if err := iterator.Error(); err != nil {
+	if err = iterator.Error(); err != nil {
 		return nil, nil, nil, fmt.Errorf("error encountered while iterating: %w", err)
 	}
 
