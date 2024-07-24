@@ -3,6 +3,7 @@ package deposit_service
 import (
 	"fmt"
 	"intmax2-node/internal/bindings"
+	"intmax2-node/internal/logger"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -112,4 +113,12 @@ func fetchDepositEvent(liquidity *bindings.Liquidity, startBlockNumber uint64, d
 	}
 
 	return event, nil
+}
+
+func updateEventBlockNumber(db SQLDriverApp, log logger.Logger, eventName string, blockNumber int64) {
+	updatedEvent, err := db.UpsertEventBlockNumber(eventName, blockNumber)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to upsert event block number: %v", err.Error()))
+	}
+	log.Infof("Updated %s block number to %d", eventName, updatedEvent.LastProcessedBlockNumber)
 }
