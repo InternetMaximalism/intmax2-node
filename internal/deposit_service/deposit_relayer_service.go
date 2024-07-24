@@ -6,6 +6,7 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/logger"
+	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"intmax2-node/pkg/utils"
 	"math/big"
 	"time"
@@ -20,8 +21,222 @@ const depositThreshold uint64 = 128
 const duration = 1 * time.Hour
 
 type DepositIndices struct {
-	LastSeenDepositIndex      *uint64
-	LastProcessedDepositIndex *uint64
+	LastDepositAnalyzedEventInfo *DepositEventInfo
+	LastDepositRelayedEventInfo  *DepositEventInfo
+}
+
+type DepositRelayerService struct {
+	ctx       context.Context
+	cfg       *configs.Config
+	log       logger.Logger
+	db        SQLDriverApp
+	client    *ethclient.Client
+	liquidity *bindings.Liquidity
+}
+
+func newDepositRelayerService(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, sb ServiceBlockchain) (*DepositRelayerService, error) {
+	link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
+	}
+
+	client, err := utils.NewClient(link)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new client: %w", err)
+	}
+	defer client.Close()
+
+	liquidity, err := bindings.NewLiquidity(common.HexToAddress(cfg.Blockchain.LiquidityContractAddress), client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
+	}
+
+	return &DepositRelayerService{
+		ctx:       ctx,
+		cfg:       cfg,
+		log:       log,
+		db:        db,
+		client:    client,
+		liquidity: liquidity,
+	}, nil
+}
+
+// TODO: TxManager Class that stops processing if there are any pending transactions.
+func DepositRelayer(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, sb ServiceBlockchain) {
+	depositRelayerService, err := newDepositRelayerService(ctx, cfg, log, db, sb)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to initialize DepositRelayerService: %v", err.Error()))
+	}
+
+	blockNumberEvents, err := depositRelayerService.getBlockNumberEvents()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to get block number events: %v", err.Error()))
+	}
+
+	depositIndices, err := depositRelayerService.fetchLastDepositEventIndices(
+		uint64(blockNumberEvents[mDBApp.DepositsAnalyzedEvent].LastProcessedBlockNumber),
+		uint64(blockNumberEvents[mDBApp.DepositsRelayedEvent].LastProcessedBlockNumber),
+	)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to fetch deposit indices: %v", err.Error()))
+	}
+
+	unprocessedDepositCount := *depositIndices.LastDepositAnalyzedEventInfo.LastDepositId - *depositIndices.LastDepositRelayedEventInfo.LastDepositId
+	shouldSubmit, err := depositRelayerService.shouldProcessDeposits(
+		unprocessedDepositCount,
+		*depositIndices.LastDepositRelayedEventInfo.BlockNumber,
+	)
+	if err != nil {
+		panic(fmt.Sprintf("Error in threshold and time diff check: %v", err.Error()))
+	}
+
+	if !shouldSubmit {
+		return
+	}
+
+	receipt, err := depositRelayerService.relayDeposits(*depositIndices.LastDepositAnalyzedEventInfo.LastDepositId, unprocessedDepositCount)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to relay deposits: %v", err.Error()))
+	}
+
+	if receipt == nil {
+		return
+	}
+
+	switch receipt.Status {
+	case types.ReceiptStatusSuccessful:
+		log.Infof("Successfully relay deposits")
+	case types.ReceiptStatusFailed:
+		panic("Transaction failed: relay deposits unsuccessful")
+	default:
+		log.Warnf("Unexpected transaction status: %d", receipt.Status)
+	}
+
+	log.Infof("Transaction hash: %s", receipt.TxHash.Hex())
+
+	updateEventBlockNumber(db, log, mDBApp.DepositsRelayedEvent, int64(*depositIndices.LastDepositRelayedEventInfo.BlockNumber))
+}
+
+func (d *DepositRelayerService) getBlockNumberEvents() (map[string]*mDBApp.EventBlockNumber, error) {
+	eventNames := []string{mDBApp.DepositsAnalyzedEvent, mDBApp.DepositsRelayedEvent}
+	events, err := d.db.EventBlockNumbersByEventNames(eventNames)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch event block numbers: %w", err)
+	}
+
+	results := make(map[string]*mDBApp.EventBlockNumber)
+	for _, event := range events {
+		results[event.EventName] = event
+	}
+
+	for _, eventName := range eventNames {
+		if _, exists := results[eventName]; !exists {
+			results[eventName] = &mDBApp.EventBlockNumber{
+				EventName:                eventName,
+				LastProcessedBlockNumber: 0,
+			}
+		}
+	}
+
+	return results, nil
+}
+
+func (d *DepositRelayerService) fetchLastDepositEventIndices(depositAnalyzedBlockNumber uint64, depositRelayedBlockNumber uint64) (DepositIndices, error) {
+	type result struct {
+		eventInfo *DepositEventInfo
+		err       error
+	}
+
+	lastDepositAnalyzedIndexCh := make(chan result)
+	lastDepositRelayedIndexCh := make(chan result)
+
+	go func() {
+		index, err := fetchLastDepositAnalyzedEvent(d.liquidity, depositAnalyzedBlockNumber)
+		lastDepositAnalyzedIndexCh <- result{index, err}
+	}()
+
+	go func() {
+		index, err := fetchLastDepositRelayedEvent(d.liquidity, depositRelayedBlockNumber)
+		lastDepositRelayedIndexCh <- result{index, err}
+	}()
+
+	var di DepositIndices
+	for {
+		if di.LastDepositAnalyzedEventInfo != nil && di.LastDepositRelayedEventInfo != nil {
+			return di, nil
+		}
+		select {
+		case lastDepositAnalyzedResult := <-lastDepositAnalyzedIndexCh:
+			if lastDepositAnalyzedResult.err != nil {
+				return DepositIndices{}, lastDepositAnalyzedResult.err
+			}
+			di.LastDepositAnalyzedEventInfo = lastDepositAnalyzedResult.eventInfo
+		case lastDepositRelayzedResult := <-lastDepositRelayedIndexCh:
+			if lastDepositRelayzedResult.err != nil {
+				return DepositIndices{}, lastDepositRelayzedResult.err
+			}
+			di.LastDepositRelayedEventInfo = lastDepositRelayzedResult.eventInfo
+		}
+	}
+}
+
+func (d *DepositRelayerService) shouldProcessDeposits(unprocessedDepositCount, relayedBlockNumber uint64) (bool, error) {
+	if unprocessedDepositCount <= 0 {
+		return false, nil
+	}
+
+	if unprocessedDepositCount >= depositThreshold {
+		fmt.Println("Deposit threshold is reached")
+		return true, nil
+	}
+
+	depositIds := []*big.Int{}
+	eventInfo, err := fetchDepositEvent(d.liquidity, relayedBlockNumber, depositIds)
+	if err != nil {
+		if err.Error() == "No deposit events found" {
+			fmt.Println("No deposit events found, skipping process")
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to get last block number: %w", err)
+	}
+
+	if *eventInfo.BlockNumber == 0 {
+		return false, nil
+	}
+
+	isExceeded, err := isBlockTimeExceeded(d.client, *eventInfo.BlockNumber)
+	if err != nil {
+		return false, fmt.Errorf("error occurred while checking time difference: %w", err)
+	}
+
+	if !isExceeded {
+		return false, nil
+	}
+
+	fmt.Println("Block time difference exceeded the specified duration")
+	return true, nil
+}
+
+func (d *DepositRelayerService) relayDeposits(maxLastSeenDepositIndex uint64, numDepositsToRelay uint64) (*types.Receipt, error) {
+	transactOpts, err := utils.CreateTransactor(d.cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	transactOpts.Value = big.NewInt(0).Mul(big.NewInt(1e17), big.NewInt(1)) // NOTE: Fixed Value 0.1 ETH
+	gasLimit := calculateRelayDepositsGasLimit(numDepositsToRelay)
+
+	tx, err := d.liquidity.RelayDeposits(transactOpts, new(big.Int).SetUint64(uint64(maxLastSeenDepositIndex)), new(big.Int).SetUint64(uint64(gasLimit)))
+	if err != nil {
+		return nil, fmt.Errorf("failed to send RelayDeposits transaction: %w", err)
+	}
+
+	receipt, err := bind.WaitMined(d.ctx, d.client, tx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to wait for transaction to be mined: %w", err)
+	}
+
+	return receipt, nil
 }
 
 func isBlockTimeExceeded(client *ethclient.Client, blockNumber uint64) (bool, error) {
@@ -39,155 +254,11 @@ func isBlockTimeExceeded(client *ethclient.Client, blockNumber uint64) (bool, er
 	return diff > duration, nil
 }
 
-func fetchDepositIndices(ctx context.Context, liquidity *bindings.Liquidity) (DepositIndices, error) {
-	type result struct {
-		index uint64
-		err   error
-	}
-
-	opts := &bind.CallOpts{
-		Pending: false,
-		Context: ctx,
-	}
-
-	lastSeenDepositIndexCh := make(chan result)
-	lastProcessedDepositIndexCh := make(chan result)
-
-	go func() {
-		index, err := liquidity.GetLastSeenDepositIndex(opts)
-		lastSeenDepositIndexCh <- result{index, err}
-	}()
-
-	go func() {
-		index, err := liquidity.GetLastProcessedDepositIndex(opts)
-		lastProcessedDepositIndexCh <- result{index, err}
-	}()
-
-	var di DepositIndices
-	for {
-		if di.LastSeenDepositIndex != nil && di.LastProcessedDepositIndex != nil {
-			return di, nil
-		}
-		select {
-		case lastSeenDepositResult := <-lastSeenDepositIndexCh:
-			if lastSeenDepositResult.err != nil {
-				return DepositIndices{}, lastSeenDepositResult.err
-			}
-			di.LastSeenDepositIndex = &lastSeenDepositResult.index
-		case lastProcessedDepositResult := <-lastProcessedDepositIndexCh:
-			if lastProcessedDepositResult.err != nil {
-				return DepositIndices{}, lastProcessedDepositResult.err
-			}
-			di.LastProcessedDepositIndex = &lastProcessedDepositResult.index
-		}
-	}
-}
-
-func submitDepositRoot(ctx context.Context, cfg *configs.Config, client *ethclient.Client, liquidity *bindings.Liquidity, maxLastSeenDepositIndex uint64) (*types.Receipt, error) {
-	transactOpts, err := utils.CreateTransactor(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	tx, err := liquidity.SubmitDepositRoot(transactOpts, maxLastSeenDepositIndex)
-	if err != nil {
-		return nil, fmt.Errorf("failed to send RejectDeposits transaction: %w", err)
-	}
-
-	receipt, err := bind.WaitMined(ctx, client, tx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to wait for transaction to be mined: %w", err)
-	}
-
-	return receipt, nil
-}
-
-func shouldProcessDeposits(client *ethclient.Client, liquidity *bindings.Liquidity, lastSeenDepositIndex, lastProcessedDepositIndex uint64) (bool, error) {
-	unprocessedDepositCount := lastSeenDepositIndex - lastProcessedDepositIndex
-	if unprocessedDepositCount <= 0 {
-		return false, nil
-	}
-
-	if unprocessedDepositCount >= depositThreshold {
-		fmt.Println("Deposit threshold is reached")
-		return true, nil
-	}
-
-	nextDepositIndex := lastProcessedDepositIndex + 1
-	lastProcessedBlockNumber, err := utils.FetchBlockNumberByDepositIndex(liquidity, nextDepositIndex)
-	if err != nil {
-		return false, fmt.Errorf("failed to get last block number: %w", err)
-	}
-
-	// If there is no last processed block number, it means that there is no deposit
-	if lastProcessedBlockNumber == 0 {
-		return false, nil
-	}
-
-	isExceeded, err := isBlockTimeExceeded(client, lastProcessedBlockNumber)
-	if err != nil {
-		return false, fmt.Errorf("error occurred while checking time difference: %w", err)
-	}
-
-	if !isExceeded {
-		return false, nil
-	}
-
-	fmt.Println("Block time difference exceeded the specified duration")
-	return true, nil
-}
-
-func DepositRelayer(
-	ctx context.Context,
-	cfg *configs.Config,
-	log logger.Logger,
-	sb ServiceBlockchain,
-) {
-	link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
-	if err != nil {
-		log.Fatalf(err.Error())
-	}
-
-	var client *ethclient.Client
-	client, err = utils.NewClient(link)
-	if err != nil {
-		log.Fatalf(err.Error())
-	}
-
-	liquidity, err := bindings.NewLiquidity(common.HexToAddress(cfg.Blockchain.LiquidityContractAddress), client)
-	if err != nil {
-		log.Fatalf("Failed to instantiate a Liquidity contract: %v", err.Error())
-	}
-
-	indices, err := fetchDepositIndices(ctx, liquidity)
-	if err != nil {
-		log.Fatalf("Failed to fetch deposit indices: %v", err.Error())
-	}
-
-	shouldSubmit, err := shouldProcessDeposits(client, liquidity, *indices.LastSeenDepositIndex, *indices.LastProcessedDepositIndex)
-	if err != nil {
-		log.Fatalf("Error in threshold and time diff check: %v", err)
-		return
-	}
-
-	if !shouldSubmit {
-		return
-	}
-
-	receipt, err := submitDepositRoot(ctx, cfg, client, liquidity, *indices.LastSeenDepositIndex)
-	if err != nil {
-		log.Fatalf("Failed to submit deposit root: %v", err.Error())
-	}
-
-	if receipt == nil {
-		return
-	}
-
-	if receipt.Status == types.ReceiptStatusSuccessful {
-		log.Infof("Successfully submitted deposit root")
-	} else {
-		log.Infof("Failed to submit deposit root")
-	}
-
-	log.Infof("Tx Hash: %v", receipt.TxHash.String())
+func calculateRelayDepositsGasLimit(numDepositsToRelay uint64) uint64 {
+	const (
+		baseGas       = uint64(220000)
+		perDepositGas = uint64(20000)
+		bufferGas     = uint64(100000)
+	)
+	return baseGas + (perDepositGas * numDepositsToRelay) + bufferGas
 }

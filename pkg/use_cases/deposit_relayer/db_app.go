@@ -1,11 +1,11 @@
-package deposit_analyzer
+package deposit_relayer
 
 import (
 	"context"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 )
 
-//go:generate mockgen -destination=mock_db_app_test.go -package=deposit_analyzer_test -source=db_app.go
+//go:generate mockgen -destination=mock_db_app_test.go -package=deposit_relayer_test -source=db_app.go
 
 type SQLDriverApp interface {
 	GenericCommandsApp
