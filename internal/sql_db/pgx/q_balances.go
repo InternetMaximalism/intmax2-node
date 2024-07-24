@@ -108,7 +108,7 @@ func (p *pgx) BalanceByUserAndTokenIndex(userAddress, tokenIndex string) (*mDBAp
 	return &bDBApp, nil
 }
 
-func (p *pgx) BalanceByUserAndTokenInfo(userAddress, tokenAddress string, tokenID string) (*mDBApp.Balance, error) {
+func (p *pgx) BalanceByUserAndTokenInfo(userAddress, tokenAddress, tokenID string) (*mDBApp.Balance, error) {
 	const (
 		q = ` SELECT b.id, b.user_address, b.token_index, b.balance, b.created_at
 			  FROM balances b

@@ -1,6 +1,7 @@
 package balance_service
 
 const (
+	//nolint:gosec
 	ErrTokenTypeRequired                           = "token type is required"
 	ErrETHBalanceCheckArgs                         = "ETH balance check doesn't require additional arguments"
 	ErrERC20BalanceCheckArgs                       = "ERC20 balance check requires a token address"

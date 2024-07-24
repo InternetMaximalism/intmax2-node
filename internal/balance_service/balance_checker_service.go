@@ -26,11 +26,12 @@ import (
 )
 
 const (
-	tokenTypeKey            = "token-type"
-	ethTokenType            = "eth"
-	erc20TokenType          = "erc20"
-	erc721TokenType         = "erc721"
-	erc1155TokenType        = "erc1155"
+	tokenTypeKey     = "token-type"
+	ethTokenType     = "eth"
+	erc20TokenType   = "erc20"
+	erc721TokenType  = "erc721"
+	erc1155TokenType = "erc1155"
+	//nolint:gosec
 	tokenTypeDescription    = "token type flag. input one of the following four values: \"ETH\", \"ERC20\", \"ERC721\" or \"ERC1155\". The default value is ETH. use as --token \"ETH\""
 	tokenAddressKey         = "token-address"
 	defaultAddress          = "0x0000000000000000000000000000000000000000"
@@ -63,6 +64,12 @@ func parseTokenInfo(args []string) TokenInfo {
 		tokenID      = big.NewInt(0)
 	)
 
+	const (
+		int2Key  = 2
+		int3Key  = 3
+		int10Key = 10
+	)
+
 	switch tokenTypeStr {
 	case ethTokenType:
 		if len(args) != 1 {
@@ -71,7 +78,7 @@ func parseTokenInfo(args []string) TokenInfo {
 		}
 		tokenType = ethTokenTypeEnum
 	case erc20TokenType:
-		if len(args) != 2 {
+		if len(args) != int2Key {
 			fmt.Println(ErrERC20BalanceCheckArgs)
 			os.Exit(1)
 		}
@@ -82,7 +89,7 @@ func parseTokenInfo(args []string) TokenInfo {
 		}
 		tokenAddress = common.Address(tokenAddressBytes)
 	case erc721TokenType:
-		if len(args) != 3 {
+		if len(args) != int3Key {
 			fmt.Println(ErrERC721BalanceCheckArgs)
 			os.Exit(1)
 		}
@@ -93,13 +100,13 @@ func parseTokenInfo(args []string) TokenInfo {
 		}
 		tokenAddress = common.Address(tokenAddressBytes)
 		tokenIDStr := args[2]
-		tokenID, ok = new(big.Int).SetString(tokenIDStr, 10)
+		tokenID, ok = new(big.Int).SetString(tokenIDStr, int10Key)
 		if !ok {
 			fmt.Println(ErrERC721BalanceCheckArgs)
 			os.Exit(1)
 		}
 	case erc1155TokenType:
-		if len(args) != 3 {
+		if len(args) != int3Key {
 			fmt.Println(ErrERC1155BalanceCheckArgs)
 			os.Exit(1)
 		}
@@ -110,7 +117,7 @@ func parseTokenInfo(args []string) TokenInfo {
 		}
 		tokenAddress = common.Address(tokenAddressBytes)
 		tokenIDStr := args[2]
-		tokenID, ok = new(big.Int).SetString(tokenIDStr, 10)
+		tokenID, ok = new(big.Int).SetString(tokenIDStr, int10Key)
 		if !ok {
 			fmt.Println(ErrERC721BalanceCheckArgs)
 			os.Exit(1)
@@ -125,7 +132,7 @@ func parseTokenInfo(args []string) TokenInfo {
 func SyncBalance(
 	ctx context.Context,
 	cfg *configs.Config,
-	log logger.Logger,
+	lg logger.Logger,
 	db SQLDriverApp,
 	sb ServiceBlockchain,
 	args []string,
@@ -137,13 +144,12 @@ func SyncBalance(
 func GetBalance(
 	ctx context.Context,
 	cfg *configs.Config,
-	log logger.Logger,
+	lg logger.Logger,
 	db SQLDriverApp,
 	sb ServiceBlockchain,
 	args []string,
 	userAddress string,
 ) {
-	// userAddress := "0x030644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd3"
 	tokenInfo := parseTokenInfo(args)
 
 	tokenIndex, err := GetTokenIndex(ctx, cfg, db, sb, tokenInfo)
@@ -235,7 +241,11 @@ func getLocalTokenIndex(db SQLDriverApp, tokenInfo TokenInfo) (uint32, error) {
 		return 0, errors.Join(errors.New(ErrTokenNotFound), err)
 	}
 
-	tokenIndex, err := strconv.ParseUint(token.TokenIndex, 10, 32)
+	const (
+		int10Key = 10
+		int32Key = 32
+	)
+	tokenIndex, err := strconv.ParseUint(token.TokenIndex, int10Key, int32Key)
 	if err != nil {
 		return 0, fmt.Errorf("failed to convert token index to int: %v", err)
 	}
@@ -328,7 +338,9 @@ func (b *BalanceState) GetBalance(tokenIndex uint32) *big.Int {
 }
 
 func GetUserBalance(db SQLDriverApp, userAddress intMaxAcc.Address, tokenIndex uint32) (*big.Int, error) {
-	tokenIndexStr := strconv.FormatUint(uint64(tokenIndex), 10)
+	const int10Key = 10
+
+	tokenIndexStr := strconv.FormatUint(uint64(tokenIndex), int10Key)
 	balanceData, err := db.BalanceByUserAndTokenIndex(userAddress.String(), tokenIndexStr)
 	if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
 		panic(fmt.Sprintf(ErrFetchTokenByTokenAddressAndTokenIDWithDBApp, err.Error()))
@@ -338,7 +350,7 @@ func GetUserBalance(db SQLDriverApp, userAddress intMaxAcc.Address, tokenIndex u
 		return big.NewInt(0), nil
 	}
 
-	balanceDataInt, ok := new(big.Int).SetString(balanceData.Balance, 10)
+	balanceDataInt, ok := new(big.Int).SetString(balanceData.Balance, int10Key)
 	if !ok {
 		return nil, fmt.Errorf("failed to convert balance to int: %v", err)
 	}
@@ -347,9 +359,14 @@ func GetUserBalance(db SQLDriverApp, userAddress intMaxAcc.Address, tokenIndex u
 }
 
 func MakeSampleBalanceState(userAddress intMaxAcc.Address) (BalanceState, error) {
+	const (
+		int100Key = 100
+		int200Key = 200
+	)
+
 	balanceData := make(map[uint32]*big.Int)
-	balanceData[0] = big.NewInt(100)
-	balanceData[1] = big.NewInt(200)
+	balanceData[0] = big.NewInt(int100Key)
+	balanceData[1] = big.NewInt(int200Key)
 
 	balanceProof, err := intMaxTypes.MakeSamplePlonky2Proof()
 	if err != nil {
