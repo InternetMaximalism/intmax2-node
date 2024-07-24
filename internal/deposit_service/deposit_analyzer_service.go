@@ -141,19 +141,19 @@ func DepositAnalyzer(
 ) {
 	link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
 	if err != nil {
-		log.Fatalf(err.Error())
+		panic(fmt.Sprintf("Failed to get Ethereum network chain link: %v", err.Error()))
 	}
 
 	var client *ethclient.Client
 	client, err = utils.NewClient(link)
 	if err != nil {
-		log.Fatalf(err.Error())
+		panic(fmt.Sprintf("Failed to create new client: %v", err.Error()))
 	}
 	defer client.Close()
 
 	liquidity, err := bindings.NewLiquidity(common.HexToAddress(cfg.Blockchain.LiquidityContractAddress), client)
 	if err != nil {
-		log.Fatalf("Failed to instantiate a Liquidity contract: %v", err.Error())
+		panic(fmt.Sprintf("Failed to instantiate a Liquidity contract: %v", err.Error()))
 	}
 
 	event, err := db.EventBlockNumberByEventName(mDBApp.DepositsAnalyzedEvent)
@@ -164,7 +164,7 @@ func DepositAnalyzer(
 				LastProcessedBlockNumber: 0,
 			}
 		} else {
-			log.Fatalf("Error fetching event block number: %v", err.Error())
+			panic(fmt.Sprintf("Error fetching event block number: %v", err.Error()))
 		}
 	} else if event == nil {
 		event = &mDBApp.EventBlockNumber{
@@ -175,16 +175,15 @@ func DepositAnalyzer(
 
 	lastEventInfo, err := fetchLastDepositAnalyzedEvent(liquidity, uint64(event.LastProcessedBlockNumber))
 	if err != nil {
-		log.Fatalf("Failed to get last deposit analyzed block number: %v", err.Error())
+		panic(fmt.Sprintf("Failed to get last deposit analyzed block number: %v", err.Error()))
 	}
 	if lastEventInfo == nil || lastEventInfo.BlockNumber == nil {
-		log.Errorf("Last event info or block number is nil")
-		return
+		panic("Last event info or block number is nil")
 	}
 
 	events, maxDepositIndex, tokenIndexMap, err := fetchNewDeposits(ctx, liquidity, *lastEventInfo.BlockNumber)
 	if err != nil {
-		log.Fatalf("Failed to fetch new deposits: %v", err.Error())
+		panic(fmt.Sprintf("Failed to fetch new deposits: %v", err.Error()))
 	}
 
 	if len(events) == 0 {
@@ -194,7 +193,7 @@ func DepositAnalyzer(
 
 	tokenInfoMap, err := getTokenInfoMap(ctx, liquidity, tokenIndexMap)
 	if err != nil {
-		log.Fatalf("Failed to get token info map: %v", err.Error())
+		panic(fmt.Sprintf("Failed to get token info map: %v", err.Error()))
 	}
 
 	var rejectDepositIndices []*big.Int
@@ -208,7 +207,7 @@ func DepositAnalyzer(
 
 	receipt, err := analyzeDeposits(ctx, cfg, client, liquidity, maxDepositIndex, rejectDepositIndices)
 	if err != nil {
-		log.Fatalf("Failed to analyze deposits: %v", err.Error())
+		panic(fmt.Sprintf("Failed to analyze deposits: %v", err.Error()))
 	}
 
 	if receipt == nil {
@@ -219,7 +218,7 @@ func DepositAnalyzer(
 	case types.ReceiptStatusSuccessful:
 		log.Infof("Successfully deposit analyzed %d deposits, %d rejections", len(events), len(rejectDepositIndices))
 	case types.ReceiptStatusFailed:
-		log.Errorf("Transaction failed: deposit analyzed unsuccessful")
+		panic("Transaction failed: deposit analyzed unsuccessful")
 	default:
 		log.Warnf("Unexpected transaction status: %d", receipt.Status)
 	}
@@ -228,8 +227,7 @@ func DepositAnalyzer(
 
 	updatedEvent, err := db.UpsertEventBlockNumber(mDBApp.DepositsAnalyzedEvent, int64(*lastEventInfo.BlockNumber))
 	if err != nil {
-		log.Errorf("Failed to upsert event block number: %v", err)
-		return
+		panic(fmt.Sprintf("Failed to upsert event block number: %v", err.Error()))
 	}
 	log.Infof("Updated DepositsAnalyzedEvent block number to %d", updatedEvent.LastProcessedBlockNumber)
 }
