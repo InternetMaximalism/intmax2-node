@@ -107,21 +107,22 @@ func DepositRelayer(ctx context.Context, cfg *configs.Config, log logger.Logger,
 	}
 
 	if receipt == nil {
-		return
+		panic("Received nil receipt for transaction")
 	}
 
 	switch receipt.Status {
 	case types.ReceiptStatusSuccessful:
-		log.Infof("Successfully relay deposits")
+		log.Infof("Successfully relay deposits. Transaction Hash: %v", receipt.TxHash.Hex())
 	case types.ReceiptStatusFailed:
-		panic("Transaction failed: relay deposits unsuccessful")
+		panic(fmt.Sprintf("Transaction failed: relay deposits unsuccessful. Transaction Hash: %v", receipt.TxHash.Hex()))
 	default:
-		log.Warnf("Unexpected transaction status: %d", receipt.Status)
+		panic(fmt.Sprintf("Unexpected transaction status: %d. Transaction Hash: %v", receipt.Status, receipt.TxHash.Hex()))
 	}
 
-	log.Infof("Transaction hash: %s", receipt.TxHash.Hex())
-
-	updateEventBlockNumber(db, log, mDBApp.DepositsRelayedEvent, int64(*depositIndices.LastDepositRelayedEventInfo.BlockNumber))
+	err = updateEventBlockNumber(db, log, mDBApp.DepositsRelayedEvent, int64(*depositIndices.LastDepositRelayedEventInfo.BlockNumber))
+	if err != nil {
+		panic(fmt.Sprintf("Failed to update event block number: %v", err.Error()))
+	}
 }
 
 func (d *DepositRelayerService) getBlockNumberEvents() (map[string]*mDBApp.EventBlockNumber, error) {
