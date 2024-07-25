@@ -1,0 +1,40 @@
+{
+    "transferData": {
+        "recipient": "0x25817fFA38D884A93F22154EEE61E6D1533B73E2",
+        "tokenIndex": 0,
+        "amount": "12790",
+        "salt": "0x0100000000000000020000000000000003000000000000000400000000000000"
+    },
+    "transferMerkleProof": {
+        "siblings": [
+            "0xdb1b7511c79100710e20b194829e0f2c713730de38893994ef0de5b7c26d820b",
+            "0x3f61ef2c121c9aace282825b0567be5af315b4ed4764896b6b6aabaffe7a358e",
+            "0xd092e0064fd5bd9d41b8f85f23c58266f343e785dd05d14de2f97a8ad35af30d",
+            "0x5ae05c29f70ae06164dea29dc57c249a5fc056e9bf94fb4642a53cc70c3a7067",
+            "0x442646061a92545147092c2e0db3c18c274d85bff37c7d1640a088afa0ea22f5",
+            "0xae615bd1c8b5e6e939d497bd349bac86970159fcf0237eb772666f68973505d0"
+        ],
+        "index": 2
+    },
+    "transaction": {
+        "transferTreeRoot": "0xf87398962fb088f2e98533de1c83476011103f2940e808027007ac2c4188539b",
+        "nonce": 4
+    },
+    "txMerkleProof": {
+        "siblings": [
+            "0xbd97dbb9c8580c93f7647a7088831437d58d7cf629d264fd2c84c8e8e7d53403",
+            "0xcc4ff1aad14a1ab6cfb201991b58858df20aa362d79a8fde03e58a3241fc9621",
+            "0x3c72fa5236813ea6fc2f8e383b3759411cd546572b897b574c33df1bb29fc1ce",
+            "0x442646061a92545147092c2e0db3c18c274d85bff37c7d1640a088afa0ea22f5",
+            "0xae615bd1c8b5e6e939d497bd349bac86970159fcf0237eb772666f68973505d0",
+            "0x4a61495d1a5f2225038fee8e642a1d5a10fb7dc441f7a8ddc3300d0860125649",
+            "0xe35508e23eed79e9f9c1c446c6429a3cb1a43aa86edac916f5790b8bfce468b7"
+        ],
+        "index": 4
+    },
+    "transferHash": "0x8c9fb23b5eb395fcb03d6a9960cc2a398ece65a71d42b9551f6760f1aab60223",
+    "enoughBalanceProof": {
+        "proof": "0x",
+        "publicInputs": "0x"
+    }
+}

@@ -286,6 +286,19 @@ func (h *PoseidonHashOut) Unmarshal(data []byte) error {
 	return nil
 }
 
+func (h *PoseidonHashOut) FromString(s string) error {
+	if has0xPrefix(s) {
+		s = s[2:]
+	}
+
+	data, err := hex.DecodeString(s)
+	if err != nil {
+		return err
+	}
+
+	return h.Unmarshal(data)
+}
+
 func (h PoseidonHashOut) MarshalJSON() ([]byte, error) {
 	hashOutHex := "0x" + hex.EncodeToString(h.Marshal())
 	return json.Marshal(hashOutHex)
