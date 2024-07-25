@@ -578,6 +578,9 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 
 	err = kv.View(func(tx *bolt.Tx) (err error) {
 		b := tx.Bucket([]byte(bucket))
+		if b == nil {
+			return fmt.Errorf("bucket %s not found", bucket)
+		}
 		c := b.Cursor()
 		for k, v := c.First(); k != nil; k, v = c.Next() {
 			err = w.dbApp.Exec(ctx, nil, func(d interface{}, _ interface{}) (err error) {
