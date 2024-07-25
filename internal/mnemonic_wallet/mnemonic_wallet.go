@@ -114,7 +114,8 @@ func (mw *mnemonicWallet) WalletFromMnemonic(
 		return nil, errors.Join(ErrNewINTMAXAccountFromECDSAKeyFail, err)
 	}
 
-	intMaxWalletAddress := intMaxPK.PublicKey.ToAddress()
+	intMaxPublicKey := intMaxPK.PublicKey
+	intMaxWalletAddress := intMaxPublicKey.ToAddress()
 	intMaxPrivateKeyHex := intMaxPK.String()
 
 	w = &models.Wallet{
@@ -123,6 +124,7 @@ func (mw *mnemonicWallet) WalletFromMnemonic(
 		Mnemonic:            mnemonic,
 		DerivationPath:      mnemonicDerivationPath,
 		Password:            password,
+		IntMaxPublicKey:     intMaxPublicKey.String(),
 		IntMaxWalletAddress: intMaxWalletAddress.String(),
 		IntMaxPrivateKey:    intMaxPrivateKeyHex,
 		PK:                  privateKeyECDSA,
@@ -158,12 +160,14 @@ func (mw *mnemonicWallet) WalletFromPrivateKeyHex(
 		return nil, errors.Join(ErrNewINTMAXAccountFromECDSAKeyFail, err)
 	}
 
-	intMaxWalletAddress := intMaxPK.PublicKey.ToAddress()
+	intMaxPublicKey := intMaxPK.PublicKey
+	intMaxWalletAddress := intMaxPublicKey.ToAddress()
 	intMaxPrivateKeyHex := intMaxPK.String()
 
 	w = &models.Wallet{
 		WalletAddress:       &address,
 		PrivateKey:          privateKeyHex,
+		IntMaxPublicKey:     intMaxPublicKey.String(),
 		IntMaxWalletAddress: intMaxWalletAddress.String(),
 		IntMaxPrivateKey:    intMaxPrivateKeyHex,
 		PK:                  pk,

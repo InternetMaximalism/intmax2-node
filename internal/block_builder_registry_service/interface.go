@@ -2,13 +2,21 @@ package block_builder_registry_service
 
 import (
 	"context"
-	"intmax2-node/internal/bindings"
+	"math/big"
 )
+
+type IBlockBuilderRegistryBlockBuilderInfo struct {
+	BlockBuilderUrl string
+	StakeAmount     *big.Int
+	StopTime        *big.Int
+	NumSlashes      *big.Int
+	IsValid         bool
+}
 
 type BlockBuilderRegistryService interface {
 	GetBlockBuilder(
 		ctx context.Context,
-	) (*bindings.IBlockBuilderRegistryBlockBuilderInfo, error)
+	) (*IBlockBuilderRegistryBlockBuilderInfo, error)
 	UpdateBlockBuilder(
 		ctx context.Context,
 		url string,

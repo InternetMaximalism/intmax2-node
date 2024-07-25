@@ -286,19 +286,33 @@
     "v1AddressType": {
       "type": "string",
       "enum": [
+        "EMPTY",
         "INTMAX",
         "ETHEREUM"
       ],
-      "default": "INTMAX",
-      "description": "- INTMAX: the INTMAX address type\n - ETHEREUM: the ETHEREUM address type",
+      "default": "EMPTY",
+      "description": "- EMPTY: the EMPTY address type\n - INTMAX: the INTMAX address type\n - ETHEREUM: the ETHEREUM address type",
       "title": "AddressType describes type of address"
     },
     "v1BlockProposedRequest": {
       "type": "object",
       "properties": {
+        "sender": {
+          "type": "string",
+          "title": "the sender's INTMAX address"
+        },
         "txHash": {
           "type": "string",
           "title": "the hash of the user's transaction"
+        },
+        "expiration": {
+          "type": "string",
+          "format": "date-time",
+          "title": "the expiration of request"
+        },
+        "signature": {
+          "type": "string",
+          "title": "the signature of request (the hash calculated from txHash, sender, and expiration)"
         }
       },
       "title": "BlockProposedRequest describes request about retrieves the Merkle proof of a block containing the user's transaction, if available"
@@ -434,16 +448,17 @@
     "v1TransactionRequest": {
       "type": "object",
       "properties": {
-        "feeTransferHash": {
+        "sender": {
           "type": "string",
-          "title": "hash of the fee transfer request sent to the block builder"
+          "title": "the sender's INTMAX address"
         },
-        "transferHash": {
+        "transfersHash": {
           "type": "string",
           "title": "the Poseidon hash of transfer tree root and token index"
         },
         "nonce": {
           "type": "string",
+          "format": "uint64",
           "title": "the number of transactions executed with this public key"
         },
         "powNonce": {
@@ -458,13 +473,14 @@
           },
           "title": "the transfer data of the transaction"
         },
-        "feeTransferData": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1TransferDataTransactionRequest"
-          },
-          "title": "the transfer data of the transaction fee"
+        "expiration": {
+          "type": "string",
+          "format": "date-time",
+          "title": "the expiration of request"
+        },
+        "signature": {
+          "type": "string",
+          "title": "the signature of request (the hash calculated from transfersHash, nonce, powNonce, sender, and expiration)"
         }
       },
       "title": "TransactionRequest describes request to get info about the create new transaction"
@@ -489,6 +505,10 @@
         "recipient": {
           "$ref": "#/definitions/v1RecipientTransferDataTransactionRequest",
           "title": "the recipient info"
+        },
+        "tokenIndex": {
+          "type": "string",
+          "title": "the token index value"
         },
         "amount": {
           "type": "string",

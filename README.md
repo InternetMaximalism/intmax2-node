@@ -230,6 +230,32 @@ Usage:
 Flags:
   -h, --help   help for relayer
 ```
+### Command `./intmax2-node withdrawal relayer --help`
+```
+# ./intmax2-node withdrawal relayer --help
+Run withdrawal relayer service
+
+Usage:
+  app withdrawal relayer [flags]
+
+Flags:
+  -h, --help   help for relayer
+```
+### Command `./intmax2-node balance get`
+```
+# ./intmax2-node balance get --help
+Get balance of specified INTMAX account
+
+Usage:
+  app balance get [flags]
+
+Flags:
+  -h, --help                  help for get
+      --user-address string   specify user address. use as --user-address "0x0000000000000000000000000000000000000000000000000000000000000000"
+
+Example:
+  ./intmax2-node balance get erc20 0x0000000000000000000000000000000000000001 --user-address 0x030644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd3
+```
 
 ## Network
 When a node starts, it tries to find and remember its external address in this order:
@@ -253,16 +279,22 @@ When a node starts, it tries to find and remember its external address in this o
 |   | PEM_PATH_CA_CERT_CLIENT                          | scripts/x509/client_ca_cert.pem                                    | path to pem file with CA Root Client certificate                                                                                           |
 |   | PEM_PATH_CLIENT_CERT                             | scripts/x509/client_cert.pem                                       | path to pem file with Client certificate                                                                                                   |
 |   | PEM_PATH_CLIENT_KEY                              | scripts/x509/client_key.pem                                        | path to pem file with Client key                                                                                                           |
+|   | **PoW**                                          |                                                                    |                                                                                                                                            |
+|   | POW_DIFFICULTY                                   | 4000                                                               | the difficulty of proof-of-work                                                                                                            |
+|   | POW_WORKERS                                      | 2                                                                  | the number workers for compute PoW                                                                                                         |
 |   | **BLOCKCHAIN**                                   |                                                                    |                                                                                                                                            |
 |   | BLOCKCHAIN_SCROLL_NETWORK_CHAIN_ID               |                                                                    | the Scroll blockchain network ID. Chain ID must be equal: ScrollSepolia = `534351`; Scroll = `534352`                                      |
 |   | BLOCKCHAIN_SCROLL_MIN_BALANCE                    | 100000000000000000                                                 | the Scroll blockchain balance minimal value for node start (min value equal or more then 0.1ETH)                                           |
 |   | BLOCKCHAIN_SCROLL_STAKE_BALANCE                  | 100000000000000000                                                 | the Scroll blockchain balance value for stake with block builder update (min value equal or more then 0.1ETH)                              |
-|   | BLOCKCHAIN_SCROLL_BRIDGE_API_URL                 |                                                                    | the Scroll bridge api url |
-|   | BLOCKCHAIN_SCROLL_MESSENGER_L2_CONTRACT_ADDRESS  |                                                                    | the Scroll messagenger contract address on L2 Scroll                              |
+|   | BLOCKCHAIN_SCROLL_BRIDGE_API_URL                 |                                                                    | the Scroll bridge api url                                                                                                                  |
+|   | BLOCKCHAIN_SCROLL_MESSENGER_L1_CONTRACT_ADDRESS  |                                                                    | the Scroll messagenger contract address on L1 Mainnet                                                                                      |
+|   | BLOCKCHAIN_SCROLL_MESSENGER_L2_CONTRACT_ADDRESS  |                                                                    | the Scroll messagenger contract address on L2 Scroll                                                                                       |
 | * | BLOCKCHAIN_ROLLUP_CONTRACT_ADDRESS               |                                                                    | the Rollup Contract address in the Scroll blockchain                                                                                       |
+| * | BLOCKCHAIN_WITHDRAWAL_CONTRACT_ADDRESS           |                                                                    | the Withdrawal Contract address in the Scroll blockchain                                                                                   |
 | * | BLOCKCHAIN_TEMPLATE_CONTRACT_ROLLUP_PATH         | templates/contracts/Rollup.json                                    | path to a file with information template for Rollup contract                                                                               |
 |   | BLOCKCHAIN_ETHEREUM_NETWORK_CHAIN_ID             |                                                                    | the Ethereum blockchain network ID. Chain ID must be equal: Sepolia = `11155111`; Ethereum = `1`                                           |
 |   | BLOCKCHAIN_ETHEREUM_PRIVATE_KEY_HEX              |                                                                    | (pk) Ethereum private key                                                                                                                  |
+|   | BLOCKCHAIN_MAX_COUNTER_OF_TRANSACTION            | 128                                                                | max number of transactions in the block                                                                                                    |
 |   | **WALLET**                                       |                                                                    |                                                                                                                                            |
 |   | WALLET_PRIVATE_KEY_HEX                           |                                                                    | (pk) private key for wallet address recognizing                                                                                            |
 |   | WALLET_MNEMONIC_VALUE                            |                                                                    | (mnemonic) mnemonic for recovery private key                                                                                               |
@@ -302,6 +334,15 @@ When a node starts, it tries to find and remember its external address in this o
 |   | **STUN SERVER**                                  |                                                                    |                                                                                                                                            |
 | * | STUN_SERVER_NETWORK_TYPE                         | udp6;udp4                                                          | network type for dial with stun server (separator equal `;`)                                                                               |
 | * | STUN_SERVER_LIST                                 | stun.l.google.com:19302                                            | network address for dial with stun server (separator equal `;`)                                                                            |
+|   | **WORKER**                                       |                                                                    |                                                                                                                                            |
+|   | WORKER_ID                                        | pgx                                                                | id of worker                                                                                                                               |
+|   | WORKER_PATH                                      | /app/worker                                                        | dir of worker                                                                                                                              |
+|   | WORKER_MAX_COUNTER                               | 20                                                                 | max counter of worker                                                                                                                      |
+|   | WORKER_PATH_CLEAN_IN_START                       | 20                                                                 | flag of turn off (false) or turn on (true) the clean dir of worker                                                                         |
+|   | WORKER_CURRENT_FILE_LIFETIME                     | 1m                                                                 | timeout for create new current file of worker                                                                                              |
+|   | WORKER_TIMEOUT_FOR_CHECK_CURRENT_FILE            | 10s                                                                | timeout for check the status of current file of worker                                                                                     |
+|   | WORKER_TIMEOUT_FOR_SIGNATURES_AVAILABLE_FILES    | 15s                                                                | timeout for processing the transaction signature of current file of worker                                                                 |
+|   | WORKER_MAX_COUNTER_OF_USERS                      | 128                                                                | condition for create new of current file of worker                                                                                         |
 |   | **SQL DB OF APP**                                |                                                                    |                                                                                                                                            |
 |   | SQL_DB_APP_DRIVER_NAME                           | pgx                                                                | system driver name with sql driver of application (only, `pgx` of `postgres`)                                                              |
 | * | SQL_DB_APP_DNS_CONNECTION                        |                                                                    | connection string for connect with sql driver of application                                                                               |

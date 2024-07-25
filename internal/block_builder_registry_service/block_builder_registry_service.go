@@ -40,7 +40,7 @@ func New(
 
 func (bbr *blockBuilderRegistryService) GetBlockBuilder(
 	ctx context.Context,
-) (*bindings.IBlockBuilderRegistryBlockBuilderInfo, error) {
+) (*IBlockBuilderRegistryBlockBuilderInfo, error) {
 	const (
 		hName = "BlockBuilderRegistryService func:GetBlockBuilder"
 	)
@@ -82,8 +82,8 @@ func (bbr *blockBuilderRegistryService) GetBlockBuilder(
 
 	for {
 		opts := bind.CallOpts{Context: spanCtx}
-		var blockBuilderInfo bindings.IBlockBuilderRegistryBlockBuilderInfo
-		blockBuilderInfo, err = callerBBR.GetBlockBuilder(&opts, *w.WalletAddress)
+		var blockBuilderInfo IBlockBuilderRegistryBlockBuilderInfo
+		blockBuilderInfo, err = callerBBR.BlockBuilders(&opts, *w.WalletAddress)
 		if err != nil {
 			switch {
 			case

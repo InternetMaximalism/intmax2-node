@@ -14,9 +14,9 @@ func TestChallenger(t *testing.T) {
 	challenger := intMaxGP.NewChallenger()
 
 	uintSlice := []uint64{1, 2}
-	feSlice := []*ffg.Element{}
+	feSlice := []ffg.Element{}
 	for _, v := range uintSlice {
-		feSlice = append(feSlice, ffg.NewElementFromUint64(v))
+		feSlice = append(feSlice, *ffg.NewElementFromUint64(v))
 	}
 
 	challenger.ObserveElements(feSlice)
@@ -43,9 +43,9 @@ func TestChallenger(t *testing.T) {
 	assert.Equal(t, actual, expected)
 
 	uintSlice = []uint64{1, 2, 3}
-	feSlice = []*ffg.Element{}
+	feSlice = []ffg.Element{}
 	for _, v := range uintSlice {
-		feSlice = append(feSlice, ffg.NewElementFromUint64(v))
+		feSlice = append(feSlice, *ffg.NewElementFromUint64(v))
 	}
 
 	challenger.ObserveElements(feSlice)

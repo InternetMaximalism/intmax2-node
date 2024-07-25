@@ -31,18 +31,18 @@ func (c *Challenger) Reset() {
 	c.outputBuffer = []*ffg.Element{}
 }
 
-func (c *Challenger) ObserveElement(element *ffg.Element) {
+func (c *Challenger) ObserveElement(element ffg.Element) {
 	// Any buffered outputs are now invalid, since they wouldn't reflect this input.
 	c.outputBuffer = []*ffg.Element{}
 
-	c.inputBuffer = append(c.inputBuffer, new(ffg.Element).Set(element))
+	c.inputBuffer = append(c.inputBuffer, new(ffg.Element).Set(&element))
 
 	if len(c.inputBuffer) == NROUNDSF {
 		c.duplexing()
 	}
 }
 
-func (c *Challenger) ObserveElements(elements []*ffg.Element) {
+func (c *Challenger) ObserveElements(elements []ffg.Element) {
 	for _, element := range elements {
 		c.ObserveElement(element)
 	}

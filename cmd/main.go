@@ -10,6 +10,7 @@ import (
 	"intmax2-node/cmd/migrator"
 	"intmax2-node/cmd/mnemonic_account"
 	"intmax2-node/cmd/server"
+	"intmax2-node/cmd/sync_balance"
 	"intmax2-node/cmd/withdrawal"
 	"intmax2-node/configs"
 	"intmax2-node/internal/block_builder_registry_service"
@@ -17,6 +18,8 @@ import (
 	"intmax2-node/internal/cli"
 	"intmax2-node/internal/network_service"
 	"intmax2-node/internal/open_telemetry"
+	"intmax2-node/internal/pow"
+	"intmax2-node/internal/worker"
 	"intmax2-node/pkg/logger"
 	"intmax2-node/pkg/sql_db/db_app"
 	"os"
@@ -67,10 +70,15 @@ func main() {
 		return
 	}
 
+	w := worker.New(cfg, log, dbApp)
 	bc := blockchain.New(ctx, cfg)
 	ns := network_service.New(cfg)
 	hc := health.NewHandler()
 	bbr := block_builder_registry_service.New(cfg, bc)
+
+	pw := pow.New(cfg.PoW.Difficulty)
+	pWorker := pow.NewWorker(cfg.PoW.Workers, pw)
+	pwNonce := pow.NewPoWNonce(pw, pWorker)
 
 	wg := sync.WaitGroup{}
 
@@ -87,6 +95,8 @@ func main() {
 			SB:      bc,
 			NS:      ns,
 			HC:      &hc,
+			PoW:     pwNonce,
+			Worker:  w,
 		}),
 		migrator.NewMigratorCmd(ctx, log, dbApp),
 		deposit.NewDepositCmd(&deposit.Deposit{
@@ -107,6 +117,13 @@ func main() {
 		mnemonic_account.NewCmd(log),
 		ethereum_private_key_wallet.NewCmd(log),
 		intmax_private_key_wallet.NewCmd(log),
+		sync_balance.NewBalanceCmd(&sync_balance.Balance{
+			Context: ctx,
+			Config:  cfg,
+			Log:     log,
+			DbApp:   dbApp,
+			SB:      bc,
+		}),
 		block_builder.NewCmd(ctx, log, bc, bbr),
 	)
 	if err != nil {

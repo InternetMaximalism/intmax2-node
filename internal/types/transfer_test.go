@@ -1,7 +1,6 @@
 package types_test
 
 import (
-	"fmt"
 	intMaxTypes "intmax2-node/internal/types"
 	"math/big"
 	"testing"
@@ -17,6 +16,7 @@ func TestTransferData(t *testing.T) {
 	}
 	recipient, err := intMaxTypes.NewINTMAXAddress(address)
 	assert.NoError(t, err)
+	assert.NotNil(t, recipient)
 	amount := new(big.Int).SetUint64(100)
 	assert.NoError(t, err)
 	salt := new(intMaxTypes.PoseidonHashOut)
@@ -30,10 +30,8 @@ func TestTransferData(t *testing.T) {
 		Amount:     amount,
 		Salt:       salt,
 	}
-	fmt.Printf("transferData: %v\n", transferData)
 
 	flattenedTransfer := transferData.Marshal()
-	fmt.Printf("flattenedTransfer: %v\n", flattenedTransfer)
 	assert.Equal(t, 100, len(flattenedTransfer))
 
 	transferHash := transferData.Hash()

@@ -1,3 +1,4 @@
+//nolint:gocritic
 package withdrawal_service
 
 import (
@@ -26,25 +27,20 @@ type WithdrawalRelayerService struct {
 	scrollMessenger *bindings.L1ScrollMessanger
 }
 
-func newWithdrawalRelayerService(
-	ctx context.Context,
-	cfg *configs.Config,
-	log logger.Logger,
-	sb ServiceBlockchain,
-) (*WithdrawalRelayerService, error) {
-	link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
-	}
+func newWithdrawalRelayerService(ctx context.Context, cfg *configs.Config, log logger.Logger, _ ServiceBlockchain) (*WithdrawalRelayerService, error) {
+	// link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
+	// }
 
-	client, err := utils.NewClient(link)
+	client, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new client: %w", err)
 	}
 
-	scrollMessenger, err := bindings.NewL1ScrollMessanger(common.HexToAddress(cfg.Blockchain.LiquidityContractAddress), client)
+	scrollMessenger, err := bindings.NewL1ScrollMessanger(common.HexToAddress(cfg.Blockchain.ScrollMessengerL1ContractAddress), client)
 	if err != nil {
-		return nil, fmt.Errorf("failed to instantiate ScrollMessenger contract: %w", err)
+		return nil, fmt.Errorf("failed to instantiate L1ScrollMessenger contract: %w", err)
 	}
 
 	return &WithdrawalRelayerService{
@@ -72,6 +68,8 @@ func WithdrawalRelayer(ctx context.Context, cfg *configs.Config, log logger.Logg
 		return
 	}
 
+	successfulClaims := 0
+
 	for _, claimableRequest := range claimableRequests {
 		var receipt *types.Receipt
 		receipt, err = withdrawalRelayerService.relayMessageWithProof(claimableRequest)
@@ -85,22 +83,24 @@ func WithdrawalRelayer(ctx context.Context, cfg *configs.Config, log logger.Logg
 			continue
 		}
 
-		if receipt.Status == types.ReceiptStatusSuccessful {
-			log.Infof("Successfully submitted relayMessageWithProof claimableRequest hash: %s", claimableRequest.Hash)
-		} else {
-			log.Warnf("Failed to submit relayMessageWithProof")
+		switch receipt.Status {
+		case types.ReceiptStatusSuccessful:
+			log.Infof("Successfully relayed message with proof. Transaction Hash: %v", receipt.TxHash.Hex())
+			successfulClaims++
+		case types.ReceiptStatusFailed:
+			panic(fmt.Sprintf("Transaction failed: relay message with proof unsuccessful. Transaction Hash: %v", receipt.TxHash.Hex()))
+		default:
+			panic(fmt.Sprintf("Unexpected transaction status: %d. Transaction Hash: %v", receipt.Status, receipt.TxHash.Hex()))
 		}
-
-		log.Infof("Transaction Hash: %v", receipt.TxHash.Hex())
 	}
 
-	log.Infof("Submitted relay message with proof for %d claimableRequests", len(claimableRequests))
+	log.Infof("Successfully submitted relay message with proof for %d out of %d claimable requests", successfulClaims, len(claimableRequests))
 }
 
 func (w *WithdrawalRelayerService) fetchClaimableScrollMessengerRequests() ([]*ScrollMessengerResult, error) {
 	apiUrl := fmt.Sprintf("%s/api/l2/unclaimed/withdrawals?address=%s&page_size=10&page=%d",
-		w.cfg.Blockchain.ScrollBridgeApiURL,
-		w.cfg.Blockchain.ScrollMessengerL2ContractAddress,
+		w.cfg.Blockchain.ScrollBridgeApiUrl,
+		w.cfg.Blockchain.WithdrawalContractAddress,
 		defaultPage,
 	)
 

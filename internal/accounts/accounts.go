@@ -12,6 +12,7 @@ import (
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/iden3/go-iden3-crypto/ffg"
 	isUtils "github.com/prodadidb/go-validation/is/utils"
 )
 
@@ -19,8 +20,12 @@ type PublicKey struct {
 	Pk *bn254.G1Affine
 }
 
-func NewPublicKey(pk *bn254.G1Affine) *PublicKey {
-	return &PublicKey{Pk: pk}
+func NewPublicKey(pk *bn254.G1Affine) (*PublicKey, error) {
+	publicKey := PublicKey{Pk: pk}
+	if err := checkValidPublicKey(&publicKey); err != nil {
+		return nil, err
+	}
+	return &publicKey, nil
 }
 
 func (pk *PublicKey) Set(other *PublicKey) *PublicKey {
@@ -31,6 +36,28 @@ func (pk *PublicKey) Set(other *PublicKey) *PublicKey {
 
 func (pk *PublicKey) String() string {
 	return hex.EncodeToString(pk.Pk.Marshal())
+}
+
+// NewDummyPublicKey returns the point which the x coordinate is 1.
+//
+// NOTE: If the x coordinate is 0, there is no corresponding y value.
+func NewDummyPublicKey() *PublicKey {
+	const dummyPublicKeyY = 2
+	point := new(bn254.G1Affine)
+	point.X.SetOne()
+	point.Y.SetInt64(dummyPublicKeyY)
+
+	return &PublicKey{Pk: point}
+}
+
+// Add two public keys as elliptic curve points.
+func (pk *PublicKey) Add(a, b *PublicKey) *PublicKey {
+	if pk.Pk == nil {
+		pk.Pk = new(bn254.G1Affine)
+	}
+
+	pk.Pk = new(bn254.G1Affine).Add(a.Pk, b.Pk)
+	return pk
 }
 
 type PrivateKey struct {
@@ -79,7 +106,7 @@ func NewPrivateKey(privateKey *big.Int) (*PrivateKey, error) {
 		return nil, ErrInputPrivateKeyIsZero
 	}
 
-	publicKey := privateKeyToPublicKey(privateKey)
+	publicKey := privateKeyToPublicKey(new(big.Int).Set(privateKey))
 	if err := checkValidPublicKey(&publicKey); err != nil {
 		return nil, errors.Join(ErrValidPublicKeyFail, err)
 	}
@@ -146,16 +173,41 @@ func checkValidPublicKey(publicKey *PublicKey) error {
 func NewINTMAXAccountFromECDSAKey(pk *ecdsa.PrivateKey) (*PrivateKey, error) {
 	data := pk.D.Bytes()
 	salt := []byte("INTMAX")
-
 	hasher := sha512.New()
-	_, _ = hasher.Write(salt)
-	_, _ = hasher.Write(data)
-	digest := hasher.Sum(nil)
-
-	// privateKey = digest (mod order)
-	privateKey := new(big.Int).SetBytes(digest)
-
-	return NewPrivateKeyWithReCalcPubKeyIfPkNegates(privateKey)
+	for {
+		_, _ = hasher.Write(salt)
+		_, _ = hasher.Write(data)
+		digest := hasher.Sum(nil)
+		privateKey := new(big.Int).SetBytes(digest)
+		account, err := NewPrivateKeyWithReCalcPubKeyIfPkNegates(privateKey)
+		if err != nil {
+			continue
+		}
+		accountAddress := account.ToAddress()
+		address := accountAddress.String()
+		_, err = NewPublicKeyFromAddressHex(address)
+		if err != nil {
+			continue
+		}
+		message := make([]ffg.Element, 1)
+		for i := 0; i < len(message); i++ {
+			message[i].SetBytes(data)
+		}
+		sign, err := account.Sign(message)
+		if err != nil {
+			continue
+		}
+		var publicKey *PublicKey
+		publicKey, err = NewPublicKeyFromAddressHex(address)
+		if err != nil {
+			continue
+		}
+		err = VerifySignature(sign, publicKey, message)
+		if err != nil {
+			continue
+		}
+		return account, nil
+	}
 }
 
 // ECDH calculates the shared secret between my private key and partner's public key.
@@ -191,6 +243,21 @@ func (a *PrivateKey) String() string {
 	return hex.EncodeToString(a.Marshal())
 }
 
+func NewPrivateKeyFromString(s string) (*PrivateKey, error) {
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return nil, err
+	}
+
+	pk := new(PrivateKey)
+	err = pk.Unmarshal(b)
+	if err != nil {
+		return nil, err
+	}
+
+	return pk, nil
+}
+
 func (pk *PublicKey) Equal(other *PublicKey) bool {
 	return pk.Pk.Equal(other.Pk)
 }
@@ -222,10 +289,60 @@ func (pk *PublicKey) ToAddress() Address {
 	return Address(result)
 }
 
+func NewPublicKeyFromAddressHex(address string) (*PublicKey, error) {
+	recoverAddress, err := NewAddressFromHex(address)
+	if err != nil {
+		return nil, err
+	}
+
+	publicKey, err := recoverAddress.Public()
+	if err != nil {
+		return nil, err
+	}
+
+	return publicKey, nil
+}
+
 // ToAddress converts the private key to an address.
 // It returns a 32-byte hex string with 0x.
 func (a *PrivateKey) ToAddress() Address {
-	return a.PublicKey.ToAddress()
+	return a.Public().ToAddress()
+}
+
+func NewAddressFromHex(s string) (Address, error) {
+	const int66Key = 66
+	if len(s) != int66Key || s[:2] != "0x" {
+		return Address{}, ErrAddressInvalid
+	}
+	b, err := hexutil.Decode(s)
+	if err != nil {
+		return Address{}, errors.Join(ErrDecodeAddressFail, err)
+	}
+
+	return NewAddressFromBytes(b)
+}
+
+func NewAddressFromBytes(b []byte) (Address, error) {
+	const addressByteSize = 32
+	if len(b) != addressByteSize {
+		return Address{}, ErrAddressInvalid
+	}
+	var address Address
+	copy(address[:], b)
+	return address, nil
+}
+
+func (a Address) Public() (*PublicKey, error) {
+	const mCompressedSmallest byte = 0b10 << 6
+	b := a.Bytes()
+	b[0] |= mCompressedSmallest
+	point := new(bn254.G1Affine)
+	_, err := point.SetBytes(b)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewPublicKey(point)
 }
 
 func (a Address) Bytes() []byte {

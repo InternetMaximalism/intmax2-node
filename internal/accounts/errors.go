@@ -27,3 +27,7 @@ var ErrPrivateKeyWithPublicKeyInvalid = errors.New(
 
 // ErrValidPublicKeyFail error: failed to valid public key.
 var ErrValidPublicKeyFail = errors.New("failed to valid public key")
+
+var ErrAddressInvalid = errors.New("invalid address")
+
+var ErrDecodeAddressFail = errors.New("failed to decode address")

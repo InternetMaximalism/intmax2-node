@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/binary"
 	"encoding/hex"
+	intMaxAccTypes "intmax2-node/internal/accounts/types"
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"math/big"
@@ -10,24 +11,23 @@ import (
 	"github.com/iden3/go-iden3-crypto/ffg"
 )
 
-const (
-	// EthereumAddressType represents an Ethereum address type
-	EthereumAddressType = "ETHEREUM"
-	// INTMAXAddressType represents an INTMAX address type
-	INTMAXAddressType = "INTMAX"
-)
-
 // GenericAddress struct to hold address and its type
 type GenericAddress struct {
-	// AddressType can be "ETHEREUM" or "INTMAX"
-	addressType string
-	// If AddressType is ETHEREUM, then the address should be a 20-byte value.
-	// If AddressType is INTMAX, then the address should be a 32-byte value.
-	address []byte
+	// TypeOfAddress can be "ETHEREUM" or "INTMAX"
+	TypeOfAddress string
+	// If TypeOfAddress is ETHEREUM, then the address should be a 20-byte value.
+	// If TypeOfAddress is INTMAX, then the address should be a 32-byte value.
+	Address []byte
+}
+
+func (ga *GenericAddress) Set(genericAddress *GenericAddress) *GenericAddress {
+	ga.TypeOfAddress = genericAddress.TypeOfAddress
+	copy(ga.Address, genericAddress.Address)
+	return ga
 }
 
 func (ga *GenericAddress) Marshal() []byte {
-	return ga.address
+	return ga.Address
 }
 
 func (ga *GenericAddress) String() string {
@@ -35,60 +35,78 @@ func (ga *GenericAddress) String() string {
 }
 
 func (ga *GenericAddress) AddressType() string {
-	return ga.addressType
+	return ga.TypeOfAddress
 }
 
 func (ga *GenericAddress) Equal(other *GenericAddress) bool {
-	if ga.addressType != other.addressType {
+	if ga.TypeOfAddress != other.TypeOfAddress {
 		return false
 	}
-	if len(ga.address) != len(other.address) {
+	if len(ga.Address) != len(other.Address) {
 		return false
 	}
-	for i := range ga.address {
-		if ga.address[i] != other.address[i] {
+	for i := range ga.Address {
+		if ga.Address[i] != other.Address[i] {
 			return false
 		}
 	}
 	return true
 }
 
-func NewEthereumAddress(address []byte) (GenericAddress, error) {
+func NewDefaultGenericAddress() *GenericAddress {
+	const int20Key = 20
+	defaultAddress := [int20Key]byte{}
+
+	return &GenericAddress{
+		TypeOfAddress: intMaxAccTypes.EthereumAddressType,
+		Address:       defaultAddress[:],
+	}
+}
+
+func NewEthereumAddress(address []byte) (*GenericAddress, error) {
 	const int20Key = 20
 	if len(address) != int20Key {
-		return GenericAddress{}, ErrETHAddressInvalid
+		return nil, ErrETHAddressInvalid
 	}
 
-	return GenericAddress{
-		addressType: EthereumAddressType,
-		address:     address,
+	return &GenericAddress{
+		TypeOfAddress: intMaxAccTypes.EthereumAddressType,
+		Address:       address,
 	}, nil
 }
 
-func NewINTMAXAddress(address []byte) (GenericAddress, error) {
+func NewINTMAXAddress(address []byte) (*GenericAddress, error) {
 	const int32Key = 32
 	if len(address) != int32Key {
-		return GenericAddress{}, ErrINTMAXAddressInvalid
+		return nil, ErrINTMAXAddressInvalid
 	}
 
-	return GenericAddress{
-		addressType: INTMAXAddressType,
-		address:     address,
+	return &GenericAddress{
+		TypeOfAddress: intMaxAccTypes.INTMAXAddressType,
+		Address:       address,
 	}, nil
 }
 
 type Transfer struct {
-	Recipient  GenericAddress
+	Recipient  *GenericAddress
 	TokenIndex uint32
 	Amount     *big.Int
 	Salt       *PoseidonHashOut
 }
 
 func (td *Transfer) Set(transferData *Transfer) *Transfer {
-	td.Recipient = transferData.Recipient
+	td.Recipient = new(GenericAddress).Set(transferData.Recipient)
 	td.TokenIndex = transferData.TokenIndex
-	td.Amount = transferData.Amount
-	td.Salt = transferData.Salt
+	td.Amount = new(big.Int).Set(transferData.Amount)
+	td.Salt = new(PoseidonHashOut).Set(transferData.Salt)
+	return td
+}
+
+func (td *Transfer) SetZero() *Transfer {
+	td.Recipient = NewDefaultGenericAddress()
+	td.TokenIndex = 0
+	td.Amount = big.NewInt(0)
+	td.Salt = new(PoseidonHashOut).SetZero()
 	return td
 }
 
@@ -112,7 +130,7 @@ func (td *Transfer) Marshal() []byte {
 	), td.Salt.Marshal()...)
 }
 
-func (td *Transfer) ToFieldElementSlice() []*ffg.Element {
+func (td *Transfer) ToFieldElementSlice() []ffg.Element {
 	return finite_field.BytesToFieldElementSlice(td.Marshal())
 }
 
@@ -122,7 +140,7 @@ func (td *Transfer) Hash() *PoseidonHashOut {
 
 func (td *Transfer) Equal(other *Transfer) bool {
 	switch {
-	case !td.Recipient.Equal(&other.Recipient),
+	case !td.Recipient.Equal(other.Recipient),
 		td.TokenIndex != other.TokenIndex,
 		td.Amount.Cmp(other.Amount) != 0,
 		!td.Salt.Equal(other.Salt):

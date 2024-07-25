@@ -32,8 +32,10 @@ func New(
 
 func (u *uc) Do(ctx context.Context) (err error) {
 	const (
-		hName = "UseCase Withdrawal Relayer"
+		hName = "UseCase WithdrawalRelayer"
 	)
+
+	u.log.Infof("Starting WithdrawalRelayer")
 
 	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
 	defer span.End()
@@ -43,6 +45,8 @@ func (u *uc) Do(ctx context.Context) (err error) {
 			const msg = "exec of withdrawal relayer error occurred: %w"
 			err = fmt.Errorf(msg, fmt.Errorf("%+v", r))
 			open_telemetry.MarkSpanError(spanCtx, err)
+		} else {
+			u.log.Infof("Completed WithdrawalRelayer")
 		}
 	}()
 

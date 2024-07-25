@@ -7,47 +7,56 @@ import (
 )
 
 type Tx struct {
-	FeeTransferHash  *PoseidonHashOut
 	TransferTreeRoot *PoseidonHashOut
+	Nonce            uint64
 }
 
-func (t *Tx) Set(tx *Tx) *Tx {
-	t.FeeTransferHash = tx.FeeTransferHash
-	t.TransferTreeRoot = tx.TransferTreeRoot
-
-	return t
-}
-
-// SetRandom return Tx
-// Testing purposes only
-func (t *Tx) SetRandom() (*Tx, error) {
-	var err error
-
-	t.FeeTransferHash, err = new(PoseidonHashOut).SetRandom()
-	if err != nil {
-		return nil, err
+func NewTx(transferTreeRoot *PoseidonHashOut, nonce uint64) (*Tx, error) {
+	if nonce > ffg.Modulus().Uint64() {
+		return nil, ErrNonceTooLarge
 	}
 
-	t.TransferTreeRoot, err = new(PoseidonHashOut).SetRandom()
-	if err != nil {
-		return nil, err
-	}
+	t := new(Tx)
+	t.Nonce = nonce
+	t.TransferTreeRoot = new(PoseidonHashOut).Set(transferTreeRoot)
 
 	return t, nil
 }
 
-func (t *Tx) ToFieldElementSlice() []*ffg.Element {
+func (t *Tx) Set(tx *Tx) *Tx {
+	if t == nil {
+		t = new(Tx)
+	}
+
+	t.Nonce = tx.Nonce
+	t.TransferTreeRoot = new(PoseidonHashOut).Set(tx.TransferTreeRoot)
+
+	return t
+}
+
+// // SetRandom return Tx
+// // Testing purposes only
+// func (t *Tx) SetRandom() (*Tx, error) {
+// 	var err error
+
+// 	t.Transfers, err = new(PoseidonHashOut).SetRandom()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	return t, nil
+// }
+
+func (t *Tx) ToFieldElementSlice() []ffg.Element {
 	const (
 		int0Key = 0
-		int8Key = 8
+		int4Key = 4
 	)
-	result := make([]*ffg.Element, int8Key)
+	result := make([]ffg.Element, int4Key+1)
 	for i := int0Key; i < goldenposeidon.NUM_HASH_OUT_ELTS; i++ {
-		result[i] = new(ffg.Element).Set(&t.FeeTransferHash.Elements[i])
+		result[i].Set(&t.TransferTreeRoot.Elements[i])
 	}
-	for i := int0Key; i < goldenposeidon.NUM_HASH_OUT_ELTS; i++ {
-		result[i+goldenposeidon.NUM_HASH_OUT_ELTS] = new(ffg.Element).Set(&t.TransferTreeRoot.Elements[i])
-	}
+	result[int4Key].SetUint64(t.Nonce)
 
 	return result
 }

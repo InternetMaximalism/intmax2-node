@@ -38,10 +38,8 @@ func TestPublicKeyBlockValidation(t *testing.T) {
 			IsSigned:  true,
 		}
 	}
-	// default is the point which x is 1
-	defaultPublicKey := accounts.NewPublicKey(new(bn254.G1Affine))
-	defaultPublicKey.Pk.X.SetOne()
-	defaultPublicKey.Pk.Y.SetZero() // NOTE: This is not a valid public key
+
+	defaultPublicKey := accounts.NewDummyPublicKey()
 	for i := len(keyPairs); i < len(senders); i++ {
 		senders[i] = intMaxTypes.Sender{
 			PublicKey: defaultPublicKey,
@@ -60,9 +58,9 @@ func TestPublicKeyBlockValidation(t *testing.T) {
 	}
 
 	publicKeysHash := crypto.Keccak256(senderPublicKeys)
-	aggregatedPublicKey := accounts.NewPublicKey(new(bn254.G1Affine))
+	aggregatedPublicKey := new(accounts.PublicKey)
 	for _, sender := range senders {
-		aggregatedPublicKey.Pk.Add(aggregatedPublicKey.Pk, sender.PublicKey.WeightByHash(publicKeysHash).Pk)
+		aggregatedPublicKey.Add(aggregatedPublicKey, sender.PublicKey.WeightByHash(publicKeysHash))
 	}
 
 	message := finite_field.BytesToFieldElementSlice(txRoot.Marshal())
@@ -106,10 +104,8 @@ func TestAccountIDBlockValidation(t *testing.T) {
 			IsSigned:  true,
 		}
 	}
-	// default is the point which x is 1
-	defaultPublicKey := accounts.NewPublicKey(new(bn254.G1Affine))
-	defaultPublicKey.Pk.X.SetOne()
-	defaultPublicKey.Pk.Y.SetZero() // NOTE: This is not a valid public key
+
+	defaultPublicKey := accounts.NewDummyPublicKey()
 	for i := len(keyPairs); i < len(senders); i++ {
 		senders[i] = intMaxTypes.Sender{
 			PublicKey: defaultPublicKey,
@@ -130,10 +126,10 @@ func TestAccountIDBlockValidation(t *testing.T) {
 	}
 
 	publicKeysHash := crypto.Keccak256(senderPublicKeys)
-	aggregatedPublicKey := accounts.NewPublicKey(new(bn254.G1Affine))
+	aggregatedPublicKey := new(accounts.PublicKey)
 	for _, sender := range senders {
 		if sender.IsSigned {
-			aggregatedPublicKey.Pk.Add(aggregatedPublicKey.Pk, sender.PublicKey.WeightByHash(publicKeysHash).Pk)
+			aggregatedPublicKey.Add(aggregatedPublicKey, sender.PublicKey.WeightByHash(publicKeysHash))
 		}
 	}
 

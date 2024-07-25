@@ -2,6 +2,7 @@ package pgx
 
 import (
 	"context"
+	"encoding/json"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 
 	"github.com/dimiro1/health"
@@ -13,6 +14,11 @@ type PGX interface {
 	ServiceCommands
 	Tokens
 	Withdrawals
+	Signatures
+	Transactions
+	TxMerkleProofs
+	EventBlockNumbers
+	Balances
 }
 
 type GenericCommands interface {
@@ -33,6 +39,43 @@ type Tokens interface {
 		tokenID *uint256.Int,
 	) (*mDBApp.Token, error)
 	TokenByIndex(tokenIndex string) (*mDBApp.Token, error)
+	TokenByTokenInfo(tokenAddress, tokenID string) (*mDBApp.Token, error)
+}
+
+type Signatures interface {
+	CreateSignature(signature string) (*mDBApp.Signature, error)
+	SignatureByID(txID string) (*mDBApp.Signature, error)
+}
+
+type Transactions interface {
+	CreateTransaction(
+		senderPublicKey, txHash, signatureID string,
+	) (*mDBApp.Transactions, error)
+	TransactionByID(txID string) (*mDBApp.Transactions, error)
+}
+
+type TxMerkleProofs interface {
+	CreateTxMerkleProofs(
+		senderPublicKey, txHash, txID string,
+		txTreeIndex *uint256.Int,
+		txMerkleProof json.RawMessage,
+	) (*mDBApp.TxMerkleProofs, error)
+	TxMerkleProofsByID(id string) (*mDBApp.TxMerkleProofs, error)
+	TxMerkleProofsByTxHash(txHash string) (*mDBApp.TxMerkleProofs, error)
+}
+
+type EventBlockNumbers interface {
+	UpsertEventBlockNumber(eventName string, blockNumber int64) (*mDBApp.EventBlockNumber, error)
+	EventBlockNumberByEventName(eventName string) (*mDBApp.EventBlockNumber, error)
+	EventBlockNumbersByEventNames(eventNames []string) ([]*mDBApp.EventBlockNumber, error)
+}
+
+type Balances interface {
+	CreateBalance(userAddress, tokenAddress, balance string) (*mDBApp.Balance, error)
+	UpdateBalanceByID(balanceID, balance string) (*mDBApp.Balance, error)
+	BalanceByID(id string) (*mDBApp.Balance, error)
+	BalanceByUserAndTokenIndex(userAddress, tokenIndex string) (*mDBApp.Balance, error)
+	BalanceByUserAndTokenInfo(userAddress, tokenAddress, tokenID string) (*mDBApp.Balance, error)
 }
 
 type Withdrawals interface {

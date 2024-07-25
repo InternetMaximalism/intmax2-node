@@ -23,6 +23,8 @@ type Config struct {
 	HTTP          HTTP
 	LOG           LOG
 	Wallet        Wallet
+	PoW           PoW
+	Worker        Worker
 	Blockchain    Blockchain
 	Network       Network
 	StunServer    StunServer
