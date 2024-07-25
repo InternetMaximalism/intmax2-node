@@ -1,3 +1,4 @@
+//nolint:gocritic
 package withdrawal_service
 
 import (
@@ -32,19 +33,19 @@ func newWithdrawalAggregatorService(
 	cfg *configs.Config,
 	log logger.Logger,
 	db SQLDriverApp,
-	sb ServiceBlockchain,
+	_ ServiceBlockchain,
 ) (*WithdrawalAggregatorService, error) {
-	link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
-	}
+	// link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
+	// }
 
-	client, err := utils.NewClient(link)
+	client, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new client: %w", err)
 	}
 
-	scrollMessenger, err := bindings.NewL1ScrollMessanger(common.HexToAddress(cfg.Blockchain.LiquidityContractAddress), client)
+	scrollMessenger, err := bindings.NewL1ScrollMessanger(common.HexToAddress(cfg.Blockchain.ScrollMessengerL1ContractAddress), client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to instantiate ScrollMessenger contract: %w", err)
 	}
@@ -59,7 +60,7 @@ func newWithdrawalAggregatorService(
 	}, nil
 }
 
-func AggregateWithdrawals(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, sb ServiceBlockchain) error {
+func WithdrawalAggregator(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, sb ServiceBlockchain) error {
 	withdrawalAggregatorService, err := newWithdrawalAggregatorService(ctx, cfg, log, db, sb)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to initialize WithdrawalAggregatorService: %v", err.Error()))

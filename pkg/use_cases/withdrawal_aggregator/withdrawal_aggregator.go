@@ -36,8 +36,10 @@ func New(
 
 func (u *uc) Do(ctx context.Context) (err error) {
 	const (
-		hName = "UseCase Withdrawal Aggregator"
+		hName = "UseCase WithdrawalAggregator"
 	)
+
+	u.log.Infof("Starting WithdrawalAggregator")
 
 	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
 	defer span.End()
@@ -47,10 +49,12 @@ func (u *uc) Do(ctx context.Context) (err error) {
 			const msg = "exec of withdrawal aggregator error occurred: %w"
 			err = fmt.Errorf(msg, fmt.Errorf("%+v", r))
 			open_telemetry.MarkSpanError(spanCtx, err)
+		} else {
+			u.log.Infof("Completed WithdrawalAggregator")
 		}
 	}()
 
-	service.AggregateWithdrawals(spanCtx, u.cfg, u.log, u.db, u.sb)
+	service.WithdrawalAggregator(spanCtx, u.cfg, u.log, u.db, u.sb)
 
 	return err
 }
