@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package node.v1;
+
+import "google/api/annotations.proto";
+import "tagger/tagger.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+option go_package = ".;node";
+
+service BackupService {
+  rpc BackupBalance(BackupBalanceRequest) returns (BackupBalanceResponse) {
+    option (google.api.http) = {
+      post: "/v1/backup/balance"
+      body: "*"
+    };
+  }
+}
+
+message EncryptedPlonky2Proof {
+  string proof = 10 [json_name="proof", (tagger.tags)="json:\"10,omitempty\""];
+  string public_inputs = 20 [json_name="publicInputs", (tagger.tags)="json:\"10,publicInputs\""];
+}
+
+message BackupBalanceRequest {
+  string user = 10 [json_name="user", (tagger.tags)="json:\"user,omitempty\""];
+  uint32 block_number = 20 [json_name="block_number", (tagger.tags)="json:\"block_number,omitempty\""];
+  EncryptedPlonky2Proof encrypted_balance_proof = 30 [json_name="encryptedBalanceProof", (tagger.tags)="json:\"encryptedBalanceProof,omitempty\""];
+  string encrypted_balance_data = 40 [json_name="encryptedBalanceData", (tagger.tags)="json:\"encryptedBalanceData,omitempty\""];
+  repeated string encrypted_txs = 50 [json_name="encryptedTxs", (tagger.tags)="json:\"encryptedTxs,omitempty\""];
+  repeated string encrypted_transfers = 60 [json_name="encryptedTransfers", (tagger.tags)="json:\"encryptedTransfers,omitempty\""];
+  repeated string encrypted_deposits = 70 [json_name="encryptedDeposits", (tagger.tags)="json:\"encryptedDeposits,omitempty\""];
+  string signature= 80 [json_name="signature", (tagger.tags)="json:\"signature,omitempty\""];
+}
+
+message BackupBalanceResponse {
+  bool success = 10 [json_name="success", (tagger.tags)="json:\"success,omitempty\""];
+  string message = 20 [json_name = "message", (tagger.tags) = "json:\"message,omitempty\""];
+}

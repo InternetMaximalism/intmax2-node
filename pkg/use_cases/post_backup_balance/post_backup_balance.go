@@ -3,19 +3,25 @@ package post_backup_balance
 import (
 	"context"
 	"encoding/binary"
-	"intmax2-node/internal/open_telemetry"
-	intMaxTypes "intmax2-node/internal/types"
-	"intmax2-node/internal/use_cases/backup_balance"
 	"io"
 
 	"go.opentelemetry.io/otel/attribute"
+
+	backupService "intmax2-node/internal/backup_service"
+	"intmax2-node/internal/open_telemetry"
+	intMaxTypes "intmax2-node/internal/types"
+	"intmax2-node/internal/use_cases/backup_balance"
 )
 
 // uc describes use case
-type uc struct{}
+type uc struct {
+	db SQLDriverApp
+}
 
-func New() backup_balance.UseCasePostBackupBalance {
-	return &uc{}
+func New(
+	db SQLDriverApp,
+) backup_balance.UseCasePostBackupBalance {
+	return &uc{db: db}
 }
 
 func (u *uc) Do(
@@ -52,6 +58,10 @@ func (u *uc) Do(
 	)
 
 	// TODO: Implement backup balance post logic here.
+	err := backupService.BackupUserBalance(u.db, input)
+	if err != nil {
+		return nil, err
+	}
 
 	resp := backup_balance.UCPostBackupBalance{
 		Message: "Balance data backup successful.",

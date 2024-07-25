@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"encoding/json"
+
+	"intmax2-node/internal/sql_db/pgx/models"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 
 	"github.com/dimiro1/health"
@@ -17,6 +19,7 @@ type SQLDriverApp interface {
 	Signatures
 	Transactions
 	TxMerkleProofs
+	BackupService
 }
 
 type GenericCommandsApp interface {
@@ -47,4 +50,8 @@ type TxMerkleProofs interface {
 	) (*mDBApp.TxMerkleProofs, error)
 	TxMerkleProofsByID(id string) (*mDBApp.TxMerkleProofs, error)
 	TxMerkleProofsByTxHash(txHash string) (*mDBApp.TxMerkleProofs, error)
+}
+
+type BackupService interface {
+	BackupUserBalance(input *models.BalanceBackup) error
 }

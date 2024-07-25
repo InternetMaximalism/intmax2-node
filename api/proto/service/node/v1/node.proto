@@ -8,6 +8,7 @@ import "google/protobuf/empty.proto";
 
 import "node/v1/block_builder_service.proto";
 import "node/v1/info_service.proto";
+import "node/v1/backup_service.proto";
 
 // Defines the import path that should be used to import the generated package,
 // and the package name.

@@ -7,6 +7,9 @@
   },
   "tags": [
     {
+      "name": "BackupService"
+    },
+    {
       "name": "BlockBuilderService"
     },
     {
@@ -53,6 +56,44 @@
         },
         "tags": [
           "BlockBuilderService"
+        ]
+      }
+    },
+    "/v1/backup/balance": {
+      "post": {
+        "operationId": "BackupService_BackupBalance",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BackupBalanceResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BackupBalanceRequest"
+            }
+          }
+        ],
+        "tags": [
+          "BackupService"
         ]
       }
     },
@@ -294,6 +335,56 @@
       "description": "- EMPTY: the EMPTY address type\n - INTMAX: the INTMAX address type\n - ETHEREUM: the ETHEREUM address type",
       "title": "AddressType describes type of address"
     },
+    "v1BackupBalanceRequest": {
+      "type": "object",
+      "properties": {
+        "user": {
+          "type": "string"
+        },
+        "block_number": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "encryptedBalanceProof": {
+          "$ref": "#/definitions/v1EncryptedPlonky2Proof"
+        },
+        "encryptedBalanceData": {
+          "type": "string"
+        },
+        "encryptedTxs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "encryptedTransfers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "encryptedDeposits": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "signature": {
+          "type": "string"
+        }
+      }
+    },
+    "v1BackupBalanceResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
     "v1BlockProposedRequest": {
       "type": "object",
       "properties": {
@@ -399,6 +490,17 @@
         }
       },
       "title": "DataTransactionResponse describes the data of response to get info about the create new transaction"
+    },
+    "v1EncryptedPlonky2Proof": {
+      "type": "object",
+      "properties": {
+        "proof": {
+          "type": "string"
+        },
+        "publicInputs": {
+          "type": "string"
+        }
+      }
     },
     "v1HealthCheckResponse": {
       "type": "object",

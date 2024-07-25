@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"time"
 )
 
@@ -10,4 +11,17 @@ type Balance struct {
 	TokenIndex  string
 	Balance     string
 	CreatedAt   time.Time
+}
+
+type BalanceBackup struct {
+	ID                    string
+	UserAddress           string
+	BlockNumber           uint32
+	EncryptedBalanceProof string
+	EncryptedPublicInputs string
+	EncryptedTxs          json.RawMessage
+	EncryptedTransfers    json.RawMessage
+	EncryptedDeposits     json.RawMessage
+	Signature             string
+	CreatedAt             time.Time
 }

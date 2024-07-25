@@ -3,6 +3,8 @@ package pgx
 import (
 	"context"
 	"encoding/json"
+
+	"intmax2-node/internal/sql_db/pgx/models"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 
 	"github.com/dimiro1/health"
@@ -18,6 +20,7 @@ type PGX interface {
 	TxMerkleProofs
 	EventBlockNumbers
 	Balances
+	Backups
 }
 
 type GenericCommands interface {
@@ -75,4 +78,8 @@ type Balances interface {
 	BalanceByID(id string) (*mDBApp.Balance, error)
 	BalanceByUserAndTokenIndex(userAddress, tokenIndex string) (*mDBApp.Balance, error)
 	BalanceByUserAndTokenInfo(userAddress, tokenAddress, tokenID string) (*mDBApp.Balance, error)
+}
+
+type Backups interface {
+	BackupUserBalance(input *models.BalanceBackup) error
 }

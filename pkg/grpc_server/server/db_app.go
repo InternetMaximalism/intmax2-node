@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"encoding/json"
+
+	"intmax2-node/internal/sql_db/pgx/models"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 
 	"github.com/holiman/uint256"
@@ -13,6 +15,7 @@ import (
 type SQLDriverApp interface {
 	GenericCommandsApp
 	TxMerkleProofs
+	BackupApp
 }
 
 type GenericCommandsApp interface {
@@ -27,4 +30,8 @@ type TxMerkleProofs interface {
 	) (*mDBApp.TxMerkleProofs, error)
 	TxMerkleProofsByID(id string) (*mDBApp.TxMerkleProofs, error)
 	TxMerkleProofsByTxHash(txHash string) (*mDBApp.TxMerkleProofs, error)
+}
+
+type BackupApp interface {
+	BackupUserBalance(input *models.BalanceBackup) error
 }

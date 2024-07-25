@@ -3,10 +3,12 @@ package db_app
 import (
 	"context"
 	"encoding/json"
-	"intmax2-node/pkg/sql_db/db_app/models"
 
 	"github.com/dimiro1/health"
 	"github.com/holiman/uint256"
+
+	internalModels "intmax2-node/internal/sql_db/pgx/models"
+	"intmax2-node/pkg/sql_db/db_app/models"
 )
 
 type SQLDb interface {
@@ -18,6 +20,7 @@ type SQLDb interface {
 	TxMerkleProofs
 	EventBlockNumbers
 	Balances
+	Backups
 }
 
 type GenericCommands interface {
@@ -75,4 +78,8 @@ type Balances interface {
 	BalanceByID(id string) (*models.Balance, error)
 	BalanceByUserAndTokenIndex(userAddress, tokenIndex string) (*models.Balance, error)
 	BalanceByUserAndTokenInfo(userAddress, tokenAddress, tokenID string) (*models.Balance, error)
+}
+
+type Backups interface {
+	BackupUserBalance(input *internalModels.BalanceBackup) error
 }
