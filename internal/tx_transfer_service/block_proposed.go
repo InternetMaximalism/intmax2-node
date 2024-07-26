@@ -8,6 +8,7 @@ import (
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/hash/goldenposeidon"
+	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/block_proposed"
 	"io"
 	"net/http"
@@ -22,8 +23,22 @@ func GetBlockProposed(
 	ctx context.Context,
 	senderAccount *intMaxAcc.PrivateKey,
 	transfersHash goldenposeidon.PoseidonHashOut,
+	nonce uint64,
 ) (*BlockProposedResponseData, error) {
-	message := finite_field.BytesToFieldElementSlice(transfersHash.Marshal())
+	tx, err := intMaxTypes.NewTx(
+		&transfersHash,
+		nonce,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new tx: %w", err)
+	}
+
+	txHash := tx.Hash()
+	fmt.Printf("transfersHash: %v\n", transfersHash.String())
+	fmt.Printf("nonce: %v\n", nonce)
+	fmt.Printf("tx hash: %v\n", tx.Hash())
+
+	message := finite_field.BytesToFieldElementSlice(txHash.Marshal())
 	signature, err := senderAccount.Sign(message)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign message: %w", err)
@@ -33,7 +48,7 @@ func GetBlockProposed(
 	expiration := time.Now().Add(duration)
 
 	res, err := retryRequest(
-		ctx, senderAccount.ToAddress(), transfersHash, expiration, signature,
+		ctx, senderAccount.ToAddress(), *txHash, expiration, signature,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get proposed block: %w", err)
@@ -52,7 +67,7 @@ func retryRequest(
 	signature *bn254.G2Affine,
 ) (*BlockProposedResponseData, error) {
 	// TODO: Implement context with timeout
-	const numRetry = 6
+	const numRetry = 3
 	for i := 0; i < numRetry; i++ {
 		response, err := GetBlockProposedRawRequest(
 			senderAddress,

@@ -28,8 +28,9 @@ type ReceiverWorker struct {
 }
 
 type SenderTransfers struct {
-	TxHash                      *intMaxTypes.PoseidonHashOut  `json:"txHash"`
-	TxTreeLeafHash              *intMaxTree.PoseidonHashOut   `json:"txTreeLeafHash"`
+	TxHash *intMaxTypes.PoseidonHashOut `json:"txHash"`
+	// TxTreeLeafHash              *intMaxTree.PoseidonHashOut   `json:"txTreeLeafHash"`
+	TxTreeRootHash              *intMaxTree.PoseidonHashOut   `json:"txTreeLeafHash"`
 	TxTreeSiblings              []*intMaxTree.PoseidonHashOut `json:"txTreeSiblings"`
 	CurrentRootCountAndSiblings *CurrentRootCountAndSiblings  `json:"currentRootCountAndSiblings"`
 	ReceiverWorker              *ReceiverWorker               `json:"receiverWorker"`

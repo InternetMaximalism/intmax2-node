@@ -46,7 +46,7 @@ func TestUseCaseBlockProposed(t *testing.T) {
 		TxTreeHash: new(intMaxTree.PoseidonHashOut),
 		SenderTransfers: []*worker.SenderTransfers{
 			{
-				TxTreeLeafHash: new(intMaxTree.PoseidonHashOut),
+				TxTreeRootHash: new(intMaxTree.PoseidonHashOut),
 			},
 		},
 	}
@@ -86,7 +86,7 @@ func TestUseCaseBlockProposed(t *testing.T) {
 				assert.NotNil(t, resp)
 				assert.Equal(t, resp.TxRoot, txTree.TxTreeHash.String())
 				assert.Len(t, resp.TxTreeMerkleProof, 1)
-				assert.Equal(t, resp.TxTreeMerkleProof[0], txTree.SenderTransfers[0].TxTreeLeafHash.String())
+				assert.Equal(t, resp.TxTreeMerkleProof[0], txTree.SenderTransfers[0].TxTreeRootHash.String())
 			}
 		})
 	}
