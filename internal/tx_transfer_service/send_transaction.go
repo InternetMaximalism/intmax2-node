@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/logger"
 	"intmax2-node/internal/pow"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/transaction"
@@ -20,6 +21,7 @@ import (
 func SendTransactionRequest(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 	senderAccount *intMaxAcc.PrivateKey,
 	transfersHash intMaxTypes.PoseidonHashOut,
 	nonce uint64,
@@ -40,7 +42,7 @@ func SendTransactionRequest(
 	}
 
 	txHash := tx.Hash()
-	fmt.Printf("transfersHash: %v\n", transfersHash.String())
+	log.Printf("transfersHash: %v", transfersHash.String())
 	messageForPow := txHash.Marshal()
 	powNonceStr, err := pwNonce.Nonce(ctx, messageForPow)
 	if err != nil {
@@ -69,13 +71,14 @@ func SendTransactionRequest(
 	}
 
 	return SendTransactionWithRawRequest(
-		ctx, cfg, senderAccount, transfersHash, nonce, expiration, powNonceStr, signatureInput,
+		ctx, cfg, log, senderAccount, transfersHash, nonce, expiration, powNonceStr, signatureInput,
 	)
 }
 
 func SendTransactionWithRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 	senderAccount *intMaxAcc.PrivateKey,
 	transfersHash intMaxTypes.PoseidonHashOut,
 	nonce uint64,
@@ -86,6 +89,7 @@ func SendTransactionWithRawRequest(
 	return sendTransactionRawRequest(
 		ctx,
 		cfg,
+		log,
 		senderAccount.ToAddress().String(),
 		transfersHash.String(),
 		nonce,
@@ -98,6 +102,7 @@ func SendTransactionWithRawRequest(
 func sendTransactionRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 	senderAddress, transfersHash string,
 	nonce uint64,
 	expiration time.Time,
@@ -137,7 +142,7 @@ func sendTransactionRawRequest(
 		contentType: appJSON,
 	}).SetBody(bd).Post(apiUrl)
 	if err != nil {
-		const msg = "failed to send transaction request: %w"
+		const msg = "failed to send of the transaction request: %w"
 		return fmt.Errorf(msg, err)
 	}
 
@@ -147,8 +152,12 @@ func sendTransactionRawRequest(
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		fmt.Printf("Unexpected status code: %d (body: %q)\n", resp.StatusCode(), resp.String())
-		return fmt.Errorf("response body: %s", resp.String())
+		err = fmt.Errorf("failed to get response")
+		log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return err
 	}
 
 	response := new(SendTransactionResponse)
