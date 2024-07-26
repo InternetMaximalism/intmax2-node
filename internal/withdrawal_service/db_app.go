@@ -2,6 +2,7 @@ package withdrawal_service
 
 import (
 	"context"
+	postWithdrwalRequest "intmax2-node/internal/use_cases/post_withdrawal_request"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 )
 
@@ -17,6 +18,7 @@ type GenericCommandsApp interface {
 }
 
 type Withdrawals interface {
-	CreateWithdrawal(w *mDBApp.Withdrawal) (*mDBApp.Withdrawal, error)
-	FindWithdrawalsByGroupStatus(status mDBApp.WithdrawalGroupStatus) (*[]mDBApp.Withdrawal, error)
+	CreateWithdrawal(id string, input postWithdrwalRequest.UCPostWithdrawalRequestInput) (*mDBApp.Withdrawal, error)
+	WithdrawalByID(id string) (*mDBApp.Withdrawal, error)
+	WithdrawalsByStatus(status mDBApp.WithdrawalStatus) (*[]mDBApp.Withdrawal, error)
 }

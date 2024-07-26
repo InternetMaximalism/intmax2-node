@@ -2,42 +2,51 @@ package models
 
 import "time"
 
+type WithdrawalStatus int
+
 const (
-	PENDING = iota
-	PROCESSING
+	PENDING WithdrawalStatus = iota
 	SUCCESS
 	FAILED
 )
 
+type TransferData struct {
+	Recipient  string `json:"recipient"`
+	TokenIndex int32  `json:"token_index"`
+	Amount     string `json:"amount"`
+	Salt       string `json:"salt"`
+}
+
 type TransferMerkleProof struct {
-	Index    int      `json:"index"`
 	Siblings []string `json:"siblings"`
+	Index    int32    `json:"index"`
 }
 
 type Transaction struct {
-	FeeTransferHash  string `json:"fee_transfer_hash"`
 	TransferTreeRoot string `json:"transfer_tree_root"`
-	TokenIndex       int    `json:"token_index"`
-	Nonce            int    `json:"nonce"`
+	Nonce            int32  `json:"nonce"`
 }
 
 type TxMerkleProof struct {
-	Index    int      `json:"index"`
 	Siblings []string `json:"siblings"`
+	Index    int32    `json:"index"`
+}
+
+type EnoughBalanceProof struct {
+	Proof        string `json:"proof"`
+	PublicInputs string `json:"public_inputs"`
 }
 
 type Withdrawal struct {
 	ID                  string              `json:"id"`
-	Status              int                 `json:"status"`
-	Recipient           string              `json:"recipient"`
-	TokenIndex          int                 `json:"token_index"`
-	Amount              string              `json:"amount"`
-	Salt                string              `json:"salt"`
-	TransferHash        string              `json:"transfer_hash"`
+	Status              uint64              `json:"status"`
+	TransferData        TransferData        `json:"transfer_data"`
 	TransferMerkleProof TransferMerkleProof `json:"transfer_merkle_proof"`
 	Transaction         Transaction         `json:"transaction"`
 	TxMerkleProof       TxMerkleProof       `json:"tx_merkle_proof"`
-	BlockNumber         int                 `json:"block_number"`
-	EnoughBalanceProof  string              `json:"enough_balance_proof"`
+	TransferHash        string              `json:"transfer_hash"`
+	BlockNumber         uint64              `json:"block_number"`
+	BlockHash           string              `json:"block_hash"`
+	EnoughBalanceProof  EnoughBalanceProof  `json:"enough_balance_proof"`
 	CreatedAt           time.Time           `json:"created_at"`
 }

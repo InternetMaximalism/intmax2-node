@@ -3,73 +3,112 @@ package pgx
 import (
 	"encoding/json"
 	errPgx "intmax2-node/internal/sql_db/pgx/errors"
+	"intmax2-node/internal/sql_db/pgx/models"
+	postWithdrwalRequest "intmax2-node/internal/use_cases/post_withdrawal_request"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"log"
 	"time"
-
-	"github.com/google/uuid"
 )
 
-func (p *pgx) CreateWithdrawal(w *mDBApp.Withdrawal) (*mDBApp.Withdrawal, error) {
+func (p *pgx) CreateWithdrawal(id string, input postWithdrwalRequest.UCPostWithdrawalRequestInput) (*mDBApp.Withdrawal, error) {
 	const (
 		query = ` INSERT INTO withdrawals
-              (id, recipient, token_index, amount, salt, transfer_hash, transfer_merkle_proof, transaction, tx_merkle_proof, block_number, enough_balance_proof, created_at)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) `
+              (id, status, transfer_data, transfer_merkle_proof, transaction, tx_merkle_proof, enough_balance_proof, transfer_hash, block_number, block_hash, created_at)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) `
 	)
 
-	id := uuid.New().String()
-	recipient := w.Recipient
-	tokenIndex := w.TokenIndex
-	amount := w.Amount
-	salt := w.Salt
-	transferHash := w.TransferHash
-	blockNumber := w.BlockNumber
-	enoughBalanceProof := w.EnoughBalanceProof
+	status := mDBApp.PENDING
+	transferHash := input.TransferHash
+	blockNumber := input.BlockNumber
+	blockHash := input.BlockHash
 	createdAt := time.Now().UTC()
 
-	transferMerkleProofJSON, err := json.Marshal(w.TransferMerkleProof)
+	transferDataJSON, err := json.Marshal(input.TransferData)
+	if err != nil {
+		log.Fatalf("Error encoding TransferData: %v", err)
+	}
+	transferMerkleProofJSON, err := json.Marshal(input.TransferMerkleProof)
 	if err != nil {
 		log.Fatalf("Error encoding TransferMerkleProof: %v", err)
 	}
-	transactionJSON, err := json.Marshal(w.Transaction)
+	transactionJSON, err := json.Marshal(input.Transaction)
 	if err != nil {
 		log.Fatalf("Error encoding Transaction: %v", err)
 	}
-	txMerkleProofJSON, err := json.Marshal(w.TxMerkleProof)
+	txMerkleProofJSON, err := json.Marshal(input.TxMerkleProof)
 	if err != nil {
 		log.Fatalf("Error encoding TxMerkleProof: %v", err)
+	}
+	enoughBalanceProofJSON, err := json.Marshal(input.EnoughBalanceProof)
+	if err != nil {
+		log.Fatalf("Error encoding EnoughBalanceProof: %v", err)
 	}
 
 	_, err = p.exec(
 		p.ctx,
 		query,
 		id,
-		recipient,
-		tokenIndex,
-		amount,
-		salt,
-		transferHash,
+		status,
+		transferDataJSON,
 		transferMerkleProofJSON,
 		transactionJSON,
 		txMerkleProofJSON,
+		enoughBalanceProofJSON,
+		transferHash,
 		blockNumber,
-		enoughBalanceProof,
+		blockHash,
 		createdAt,
 	)
 	if err != nil {
 		return nil, errPgx.Err(err)
 	}
 
-	var tDBApp *mDBApp.Withdrawal
-	// TODO:
+	var wDBApp *mDBApp.Withdrawal
+	wDBApp, err = p.WithdrawalByID(id)
+	if err != nil {
+		return nil, err
+	}
 
-	return tDBApp, nil
+	return wDBApp, nil
 }
 
-func (p *pgx) FindWithdrawalsByGroupStatus(status mDBApp.WithdrawalGroupStatus) (*[]mDBApp.Withdrawal, error) {
-	const (
-		q = ` SELECT id, status, created_at FROM withdrawals WHERE status = $1 `
-	)
+func (p *pgx) WithdrawalByID(id string) (*mDBApp.Withdrawal, error) {
+	const q = `
+	    SELECT id, status, transfer_data, transfer_merkle_proof, transaction, tx_merkle_proof, enough_balance_proof, transfer_hash, block_number, block_hash, created_at
+	    FROM withdrawals
+        WHERE id = $1
+    `
+
+	var tmp models.Withdrawal
+	err := errPgx.Err(p.queryRow(p.ctx, q, id).
+		Scan(
+			&tmp.ID,
+			&tmp.Status,
+			&tmp.TransferData,
+			&tmp.TransferMerkleProof,
+			&tmp.Transaction,
+			&tmp.TxMerkleProof,
+			&tmp.EnoughBalanceProof,
+			&tmp.TransferHash,
+			&tmp.BlockNumber,
+			&tmp.BlockHash,
+			&tmp.CreatedAt,
+		))
+	if err != nil {
+		return nil, err
+	}
+
+	wDBApp := p.wToDBApp(&tmp)
+
+	return &wDBApp, nil
+}
+
+func (p *pgx) WithdrawalsByStatus(status mDBApp.WithdrawalStatus) (*[]mDBApp.Withdrawal, error) {
+	const q = `
+	    SELECT id, status, transfer_data, transfer_merkle_proof, transaction, tx_merkle_proof, enough_balance_proof, transfer_hash, block_number, block_hash, created_at
+	    FROM withdrawals
+	    WHERE status = $1
+    `
 
 	rows, err := p.query(p.ctx, q, status)
 	if err != nil {
@@ -79,10 +118,18 @@ func (p *pgx) FindWithdrawalsByGroupStatus(status mDBApp.WithdrawalGroupStatus) 
 
 	var withdrawals []mDBApp.Withdrawal
 	for rows.Next() {
-		var w mDBApp.Withdrawal
+		var w models.Withdrawal
 		err := rows.Scan(
 			&w.ID,
-			// &w.Status,
+			&w.Status,
+			&w.TransferData,
+			&w.TransferMerkleProof,
+			&w.Transaction,
+			&w.TxMerkleProof,
+			&w.EnoughBalanceProof,
+			&w.TransferHash,
+			&w.BlockNumber,
+			&w.BlockHash,
 			&w.CreatedAt,
 		)
 		if err != nil {
@@ -98,31 +145,34 @@ func (p *pgx) FindWithdrawalsByGroupStatus(status mDBApp.WithdrawalGroupStatus) 
 	return &withdrawals, nil
 }
 
-func (p *pgx) wToDBApp(w *mDBApp.Withdrawal) mDBApp.Withdrawal {
+func (p *pgx) wToDBApp(w *models.Withdrawal) mDBApp.Withdrawal {
 	m := mDBApp.Withdrawal{
-		ID:           w.ID,
-		Recipient:    w.Recipient,
-		TokenIndex:   w.TokenIndex,
-		Amount:       w.Amount,
-		Salt:         w.Salt,
-		TransferHash: w.TransferHash,
+		ID: w.ID,
+		TransferData: mDBApp.TransferData{
+			Recipient:  w.TransferData.Recipient,
+			TokenIndex: w.TransferData.TokenIndex,
+			Amount:     w.TransferData.Amount,
+			Salt:       w.TransferData.Salt,
+		},
 		TransferMerkleProof: mDBApp.TransferMerkleProof{
 			Index:    w.TransferMerkleProof.Index,
 			Siblings: w.TransferMerkleProof.Siblings,
 		},
 		Transaction: mDBApp.Transaction{
-			FeeTransferHash:  w.Transaction.FeeTransferHash,
 			TransferTreeRoot: w.Transaction.TransferTreeRoot,
-			TokenIndex:       w.Transaction.TokenIndex,
 			Nonce:            w.Transaction.Nonce,
 		},
 		TxMerkleProof: mDBApp.TxMerkleProof{
 			Index:    w.TxMerkleProof.Index,
 			Siblings: w.TxMerkleProof.Siblings,
 		},
-		BlockNumber:        w.BlockNumber,
-		EnoughBalanceProof: w.EnoughBalanceProof,
-		CreatedAt:          w.CreatedAt,
+		EnoughBalanceProof: mDBApp.EnoughBalanceProof{
+			Proof:        w.EnoughBalanceProof.Proof,
+			PublicInputs: w.EnoughBalanceProof.PublicInputs,
+		},
+		TransferHash: w.TransferHash,
+		BlockNumber:  w.BlockNumber,
+		CreatedAt:    w.CreatedAt,
 	}
 
 	return m

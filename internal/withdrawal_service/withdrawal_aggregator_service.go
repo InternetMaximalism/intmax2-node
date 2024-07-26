@@ -76,12 +76,12 @@ func WithdrawalAggregator(ctx context.Context, cfg *configs.Config, log logger.L
 		return nil
 	}
 
-	for _, withdrawal := range *withdrawals {
-		_, err := withdrawalAggregatorService.generateZKProof(withdrawal.ID, withdrawal.Recipient, withdrawal.TokenIndex, withdrawal.Amount, withdrawal.Salt, withdrawal.TransferHash)
-		if err != nil {
-			panic(fmt.Sprintf("Failed to retrieve withdrawals %v", err.Error()))
-		}
-	}
+	// for _, withdrawal := range *withdrawals {
+	// 	_, err := withdrawalAggregatorService.generateZKProof(withdrawal.ID, withdrawal.Recipient, withdrawal.TokenIndex, withdrawal.Amount, withdrawal.Salt, withdrawal.TransferHash)
+	// 	if err != nil {
+	// 		panic(fmt.Sprintf("Failed to retrieve withdrawals %v", err.Error()))
+	// 	}
+	// }
 
 	return nil
 }
@@ -95,7 +95,7 @@ func SubmitWithdrawals(ctx context.Context, cfg *configs.Config, log logger.Logg
 }
 
 func (w *WithdrawalAggregatorService) getWithdrawalsFromDB() (*[]mDBApp.Withdrawal, error) {
-	withdrawals, err := w.db.FindWithdrawalsByGroupStatus(mDBApp.PENDING)
+	withdrawals, err := w.db.WithdrawalsByStatus(mDBApp.PENDING)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find withdrawals: %w", err)
 	}

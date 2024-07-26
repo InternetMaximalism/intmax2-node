@@ -1,4 +1,4 @@
-package withdrawal_relayer
+package withdrawal_server
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 )
 
-//go:generate mockgen -destination=mock_db_app_test.go -package=withdrawal_relayer_test -source=db_app.go
+//go:generate mockgen -destination=mock_db_app_test.go -package=withdrawal_server_test -source=db_app.go
 
 type SQLDriverApp interface {
 	GenericCommandsApp

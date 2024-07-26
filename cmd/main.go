@@ -12,6 +12,7 @@ import (
 	"intmax2-node/cmd/server"
 	"intmax2-node/cmd/sync_balance"
 	"intmax2-node/cmd/withdrawal"
+	"intmax2-node/cmd/withdrawal_server"
 	"intmax2-node/configs"
 	"intmax2-node/internal/block_builder_registry_service"
 	"intmax2-node/internal/blockchain"
@@ -105,6 +106,15 @@ func main() {
 			Log:     log,
 			DbApp:   dbApp,
 			SB:      bc,
+		}),
+		withdrawal_server.NewServerCmd(&withdrawal_server.WithdrawalServer{
+			Context: ctx,
+			Cancel:  cancel,
+			Config:  cfg,
+			Log:     log,
+			DbApp:   dbApp,
+			WG:      &wg,
+			HC:      &hc,
 		}),
 		withdrawal.NewWithdrawCmd(&withdrawal.Withdrawal{
 			Context: ctx,
