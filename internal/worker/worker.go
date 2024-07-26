@@ -561,7 +561,7 @@ func (w *worker) registerReceiver(input *ReceiverWorker) (err error) {
 				var ErrLeafIndexNotFound = fmt.Errorf("leaf index not found")
 				return ErrLeafIndexNotFound
 			}
-			fmt.Printf("transfersHash %v, index %v, key %v\n", txHash, index, key)
+			fmt.Printf("txHash %v, index %v, key %v\n", txHash, index, key)
 			var cmp ComputeMerkleProof
 			var root intMaxTypes.PoseidonHashOut
 			cmp.Siblings, root, err = txTree.ComputeMerkleProof(index)
