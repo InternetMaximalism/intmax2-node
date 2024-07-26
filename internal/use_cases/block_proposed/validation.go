@@ -2,6 +2,7 @@ package block_proposed
 
 import (
 	"errors"
+	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/worker"
 	"strings"
@@ -130,11 +131,15 @@ func (input *UCBlockProposedInput) isExistsTxHash(w Worker) validation.Rule {
 		}
 
 		var info *worker.TransactionHashesWithSenderAndFile
+		fmt.Printf("check tx hash: %v\n", v)
 		info, err = w.TrHash(v)
 		if err != nil && errors.Is(err, worker.ErrTransactionHashNotFound) ||
 			!strings.EqualFold(info.Sender, input.Sender) {
+			fmt.Println("ErrTransactionHashNotFound")
 			return ErrTransactionHashNotFound
 		}
+
+		fmt.Printf("isExistsTxHash: %v\n", info)
 
 		var txTree *worker.TxTree
 		txTree, err = w.TxTreeByAvailableFile(info)

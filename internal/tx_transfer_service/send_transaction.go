@@ -22,7 +22,7 @@ func SendTransactionRequest(
 	cfg *configs.Config,
 	ctx context.Context,
 	senderAccount *intMaxAcc.PrivateKey,
-	txHash intMaxTypes.PoseidonHashOut,
+	transfersHash intMaxTypes.PoseidonHashOut,
 	nonce uint64,
 ) error {
 	const duration = 60 * time.Minute
@@ -32,6 +32,16 @@ func SendTransactionRequest(
 	pWorker := pow.NewWorker(cfg.PoW.Workers, pw)
 	pwNonce := pow.NewPoWNonce(pw, pWorker)
 
+	tx, err := intMaxTypes.NewTx(
+		&transfersHash,
+		nonce,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create new tx: %w", err)
+	}
+
+	txHash := tx.Hash()
+	fmt.Printf("transfersHash: %v\n", transfersHash.String())
 	messageForPow := txHash.Marshal()
 	powNonceStr, err := pwNonce.Nonce(ctx, messageForPow)
 	if err != nil {
@@ -44,7 +54,7 @@ func SendTransactionRequest(
 	}
 
 	message, err := transaction.MakeMessage(
-		txHash.Marshal(),
+		transfersHash.Marshal(),
 		nonce,
 		powNonceStr,
 		senderAccount.ToAddress(),
@@ -59,12 +69,12 @@ func SendTransactionRequest(
 		return fmt.Errorf("failed to sign message: %w", err)
 	}
 
-	return SendTransactionWithRawRequest(senderAccount, txHash, nonce, expiration, powNonceStr, signatureInput)
+	return SendTransactionWithRawRequest(senderAccount, transfersHash, nonce, expiration, powNonceStr, signatureInput)
 }
 
 func SendTransactionWithRawRequest(
 	senderAccount *intMaxAcc.PrivateKey,
-	txHash intMaxTypes.PoseidonHashOut,
+	transfersHash intMaxTypes.PoseidonHashOut,
 	nonce uint64,
 	expiration time.Time,
 	powNonce string,
@@ -72,7 +82,7 @@ func SendTransactionWithRawRequest(
 ) error {
 	return sendTransactionRawRequest(
 		senderAccount.ToAddress().String(),
-		txHash.String(),
+		transfersHash.String(),
 		nonce,
 		expiration,
 		powNonce,
@@ -81,14 +91,14 @@ func SendTransactionWithRawRequest(
 }
 
 func sendTransactionRawRequest(
-	senderAddress, txHash string,
+	senderAddress, transfersHash string,
 	nonce uint64,
 	expiration time.Time,
 	powNonce, signature string,
 ) error {
 	ucInput := transaction.UCTransactionInput{
 		Sender:        senderAddress,
-		TransfersHash: txHash,
+		TransfersHash: transfersHash,
 		Nonce:         nonce,
 		PowNonce:      powNonce,
 		Expiration:    expiration,
@@ -117,7 +127,7 @@ func sendTransactionRawRequest(
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("Unexpected status code: %d", resp.StatusCode)
+		fmt.Printf("Unexpected status code: %d\n", resp.StatusCode)
 		var bodyBytes []byte
 		bodyBytes, err = io.ReadAll(resp.Body)
 		if err != nil {

@@ -95,14 +95,15 @@ func SendTransferTransaction(
 		os.Exit(1)
 	}
 
-	transferTreeRoot, _, _ := transferTree.GetCurrentRootCountAndSiblings()
+	transfersHash, _, _ := transferTree.GetCurrentRootCountAndSiblings()
 
+	var nonce uint64 = 1 // TODO: Incremented with each transaction
 	err = SendTransactionRequest(
 		cfg,
 		ctx,
 		userAccount,
-		transferTreeRoot,
-		1,
+		transfersHash,
+		nonce,
 	)
 	if err != nil {
 		fmt.Printf("failed to send transaction: %v\n", err)
@@ -113,7 +114,7 @@ func SendTransferTransaction(
 
 	// Get proposed block
 	proposedBlock, err := GetBlockProposed(
-		ctx, userAccount, transferTreeRoot,
+		ctx, userAccount, transfersHash, nonce,
 	)
 	if err != nil {
 		fmt.Printf("failed to send transaction: %v\n", err)
