@@ -9,7 +9,6 @@ import (
 	"intmax2-node/internal/logger"
 	postWithdrwalRequest "intmax2-node/internal/use_cases/post_withdrawal_request"
 	"net/http"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -40,10 +39,10 @@ func PostWithdrawalRequest(ctx context.Context, cfg *configs.Config, log logger.
 	}
 
 	id := uuid.New().String()
-	err = service.requestWithdrawalProofToProver(id, input)
-	if err != nil {
-		return fmt.Errorf("failed to send withdrawal request to prover: %w", err)
-	}
+	// err = service.requestWithdrawalProofToProver(id, input)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to send withdrawal request to prover: %w", err)
+	// }
 
 	_, err = db.CreateWithdrawal(id, input)
 	if err != nil {
@@ -72,33 +71,28 @@ func (w *WithdrawalRequestService) requestWithdrawalProofToProver(id string, inp
 		return fmt.Errorf("failed to marshal JSON request body: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, w.cfg.API.WithdrawalProverApiURL, bytes.NewBuffer(jsonBody))
+	apiUrl := fmt.Sprintf("%s/proof",
+		w.cfg.API.WithdrawalProverApiURL,
+	)
+	resp, err := http.Post(apiUrl, "application/json", bytes.NewBuffer(jsonBody)) // nolint:gosec
 	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+		return fmt.Errorf("failed to request API: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
-	var res WithdrwalProverResponse
+	var res GenerateProofResponse
 	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
 		return fmt.Errorf("failed to decode JSON response: %w", err)
 	}
 
 	if !res.Success {
-		return fmt.Errorf("prover request failed") // TODO: error message
+		return fmt.Errorf("prover request failed %s", res.ErrorMessage)
 	}
 
 	return nil

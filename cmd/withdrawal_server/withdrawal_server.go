@@ -34,7 +34,7 @@ type WithdrawalServer struct {
 
 func NewServerCmd(s *WithdrawalServer) *cobra.Command {
 	const (
-		use   = "withdrawal run"
+		use   = "withdrawal-server run"
 		short = "run withdrawal server command"
 	)
 	return &cobra.Command{

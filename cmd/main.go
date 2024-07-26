@@ -107,6 +107,13 @@ func main() {
 			DbApp:   dbApp,
 			SB:      bc,
 		}),
+		withdrawal.NewWithdrawCmd(&withdrawal.Withdrawal{
+			Context: ctx,
+			Config:  cfg,
+			Log:     log,
+			DbApp:   dbApp,
+			SB:      bc,
+		}),
 		withdrawal_server.NewServerCmd(&withdrawal_server.WithdrawalServer{
 			Context: ctx,
 			Cancel:  cancel,
@@ -115,13 +122,6 @@ func main() {
 			DbApp:   dbApp,
 			WG:      &wg,
 			HC:      &hc,
-		}),
-		withdrawal.NewWithdrawCmd(&withdrawal.Withdrawal{
-			Context: ctx,
-			Config:  cfg,
-			Log:     log,
-			DbApp:   dbApp,
-			SB:      bc,
 		}),
 		generate_account.NewCmd(log),
 		mnemonic_account.NewCmd(log),
