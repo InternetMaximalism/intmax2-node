@@ -27,6 +27,12 @@ const (
 
 	NumAccountIDBytes   = 5
 	AccountIDSenderType = "ACCOUNT_ID"
+
+	NumOfSenders    = 128
+	numFlagBytes    = 16
+	numG2PointLimbs = 4
+	int8Key         = 8
+	int32Key        = 32
 )
 
 type PoseidonHashOut = goldenposeidon.PoseidonHashOut
@@ -355,22 +361,20 @@ type PostRegistrationBlockInput struct {
 //		input.MessagePoint,
 //		input.SenderPublicKeys)
 func MakePostRegistrationBlockInput(blockContent *BlockContent) (*PostRegistrationBlockInput, error) {
-	// if blockContent.SenderType != AccountIDSenderType {
-	// 	return nil, errors.New("invalid sender type")
-	// }
-
-	if len(blockContent.Senders) != 128 {
+	if len(blockContent.Senders) != NumOfSenders {
 		return nil, errors.New("invalid number of senders")
 	}
 
-	txTreeRoot := [32]byte{}
+	const int3Key = 3
+
+	txTreeRoot := [numHashBytes]byte{}
 	copy(txTreeRoot[:], blockContent.TxTreeRoot.Marshal())
 
-	senderFlags := [16]byte{}
+	senderFlags := [numFlagBytes]byte{}
 	senderPublicKeys := make([]*big.Int, len(blockContent.Senders))
 	for i, sender := range blockContent.Senders {
 		if sender.IsSigned {
-			senderFlags[i/8] |= 1 << (i % 8)
+			senderFlags[i/int8Key] |= 1 << (i % int8Key)
 			senderPublicKeys[i] = sender.PublicKey.BigInt()
 		} else {
 			senderPublicKeys[i] = big.NewInt(0)
@@ -378,21 +382,21 @@ func MakePostRegistrationBlockInput(blockContent *BlockContent) (*PostRegistrati
 	}
 
 	// Follow the ordering of the coordinates in the smart contract.
-	aggregatedPublicKey := [2][32]byte{}
+	aggregatedPublicKey := [2][int32Key]byte{}
 	aggregatedPublicKey[0] = blockContent.AggregatedPublicKey.Pk.X.Bytes()
 	aggregatedPublicKey[1] = blockContent.AggregatedPublicKey.Pk.Y.Bytes()
 
-	aggregatedSignature := [4][32]byte{}
+	aggregatedSignature := [numG2PointLimbs][int32Key]byte{}
 	aggregatedSignature[0] = blockContent.AggregatedSignature.X.A1.Bytes()
 	aggregatedSignature[1] = blockContent.AggregatedSignature.X.A0.Bytes()
 	aggregatedSignature[2] = blockContent.AggregatedSignature.Y.A1.Bytes()
-	aggregatedSignature[3] = blockContent.AggregatedSignature.Y.A0.Bytes()
+	aggregatedSignature[int3Key] = blockContent.AggregatedSignature.Y.A0.Bytes()
 
-	messagePoint := [4][32]byte{}
+	messagePoint := [numG2PointLimbs][int32Key]byte{}
 	messagePoint[0] = blockContent.MessagePoint.X.A1.Bytes()
 	messagePoint[1] = blockContent.MessagePoint.X.A0.Bytes()
 	messagePoint[2] = blockContent.MessagePoint.Y.A1.Bytes()
-	messagePoint[3] = blockContent.MessagePoint.Y.A0.Bytes()
+	messagePoint[int3Key] = blockContent.MessagePoint.Y.A0.Bytes()
 
 	return &PostRegistrationBlockInput{
 		TxTreeRoot:          txTreeRoot,
@@ -413,12 +417,12 @@ func MakeAccountIds(blockContent *BlockContent) ([]byte, error) {
 	for i, sender := range blockContent.Senders {
 		accountID := sender.AccountID
 		// account ID is 5 bytes
-		if accountID >= 1<<40 {
+		if accountID >= 1<<(NumAccountIDBytes*int8Key) {
 			return nil, errors.New("invalid account ID")
 		}
 		// account ID is little-endian
 		for j := 0; j < NumAccountIDBytes; j++ {
-			senderAccountIds[i*NumAccountIDBytes+j] = byte(accountID >> uint(8*j))
+			senderAccountIds[i*NumAccountIDBytes+j] = byte(accountID >> uint(int8Key*j))
 		}
 	}
 
@@ -544,7 +548,7 @@ func PostNonRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockCont
 		senderPublicKeys[i] = address[:]
 	}
 
-	publicKeysHash := [32]byte{}
+	publicKeysHash := [NumPublicKeyBytes]byte{}
 	copy(publicKeysHash[:], crypto.Keccak256(senderPublicKeys...))
 
 	// Output calldata
