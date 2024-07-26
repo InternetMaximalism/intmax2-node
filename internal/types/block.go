@@ -1,13 +1,22 @@
 package types
 
 import (
+	"errors"
+	"fmt"
+	"intmax2-node/configs"
 	"intmax2-node/internal/accounts"
+	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/hash/goldenposeidon"
+	"intmax2-node/pkg/utils"
+	"math/big"
+	"strconv"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fp"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/prodadidb/go-validation"
 )
@@ -321,4 +330,240 @@ func (bc *BlockContent) Rollup() []byte {
 
 func (bc *BlockContent) Hash() common.Hash {
 	return crypto.Keccak256Hash(bc.Marshal())
+}
+
+type PostRegistrationBlockInput struct {
+	TxTreeRoot          [32]byte
+	SenderFlags         [16]byte
+	AggregatedPublicKey [2][32]byte
+	AggregatedSignature [4][32]byte
+	MessagePoint        [4][32]byte
+	SenderPublicKeys    []*big.Int
+}
+
+// MakePostRegistrationBlockInput creates a PostRegistrationBlockInput from a BlockContent.
+// The input is used to post a block on the smart contract:
+//
+//	rollup, err := bindings.NewRollup(rollupContractAddress, client)
+//	input, err := MakePostRegistrationBlockInput(blockContent)
+//	rollup.PostRegistrationBlock(
+//		opts,
+//		input.TxTreeRoot,
+//		input.SenderFlags,
+//		input.AggregatedPublicKey,
+//		input.AggregatedSignature,
+//		input.MessagePoint,
+//		input.SenderPublicKeys)
+func MakePostRegistrationBlockInput(blockContent *BlockContent) (*PostRegistrationBlockInput, error) {
+	// if blockContent.SenderType != AccountIDSenderType {
+	// 	return nil, errors.New("invalid sender type")
+	// }
+
+	if len(blockContent.Senders) != 128 {
+		return nil, errors.New("invalid number of senders")
+	}
+
+	txTreeRoot := [32]byte{}
+	copy(txTreeRoot[:], blockContent.TxTreeRoot.Marshal())
+
+	senderFlags := [16]byte{}
+	senderPublicKeys := make([]*big.Int, len(blockContent.Senders))
+	for i, sender := range blockContent.Senders {
+		if sender.IsSigned {
+			senderFlags[i/8] |= 1 << (i % 8)
+			senderPublicKeys[i] = sender.PublicKey.BigInt()
+		} else {
+			senderPublicKeys[i] = big.NewInt(0)
+		}
+	}
+
+	// Follow the ordering of the coordinates in the smart contract.
+	aggregatedPublicKey := [2][32]byte{}
+	aggregatedPublicKey[0] = blockContent.AggregatedPublicKey.Pk.X.Bytes()
+	aggregatedPublicKey[1] = blockContent.AggregatedPublicKey.Pk.Y.Bytes()
+
+	aggregatedSignature := [4][32]byte{}
+	aggregatedSignature[0] = blockContent.AggregatedSignature.X.A1.Bytes()
+	aggregatedSignature[1] = blockContent.AggregatedSignature.X.A0.Bytes()
+	aggregatedSignature[2] = blockContent.AggregatedSignature.Y.A1.Bytes()
+	aggregatedSignature[3] = blockContent.AggregatedSignature.Y.A0.Bytes()
+
+	messagePoint := [4][32]byte{}
+	messagePoint[0] = blockContent.MessagePoint.X.A1.Bytes()
+	messagePoint[1] = blockContent.MessagePoint.X.A0.Bytes()
+	messagePoint[2] = blockContent.MessagePoint.Y.A1.Bytes()
+	messagePoint[3] = blockContent.MessagePoint.Y.A0.Bytes()
+
+	return &PostRegistrationBlockInput{
+		TxTreeRoot:          txTreeRoot,
+		SenderFlags:         senderFlags,
+		AggregatedPublicKey: aggregatedPublicKey,
+		AggregatedSignature: aggregatedSignature,
+		MessagePoint:        messagePoint,
+		SenderPublicKeys:    senderPublicKeys,
+	}, nil
+}
+
+func MakeAccountIds(blockContent *BlockContent) ([]byte, error) {
+	if blockContent.SenderType != AccountIDSenderType {
+		return nil, errors.New("invalid sender type")
+	}
+
+	senderAccountIds := make([]byte, len(blockContent.Senders)*NumAccountIDBytes)
+	for i, sender := range blockContent.Senders {
+		accountID := sender.AccountID
+		// account ID is 5 bytes
+		if accountID >= 1<<40 {
+			return nil, errors.New("invalid account ID")
+		}
+		// account ID is little-endian
+		for j := 0; j < NumAccountIDBytes; j++ {
+			senderAccountIds[i*NumAccountIDBytes+j] = byte(accountID >> uint(8*j))
+		}
+	}
+
+	return senderAccountIds, nil
+}
+
+type RollupContractConfig struct {
+	// EthereumNetworkRpcUrl is the URL of the Ethereum network RPC endpoint
+	EthereumNetworkRpcUrl string
+
+	// RollupContractAddressHex is the address of the Rollup contract
+	RollupContractAddressHex string
+
+	// EthereumPrivateKeyHex is the private key used to sign transactions
+	EthereumPrivateKeyHex string
+
+	// EthereumNetworkChainID is the chain ID of the Ethereum network
+	EthereumNetworkChainID string
+}
+
+// NewRollupContractConfigFromEnv creates a new RollupContractConfig from the environment variables.
+func NewRollupContractConfigFromEnv(cfg *configs.Config) *RollupContractConfig {
+	return &RollupContractConfig{
+		EthereumNetworkRpcUrl:    cfg.Blockchain.EthereumNetworkRpcUrl,
+		RollupContractAddressHex: cfg.Blockchain.RollupContractAddress,
+		EthereumPrivateKeyHex:    cfg.Blockchain.EthereumPrivateKeyHex,
+		EthereumNetworkChainID:   cfg.Blockchain.EthereumNetworkChainID,
+	}
+}
+
+// PostRegistrationBlock posts a registration block on the Rollup contract.
+// It returns the transaction hash if the block is successfully posted.
+func PostRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockContent) (*types.Transaction, error) {
+	client, err := utils.NewClient(cfg.EthereumNetworkRpcUrl)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new client: %w", err)
+	}
+	defer client.Close()
+
+	rollup, err := bindings.NewRollup(common.HexToAddress(cfg.RollupContractAddressHex), client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
+	}
+
+	input, err := MakePostRegistrationBlockInput(blockContent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make post registration block input: %w", err)
+	}
+
+	privateKey, err := crypto.HexToECDSA(cfg.EthereumPrivateKeyHex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load private key: %w", err)
+	}
+
+	const (
+		int10Key = 10
+		int64Key = 64
+	)
+	chainID, err := strconv.ParseInt(cfg.EthereumNetworkChainID, int10Key, int64Key)
+	if err != nil {
+		return nil, fmt.Errorf("invalid chain ID: %w", err)
+	}
+	transactOpts, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(chainID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create transactor: %w", err)
+	}
+
+	return rollup.PostRegistrationBlock(
+		transactOpts,
+		input.TxTreeRoot,
+		input.SenderFlags,
+		input.AggregatedPublicKey,
+		input.AggregatedSignature,
+		input.MessagePoint,
+		input.SenderPublicKeys,
+	)
+}
+
+// PostNonRegistrationBlock posts a non-registration block on the Rollup contract.
+// It returns the transaction hash if the block is successfully posted.
+func PostNonRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockContent) (*types.Transaction, error) {
+	client, err := utils.NewClient(cfg.EthereumNetworkRpcUrl)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new client: %w", err)
+	}
+	defer client.Close()
+
+	rollup, err := bindings.NewRollup(common.HexToAddress(cfg.RollupContractAddressHex), client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
+	}
+
+	input, err := MakePostRegistrationBlockInput(blockContent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make post registration block input: %w", err)
+	}
+
+	privateKey, err := crypto.HexToECDSA(cfg.EthereumPrivateKeyHex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load private key: %w", err)
+	}
+
+	const (
+		int10Key = 10
+		int64Key = 64
+	)
+	chainID, err := strconv.ParseInt(cfg.EthereumNetworkChainID, int10Key, int64Key)
+	if err != nil {
+		return nil, fmt.Errorf("invalid chain ID: %w", err)
+	}
+	transactOpts, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(chainID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create transactor: %w", err)
+	}
+
+	senderAccountIds, err := MakeAccountIds(blockContent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make account IDs: %w", err)
+	}
+	senderPublicKeys := make([][]byte, len(blockContent.Senders))
+	for i, sender := range blockContent.Senders {
+		address := sender.PublicKey.ToAddress()
+		senderPublicKeys[i] = address[:]
+	}
+
+	publicKeysHash := [32]byte{}
+	copy(publicKeysHash[:], crypto.Keccak256(senderPublicKeys...))
+
+	// Output calldata
+	fmt.Printf("Tx tree root: %x\n", input.TxTreeRoot)
+	fmt.Printf("Sender flags: %x\n", input.SenderFlags)
+	fmt.Printf("Aggregated public key: %x\n", input.AggregatedPublicKey)
+	fmt.Printf("Aggregated signature: %x\n", input.AggregatedSignature)
+	fmt.Printf("Message point: %x\n", input.MessagePoint)
+	fmt.Printf("Public keys hash: %x\n", publicKeysHash)
+	fmt.Printf("Sender account IDs: %x\n", senderAccountIds)
+
+	return rollup.PostNonRegistrationBlock(
+		transactOpts,
+		input.TxTreeRoot,
+		input.SenderFlags,
+		input.AggregatedPublicKey,
+		input.AggregatedSignature,
+		input.MessagePoint,
+		publicKeysHash,
+		senderAccountIds,
+	)
 }
