@@ -303,6 +303,19 @@ func NewPublicKeyFromAddressHex(address string) (*PublicKey, error) {
 	return publicKey, nil
 }
 
+func (pk *PublicKey) BigInt() *big.Int {
+	return pk.Pk.X.BigInt(new(big.Int))
+}
+
+func (a *Address) BigInt() (*big.Int, error) {
+	pk, err := a.Public()
+	if err != nil {
+		return nil, err
+	}
+
+	return pk.BigInt(), nil
+}
+
 // ToAddress converts the private key to an address.
 // It returns a 32-byte hex string with 0x.
 func (a *PrivateKey) ToAddress() Address {
