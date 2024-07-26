@@ -9,6 +9,7 @@ import (
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/logger"
 	"intmax2-node/pkg/utils"
+	"math/big"
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -139,23 +140,12 @@ func (w *WithdrawalRelayerService) relayMessageWithProof(result *ScrollMessenger
 		return nil, err
 	}
 
+	value, nonce, batchIndex, err := parseNumericValues(result)
+	if err != nil {
+		return nil, err
+	}
+
 	message := []byte(result.ClaimInfo.Message)
-
-	value, err := utils.StringToBigInt(result.ClaimInfo.Value)
-	if err != nil {
-		return nil, fmt.Errorf("invalid value string: %w", err)
-	}
-
-	nonce, err := utils.StringToBigInt(result.ClaimInfo.Nonce)
-	if err != nil {
-		return nil, fmt.Errorf("invalid nonce string: %w", err)
-	}
-
-	batchIndex, err := utils.StringToBigInt(result.ClaimInfo.Proof.BatchIndex)
-	if err != nil {
-		return nil, fmt.Errorf("invalid batchIndex string: %w", err)
-	}
-
 	merkleProof := []byte(result.ClaimInfo.Proof.MerkleProof)
 	proof := bindings.IL1ScrollMessengerL2MessageProof{
 		BatchIndex:  batchIndex,
@@ -181,4 +171,23 @@ func (w *WithdrawalRelayerService) relayMessageWithProof(result *ScrollMessenger
 	}
 
 	return receipt, nil
+}
+
+func parseNumericValues(result *ScrollMessengerResult) (value, nonce, batchIndex *big.Int, err error) {
+	value, err = utils.StringToBigInt(result.ClaimInfo.Value)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("invalid value string: %w", err)
+	}
+
+	nonce, err = utils.StringToBigInt(result.ClaimInfo.Nonce)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("invalid nonce string: %w", err)
+	}
+
+	batchIndex, err = utils.StringToBigInt(result.ClaimInfo.Proof.BatchIndex)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("invalid batchIndex string: %w", err)
+	}
+
+	return value, nonce, batchIndex, nil
 }
