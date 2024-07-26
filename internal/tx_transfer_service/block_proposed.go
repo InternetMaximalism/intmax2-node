@@ -3,24 +3,26 @@ package tx_transfer_service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
-	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/hash/goldenposeidon"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/block_proposed"
-	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/go-resty/resty/v2"
+	"github.com/iden3/go-iden3-crypto/ffg"
 )
+
+const signTimeout = 60 * time.Minute
 
 func GetBlockProposed(
 	ctx context.Context,
+	cfg *configs.Config,
 	senderAccount *intMaxAcc.PrivateKey,
 	transfersHash goldenposeidon.PoseidonHashOut,
 	nonce uint64,
@@ -38,17 +40,20 @@ func GetBlockProposed(
 	fmt.Printf("nonce: %v\n", nonce)
 	fmt.Printf("tx hash: %v\n", tx.Hash())
 
-	message := finite_field.BytesToFieldElementSlice(txHash.Marshal())
+	expiration := time.Now().Add(signTimeout)
+	var message []ffg.Element
+	message, err = block_proposed.MakeMessage(txHash.String(), senderAccount.ToAddress().String(), expiration)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make message: %w", err)
+	}
+
 	signature, err := senderAccount.Sign(message)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign message: %w", err)
 	}
 
-	const duration = 60 * time.Minute
-	expiration := time.Now().Add(duration)
-
 	res, err := retryRequest(
-		ctx, senderAccount.ToAddress(), *txHash, expiration, signature,
+		ctx, cfg, senderAccount.ToAddress(), *txHash, expiration, signature,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get proposed block: %w", err)
@@ -57,33 +62,46 @@ func GetBlockProposed(
 	return res, nil
 }
 
-const retryInterval = 10 * time.Second
+const (
+	retryInterval   = 1 * time.Second
+	timeoutInterval = 120 * time.Second
+)
 
 func retryRequest(
-	_ context.Context,
+	ctx context.Context,
+	cfg *configs.Config,
 	senderAddress intMaxAcc.Address,
 	txHash goldenposeidon.PoseidonHashOut,
 	expiration time.Time,
 	signature *bn254.G2Affine,
 ) (*BlockProposedResponseData, error) {
-	// TODO: Implement context with timeout
-	const numRetry = 3
-	for i := 0; i < numRetry; i++ {
-		response, err := GetBlockProposedRawRequest(
-			senderAddress,
-			txHash,
-			expiration,
-			signature,
-		)
-		if err == nil {
-			return response, nil
+	ticker := time.NewTicker(retryInterval)
+
+	gbpCtx, cancel := context.WithTimeout(ctx, timeoutInterval)
+	defer cancel()
+
+	for {
+		select {
+		case <-gbpCtx.Done():
+			const msg = "failed to get proposed block"
+			return nil, fmt.Errorf(msg)
+		case <-ticker.C:
+			response, err := GetBlockProposedRawRequest(
+				ctx,
+				cfg,
+				senderAddress,
+				txHash,
+				expiration,
+				signature,
+			)
+			if err == nil {
+				return response, nil
+			}
+
+			const msg = "Cannot get successful response (err = %q). Retry in %f second(s)"
+			fmt.Println(fmt.Sprintf(msg, err, retryInterval.Seconds()))
 		}
-
-		fmt.Println("Cannot get successful response. Retry in", retryInterval)
-		time.Sleep(retryInterval)
 	}
-
-	return nil, errors.New("failed to get proposed block")
 }
 
 type BlockProposedResponseData struct {
@@ -98,17 +116,21 @@ type BlockProposedResponse struct {
 }
 
 func GetBlockProposedRawRequest(
+	ctx context.Context,
+	cfg *configs.Config,
 	senderAddress intMaxAcc.Address,
 	txHash goldenposeidon.PoseidonHashOut,
 	expiration time.Time,
 	signature *bn254.G2Affine,
 ) (*BlockProposedResponseData, error) {
 	return getBlockProposedRawRequest(
-		senderAddress.String(), hexutil.Encode(txHash.Marshal()), expiration, hexutil.Encode(signature.Marshal()),
+		ctx, cfg, senderAddress.String(), hexutil.Encode(txHash.Marshal()), expiration, hexutil.Encode(signature.Marshal()),
 	)
 }
 
 func getBlockProposedRawRequest(
+	ctx context.Context,
+	cfg *configs.Config,
 	senderAddress, txHash string,
 	expiration time.Time,
 	signature string,
@@ -125,35 +147,43 @@ func getBlockProposedRawRequest(
 		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	body := strings.NewReader(string(bd))
-
 	const (
-		apiBaseUrl  = "http://localhost"
-		contentType = "application/json"
+		httpKey     = "http"
+		httpsKey    = "https"
+		contentType = "Content-Type"
+		appJSON     = "application/json"
 	)
-	apiUrl := fmt.Sprintf("%s/v1/block/proposed", apiBaseUrl)
 
-	resp, err := http.Post(apiUrl, contentType, body) // nolint:gosec
-	if err != nil {
-		return nil, fmt.Errorf("failed to request API: %w", err)
+	schema := httpKey
+	if cfg.HTTP.TLSUse {
+		schema = httpsKey
 	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
 
-	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("Unexpected status code: %d\n", resp.StatusCode)
-		var bodyBytes []byte
-		bodyBytes, err = io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, fmt.Errorf("error reading response body: %w", err)
-		}
-		return nil, fmt.Errorf("response body: %s", string(bodyBytes))
+	apiUrl := fmt.Sprintf("%s://%s/v1/block/proposed", schema, cfg.HTTP.Addr())
+
+	r := resty.New().R()
+	var resp *resty.Response
+	resp, err = r.SetContext(ctx).SetHeaders(map[string]string{
+		contentType: appJSON,
+	}).SetBody(bd).Post(apiUrl)
+	if err != nil {
+		const msg = "failed to send transaction request: %w"
+		return nil, fmt.Errorf(msg, err)
+	}
+
+	if resp == nil {
+		const msg = "send request error occurred"
+		return nil, fmt.Errorf(msg)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		fmt.Printf("Unexpected status code: %d (body: %q)\n", resp.StatusCode(), resp.String())
+		return nil, fmt.Errorf("response body: %s", resp.String())
 	}
 
 	var res BlockProposedResponse
-	if err = json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return nil, fmt.Errorf("failed to decode JSON response: %w", err)
+	if err = json.Unmarshal(resp.Body(), &res); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
 	if !res.Success {
