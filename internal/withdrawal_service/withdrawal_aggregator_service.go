@@ -98,6 +98,7 @@ func WithdrawalAggregator(ctx context.Context, cfg *configs.Config, log logger.L
 	}
 
 	// TODO: change status depends on the result of the proof
+	// error WithdrawalProofVerificationFailed()
 	receipt, err := service.submitWithdrawalProof()
 	if err != nil {
 		panic(fmt.Sprintf("Failed to submit withdrawal proof: %v", err.Error()))
