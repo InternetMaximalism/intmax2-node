@@ -99,8 +99,8 @@ func SendTransferTransaction(
 
 	var nonce uint64 = 1 // TODO: Incremented with each transaction
 	err = SendTransactionRequest(
-		cfg,
 		ctx,
+		cfg,
 		userAccount,
 		transfersHash,
 		nonce,
@@ -114,7 +114,7 @@ func SendTransferTransaction(
 
 	// Get proposed block
 	proposedBlock, err := GetBlockProposed(
-		ctx, userAccount, transfersHash, nonce,
+		ctx, cfg, userAccount, transfersHash, nonce,
 	)
 	if err != nil {
 		fmt.Printf("failed to send transaction: %v\n", err)

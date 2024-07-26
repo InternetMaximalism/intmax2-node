@@ -9,18 +9,17 @@ import (
 	"intmax2-node/internal/pow"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/transaction"
-	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/go-resty/resty/v2"
 )
 
 func SendTransactionRequest(
-	cfg *configs.Config,
 	ctx context.Context,
+	cfg *configs.Config,
 	senderAccount *intMaxAcc.PrivateKey,
 	transfersHash intMaxTypes.PoseidonHashOut,
 	nonce uint64,
@@ -69,10 +68,14 @@ func SendTransactionRequest(
 		return fmt.Errorf("failed to sign message: %w", err)
 	}
 
-	return SendTransactionWithRawRequest(senderAccount, transfersHash, nonce, expiration, powNonceStr, signatureInput)
+	return SendTransactionWithRawRequest(
+		ctx, cfg, senderAccount, transfersHash, nonce, expiration, powNonceStr, signatureInput,
+	)
 }
 
 func SendTransactionWithRawRequest(
+	ctx context.Context,
+	cfg *configs.Config,
 	senderAccount *intMaxAcc.PrivateKey,
 	transfersHash intMaxTypes.PoseidonHashOut,
 	nonce uint64,
@@ -81,6 +84,8 @@ func SendTransactionWithRawRequest(
 	signature *bn254.G2Affine,
 ) error {
 	return sendTransactionRawRequest(
+		ctx,
+		cfg,
 		senderAccount.ToAddress().String(),
 		transfersHash.String(),
 		nonce,
@@ -91,6 +96,8 @@ func SendTransactionWithRawRequest(
 }
 
 func sendTransactionRawRequest(
+	ctx context.Context,
+	cfg *configs.Config,
 	senderAddress, transfersHash string,
 	nonce uint64,
 	expiration time.Time,
@@ -110,39 +117,42 @@ func sendTransactionRawRequest(
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	body := strings.NewReader(string(bd))
-
 	const (
-		apiBaseUrl  = "http://localhost"
-		contentType = "application/json"
+		httpKey     = "http"
+		httpsKey    = "https"
+		contentType = "Content-Type"
+		appJSON     = "application/json"
 	)
-	apiUrl := fmt.Sprintf("%s/v1/transaction", apiBaseUrl)
 
-	resp, err := http.Post(apiUrl, contentType, body) // nolint:gosec
-	if err != nil {
-		return fmt.Errorf("failed to request API: %w", err)
-	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("Unexpected status code: %d\n", resp.StatusCode)
-		var bodyBytes []byte
-		bodyBytes, err = io.ReadAll(resp.Body)
-		if err != nil {
-			return fmt.Errorf("error reading response body: %w", err)
-		}
-		return fmt.Errorf("response body: %s", string(bodyBytes))
+	schema := httpKey
+	if cfg.HTTP.TLSUse {
+		schema = httpsKey
 	}
 
-	bodyBytes, err := io.ReadAll(resp.Body)
+	apiUrl := fmt.Sprintf("%s://%s/v1/transaction", schema, cfg.HTTP.Addr())
+
+	r := resty.New().R()
+	var resp *resty.Response
+	resp, err = r.SetContext(ctx).SetHeaders(map[string]string{
+		contentType: appJSON,
+	}).SetBody(bd).Post(apiUrl)
 	if err != nil {
-		return fmt.Errorf("failed to read response body: %w", err)
+		const msg = "failed to send transaction request: %w"
+		return fmt.Errorf(msg, err)
+	}
+
+	if resp == nil {
+		const msg = "send request error occurred"
+		return fmt.Errorf(msg)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		fmt.Printf("Unexpected status code: %d (body: %q)\n", resp.StatusCode(), resp.String())
+		return fmt.Errorf("response body: %s", resp.String())
 	}
 
 	response := new(SendTransactionResponse)
-	if err = json.Unmarshal(bodyBytes, response); err != nil {
+	if err = json.Unmarshal(resp.Body(), response); err != nil {
 		return fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
