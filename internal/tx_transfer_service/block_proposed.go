@@ -7,6 +7,7 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/hash/goldenposeidon"
+	"intmax2-node/internal/logger"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/block_proposed"
 	"net/http"
@@ -23,6 +24,7 @@ const signTimeout = 60 * time.Minute
 func GetBlockProposed(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 	senderAccount *intMaxAcc.PrivateKey,
 	transfersHash goldenposeidon.PoseidonHashOut,
 	nonce uint64,
@@ -36,9 +38,9 @@ func GetBlockProposed(
 	}
 
 	txHash := tx.Hash()
-	fmt.Printf("transfersHash: %v\n", transfersHash.String())
-	fmt.Printf("nonce: %v\n", nonce)
-	fmt.Printf("tx hash: %v\n", tx.Hash())
+	log.Printf("transfersHash: %s", transfersHash.String())
+	log.Printf("nonce: %d", nonce)
+	log.Printf("tx hash: %s", tx.Hash())
 
 	expiration := time.Now().Add(signTimeout)
 	var message []ffg.Element
@@ -53,7 +55,7 @@ func GetBlockProposed(
 	}
 
 	res, err := retryRequest(
-		ctx, cfg, senderAccount.ToAddress(), *txHash, expiration, signature,
+		ctx, cfg, log, senderAccount.ToAddress(), *txHash, expiration, signature,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get proposed block: %w", err)
@@ -70,6 +72,7 @@ const (
 func retryRequest(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 	senderAddress intMaxAcc.Address,
 	txHash goldenposeidon.PoseidonHashOut,
 	expiration time.Time,
@@ -89,6 +92,7 @@ func retryRequest(
 			response, err := GetBlockProposedRawRequest(
 				ctx,
 				cfg,
+				log,
 				senderAddress,
 				txHash,
 				expiration,
@@ -98,8 +102,8 @@ func retryRequest(
 				return response, nil
 			}
 
-			const msg = "Cannot get successful response (err = %q). Retry in %f second(s)"
-			fmt.Println(fmt.Sprintf(msg, err, retryInterval.Seconds()))
+			const msg = "Cannot get successful response. Retry in %f second(s)"
+			log.WithError(err).Errorf(msg, retryInterval.Seconds())
 		}
 	}
 }
@@ -118,19 +122,21 @@ type BlockProposedResponse struct {
 func GetBlockProposedRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 	senderAddress intMaxAcc.Address,
 	txHash goldenposeidon.PoseidonHashOut,
 	expiration time.Time,
 	signature *bn254.G2Affine,
 ) (*BlockProposedResponseData, error) {
 	return getBlockProposedRawRequest(
-		ctx, cfg, senderAddress.String(), hexutil.Encode(txHash.Marshal()), expiration, hexutil.Encode(signature.Marshal()),
+		ctx, cfg, log, senderAddress.String(), hexutil.Encode(txHash.Marshal()), expiration, hexutil.Encode(signature.Marshal()),
 	)
 }
 
 func getBlockProposedRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 	senderAddress, txHash string,
 	expiration time.Time,
 	signature string,
@@ -167,7 +173,7 @@ func getBlockProposedRawRequest(
 		contentType: appJSON,
 	}).SetBody(bd).Post(apiUrl)
 	if err != nil {
-		const msg = "failed to send transaction request: %w"
+		const msg = "failed to send ot the block proposed request: %w"
 		return nil, fmt.Errorf(msg, err)
 	}
 
@@ -177,8 +183,12 @@ func getBlockProposedRawRequest(
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		fmt.Printf("Unexpected status code: %d (body: %q)\n", resp.StatusCode(), resp.String())
-		return nil, fmt.Errorf("response body: %s", resp.String())
+		err = fmt.Errorf("failed to get response")
+		log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return nil, err
 	}
 
 	var res BlockProposedResponse

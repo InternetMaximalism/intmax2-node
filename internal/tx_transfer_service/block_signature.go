@@ -1,22 +1,24 @@
 package tx_transfer_service
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/hash/goldenposeidon"
+	"intmax2-node/internal/logger"
 	"intmax2-node/internal/pb/gen/service/node"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/block_signature"
-	"io"
 	"math/big"
 	"net/http"
-	"strings"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/go-resty/resty/v2"
 )
 
 type BlockSignatureResponse struct {
@@ -121,6 +123,9 @@ func MakePostBlockSignatureRawRequest(
 }
 
 func SendSignedProposedBlock(
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
 	senderAccount *intMaxAcc.PrivateKey,
 	txTreeRoot goldenposeidon.PoseidonHashOut,
 	publicKeysHash []byte,
@@ -145,15 +150,19 @@ func SendSignedProposedBlock(
 	if err != nil {
 		return fmt.Errorf("failed to marshal prevBalanceProof: %w", err)
 	}
-	fmt.Printf("encodedPrevBalanceProof: %v", encodedPrevBalanceProof)
+	log.Printf("encodedPrevBalanceProof: %v", encodedPrevBalanceProof)
 
 	return PostBlockSignatureRawRequest(
+		ctx, cfg, log,
 		senderAccount.ToAddress(), txTreeRoot, signature,
 		prevBalanceProof, transferStepProof,
 	)
 }
 
 func PostBlockSignatureRawRequest(
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
 	senderAddress intMaxAcc.Address,
 	txHash goldenposeidon.PoseidonHashOut,
 	signature *bn254.G2Affine,
@@ -161,6 +170,7 @@ func PostBlockSignatureRawRequest(
 	transferStepProof block_signature.Plonky2Proof,
 ) error {
 	return postBlockSignatureRawRequest(
+		ctx, cfg, log,
 		senderAddress.String(),
 		hexutil.Encode(txHash.Marshal()),
 		hexutil.Encode(signature.Marshal()),
@@ -170,6 +180,9 @@ func PostBlockSignatureRawRequest(
 }
 
 func postBlockSignatureRawRequest(
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
 	senderAddress, txHash, signature string,
 	prevBalanceProof block_signature.Plonky2Proof,
 	transferStepProof block_signature.Plonky2Proof,
@@ -189,35 +202,47 @@ func postBlockSignatureRawRequest(
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	body := strings.NewReader(string(bd))
-
 	const (
-		apiBaseUrl  = "http://localhost"
-		contentType = "application/json"
+		httpKey     = "http"
+		httpsKey    = "https"
+		contentType = "Content-Type"
+		appJSON     = "application/json"
 	)
-	apiUrl := fmt.Sprintf("%s/v1/block/signature", apiBaseUrl)
 
-	resp, err := http.Post(apiUrl, contentType, body) // nolint:gosec
-	if err != nil {
-		return fmt.Errorf("failed to request API: %w", err)
+	schema := httpKey
+	if cfg.HTTP.TLSUse {
+		schema = httpsKey
 	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
 
-	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("Unexpected status code: %d\n", resp.StatusCode)
-		var bodyBytes []byte
-		bodyBytes, err = io.ReadAll(resp.Body)
-		if err != nil {
-			return fmt.Errorf("error reading response body: %w", err)
-		}
-		return fmt.Errorf("response body: %s", string(bodyBytes))
+	apiUrl := fmt.Sprintf("%s://%s/v1/block/signature", schema, cfg.HTTP.Addr())
+
+	r := resty.New().R()
+	var resp *resty.Response
+	resp, err = r.SetContext(ctx).SetHeaders(map[string]string{
+		contentType: appJSON,
+	}).SetBody(bd).Post(apiUrl)
+	if err != nil {
+		const msg = "failed to send of the block signature request: %w"
+		return fmt.Errorf(msg, err)
+	}
+
+	if resp == nil {
+		const msg = "send request error occurred"
+		return fmt.Errorf(msg)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		err = fmt.Errorf("failed to get response")
+		log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return err
 	}
 
 	var res BlockSignatureResponse
-	if err = json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return fmt.Errorf("failed to decode JSON response: %w", err)
+	if err = json.Unmarshal(resp.Body(), &res); err != nil {
+		return fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
 	if !res.Success {
