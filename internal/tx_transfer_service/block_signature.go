@@ -106,7 +106,7 @@ func postBlockSignatureRawRequest(
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("Unexpected status code: %d", resp.StatusCode)
+		fmt.Printf("Unexpected status code: %d\n", resp.StatusCode)
 		var bodyBytes []byte
 		bodyBytes, err = io.ReadAll(resp.Body)
 		if err != nil {
