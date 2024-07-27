@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func (p *pgx) CreateWithdrawal(id string, input postWithdrwalRequest.UCPostWithdrawalRequestInput) (*mDBApp.Withdrawal, error) {
+func (p *pgx) CreateWithdrawal(id string, input *postWithdrwalRequest.UCPostWithdrawalRequestInput) (*mDBApp.Withdrawal, error) {
 	const query = `
 	    INSERT INTO withdrawals
         (id, status, transfer_data, transfer_merkle_proof, transaction, tx_merkle_proof, enough_balance_proof, transfer_hash, block_number, block_hash, created_at)
@@ -118,7 +118,8 @@ func (p *pgx) WithdrawalByID(id string) (*mDBApp.Withdrawal, error) {
 		return nil, err
 	}
 
-	if err := unmarshalWithdrawalData(&tmp, transferDataJSON, transferMerkleProofJSON, transactionJSON, txMerkleProofJSON, enoughBalanceProofJSON); err != nil {
+	err = unmarshalWithdrawalData(&tmp, transferDataJSON, transferMerkleProofJSON, transactionJSON, txMerkleProofJSON, enoughBalanceProofJSON)
+	if err != nil {
 		return nil, err
 	}
 
@@ -156,7 +157,7 @@ func (p *pgx) WithdrawalsByStatus(status mDBApp.WithdrawalStatus, limit *int) (*
 		var w models.Withdrawal
 		var transferDataJSON, transferMerkleProofJSON, transactionJSON, txMerkleProofJSON, enoughBalanceProofJSON []byte
 
-		err := rows.Scan(
+		err = rows.Scan(
 			&w.ID, &w.Status, &transferDataJSON, &transferMerkleProofJSON,
 			&transactionJSON, &txMerkleProofJSON, &enoughBalanceProofJSON,
 			&w.TransferHash, &w.BlockNumber, &w.BlockHash, &w.CreatedAt,
@@ -165,14 +166,15 @@ func (p *pgx) WithdrawalsByStatus(status mDBApp.WithdrawalStatus, limit *int) (*
 			return nil, errPgx.Err(err)
 		}
 
-		if err := unmarshalWithdrawalData(&w, transferDataJSON, transferMerkleProofJSON, transactionJSON, txMerkleProofJSON, enoughBalanceProofJSON); err != nil {
+		err = unmarshalWithdrawalData(&w, transferDataJSON, transferMerkleProofJSON, transactionJSON, txMerkleProofJSON, enoughBalanceProofJSON)
+		if err != nil {
 			return nil, err
 		}
 
 		withdrawals = append(withdrawals, p.wToDBApp(&w))
 	}
 
-	if err := rows.Err(); err != nil {
+	if err = rows.Err(); err != nil {
 		return nil, errPgx.Err(err)
 	}
 
@@ -213,19 +215,20 @@ func (p *pgx) wToDBApp(w *models.Withdrawal) mDBApp.Withdrawal {
 }
 
 func unmarshalWithdrawalData(w *models.Withdrawal, transferDataJSON, transferMerkleProofJSON, transactionJSON, txMerkleProofJSON, enoughBalanceProofJSON []byte) error {
-	if err := json.Unmarshal(transferDataJSON, &w.TransferData); err != nil {
+	var err error
+	if err = json.Unmarshal(transferDataJSON, &w.TransferData); err != nil {
 		return fmt.Errorf("failed to unmarshal TransferData: %w", err)
 	}
-	if err := json.Unmarshal(transferMerkleProofJSON, &w.TransferMerkleProof); err != nil {
+	if err = json.Unmarshal(transferMerkleProofJSON, &w.TransferMerkleProof); err != nil {
 		return fmt.Errorf("failed to unmarshal TransferMerkleProof: %w", err)
 	}
-	if err := json.Unmarshal(transactionJSON, &w.Transaction); err != nil {
+	if err = json.Unmarshal(transactionJSON, &w.Transaction); err != nil {
 		return fmt.Errorf("failed to unmarshal Transaction: %w", err)
 	}
-	if err := json.Unmarshal(txMerkleProofJSON, &w.TxMerkleProof); err != nil {
+	if err = json.Unmarshal(txMerkleProofJSON, &w.TxMerkleProof); err != nil {
 		return fmt.Errorf("failed to unmarshal TxMerkleProof: %w", err)
 	}
-	if err := json.Unmarshal(enoughBalanceProofJSON, &w.EnoughBalanceProof); err != nil {
+	if err = json.Unmarshal(enoughBalanceProofJSON, &w.EnoughBalanceProof); err != nil {
 		return fmt.Errorf("failed to unmarshal EnoughBalanceProof: %w", err)
 	}
 	return nil

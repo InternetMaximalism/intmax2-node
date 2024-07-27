@@ -30,7 +30,7 @@ func newWithdrawalRequestService(ctx context.Context, cfg *configs.Config, log l
 }
 
 // TODO: NEED_TO_BE_UPDATE logic
-func PostWithdrawalRequest(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, input postWithdrwalRequest.UCPostWithdrawalRequestInput) error {
+func PostWithdrawalRequest(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, input *postWithdrwalRequest.UCPostWithdrawalRequestInput) error {
 	service := newWithdrawalRequestService(ctx, cfg, log, db)
 
 	err := service.verifyBalanceProof()
@@ -58,7 +58,7 @@ func (s *WithdrawalRequestService) verifyBalanceProof() error {
 	return nil
 }
 
-func (w *WithdrawalRequestService) requestWithdrawalProofToProver(id string, input postWithdrwalRequest.UCPostWithdrawalRequestInput) error {
+func (w *WithdrawalRequestService) requestWithdrawalProofToProver(id string, input *postWithdrwalRequest.UCPostWithdrawalRequestInput) error {
 	requestBody := map[string]interface{}{
 		"id":         id,
 		"recipient":  input.TransferData.Recipient,
@@ -88,7 +88,7 @@ func (w *WithdrawalRequestService) requestWithdrawalProofToProver(id string, inp
 	}
 
 	var res GenerateProofResponse
-	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+	if err = json.NewDecoder(resp.Body).Decode(&res); err != nil {
 		return fmt.Errorf("failed to decode JSON response: %w", err)
 	}
 

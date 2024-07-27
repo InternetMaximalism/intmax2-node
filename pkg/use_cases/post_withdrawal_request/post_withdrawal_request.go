@@ -46,7 +46,7 @@ func (u *uc) Do(ctx context.Context, input *postWithdrwalRequest.UCPostWithdrawa
 		attribute.String(txHashKey, input.TransferHash),
 	)
 
-	err := service.PostWithdrawalRequest(ctx, u.cfg, u.log, u.db, *input)
+	err := service.PostWithdrawalRequest(ctx, u.cfg, u.log, u.db, input)
 	if err != nil {
 		return fmt.Errorf("failed to post withdrawal request: %w", err)
 	}

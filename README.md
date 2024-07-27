@@ -230,9 +230,29 @@ Usage:
 Flags:
   -h, --help   help for relayer
 ```
-### Command `./intmax2-node withdrawal relayer --help`
+### Command `./intmax2-node withdrawal-server run --help`
 ```
-# ./intmax2-node withdrawal relayer --help
+# ./intmax2-node withdrawal-server run --help
+Run withdrawal server
+
+Usage:
+  app withdrawal-server run [flags]
+
+Flags:
+  -h, --help help for server
+```
+### Command `./intmax2-node withdrawal aggregator --help`
+```
+# ./intmax2-node withdrawal aggregator --help
+Run withdrawal aggregator service
+
+Usage:
+  app withdrawal aggregator [flags]
+
+Flags:
+  -h, --help help for aggregator
+```
+### ./intmax2-node withdrawal relayer --help
 Run withdrawal relayer service
 
 Usage:
@@ -331,6 +351,8 @@ When a node starts, it tries to find and remember its external address in this o
 |   | NETWORK_DOMAIN                                   |                                                                    | `domain` or `ip-address` of external proxy-server for connections with node                                                                |
 |   | NETWORK_PORT                                     |                                                                    | `port` of external proxy-server for connections with node                                                                                  |
 |   | NETWORK_HTTPS_USE                                | false                                                              | flag of turn off (false) or turn on (true) about use HTTPS schema for external proxy-server for connections with node                      |
+|   | **API**                                          |                                                                    |                                                                                                                                            |
+| * | WITHDRAWAL_PROVER_API_URL                        |                                                                    | API endpoint for verifying and processing withdrawal requests.                                                                             |
 |   | **STUN SERVER**                                  |                                                                    |                                                                                                                                            |
 | * | STUN_SERVER_NETWORK_TYPE                         | udp6;udp4                                                          | network type for dial with stun server (separator equal `;`)                                                                               |
 | * | STUN_SERVER_LIST                                 | stun.l.google.com:19302                                            | network address for dial with stun server (separator equal `;`)                                                                            |

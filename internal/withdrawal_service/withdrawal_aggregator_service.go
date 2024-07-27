@@ -103,7 +103,10 @@ func WithdrawalAggregator(ctx context.Context, cfg *configs.Config, log logger.L
 		// TODO: NEED_TO_BE_CHANGED change status depends on the result of the proof
 		if err.Error() == "WithdrawalProofVerificationFailed" {
 			log.Errorf("Failed to submit withdrawal proof: %v", err.Error())
-			db.UpdateWithdrawalsStatus(extractIds(*pendingWithdrawals), mDBApp.WS_FAILED)
+			err = db.UpdateWithdrawalsStatus(extractIds(*pendingWithdrawals), mDBApp.WS_FAILED)
+			if err != nil {
+				panic(fmt.Sprintf("Failed to update withdrawal status: %v", err.Error()))
+			}
 			return
 		}
 		panic(fmt.Sprintf("Failed to submit withdrawal proof: %v", err.Error()))
@@ -115,14 +118,17 @@ func WithdrawalAggregator(ctx context.Context, cfg *configs.Config, log logger.L
 
 	switch receipt.Status {
 	case types.ReceiptStatusSuccessful:
-		log.Infof("Successfully submit withdrawal proof. Transaction Hash: %v", receipt.TxHash.Hex())
+		log.Infof("Successfully submit withdrawal proof %d withdrawals. Transaction Hash: %v", len(*pendingWithdrawals), receipt.TxHash.Hex())
 	case types.ReceiptStatusFailed:
 		panic(fmt.Sprintf("Transaction failed: submit withdrawal proof unsuccessful. Transaction Hash: %v", receipt.TxHash.Hex()))
 	default:
 		panic(fmt.Sprintf("Unexpected transaction status: %d. Transaction Hash: %v", receipt.Status, receipt.TxHash.Hex()))
 	}
 
-	db.UpdateWithdrawalsStatus(extractIds(*pendingWithdrawals), mDBApp.WS_SUCCESS)
+	err = db.UpdateWithdrawalsStatus(extractIds(*pendingWithdrawals), mDBApp.WS_SUCCESS)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to update withdrawal status: %v", err.Error()))
+	}
 }
 
 func (w *WithdrawalAggregatorService) fetchPendingWithdrawals() (*[]mDBApp.Withdrawal, error) {

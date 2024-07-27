@@ -9,6 +9,10 @@ import (
 	"github.com/prodadidb/go-validation"
 )
 
+const (
+	Base10 = 10
+)
+
 // ErrValueInvalid error: value must be valid.
 var ErrValueInvalid = errors.New("must be a valid value")
 
@@ -32,21 +36,21 @@ func (input *UCPostWithdrawalRequestInput) validateTransferData(value interface{
 	}
 
 	if transferData.Recipient == "" {
-		return errors.New("Recipient must not be empty")
+		return errors.New("recipient must not be empty")
 	}
 	if transferData.TokenIndex < 0 {
 		return errors.New("TokenIndex must be non-negative")
 	}
 	amount := new(big.Int)
-	amount, ok = amount.SetString(transferData.Amount, 10)
+	amount, ok = amount.SetString(transferData.Amount, Base10)
 	if !ok {
-		return errors.New("Amount must be a valid number")
+		return errors.New("amount must be a valid number")
 	}
 	if amount.Cmp(big.NewInt(0)) <= 0 {
-		return errors.New("Amount must be positive")
+		return errors.New("amount must be positive")
 	}
 	if transferData.Salt == "" {
-		return errors.New("Salt must not be empty")
+		return errors.New("salt must not be empty")
 	}
 	return nil
 }
@@ -76,7 +80,7 @@ func (input *UCPostWithdrawalRequestInput) validateTransaction(value interface{}
 		return errors.New("TransferTreeRoot must not be empty")
 	}
 	if transaction.Nonce < 0 {
-		return errors.New("Transaction Nonce must be non-negative")
+		return errors.New("transaction Nonce must be non-negative")
 	}
 	return nil
 }
@@ -102,10 +106,10 @@ func (input *UCPostWithdrawalRequestInput) validateEnoughBalanceProof(value inte
 		return ErrValueInvalid
 	}
 
-	if len(proof.Proof) == 0 {
+	if proof.Proof == "" {
 		return errors.New("EnoughBalanceProof Proof must not be empty")
 	}
-	if len(proof.PublicInputs) == 0 {
+	if proof.PublicInputs == "" {
 		return errors.New("EnoughBalanceProof PublicInputs must not be empty")
 	}
 	return nil

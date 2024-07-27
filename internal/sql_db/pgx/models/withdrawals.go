@@ -5,9 +5,9 @@ import "time"
 type WithdrawalStatus int
 
 const (
-	PENDING WithdrawalStatus = iota
-	SUCCESS
-	FAILED
+	WS_PENDING WithdrawalStatus = iota
+	WS_SUCCESS
+	WS_FAILED
 )
 
 type TransferData struct {
