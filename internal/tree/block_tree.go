@@ -11,8 +11,8 @@ type BlockHashTree struct {
 	inner  *KeccakMerkleTree
 }
 
-func NewBlockHashTree(height uint8, initialLeaves [][32]byte) (*BlockHashTree, error) {
-	initialLeafHashes := make([][32]byte, len(initialLeaves))
+func NewBlockHashTree(height uint8, initialLeaves [][numHashBytes]byte) (*BlockHashTree, error) {
+	initialLeafHashes := make([][numHashBytes]byte, len(initialLeaves))
 	copy(initialLeafHashes, initialLeaves)
 
 	t, err := NewKeccakMerkleTree(height, initialLeafHashes)
@@ -20,7 +20,7 @@ func NewBlockHashTree(height uint8, initialLeaves [][32]byte) (*BlockHashTree, e
 		return nil, err
 	}
 
-	leaves := make([][32]byte, len(initialLeaves))
+	leaves := make([][numHashBytes]byte, len(initialLeaves))
 	copy(leaves, initialLeaves)
 
 	return &BlockHashTree{
@@ -29,31 +29,31 @@ func NewBlockHashTree(height uint8, initialLeaves [][32]byte) (*BlockHashTree, e
 	}, nil
 }
 
-func (t *BlockHashTree) BuildMerkleRoot(leaves [][32]byte) (common.Hash, error) {
+func (t *BlockHashTree) BuildMerkleRoot(leaves [][numHashBytes]byte) (common.Hash, error) {
 	return t.inner.BuildMerkleRoot(leaves)
 }
 
-func (t *BlockHashTree) GetCurrentRootCountAndSiblings() (common.Hash, uint32, [][32]byte) {
+func (t *BlockHashTree) GetCurrentRootCountAndSiblings() (root common.Hash, nextIndex uint32, siblings [][numHashBytes]byte) {
 	return t.inner.GetCurrentRootCountAndSiblings()
 }
 
-func (t *BlockHashTree) AddLeaf(index uint32, leaf [32]byte) (root [32]byte, err error) {
+func (t *BlockHashTree) AddLeaf(index uint32, leaf [numHashBytes]byte) (root [numHashBytes]byte, err error) {
 	leafHash := leaf
 	root, err = t.inner.AddLeaf(index, leafHash)
 	if err != nil {
-		return [32]byte{}, err
+		return [numHashBytes]byte{}, err
 	}
 
 	if int(index) != len(t.Leaves) {
-		return [32]byte{}, errors.New("index is not equal to the length of leaves")
+		return [numHashBytes]byte{}, errors.New("index is not equal to the length of leaves")
 	}
-	leaf = [32]byte{}
+	leaf = [numHashBytes]byte{}
 	copy(leaf[:], leafHash[:])
 	t.Leaves = append(t.Leaves, leaf)
 
 	return root, nil
 }
 
-func (t *BlockHashTree) ComputeMerkleProof(index uint32, leaves [][32]byte) (siblings [][32]byte, root common.Hash, err error) {
+func (t *BlockHashTree) ComputeMerkleProof(index uint32, leaves [][numHashBytes]byte) (siblings [][numHashBytes]byte, root common.Hash, err error) {
 	return t.inner.ComputeMerkleProof(index, leaves)
 }

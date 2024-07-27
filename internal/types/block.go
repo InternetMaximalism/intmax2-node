@@ -364,10 +364,12 @@ func NewPostedBlock(prevBlockHash, depositRoot common.Hash, blockNumber uint32, 
 }
 
 func (pb *PostedBlock) Marshal() []byte {
+	const int4Key = 4
+
 	data := make([]byte, 0)
 
 	data = append(data, pb.PrevBlockHash.Bytes()...)
-	blockNumberBytes := [4]byte{}
+	blockNumberBytes := [int4Key]byte{}
 	binary.BigEndian.PutUint32(blockNumberBytes[:], pb.BlockNumber)
 	data = append(data, blockNumberBytes[:]...)
 	data = append(data, pb.DepositRoot.Bytes()...)
