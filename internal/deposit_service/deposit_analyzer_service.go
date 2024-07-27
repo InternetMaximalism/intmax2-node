@@ -32,6 +32,10 @@ type DepositAnalyzerService struct {
 	liquidity *bindings.Liquidity
 }
 
+func NewDepositAnalyzerService(ctx context.Context, cfg *configs.Config, log logger.Logger, sc ServiceBlockchain) (*DepositAnalyzerService, error) {
+	return newDepositAnalyzerService(ctx, cfg, log, sc)
+}
+
 func newDepositAnalyzerService(ctx context.Context, cfg *configs.Config, log logger.Logger, _ ServiceBlockchain) (*DepositAnalyzerService, error) {
 	// link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
 	// if err != nil {

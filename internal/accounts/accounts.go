@@ -303,6 +303,19 @@ func NewPublicKeyFromAddressHex(address string) (*PublicKey, error) {
 	return publicKey, nil
 }
 
+func NewAddressFromAddressInt(a *big.Int) (Address, error) {
+	return NewAddressFromBytes(a.Bytes())
+}
+
+func NewPublicKeyFromAddressInt(a *big.Int) (*PublicKey, error) {
+	address, err := NewAddressFromAddressInt(a)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new address from bytes: %w", err)
+	}
+
+	return address.Public()
+}
+
 func (pk *PublicKey) BigInt() *big.Int {
 	return pk.Pk.X.BigInt(new(big.Int))
 }

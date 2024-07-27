@@ -78,6 +78,10 @@ func NewBlockContent(
 	)
 
 	var bc BlockContent
+
+	if senderType != PublicKeySenderType && senderType != AccountIDSenderType {
+		return nil
+	}
 	bc.SenderType = senderType
 	bc.Senders = make([]Sender, len(senders))
 	copy(bc.Senders, senders)
@@ -177,18 +181,18 @@ func (bc *BlockContent) IsValid() error {
 					return ErrBlockContentAggPubKeyEmpty
 				}
 
-				senderPublicKeys := make([]byte, len(bc.Senders)*NumPublicKeyBytes)
+				senderPublicKeysBytes := make([]byte, len(bc.Senders)*NumPublicKeyBytes)
 				for key := range bc.Senders {
 					if bc.Senders[key].IsSigned {
 						senderPublicKey := bc.Senders[key].PublicKey.Pk.X.Bytes() // Only x coordinate is used
 						copy(
-							senderPublicKeys[NumPublicKeyBytes*key:NumPublicKeyBytes*(key+int1Key)],
+							senderPublicKeysBytes[NumPublicKeyBytes*key:NumPublicKeyBytes*(key+int1Key)],
 							senderPublicKey[:],
 						)
 					}
 				}
 
-				publicKeysHash := crypto.Keccak256(senderPublicKeys)
+				publicKeysHash := crypto.Keccak256(senderPublicKeysBytes)
 				aggregatedPublicKey := new(accounts.PublicKey)
 				for key := range bc.Senders {
 					if bc.Senders[key].IsSigned {
@@ -391,6 +395,16 @@ type PostRegistrationBlockInput struct {
 	SenderPublicKeys    []*big.Int
 }
 
+type PostNonRegistrationBlockInput struct {
+	TxTreeRoot          [32]byte
+	SenderFlags         [16]byte
+	AggregatedPublicKey [2][32]byte
+	AggregatedSignature [4][32]byte
+	MessagePoint        [4][32]byte
+	PublicKeysHash      [32]byte
+	SenderAccountIds    []byte
+}
+
 // MakePostRegistrationBlockInput creates a PostRegistrationBlockInput from a BlockContent.
 // The input is used to post a block on the smart contract:
 //
@@ -452,25 +466,88 @@ func MakePostRegistrationBlockInput(blockContent *BlockContent) (*PostRegistrati
 	}, nil
 }
 
+func MakePostNonRegistrationBlockInput(blockContent *BlockContent) (*PostNonRegistrationBlockInput, error) {
+	b, err := MakePostRegistrationBlockInput(blockContent)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(blockContent.Senders) != NumOfSenders {
+		return nil, errors.New("invalid number of senders")
+	}
+
+	senderPublicKeys := make([][]byte, len(blockContent.Senders))
+	for i, sender := range blockContent.Senders {
+		address := sender.PublicKey.ToAddress()
+		senderPublicKeys[i] = address[:]
+	}
+
+	publicKeysHash := [NumPublicKeyBytes]byte{}
+	copy(publicKeysHash[:], crypto.Keccak256(senderPublicKeys...))
+
+	senderAccountIds, err := MakeAccountIds(blockContent)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PostNonRegistrationBlockInput{
+		TxTreeRoot:          b.TxTreeRoot,
+		SenderFlags:         b.SenderFlags,
+		AggregatedPublicKey: b.AggregatedPublicKey,
+		AggregatedSignature: b.AggregatedSignature,
+		MessagePoint:        b.MessagePoint,
+		PublicKeysHash:      publicKeysHash,
+		SenderAccountIds:    senderAccountIds,
+	}, nil
+}
+
 func MakeAccountIds(blockContent *BlockContent) ([]byte, error) {
 	if blockContent.SenderType != AccountIDSenderType {
 		return nil, errors.New("invalid sender type")
 	}
 
-	senderAccountIds := make([]byte, len(blockContent.Senders)*NumAccountIDBytes)
+	accountIds := make([]uint64, len(blockContent.Senders))
 	for i, sender := range blockContent.Senders {
-		accountID := sender.AccountID
-		// account ID is 5 bytes
+		accountIds[i] = sender.AccountID
+	}
+
+	return MarshalAccountIds(accountIds)
+}
+
+func MarshalAccountIds(accountIds []uint64) ([]byte, error) {
+	accountIdsBytes := make([]byte, len(accountIds)*NumAccountIDBytes)
+	for i, accountID := range accountIds {
 		if accountID >= 1<<(NumAccountIDBytes*int8Key) {
 			return nil, errors.New("invalid account ID")
 		}
-		// account ID is little-endian
+		// account ID is big-endian
 		for j := 0; j < NumAccountIDBytes; j++ {
-			senderAccountIds[i*NumAccountIDBytes+j] = byte(accountID >> uint(int8Key*j))
+			reverseIndex := NumAccountIDBytes - (j + 1)
+			accountIdsBytes[i*NumAccountIDBytes+j] = byte(accountID >> uint(int8Key*reverseIndex))
 		}
 	}
 
-	return senderAccountIds, nil
+	return accountIdsBytes, nil
+}
+
+func UnmarshalAccountIds(accountIdsBytes []byte) ([]uint64, error) {
+	const (
+		int0Key = 0
+		int8Key = 8
+	)
+
+	if len(accountIdsBytes)%NumAccountIDBytes != int0Key {
+		return nil, fmt.Errorf("length of account IDs bytes is not a multiple of 5")
+	}
+
+	accountIds := make([]uint64, len(accountIdsBytes)/NumAccountIDBytes)
+	for i := int0Key; i < len(accountIds); i++ {
+		bytes := make([]byte, int8Key)
+		copy(bytes[int8Key-NumAccountIDBytes:], accountIdsBytes[i*NumAccountIDBytes:(i+1)*NumAccountIDBytes])
+		accountIds[i] = binary.BigEndian.Uint64(bytes)
+	}
+
+	return accountIds, nil
 }
 
 type RollupContractConfig struct {
@@ -559,7 +636,7 @@ func PostNonRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockCont
 		return nil, fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
 	}
 
-	input, err := MakePostRegistrationBlockInput(blockContent)
+	input, err := MakePostNonRegistrationBlockInput(blockContent)
 	if err != nil {
 		return nil, fmt.Errorf("failed to make post registration block input: %w", err)
 	}
@@ -582,27 +659,14 @@ func PostNonRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockCont
 		return nil, fmt.Errorf("failed to create transactor: %w", err)
 	}
 
-	senderAccountIds, err := MakeAccountIds(blockContent)
-	if err != nil {
-		return nil, fmt.Errorf("failed to make account IDs: %w", err)
-	}
-	senderPublicKeys := make([][]byte, len(blockContent.Senders))
-	for i, sender := range blockContent.Senders {
-		address := sender.PublicKey.ToAddress()
-		senderPublicKeys[i] = address[:]
-	}
-
-	publicKeysHash := [NumPublicKeyBytes]byte{}
-	copy(publicKeysHash[:], crypto.Keccak256(senderPublicKeys...))
-
 	// Output calldata
 	fmt.Printf("Tx tree root: %x\n", input.TxTreeRoot)
 	fmt.Printf("Sender flags: %x\n", input.SenderFlags)
 	fmt.Printf("Aggregated public key: %x\n", input.AggregatedPublicKey)
 	fmt.Printf("Aggregated signature: %x\n", input.AggregatedSignature)
 	fmt.Printf("Message point: %x\n", input.MessagePoint)
-	fmt.Printf("Public keys hash: %x\n", publicKeysHash)
-	fmt.Printf("Sender account IDs: %x\n", senderAccountIds)
+	fmt.Printf("Public keys hash: %x\n", input.PublicKeysHash)
+	fmt.Printf("Sender account IDs: %x\n", input.SenderAccountIds)
 
 	return rollup.PostNonRegistrationBlock(
 		transactOpts,
@@ -611,7 +675,7 @@ func PostNonRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockCont
 		input.AggregatedPublicKey,
 		input.AggregatedSignature,
 		input.MessagePoint,
-		publicKeysHash,
-		senderAccountIds,
+		input.PublicKeysHash,
+		input.SenderAccountIds,
 	)
 }
