@@ -11,6 +11,9 @@
     },
     {
       "name": "InfoService"
+    },
+    {
+      "name": "WithdrawalService"
     }
   ],
   "host": "SWAGGER_HOST_URL",
@@ -241,9 +244,59 @@
           "InfoService"
         ]
       }
+    },
+    "/v1/withdrawal/request": {
+      "post": {
+        "summary": "WithdrawalRequest processes a request for withdrawal",
+        "description": "## WithdrawalRequest processes a request for withdrawal",
+        "operationId": "WithdrawalService_WithdrawalRequest",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1WithdrawalRequestResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1WithdrawalRequestRequest"
+            }
+          }
+        ],
+        "tags": [
+          "WithdrawalService"
+        ]
+      }
     }
   },
   "definitions": {
+    "WithdrawalRequestResponseData": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "title": "the message with additional details"
+        }
+      },
+      "title": "Data contains additional information in the response"
+    },
     "protobufAny": {
       "type": "object",
       "properties": {
@@ -400,6 +453,20 @@
       },
       "title": "DataTransactionResponse describes the data of response to get info about the create new transaction"
     },
+    "v1EnoughBalanceProof": {
+      "type": "object",
+      "properties": {
+        "proof": {
+          "type": "string",
+          "title": "the proof string"
+        },
+        "publicInputs": {
+          "type": "string",
+          "title": "the public inputs for the proof"
+        }
+      },
+      "title": "EnoughBalanceProof contains the proof for enough balance"
+    },
     "v1HealthCheckResponse": {
       "type": "object",
       "properties": {
@@ -444,6 +511,21 @@
         }
       },
       "title": "RecipientTransferDataTransactionRequest describes recipient of request to get info about the create new transaction"
+    },
+    "v1Transaction": {
+      "type": "object",
+      "properties": {
+        "transferTreeRoot": {
+          "type": "string",
+          "title": "the root of the transfer tree"
+        },
+        "nonce": {
+          "type": "integer",
+          "format": "int32",
+          "title": "the nonce of the transaction"
+        }
+      },
+      "title": "Transaction contains details about the transaction"
     },
     "v1TransactionRequest": {
       "type": "object",
@@ -499,6 +581,29 @@
       },
       "title": "TransactionRequest describes response to get info about the create new transaction"
     },
+    "v1TransferData": {
+      "type": "object",
+      "properties": {
+        "recipient": {
+          "type": "string",
+          "title": "the recipient address"
+        },
+        "tokenIndex": {
+          "type": "integer",
+          "format": "int32",
+          "title": "the token index"
+        },
+        "amount": {
+          "type": "string",
+          "title": "the amount of the transfer"
+        },
+        "salt": {
+          "type": "string",
+          "title": "the salt used in the transfer"
+        }
+      },
+      "title": "TransferData contains details about the transfer"
+    },
     "v1TransferDataTransactionRequest": {
       "type": "object",
       "properties": {
@@ -521,6 +626,42 @@
       },
       "title": "TransferDataTransactionRequest describes the data of transaction"
     },
+    "v1TransferMerkleProof": {
+      "type": "object",
+      "properties": {
+        "siblings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "the list of sibling hashes in the Merkle tree"
+        },
+        "index": {
+          "type": "integer",
+          "format": "int32",
+          "title": "the index in the Merkle tree"
+        }
+      },
+      "title": "TransferMerkleProof contains the Merkle proof for the transfer"
+    },
+    "v1TxMerkleProof": {
+      "type": "object",
+      "properties": {
+        "siblings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "the list of sibling hashes in the Merkle tree"
+        },
+        "index": {
+          "type": "integer",
+          "format": "int32",
+          "title": "the index in the Merkle tree"
+        }
+      },
+      "title": "TxMerkleProof contains the Merkle proof for the transaction"
+    },
     "v1VersionResponse": {
       "type": "object",
       "properties": {
@@ -534,6 +675,59 @@
         }
       },
       "title": "VersionResponse describes response to get info about the build version info and build time"
+    },
+    "v1WithdrawalRequestRequest": {
+      "type": "object",
+      "properties": {
+        "transferData": {
+          "$ref": "#/definitions/v1TransferData",
+          "title": "the transfer data"
+        },
+        "transferMerkleProof": {
+          "$ref": "#/definitions/v1TransferMerkleProof",
+          "title": "the transfer Merkle proof"
+        },
+        "transaction": {
+          "$ref": "#/definitions/v1Transaction",
+          "title": "the transaction data"
+        },
+        "txMerkleProof": {
+          "$ref": "#/definitions/v1TxMerkleProof",
+          "title": "the transaction Merkle proof"
+        },
+        "transferHash": {
+          "type": "string",
+          "title": "the transfer hash"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64",
+          "title": "the block number"
+        },
+        "blockHash": {
+          "type": "string",
+          "title": "the block hash"
+        },
+        "enoughBalanceProof": {
+          "$ref": "#/definitions/v1EnoughBalanceProof",
+          "title": "the proof of enough balance"
+        }
+      },
+      "title": "WithdrawalProofRequest describes the request for a withdrawal proof"
+    },
+    "v1WithdrawalRequestResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "indicates if the request was successful"
+        },
+        "data": {
+          "$ref": "#/definitions/WithdrawalRequestResponseData",
+          "title": "contains additional data about the response"
+        }
+      },
+      "title": "WithdrawalRequestResponse describes the response for a withdrawal request"
     }
   }
 }
