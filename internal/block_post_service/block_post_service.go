@@ -25,6 +25,20 @@ const (
 	scrollNetworkRpcUrl   = "https://sepolia-rpc.scroll.io"
 	senderPublicKeysIndex = 5
 	numOfSenders          = intMaxTypes.NumOfSenders
+
+	postRegistrationBlockMethod    = "postRegistrationBlock"
+	postNonRegistrationBlockMethod = "postNonRegistrationBlock"
+
+	int0Key  = 0
+	int1Key  = 1
+	int2Key  = 2
+	int3Key  = 3
+	int4Key  = 4
+	int5Key  = 5
+	int6Key  = 6
+	int8Key  = 8
+	int16Key = 16
+	int32Key = 32
 )
 
 type BlockPostService struct {
@@ -40,23 +54,33 @@ type BlockPostService struct {
 func NewBlockPostService(ctx context.Context, cfg *configs.Config) (*BlockPostService, error) {
 	ethClient, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new Ethereum client: %w", err)
+		return nil, errors.Join(ErrNewEthereumClientFail, err)
 	}
 	defer ethClient.Close()
 
-	scrollClient, err := utils.NewClient(scrollNetworkRpcUrl)
+	var scrollClient *ethclient.Client
+	scrollClient, err = utils.NewClient(scrollNetworkRpcUrl)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new Scroll client: %w", err)
+		return nil, errors.Join(ErrNewScrollClientFail, err)
 	}
 	defer scrollClient.Close()
 
-	liquidity, err := bindings.NewLiquidity(common.HexToAddress(cfg.Blockchain.LiquidityContractAddress), ethClient)
+	var liquidity *bindings.Liquidity
+	liquidity, err = bindings.NewLiquidity(
+		common.HexToAddress(cfg.Blockchain.LiquidityContractAddress),
+		ethClient,
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
+		return nil, errors.Join(ErrInstantiateLiquidityContractFail, err)
 	}
-	rollup, err := bindings.NewRollup(common.HexToAddress(cfg.Blockchain.RollupContractAddress), scrollClient)
+
+	var rollup *bindings.Rollup
+	rollup, err = bindings.NewRollup(
+		common.HexToAddress(cfg.Blockchain.RollupContractAddress),
+		scrollClient,
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to instantiate a Rollup contract: %w", err)
+		return nil, errors.Join(ErrInstantiateRollupContractFail, err)
 	}
 
 	return &BlockPostService{
@@ -69,17 +93,19 @@ func NewBlockPostService(ctx context.Context, cfg *configs.Config) (*BlockPostSe
 }
 
 func (d *BlockPostService) FetchNewPostedBlocks(startBlock uint64) ([]*bindings.RollupBlockPosted, *big.Int, error) {
-	nextBlock := startBlock + 1
+	nextBlock := startBlock + int1Key
 	iterator, err := d.rollup.FilterBlockPosted(&bind.FilterOpts{
 		Start:   nextBlock,
 		End:     nil,
 		Context: d.ctx,
-	}, [][32]byte{}, []common.Address{})
+	}, [][int32Key]byte{}, []common.Address{})
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to filter logs: %w", err)
+		return nil, nil, errors.Join(ErrFilterLogsFail, err)
 	}
 
-	defer iterator.Close()
+	defer func() {
+		_ = iterator.Close()
+	}()
 
 	var events []*bindings.RollupBlockPosted
 	maxBlockNumber := new(big.Int)
@@ -87,13 +113,13 @@ func (d *BlockPostService) FetchNewPostedBlocks(startBlock uint64) ([]*bindings.
 	for iterator.Next() {
 		event := iterator.Event
 		events = append(events, event)
-		if event.BlockNumber.Cmp(maxBlockNumber) > 0 {
+		if event.BlockNumber.Cmp(maxBlockNumber) > int0Key {
 			maxBlockNumber.Set(event.BlockNumber)
 		}
 	}
 
 	if err = iterator.Error(); err != nil {
-		return nil, nil, fmt.Errorf("error encountered while iterating: %w", err)
+		return nil, nil, errors.Join(ErrEncounteredWhileIterating, err)
 	}
 
 	return events, maxBlockNumber, nil
@@ -114,7 +140,7 @@ func (d *BlockPostService) FetchScrollCalldataByHash(txHash common.Hash) ([]byte
 	return calldata, nil
 }
 
-// FetchIntMaxBlockContentByHash fetches the block content by transaction hash.
+// FetchIntMaxBlockContentByCalldata fetches the block content by transaction hash.
 //
 // Example:
 //
@@ -139,7 +165,7 @@ func FetchIntMaxBlockContentByCalldata(calldata []byte, accountInfoMap AccountIn
 
 	blockContent, err := recoverBlockContent(method, calldata, accountInfoMap)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode calldata: %w", err)
+		return nil, errors.Join(ErrDecodeCallDataFail, err)
 	}
 
 	return blockContent, nil
@@ -155,27 +181,32 @@ func NewAccountInfoMap() AccountInfoMap {
 	return AccountInfoMap{
 		AccountMap:    make(map[uint64]*intMaxAcc.PublicKey),
 		PublicKeyMap:  make(map[string]uint64),
-		LastAccountID: 0,
+		LastAccountID: int0Key,
 	}
 }
 
-func recoverBlockContent(method *abi.Method, calldata []byte, accountInfoMap AccountInfoMap) (_ *intMaxTypes.BlockContent, err error) {
+func recoverBlockContent(
+	method *abi.Method,
+	calldata []byte,
+	accountInfoMap AccountInfoMap,
+) (*intMaxTypes.BlockContent, error) {
 	switch method.Name {
-	case "postRegistrationBlock":
+	case postRegistrationBlockMethod:
 		decodedInput, err := decodePostRegistrationBlockCalldata(method, calldata)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode calldata: %w", err)
+			return nil, errors.Join(ErrDecodeCallDataFail, err)
 		}
 
-		blockContent, err := recoverRegistrationBlockContent(decodedInput)
+		var blockContent *intMaxTypes.BlockContent
+		blockContent, err = recoverRegistrationBlockContent(decodedInput)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode calldata: %w", err)
+			return nil, errors.Join(ErrDecodeCallDataFail, err)
 		}
 
 		dummyAddress := intMaxAcc.NewDummyPublicKey().ToAddress().String()
 		for _, sender := range blockContent.Senders {
-			if accountInfoMap.PublicKeyMap[sender.PublicKey.ToAddress().String()] == 0 {
-				accountInfoMap.LastAccountID += 1
+			if accountInfoMap.PublicKeyMap[sender.PublicKey.ToAddress().String()] == int0Key {
+				accountInfoMap.LastAccountID += int1Key
 				accountInfoMap.AccountMap[accountInfoMap.LastAccountID] = sender.PublicKey
 				accountInfoMap.PublicKeyMap[sender.PublicKey.ToAddress().String()] = accountInfoMap.LastAccountID
 			} else {
@@ -188,21 +219,23 @@ func recoverBlockContent(method *abi.Method, calldata []byte, accountInfoMap Acc
 		}
 
 		return blockContent, nil
-	case "postNonRegistrationBlock":
+	case postNonRegistrationBlockMethod:
 		decodedInput, err := decodePostNonRegistrationBlockCalldata(method, calldata)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode calldata: %w", err)
+			return nil, errors.Join(ErrDecodeCallDataFail, err)
 		}
 
-		blockContent, err := recoverNonRegistrationBlockContent(decodedInput, accountInfoMap)
+		var blockContent *intMaxTypes.BlockContent
+		blockContent, err = recoverNonRegistrationBlockContent(decodedInput, accountInfoMap)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode calldata: %w", err)
+			return nil, errors.Join(ErrDecodeCallDataFail, err)
 		}
 
+		/**
 		// TODO
 		// for _, sender := range blockContent.Senders {
-		// 	if accountInfoMap.PublicKeyMap[sender.PublicKey.ToAddress().String()] == 0 {
-		// 		accountInfoMap.LastAccountID += 1
+		// 	if accountInfoMap.PublicKeyMap[sender.PublicKey.ToAddress().String()] == int0Key {
+		// 		accountInfoMap.LastAccountID += int1Key
 		// 		accountInfoMap.AccountMap[accountInfoMap.LastAccountID] = sender.PublicKey
 		// 		accountInfoMap.PublicKeyMap[sender.PublicKey.ToAddress().String()] = accountInfoMap.LastAccountID
 		// 	} else {
@@ -211,59 +244,67 @@ func recoverBlockContent(method *abi.Method, calldata []byte, accountInfoMap Acc
 		// 		fmt.Println("Account already exists")
 		// 	}
 		// }
+		*/
 
 		return blockContent, nil
 	default:
-		return nil, fmt.Errorf("invalid method name: %s", method.Name)
+		return nil, fmt.Errorf(ErrMethodNameInvalidStr, method.Name)
 	}
 }
 
-func decodePostRegistrationBlockCalldata(method *abi.Method, calldata []byte) (*intMaxTypes.PostRegistrationBlockInput, error) {
-	if method.Name != "postRegistrationBlock" {
-		return nil, fmt.Errorf("invalid method name: %s", method.Name)
+func decodePostRegistrationBlockCalldata(
+	method *abi.Method,
+	calldata []byte,
+) (*intMaxTypes.PostRegistrationBlockInput, error) {
+	if method.Name != postRegistrationBlockMethod {
+		return nil, fmt.Errorf(ErrMethodNameInvalidStr, method.Name)
 	}
 
-	args, err := method.Inputs.Unpack(calldata[4:])
+	args, err := method.Inputs.Unpack(calldata[int4Key:])
 	if err != nil {
-		return nil, fmt.Errorf("failed to unpack calldata: %w", err)
+		return nil, errors.Join(ErrUnpackCalldataFail, err)
 	}
 
 	decodedInput := intMaxTypes.PostRegistrationBlockInput{
-		TxTreeRoot:          args[0].([32]byte),
-		SenderFlags:         args[1].([16]byte),
-		AggregatedPublicKey: args[2].([2][32]byte),
-		AggregatedSignature: args[3].([4][32]byte),
-		MessagePoint:        args[4].([4][32]byte),
-		SenderPublicKeys:    args[5].([]*big.Int),
+		TxTreeRoot:          args[int0Key].([int32Key]byte),
+		SenderFlags:         args[int1Key].([int16Key]byte),
+		AggregatedPublicKey: args[int2Key].([int2Key][int32Key]byte),
+		AggregatedSignature: args[int3Key].([int4Key][int32Key]byte),
+		MessagePoint:        args[int4Key].([int4Key][int32Key]byte),
+		SenderPublicKeys:    args[int5Key].([]*big.Int),
 	}
 
 	return &decodedInput, nil
 }
 
-func decodePostNonRegistrationBlockCalldata(method *abi.Method, calldata []byte) (*intMaxTypes.PostNonRegistrationBlockInput, error) {
-	if method.Name != "postNonRegistrationBlock" {
-		return nil, fmt.Errorf("invalid method name: %s", method.Name)
+func decodePostNonRegistrationBlockCalldata(
+	method *abi.Method, calldata []byte,
+) (*intMaxTypes.PostNonRegistrationBlockInput, error) {
+	if method.Name != postNonRegistrationBlockMethod {
+		return nil, fmt.Errorf(ErrMethodNameInvalidStr, method.Name)
 	}
 
-	args, err := method.Inputs.Unpack(calldata[4:])
+	args, err := method.Inputs.Unpack(calldata[int4Key:])
 	if err != nil {
-		return nil, fmt.Errorf("failed to unpack calldata: %w", err)
+		return nil, errors.Join(ErrUnpackCalldataFail, err)
 	}
 
 	decodedInput := intMaxTypes.PostNonRegistrationBlockInput{
-		TxTreeRoot:          args[0].([32]byte),
-		SenderFlags:         args[1].([16]byte),
-		AggregatedPublicKey: args[2].([2][32]byte),
-		AggregatedSignature: args[3].([4][32]byte),
-		MessagePoint:        args[4].([4][32]byte),
-		PublicKeysHash:      args[5].([32]byte),
-		SenderAccountIds:    args[6].([]byte),
+		TxTreeRoot:          args[int0Key].([int32Key]byte),
+		SenderFlags:         args[int1Key].([int16Key]byte),
+		AggregatedPublicKey: args[int2Key].([int2Key][int32Key]byte),
+		AggregatedSignature: args[int3Key].([int4Key][int32Key]byte),
+		MessagePoint:        args[int4Key].([int4Key][int32Key]byte),
+		PublicKeysHash:      args[int5Key].([int32Key]byte),
+		SenderAccountIds:    args[int6Key].([]byte),
 	}
 
 	return &decodedInput, nil
 }
 
-func recoverRegistrationBlockContent(decodedInput *intMaxTypes.PostRegistrationBlockInput) (_ *intMaxTypes.BlockContent, err error) {
+func recoverRegistrationBlockContent(
+	decodedInput *intMaxTypes.PostRegistrationBlockInput,
+) (_ *intMaxTypes.BlockContent, err error) {
 	senderPublicKeys := make([]*intMaxAcc.PublicKey, numOfSenders)
 	for i, key := range decodedInput.SenderPublicKeys {
 		senderPublicKeys[i], err = intMaxAcc.NewPublicKeyFromAddressInt(key)
@@ -275,24 +316,18 @@ func recoverRegistrationBlockContent(decodedInput *intMaxTypes.PostRegistrationB
 		senderPublicKeys[i] = intMaxAcc.NewDummyPublicKey()
 	}
 
-	const (
-		int3Key  = 3
-		int8Key  = 8
-		int32Key = 32
-	)
-
 	senderFlags := make([]bool, numOfSenders)
-	for i := 0; i < numOfSenders; i++ {
+	for i := int0Key; i < numOfSenders; i++ {
 		byteIndex := i / int8Key
 		bitIndex := i % int8Key
-		senderFlags[i] = (decodedInput.SenderFlags[byteIndex] & (1 << bitIndex)) != 0
+		senderFlags[i] = (decodedInput.SenderFlags[byteIndex] & (int1Key << bitIndex)) != int0Key
 	}
 
 	senderPublicKeysBytes := make([]byte, intMaxTypes.NumOfSenders*intMaxTypes.NumPublicKeyBytes)
 	for i, sender := range senderPublicKeys {
 		if senderFlags[i] {
 			senderPublicKey := sender.Pk.X.Bytes() // Only x coordinate is used
-			copy(senderPublicKeysBytes[int32Key*i:int32Key*(i+1)], senderPublicKey[:])
+			copy(senderPublicKeysBytes[int32Key*i:int32Key*(i+int1Key)], senderPublicKey[:])
 		}
 	}
 
@@ -308,21 +343,21 @@ func recoverRegistrationBlockContent(decodedInput *intMaxTypes.PostRegistrationB
 	for i, sender := range senderPublicKeys {
 		senders[i] = intMaxTypes.Sender{
 			PublicKey: sender,
-			AccountID: 0,
+			AccountID: int0Key,
 			IsSigned:  senderFlags[i],
 		}
 	}
 
 	txTreeRoot := new(intMaxTypes.PoseidonHashOut)
 	if err = txTreeRoot.Unmarshal(decodedInput.TxTreeRoot[:]); err != nil {
-		return nil, fmt.Errorf("failed to set tx tree root: %w", err)
+		return nil, errors.Join(ErrSetTxRootFail, err)
 	}
 
 	// Recover aggregatedSignature from decodedInput.AggregatedSignature
 	aggregatedSignature := new(bn254.G2Affine)
-	aggregatedSignature.X.A1.SetBytes(decodedInput.AggregatedSignature[0][:])
-	aggregatedSignature.X.A0.SetBytes(decodedInput.AggregatedSignature[1][:])
-	aggregatedSignature.Y.A1.SetBytes(decodedInput.AggregatedSignature[2][:])
+	aggregatedSignature.X.A1.SetBytes(decodedInput.AggregatedSignature[int0Key][:])
+	aggregatedSignature.X.A0.SetBytes(decodedInput.AggregatedSignature[int1Key][:])
+	aggregatedSignature.Y.A1.SetBytes(decodedInput.AggregatedSignature[int2Key][:])
 	aggregatedSignature.Y.A0.SetBytes(decodedInput.AggregatedSignature[int3Key][:])
 
 	blockContent := intMaxTypes.NewBlockContent(
@@ -338,15 +373,15 @@ func recoverRegistrationBlockContent(decodedInput *intMaxTypes.PostRegistrationB
 func recoverNonRegistrationBlockContent(
 	decodedInput *intMaxTypes.PostNonRegistrationBlockInput,
 	accountInfoMap AccountInfoMap,
-) (_ *intMaxTypes.BlockContent, err error) {
+) (*intMaxTypes.BlockContent, error) {
 	senderAccountIds, err := intMaxTypes.UnmarshalAccountIds(decodedInput.SenderAccountIds)
 	if err != nil {
-		return nil, fmt.Errorf("failed to recover account IDs from bytes: %w", err)
+		return nil, errors.Join(ErrRecoverAccountIDsFromBytesFail, err)
 	}
 
 	senderPublicKeys := make([]*intMaxAcc.PublicKey, numOfSenders)
 	for i, accountId := range senderAccountIds {
-		if accountId == 0 {
+		if accountId == int0Key {
 			senderPublicKeys[i] = intMaxAcc.NewDummyPublicKey()
 			continue
 		}
@@ -362,24 +397,18 @@ func recoverNonRegistrationBlockContent(
 		senderPublicKeys[i] = intMaxAcc.NewDummyPublicKey()
 	}
 
-	const (
-		int3Key  = 3
-		int8Key  = 8
-		int32Key = 32
-	)
-
 	senderFlags := make([]bool, numOfSenders)
-	for i := 0; i < numOfSenders; i++ {
+	for i := int0Key; i < numOfSenders; i++ {
 		byteIndex := i / int8Key
 		bitIndex := i % int8Key
-		senderFlags[i] = (decodedInput.SenderFlags[byteIndex] & (1 << bitIndex)) != 0
+		senderFlags[i] = (decodedInput.SenderFlags[byteIndex] & (int1Key << bitIndex)) != int0Key
 	}
 
 	senderPublicKeysBytes := make([]byte, intMaxTypes.NumOfSenders*intMaxTypes.NumPublicKeyBytes)
 	for i, sender := range senderPublicKeys {
 		if senderFlags[i] {
 			senderPublicKey := sender.Pk.X.Bytes() // Only x coordinate is used
-			copy(senderPublicKeysBytes[int32Key*i:int32Key*(i+1)], senderPublicKey[:])
+			copy(senderPublicKeysBytes[int32Key*i:int32Key*(i+int1Key)], senderPublicKey[:])
 		}
 	}
 
@@ -395,21 +424,21 @@ func recoverNonRegistrationBlockContent(
 	for i, sender := range senderPublicKeys {
 		senders[i] = intMaxTypes.Sender{
 			PublicKey: sender,
-			AccountID: 0,
+			AccountID: int0Key,
 			IsSigned:  senderFlags[i],
 		}
 	}
 
 	txTreeRoot := new(intMaxTypes.PoseidonHashOut)
 	if err = txTreeRoot.Unmarshal(decodedInput.TxTreeRoot[:]); err != nil {
-		return nil, fmt.Errorf("failed to set tx tree root: %w", err)
+		return nil, errors.Join(ErrSetTxRootFail, err)
 	}
 
 	// Recover aggregatedSignature from decodedInput.AggregatedSignature
 	aggregatedSignature := new(bn254.G2Affine)
-	aggregatedSignature.X.A1.SetBytes(decodedInput.AggregatedSignature[0][:])
-	aggregatedSignature.X.A0.SetBytes(decodedInput.AggregatedSignature[1][:])
-	aggregatedSignature.Y.A1.SetBytes(decodedInput.AggregatedSignature[2][:])
+	aggregatedSignature.X.A1.SetBytes(decodedInput.AggregatedSignature[int0Key][:])
+	aggregatedSignature.X.A0.SetBytes(decodedInput.AggregatedSignature[int1Key][:])
+	aggregatedSignature.Y.A1.SetBytes(decodedInput.AggregatedSignature[int2Key][:])
 	aggregatedSignature.Y.A0.SetBytes(decodedInput.AggregatedSignature[int3Key][:])
 
 	blockContent := intMaxTypes.NewBlockContent(
@@ -430,7 +459,7 @@ func recoverNonRegistrationBlockContent(
 // 		Context: d.ctx,
 // 	}, []*big.Int{}, []common.Address{})
 // 	if err != nil {
-// 		return nil, nil, nil, fmt.Errorf("failed to filter logs: %w", err)
+// 		return nil, nil, nil, errors.Join(ErrFilterLogsFail, err)
 // 	}
 
 // 	defer iterator.Close()
@@ -449,7 +478,7 @@ func recoverNonRegistrationBlockContent(
 // 	}
 
 // 	if err = iterator.Error(); err != nil {
-// 		return nil, nil, nil, fmt.Errorf("error encountered while iterating: %w", err)
+// 		return nil, nil, nil, errors.Join(ErrEncounteredWhileIterating, err)
 // 	}
 
 // 	return events, maxDepositIndex, tokenIndexMap, nil

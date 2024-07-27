@@ -531,14 +531,19 @@ func MarshalAccountIds(accountIds []uint64) ([]byte, error) {
 }
 
 func UnmarshalAccountIds(accountIdsBytes []byte) ([]uint64, error) {
-	if len(accountIdsBytes)%NumAccountIDBytes != 0 {
+	const (
+		int0Key = 0
+		int8Key = 8
+	)
+
+	if len(accountIdsBytes)%NumAccountIDBytes != int0Key {
 		return nil, fmt.Errorf("length of account IDs bytes is not a multiple of 5")
 	}
 
 	accountIds := make([]uint64, len(accountIdsBytes)/NumAccountIDBytes)
-	for i := 0; i < len(accountIds); i++ {
-		bytes := make([]byte, 8)
-		copy(bytes[8-NumAccountIDBytes:], accountIdsBytes[i*NumAccountIDBytes:(i+1)*NumAccountIDBytes])
+	for i := int0Key; i < len(accountIds); i++ {
+		bytes := make([]byte, int8Key)
+		copy(bytes[int8Key-NumAccountIDBytes:], accountIdsBytes[i*NumAccountIDBytes:(i+1)*NumAccountIDBytes])
 		accountIds[i] = binary.BigEndian.Uint64(bytes)
 	}
 
