@@ -2,7 +2,6 @@ package types
 
 import (
 	"intmax2-node/internal/accounts"
-	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/hash/goldenposeidon"
 
@@ -163,7 +162,7 @@ func (bc *BlockContent) IsValid() error {
 					return ErrBlockContentAggPubKeyEmpty
 				}
 
-				defaultPublicKey := intMaxAcc.NewDummyPublicKey()
+				defaultPublicKey := accounts.NewDummyPublicKey()
 
 				const numOfSenders = 128
 				senderPublicKeys := make([]byte, numOfSenders*NumPublicKeyBytes)
