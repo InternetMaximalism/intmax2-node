@@ -191,19 +191,31 @@ func getBlockProposedRawRequest(
 		return nil, err
 	}
 
+	defer func() {
+		if err != nil {
+			log.WithFields(logger.Fields{
+				"status_code": resp.StatusCode(),
+				"response":    resp.String(),
+			}).WithError(err).Errorf("Processing ended error occurred")
+		}
+	}()
+
 	var res BlockProposedResponse
 	if err = json.Unmarshal(resp.Body(), &res); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+		err = fmt.Errorf("failed to unmarshal response: %w", err)
+		return nil, err
 	}
 
 	if !res.Success {
-		return nil, fmt.Errorf("failed to get proposed block: %v", res)
+		err = fmt.Errorf("failed to get proposed block: %v", res)
+		return nil, err
 	}
 
 	txRoot := new(goldenposeidon.PoseidonHashOut)
 	err = txRoot.FromString(res.Data.TxRoot)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode tx root: %w", err)
+		err = fmt.Errorf("failed to decode tx root: %w", err)
+		return nil, err
 	}
 
 	txTreeMerkleProof := make([]*goldenposeidon.PoseidonHashOut, len(res.Data.TxTreeMerkleProof))
@@ -211,14 +223,17 @@ func getBlockProposedRawRequest(
 		sibling := new(goldenposeidon.PoseidonHashOut)
 		err = sibling.FromString(proof)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode tx tree merkle proof: %w", err)
+			err = fmt.Errorf("failed to decode tx tree merkle proof: %w", err)
+			return nil, err
 		}
 		txTreeMerkleProof[i] = sibling
 	}
 
-	publicKeysHash, err := hexutil.Decode(res.Data.PublicKeysHash)
+	var publicKeysHash []byte
+	publicKeysHash, err = hexutil.Decode(res.Data.PublicKeysHash)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode public keys hash: %w", err)
+		err = fmt.Errorf("failed to decode public keys hash: %w", err)
+		return nil, err
 	}
 
 	return &BlockProposedResponseData{

@@ -38,9 +38,13 @@ func (u *uc) Do(
 	)
 
 	resp := block_proposed.UCBlockProposed{
-		TxRoot:            input.TxTree.TxTreeHash.String(),
-		TxTreeMerkleProof: make([]string, len(input.TxTree.SenderTransfers)),
+		TxRoot:            input.TxTree.RootHash.String(),
+		TxTreeMerkleProof: make([]string, len(input.TxTree.Siblings)),
 		PublicKeysHash:    "0x",
+	}
+
+	for key := range input.TxTree.Siblings {
+		resp.TxTreeMerkleProof[key] = input.TxTree.Siblings[key].String()
 	}
 
 	return &resp, nil

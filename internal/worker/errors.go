@@ -105,3 +105,12 @@ var ErrTxTreeNotFound = errors.New("the tx tree not found")
 
 // ErrTxTreeSignatureCollectionComplete error: signature collection for tx tree completed.
 var ErrTxTreeSignatureCollectionComplete = errors.New("signature collection for tx tree completed")
+
+// ErrHexDecodeFail error: failed to decode transfersHash.
+var ErrHexDecodeFail = errors.New("failed to decode transfersHash")
+
+// ErrLeafsProcessing error: failed to processing of leafs.
+var ErrLeafsProcessing = errors.New("failed to processing of leafs")
+
+// ErrAvailableFilesProcessing error: failed to processing of the available files.
+var ErrAvailableFilesProcessing = errors.New("failed to processing of the available files")

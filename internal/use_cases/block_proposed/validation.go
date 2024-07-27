@@ -2,7 +2,6 @@ package block_proposed
 
 import (
 	"errors"
-	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/worker"
 	"strings"
@@ -25,17 +24,15 @@ var ErrTxTreeNotBuild = errors.New("the tx tree not build")
 // ErrTxTreeSignatureCollectionComplete error: signature collection for tx tree completed.
 var ErrTxTreeSignatureCollectionComplete = errors.New("signature collection for tx tree completed")
 
-func (input *UCBlockProposedInput) Valid(w Worker) error {
-	return validation.ValidateStruct(input,
+func (input *UCBlockProposedInput) Valid(w Worker) (err error) {
+	err = validation.ValidateStruct(input,
 		validation.Field(&input.Sender, validation.Required, input.isSender(func() *intMaxAcc.PublicKey {
 			if input.DecodeSender == nil {
 				input.DecodeSender = &intMaxAcc.PublicKey{}
 			}
 			return input.DecodeSender
 		}())),
-		validation.Field(&input.TxHash,
-			validation.Required, input.isHexDecode(), input.isExistsTxHash(w),
-		),
+		validation.Field(&input.TxHash, validation.Required, input.isHexDecode()),
 		validation.Field(&input.Expiration, validation.Required, validation.By(func(value interface{}) error {
 			v, ok := value.(time.Time)
 			if !ok {
@@ -85,6 +82,13 @@ func (input *UCBlockProposedInput) Valid(w Worker) error {
 			return nil
 		})),
 	)
+	if err != nil {
+		return err
+	}
+
+	return validation.ValidateStruct(input,
+		validation.Field(&input.TxHash, input.isExistsTxHash(w)),
+	)
 }
 
 func (input *UCBlockProposedInput) isSender(pbKey *intMaxAcc.PublicKey) validation.Rule {
@@ -131,15 +135,12 @@ func (input *UCBlockProposedInput) isExistsTxHash(w Worker) validation.Rule {
 		}
 
 		var info *worker.TransactionHashesWithSenderAndFile
-		fmt.Printf("check tx hash: %v\n", v)
 		info, err = w.TrHash(v)
 		if err != nil && errors.Is(err, worker.ErrTransactionHashNotFound) ||
 			!strings.EqualFold(info.Sender, input.Sender) {
-			fmt.Println("ErrTransactionHashNotFound")
 			return ErrTransactionHashNotFound
 		}
-
-		fmt.Printf("isExistsTxHash: %v\n", info)
+		info.TxHash = v
 
 		var txTree *worker.TxTree
 		txTree, err = w.TxTreeByAvailableFile(info)
