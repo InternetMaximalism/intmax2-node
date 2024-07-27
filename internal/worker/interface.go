@@ -55,4 +55,5 @@ type Worker interface {
 	AvailableFiles() (list []*os.File)
 	TrHash(trHash string) (*TransactionHashesWithSenderAndFile, error)
 	TxTreeByAvailableFile(sf *TransactionHashesWithSenderAndFile) (txTreeRoot *TxTree, err error)
+	SignTxTreeByAvailableFile(signature string, sf *TransactionHashesWithSenderAndFile) error
 }

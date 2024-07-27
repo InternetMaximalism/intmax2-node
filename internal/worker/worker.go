@@ -718,6 +718,52 @@ func (w *worker) TrHash(trHash string) (*TransactionHashesWithSenderAndFile, err
 	return info, nil
 }
 
+func (w *worker) SignTxTreeByAvailableFile(signature string, sf *TransactionHashesWithSenderAndFile) error {
+	f, ok := w.files.FilesList[sf.File]
+	if !ok {
+		// transfersHash not found
+		return ErrTxTreeByAvailableFileFail
+	}
+
+	switch {
+	case
+		w.files.CurrentFile.Name() == sf.File.Name(),
+		atomic.LoadInt32(&f.TransactionsCounter) != 0,
+		!f.Delivered:
+		// transfersHash exists, tx tree not found
+		return ErrTxTreeNotFound
+	case
+		w.files.CurrentFile.Name() != sf.File.Name() &&
+			atomic.LoadInt32(&f.TransactionsCounter) == 0 &&
+			f.Delivered &&
+			f.Timestamp != nil && f.Timestamp.UTC().Add(
+			w.cfg.Worker.TimeoutForSignaturesAvailableFiles,
+		).UnixNano() <= time.Now().UTC().UnixNano():
+		for {
+			if !f.Processing {
+				// transfersHash exists, tx tree exists, signature collection for tx tree completed
+				return ErrTxTreeSignatureCollectionComplete
+			}
+		}
+	case
+		w.files.CurrentFile.Name() != sf.File.Name() &&
+			atomic.LoadInt32(&f.TransactionsCounter) == 0 &&
+			f.Delivered &&
+			f.Timestamp != nil && f.Timestamp.UTC().Add(
+			w.cfg.Worker.TimeoutForSignaturesAvailableFiles,
+		).UnixNano() > time.Now().UTC().UnixNano():
+		for {
+			if !f.Processing {
+				break
+			}
+		}
+	}
+
+	// TODO: sign txHash in TxTree by AvailableFile
+
+	return nil
+}
+
 func (w *worker) kvStore(filename string) (*bolt.DB, error) {
 	const F0600 os.FileMode = 0600
 	db, err := bolt.Open(filename, F0600, nil)

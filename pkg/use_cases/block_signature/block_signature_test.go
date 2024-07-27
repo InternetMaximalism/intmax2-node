@@ -6,19 +6,19 @@ import (
 	"encoding/json"
 	"errors"
 	"intmax2-node/configs"
+	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/mnemonic_wallet"
-	"os"
-	"strconv"
-	"testing"
-
-	intMaxAcc "intmax2-node/internal/accounts"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	blockSignature "intmax2-node/internal/use_cases/block_signature"
 	ucBlockSignature "intmax2-node/pkg/use_cases/block_signature"
+	"os"
+	"strconv"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 )
 
 var ErrCannotOpenBinaryFile = errors.New("cannot open binary file")
@@ -33,7 +33,12 @@ func TestUseCaseTransaction(t *testing.T) {
 	const int3Key = 3
 	assert.NoError(t, configs.LoadDotEnv(int3Key))
 
-	uc := ucBlockSignature.New()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	w := NewMockWorker(ctrl)
+
+	uc := ucBlockSignature.New(w)
 
 	const (
 		mnPassword = ""
@@ -129,7 +134,7 @@ func TestUseCaseTransaction(t *testing.T) {
 	for i := range cases {
 		t.Run(cases[i].desc, func(t *testing.T) {
 			ctx := context.Background()
-			_, err := uc.Do(ctx, cases[i].input)
+			err = uc.Do(ctx, cases[i].input)
 			if cases[i].err != nil {
 				assert.True(t, errors.Is(err, cases[i].err))
 			} else {
@@ -145,7 +150,9 @@ func readPlonky2ProofBinary(filePath string) ([]byte, error) {
 	if err != nil {
 		return nil, errors.Join(ErrCannotOpenBinaryFile, err)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	fileInfo, err := file.Stat()
 	if err != nil {
@@ -171,7 +178,9 @@ func readPlonky2PublicInputsJson(filePath string) ([]uint64, error) {
 	if err != nil {
 		return nil, errors.Join(ErrCannotOpenBinaryFile, err)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	fileInfo, err := file.Stat()
 	if err != nil {

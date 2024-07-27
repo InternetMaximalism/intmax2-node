@@ -2,11 +2,15 @@ package block_signature
 
 import (
 	"context"
+	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/worker"
 )
 
-type UCBlockSignature struct {
-	Message string
-}
+//go:generate mockgen -destination=../mocks/mock_block_signature.go -package=mocks -source=block_signature.go
+
+const (
+	SuccessMsg = "Signature accepted."
+)
 
 type Plonky2Proof struct {
 	PublicInputs []uint64 `json:"publicInputs"`
@@ -35,13 +39,16 @@ func (dst *EnoughBalanceProofInput) Set(src *EnoughBalanceProofInput) *EnoughBal
 }
 
 type UCBlockSignatureInput struct {
-	Sender             string                   `json:"sender"`
-	TxHash             string                   `json:"txHash"`
-	Signature          string                   `json:"signature"`
-	EnoughBalanceProof *EnoughBalanceProofInput `json:"enoughBalanceProof"`
+	Sender             string                                     `json:"sender"`
+	DecodeSender       *intMaxAcc.PublicKey                       `json:"-"`
+	TxHash             string                                     `json:"txHash"`
+	TxTree             *worker.TxTree                             `json:"-"`
+	TxInfo             *worker.TransactionHashesWithSenderAndFile `json:"-"`
+	Signature          string                                     `json:"signature"`
+	EnoughBalanceProof *EnoughBalanceProofInput                   `json:"enoughBalanceProof"`
 }
 
 // UseCaseBlockSignature describes BlockSignature contract.
 type UseCaseBlockSignature interface {
-	Do(ctx context.Context, input *UCBlockSignatureInput) (*UCBlockSignature, error)
+	Do(ctx context.Context, input *UCBlockSignatureInput) error
 }
