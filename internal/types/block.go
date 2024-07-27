@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
@@ -273,10 +274,9 @@ func (bc *BlockContent) Marshal() []byte {
 	return data
 }
 
-// Rollup is
-// txRoot, messagePoint, aggregatedSignature, aggregatedPublicKey,
-// accountIdsHash, senderPublicKeysHash, senderFlags, senderType
-// The size of the Rollup data will be 32 + 128 + 128 + 64 + 32 + 32 + 16 + 1 = 433 bytes
+// The rollup's calldata consists of txRoot, messagePoint, aggregatedSignature, aggregatedPublicKey,
+// accountIdsHash, senderPublicKeysHash, senderFlags and senderType.
+// The size of the rollup data will be 32 + 128 + 128 + 64 + 32 + 32 + 16 + 1 = 433 bytes.
 func (bc *BlockContent) Rollup() []byte {
 	const (
 		int0Key = 0
@@ -313,7 +313,8 @@ func (bc *BlockContent) Rollup() []byte {
 		data = append(data, senderAccountIDs...)
 	}
 
-	senderFlags := make([]byte, len(bc.Senders)/int8Key)
+	numFlagBytes := (len(bc.Senders) + int8Key - 1) / int8Key
+	senderFlags := make([]byte, numFlagBytes)
 	for key := range bc.Senders {
 		var isPosted uint8
 		if bc.Senders[key].IsSigned {
@@ -331,11 +332,52 @@ func (bc *BlockContent) Rollup() []byte {
 		data = append(data, int1Key)
 	}
 
+	// TODO: accountIDsHash *common.Hash
+
+	// TODO: senderPublicKeysHash *common.Hash
+
 	return data
 }
 
 func (bc *BlockContent) Hash() common.Hash {
 	return crypto.Keccak256Hash(bc.Marshal())
+}
+
+type PostedBlock struct {
+	// The previous block hash.
+	PrevBlockHash common.Hash
+	// The block number, which is the latest block number in the Rollup contract plus 1.
+	BlockNumber uint32
+	// The deposit root at the time of block posting (written in the Rollup contract).
+	DepositRoot common.Hash
+	// The hash value that the Block Builder must provide to the Rollup contract when posting a new block.
+	ContentHash common.Hash
+}
+
+func NewPostedBlock(prevBlockHash, depositRoot common.Hash, blockNumber uint32, contentHash common.Hash) *PostedBlock {
+	return &PostedBlock{
+		PrevBlockHash: prevBlockHash,
+		BlockNumber:   blockNumber,
+		DepositRoot:   depositRoot,
+		ContentHash:   contentHash,
+	}
+}
+
+func (pb *PostedBlock) Marshal() []byte {
+	data := make([]byte, 0)
+
+	data = append(data, pb.PrevBlockHash.Bytes()...)
+	blockNumberBytes := [4]byte{}
+	binary.BigEndian.PutUint32(blockNumberBytes[:], pb.BlockNumber)
+	data = append(data, blockNumberBytes[:]...)
+	data = append(data, pb.DepositRoot.Bytes()...)
+	data = append(data, pb.ContentHash.Bytes()...)
+
+	return data
+}
+
+func (pb *PostedBlock) Hash() common.Hash {
+	return crypto.Keccak256Hash(pb.Marshal())
 }
 
 type PostRegistrationBlockInput struct {
