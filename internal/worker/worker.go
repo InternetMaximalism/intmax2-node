@@ -22,7 +22,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/google/uuid"
-	"github.com/holiman/uint256"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -411,7 +410,10 @@ func (w *worker) Receiver(input *ReceiverWorker) error {
 		return errors.Join(ErrHexDecodeFail, err)
 	}
 	transfersHash := new(intMaxGP.PoseidonHashOut)
-	transfersHash.Unmarshal(transfersHashBytes)
+	err = transfersHash.Unmarshal(transfersHashBytes)
+	if err != nil {
+		return errors.Join(ErrUnmarshalFail, err)
+	}
 
 	var currTx *intMaxTypes.Tx
 	currTx, err = intMaxTypes.NewTx(
@@ -470,20 +472,18 @@ func (w *worker) registerReceiver(input *ReceiverWorker) (err error) {
 		var (
 			s          []byte
 			crcs       *CurrentRootCountAndSiblings
-			txTreeRoot TxTree
+			txTreeLeaf TxTree
 		)
 		s = b.Get([]byte(input.Sender))
 		if s != nil {
-			err = json.Unmarshal(s, &txTreeRoot)
+			err = json.Unmarshal(s, &txTreeLeaf)
 			if err != nil {
 				return errors.Join(ErrUnmarshalFail, err)
 			}
 		} else {
-			txTreeRoot = TxTree{}
-			txTreeRoot.Sender = input.Sender
+			txTreeLeaf = TxTree{}
+			txTreeLeaf.Sender = input.Sender
 		}
-
-		txTreeRoot.LeafIndexes = make(map[string]uint64)
 
 		zeroHash := new(intMaxTypes.PoseidonHashOut).SetZero()
 		var txTree *intMaxTree.TxTree
@@ -502,85 +502,86 @@ func (w *worker) registerReceiver(input *ReceiverWorker) (err error) {
 		st.CurrentRootCountAndSiblings = crcs
 
 		fmt.Printf("st.ReceiverWorker %v\n", st.ReceiverWorker)
-		txTreeRoot.SenderTransfers = append(txTreeRoot.SenderTransfers, &st)
+		// txTreeLeaf.SenderTransfers = append(txTreeLeaf.SenderTransfers, &st)
 
 		// var txTreeLeafHash []*intMaxTree.PoseidonHashOuts
-		for key := range txTreeRoot.SenderTransfers {
-			// var currTx *intMaxTypes.Tx
-			// currTx, err = intMaxTypes.NewTx(
-			// 	&txTreeRoot.SenderTransfers[key].CurrentRootCountAndSiblings.TransferTreeRoot, // XXX
-			// 	txTreeRoot.SenderTransfers[key].ReceiverWorker.Nonce,
-			// )
-			// if err != nil {
-			// 	return errors.Join(ErrNewTxFail, err)
-			// }
+		// for key := range txTreeLeaf.SenderTransfers {
+		// 	// var currTx *intMaxTypes.Tx
+		// 	// currTx, err = intMaxTypes.NewTx(
+		// 	// 	&txTreeRoot.SenderTransfers[key].CurrentRootCountAndSiblings.TransferTreeRoot, // XXX
+		// 	// 	txTreeRoot.SenderTransfers[key].ReceiverWorker.Nonce,
+		// 	// )
+		// 	// if err != nil {
+		// 	// 	return errors.Join(ErrNewTxFail, err)
+		// 	// }
 
-			transfersHashBytes, err := hexutil.Decode(input.TransferHash)
-			if err != nil {
-				var ErrHexDecodeFail = errors.New("fail to decode transfersHash")
-				return errors.Join(ErrHexDecodeFail, err)
-			}
-			transfersHash := new(intMaxTypes.PoseidonHashOut)
-			err = transfersHash.Unmarshal(transfersHashBytes)
-			if err != nil {
-				return errors.Join(ErrUnmarshalFail, err)
-			}
+		// 	var transfersHashBytes []byte
+		// 	transfersHashBytes, err = hexutil.Decode(input.TransferHash)
+		// 	if err != nil {
+		// 		var ErrHexDecodeFail = errors.New("fail to decode transfersHash")
+		// 		return errors.Join(ErrHexDecodeFail, err)
+		// 	}
+		// 	transfersHash := new(intMaxTypes.PoseidonHashOut)
+		// 	err = transfersHash.Unmarshal(transfersHashBytes)
+		// 	if err != nil {
+		// 		return errors.Join(ErrUnmarshalFail, err)
+		// 	}
 
-			var currTx *intMaxTypes.Tx
-			currTx, err = intMaxTypes.NewTx(transfersHash, input.Nonce)
-			if err != nil {
-				return errors.Join(ErrNewTxFail, err)
-			}
+		// 	var currTx *intMaxTypes.Tx
+		// 	currTx, err = intMaxTypes.NewTx(transfersHash, input.Nonce)
+		// 	if err != nil {
+		// 		return errors.Join(ErrNewTxFail, err)
+		// 	}
 
-			txTreeRoot.SenderTransfers[key].TxHash = currTx.Hash()
-			fmt.Printf("currTx %+v\n", currTx)
-			fmt.Printf("txTreeRoot.SenderTransfers[key].TxHash %v\n", currTx.Hash())
+		// 	txTreeLeaf.SenderTransfers[key].TxHash = currTx.Hash()
+		// 	fmt.Printf("currTx %+v\n", currTx)
+		// 	fmt.Printf("txTreeRoot.SenderTransfers[key].TxHash %v\n", currTx.Hash())
 
-			// txTreeRoot.SenderTransfers[key].TxTreeLeafHash, err = txTree.AddLeaf(uint64(key), currTx)
-			_, err = txTree.AddLeaf(uint64(key), currTx)
-			if err != nil {
-				return errors.Join(ErrAddLeafIntoTxTreeFail, err)
-			}
-			// txTreeLeafHash = append(txTreeLeafHash, txTreeRootHash)
+		// 	// txTreeRoot.SenderTransfers[key].TxTreeLeafHash, err = txTree.AddLeaf(uint64(key), currTx)
+		// 	_, err = txTree.AddLeaf(uint64(key), currTx)
+		// 	if err != nil {
+		// 		return errors.Join(ErrAddLeafIntoTxTreeFail, err)
+		// 	}
+		// 	// txTreeLeafHash = append(txTreeLeafHash, txTreeRootHash)
 
-			txHash := txTreeRoot.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String()
-			txTreeRoot.LeafIndexes[txHash] = uint64(key)
-		}
+		// 	txHash := txTreeLeaf.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String()
+		// 	// txTreeLeaf.LeafIndex = uint64(key)
+		// }
 
 		txRoot, _, _ := txTree.GetCurrentRootCountAndSiblings()
-		txTreeRoot.TxTreeHash = &txRoot
+		txTreeLeaf.TxTreeRootHash = &txRoot
 		// txTreeRoot.TxTreeHash, err = txTree.BuildMerkleRoot(txTreeLeafHash)
 		if err != nil {
 			return errors.Join(ErrTxTreeBuildMerkleRootFail, err)
 		}
 
-		for key := range txTreeRoot.SenderTransfers {
-			txHash := txTreeRoot.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String()
-			index, ok := txTreeRoot.LeafIndexes[txHash] // = uint64(key)
-			if !ok {
-				var ErrLeafIndexNotFound = fmt.Errorf("leaf index not found")
-				return ErrLeafIndexNotFound
-			}
-			fmt.Printf("txHash %v, index %v, key %v\n", txHash, index, key)
-			var cmp ComputeMerkleProof
-			var root intMaxTypes.PoseidonHashOut
-			cmp.Siblings, root, err = txTree.ComputeMerkleProof(index)
-			if err != nil {
-				err = errors.Join(ErrTxTreeComputeMerkleProofFail, err)
-				return err
-			}
+		// for key := range txTreeLeaf.SenderTransfers {
+		// 	txHash := txTreeLeaf.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String()
+		// 	index, ok := txTreeLeaf.LeafIndexes[txHash] // = uint64(key)
+		// 	if !ok {
+		// 		var ErrLeafIndexNotFound = fmt.Errorf("leaf index not found")
+		// 		return ErrLeafIndexNotFound
+		// 	}
+		// 	fmt.Printf("txHash %v, index %v, key %v\n", txHash, index, key)
+		// 	var cmp ComputeMerkleProof
+		// 	var root intMaxTypes.PoseidonHashOut
+		// 	cmp.Siblings, root, err = txTree.ComputeMerkleProof(index)
+		// 	if err != nil {
+		// 		err = errors.Join(ErrTxTreeComputeMerkleProofFail, err)
+		// 		return err
+		// 	}
 
-			if root != txRoot {
-				fmt.Printf("root %v, txRoot %v\n", root, txRoot)
-				var ErrTxTreeRootNotEqual = errors.New("tx tree root not equal")
-				return ErrTxTreeRootNotEqual
-			}
-			txTreeRoot.SenderTransfers[key].TxTreeRootHash = &txRoot
-			txTreeRoot.SenderTransfers[key].TxTreeSiblings = cmp.Siblings
-		}
+		// 	if root != txRoot {
+		// 		fmt.Printf("root %v, txRoot %v\n", root, txRoot)
+		// 		var ErrTxTreeRootNotEqual = errors.New("tx tree root not equal")
+		// 		return ErrTxTreeRootNotEqual
+		// 	}
+		// 	txTreeLeaf.SenderTransfers[key].TxTreeRootHash = &txRoot
+		// 	txTreeLeaf.SenderTransfers[key].TxTreeSiblings = cmp.Siblings
+		// }
 
 		var bST []byte
-		bST, err = json.Marshal(&txTreeRoot)
+		bST, err = json.Marshal(&txTreeLeaf)
 		if err != nil {
 			return errors.Join(ErrMarshalFail, err)
 		}
@@ -640,17 +641,17 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 			err = w.dbApp.Exec(ctx, nil, func(d interface{}, _ interface{}) (err error) {
 				q := d.(SQLDriverApp)
 
-				var txTreeRoot TxTree
-				err = json.Unmarshal(v, &txTreeRoot)
+				var txTreeLeaf TxTree
+				err = json.Unmarshal(v, &txTreeLeaf)
 				if err != nil {
 					err = errors.Join(ErrUnmarshalFail, err)
 					return err
 				}
 
 				var txHashes []string
-				for key := range txTreeRoot.SenderTransfers {
-					txHashes = append(txHashes, txTreeRoot.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String())
-				}
+				// for key := range txTreeRoot.SenderTransfers {
+				// 	txHashes = append(txHashes, txTreeRoot.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String())
+				// }
 				defer func() {
 					for keyT := range txHashes {
 						delete(w.files.FilesList[f].Hashes, txHashes[keyT])
@@ -662,71 +663,84 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 					}
 				}()
 
-				fmt.Printf("signature %v\n", txTreeRoot.Signature)
+				fmt.Printf("signature %v\n", txTreeLeaf.Signature)
 				const emptySignature = ""
-				if txTreeRoot.Signature == emptySignature {
+				if txTreeLeaf.Signature == emptySignature {
 					fmt.Println("emptySignature")
 					return nil
 				}
 
 				var sign *mDBApp.Signature
-				sign, err = q.CreateSignature(txTreeRoot.Signature)
+				sign, err = q.CreateSignature(txTreeLeaf.Signature)
 				if err != nil {
 					err = errors.Join(ErrCreateSignatureFail, err)
 					return err
 				}
 
 				var publicKey *intMaxAcc.PublicKey
-				publicKey, err = intMaxAcc.NewPublicKeyFromAddressHex(txTreeRoot.Sender)
+				publicKey, err = intMaxAcc.NewPublicKeyFromAddressHex(txTreeLeaf.Sender)
 				if err != nil {
 					err = errors.Join(ErrNewPublicKeyFromAddressHexFail, err)
 					return err
 				}
 
-				var transaction *mDBApp.Transactions
-				transaction, err = q.CreateTransaction(
-					publicKey.String(), txTreeRoot.TxTreeHash.String(), sign.SignatureID,
+				// _, err = q.CreateTransaction(
+				// 	publicKey.String(), txTreeLeaf.TxHash.String(), sign.SignatureID,
+				// )
+				// if err != nil {
+				// 	err = errors.Join(ErrCreateTransactionFail, err)
+				// 	return err
+				// }
+
+				// txMerkleProof := make([]string, 7) // TODO
+				_, err = q.CreateTxMerkleProofs(
+					publicKey.String(),
+					txTreeLeaf.TxHash.String(),
+					sign.SignatureID,
+					&txTreeLeaf.LeafIndex,
+					txTreeLeaf.TxTreeSiblings,
+					txTreeLeaf.TxTreeRootHash.String(),
 				)
 				if err != nil {
-					err = errors.Join(ErrCreateTransactionFail, err)
+					err = errors.Join(ErrCreateTxMerkleProofsFail, err)
 					return err
 				}
 
-				for key := range txTreeRoot.SenderTransfers {
-					_, ok := w.files.FilesList[f].Hashes[txTreeRoot.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String()]
-					if !ok {
-						err = ErrTransactionHashNotFound
-						return err
-					}
+				// for key := range txTreeLeaf.SenderTransfers {
+				// 	_, ok := w.files.FilesList[f].Hashes[txTreeLeaf.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String()]
+				// 	if !ok {
+				// 		err = ErrTransactionHashNotFound
+				// 		return err
+				// 	}
 
-					var txIndex uint256.Int
-					_ = txIndex.SetUint64(
-						txTreeRoot.LeafIndexes[txTreeRoot.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String()],
-					)
+				// 	var txIndex uint256.Int
+				// 	_ = txIndex.SetUint64(
+				// 		txTreeLeaf.LeafIndexes[txTreeLeaf.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String()],
+				// 	)
 
-					var cmp ComputeMerkleProof
-					cmp.Root = *txTreeRoot.SenderTransfers[key].TxTreeRootHash
-					cmp.Siblings = txTreeRoot.SenderTransfers[key].TxTreeSiblings
+				// 	var cmp ComputeMerkleProof
+				// 	cmp.Root = *txTreeLeaf.SenderTransfers[key].TxTreeLeafHash
+				// 	cmp.Siblings = txTreeLeaf.SenderTransfers[key].TxTreeSiblings
 
-					var bCMP []byte
-					bCMP, err = json.Marshal(&cmp)
-					if err != nil {
-						err = errors.Join(ErrMarshalFail, err)
-						return err
-					}
+				// 	var bCMP []byte
+				// 	bCMP, err = json.Marshal(&cmp)
+				// 	if err != nil {
+				// 		err = errors.Join(ErrMarshalFail, err)
+				// 		return err
+				// 	}
 
-					_, err = q.CreateTxMerkleProofs(
-						publicKey.String(),
-						txTreeRoot.SenderTransfers[key].TxHash.String(),
-						transaction.TxID,
-						&txIndex,
-						bCMP,
-					)
-					if err != nil {
-						err = errors.Join(ErrCreateTxMerkleProofsFail, err)
-						return err
-					}
-				}
+				// 	_, err = q.CreateTxMerkleProofs(
+				// 		publicKey.String(),
+				// 		txTreeLeaf.SenderTransfers[key].TxHash.String(),
+				// 		transaction.TxID,
+				// 		&txIndex,
+				// 		bCMP,
+				// 	)
+				// 	if err != nil {
+				// 		err = errors.Join(ErrCreateTxMerkleProofsFail, err)
+				// 		return err
+				// 	}
+				// }
 
 				return nil
 			})

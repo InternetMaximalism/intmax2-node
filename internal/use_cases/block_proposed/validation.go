@@ -156,6 +156,8 @@ func (input *UCBlockProposedInput) isExistsTxHash(w Worker) validation.Rule {
 			}
 		}
 
+		fmt.Printf("tx tree: %+v\n", txTree)
+
 		input.TxTree = txTree
 
 		return nil

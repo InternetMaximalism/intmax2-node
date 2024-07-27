@@ -2,6 +2,7 @@ package block_proposed
 
 import (
 	"context"
+	"fmt"
 	"intmax2-node/internal/open_telemetry"
 	"intmax2-node/internal/use_cases/block_proposed"
 
@@ -37,11 +38,21 @@ func (u *uc) Do(
 		attribute.String(txHashKey, input.TxHash),
 	)
 
-	resp := block_proposed.UCBlockProposed{
-		TxRoot:            input.TxTree.TxTreeHash.String(),
-		TxTreeMerkleProof: make([]string, len(input.TxTree.SenderTransfers)),
-		PublicKeysHash:    "0x",
+	// input.TxTree.
+	txTreeMerkleProof := make([]string, len(input.TxTree.TxTreeSiblings))
+	for i, v := range input.TxTree.TxTreeSiblings {
+		txTreeMerkleProof[i] = v.String()
 	}
+
+	const numOfSenders = 128
+	resp := block_proposed.UCBlockProposed{
+		TxRoot:            input.TxTree.TxTreeRootHash.String(),
+		TxTreeMerkleProof: txTreeMerkleProof,
+		PublicKeys:        make([]string, numOfSenders),
+	}
+	fmt.Printf("resp: %v\n", resp.TxRoot)
+	fmt.Printf("resp: %v\n", resp.TxTreeMerkleProof)
+	fmt.Printf("resp: %v\n", resp.PublicKeys)
 
 	return &resp, nil
 }

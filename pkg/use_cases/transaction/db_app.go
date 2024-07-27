@@ -15,9 +15,10 @@ type SQLDriverApp interface {
 
 type TxMerkleProofs interface {
 	CreateTxMerkleProofs(
-		senderPublicKey, txHash, txID string,
+		senderPublicKey, txHash, signatureID string,
 		txTreeIndex *uint256.Int,
 		txMerkleProof json.RawMessage,
+		txTreeRoot string,
 	) (*mDBApp.TxMerkleProofs, error)
 	TxMerkleProofsByID(id string) (*mDBApp.TxMerkleProofs, error)
 }

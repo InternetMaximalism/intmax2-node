@@ -10,7 +10,7 @@ import (
 )
 
 func (p *pgx) CreateTransaction(
-	senderPublicKey, txHash, signatureID string,
+	senderPublicKey, txHash, signatureID, _ string, _ []string,
 ) (*mDBApp.Transactions, error) {
 	tx := models.Transactions{
 		TxID:            uuid.New().String(),

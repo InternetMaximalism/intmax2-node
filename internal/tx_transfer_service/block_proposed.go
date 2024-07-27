@@ -65,7 +65,7 @@ func GetBlockProposed(
 }
 
 const (
-	retryInterval   = 1 * time.Second
+	retryInterval   = 10 * time.Second
 	timeoutInterval = 120 * time.Second
 )
 
@@ -111,7 +111,7 @@ func retryRequest(
 type BlockProposedResponseData struct {
 	TxTreeRoot        goldenposeidon.PoseidonHashOut    `json:"txTreeRoot"`
 	TxTreeMerkleProof []*goldenposeidon.PoseidonHashOut `json:"txTreeMerkleProof"`
-	PublicKeysHash    []byte                            `json:"publicKeysHash"`
+	PublicKeys        []*intMaxAcc.PublicKey            `json:"publicKeys"`
 }
 
 type BlockProposedResponse struct {
@@ -203,6 +203,7 @@ func getBlockProposedRawRequest(
 	txRoot := new(goldenposeidon.PoseidonHashOut)
 	err = txRoot.FromString(res.Data.TxRoot)
 	if err != nil {
+		fmt.Printf("tx root: %+v", res)
 		return nil, fmt.Errorf("failed to decode tx root: %w", err)
 	}
 
@@ -216,14 +217,17 @@ func getBlockProposedRawRequest(
 		txTreeMerkleProof[i] = sibling
 	}
 
-	publicKeysHash, err := hexutil.Decode(res.Data.PublicKeysHash)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode public keys hash: %w", err)
+	publicKeys := make([]*intMaxAcc.PublicKey, len(res.Data.PublicKeys))
+	for i, address := range res.Data.PublicKeys {
+		publicKeys[i], err = intMaxAcc.NewPublicKeyFromAddressHex(address)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode public keys hash: %w", err)
+		}
 	}
 
 	return &BlockProposedResponseData{
 		TxTreeRoot:        *txRoot,
 		TxTreeMerkleProof: txTreeMerkleProof,
-		PublicKeysHash:    publicKeysHash,
+		PublicKeys:        publicKeys,
 	}, nil
 }
