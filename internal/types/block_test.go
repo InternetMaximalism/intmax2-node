@@ -12,6 +12,7 @@ import (
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 )
@@ -193,4 +194,19 @@ func TestMarshalAccountIds(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, accountIds, decodedAccountIds)
+}
+
+func TestBlockHash(t *testing.T) {
+	prevBlockHash := common.Hash{}
+	depositRoot := common.Hash{}
+	contentHash := common.Hash{}
+	postedBlock := intMaxTypes.PostedBlock{
+		PrevBlockHash: prevBlockHash,
+		BlockNumber:   0,
+		DepositRoot:   depositRoot,
+		ContentHash:   contentHash,
+	}
+
+	currentHash := postedBlock.Hash()
+	assert.Equal(t, currentHash.String(), "0x913fb9e1f6f1c6d910fd574a5cad8857aa43bfba24e401ada4f56090d4d997a7")
 }
