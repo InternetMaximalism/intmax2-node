@@ -20,6 +20,8 @@ func TestDummyPublicKey(t *testing.T) {
 
 	pk := intMaxAcc.NewDummyPublicKey()
 	assert.NotNil(t, pk)
+
+	assert.True(t, pk.Pk.IsOnCurve())
 }
 
 func TestShouldNotGenerateNilAccount(t *testing.T) {

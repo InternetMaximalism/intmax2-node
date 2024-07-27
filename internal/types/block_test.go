@@ -2,6 +2,7 @@ package types_test
 
 import (
 	"crypto/rand"
+	"fmt"
 	"intmax2-node/internal/accounts"
 	"intmax2-node/internal/finite_field"
 	intMaxTypes "intmax2-node/internal/types"
@@ -51,15 +52,15 @@ func TestPublicKeyBlockValidation(t *testing.T) {
 	txRoot, err := new(intMaxTypes.PoseidonHashOut).SetRandom()
 	assert.NoError(t, err)
 
-	senderPublicKeys := make([]byte, len(senders)*intMaxTypes.NumPublicKeyBytes)
+	senderPublicKeysBytes := make([]byte, len(senders)*intMaxTypes.NumPublicKeyBytes)
 	for i, sender := range senders {
 		if sender.IsSigned {
 			senderPublicKey := sender.PublicKey.Pk.X.Bytes() // Only x coordinate is used
-			copy(senderPublicKeys[32*i:32*(i+1)], senderPublicKey[:])
+			copy(senderPublicKeysBytes[32*i:32*(i+1)], senderPublicKey[:])
 		}
 	}
 
-	publicKeysHash := crypto.Keccak256(senderPublicKeys)
+	publicKeysHash := crypto.Keccak256(senderPublicKeysBytes)
 	aggregatedPublicKey := new(accounts.PublicKey)
 	for _, sender := range senders {
 		if sender.IsSigned {
@@ -179,4 +180,17 @@ func TestAccountIDBlockValidation(t *testing.T) {
 	// assert.NoError(t, err)
 
 	// fmt.Printf("Transaction sent: %s\n", tx.Hash().Hex())
+}
+
+func TestMarshalAccountIds(t *testing.T) {
+	accountIds := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	encodedAccountIds, err := intMaxTypes.MarshalAccountIds(accountIds)
+	assert.NoError(t, err)
+
+	fmt.Printf("Marshaled account IDs: %x\n", encodedAccountIds)
+
+	decodedAccountIds, err := intMaxTypes.UnmarshalAccountIds(encodedAccountIds)
+	assert.NoError(t, err)
+
+	assert.Equal(t, accountIds, decodedAccountIds)
 }
