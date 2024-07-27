@@ -71,7 +71,7 @@ func TestUseCaseTransaction(t *testing.T) {
 
 	publicInputs, err := readPlonky2PublicInputsJson("balance_proof_public_inputs.json")
 	assert.NoError(t, err)
-	proof, err := readPlonky2ProofBinary("balance_proof_public_inputs.json")
+	proof, err := readPlonky2ProofBinary("balance_proof.bin")
 	assert.NoError(t, err)
 
 	enoughBalanceProof := &blockSignature.EnoughBalanceProofInput{

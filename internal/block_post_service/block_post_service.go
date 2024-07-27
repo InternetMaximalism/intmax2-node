@@ -99,7 +99,7 @@ func (d *BlockPostService) FetchNewPostedBlocks(startBlock uint64) ([]*bindings.
 	return events, maxBlockNumber, nil
 }
 
-func (d *BlockPostService) FetchIntMaxBlockContentByHash(txHash common.Hash) (*intMaxTypes.BlockContent, error) {
+func (d *BlockPostService) FetchScrollCalldataByHash(txHash common.Hash) ([]byte, error) {
 	tx, isPending, err := d.scrollClient.TransactionByHash(context.Background(), txHash)
 	if err != nil {
 		return nil, errors.Join(ErrTransactionByHashNotFound, err)
@@ -111,6 +111,21 @@ func (d *BlockPostService) FetchIntMaxBlockContentByHash(txHash common.Hash) (*i
 
 	calldata := tx.Data()
 
+	return calldata, nil
+}
+
+// FetchIntMaxBlockContentByHash fetches the block content by transaction hash.
+//
+// Example:
+//
+//	ctx := context.Background()
+//	cfg := configs.Config{}
+//	var startScrollBlockNumber uint64 = 0
+//	d, err := block_post_service.NewBlockPostService(ctx, &cfg)
+//	events, lastIntMaxBlockNumber, err := d.FetchNewPostedBlocks(startScrollBlockNumber)
+//	calldata, err := d.FetchScrollCalldataByHash(events[0].Raw.TxHash)
+//	blockContent, err := FetchIntMaxBlockContentByCalldata(calldata)
+func FetchIntMaxBlockContentByCalldata(calldata []byte, accountInfoMap AccountInfoMap) (*intMaxTypes.BlockContent, error) {
 	// Parse calldata
 	rollupABI := io.Reader(strings.NewReader(bindings.RollupABI))
 	parsedABI, err := abi.JSON(rollupABI)
@@ -122,7 +137,7 @@ func (d *BlockPostService) FetchIntMaxBlockContentByHash(txHash common.Hash) (*i
 		return nil, fmt.Errorf("failed to parse calldata: %w", err)
 	}
 
-	blockContent, err := recoverBlockContent(method, calldata)
+	blockContent, err := recoverBlockContent(method, calldata, accountInfoMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode calldata: %w", err)
 	}
@@ -130,7 +145,21 @@ func (d *BlockPostService) FetchIntMaxBlockContentByHash(txHash common.Hash) (*i
 	return blockContent, nil
 }
 
-func recoverBlockContent(method *abi.Method, calldata []byte) (_ *intMaxTypes.BlockContent, err error) {
+type AccountInfoMap struct {
+	LastAccountID uint64
+	AccountMap    map[uint64]*intMaxAcc.PublicKey
+	PublicKeyMap  map[string]uint64
+}
+
+func NewAccountInfoMap() AccountInfoMap {
+	return AccountInfoMap{
+		AccountMap:    make(map[uint64]*intMaxAcc.PublicKey),
+		PublicKeyMap:  make(map[string]uint64),
+		LastAccountID: 0,
+	}
+}
+
+func recoverBlockContent(method *abi.Method, calldata []byte, accountInfoMap AccountInfoMap) (_ *intMaxTypes.BlockContent, err error) {
 	switch method.Name {
 	case "postRegistrationBlock":
 		decodedInput, err := decodePostRegistrationBlockCalldata(method, calldata)
@@ -143,6 +172,21 @@ func recoverBlockContent(method *abi.Method, calldata []byte) (_ *intMaxTypes.Bl
 			return nil, fmt.Errorf("failed to decode calldata: %w", err)
 		}
 
+		dummyAddress := intMaxAcc.NewDummyPublicKey().ToAddress().String()
+		for _, sender := range blockContent.Senders {
+			if accountInfoMap.PublicKeyMap[sender.PublicKey.ToAddress().String()] == 0 {
+				accountInfoMap.LastAccountID += 1
+				accountInfoMap.AccountMap[accountInfoMap.LastAccountID] = sender.PublicKey
+				accountInfoMap.PublicKeyMap[sender.PublicKey.ToAddress().String()] = accountInfoMap.LastAccountID
+			} else {
+				// TODO: error handling
+				address := sender.PublicKey.ToAddress().String()
+				if address != dummyAddress {
+					fmt.Printf("Account already exists %v\n", address)
+				}
+			}
+		}
+
 		return blockContent, nil
 	case "postNonRegistrationBlock":
 		decodedInput, err := decodePostNonRegistrationBlockCalldata(method, calldata)
@@ -150,11 +194,23 @@ func recoverBlockContent(method *abi.Method, calldata []byte) (_ *intMaxTypes.Bl
 			return nil, fmt.Errorf("failed to decode calldata: %w", err)
 		}
 
-		accountInfoMap := make(map[uint64]*intMaxAcc.PublicKey)
 		blockContent, err := recoverNonRegistrationBlockContent(decodedInput, accountInfoMap)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode calldata: %w", err)
 		}
+
+		// TODO
+		// for _, sender := range blockContent.Senders {
+		// 	if accountInfoMap.PublicKeyMap[sender.PublicKey.ToAddress().String()] == 0 {
+		// 		accountInfoMap.LastAccountID += 1
+		// 		accountInfoMap.AccountMap[accountInfoMap.LastAccountID] = sender.PublicKey
+		// 		accountInfoMap.PublicKeyMap[sender.PublicKey.ToAddress().String()] = accountInfoMap.LastAccountID
+		// 	} else {
+		// 		// TODO: error handling
+		// 		if
+		// 		fmt.Println("Account already exists")
+		// 	}
+		// }
 
 		return blockContent, nil
 	default:
@@ -212,7 +268,7 @@ func recoverRegistrationBlockContent(decodedInput *intMaxTypes.PostRegistrationB
 	for i, key := range decodedInput.SenderPublicKeys {
 		senderPublicKeys[i], err = intMaxAcc.NewPublicKeyFromAddressInt(key)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create new public key from address: %w", err)
+			return nil, errors.Join(ErrCannotDecodeAddress, err)
 		}
 	}
 	for i := len(decodedInput.SenderPublicKeys); i < numOfSenders; i++ {
@@ -281,7 +337,7 @@ func recoverRegistrationBlockContent(decodedInput *intMaxTypes.PostRegistrationB
 
 func recoverNonRegistrationBlockContent(
 	decodedInput *intMaxTypes.PostNonRegistrationBlockInput,
-	accountInfoMap map[uint64]*intMaxAcc.PublicKey,
+	accountInfoMap AccountInfoMap,
 ) (_ *intMaxTypes.BlockContent, err error) {
 	senderAccountIds, err := intMaxTypes.UnmarshalAccountIds(decodedInput.SenderAccountIds)
 	if err != nil {
@@ -292,14 +348,18 @@ func recoverNonRegistrationBlockContent(
 	for i, accountId := range senderAccountIds {
 		if accountId == 0 {
 			senderPublicKeys[i] = intMaxAcc.NewDummyPublicKey()
+			continue
 		}
 
-		key, ok := accountInfoMap[accountId]
+		key, ok := accountInfoMap.AccountMap[accountId]
 		if !ok {
-			return nil, fmt.Errorf("account ID is unknown: %v", accountId)
+			return nil, errors.Join(ErrUnknownAccountID, fmt.Errorf("%d", accountId))
 		}
 
 		senderPublicKeys[i] = key
+	}
+	for i := len(senderAccountIds); i < numOfSenders; i++ {
+		senderPublicKeys[i] = intMaxAcc.NewDummyPublicKey()
 	}
 
 	const (
