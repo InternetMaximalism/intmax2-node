@@ -7,6 +7,7 @@ import (
 	"intmax2-node/internal/sql_db/pgx/models"
 	postWithdrwalRequest "intmax2-node/internal/use_cases/post_withdrawal_request"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
+	"strings"
 	"time"
 )
 
@@ -17,7 +18,6 @@ func (p *pgx) CreateWithdrawal(id string, input postWithdrwalRequest.UCPostWithd
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`
 
-	status := mDBApp.PENDING
 	createdAt := time.Now().UTC()
 
 	jsonFields := map[string]interface{}{
@@ -41,7 +41,7 @@ func (p *pgx) CreateWithdrawal(id string, input postWithdrwalRequest.UCPostWithd
 		p.ctx,
 		query,
 		id,
-		status,
+		mDBApp.WS_PENDING,
 		jsonData["TransferData"],
 		jsonData["TransferMerkleProof"],
 		jsonData["Transaction"],
@@ -63,6 +63,32 @@ func (p *pgx) CreateWithdrawal(id string, input postWithdrwalRequest.UCPostWithd
 	}
 
 	return wDBApp, nil
+}
+
+func (p *pgx) UpdateWithdrawalsStatus(ids []string, status mDBApp.WithdrawalStatus) error {
+	placeholder := make([]string, len(ids))
+	for i := range ids {
+		placeholder[i] = fmt.Sprintf("$%d", i+1)
+	}
+	placeholderStr := strings.Join(placeholder, ", ")
+
+	query := fmt.Sprintf(`
+	    UPDATE withdrawals
+		SET status = %d
+		WHERE id IN (%s)
+	`, status, placeholderStr)
+
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		args[i] = id
+	}
+
+	_, err := p.exec(p.ctx, query, args...)
+	if err != nil {
+		return errPgx.Err(err)
+	}
+
+	return nil
 }
 
 func (p *pgx) WithdrawalByID(id string) (*mDBApp.Withdrawal, error) {

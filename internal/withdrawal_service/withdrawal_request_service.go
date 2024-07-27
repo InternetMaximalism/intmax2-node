@@ -29,7 +29,7 @@ func newWithdrawalRequestService(ctx context.Context, cfg *configs.Config, log l
 	}
 }
 
-// TODO: Update logic
+// TODO: NEED_TO_BE_UPDATE logic
 func PostWithdrawalRequest(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, input postWithdrwalRequest.UCPostWithdrawalRequestInput) error {
 	service := newWithdrawalRequestService(ctx, cfg, log, db)
 
@@ -39,10 +39,11 @@ func PostWithdrawalRequest(ctx context.Context, cfg *configs.Config, log logger.
 	}
 
 	id := uuid.New().String()
-	// err = service.requestWithdrawalProofToProver(id, input)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to send withdrawal request to prover: %w", err)
-	// }
+	// TODO: NEED_TO_BE_CHANGED
+	err = service.requestWithdrawalProofToProver(id, input)
+	if err != nil {
+		return fmt.Errorf("failed to send withdrawal request to prover: %w", err)
+	}
 
 	_, err = db.CreateWithdrawal(id, input)
 	if err != nil {

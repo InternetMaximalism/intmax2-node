@@ -10,6 +10,7 @@ import (
 	"intmax2-node/internal/logger"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"intmax2-node/pkg/utils"
+	"log"
 	"net/http"
 	"time"
 
@@ -92,15 +93,19 @@ func WithdrawalAggregator(ctx context.Context, cfg *configs.Config, log logger.L
 		panic(fmt.Sprintf("Failed to fetch withdrawal proofs %v", err.Error()))
 	}
 
-	err = service.buildData(*pendingWithdrawals, proofs)
+	err = service.buildSubmitWithdrawalProofData(*pendingWithdrawals, proofs)
 	if err != nil {
 		panic("NEED_TO_BE_IMPLEMENTED")
 	}
 
-	// TODO: change status depends on the result of the proof
-	// error WithdrawalProofVerificationFailed()
 	receipt, err := service.submitWithdrawalProof()
 	if err != nil {
+		// TODO: NEED_TO_BE_CHANGED change status depends on the result of the proof
+		if err.Error() == "WithdrawalProofVerificationFailed" {
+			log.Errorf("Failed to submit withdrawal proof: %v", err.Error())
+			db.UpdateWithdrawalsStatus(extractIds(*pendingWithdrawals), mDBApp.WS_FAILED)
+			return
+		}
 		panic(fmt.Sprintf("Failed to submit withdrawal proof: %v", err.Error()))
 	}
 
@@ -117,12 +122,12 @@ func WithdrawalAggregator(ctx context.Context, cfg *configs.Config, log logger.L
 		panic(fmt.Sprintf("Unexpected transaction status: %d. Transaction Hash: %v", receipt.Status, receipt.TxHash.Hex()))
 	}
 
-	// TODO: change status true
+	db.UpdateWithdrawalsStatus(extractIds(*pendingWithdrawals), mDBApp.WS_SUCCESS)
 }
 
 func (w *WithdrawalAggregatorService) fetchPendingWithdrawals() (*[]mDBApp.Withdrawal, error) {
 	limit := int(WithdrawalThreshold)
-	withdrawals, err := w.db.WithdrawalsByStatus(mDBApp.PENDING, &limit)
+	withdrawals, err := w.db.WithdrawalsByStatus(mDBApp.WS_PENDING, &limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find pending withdrawals: %w", err)
 	}
@@ -133,10 +138,6 @@ func (w *WithdrawalAggregatorService) fetchPendingWithdrawals() (*[]mDBApp.Withd
 }
 
 func (w *WithdrawalAggregatorService) shouldProcessWithdrawals(pendingWithdrawals []mDBApp.Withdrawal) bool {
-	if len(pendingWithdrawals) < WithdrawalThreshold {
-		return false
-	}
-
 	minCreatedAt := pendingWithdrawals[0].CreatedAt
 	for _, withdrawal := range pendingWithdrawals[1:] {
 		if withdrawal.CreatedAt.Before(minCreatedAt) {
@@ -144,7 +145,15 @@ func (w *WithdrawalAggregatorService) shouldProcessWithdrawals(pendingWithdrawal
 		}
 	}
 
-	return time.Since(minCreatedAt) >= WaitDuration
+	if time.Since(minCreatedAt) >= WaitDuration {
+		w.log.Infof("Pending withdrawals are older than %s, processing", WaitDuration)
+		return true
+	}
+
+	withdrawalCount := len(pendingWithdrawals)
+	log.Printf("Number of pending withdrawals: %d (Threshold: %d)", withdrawalCount, WithdrawalThreshold)
+
+	return withdrawalCount >= WithdrawalThreshold
 }
 
 func (w *WithdrawalAggregatorService) fetchWithdrawalProofsFromProver(pendingWithdrawals []mDBApp.Withdrawal) ([]ProofValue, error) {
@@ -180,7 +189,7 @@ func (w *WithdrawalAggregatorService) fetchWithdrawalProofsFromProver(pendingWit
 	return res.Values, nil
 }
 
-func (w *WithdrawalAggregatorService) buildData(pendingWithdrawals []mDBApp.Withdrawal, proofs []ProofValue) error {
+func (w *WithdrawalAggregatorService) buildSubmitWithdrawalProofData(pendingWithdrawals []mDBApp.Withdrawal, proofs []ProofValue) error {
 	return nil
 }
 
@@ -208,4 +217,12 @@ func (w *WithdrawalAggregatorService) submitWithdrawalProof() (*types.Receipt, e
 	}
 
 	return receipt, nil
+}
+
+func extractIds(withdrawas []mDBApp.Withdrawal) []string {
+	ids := make([]string, len(withdrawas))
+	for i, w := range withdrawas {
+		ids[i] = w.ID
+	}
+	return ids
 }
