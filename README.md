@@ -261,7 +261,7 @@ Usage:
 Flags:
   -h, --help   help for relayer
 ```
-### Command `./intmax2-node balance get`
+### Command `./intmax2-node balance get --help`
 ```
 # ./intmax2-node balance get --help
 Get balance of specified INTMAX account
@@ -273,8 +273,32 @@ Flags:
   -h, --help                  help for get
       --user-address string   specify user address. use as --user-address "0x0000000000000000000000000000000000000000000000000000000000000000"
 
-Example:
+Example1:
+  ./intmax2-node balance get eth --user-address 0x030644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd3
+
+Example2:
   ./intmax2-node balance get erc20 0x0000000000000000000000000000000000000001 --user-address 0x030644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd3
+```
+
+### Command `./intmax2-node tx transfer --help`
+```
+# ./intmax2-node tx transfer --help
+Send transfer transaction
+
+Usage:
+  app tx transfer [flags]
+
+Flags:
+      --amount string         specify amount without decimals. use as --amount "10"
+  -h, --help                  help for transfer
+      --recipient string      specify recipient address. use as --recipient "0x0000000000000000000000000000000000000000000000000000000000000000"
+      --user-private string   specify user address. use as --user-private "0x0000000000000000000000000000000000000000000000000000000000000000"
+
+Example1:
+  ./intmax2-node tx transfer eth --amount 10 --recipient 0x06a7b64af8f414bcbeef455b1da5208c9b592b83ee6599824caa6d2ee9141a76 --user-private 0x0000000000000000000000000000000000000000000000000000000000000002
+
+Example2:
+  ./intmax2-node tx transfer erc20 0x0000000000000000000000000000000000000001 --amount 10 --recipient 0x06a7b64af8f414bcbeef455b1da5208c9b592b83ee6599824caa6d2ee9141a76 --user-private 0x0000000000000000000000000000000000000000000000000000000000000002
 ```
 
 ## Network

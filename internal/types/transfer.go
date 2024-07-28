@@ -12,6 +12,8 @@ import (
 )
 
 // GenericAddress struct to hold address and its type
+//
+// TODO: Implement MarshalJSON and UnmarshalJSON methods for GenericAddress
 type GenericAddress struct {
 	// TypeOfAddress can be "ETHEREUM" or "INTMAX"
 	TypeOfAddress string
@@ -92,6 +94,28 @@ type Transfer struct {
 	TokenIndex uint32
 	Amount     *big.Int
 	Salt       *PoseidonHashOut
+}
+
+func NewTransfer(recipient *GenericAddress, tokenIndex uint32, amount *big.Int, salt *PoseidonHashOut) *Transfer {
+	return &Transfer{
+		Recipient:  recipient,
+		TokenIndex: tokenIndex,
+		Amount:     amount,
+	}
+}
+
+func NewTransferWithRandomSalt(recipient *GenericAddress, tokenIndex uint32, amount *big.Int) *Transfer {
+	salt, err := new(PoseidonHashOut).SetRandom()
+	if err != nil {
+		panic(err)
+	}
+
+	return &Transfer{
+		Recipient:  recipient,
+		TokenIndex: tokenIndex,
+		Amount:     amount,
+		Salt:       salt,
+	}
 }
 
 func (td *Transfer) Set(transferData *Transfer) *Transfer {
