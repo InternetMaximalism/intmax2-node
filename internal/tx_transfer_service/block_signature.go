@@ -9,11 +9,13 @@ import (
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
+	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/block_signature"
 	"net/http"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/go-resty/resty/v2"
 )
 
@@ -28,10 +30,27 @@ func SendSignedProposedBlock(
 	log logger.Logger,
 	senderAccount *intMaxAcc.PrivateKey,
 	txTreeRoot goldenposeidon.PoseidonHashOut,
-	publicKeysHash []byte,
+	publicKeys []*intMaxAcc.PublicKey,
 	// prevBalanceProof block_signature.Plonky2Proof,
 	// transferStepProof block_signature.Plonky2Proof,
 ) error {
+	defaultPublicKey := intMaxAcc.NewDummyPublicKey()
+
+	const (
+		numOfSenders      = 128
+		numPublicKeyBytes = intMaxTypes.NumPublicKeyBytes
+	)
+	senderPublicKeys := make([]byte, numOfSenders*numPublicKeyBytes)
+	for i, sender := range publicKeys {
+		senderPublicKey := sender.Pk.X.Bytes() // Only x coordinate is used
+		copy(senderPublicKeys[numPublicKeyBytes*i:numPublicKeyBytes*(i+1)], senderPublicKey[:])
+	}
+	for i := len(publicKeys); i < numOfSenders; i++ {
+		senderPublicKey := defaultPublicKey.Pk.X.Bytes() // Only x coordinate is used
+		copy(senderPublicKeys[numPublicKeyBytes*i:numPublicKeyBytes*(i+1)], senderPublicKey[:])
+	}
+	publicKeysHash := crypto.Keccak256(senderPublicKeys)
+
 	message := finite_field.BytesToFieldElementSlice(txTreeRoot.Marshal())
 	signature, err := senderAccount.WeightByHash(publicKeysHash).Sign(message)
 	if err != nil {

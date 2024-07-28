@@ -73,10 +73,6 @@ func NewBlockContent(
 	txTreeRoot PoseidonHashOut,
 	aggregatedSignature *bn254.G2Affine,
 ) *BlockContent {
-	const (
-		int1Key = 1
-	)
-
 	var bc BlockContent
 
 	if senderType != PublicKeySenderType && senderType != AccountIDSenderType {
@@ -88,12 +84,17 @@ func NewBlockContent(
 	bc.TxTreeRoot.Set(&txTreeRoot)
 	bc.AggregatedSignature = new(bn254.G2Affine).Set(aggregatedSignature)
 
-	senderPublicKeys := make([]byte, len(bc.Senders)*NumPublicKeyBytes)
+	defaultPublicKey := accounts.NewDummyPublicKey()
+
+	const numOfSenders = 128
+	senderPublicKeys := make([]byte, numOfSenders*NumPublicKeyBytes)
 	for i, sender := range bc.Senders {
-		if sender.IsSigned {
-			senderPublicKey := sender.PublicKey.Pk.X.Bytes() // Only x coordinate is used
-			copy(senderPublicKeys[NumPublicKeyBytes*i:NumPublicKeyBytes*(i+int1Key)], senderPublicKey[:])
-		}
+		senderPublicKey := sender.PublicKey.Pk.X.Bytes() // Only x coordinate is used
+		copy(senderPublicKeys[NumPublicKeyBytes*i:NumPublicKeyBytes*(i+1)], senderPublicKey[:])
+	}
+	for i := len(bc.Senders); i < numOfSenders; i++ {
+		senderPublicKey := defaultPublicKey.Pk.X.Bytes() // Only x coordinate is used
+		copy(senderPublicKeys[NumPublicKeyBytes*i:NumPublicKeyBytes*(i+1)], senderPublicKey[:])
 	}
 
 	publicKeysHash := crypto.Keccak256(senderPublicKeys)
@@ -181,15 +182,20 @@ func (bc *BlockContent) IsValid() error {
 					return ErrBlockContentAggPubKeyEmpty
 				}
 
-				senderPublicKeysBytes := make([]byte, len(bc.Senders)*NumPublicKeyBytes)
+				defaultPublicKey := accounts.NewDummyPublicKey()
+
+				const numOfSenders = 128
+				senderPublicKeysBytes := make([]byte, numOfSenders*NumPublicKeyBytes)
 				for key := range bc.Senders {
-					if bc.Senders[key].IsSigned {
-						senderPublicKey := bc.Senders[key].PublicKey.Pk.X.Bytes() // Only x coordinate is used
-						copy(
-							senderPublicKeysBytes[NumPublicKeyBytes*key:NumPublicKeyBytes*(key+int1Key)],
-							senderPublicKey[:],
-						)
-					}
+					senderPublicKey := bc.Senders[key].PublicKey.Pk.X.Bytes() // Only x coordinate is used
+					copy(
+						senderPublicKeysBytes[NumPublicKeyBytes*key:NumPublicKeyBytes*(key+int1Key)],
+						senderPublicKey[:],
+					)
+				}
+				for i := len(bc.Senders); i < numOfSenders; i++ {
+					senderPublicKey := defaultPublicKey.Pk.X.Bytes() // Only x coordinate is used
+					copy(senderPublicKeysBytes[NumPublicKeyBytes*i:NumPublicKeyBytes*(i+1)], senderPublicKey[:])
 				}
 
 				publicKeysHash := crypto.Keccak256(senderPublicKeysBytes)
