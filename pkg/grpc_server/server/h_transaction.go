@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"intmax2-node/internal/open_telemetry"
 	"intmax2-node/internal/pb/gen/service/node"
 	"intmax2-node/internal/use_cases/transaction"

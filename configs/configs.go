@@ -18,6 +18,7 @@ const (
 
 type Config struct {
 	APP           APP
+	API           Api
 	GRPC          GRPC
 	HTTP          HTTP
 	LOG           LOG

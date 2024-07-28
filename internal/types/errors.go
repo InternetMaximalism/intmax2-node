@@ -49,3 +49,21 @@ var ErrNonceTooLarge = errors.New("nonce is too large")
 
 // ErrPowNonceTooLarge error: PoW nonce is too large.
 var ErrPowNonceTooLarge = errors.New("PoW nonce is too large")
+
+var ErrTokenTypeRequired = errors.New("token type is required")
+
+var ErrETHBalanceCheckArgs = errors.New("ETH balance check doesn't require additional arguments")
+
+var ErrERC721BalanceCheckArgs = errors.New("ERC721 balance check requires a token address and token ID")
+
+var ErrERC20BalanceCheckArgs = errors.New("ERC20 balance check requires a token address")
+
+var ErrERC1155BalanceCheckArgs = errors.New("ERC1155 balance check requires a token address and token ID")
+
+var ErrInvalidTokenType = errors.New("invalid token type. Use 'eth', 'erc20', 'erc721', or 'erc1155'")
+
+var ErrTokenNotFound = errors.New("token not found on INTMAX network")
+
+var ErrFailedToGetBalance = errors.New("failed to get balance")
+
+var ErrFetchTokenByTokenAddressAndTokenIDWithDBApp = errors.New("failed to fetch token by tokenAddress and tokenId with DBApp")

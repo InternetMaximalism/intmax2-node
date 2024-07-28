@@ -8,6 +8,7 @@ import (
 	"github.com/holiman/uint256"
 
 	internalModels "intmax2-node/internal/sql_db/pgx/models"
+	postWithdrwalRequest "intmax2-node/internal/use_cases/post_withdrawal_request"
 	"intmax2-node/pkg/sql_db/db_app/models"
 )
 
@@ -15,6 +16,7 @@ type SQLDb interface {
 	GenericCommands
 	ServiceCommands
 	Tokens
+	Withdrawals
 	Signatures
 	Transactions
 	TxMerkleProofs
@@ -78,6 +80,13 @@ type Balances interface {
 	BalanceByID(id string) (*models.Balance, error)
 	BalanceByUserAndTokenIndex(userAddress, tokenIndex string) (*models.Balance, error)
 	BalanceByUserAndTokenInfo(userAddress, tokenAddress, tokenID string) (*models.Balance, error)
+}
+
+type Withdrawals interface {
+	CreateWithdrawal(id string, input *postWithdrwalRequest.UCPostWithdrawalRequestInput) (*models.Withdrawal, error)
+	UpdateWithdrawalsStatus(ids []string, status models.WithdrawalStatus) error
+	WithdrawalByID(id string) (*models.Withdrawal, error)
+	WithdrawalsByStatus(status models.WithdrawalStatus, limit *int) (*[]models.Withdrawal, error)
 }
 
 type Backups interface {

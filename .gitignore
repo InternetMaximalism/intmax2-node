@@ -15,3 +15,4 @@ build/sql_dbs/*
 build/env.docker.node
 internal/pb/gen
 third_party/OpenAPI/node
+.DS_Store

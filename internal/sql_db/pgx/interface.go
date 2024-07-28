@@ -3,6 +3,7 @@ package pgx
 import (
 	"context"
 	"encoding/json"
+	postWithdrwalRequest "intmax2-node/internal/use_cases/post_withdrawal_request"
 
 	"intmax2-node/internal/sql_db/pgx/models"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
@@ -20,6 +21,7 @@ type PGX interface {
 	TxMerkleProofs
 	EventBlockNumbers
 	Balances
+	Withdrawals
 	Backups
 }
 
@@ -78,6 +80,13 @@ type Balances interface {
 	BalanceByID(id string) (*mDBApp.Balance, error)
 	BalanceByUserAndTokenIndex(userAddress, tokenIndex string) (*mDBApp.Balance, error)
 	BalanceByUserAndTokenInfo(userAddress, tokenAddress, tokenID string) (*mDBApp.Balance, error)
+}
+
+type Withdrawals interface {
+	CreateWithdrawal(id string, input *postWithdrwalRequest.UCPostWithdrawalRequestInput) (*mDBApp.Withdrawal, error)
+	UpdateWithdrawalsStatus(ids []string, status mDBApp.WithdrawalStatus) error
+	WithdrawalByID(id string) (*mDBApp.Withdrawal, error)
+	WithdrawalsByStatus(status mDBApp.WithdrawalStatus, limit *int) (*[]mDBApp.Withdrawal, error)
 }
 
 type Backups interface {

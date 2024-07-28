@@ -19,8 +19,12 @@ curl http://localhost:8080/health | jq
 # get proof
 curl http://localhost:8080/proof/1 | jq
 
+# get proofs
+curl "http://localhost:8080/proofs?ids[]=1&ids[]=2" | jq
+
 # generate proof
 curl -X POST -d '{"id":"1"}' -H "Content-Type: application/json" http://localhost:8080/proof | jq
+curl -X POST -d '{"id":"2"}' -H "Content-Type: application/json" http://localhost:8080/proof | jq
 ```
 
 ## Docker

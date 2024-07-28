@@ -1,4 +1,4 @@
-package withdrawal
+package withdrawal_relayer
 
 import (
 	"context"

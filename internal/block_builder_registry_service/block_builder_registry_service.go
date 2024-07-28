@@ -130,6 +130,8 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 		}
 	}()
 
+	value = &bbr.cfg.Blockchain.ScrollNetworkStakeBalance
+
 	link, err := bbr.sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
 	if err != nil {
 		return errors.Join(ErrScrollNetworkChainLinkEvmJSONRPCFail, err)

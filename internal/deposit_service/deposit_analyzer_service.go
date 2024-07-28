@@ -32,6 +32,10 @@ type DepositAnalyzerService struct {
 	liquidity *bindings.Liquidity
 }
 
+func NewDepositAnalyzerService(ctx context.Context, cfg *configs.Config, log logger.Logger, sc ServiceBlockchain) (*DepositAnalyzerService, error) {
+	return newDepositAnalyzerService(ctx, cfg, log, sc)
+}
+
 func newDepositAnalyzerService(ctx context.Context, cfg *configs.Config, log logger.Logger, _ ServiceBlockchain) (*DepositAnalyzerService, error) {
 	// link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
 	// if err != nil {
@@ -245,7 +249,7 @@ func (d *DepositAnalyzerService) getTokenInfoMap(tokenIndexMap map[uint32]bool) 
 }
 
 func (d *DepositAnalyzerService) analyzeDeposits(upToDepositId *big.Int, rejectDepositIndices []*big.Int) (*types.Receipt, error) {
-	transactOpts, err := utils.CreateTransactor(d.cfg)
+	transactOpts, err := utils.CreateTransactor(d.cfg.Blockchain.DepositAnalyzerPrivateKeyHex, d.cfg.Blockchain.EthereumNetworkChainID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transactor: %w", err)
 	}

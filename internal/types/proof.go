@@ -9,8 +9,8 @@ import (
 )
 
 type Plonky2Proof struct {
-	Proof        []byte
-	PublicInputs []ffg.Element
+	Proof        []byte        `json:"proof"`
+	PublicInputs []ffg.Element `json:"public_inputs"`
 }
 
 func (p *Plonky2Proof) MarshalJSON() ([]byte, error) {

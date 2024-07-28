@@ -1,8 +1,20 @@
 package withdrawal_service
 
-type WithdrwalProverResponse struct {
-	Success bool `json:"success"`
-	Value   int  `json:"value"`
+type GenerateProofResponse struct {
+	Success      bool   `json:"success"`
+	Value        int    `json:"value"`
+	ErrorMessage string `json:"error_message"`
+}
+
+type ProofValue struct {
+	ID    string `json:"id"`
+	Value int    `json:"value"`
+}
+
+type ProofsResponse struct {
+	Success      bool         `json:"success"`
+	Values       []ProofValue `json:"values"`
+	ErrorMessage string       `json:"error_message,omitempty"`
 }
 
 type ScrollMessengerResponse struct {
