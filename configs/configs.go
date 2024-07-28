@@ -17,20 +17,21 @@ const (
 )
 
 type Config struct {
-	APP           APP
-	API           Api
-	GRPC          GRPC
-	HTTP          HTTP
-	LOG           LOG
-	Wallet        Wallet
-	PoW           PoW
-	Worker        Worker
-	Blockchain    Blockchain
-	Network       Network
-	StunServer    StunServer
-	Swagger       Swagger
-	OpenTelemetry OpenTelemetry
-	SQLDb         SQLDb
+	APP                 APP
+	API                 Api
+	GRPC                GRPC
+	HTTP                HTTP
+	LOG                 LOG
+	Wallet              Wallet
+	PoW                 PoW
+	Worker              Worker
+	DepositSynchronizer DepositSynchronizer
+	Blockchain          Blockchain
+	Network             Network
+	StunServer          StunServer
+	Swagger             Swagger
+	OpenTelemetry       OpenTelemetry
+	SQLDb               SQLDb
 }
 
 var once sync.Once

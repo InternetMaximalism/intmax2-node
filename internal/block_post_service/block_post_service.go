@@ -92,6 +92,7 @@ func NewBlockPostService(ctx context.Context, cfg *configs.Config) (*BlockPostSe
 	}, nil
 }
 
+// deprecated: Use FetchPostedBlocks instead.
 func (d *BlockPostService) FetchNewPostedBlocks(startBlock uint64) ([]*bindings.RollupBlockPosted, *big.Int, error) {
 	nextBlock := startBlock + int1Key
 	iterator, err := d.rollup.FilterBlockPosted(&bind.FilterOpts{
@@ -148,7 +149,7 @@ func (d *BlockPostService) FetchScrollCalldataByHash(txHash common.Hash) ([]byte
 //	cfg := configs.Config{}
 //	var startScrollBlockNumber uint64 = 0
 //	d, err := block_post_service.NewBlockPostService(ctx, &cfg)
-//	events, lastIntMaxBlockNumber, err := d.FetchNewPostedBlocks(startScrollBlockNumber)
+//	events, lastIntMaxBlockNumber, err := d.FetchPostedBlocks(startScrollBlockNumber, [][int32Key]byte{}, []common.Address{})
 //	calldata, err := d.FetchScrollCalldataByHash(events[0].Raw.TxHash)
 //	blockContent, err := FetchIntMaxBlockContentByCalldata(calldata)
 func FetchIntMaxBlockContentByCalldata(calldata []byte, accountInfoMap AccountInfoMap) (*intMaxTypes.BlockContent, error) {

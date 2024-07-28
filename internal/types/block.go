@@ -1,6 +1,7 @@
 package types
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 	"github.com/consensys/gnark-crypto/ecc/bn254/fp"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/prodadidb/go-validation"
@@ -551,33 +553,33 @@ func UnmarshalAccountIds(accountIdsBytes []byte) ([]uint64, error) {
 }
 
 type RollupContractConfig struct {
+	// EthereumNetworkChainID is the chain ID of the Ethereum network
+	NetworkChainID string
+
 	// EthereumNetworkRpcUrl is the URL of the Ethereum network RPC endpoint
-	EthereumNetworkRpcUrl string
+	NetworkRpcUrl string
 
 	// RollupContractAddressHex is the address of the Rollup contract
 	RollupContractAddressHex string
 
 	// EthereumPrivateKeyHex is the private key used to sign transactions
 	EthereumPrivateKeyHex string
-
-	// EthereumNetworkChainID is the chain ID of the Ethereum network
-	EthereumNetworkChainID string
 }
 
 // NewRollupContractConfigFromEnv creates a new RollupContractConfig from the environment variables.
 func NewRollupContractConfigFromEnv(cfg *configs.Config) *RollupContractConfig {
 	return &RollupContractConfig{
-		EthereumNetworkRpcUrl:    cfg.Blockchain.EthereumNetworkRpcUrl,
+		NetworkRpcUrl:            "https://sepolia-rpc.scroll.io",
 		RollupContractAddressHex: cfg.Blockchain.RollupContractAddress,
 		EthereumPrivateKeyHex:    cfg.Blockchain.EthereumPrivateKeyHex,
-		EthereumNetworkChainID:   cfg.Blockchain.EthereumNetworkChainID,
+		NetworkChainID:           cfg.Blockchain.ScrollNetworkChainID,
 	}
 }
 
 // PostRegistrationBlock posts a registration block on the Rollup contract.
 // It returns the transaction hash if the block is successfully posted.
 func PostRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockContent) (*types.Transaction, error) {
-	client, err := utils.NewClient(cfg.EthereumNetworkRpcUrl)
+	client, err := utils.NewClient(cfg.NetworkRpcUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new client: %w", err)
 	}
@@ -602,7 +604,7 @@ func PostRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockContent
 		int10Key = 10
 		int64Key = 64
 	)
-	chainID, err := strconv.ParseInt(cfg.EthereumNetworkChainID, int10Key, int64Key)
+	chainID, err := strconv.ParseInt(cfg.NetworkChainID, int10Key, int64Key)
 	if err != nil {
 		return nil, fmt.Errorf("invalid chain ID: %w", err)
 	}
@@ -625,7 +627,7 @@ func PostRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockContent
 // PostNonRegistrationBlock posts a non-registration block on the Rollup contract.
 // It returns the transaction hash if the block is successfully posted.
 func PostNonRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockContent) (*types.Transaction, error) {
-	client, err := utils.NewClient(cfg.EthereumNetworkRpcUrl)
+	client, err := utils.NewClient(cfg.NetworkRpcUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new client: %w", err)
 	}
@@ -650,7 +652,7 @@ func PostNonRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockCont
 		int10Key = 10
 		int64Key = 64
 	)
-	chainID, err := strconv.ParseInt(cfg.EthereumNetworkChainID, int10Key, int64Key)
+	chainID, err := strconv.ParseInt(cfg.NetworkChainID, int10Key, int64Key)
 	if err != nil {
 		return nil, fmt.Errorf("invalid chain ID: %w", err)
 	}
@@ -678,4 +680,149 @@ func PostNonRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockCont
 		input.PublicKeysHash,
 		input.SenderAccountIds,
 	)
+}
+
+func FetchDepositRoot(cfg *RollupContractConfig, ctx context.Context) ([int32Key]byte, error) {
+	client, err := utils.NewClient(cfg.NetworkRpcUrl)
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("failed to create new client: %w", err)
+	}
+	defer client.Close()
+
+	rollup, err := bindings.NewRollup(common.HexToAddress(cfg.RollupContractAddressHex), client)
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
+	}
+
+	opts := bind.CallOpts{
+		Pending: false,
+		Context: ctx,
+	}
+	depositRoot, err := rollup.DepositTreeRoot(&opts)
+
+	return depositRoot, err
+}
+
+func FetchLatestIntMaxBlockNumber(cfg *RollupContractConfig, ctx context.Context) (uint32, error) {
+	client, err := utils.NewClient(cfg.NetworkRpcUrl)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create new client: %w", err)
+	}
+	defer client.Close()
+
+	rollup, err := bindings.NewRollup(common.HexToAddress(cfg.RollupContractAddressHex), client)
+	if err != nil {
+		return 0, fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
+	}
+
+	opts := bind.CallOpts{
+		Pending: false,
+		Context: ctx,
+	}
+	latestBlockNumber, err := rollup.GetLatestBlockNumber(&opts)
+
+	return latestBlockNumber, err
+}
+
+func FetchIntMaxBlock(cfg *RollupContractConfig, ctx context.Context, blockNumber uint32) (common.Hash, error) {
+	client, err := utils.NewClient(cfg.NetworkRpcUrl)
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("failed to create new client: %w", err)
+	}
+	defer client.Close()
+
+	rollup, err := bindings.NewRollup(common.HexToAddress(cfg.RollupContractAddressHex), client)
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
+	}
+
+	opts := bind.CallOpts{
+		Pending: false,
+		Context: ctx,
+	}
+	blockHash, err := rollup.GetBlockHash(&opts, blockNumber)
+
+	return blockHash, err
+}
+
+func FetchPostedBlocks(cfg *RollupContractConfig, ctx context.Context, startBlock uint64, prevBlockHash [][32]byte, blockBuilder []common.Address) ([]*bindings.RollupBlockPosted, *big.Int, error) {
+	client, err := utils.NewClient(cfg.NetworkRpcUrl)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create new client: %w", err)
+	}
+	defer client.Close()
+
+	rollup, err := bindings.NewRollup(common.HexToAddress(cfg.RollupContractAddressHex), client)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
+	}
+
+	nextBlock := startBlock + 1
+	iterator, err := rollup.FilterBlockPosted(&bind.FilterOpts{
+		Start:   nextBlock,
+		End:     nil,
+		Context: ctx,
+	}, prevBlockHash, blockBuilder)
+	if err != nil {
+		return nil, nil, errors.Join(ErrFilterLogsFail, err)
+	}
+
+	defer func() {
+		_ = iterator.Close()
+	}()
+
+	var events []*bindings.RollupBlockPosted
+	maxBlockNumber := new(big.Int)
+
+	for iterator.Next() {
+		event := iterator.Event
+		events = append(events, event)
+		if event.BlockNumber.Cmp(maxBlockNumber) > 0 {
+			maxBlockNumber.Set(event.BlockNumber)
+		}
+	}
+
+	if err = iterator.Error(); err != nil {
+		return nil, nil, errors.Join(ErrEncounteredWhileIterating, err)
+	}
+
+	return events, maxBlockNumber, nil
+}
+
+func FetchLatestIntMaxBlock(cfg *RollupContractConfig, ctx context.Context) (*bindings.RollupBlockPosted, error) {
+	latestBlockNumber, err := FetchLatestIntMaxBlockNumber(cfg, ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch latest block number: %w", err)
+	}
+	if latestBlockNumber == 0 {
+		defaultDepositTreeRoot := [32]byte{}
+		decodedDefaultDepositTreeRoot, err := hexutil.Decode("0xb6155ab566bbd2e341525fd88c43b4d69572bf4afe7df45cd74d6901a172e41c")
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode default deposit tree root: %w", err)
+		}
+
+		copy(defaultDepositTreeRoot[:], decodedDefaultDepositTreeRoot)
+		return &bindings.RollupBlockPosted{
+			PrevBlockHash:   [32]byte{},
+			BlockBuilder:    common.Address{},
+			BlockNumber:     big.NewInt(0),
+			DepositTreeRoot: defaultDepositTreeRoot,
+			SignatureHash:   [32]byte{},
+		}, nil
+	}
+
+	latestPrevBlockHash, err := FetchIntMaxBlock(cfg, ctx, latestBlockNumber-1)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch latest block: %w", err)
+	}
+
+	blocks, _, err := FetchPostedBlocks(cfg, ctx, 0, [][int32Key]byte{latestPrevBlockHash}, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch posted blocks: %w", err)
+	}
+	if len(blocks) == 0 {
+		return nil, errors.New("no posted blocks found")
+	}
+
+	return blocks[0], nil
 }

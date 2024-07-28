@@ -27,18 +27,19 @@ import (
 )
 
 type Server struct {
-	Context context.Context
-	Cancel  context.CancelFunc
-	WG      *sync.WaitGroup
-	Config  *configs.Config
-	Log     logger.Logger
-	DbApp   SQLDriverApp
-	BBR     BlockBuilderRegistryService
-	SB      ServiceBlockchain
-	NS      NetworkService
-	HC      *health.Handler
-	PoW     PoWNonce
-	Worker  Worker
+	Context             context.Context
+	Cancel              context.CancelFunc
+	WG                  *sync.WaitGroup
+	Config              *configs.Config
+	Log                 logger.Logger
+	DbApp               SQLDriverApp
+	BBR                 BlockBuilderRegistryService
+	SB                  ServiceBlockchain
+	NS                  NetworkService
+	HC                  *health.Handler
+	PoW                 PoWNonce
+	Worker              Worker
+	DepositSynchronizer DepositSynchronizer
 }
 
 func NewServerCmd(s *Server) *cobra.Command {
@@ -157,6 +158,25 @@ func NewServerCmd(s *Server) *cobra.Command {
 				}()
 				if err = s.Worker.Start(s.Context, tickerCurrentFile, tickerSignaturesAvailableFiles); err != nil {
 					const msg = "failed to start worker: %+v"
+					s.Log.Fatalf(msg, err.Error())
+				}
+			}()
+
+			wg.Add(1)
+			s.WG.Add(1)
+			go func() {
+				defer func() {
+					wg.Done()
+					s.WG.Done()
+				}()
+				tickerEventWatcher := time.NewTicker(s.Config.DepositSynchronizer.TimeoutForEventWatcher)
+				defer func() {
+					if tickerEventWatcher != nil {
+						tickerEventWatcher.Stop()
+					}
+				}()
+				if err = s.DepositSynchronizer.Start(s.Context, tickerEventWatcher); err != nil {
+					const msg = "failed to start Deposit Synchronizer: %+v"
 					s.Log.Fatalf(msg, err.Error())
 				}
 			}()

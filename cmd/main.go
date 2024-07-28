@@ -18,6 +18,7 @@ import (
 	"intmax2-node/internal/block_builder_registry_service"
 	"intmax2-node/internal/blockchain"
 	"intmax2-node/internal/cli"
+	"intmax2-node/internal/deposit_synchronizer"
 	"intmax2-node/internal/network_service"
 	"intmax2-node/internal/open_telemetry"
 	"intmax2-node/internal/pow"
@@ -73,6 +74,7 @@ func main() {
 	}
 
 	w := worker.New(cfg, log, dbApp)
+	depositSynchronizer := deposit_synchronizer.New(cfg, log, dbApp)
 	bc := blockchain.New(ctx, cfg)
 	ns := network_service.New(cfg)
 	hc := health.NewHandler()
@@ -87,18 +89,19 @@ func main() {
 	err = cli.Run(
 		ctx,
 		server.NewServerCmd(&server.Server{
-			Context: ctx,
-			Cancel:  cancel,
-			Config:  cfg,
-			Log:     log,
-			DbApp:   dbApp,
-			WG:      &wg,
-			BBR:     bbr,
-			SB:      bc,
-			NS:      ns,
-			HC:      &hc,
-			PoW:     pwNonce,
-			Worker:  w,
+			Context:             ctx,
+			Cancel:              cancel,
+			Config:              cfg,
+			Log:                 log,
+			DbApp:               dbApp,
+			WG:                  &wg,
+			BBR:                 bbr,
+			SB:                  bc,
+			NS:                  ns,
+			HC:                  &hc,
+			PoW:                 pwNonce,
+			Worker:              w,
+			DepositSynchronizer: depositSynchronizer,
 		}),
 		migrator.NewMigratorCmd(ctx, log, dbApp),
 		deposit.NewDepositCmd(&deposit.Deposit{
