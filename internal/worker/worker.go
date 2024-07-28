@@ -388,8 +388,7 @@ func (w *worker) Start(
 						w.files.FilesList[list[key]].Processing = true
 						atomic.AddInt32(&w.numWorkers, 1)
 						go func(f *os.File) {
-							err := w.postProcessing(ctx, f)
-							if err != nil {
+							if err = w.postProcessing(ctx, f); err != nil {
 								const msg = "failed to apply post processing"
 								w.log.WithError(err).Errorf(msg)
 							}
@@ -414,8 +413,7 @@ func (w *worker) Receiver(input *ReceiverWorker) error {
 	if err != nil {
 		return errors.Join(ErrHexDecodeFail, err)
 	}
-
-	var transfersHash intMaxGP.PoseidonHashOut
+	transfersHash := new(intMaxGP.PoseidonHashOut)
 	err = transfersHash.Unmarshal(transfersHashBytes)
 	if err != nil {
 		return errors.Join(ErrUnmarshalFail, err)
@@ -423,7 +421,7 @@ func (w *worker) Receiver(input *ReceiverWorker) error {
 
 	var currTx *intMaxTypes.Tx
 	currTx, err = intMaxTypes.NewTx(
-		&transfersHash,
+		transfersHash,
 		input.Nonce,
 	)
 	if err != nil {

@@ -8,12 +8,15 @@ import (
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/mnemonic_wallet"
 	intMaxTree "intmax2-node/internal/tree"
+	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/block_proposed"
 	"intmax2-node/internal/worker"
 	ucBlockProposed "intmax2-node/pkg/use_cases/block_proposed"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 )
 
@@ -42,13 +45,21 @@ func TestUseCaseBlockProposed(t *testing.T) {
 	publicKey, err := intMaxAcc.NewPublicKeyFromAddressHex(intMaxAddressKey)
 	assert.NoError(t, err)
 
-	txTree := worker.TxTree{
-		TxTreeHash: new(intMaxTree.PoseidonHashOut),
-		SenderTransfers: []*worker.SenderTransfers{
-			{
-				TxTreeRootHash: new(intMaxTree.PoseidonHashOut),
-			},
-		},
+	txTree := sampleTxTree(t)
+	assert.NoError(t, err)
+
+	var leafIndex uint64 = 2
+	txHash := txTree.Leaves[leafIndex].Hash()
+	txMerkleProof, txTreeRoot, err := txTree.ComputeMerkleProof(leafIndex)
+	assert.NoError(t, err)
+
+	txTreeLeaf := worker.TxTree{
+		Sender:    "",
+		TxHash:    txHash,
+		LeafIndex: leafIndex,
+		Siblings:  txMerkleProof,
+		RootHash:  &txTreeRoot,
+		Signature: "",
 	}
 
 	cases := []struct {
@@ -65,7 +76,7 @@ func TestUseCaseBlockProposed(t *testing.T) {
 			input: &block_proposed.UCBlockProposedInput{
 				DecodeSender: publicKey,
 				TxHash:       txHashKey,
-				TxTree:       &txTree,
+				TxTree:       &txTreeLeaf,
 			},
 		},
 	}
@@ -82,12 +93,43 @@ func TestUseCaseBlockProposed(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			if cases[i].input != nil {
+			if cases[i].input != nil && cases[i].err == nil {
 				assert.NotNil(t, resp)
-				assert.Equal(t, resp.TxRoot, txTree.TxTreeHash.String())
-				assert.Len(t, resp.TxTreeMerkleProof, 1)
-				assert.Equal(t, resp.TxTreeMerkleProof[0], txTree.SenderTransfers[0].TxTreeRootHash.String())
+				assert.Equal(t, resp.TxRoot, txTreeLeaf.RootHash.String())
+				assert.Len(t, resp.TxTreeMerkleProof, intMaxTree.TX_TREE_HEIGHT)
+
+				// Check if my transaction is in the tree.
+				assert.True(t, slices.Contains(resp.PublicKeys, intMaxAddressKey))
+
+				// // TODO: Verify Merkle proof
+				// assert.True(t, VerifyPoseidonMerkleProof(txTreeLeaf.TxTreeRootHash, txTreeLeaf.TxTreeSiblings, txTreeLeaf.LeafIndex, txTreeLeaf.TxHash))
 			}
 		})
 	}
+}
+
+func sampleTxTree(t *testing.T) *intMaxTree.TxTree {
+	zeroTransfer := new(intMaxTypes.Transfer).SetZero()
+	transferTree, err := intMaxTree.NewTransferTree(intMaxTree.TRANSFER_TREE_HEIGHT, nil, zeroTransfer.Hash())
+	assert.NoError(t, err)
+	transferTreeRoot, _, _ := transferTree.GetCurrentRootCountAndSiblings()
+	zeroTx, err := intMaxTypes.NewTx(
+		&transferTreeRoot,
+		0,
+	)
+	require.Nil(t, err)
+	zeroTxHash := zeroTx.Hash()
+	initialLeaves := make([]*intMaxTypes.Tx, 0)
+	mt, err := intMaxTree.NewTxTree(intMaxTree.TX_TREE_HEIGHT, initialLeaves, zeroTxHash)
+	require.Nil(t, err)
+
+	leaves := make([]*intMaxTypes.Tx, 8)
+	for i := 0; i < 8; i++ {
+		leaves[i] = new(intMaxTypes.Tx).Set(zeroTx)
+		leaves[i].Nonce = uint64(i)
+		_, err := mt.AddLeaf(uint64(i), leaves[i])
+		require.Nil(t, err)
+	}
+
+	return mt
 }

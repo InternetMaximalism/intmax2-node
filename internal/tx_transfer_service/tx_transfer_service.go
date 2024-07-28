@@ -113,7 +113,7 @@ func SendTransferTransaction(
 
 	// Accept proposed block
 	err = SendSignedProposedBlock(
-		ctx, cfg, log, userAccount, proposedBlock.TxTreeRoot, proposedBlock.PublicKeysHash,
+		ctx, cfg, log, userAccount, proposedBlock.TxTreeRoot, proposedBlock.PublicKeys,
 	)
 	if err != nil {
 		log.Fatalf("failed to send transaction: %v", err)
