@@ -2,7 +2,6 @@ package utils
 
 import (
 	"fmt"
-	"intmax2-node/configs"
 	"log"
 	"math/big"
 	"strconv"
@@ -21,8 +20,8 @@ func NewClient(url string) (*ethclient.Client, error) {
 	return ethClient, nil
 }
 
-func CreateTransactor(cfg *configs.Config) (*bind.TransactOpts, error) {
-	privateKey, err := crypto.HexToECDSA(cfg.Blockchain.EthereumPrivateKeyHex)
+func CreateTransactor(ethereumPrivateKeyHex, networkChainID string) (*bind.TransactOpts, error) {
+	privateKey, err := crypto.HexToECDSA(ethereumPrivateKeyHex)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load private key: %w", err)
 	}
@@ -31,7 +30,7 @@ func CreateTransactor(cfg *configs.Config) (*bind.TransactOpts, error) {
 		int10Key = 10
 		int64Key = 64
 	)
-	chainID, err := strconv.ParseInt(cfg.Blockchain.EthereumNetworkChainID, int10Key, int64Key)
+	chainID, err := strconv.ParseInt(networkChainID, int10Key, int64Key)
 	if err != nil {
 		return nil, fmt.Errorf("invalid chain ID: %w", err)
 	}

@@ -11,6 +11,7 @@ import (
 	"intmax2-node/cmd/mnemonic_account"
 	"intmax2-node/cmd/server"
 	"intmax2-node/cmd/sync_balance"
+	"intmax2-node/cmd/transaction"
 	"intmax2-node/cmd/withdrawal"
 	"intmax2-node/cmd/withdrawal_server"
 	"intmax2-node/configs"
@@ -128,6 +129,13 @@ func main() {
 		ethereum_private_key_wallet.NewCmd(log),
 		intmax_private_key_wallet.NewCmd(log),
 		sync_balance.NewBalanceCmd(&sync_balance.Balance{
+			Context: ctx,
+			Config:  cfg,
+			Log:     log,
+			DbApp:   dbApp,
+			SB:      bc,
+		}),
+		transaction.NewTransactionCmd(&transaction.Transaction{
 			Context: ctx,
 			Config:  cfg,
 			Log:     log,

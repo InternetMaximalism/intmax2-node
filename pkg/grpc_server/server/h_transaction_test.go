@@ -101,7 +101,14 @@ func TestHandlerTransaction(t *testing.T) {
 		keyPair, err := intMaxAcc.NewPrivateKeyWithReCalcPubKeyIfPkNegates(pk.BigInt())
 		assert.NoError(t, err)
 
-		message, err := transaction.MakeMessage(trHashKey, nonce, powNonce, w.IntMaxWalletAddress, expiration)
+		transfersHash, err := hexutil.Decode(trHashKey)
+		if err != nil {
+			assert.NoError(t, err)
+		}
+
+		walletAddress, err := intMaxAcc.NewAddressFromHex(w.IntMaxWalletAddress)
+		assert.NoError(t, err)
+		message, err := transaction.MakeMessage(transfersHash, nonce, powNonce, walletAddress, expiration)
 		assert.NoError(t, err)
 
 		sign, err := keyPair.Sign(message)

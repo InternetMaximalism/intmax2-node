@@ -17,7 +17,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -42,15 +41,7 @@ const (
 	erc1155TokenTypeEnum    = 3
 )
 
-type TokenInfo struct {
-	TokenType    uint8
-	TokenAddress common.Address
-	TokenID      *big.Int
-}
-
-type TokenIndexMap = map[TokenInfo]uint32
-
-func parseTokenInfo(args []string) TokenInfo {
+func parseTokenInfo(args []string) intMaxTypes.TokenInfo {
 	if len(args) < 1 {
 		fmt.Println(ErrTokenTypeRequired)
 		os.Exit(1)
@@ -126,7 +117,7 @@ func parseTokenInfo(args []string) TokenInfo {
 		fmt.Println(ErrInvalidTokenType)
 	}
 
-	return TokenInfo{TokenType: tokenType, TokenAddress: tokenAddress, TokenID: tokenID}
+	return intMaxTypes.TokenInfo{TokenType: tokenType, TokenAddress: tokenAddress, TokenID: tokenID}
 }
 
 func SyncBalance(
@@ -136,7 +127,7 @@ func SyncBalance(
 	db SQLDriverApp,
 	sb ServiceBlockchain,
 	args []string,
-	userAddress string,
+	userPrivateKey string,
 ) {
 	fmt.Println("Not implemented")
 }
@@ -178,7 +169,7 @@ func GetTokenIndex(
 	cfg *configs.Config,
 	db SQLDriverApp,
 	sb deposit_service.ServiceBlockchain,
-	tokenInfo TokenInfo,
+	tokenInfo intMaxTypes.TokenInfo,
 ) (uint32, error) {
 	// Check local DB for token index
 	localTokenIndex, err := getLocalTokenIndex(db, tokenInfo)
@@ -190,46 +181,7 @@ func GetTokenIndex(
 	return getTokenIndexFromLiquidityContract(ctx, cfg, sb, tokenInfo)
 }
 
-func GetTokenInfoMap(ctx context.Context, liquidity *bindings.Liquidity, tokenIndexMap map[uint32]bool) (map[uint32]common.Address, error) {
-	var tokenIndices []uint32
-	for tokenIndex := range tokenIndexMap {
-		tokenIndices = append(tokenIndices, tokenIndex)
-	}
-
-	tokenInfoMap := make(map[uint32]common.Address)
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-	errChan := make(chan error, len(tokenIndices))
-
-	for _, tokenIndex := range tokenIndices {
-		wg.Add(1)
-		go func(tokenIndex uint32) {
-			defer wg.Done()
-			tokenInfo, err := liquidity.GetTokenInfo(&bind.CallOpts{
-				Pending: false,
-				Context: ctx,
-			}, tokenIndex)
-			if err != nil {
-				errChan <- fmt.Errorf("failed to get token info for index %d: %w", tokenIndex, err)
-				return
-			}
-			mu.Lock()
-			tokenInfoMap[tokenIndex] = tokenInfo.TokenAddress
-			mu.Unlock()
-		}(tokenIndex)
-	}
-
-	wg.Wait()
-	close(errChan)
-
-	if len(errChan) > 0 {
-		return nil, <-errChan
-	}
-
-	return tokenInfoMap, nil
-}
-
-func getLocalTokenIndex(db SQLDriverApp, tokenInfo TokenInfo) (uint32, error) {
+func getLocalTokenIndex(db SQLDriverApp, tokenInfo intMaxTypes.TokenInfo) (uint32, error) {
 	tokenAddressStr := tokenInfo.TokenAddress.String()
 	tokenIDStr := fmt.Sprintf("%d", tokenInfo.TokenID)
 
@@ -258,7 +210,7 @@ func getTokenIndexFromLiquidityContract(
 	ctx context.Context,
 	cfg *configs.Config,
 	sb deposit_service.ServiceBlockchain,
-	tokenInfo TokenInfo,
+	tokenInfo intMaxTypes.TokenInfo,
 ) (uint32, error) {
 	link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
 	if err != nil {
@@ -343,7 +295,7 @@ func GetUserBalance(db SQLDriverApp, userAddress intMaxAcc.Address, tokenIndex u
 	tokenIndexStr := strconv.FormatUint(uint64(tokenIndex), int10Key)
 	balanceData, err := db.BalanceByUserAndTokenIndex(userAddress.String(), tokenIndexStr)
 	if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
-		panic(fmt.Sprintf(ErrFetchTokenByTokenAddressAndTokenIDWithDBApp, err.Error()))
+		return nil, ErrFetchBalanceByUserAddressAndTokenInfoWithDBApp
 	}
 	if errors.Is(err, errorsDB.ErrNotFound) {
 		fmt.Printf("Balance not found for user %s and token index %d\n", userAddress.String(), tokenIndex)

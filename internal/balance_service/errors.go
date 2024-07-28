@@ -1,5 +1,7 @@
 package balance_service
 
+import "errors"
+
 const (
 	//nolint:gosec
 	ErrTokenTypeRequired                           = "token type is required"
@@ -12,3 +14,5 @@ const (
 	ErrFailedToGetBalance                          = "failed to get balance"
 	ErrFetchTokenByTokenAddressAndTokenIDWithDBApp = "Failed to fetch token by tokenAddress and tokenId with DBApp: %v\n"
 )
+
+var ErrFetchBalanceByUserAddressAndTokenInfoWithDBApp = errors.New("failed to fetch balance by user address and token info with DBApp")
