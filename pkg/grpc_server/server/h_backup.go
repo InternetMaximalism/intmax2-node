@@ -50,8 +50,7 @@ func (s *Server) BackupBalance(
 	var res *backup_balance.UCPostBackupBalance
 	err := s.dbApp.Exec(spanCtx, nil, func(d interface{}, _ interface{}) (err error) {
 		q, _ := d.(SQLDriverApp)
-
-		res, err = s.commands.BackupBalance(q).Do(spanCtx, &input)
+		res, err = s.backups.BackupBalance(q).Do(spanCtx, &input)
 		if err != nil {
 			open_telemetry.MarkSpanError(spanCtx, err)
 			const msg = "failed to backup user balance: %w"

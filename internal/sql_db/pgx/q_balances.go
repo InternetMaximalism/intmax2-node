@@ -153,14 +153,14 @@ func (p *pgx) BackupUserBalance(input *models.BalanceBackup) error {
 	const (
 		q = `INSERT INTO balance_backup
               (id, user_address, block_number, encrypted_balance_proof, encrypted_public_inputs, 
-               encrypted_txs, encrypted_transfers, encrypted_deposits, signature)
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) `
+               encrypted_txs, encrypted_transfers, encrypted_deposits)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 	)
 	input.ID = uuid.New().String()
 
 	_, err := p.exec(p.ctx, q,
 		input.ID, input.UserAddress, input.BlockNumber, input.EncryptedBalanceProof, input.EncryptedPublicInputs,
-		input.EncryptedTxs, input.EncryptedTransfers, input.EncryptedDeposits, input.Signature)
+		input.EncryptedTxs, input.EncryptedTransfers, input.EncryptedDeposits)
 	if err != nil {
 		return errPgx.Err(err)
 	}

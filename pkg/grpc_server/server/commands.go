@@ -2,7 +2,6 @@ package server
 
 import (
 	"intmax2-node/configs"
-	backupBalance "intmax2-node/internal/use_cases/backup_balance"
 	blockProposed "intmax2-node/internal/use_cases/block_proposed"
 	getVersion "intmax2-node/internal/use_cases/get_version"
 	healthCheck "intmax2-node/internal/use_cases/health_check"
@@ -10,7 +9,6 @@ import (
 	ucBlockProposed "intmax2-node/pkg/use_cases/block_proposed"
 	ucGetVersion "intmax2-node/pkg/use_cases/get_version"
 	ucHealthCheck "intmax2-node/pkg/use_cases/health_check"
-	backupBalanceService "intmax2-node/pkg/use_cases/post_backup_balance"
 	ucTransaction "intmax2-node/pkg/use_cases/transaction"
 
 	"github.com/dimiro1/health"
@@ -27,7 +25,6 @@ type Commands interface {
 		worker Worker,
 	) transaction.UseCaseTransaction
 	BlockProposed() blockProposed.UseCaseBlockProposed
-	BackupBalance(dbApp SQLDriverApp) backupBalance.UseCasePostBackupBalance
 }
 
 type commands struct{}
@@ -54,8 +51,4 @@ func (c *commands) Transaction(
 
 func (c *commands) BlockProposed() blockProposed.UseCaseBlockProposed {
 	return ucBlockProposed.New()
-}
-
-func (c *commands) BackupBalance(dbApp SQLDriverApp) backupBalance.UseCasePostBackupBalance {
-	return backupBalanceService.New(dbApp)
 }

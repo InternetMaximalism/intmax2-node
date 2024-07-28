@@ -22,6 +22,5 @@ type BalanceBackup struct {
 	EncryptedTxs          json.RawMessage
 	EncryptedTransfers    json.RawMessage
 	EncryptedDeposits     json.RawMessage
-	Signature             string
 	CreatedAt             time.Time
 }

@@ -3,6 +3,16 @@ package server_test
 import (
 	"context"
 	"fmt"
+	"io"
+	"math/big"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	intMaxAccTypes "intmax2-node/internal/accounts/types"
@@ -15,15 +25,6 @@ import (
 	"intmax2-node/internal/worker"
 	"intmax2-node/pkg/logger"
 	ucTransaction "intmax2-node/pkg/use_cases/transaction"
-	"io"
-	"math/big"
-	"net/http"
-	"net/http/httptest"
-	"os"
-	"strconv"
-	"strings"
-	"testing"
-	"time"
 
 	"github.com/dimiro1/health"
 	"github.com/ethereum/go-ethereum/common"
@@ -73,6 +74,7 @@ func TestHandlerTransaction(t *testing.T) {
 	cfg.APP.PEMPathClientKey = dir + cfg.APP.PEMPathClientKey
 
 	cmd := NewMockCommands(ctrl)
+	bckps := NewMockBackups(ctrl)
 
 	const (
 		mnemonic   = "gown situate miss skill figure rain smoke grief giraffe perfect milk gospel casino open mimic egg grace canoe erode skull drip open luggage next"
@@ -144,7 +146,7 @@ func TestHandlerTransaction(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	grpcServerStop, gwServer := Start(cmd, ctx, cfg, log, dbApp, &hc, pwNonce, wrk)
+	grpcServerStop, gwServer := Start(cmd, bckps, ctx, cfg, log, dbApp, &hc, pwNonce, wrk)
 	defer grpcServerStop()
 
 	cases := []struct {

@@ -2,6 +2,11 @@ package server_test
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"time"
+
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
 	"intmax2-node/docs/swagger"
@@ -13,10 +18,6 @@ import (
 	"intmax2-node/internal/pb/listener"
 	"intmax2-node/pkg/grpc_server/server"
 	"intmax2-node/third_party"
-	"net/http"
-	"net/http/httptest"
-	"strings"
-	"time"
 
 	"github.com/dimiro1/health"
 	"github.com/rs/cors"
@@ -25,6 +26,7 @@ import (
 
 func Start(
 	commands server.Commands,
+	backups server.Backups,
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
@@ -55,7 +57,7 @@ func Start(
 		OptionsSuccessStatus: cfg.HTTP.CORSStatusCode,
 	})
 
-	srv := server.New(log, cfg, dbApp, commands, cfg.HTTP.CookieForAuthUse, hc, pow, worker)
+	srv := server.New(log, cfg, dbApp, commands, backups, cfg.HTTP.CookieForAuthUse, hc, pow, worker)
 	ctx = context.WithValue(ctx, consts.AppConfigs, cfg)
 
 	const (

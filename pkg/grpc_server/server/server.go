@@ -12,6 +12,7 @@ type Server struct {
 	config           *configs.Config
 	dbApp            SQLDriverApp
 	commands         Commands
+	backups          Backups
 	cookieForAuthUse bool
 	hc               *health.Handler
 	pow              PoWNonce
@@ -24,6 +25,7 @@ func New(
 	config *configs.Config,
 	dbApp SQLDriverApp,
 	commands Commands,
+	backups Backups,
 	cookieForAuthUse bool,
 	hc *health.Handler,
 	pow PoWNonce,
@@ -39,6 +41,7 @@ func New(
 		config:           config,
 		dbApp:            dbApp,
 		commands:         commands,
+		backups:          backups,
 		cookieForAuthUse: cookieForAuthUse,
 		hc:               hc,
 		pow:              pow,

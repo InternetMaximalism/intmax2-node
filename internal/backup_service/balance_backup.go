@@ -37,6 +37,5 @@ func BackupUserBalance(
 		EncryptedTxs:          eTx,
 		EncryptedTransfers:    eTns,
 		EncryptedDeposits:     eDep,
-		Signature:             input.Signature,
 	})
 }

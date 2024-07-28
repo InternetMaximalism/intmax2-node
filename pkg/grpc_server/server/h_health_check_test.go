@@ -2,14 +2,15 @@ package server_test
 
 import (
 	"context"
-	"intmax2-node/configs"
-	healthCheck "intmax2-node/internal/use_cases/health_check"
-	"intmax2-node/internal/use_cases/mocks"
-	"intmax2-node/pkg/logger"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	"intmax2-node/configs"
+	healthCheck "intmax2-node/internal/use_cases/health_check"
+	"intmax2-node/internal/use_cases/mocks"
+	"intmax2-node/pkg/logger"
 
 	"github.com/dimiro1/health"
 	"github.com/stretchr/testify/assert"
@@ -56,8 +57,9 @@ func TestHandlerHealthCheck(t *testing.T) {
 	cfg.APP.PEMPathClientKey = dir + cfg.APP.PEMPathClientKey
 
 	cmd := NewMockCommands(ctrl)
+	bckps := NewMockBackups(ctrl)
 
-	grpcServerStop, gwServer := Start(cmd, ctx, cfg, log, dbApp, &hc, pw, worker)
+	grpcServerStop, gwServer := Start(cmd, bckps, ctx, cfg, log, dbApp, &hc, pw, worker)
 	defer grpcServerStop()
 
 	uc := mocks.NewMockUseCaseHealthCheck(ctrl)

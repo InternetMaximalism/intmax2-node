@@ -4,6 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
+	"testing"
+	"time"
+
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/mnemonic_wallet"
@@ -13,13 +21,6 @@ import (
 	"intmax2-node/internal/worker"
 	"intmax2-node/pkg/logger"
 	ucBlockProposed "intmax2-node/pkg/use_cases/block_proposed"
-	"io"
-	"net/http"
-	"net/http/httptest"
-	"os"
-	"strings"
-	"testing"
-	"time"
 
 	"github.com/dimiro1/health"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -67,6 +68,7 @@ func TestHandlerBlockProposed(t *testing.T) {
 	cfg.APP.PEMPathClientKey = dir + cfg.APP.PEMPathClientKey
 
 	cmd := NewMockCommands(ctrl)
+	bckps := NewMockBackups(ctrl)
 	ucBP := mocks.NewMockUseCaseBlockProposed(ctrl)
 
 	const (
@@ -100,7 +102,7 @@ func TestHandlerBlockProposed(t *testing.T) {
 		signature = hexutil.Encode(sign.Marshal())
 	}
 
-	grpcServerStop, gwServer := Start(cmd, ctx, cfg, log, dbApp, &hc, pwNonce, wrk)
+	grpcServerStop, gwServer := Start(cmd, bckps, ctx, cfg, log, dbApp, &hc, pwNonce, wrk)
 	defer grpcServerStop()
 
 	cases := []struct {

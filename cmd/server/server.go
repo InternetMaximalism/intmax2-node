@@ -3,6 +3,10 @@ package server
 import (
 	"context"
 	"fmt"
+	"strings"
+	"sync"
+	"time"
+
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
 	"intmax2-node/docs/swagger"
@@ -16,9 +20,6 @@ import (
 	"intmax2-node/internal/pb/listener"
 	"intmax2-node/pkg/grpc_server/server"
 	"intmax2-node/third_party"
-	"strings"
-	"sync"
-	"time"
 
 	"github.com/dimiro1/health"
 	"github.com/rs/cors"
@@ -198,7 +199,10 @@ func (s *Server) Init() error {
 	}
 
 	srv := server.New(
-		s.Log, s.Config, s.DbApp, server.NewCommands(), s.Config.HTTP.CookieForAuthUse, s.HC, s.PoW, s.Worker,
+		s.Log, s.Config, s.DbApp,
+		server.NewCommands(),
+		server.NewBackups(),
+		s.Config.HTTP.CookieForAuthUse, s.HC, s.PoW, s.Worker,
 	)
 	ctx := context.WithValue(s.Context, consts.AppConfigs, s.Config)
 

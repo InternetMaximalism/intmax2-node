@@ -9,7 +9,6 @@ CREATE TABLE IF NOT EXISTS balance_backup (
     encrypted_txs               JSONB           NOT NULL,
     encrypted_transfers         JSONB           NOT NULL,
     encrypted_deposits          JSONB           NOT NULL,
-    signature                   VARCHAR(255)    NOT NULL,
     created_at                  TIMESTAMPTZ     NOT NULL        DEFAULT     NOW(),
 
     PRIMARY KEY (id),

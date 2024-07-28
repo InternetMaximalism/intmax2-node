@@ -57,7 +57,6 @@ func (u *uc) Do(
 		attribute.StringSlice(encryptedDepositsKey, input.EncryptedDeposits),
 	)
 
-	// TODO: Implement backup balance post logic here.
 	err := backupService.BackupUserBalance(u.db, input)
 	if err != nil {
 		return nil, err
