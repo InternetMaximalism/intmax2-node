@@ -12,9 +12,10 @@ import (
 )
 
 func (p *pgx) CreateTxMerkleProofs(
-	senderPublicKey, txHash, txID string,
+	senderPublicKey, txHash, signatureID string,
 	txTreeIndex *uint256.Int,
 	txMerkleProof json.RawMessage,
+	txTreeRoot string,
 ) (*mDBApp.TxMerkleProofs, error) {
 	tmp := models.TxMerkleProofs{
 		ID:              uuid.New().String(),
@@ -34,7 +35,7 @@ func (p *pgx) CreateTxMerkleProofs(
 	)
 
 	_, err := p.exec(p.ctx, q,
-		tmp.ID, tmp.SenderPublicKey, tmp.TxHash, txID, txiID, tmp.TxMerkleProof, tmp.CreatedAt)
+		tmp.ID, tmp.SenderPublicKey, tmp.TxHash, signatureID, txiID, tmp.TxMerkleProof, tmp.CreatedAt)
 	if err != nil {
 		return nil, errPgx.Err(err)
 	}

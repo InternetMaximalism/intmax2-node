@@ -12,7 +12,7 @@ import (
 type UCBlockProposed struct {
 	TxRoot            string   `json:"txTreeRoot"`
 	TxTreeMerkleProof []string `json:"txTreeMerkleProof"`
-	PublicKeysHash    string   `json:"publicKeysHash"`
+	PublicKeys        []string `json:"publicKeys"`
 }
 
 type UCBlockProposedInput struct {

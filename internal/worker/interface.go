@@ -43,14 +43,14 @@ type SenderTransfers struct {
 }
 
 type TxTree struct {
-	RootHash *intMaxTree.PoseidonHashOut   `json:"rootHash"`
-	Siblings []*intMaxTree.PoseidonHashOut `json:"siblings"`
+	RootHash *intMaxTree.PoseidonHashOut   `json:"siblings"`
+	Siblings []*intMaxTree.PoseidonHashOut `json:"rootHash"`
 
-	Sender          string                      `json:"sender"`
-	TxTreeHash      *intMaxTree.PoseidonHashOut `json:"txTreeHash"`
-	LeafIndexes     map[string]uint64           `json:"leafIndexes"`
-	SenderTransfers []*SenderTransfers          `json:"senderTransfers"`
-	Signature       string                      `json:"signature"`
+	Sender    string                      `json:"sender"`
+	TxHash    *intMaxTree.PoseidonHashOut `json:"txTreeHash"`
+	LeafIndex uint64                      `json:"leafIndex"`
+	// SenderTransfers []*SenderTransfers            `json:"senderTransfers"`
+	Signature string `json:"signature"`
 }
 
 type Worker interface {
