@@ -200,7 +200,7 @@ func (w *WithdrawalAggregatorService) buildSubmitWithdrawalProofData(pendingWith
 }
 
 func (w *WithdrawalAggregatorService) submitWithdrawalProof() (*types.Receipt, error) {
-	transactOpts, err := utils.CreateTransactor(w.cfg)
+	transactOpts, err := utils.CreateTransactor(w.cfg.Blockchain.WithdrawalPrivateKeyHex, w.cfg.Blockchain.ScrollNetworkChainID)
 	if err != nil {
 		return nil, err
 	}

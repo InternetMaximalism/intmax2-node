@@ -226,7 +226,7 @@ func (d *DepositRelayerService) shouldProcessDeposits(unprocessedDepositCount, r
 }
 
 func (d *DepositRelayerService) relayDeposits(maxLastSeenDepositIndex, numDepositsToRelay uint64) (*types.Receipt, error) {
-	transactOpts, err := utils.CreateTransactor(d.cfg)
+	transactOpts, err := utils.CreateTransactor(d.cfg.Blockchain.DepositRelayerPrivateKeyHex, d.cfg.Blockchain.EthereumNetworkChainID)
 	if err != nil {
 		return nil, err
 	}
