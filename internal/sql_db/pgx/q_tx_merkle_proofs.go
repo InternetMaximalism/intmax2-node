@@ -17,6 +17,7 @@ func (p *pgx) CreateTxMerkleProofs(
 	txMerkleProof json.RawMessage,
 	txTreeRoot string,
 ) (*mDBApp.TxMerkleProofs, error) {
+	// TODO: Insert txTreeRoot
 	tmp := models.TxMerkleProofs{
 		ID:              uuid.New().String(),
 		SenderPublicKey: senderPublicKey,
