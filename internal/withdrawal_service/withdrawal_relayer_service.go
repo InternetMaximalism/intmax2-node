@@ -135,7 +135,7 @@ func filterClaimableResults(results []*ScrollMessengerResult) (filtered []*Scrol
 }
 
 func (w *WithdrawalRelayerService) relayMessageWithProof(result *ScrollMessengerResult) (*types.Receipt, error) {
-	transactOpts, err := utils.CreateTransactor(w.cfg)
+	transactOpts, err := utils.CreateTransactor(w.cfg.Blockchain.WithdrawalPrivateKeyHex, w.cfg.Blockchain.EthereumNetworkChainID)
 	if err != nil {
 		return nil, err
 	}
