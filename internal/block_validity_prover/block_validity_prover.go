@@ -5,6 +5,7 @@ import (
 	"errors"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/logger"
 	"math/big"
 	"time"
@@ -13,16 +14,20 @@ import (
 var ErrStatCurrentFileFail = errors.New("stat current file fail")
 
 type blockValidityProver struct {
-	cfg   *configs.Config
-	log   logger.Logger
-	dbApp SQLDriverApp
+	cfg                       *configs.Config
+	log                       logger.Logger
+	dbApp                     SQLDriverApp
+	lastSeenScrollBlockNumber uint64
+	accountInfoMap            block_post_service.AccountInfoMap
 }
 
 func New(cfg *configs.Config, log logger.Logger, dbApp SQLDriverApp) *blockValidityProver {
 	return &blockValidityProver{
-		cfg:   cfg,
-		log:   log,
-		dbApp: dbApp,
+		cfg:                       cfg,
+		log:                       log,
+		dbApp:                     dbApp,
+		lastSeenScrollBlockNumber: cfg.Blockchain.RollupContractDeployedBlockNumber,
+		accountInfoMap:            block_post_service.NewAccountInfoMap(),
 	}
 }
 
@@ -39,7 +44,51 @@ func (w *blockValidityProver) Start(
 		case <-ctx.Done():
 			return nil
 		case <-tickerEventWatcher.C:
-			// do something
+			d, err := block_post_service.NewBlockPostService(ctx, w.cfg)
+			if err != nil {
+				return err
+			}
+
+			events, _, err := d.FetchNewPostedBlocks(w.lastSeenScrollBlockNumber)
+			if err != nil {
+				return err
+			}
+
+			latestBlockNumber, err := d.FetchLatestBlockNumber(ctx)
+			if err != nil {
+				return err
+			}
+
+			if len(events) == 0 {
+				w.lastSeenScrollBlockNumber = latestBlockNumber
+				continue
+			}
+
+			lastSeenBlockNumber := w.lastSeenScrollBlockNumber
+			for _, event := range events {
+				if event.Raw.BlockNumber > lastSeenBlockNumber {
+					lastSeenBlockNumber = event.Raw.BlockNumber
+				}
+
+				calldata, err := d.FetchScrollCalldataByHash(event.Raw.TxHash)
+				if err != nil {
+					continue
+				}
+
+				_, err = block_post_service.FetchIntMaxBlockContentByCalldata(calldata, w.accountInfoMap)
+				if err != nil {
+					if errors.Is(err, block_post_service.ErrUnknownAccountID) {
+						continue
+					}
+					if errors.Is(err, block_post_service.ErrCannotDecodeAddress) {
+						continue
+					}
+
+					continue
+				}
+			}
+
+			w.lastSeenScrollBlockNumber = lastSeenBlockNumber
 		}
 	}
 }

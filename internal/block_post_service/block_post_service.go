@@ -92,6 +92,15 @@ func NewBlockPostService(ctx context.Context, cfg *configs.Config) (*BlockPostSe
 	}, nil
 }
 
+func (d *BlockPostService) FetchLatestBlockNumber(ctx context.Context) (uint64, error) {
+	blockNumber, err := d.scrollClient.BlockNumber(ctx)
+	if err != nil {
+		return 0, errors.Join(ErrFetchLatestBlockNumberFail, err)
+	}
+
+	return blockNumber, nil
+}
+
 func (d *BlockPostService) FetchNewPostedBlocks(startBlock uint64) ([]*bindings.RollupBlockPosted, *big.Int, error) {
 	nextBlock := startBlock + int1Key
 	iterator, err := d.rollup.FilterBlockPosted(&bind.FilterOpts{
@@ -140,7 +149,8 @@ func (d *BlockPostService) FetchScrollCalldataByHash(txHash common.Hash) ([]byte
 	return calldata, nil
 }
 
-// FetchIntMaxBlockContentByCalldata fetches the block content by transaction hash.
+// FetchIntMaxBlockContentByHash fetches the block content by transaction hash.
+// accountInfoMap is mutable and will be updated with new account information.
 //
 // Example:
 //
@@ -203,6 +213,11 @@ func recoverBlockContent(
 			return nil, errors.Join(ErrDecodeCallDataFail, err)
 		}
 
+		err = blockContent.IsValid()
+		if err != nil {
+			return nil, fmt.Errorf("failed to validate block content: %w", err)
+		}
+
 		dummyAddress := intMaxAcc.NewDummyPublicKey().ToAddress().String()
 		for _, sender := range blockContent.Senders {
 			if accountInfoMap.PublicKeyMap[sender.PublicKey.ToAddress().String()] == int0Key {
@@ -231,20 +246,26 @@ func recoverBlockContent(
 			return nil, errors.Join(ErrDecodeCallDataFail, err)
 		}
 
-		/**
-		// TODO
-		// for _, sender := range blockContent.Senders {
-		// 	if accountInfoMap.PublicKeyMap[sender.PublicKey.ToAddress().String()] == int0Key {
-		// 		accountInfoMap.LastAccountID += int1Key
-		// 		accountInfoMap.AccountMap[accountInfoMap.LastAccountID] = sender.PublicKey
-		// 		accountInfoMap.PublicKeyMap[sender.PublicKey.ToAddress().String()] = accountInfoMap.LastAccountID
-		// 	} else {
-		// 		// TODO: error handling
-		// 		if
-		// 		fmt.Println("Account already exists")
-		// 	}
-		// }
-		*/
+		err = blockContent.IsValid()
+		if err != nil {
+			return nil, fmt.Errorf("failed to validate block content: %w", err)
+		}
+
+		defaultAddress := intMaxAcc.NewDummyPublicKey().ToAddress().String()
+		for _, sender := range blockContent.Senders {
+			address := sender.PublicKey.ToAddress().String()
+			if address != defaultAddress {
+				if accountInfoMap.PublicKeyMap[address] == 0 {
+					accountInfoMap.LastAccountID += 1
+					accountInfoMap.AccountMap[accountInfoMap.LastAccountID] = sender.PublicKey
+					accountInfoMap.PublicKeyMap[address] = accountInfoMap.LastAccountID
+				} else {
+					fmt.Printf("Account already exists %v\n", address)
+				}
+			} else {
+				fmt.Printf("Account is default %v\n", address)
+			}
+		}
 
 		return blockContent, nil
 	default:
