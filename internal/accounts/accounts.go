@@ -304,9 +304,10 @@ func NewPublicKeyFromAddressHex(address string) (*PublicKey, error) {
 }
 
 func NewAddressFromAddressInt(a *big.Int) (Address, error) {
+	const int64Key = 64
 	addressHex := hex.EncodeToString(a.Bytes())
 	// padded 32 bytes
-	if len(addressHex) < 64 {
+	if len(addressHex) < int64Key {
 		addressHex = fmt.Sprintf("%064s", addressHex)
 	}
 	return NewAddressFromHex("0x" + addressHex)

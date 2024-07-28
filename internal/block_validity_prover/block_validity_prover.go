@@ -70,7 +70,8 @@ func (w *blockValidityProver) Start(
 					lastSeenBlockNumber = event.Raw.BlockNumber
 				}
 
-				calldata, err := d.FetchScrollCalldataByHash(event.Raw.TxHash)
+				var calldata []byte
+				calldata, err = d.FetchScrollCalldataByHash(event.Raw.TxHash)
 				if err != nil {
 					continue
 				}
