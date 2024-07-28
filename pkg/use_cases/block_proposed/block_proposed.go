@@ -44,8 +44,7 @@ func (u *uc) Do(
 	}
 
 	// TODO: publicKeys is all sender public keys included in this block.
-	const numOfSenders = 128
-	publicKeys := make([]string, numOfSenders)
+	publicKeys := make([]string, 0)
 
 	resp := block_proposed.UCBlockProposed{
 		TxRoot:            input.TxTree.RootHash.String(),
