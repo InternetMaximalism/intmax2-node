@@ -18,6 +18,16 @@ service WithdrawalService {
       body: "*"
     };
   }
+
+  // WithdrawalsByHashes retrieves withdrawal records by their transfer hashes
+  //
+  // ## WithdrawalsByHashes retrieves withdrawal records by their transfer hashes
+  rpc WithdrawalsByHashes(WithdrawalsByHashesRequest) returns (WithdrawalsByHashesResponse) {
+    option (google.api.http) = {
+      post: "/v1/withdrawals/find-by-hashes"
+      body: "*"
+    };
+  }
 }
 
 // WithdrawalProofRequest describes the request for a withdrawal proof
@@ -96,4 +106,31 @@ message WithdrawalRequestResponse {
     // the message with additional details
     string message = 1;
   }
+}
+
+// WithdrawalsByHashesRequest is the request message for WithdrawalsByHashes
+message WithdrawalsByHashesRequest {
+  repeated string transfer_hashes = 1;
+}
+
+// Withdrawal represents the withdrawal data
+message Withdrawal {
+  // the transfer data
+  TransferData transfer_data = 1;
+  // the transaction data
+  Transaction transaction = 2;
+  // the transfer hash
+  string transfer_hash = 3;
+  // the block number
+  uint64 block_number = 4;
+  // the block hash
+  string block_hash = 5;
+  // the status of the withdrawal (e.g., pending, success, failed).
+  string status = 6;
+}
+
+// WithdrawalsByHashesResponse is the response message for WithdrawalsByHashes
+message WithdrawalsByHashesResponse {
+  // A list of Withdrawal messages that match the provided transfer hashes.
+  repeated Withdrawal withdrawals = 1;
 }

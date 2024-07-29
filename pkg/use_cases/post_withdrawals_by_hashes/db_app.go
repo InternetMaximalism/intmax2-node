@@ -1,4 +1,4 @@
-package withdrawal_relayer
+package post_withdrawals_by_hashes
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 )
 
-//go:generate mockgen -destination=mock_db_app_test.go -package=withdrawal_relayer_test -source=db_app.go
+//go:generate mockgen -destination=mock_db_app_test.go -package=post_withdrawals_by_hashes_test -source=db_app.go
 
 type SQLDriverApp interface {
 	GenericCommandsApp
@@ -21,6 +21,6 @@ type Withdrawals interface {
 	CreateWithdrawal(id string, input *postWithdrwalRequest.UCPostWithdrawalRequestInput) (*mDBApp.Withdrawal, error)
 	UpdateWithdrawalsStatus(ids []string, status mDBApp.WithdrawalStatus) error
 	WithdrawalByID(id string) (*mDBApp.Withdrawal, error)
-	WithdrawalsByHashes(transferHashes []string) (*[]mDBApp.Withdrawal, error)
+	WithdrawalsByHashes(hashes []string) (*[]mDBApp.Withdrawal, error)
 	WithdrawalsByStatus(status mDBApp.WithdrawalStatus, limit *int) (*[]mDBApp.Withdrawal, error)
 }

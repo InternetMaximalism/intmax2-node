@@ -28,5 +28,6 @@ type Withdrawals interface {
 	CreateWithdrawal(id string, input *postWithdrwalRequest.UCPostWithdrawalRequestInput) (*mDBApp.Withdrawal, error)
 	UpdateWithdrawalsStatus(ids []string, status mDBApp.WithdrawalStatus) error
 	WithdrawalByID(id string) (*mDBApp.Withdrawal, error)
+	WithdrawalsByHashes(transferHashes []string) (*[]mDBApp.Withdrawal, error)
 	WithdrawalsByStatus(status mDBApp.WithdrawalStatus, limit *int) (*[]mDBApp.Withdrawal, error)
 }

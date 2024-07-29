@@ -4,13 +4,16 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 	postWithdrawalRequest "intmax2-node/internal/use_cases/post_withdrawal_request"
+	postWithdrawalsByHashes "intmax2-node/internal/use_cases/post_withdrawals_by_hashes"
 	ucPostWithdrawalRequest "intmax2-node/pkg/use_cases/post_withdrawal_request"
+	ucPostWithdrawalsByHashes "intmax2-node/pkg/use_cases/post_withdrawals_by_hashes"
 )
 
 //go:generate mockgen -destination=mock_commands_test.go -package=withdrawal_server_test -source=commands.go
 
 type Commands interface {
 	PostWithdrawalRequest(cfg *configs.Config, log logger.Logger, db SQLDriverApp) postWithdrawalRequest.UseCasePostWithdrawalRequest
+	PostWithdrawalsByHashes(cfg *configs.Config, log logger.Logger, db SQLDriverApp) postWithdrawalsByHashes.UseCasePostWithdrawalsByHashes
 }
 
 type commands struct{}
@@ -21,4 +24,8 @@ func NewCommands() Commands {
 
 func (c *commands) PostWithdrawalRequest(cfg *configs.Config, log logger.Logger, db SQLDriverApp) postWithdrawalRequest.UseCasePostWithdrawalRequest {
 	return ucPostWithdrawalRequest.New(cfg, log, db)
+}
+
+func (c *commands) PostWithdrawalsByHashes(cfg *configs.Config, log logger.Logger, db SQLDriverApp) postWithdrawalsByHashes.UseCasePostWithdrawalsByHashes {
+	return ucPostWithdrawalsByHashes.New(cfg, log, db)
 }

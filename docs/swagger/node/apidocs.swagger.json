@@ -284,6 +284,46 @@
           "WithdrawalService"
         ]
       }
+    },
+    "/v1/withdrawals/find-by-hashes": {
+      "post": {
+        "summary": "WithdrawalsByHashes retrieves withdrawal records by their transfer hashes",
+        "description": "## WithdrawalsByHashes retrieves withdrawal records by their transfer hashes",
+        "operationId": "WithdrawalService_WithdrawalsByHashes",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1WithdrawalsByHashesResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1WithdrawalsByHashesRequest"
+            }
+          }
+        ],
+        "tags": [
+          "WithdrawalService"
+        ]
+      }
     }
   },
   "definitions": {
@@ -676,6 +716,37 @@
       },
       "title": "VersionResponse describes response to get info about the build version info and build time"
     },
+    "v1Withdrawal": {
+      "type": "object",
+      "properties": {
+        "transferData": {
+          "$ref": "#/definitions/v1TransferData",
+          "title": "the transfer data"
+        },
+        "transaction": {
+          "$ref": "#/definitions/v1Transaction",
+          "title": "the transaction data"
+        },
+        "transferHash": {
+          "type": "string",
+          "title": "the transfer hash"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64",
+          "title": "the block number"
+        },
+        "blockHash": {
+          "type": "string",
+          "title": "the block hash"
+        },
+        "status": {
+          "type": "string",
+          "description": "the status of the withdrawal (e.g., pending, success, failed)."
+        }
+      },
+      "title": "Withdrawal represents the withdrawal data"
+    },
     "v1WithdrawalRequestRequest": {
       "type": "object",
       "properties": {
@@ -728,6 +799,32 @@
         }
       },
       "title": "WithdrawalRequestResponse describes the response for a withdrawal request"
+    },
+    "v1WithdrawalsByHashesRequest": {
+      "type": "object",
+      "properties": {
+        "transferHashes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "WithdrawalsByHashesRequest is the request message for WithdrawalsByHashes"
+    },
+    "v1WithdrawalsByHashesResponse": {
+      "type": "object",
+      "properties": {
+        "withdrawals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Withdrawal"
+          },
+          "description": "A list of Withdrawal messages that match the provided transfer hashes."
+        }
+      },
+      "title": "WithdrawalsByHashesResponse is the response message for WithdrawalsByHashes"
     }
   }
 }

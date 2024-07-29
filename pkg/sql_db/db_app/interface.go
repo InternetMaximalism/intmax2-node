@@ -83,5 +83,6 @@ type Withdrawals interface {
 	CreateWithdrawal(id string, input *postWithdrwalRequest.UCPostWithdrawalRequestInput) (*models.Withdrawal, error)
 	UpdateWithdrawalsStatus(ids []string, status models.WithdrawalStatus) error
 	WithdrawalByID(id string) (*models.Withdrawal, error)
+	WithdrawalsByHashes(transferHashes []string) (*[]models.Withdrawal, error)
 	WithdrawalsByStatus(status models.WithdrawalStatus, limit *int) (*[]models.Withdrawal, error)
 }
