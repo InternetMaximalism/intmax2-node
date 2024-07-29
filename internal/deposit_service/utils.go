@@ -43,7 +43,12 @@ func fetchLastDepositAnalyzedEvent(liquidity *bindings.Liquidity, startBlockNumb
 	}
 
 	if lastEvent == nil {
-		return nil, fmt.Errorf("no deposits relayed events found")
+		lastDepositId := uint64(0)
+		blockNumber := uint64(0)
+		return &DepositEventInfo{
+			LastDepositId: &lastDepositId,
+			BlockNumber:   &blockNumber,
+		}, nil
 	}
 
 	return lastEvent, nil
@@ -76,7 +81,12 @@ func fetchLastDepositRelayedEvent(liquidity *bindings.Liquidity, startBlockNumbe
 	}
 
 	if lastEvent == nil {
-		return nil, fmt.Errorf("no deposits relayed events found")
+		lastDepositId := uint64(0)
+		blockNumber := uint64(0)
+		return &DepositEventInfo{
+			LastDepositId: &lastDepositId,
+			BlockNumber:   &blockNumber,
+		}, nil
 	}
 
 	return lastEvent, nil
