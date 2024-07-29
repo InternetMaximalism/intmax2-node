@@ -14,7 +14,7 @@ service WithdrawalService {
   // ## WithdrawalRequest processes a request for withdrawal
   rpc WithdrawalRequest(WithdrawalRequestRequest) returns (WithdrawalRequestResponse) {
     option (google.api.http) = {
-      post: "/v1/withdrawal/request"
+      post: "/v1/withdrawals/request"
       body: "*"
     };
   }

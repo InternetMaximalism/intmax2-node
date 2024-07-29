@@ -245,46 +245,6 @@
         ]
       }
     },
-    "/v1/withdrawal/request": {
-      "post": {
-        "summary": "WithdrawalRequest processes a request for withdrawal",
-        "description": "## WithdrawalRequest processes a request for withdrawal",
-        "operationId": "WithdrawalService_WithdrawalRequest",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1WithdrawalRequestResponse"
-            }
-          },
-          "400": {
-            "description": "Validation error",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "schema": {
-              "$ref": "#/definitions/protobufEmpty"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1WithdrawalRequestRequest"
-            }
-          }
-        ],
-        "tags": [
-          "WithdrawalService"
-        ]
-      }
-    },
     "/v1/withdrawals/find-by-hashes": {
       "post": {
         "summary": "WithdrawalsByHashes retrieves withdrawal records by their transfer hashes",
@@ -317,6 +277,46 @@
             "required": true,
             "schema": {
               "$ref": "#/definitions/v1WithdrawalsByHashesRequest"
+            }
+          }
+        ],
+        "tags": [
+          "WithdrawalService"
+        ]
+      }
+    },
+    "/v1/withdrawals/request": {
+      "post": {
+        "summary": "WithdrawalRequest processes a request for withdrawal",
+        "description": "## WithdrawalRequest processes a request for withdrawal",
+        "operationId": "WithdrawalService_WithdrawalRequest",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1WithdrawalRequestResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1WithdrawalRequestRequest"
             }
           }
         ],
