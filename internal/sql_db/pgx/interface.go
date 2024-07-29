@@ -3,6 +3,9 @@ package pgx
 import (
 	"context"
 	"encoding/json"
+	backupDeposit "intmax2-node/internal/use_cases/backup_deposit"
+	backupTransaction "intmax2-node/internal/use_cases/backup_transaction"
+	backupTransfer "intmax2-node/internal/use_cases/backup_transfer"
 	postWithdrwalRequest "intmax2-node/internal/use_cases/post_withdrawal_request"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 
@@ -20,6 +23,9 @@ type PGX interface {
 	EventBlockNumbers
 	Balances
 	Withdrawals
+	BackupTransfers
+	BackupTransactions
+	BackupDeposits
 }
 
 type GenericCommands interface {
@@ -84,4 +90,22 @@ type Withdrawals interface {
 	UpdateWithdrawalsStatus(ids []string, status mDBApp.WithdrawalStatus) error
 	WithdrawalByID(id string) (*mDBApp.Withdrawal, error)
 	WithdrawalsByStatus(status mDBApp.WithdrawalStatus, limit *int) (*[]mDBApp.Withdrawal, error)
+}
+
+type BackupTransfers interface {
+	CreateBackupTransfer(input *backupTransfer.UCPostBackupTransferInput) (*mDBApp.BackupTransfer, error)
+	GetBackupTransfer(condition string, value string) (*mDBApp.BackupTransfer, error)
+	GetBackupTransfers(condition string, value interface{}) ([]*mDBApp.BackupTransfer, error)
+}
+
+type BackupTransactions interface {
+	CreateBackupTransaction(input *backupTransaction.UCPostBackupTransactionInput) (*mDBApp.BackupTransaction, error)
+	GetBackupTransaction(condition string, value string) (*mDBApp.BackupTransaction, error)
+	GetBackupTransactions(condition string, value interface{}) ([]*mDBApp.BackupTransaction, error)
+}
+
+type BackupDeposits interface {
+	CreateBackupDeposit(input *backupDeposit.UCPostBackupDepositInput) (*mDBApp.BackupDeposit, error)
+	GetBackupDeposit(condition string, value string) (*mDBApp.BackupDeposit, error)
+	GetBackupDeposits(condition string, value interface{}) ([]*mDBApp.BackupDeposit, error)
 }

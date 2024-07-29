@@ -1,0 +1,116 @@
+syntax = "proto3";
+
+package node.v1;
+
+import "google/api/annotations.proto";
+
+// Defines the import path that should be used to import the generated package,
+// and the package name.
+option go_package = ".;node";
+
+// Service definition for StoreVaultService
+service StoreVaultService {
+  // BackupTransfer processes a request for data backup transfer
+  //
+  // ## This method handles the transfer of backup data.
+  rpc BackupTransfer(BackupTransferRequest) returns (BackupSuccessResponse) {
+    option (google.api.http) = {
+      post: "/v1/backups/transfer"
+      body: "*"
+    };
+  }
+
+  // BackupTransaction processes a request for data backup transaction
+  //
+  // ## This method handles the transaction of backup data.
+  rpc BackupTransaction(BackupTransactionRequest) returns (BackupSuccessResponse) {
+    option (google.api.http) = {
+      post: "/v1/backups/transaction"
+      body: "*"
+    };
+  }
+
+  // BackupDeposit processes a request for data backup deposit
+  //
+  // ## This method handles the deposit of backup data.
+  rpc BackupDeposit(BackupDepositRequest) returns (BackupSuccessResponse) {
+    option (google.api.http) = {
+      post: "/v1/backups/deposit"
+      body: "*"
+    };
+  }
+
+  // GetBalances retrieves balances for a given address
+  //
+  // ## This method retrieves the balance for the provided address.
+  rpc GetBalances(GetBalancesRequest) returns (GetBalancesResponse) {
+    option (google.api.http) = {
+      get: "/v1/balances/{address}"
+    };
+  }
+}
+
+// BackupTransferRequest is the request message for BackupTransfer method.
+message BackupTransferRequest {
+  // The encrypted data for the transfer
+  string encryptedTransfer = 1;
+  // The recipient address
+  string recipient = 2;
+  // The block number associated with the transfer
+  int32 blockNumber = 3;
+}
+
+// BackupTransactionRequest is the request message for BackupTransaction method.
+message BackupTransactionRequest {
+  // The encrypted transaction data
+  string encryptedTx = 1;
+  // The sender address
+  string sender = 2;
+  // The block number associated with the transaction
+  int32 blockNumber = 3;
+  // The signature for the transaction
+  string signature = 4;
+}
+
+// BackupDepositRequest is the request message for BackupDeposit method.
+message BackupDepositRequest {
+  // The recipient address
+  string recipient = 1;
+  // The encrypted deposit data
+  string encryptedDeposit = 2;
+  // The block number associated with the deposit
+  int32 blockNumber = 3;
+}
+
+// BackupSuccessResponse is the response message for Backup method.
+message BackupSuccessResponse {
+  // Indicates if the backup transfer was successful
+  bool success = 1;
+  // Additional data related to the response
+  Data data = 2;
+  // Data is the nested message containing detailed response information
+  message Data {
+    // A message indicating the result of the backup transfer
+    string message = 1;
+  }
+}
+
+// GetBalanceRequest is the request message for GetBalances method.
+message GetBalancesRequest {
+  // The address to retrieve the balance for
+  string address = 1;
+}
+
+// The balance of a specific token.
+message TokenBalance {
+  // The index of the token
+  int32 tokenIndex = 1;
+  // The amount of the token
+  string amount = 2;
+}
+
+// The response message containing a list of token balances.
+message GetBalancesResponse {
+  // The list of token balances
+  repeated TokenBalance balances = 1;
+}

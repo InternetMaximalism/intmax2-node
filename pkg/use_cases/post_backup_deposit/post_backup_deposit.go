@@ -2,22 +2,35 @@ package post_backup_deposit
 
 import (
 	"context"
+	"fmt"
+	"intmax2-node/configs"
+	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
+	service "intmax2-node/internal/store_vault_service"
 	"intmax2-node/internal/use_cases/backup_deposit"
+	backupDeposit "intmax2-node/internal/use_cases/backup_deposit"
 
 	"go.opentelemetry.io/otel/attribute"
 )
 
 // uc describes use case
-type uc struct{}
+type uc struct {
+	cfg *configs.Config
+	log logger.Logger
+	db  SQLDriverApp
+}
 
-func New() backup_deposit.UseCasePostBackupDeposit {
-	return &uc{}
+func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupDeposit.UseCasePostBackupDeposit {
+	return &uc{
+		cfg: cfg,
+		log: log,
+		db:  db,
+	}
 }
 
 func (u *uc) Do(
 	ctx context.Context, input *backup_deposit.UCPostBackupDepositInput,
-) (*backup_deposit.UCPostBackupDeposit, error) {
+) error {
 	const (
 		hName               = "UseCase PostBackupDeposit"
 		recipientKey        = "recipient"
@@ -30,20 +43,19 @@ func (u *uc) Do(
 
 	if input == nil {
 		open_telemetry.MarkSpanError(spanCtx, ErrUCPostBackupDepositInputEmpty)
-		return nil, ErrUCPostBackupDepositInputEmpty
+		return ErrUCPostBackupDepositInputEmpty
 	}
 
 	span.SetAttributes(
-		attribute.String(recipientKey, input.DecodeRecipient.ToAddress().String()),
+		attribute.String(recipientKey, input.Recipient),
 		attribute.Int64(blockNumberKey, int64(input.BlockNumber)),
 		attribute.String(encryptedDepositKey, input.EncryptedDeposit),
 	)
 
-	// TODO: Implement backup deposit logic here.
-
-	resp := backup_deposit.UCPostBackupDeposit{
-		Message: "Deposit data backup successful.",
+	err := service.PostBackupDeposit(ctx, u.cfg, u.log, u.db, input)
+	if err != nil {
+		return fmt.Errorf("failed to post backup deposit: %w", err)
 	}
 
-	return &resp, nil
+	return nil
 }
