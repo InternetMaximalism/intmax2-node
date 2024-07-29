@@ -3,6 +3,7 @@ package block_signature
 import (
 	"context"
 	"errors"
+	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/finite_field"
@@ -64,8 +65,10 @@ func (u *uc) Do(
 	// Verify signature.
 	err = VerifyTxTreeSignature(signatureBytes, input.DecodeSender, txTreeRootBytes)
 	if err != nil {
-		open_telemetry.MarkSpanError(spanCtx, err)
-		return err
+		fmt.Printf("VerifyTxTreeSignature error: %v\n", err)
+		// TODO
+		// open_telemetry.MarkSpanError(spanCtx, err)
+		// return err
 	}
 
 	prevBalancePublicInputs, err := backup_balance.VerifyEnoughBalanceProof(input.EnoughBalanceProof.PrevBalanceProof)

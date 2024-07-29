@@ -99,11 +99,11 @@ func MakePostBlockSignatureRawRequest(
 	}
 
 	prevBalanceProof := block_signature.Plonky2Proof{
-		Proof:        []byte{},
+		Proof:        []byte{0},
 		PublicInputs: []uint64{0, 0, 0, 0},
 	} // TODO: This is dummy
 	transferStepProof := block_signature.Plonky2Proof{
-		Proof:        []byte{},
+		Proof:        []byte{1},
 		PublicInputs: []uint64{1, 1, 1, 1},
 	} // TODO: This is dummy
 	encodedPrevBalanceProof, err := json.Marshal(prevBalanceProof)
@@ -133,6 +133,9 @@ func SendSignedProposedBlock(
 	// prevBalanceProof block_signature.Plonky2Proof,
 	// transferStepProof block_signature.Plonky2Proof,
 ) error {
+	fmt.Printf("publicKeys: %v\n", publicKeys)
+	fmt.Printf("txTreeRoot: %x\n", txTreeRoot.Marshal())
+	fmt.Printf("senderAccount: %s\n", senderAccount.ToAddress().String())
 	defaultPublicKey := intMaxAcc.NewDummyPublicKey()
 
 	const (
@@ -157,11 +160,11 @@ func SendSignedProposedBlock(
 	}
 
 	prevBalanceProof := block_signature.Plonky2Proof{
-		Proof:        []byte{},
+		Proof:        []byte{0},
 		PublicInputs: []uint64{0, 0, 0, 0},
 	} // TODO: This is dummy
 	transferStepProof := block_signature.Plonky2Proof{
-		Proof:        []byte{},
+		Proof:        []byte{1},
 		PublicInputs: []uint64{1, 1, 1, 1},
 	} // TODO: This is dummy
 	encodedPrevBalanceProof, err := json.Marshal(prevBalanceProof)
@@ -205,6 +208,7 @@ func postBlockSignatureRawRequest(
 	prevBalanceProof block_signature.Plonky2Proof,
 	transferStepProof block_signature.Plonky2Proof,
 ) error {
+	fmt.Printf("txHash: %s\n", txHash)
 	ucInput := block_signature.UCBlockSignatureInput{
 		Sender:    senderAddress,
 		TxHash:    txHash,
@@ -216,6 +220,7 @@ func postBlockSignatureRawRequest(
 	}
 
 	bd, err := json.Marshal(ucInput)
+	fmt.Printf("ucInput: %v\n", string(bd))
 	if err != nil {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
