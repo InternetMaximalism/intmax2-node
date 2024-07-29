@@ -55,7 +55,7 @@ func (u *uc) Do(
 		))
 	defer span.End()
 
-	txTreeRootBytes := input.TxTree.TxHash.Marshal()
+	txTreeRootBytes := input.TxTree.RootHash.Marshal()
 	signatureBytes, err := hexutil.Decode(input.Signature)
 	if err != nil {
 		return errors.Join(ErrDecodeSignatureFail, err)
