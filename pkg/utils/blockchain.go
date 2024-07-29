@@ -38,6 +38,9 @@ func CreateTransactor(ethereumPrivateKeyHex, networkChainID string) (*bind.Trans
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transactor: %w", err)
 	}
+	if transactOpts == nil {
+		return nil, fmt.Errorf("transactOpts is nil")
+	}
 
 	return transactOpts, nil
 }

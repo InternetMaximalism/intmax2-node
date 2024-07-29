@@ -24,7 +24,8 @@ type MessengerRelayerService struct {
 	cfg               *configs.Config
 	log               logger.Logger
 	db                SQLDriverApp
-	client            *ethclient.Client
+	ethClient         *ethclient.Client
+	scrollClient      *ethclient.Client
 	l1ScrollMessenger *bindings.L1ScrollMessenger
 	l2ScrollMessenger *bindings.L2ScrollMessenger
 }
@@ -60,6 +61,8 @@ func newMessengerRelayerService(ctx context.Context, cfg *configs.Config, log lo
 		cfg:               cfg,
 		log:               log,
 		db:                db,
+		ethClient:         ethClient,
+		scrollClient:      scrollClient,
 		l1ScrollMessenger: l1ScrollMessenger,
 		l2ScrollMessenger: l2ScrollMessenger,
 	}, nil
@@ -144,12 +147,16 @@ func (m *MessengerRelayerService) relayMessages(event *bindings.L1ScrollMessenge
 	}
 
 	fmt.Printf("Relaying message from %s to %s with value %d and nonce %d\n", event.Sender.String(), event.Target.String(), event.Value, event.MessageNonce)
+	if event.Sender == (common.Address{}) || event.Target == (common.Address{}) || event.Value == nil || event.MessageNonce == nil || event.Message == nil {
+		return nil, errors.New("event fields are not properly initialized")
+	}
+
 	tx, err := m.l2ScrollMessenger.RelayMessage(transactOpts, event.Sender, event.Target, event.Value, event.MessageNonce, event.Message)
 	if err != nil {
 		return nil, err
 	}
 
-	receipt, err := bind.WaitMined(m.ctx, m.client, tx)
+	receipt, err := bind.WaitMined(m.ctx, m.scrollClient, tx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to wait for transaction to be mined: %w", err)
 	}
@@ -158,10 +165,20 @@ func (m *MessengerRelayerService) relayMessages(event *bindings.L1ScrollMessenge
 		return nil, fmt.Errorf("received nil receipt for transaction")
 	}
 
+	switch receipt.Status {
+	case types.ReceiptStatusSuccessful:
+		m.log.Infof("Successfully relay message. Transaction Hash: %v", receipt.TxHash.Hex())
+	case types.ReceiptStatusFailed:
+		panic(fmt.Sprintf("Transaction failed: relay message unsuccessful. Transaction Hash: %v", receipt.TxHash.Hex()))
+	default:
+		panic(fmt.Sprintf("Unexpected transaction status: %d. Transaction Hash: %v", receipt.Status, receipt.TxHash.Hex()))
+	}
+
 	return receipt, nil
 }
 
 func (m *MessengerRelayerService) relayMessagesforEvents(events []*bindings.L1ScrollMessengerSentMessage) {
+	successfulMessages := 0
 	for _, event := range events {
 		_, err := m.relayMessages(event)
 		if err != nil {
@@ -175,7 +192,9 @@ func (m *MessengerRelayerService) relayMessagesforEvents(events []*bindings.L1Sc
 				panic(fmt.Sprintf("Error relaying message: %v", err))
 			}
 		}
+		successfulMessages++
 	}
+	m.log.Infof("Successfully relayed %d messages", successfulMessages)
 }
 
 func updateEventBlockNumber(db SQLDriverApp, log logger.Logger, eventName string, blockNumber int64) error {
