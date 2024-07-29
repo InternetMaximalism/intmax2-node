@@ -41,7 +41,7 @@ func (dst *EnoughBalanceProofInput) Set(src *EnoughBalanceProofInput) *EnoughBal
 type UCBlockSignatureInput struct {
 	Sender             string                                     `json:"sender"`
 	DecodeSender       *intMaxAcc.PublicKey                       `json:"-"`
-	TxHash             string                                     `json:"txHash"`
+	TxHash             string                                     `json:"txHash"` // NOTICE: This is TxTreeRoot, not TxHash
 	TxTree             *worker.TxTree                             `json:"-"`
 	TxInfo             *worker.TransactionHashesWithSenderAndFile `json:"-"`
 	Signature          string                                     `json:"signature"`
