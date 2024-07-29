@@ -111,9 +111,19 @@ func SendTransferTransaction(
 
 	log.Printf("The proposed block has been successfully received. Please wait for the server's response.")
 
+	tx, err := intMaxTypes.NewTx(
+		&transfersHash,
+		nonce,
+	)
+	if err != nil {
+		log.Fatalf("failed to create new tx: %w", err)
+	}
+
+	txHash := tx.Hash()
+
 	// Accept proposed block
 	err = SendSignedProposedBlock(
-		ctx, cfg, log, userAccount, proposedBlock.TxTreeRoot, proposedBlock.PublicKeys,
+		ctx, cfg, log, userAccount, proposedBlock.TxTreeRoot, *txHash, proposedBlock.PublicKeys,
 	)
 	if err != nil {
 		log.Fatalf("failed to send transaction: %v", err)

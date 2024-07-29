@@ -118,7 +118,7 @@ func TestUseCaseTransaction(t *testing.T) {
 				Signature:          hex.EncodeToString(signature.Marshal()),
 				EnoughBalanceProof: enoughBalanceProof,
 			},
-			err: ucBlockSignature.ErrInvalidSignature,
+			err: blockSignature.ErrInvalidSignature,
 		},
 		{
 			desc: "Invalid enough balance proof",
@@ -128,7 +128,7 @@ func TestUseCaseTransaction(t *testing.T) {
 				Signature:          hex.EncodeToString(signature.Marshal()),
 				EnoughBalanceProof: wrongEnoughBalanceProof,
 			},
-			err: ucBlockSignature.ErrInvalidEnoughBalanceProof,
+			err: blockSignature.ErrInvalidEnoughBalanceProof,
 		},
 	}
 

@@ -5,15 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
-	intMaxAcc "intmax2-node/internal/accounts"
-	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/open_telemetry"
 	"intmax2-node/internal/use_cases/backup_balance"
-	"intmax2-node/internal/use_cases/block_signature"
+	ucBlockSignature "intmax2-node/internal/use_cases/block_signature"
 	"intmax2-node/internal/worker"
 
-	"github.com/consensys/gnark-crypto/ecc/bn254"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/iden3/go-iden3-crypto/ffg"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -27,7 +23,7 @@ type uc struct {
 func New(
 	cfg *configs.Config,
 	w Worker,
-) block_signature.UseCaseBlockSignature {
+) ucBlockSignature.UseCaseBlockSignature {
 	return &uc{
 		cfg: cfg,
 		w:   w,
@@ -39,7 +35,7 @@ var ErrDecodeSignatureFail = errors.New("failed to decode signature")
 var ErrUnmarshalSignatureFail = errors.New("failed to unmarshal signature")
 
 func (u *uc) Do(
-	ctx context.Context, input *block_signature.UCBlockSignatureInput,
+	ctx context.Context, input *ucBlockSignature.UCBlockSignatureInput,
 ) (err error) {
 	const (
 		hName        = "UseCase BlockSignature"
@@ -56,20 +52,7 @@ func (u *uc) Do(
 		))
 	defer span.End()
 
-	txTreeRootBytes := input.TxTree.RootHash.Marshal()
-	signatureBytes, err := hexutil.Decode(input.Signature)
-	if err != nil {
-		return errors.Join(ErrDecodeSignatureFail, err)
-	}
-
-	// Verify signature.
-	err = VerifyTxTreeSignature(signatureBytes, input.DecodeSender, txTreeRootBytes)
-	if err != nil {
-		fmt.Printf("VerifyTxTreeSignature error: %v\n", err)
-		// TODO
-		// open_telemetry.MarkSpanError(spanCtx, err)
-		// return err
-	}
+	// NOTICE: Perform signature verification during validation.
 
 	prevBalancePublicInputs, err := backup_balance.VerifyEnoughBalanceProof(input.EnoughBalanceProof.PrevBalanceProof)
 	transferPublicInputs, err := VerifyTransferStepProof(input.EnoughBalanceProof.TransferStepProof)
@@ -85,6 +68,7 @@ func (u *uc) Do(
 	// 	File:   nil,
 	// }
 
+	fmt.Printf("SignTxTreeByAvailableFile input tx tree: %+v\n", input.TxTree)
 	err = u.w.SignTxTreeByAvailableFile(input.Signature, &worker.TransactionHashesWithSenderAndFile{
 		Sender: input.TxInfo.Sender,
 		File:   input.TxInfo.File,
@@ -92,23 +76,6 @@ func (u *uc) Do(
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
 		return errors.Join(ErrSignTxTreeByAvailableFileFail, err)
-	}
-
-	return nil
-}
-
-func VerifyTxTreeSignature(signatureBytes []byte, sender *intMaxAcc.PublicKey, txTreeRootBytes []byte) error {
-	messagePoint := finite_field.BytesToFieldElementSlice(txTreeRootBytes)
-
-	signature := new(bn254.G2Affine)
-	err := signature.Unmarshal(signatureBytes)
-	if err != nil {
-		return errors.Join(ErrUnmarshalSignatureFail, err)
-	}
-
-	err = intMaxAcc.VerifySignature(signature, sender, messagePoint)
-	if err != nil {
-		return errors.Join(ErrInvalidSignature, err)
 	}
 
 	return nil
@@ -127,7 +94,7 @@ func (pis *TransferStepPublicInputs) Verify() error {
 	return nil
 }
 
-func VerifyTransferStepProof(transferStepProof *block_signature.Plonky2Proof) (*TransferStepPublicInputs, error) {
+func VerifyTransferStepProof(transferStepProof *ucBlockSignature.Plonky2Proof) (*TransferStepPublicInputs, error) {
 	publicInputs := make([]ffg.Element, len(transferStepProof.PublicInputs))
 	for i, publicInput := range transferStepProof.PublicInputs {
 		publicInputs[i].SetUint64(publicInput)

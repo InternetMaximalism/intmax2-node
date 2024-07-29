@@ -129,6 +129,7 @@ func SendSignedProposedBlock(
 	log logger.Logger,
 	senderAccount *intMaxAcc.PrivateKey,
 	txTreeRoot goldenposeidon.PoseidonHashOut,
+	txHash goldenposeidon.PoseidonHashOut,
 	publicKeys []*intMaxAcc.PublicKey,
 	// prevBalanceProof block_signature.Plonky2Proof,
 	// transferStepProof block_signature.Plonky2Proof,
@@ -175,7 +176,7 @@ func SendSignedProposedBlock(
 
 	return PostBlockSignatureRawRequest(
 		ctx, cfg, log,
-		senderAccount.ToAddress(), txTreeRoot, signature,
+		senderAccount.ToAddress(), txHash, signature,
 		prevBalanceProof, transferStepProof,
 	)
 }

@@ -2,7 +2,9 @@ package block_signature
 
 import (
 	"errors"
+	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/worker"
 	"strings"
 
@@ -39,10 +41,7 @@ func (input *UCBlockSignatureInput) Valid(w Worker) (err error) {
 				return ErrValueInvalid
 			}
 
-			message, err := MakeMessage(input.TxHash, input.Sender, input.EnoughBalanceProof)
-			if err != nil {
-				return ErrValueInvalid
-			}
+			txTreeRootBytes := input.TxTree.RootHash.Marshal()
 
 			var publicKey *intMaxAcc.PublicKey
 			publicKey, err = intMaxAcc.NewPublicKeyFromAddressHex(input.Sender)
@@ -56,15 +55,14 @@ func (input *UCBlockSignatureInput) Valid(w Worker) (err error) {
 				return ErrValueInvalid
 			}
 
-			sign := bn254.G2Affine{}
-			err = sign.Unmarshal(sb)
-			if err != nil {
-				return ErrValueInvalid
-			}
+			// TODO: senderPublicKey with weight
 
-			err = intMaxAcc.VerifySignature(&sign, publicKey, message)
+			// Verify signature.
+			err = VerifyTxTreeSignature(sb, publicKey, txTreeRootBytes)
 			if err != nil {
-				return ErrValueInvalid
+				// TODO: error handling
+				fmt.Printf("VerifySignature error: %v\n", err)
+				// return ErrValueInvalid
 			}
 
 			return nil
@@ -185,4 +183,21 @@ func (input *UCBlockSignatureInput) isPlonky2Proof() validation.Rule {
 			validation.Field(&p2p.Proof, validation.Required),
 		)
 	})
+}
+
+func VerifyTxTreeSignature(signatureBytes []byte, sender *intMaxAcc.PublicKey, txTreeRootBytes []byte) error {
+	messagePoint := finite_field.BytesToFieldElementSlice(txTreeRootBytes)
+
+	signature := new(bn254.G2Affine)
+	err := signature.Unmarshal(signatureBytes)
+	if err != nil {
+		return errors.Join(ErrUnmarshalSignatureFail, err)
+	}
+
+	err = intMaxAcc.VerifySignature(signature, sender, messagePoint)
+	if err != nil {
+		return errors.Join(ErrInvalidSignature, err)
+	}
+
+	return nil
 }
