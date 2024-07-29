@@ -2,8 +2,12 @@
 package withdrawal_service
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/bindings"
@@ -11,12 +15,14 @@ import (
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"intmax2-node/pkg/utils"
 	"log"
+	"math/big"
 	"net/http"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
@@ -88,17 +94,26 @@ func WithdrawalAggregator(ctx context.Context, cfg *configs.Config, log logger.L
 		return
 	}
 
-	proofs, err := service.fetchWithdrawalProofsFromProver(*pendingWithdrawals)
+	// proofs, err := service.fetchWithdrawalProofsFromProver(*pendingWithdrawals)
+	// if err != nil {
+	// 	panic(fmt.Sprintf("Failed to fetch withdrawal proofs %v", err.Error()))
+	// }
+
+	// withdrawalInfo, err := service.buildSubmitWithdrawalProofData(*pendingWithdrawals, proofs)
+	// if err != nil {
+	// 	panic("NEED_TO_BE_IMPLEMENTED")
+	// }
+
+	withdrawalInfo, err := service.buildMockSubmitWithdrawalProofData(*pendingWithdrawals)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to fetch withdrawal proofs %v", err.Error()))
+		panic(fmt.Sprintf("Failed to build withdrawal proof data: %v", err.Error()))
 	}
 
-	err = service.buildSubmitWithdrawalProofData(*pendingWithdrawals, proofs)
-	if err != nil {
-		panic("NEED_TO_BE_IMPLEMENTED")
-	}
-
-	receipt, err := service.submitWithdrawalProof()
+	receipt, err := service.submitWithdrawalProof(
+		withdrawalInfo.Withdrawals,
+		withdrawalInfo.WithdrawalProofPublicInputs,
+		withdrawalInfo.Proof,
+	)
 	if err != nil {
 		// TODO: NEED_TO_BE_CHANGED change status depends on the result of the proof
 		if err.Error() == "WithdrawalProofVerificationFailed" {
@@ -162,6 +177,79 @@ func (w *WithdrawalAggregatorService) shouldProcessWithdrawals(pendingWithdrawal
 	return withdrawalCount >= WithdrawalThreshold
 }
 
+func HashWithdrawalPis(pis bindings.WithdrawalProofPublicInputsLibWithdrawalProofPublicInputs) (common.Hash, error) {
+	var buf bytes.Buffer
+	binary.Write(&buf, binary.BigEndian, pis.LastWithdrawalHash)
+	binary.Write(&buf, binary.BigEndian, pis.WithdrawalAggregator)
+	packed := buf.Bytes()
+
+	hash := crypto.Keccak256Hash(packed)
+
+	return hash, nil
+}
+
+func HashWithdrawalWithPrevHash(
+	prevHash common.Hash,
+	withdrawal bindings.ChainedWithdrawalLibChainedWithdrawal,
+) (common.Hash, error) {
+	amount := make([]byte, 32)
+	amountBytes := withdrawal.Amount.Bytes()
+	copy(amount[32-len(amountBytes):], amountBytes)
+
+	var buf bytes.Buffer
+	binary.Write(&buf, binary.BigEndian, prevHash[:])
+	binary.Write(&buf, binary.BigEndian, withdrawal.Recipient)
+	binary.Write(&buf, binary.BigEndian, withdrawal.TokenIndex)
+	binary.Write(&buf, binary.BigEndian, amountBytes)
+	binary.Write(&buf, binary.BigEndian, withdrawal.Nullifier)
+	binary.Write(&buf, binary.BigEndian, withdrawal.BlockHash)
+	binary.Write(&buf, binary.BigEndian, withdrawal.BlockNumber)
+	packed := buf.Bytes()
+
+	hash := crypto.Keccak256Hash(packed)
+
+	return hash, nil
+}
+
+type WithdrawalInfo struct {
+	Withdrawals                 []bindings.ChainedWithdrawalLibChainedWithdrawal
+	WithdrawalProofPublicInputs bindings.WithdrawalProofPublicInputsLibWithdrawalProofPublicInputs
+	PisHash                     common.Hash
+	Proof                       []byte
+}
+
+func MakeWithdrawalInfo(
+	aggregator common.Address,
+	withdrawals []bindings.ChainedWithdrawalLibChainedWithdrawal,
+	proof []byte,
+) (*WithdrawalInfo, error) {
+	hash := common.Hash{}
+	var err error
+	for _, withdrawal := range withdrawals {
+		hash, err = HashWithdrawalWithPrevHash(hash, withdrawal)
+		if err != nil {
+			var ErrHashWithdrawalWithPrevHash = errors.New("failed to hash withdrawal with previous hash")
+			return nil, errors.Join(ErrHashWithdrawalWithPrevHash, err)
+		}
+	}
+	pis := bindings.WithdrawalProofPublicInputsLibWithdrawalProofPublicInputs{
+		LastWithdrawalHash:   hash,
+		WithdrawalAggregator: aggregator,
+	}
+	pisHash, err := HashWithdrawalPis(pis)
+	if err != nil {
+		var ErrHashWithdrawalPis = errors.New("failed to hash withdrawal proof public inputs")
+		return nil, errors.Join(ErrHashWithdrawalPis, err)
+	}
+
+	return &WithdrawalInfo{
+		Withdrawals:                 withdrawals,
+		WithdrawalProofPublicInputs: pis,
+		PisHash:                     pisHash,
+		Proof:                       proof,
+	}, nil
+}
+
 func (w *WithdrawalAggregatorService) fetchWithdrawalProofsFromProver(pendingWithdrawals []mDBApp.Withdrawal) ([]ProofValue, error) {
 	var idsQuery string
 	for _, pendingWithdrawal := range pendingWithdrawals {
@@ -199,18 +287,56 @@ func (w *WithdrawalAggregatorService) buildSubmitWithdrawalProofData(pendingWith
 	return nil
 }
 
-func (w *WithdrawalAggregatorService) submitWithdrawalProof() (*types.Receipt, error) {
-	transactOpts, err := utils.CreateTransactor(w.cfg.Blockchain.WithdrawalPrivateKeyHex, w.cfg.Blockchain.ScrollNetworkChainID)
+func (w *WithdrawalAggregatorService) buildMockSubmitWithdrawalProofData(pendingWithdrawals []mDBApp.Withdrawal) (*WithdrawalInfo, error) {
+	// private key to address
+	decKey, err := hex.DecodeString(w.cfg.Blockchain.WithdrawalPrivateKeyHex)
 	if err != nil {
 		return nil, err
 	}
 
-	var withdrawals []bindings.ChainedWithdrawalLibChainedWithdrawal
-	publicInputs := bindings.WithdrawalProofPublicInputsLibWithdrawalProofPublicInputs{
-		LastWithdrawalHash:   common.HexToHash("0x0"),
-		WithdrawalAggregator: common.HexToAddress("0x0"),
+	pk, err := crypto.ToECDSA(decKey)
+	if err != nil {
+		return nil, err
 	}
-	var proof []byte
+
+	aggregator := crypto.PubkeyToAddress(pk.PublicKey)
+	fmt.Printf("Aggregator address: %s\n", aggregator.String())
+
+	withdrawals := make([]bindings.ChainedWithdrawalLibChainedWithdrawal, 0, len(pendingWithdrawals))
+	for _, withdrawal := range pendingWithdrawals {
+		amount, ok := new(big.Int).SetString(withdrawal.TransferData.Amount, 10)
+		if !ok {
+			return nil, fmt.Errorf("failed to set amount")
+		}
+
+		singleWithdrawal := bindings.ChainedWithdrawalLibChainedWithdrawal{
+			Recipient:   common.HexToAddress(withdrawal.TransferData.Recipient),
+			TokenIndex:  uint32(withdrawal.TransferData.TokenIndex),
+			Amount:      amount,
+			Nullifier:   common.HexToHash(withdrawal.TransferData.Salt),
+			BlockHash:   common.HexToHash(withdrawal.BlockHash),
+			BlockNumber: uint32(withdrawal.BlockNumber),
+		}
+		withdrawals = append(withdrawals, singleWithdrawal)
+	}
+
+	withdrawalInfo, err := MakeWithdrawalInfo(aggregator, withdrawals, []byte{})
+	if err != nil {
+		return nil, err
+	}
+
+	return withdrawalInfo, nil
+}
+
+func (w *WithdrawalAggregatorService) submitWithdrawalProof(
+	withdrawals []bindings.ChainedWithdrawalLibChainedWithdrawal,
+	publicInputs bindings.WithdrawalProofPublicInputsLibWithdrawalProofPublicInputs,
+	proof []byte,
+) (*types.Receipt, error) {
+	transactOpts, err := utils.CreateTransactor(w.cfg.Blockchain.WithdrawalPrivateKeyHex, w.cfg.Blockchain.ScrollNetworkChainID)
+	if err != nil {
+		return nil, err
+	}
 
 	tx, err := w.withdrawalContract.SubmitWithdrawalProof(transactOpts, withdrawals, publicInputs, proof)
 	if err != nil {
