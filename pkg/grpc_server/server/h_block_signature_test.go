@@ -2,11 +2,17 @@ package server_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"intmax2-node/configs"
+	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/pow"
+	"intmax2-node/internal/tx_transfer_service"
+	intMaxTypes "intmax2-node/internal/types"
+	"intmax2-node/internal/use_cases/block_signature"
 	"intmax2-node/pkg/logger"
 	"io"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,8 +20,10 @@ import (
 	"testing"
 
 	"github.com/dimiro1/health"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
 	"go.uber.org/mock/gomock"
 )
@@ -56,6 +64,12 @@ func TestHandlerBlockSignature(t *testing.T) {
 	cfg.APP.PEMPAthCACertClient = dir + cfg.APP.PEMPAthCACertClient
 	cfg.APP.PEMPathClientCert = dir + cfg.APP.PEMPathClientCert
 	cfg.APP.PEMPathClientKey = dir + cfg.APP.PEMPathClientKey
+
+	sampleData := makeSampleData()
+	sampleDataJson, err := json.Marshal(sampleData)
+	if err != nil {
+		require.NoError(t, err)
+	}
 
 	cmd := NewMockCommands(ctrl)
 	//ucBS := mocks.NewMockUseCaseBlockSignature(ctrl)
@@ -99,6 +113,13 @@ func TestHandlerBlockSignature(t *testing.T) {
 			message:    "enoughBalanceProof: (prevBalanceProof: (proof: cannot be blank; publicInputs: cannot be blank.); transferStepProof: (proof: cannot be blank; publicInputs: cannot be blank.).); sender: must be a valid value; signature: cannot be blank; txHash: cannot be blank.",
 			wantStatus: http.StatusBadRequest,
 		},
+		{
+			desc:       "Success",
+			prepare:    func() {},
+			body:       string(sampleDataJson),
+			message:    "",
+			wantStatus: http.StatusBadRequest,
+		},
 		// validation - finish
 	}
 
@@ -128,4 +149,53 @@ func TestHandlerBlockSignature(t *testing.T) {
 			assert.Equal(t, cases[i].success, gjson.Get(w.Body.String(), "success").Bool())
 		})
 	}
+}
+
+func makeSampleData() *block_signature.UCBlockSignatureInput {
+	senderAccount, err := intMaxAcc.NewPrivateKeyWithReCalcPubKeyIfPkNegates(big.NewInt(2))
+	if err != nil {
+		panic(err)
+	}
+
+	transferTreeRoot, err := tx_transfer_service.MakeSampleTransferTree()
+	if err != nil {
+		panic(err)
+	}
+
+	txTreeRoot, err := tx_transfer_service.MakeSampleTxTree(&transferTreeRoot, 1)
+	if err != nil {
+		panic(err)
+	}
+
+	senderPublicKeys := []*intMaxAcc.PublicKey{}
+	for i := 0; i < 4; i++ {
+		senderAccount, err := intMaxAcc.NewPrivateKeyWithReCalcPubKeyIfPkNegates(big.NewInt(int64(i) + 2))
+		if err != nil {
+			panic(err)
+		}
+
+		senderPublicKeys = append(senderPublicKeys, senderAccount.Public())
+	}
+
+	senderPublicKeysBytes := make([]byte, intMaxTypes.NumOfSenders*intMaxTypes.NumPublicKeyBytes)
+	for i, sender := range senderPublicKeys {
+		senderPublicKey := sender.Pk.X.Bytes() // Only x coordinate is used
+		copy(senderPublicKeysBytes[32*i:32*(i+1)], senderPublicKey[:])
+	}
+
+	defaultPublicKey := intMaxAcc.NewDummyPublicKey().Pk.X.Bytes() // Only x coordinate is used
+	for i := len(senderPublicKeys); i < intMaxTypes.NumOfSenders; i++ {
+		copy(senderPublicKeysBytes[32*i:32*(i+1)], defaultPublicKey[:])
+	}
+
+	publicKeysHash := crypto.Keccak256(senderPublicKeysBytes)
+
+	res, err := tx_transfer_service.MakePostBlockSignatureRawRequest(
+		senderAccount, txTreeRoot, publicKeysHash,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	return res
 }
