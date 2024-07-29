@@ -143,6 +143,7 @@ func (m *MessengerRelayerService) relayMessages(event *bindings.L1ScrollMessenge
 		return nil, err
 	}
 
+	fmt.Printf("Relaying message from %s to %s with value %d and nonce %d\n", event.Sender.String(), event.Target.String(), event.Value, event.MessageNonce)
 	tx, err := m.l2ScrollMessenger.RelayMessage(transactOpts, event.Sender, event.Target, event.Value, event.MessageNonce, event.Message)
 	if err != nil {
 		return nil, err
@@ -166,6 +167,9 @@ func (m *MessengerRelayerService) relayMessagesforEvents(events []*bindings.L1Sc
 		if err != nil {
 			if err.Error() == "execution reverted: Message was already successfully executed" {
 				m.log.Infof("Message was already successfully executed")
+				continue
+			} else if err.Error() == "execution reverted: Failed to execute message" {
+				m.log.Infof("Failed to execute message. The calldata passed to the target contract may be incorrect.")
 				continue
 			} else {
 				panic(fmt.Sprintf("Error relaying message: %v", err))
