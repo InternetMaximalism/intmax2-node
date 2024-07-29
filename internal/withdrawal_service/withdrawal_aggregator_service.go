@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
@@ -16,7 +15,6 @@ import (
 	"intmax2-node/pkg/utils"
 	"log"
 	"math/big"
-	"net/http"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -29,6 +27,9 @@ import (
 const (
 	WithdrawalThreshold = 8
 	WaitDuration        = 15 * time.Minute
+
+	int10Key = 10
+	int32Key = 32
 )
 
 type WithdrawalAggregatorService struct {
@@ -179,8 +180,12 @@ func (w *WithdrawalAggregatorService) shouldProcessWithdrawals(pendingWithdrawal
 
 func HashWithdrawalPis(pis bindings.WithdrawalProofPublicInputsLibWithdrawalProofPublicInputs) (common.Hash, error) {
 	var buf bytes.Buffer
-	binary.Write(&buf, binary.BigEndian, pis.LastWithdrawalHash)
-	binary.Write(&buf, binary.BigEndian, pis.WithdrawalAggregator)
+	if err := binary.Write(&buf, binary.BigEndian, pis.LastWithdrawalHash); err != nil {
+		return common.Hash{}, err
+	}
+	if err := binary.Write(&buf, binary.BigEndian, pis.WithdrawalAggregator); err != nil {
+		return common.Hash{}, err
+	}
 	packed := buf.Bytes()
 
 	hash := crypto.Keccak256Hash(packed)
@@ -192,18 +197,32 @@ func HashWithdrawalWithPrevHash(
 	prevHash common.Hash,
 	withdrawal bindings.ChainedWithdrawalLibChainedWithdrawal,
 ) (common.Hash, error) {
-	amount := make([]byte, 32)
+	amount := make([]byte, int32Key)
 	amountBytes := withdrawal.Amount.Bytes()
-	copy(amount[32-len(amountBytes):], amountBytes)
+	copy(amount[int32Key-len(amountBytes):], amountBytes)
 
 	var buf bytes.Buffer
-	binary.Write(&buf, binary.BigEndian, prevHash[:])
-	binary.Write(&buf, binary.BigEndian, withdrawal.Recipient)
-	binary.Write(&buf, binary.BigEndian, withdrawal.TokenIndex)
-	binary.Write(&buf, binary.BigEndian, amountBytes)
-	binary.Write(&buf, binary.BigEndian, withdrawal.Nullifier)
-	binary.Write(&buf, binary.BigEndian, withdrawal.BlockHash)
-	binary.Write(&buf, binary.BigEndian, withdrawal.BlockNumber)
+	if err := binary.Write(&buf, binary.BigEndian, prevHash[:]); err != nil {
+		return common.Hash{}, err
+	}
+	if err := binary.Write(&buf, binary.BigEndian, withdrawal.Recipient); err != nil {
+		return common.Hash{}, err
+	}
+	if err := binary.Write(&buf, binary.BigEndian, withdrawal.TokenIndex); err != nil {
+		return common.Hash{}, err
+	}
+	if err := binary.Write(&buf, binary.BigEndian, amountBytes); err != nil {
+		return common.Hash{}, err
+	}
+	if err := binary.Write(&buf, binary.BigEndian, withdrawal.Nullifier); err != nil {
+		return common.Hash{}, err
+	}
+	if err := binary.Write(&buf, binary.BigEndian, withdrawal.BlockHash); err != nil {
+		return common.Hash{}, err
+	}
+	if err := binary.Write(&buf, binary.BigEndian, withdrawal.BlockNumber); err != nil {
+		return common.Hash{}, err
+	}
 	packed := buf.Bytes()
 
 	hash := crypto.Keccak256Hash(packed)
@@ -250,42 +269,42 @@ func MakeWithdrawalInfo(
 	}, nil
 }
 
-func (w *WithdrawalAggregatorService) fetchWithdrawalProofsFromProver(pendingWithdrawals []mDBApp.Withdrawal) ([]ProofValue, error) {
-	var idsQuery string
-	for _, pendingWithdrawal := range pendingWithdrawals {
-		idsQuery += fmt.Sprintf("ids=%s&", pendingWithdrawal.ID)
-	}
-	if len(idsQuery) > 0 {
-		idsQuery = idsQuery[:len(idsQuery)-1]
-	}
-	apiUrl := fmt.Sprintf("%s/proofs?%s",
-		w.cfg.API.WithdrawalProverApiURL,
-		idsQuery,
-	)
+// func (w *WithdrawalAggregatorService) fetchWithdrawalProofsFromProver(pendingWithdrawals []mDBApp.Withdrawal) ([]ProofValue, error) {
+// 	var idsQuery string
+// 	for _, pendingWithdrawal := range pendingWithdrawals {
+// 		idsQuery += fmt.Sprintf("ids=%s&", pendingWithdrawal.ID)
+// 	}
+// 	if len(idsQuery) > 0 {
+// 		idsQuery = idsQuery[:len(idsQuery)-1]
+// 	}
+// 	apiUrl := fmt.Sprintf("%s/proofs?%s",
+// 		w.cfg.API.WithdrawalProverApiURL,
+// 		idsQuery,
+// 	)
 
-	resp, err := http.Get(apiUrl) // nolint:gosec
-	if err != nil {
-		return nil, fmt.Errorf("failed to request API: %w", err)
-	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
+// 	resp, err := http.Get(apiUrl) // nolint:gosec
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to request API: %w", err)
+// 	}
+// 	defer func() {
+// 		_ = resp.Body.Close()
+// 	}()
 
-	var res ProofsResponse
-	if err = json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return nil, fmt.Errorf("failed to decode JSON response: %w", err)
-	}
+// 	var res ProofsResponse
+// 	if err = json.NewDecoder(resp.Body).Decode(&res); err != nil {
+// 		return nil, fmt.Errorf("failed to decode JSON response: %w", err)
+// 	}
 
-	if !res.Success {
-		return nil, fmt.Errorf("prover request failed %s", res.ErrorMessage)
-	}
+// 	if !res.Success {
+// 		return nil, fmt.Errorf("prover request failed %s", res.ErrorMessage)
+// 	}
 
-	return res.Values, nil
-}
+// 	return res.Values, nil
+// }
 
-func (w *WithdrawalAggregatorService) buildSubmitWithdrawalProofData(pendingWithdrawals []mDBApp.Withdrawal, proofs []ProofValue) error {
-	return nil
-}
+// func (w *WithdrawalAggregatorService) buildSubmitWithdrawalProofData(pendingWithdrawals []mDBApp.Withdrawal, proofs []ProofValue) error {
+// 	return nil
+// }
 
 func (w *WithdrawalAggregatorService) buildMockSubmitWithdrawalProofData(pendingWithdrawals []mDBApp.Withdrawal) (*WithdrawalInfo, error) {
 	// private key to address
@@ -304,7 +323,7 @@ func (w *WithdrawalAggregatorService) buildMockSubmitWithdrawalProofData(pending
 
 	withdrawals := make([]bindings.ChainedWithdrawalLibChainedWithdrawal, 0, len(pendingWithdrawals))
 	for _, withdrawal := range pendingWithdrawals {
-		amount, ok := new(big.Int).SetString(withdrawal.TransferData.Amount, 10)
+		amount, ok := new(big.Int).SetString(withdrawal.TransferData.Amount, int10Key)
 		if !ok {
 			return nil, fmt.Errorf("failed to set amount")
 		}
