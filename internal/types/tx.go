@@ -34,6 +34,13 @@ func (t *Tx) Set(tx *Tx) *Tx {
 	return t
 }
 
+func (t *Tx) SetZero() *Tx {
+	t.Nonce = 0
+	t.TransferTreeRoot = new(PoseidonHashOut).SetZero()
+
+	return t
+}
+
 // // SetRandom return Tx
 // // Testing purposes only
 // func (t *Tx) SetRandom() (*Tx, error) {

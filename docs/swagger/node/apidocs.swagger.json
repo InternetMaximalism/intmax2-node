@@ -427,7 +427,11 @@
     "v1BlockSignatureRequest": {
       "type": "object",
       "properties": {
-        "txRoot": {
+        "sender": {
+          "type": "string",
+          "title": "the sender's INTMAX address"
+        },
+        "txHash": {
           "type": "string",
           "title": "the transaction tree root hash"
         },
@@ -436,7 +440,7 @@
           "title": "the user's signature"
         },
         "enoughBalanceProof": {
-          "type": "string",
+          "$ref": "#/definitions/v1EnoughBalanceOfProofBlockSignatureRequest",
           "title": "the proof of sufficient balance after sending"
         }
       },
@@ -493,6 +497,20 @@
       },
       "title": "DataTransactionResponse describes the data of response to get info about the create new transaction"
     },
+    "v1EnoughBalanceOfProofBlockSignatureRequest": {
+      "type": "object",
+      "properties": {
+        "prevBalanceProof": {
+          "$ref": "#/definitions/v1Plonky2ProofBlockSignatureRequest",
+          "title": "the previous balance proof value"
+        },
+        "transferStepProof": {
+          "$ref": "#/definitions/v1Plonky2ProofBlockSignatureRequest",
+          "title": "the transfer step proof value"
+        }
+      },
+      "title": "EnoughBalanceOfProofBlockSignatureRequest describes the proof of sufficient balance after sending for BlockSignatureRequest"
+    },
     "v1EnoughBalanceProof": {
       "type": "object",
       "properties": {
@@ -537,6 +555,25 @@
         }
       },
       "title": "InfoResponse describes response about retrieves the block builder's Scroll address, transaction fee, and difficulty"
+    },
+    "v1Plonky2ProofBlockSignatureRequest": {
+      "type": "object",
+      "properties": {
+        "publicInputs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uint64"
+          },
+          "title": "the publicInputs value"
+        },
+        "proof": {
+          "type": "string",
+          "format": "byte",
+          "title": "the proof value"
+        }
+      },
+      "title": "Plonky2ProofOfEnoughBalanceProofOfBlockSignatureRequest describes the Plonky2Proof values for BlockSignatureRequest"
     },
     "v1RecipientTransferDataTransactionRequest": {
       "type": "object",

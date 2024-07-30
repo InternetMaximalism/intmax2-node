@@ -6,8 +6,12 @@ import (
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/hash/goldenposeidon"
+	"intmax2-node/internal/pb/gen/service/node"
+	intMaxTree "intmax2-node/internal/tree"
+	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/block_signature"
 	"io"
+	"math/big"
 	"net/http"
 	"strings"
 
@@ -16,8 +20,104 @@ import (
 )
 
 type BlockSignatureResponse struct {
-	Success bool                             `json:"success"`
-	Data    block_signature.UCBlockSignature `json:"data"`
+	Success bool                        `json:"success"`
+	Data    node.BlockSignatureResponse `json:"data"`
+}
+
+func MakeSampleTransferTree() (goldenposeidon.PoseidonHashOut, error) {
+	const int10Key = 10
+
+	var tokenIndex uint32 = 0
+	amount := big.NewInt(int10Key)
+
+	// Send transfer transaction
+	recipient, err := intMaxAcc.NewPublicKeyFromAddressHex("0x06a7b64af8f414bcbeef455b1da5208c9b592b83ee6599824caa6d2ee9141a76")
+	if err != nil {
+		return goldenposeidon.PoseidonHashOut{}, fmt.Errorf("failed to parse recipient address: %v", err)
+	}
+
+	recipientAddress, err := intMaxTypes.NewINTMAXAddress(recipient.ToAddress().Bytes())
+	if err != nil {
+		return goldenposeidon.PoseidonHashOut{}, fmt.Errorf("failed to create recipient address: %v", err)
+	}
+
+	transfer := intMaxTypes.NewTransferWithRandomSalt(
+		recipientAddress,
+		tokenIndex,
+		amount,
+	)
+
+	zeroTransfer := new(intMaxTypes.Transfer).SetZero()
+	initialLeaves := make([]*intMaxTypes.Transfer, 1)
+	initialLeaves[0] = transfer
+
+	transferTree, err := intMaxTree.NewTransferTree(intMaxTree.TRANSFER_TREE_HEIGHT, initialLeaves, zeroTransfer.Hash())
+	if err != nil {
+		return goldenposeidon.PoseidonHashOut{}, fmt.Errorf("failed to create transfer tree: %v", err)
+	}
+
+	transferTreeRoot, _, _ := transferTree.GetCurrentRootCountAndSiblings()
+
+	return transferTreeRoot, nil
+}
+
+func MakeSampleTxTree(transferTreeRoot *goldenposeidon.PoseidonHashOut, nonce uint64) (goldenposeidon.PoseidonHashOut, error) {
+	tx, err := intMaxTypes.NewTx(
+		transferTreeRoot,
+		nonce,
+	)
+	if err != nil {
+		return goldenposeidon.PoseidonHashOut{}, fmt.Errorf("failed to create tx: %v", err)
+	}
+
+	zeroTx := new(intMaxTypes.Tx).SetZero()
+	initialLeaves := make([]*intMaxTypes.Tx, 1)
+	initialLeaves[0] = tx
+
+	txTree, err := intMaxTree.NewTxTree(intMaxTree.TX_TREE_HEIGHT, initialLeaves, zeroTx.Hash())
+	if err != nil {
+		return goldenposeidon.PoseidonHashOut{}, fmt.Errorf("failed to create transfer tree: %v", err)
+	}
+
+	txTreeRoot, _, _ := txTree.GetCurrentRootCountAndSiblings()
+
+	return txTreeRoot, nil
+}
+
+func MakePostBlockSignatureRawRequest(
+	senderAccount *intMaxAcc.PrivateKey,
+	txTreeRoot goldenposeidon.PoseidonHashOut,
+	publicKeysHash []byte,
+) (*block_signature.UCBlockSignatureInput, error) {
+	message := finite_field.BytesToFieldElementSlice(txTreeRoot.Marshal())
+	signature, err := senderAccount.WeightByHash(publicKeysHash).Sign(message)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign message: %w", err)
+	}
+
+	prevBalanceProof := block_signature.Plonky2Proof{
+		Proof:        []byte{},
+		PublicInputs: []uint64{0, 0, 0, 0},
+	} // TODO: This is dummy
+	transferStepProof := block_signature.Plonky2Proof{
+		Proof:        []byte{},
+		PublicInputs: []uint64{1, 1, 1, 1},
+	} // TODO: This is dummy
+	encodedPrevBalanceProof, err := json.Marshal(prevBalanceProof)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal prevBalanceProof: %w", err)
+	}
+	fmt.Printf("encodedPrevBalanceProof: %v", encodedPrevBalanceProof)
+
+	return &block_signature.UCBlockSignatureInput{
+		Sender:    senderAccount.ToAddress().String(),
+		TxHash:    hexutil.Encode(txTreeRoot.Marshal()),
+		Signature: hexutil.Encode(signature.Marshal()),
+		EnoughBalanceProof: new(block_signature.EnoughBalanceProofInput).Set(&block_signature.EnoughBalanceProofInput{
+			PrevBalanceProof:  &prevBalanceProof,
+			TransferStepProof: &transferStepProof,
+		}),
+	}, nil
 }
 
 func SendSignedProposedBlock(
@@ -121,7 +221,7 @@ func postBlockSignatureRawRequest(
 	}
 
 	if !res.Success {
-		return fmt.Errorf("failed to get proposed block: %+v", res)
+		return fmt.Errorf("failed to get proposed block")
 	}
 
 	return nil
