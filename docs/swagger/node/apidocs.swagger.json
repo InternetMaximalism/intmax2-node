@@ -13,6 +13,9 @@
       "name": "InfoService"
     },
     {
+      "name": "StoreVaultService"
+    },
+    {
       "name": "WithdrawalService"
     }
   ],
@@ -56,6 +59,168 @@
         },
         "tags": [
           "BlockBuilderService"
+        ]
+      }
+    },
+    "/v1/backups/deposit": {
+      "post": {
+        "summary": "BackupDeposit processes a request for data backup deposit",
+        "description": "## This method handles the deposit of backup data.",
+        "operationId": "StoreVaultService_BackupDeposit",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BackupDepositResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "BackupDepositRequest is the request message for BackupDeposit method.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BackupDepositRequest"
+            }
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      }
+    },
+    "/v1/backups/transaction": {
+      "post": {
+        "summary": "BackupTransaction processes a request for data backup transaction",
+        "description": "## This method handles the transaction of backup data.",
+        "operationId": "StoreVaultService_BackupTransaction",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BackupTransactionResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "BackupTransactionRequest is the request message for BackupTransaction method.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BackupTransactionRequest"
+            }
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      }
+    },
+    "/v1/backups/transfer": {
+      "post": {
+        "summary": "BackupTransfer processes a request for data backup transfer",
+        "description": "## This method handles the transfer of backup data.",
+        "operationId": "StoreVaultService_BackupTransfer",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BackupTransferResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "BackupTransferRequest is the request message for BackupTransfer method.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BackupTransferRequest"
+            }
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      }
+    },
+    "/v1/balances/{address}": {
+      "get": {
+        "summary": "GetBalances retrieves balances for a given address",
+        "description": "## This method retrieves the balance for the provided address.",
+        "operationId": "StoreVaultService_GetBalances",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetBalancesResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "address",
+            "description": "The address to retrieve the balance for",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
         ]
       }
     },
@@ -327,16 +492,6 @@
     }
   },
   "definitions": {
-    "WithdrawalRequestResponseData": {
-      "type": "object",
-      "properties": {
-        "message": {
-          "type": "string",
-          "title": "the message with additional details"
-        }
-      },
-      "title": "Data contains additional information in the response"
-    },
     "protobufAny": {
       "type": "object",
       "properties": {
@@ -386,6 +541,139 @@
       "default": "EMPTY",
       "description": "- EMPTY: the EMPTY address type\n - INTMAX: the INTMAX address type\n - ETHEREUM: the ETHEREUM address type",
       "title": "AddressType describes type of address"
+    },
+    "v1BackupDepositRequest": {
+      "type": "object",
+      "properties": {
+        "recipient": {
+          "type": "string",
+          "title": "The recipient address"
+        },
+        "encryptedDeposit": {
+          "type": "string",
+          "title": "The encrypted deposit data"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64",
+          "title": "The block number associated with the deposit"
+        }
+      },
+      "description": "BackupDepositRequest is the request message for BackupDeposit method."
+    },
+    "v1BackupDepositResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "Indicates if the backup transfer was successful"
+        },
+        "data": {
+          "$ref": "#/definitions/v1BackupDepositResponseData",
+          "title": "Additional data related to the response"
+        }
+      },
+      "description": "BackupDepositResponse is the response message for Backup method."
+    },
+    "v1BackupDepositResponseData": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "title": "A message indicating the result of the backup transfer"
+        }
+      },
+      "title": "Data is the nested message containing detailed response information"
+    },
+    "v1BackupTransactionRequest": {
+      "type": "object",
+      "properties": {
+        "encryptedTx": {
+          "type": "string",
+          "title": "The encrypted transaction data"
+        },
+        "sender": {
+          "type": "string",
+          "title": "The sender address"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64",
+          "title": "The block number associated with the transaction"
+        },
+        "signature": {
+          "type": "string",
+          "title": "The signature for the transaction"
+        }
+      },
+      "description": "BackupTransactionRequest is the request message for BackupTransaction method."
+    },
+    "v1BackupTransactionResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "Indicates if the backup transfer was successful"
+        },
+        "data": {
+          "$ref": "#/definitions/v1BackupTransactionResponseData",
+          "title": "Additional data related to the response"
+        }
+      },
+      "description": "BackupTransactionResponse is the response message for Backup method."
+    },
+    "v1BackupTransactionResponseData": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "title": "A message indicating the result of the backup transfer"
+        }
+      },
+      "title": "Data is the nested message containing detailed response information"
+    },
+    "v1BackupTransferRequest": {
+      "type": "object",
+      "properties": {
+        "encryptedTransfer": {
+          "type": "string",
+          "title": "The encrypted data for the transfer"
+        },
+        "recipient": {
+          "type": "string",
+          "title": "The recipient address"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64",
+          "title": "The block number associated with the transfer"
+        }
+      },
+      "description": "BackupTransferRequest is the request message for BackupTransfer method."
+    },
+    "v1BackupTransferResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "Indicates if the backup transfer was successful"
+        },
+        "data": {
+          "$ref": "#/definitions/v1BackupTransferResponseData",
+          "title": "Additional data related to the response"
+        }
+      },
+      "description": "BackupTransferResponse is the response message for Backup method."
+    },
+    "v1BackupTransferResponseData": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "title": "A message indicating the result of the backup transfer"
+        }
+      },
+      "title": "Data is the nested message containing detailed response information"
     },
     "v1BlockProposedRequest": {
       "type": "object",
@@ -531,6 +819,20 @@
       },
       "title": "EnoughBalanceProof contains the proof for enough balance"
     },
+    "v1GetBalancesResponse": {
+      "type": "object",
+      "properties": {
+        "balances": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1TokenBalance"
+          },
+          "title": "The list of token balances"
+        }
+      },
+      "description": "The response message containing a list of token balances."
+    },
     "v1HealthCheckResponse": {
       "type": "object",
       "properties": {
@@ -594,6 +896,21 @@
         }
       },
       "title": "RecipientTransferDataTransactionRequest describes recipient of request to get info about the create new transaction"
+    },
+    "v1TokenBalance": {
+      "type": "object",
+      "properties": {
+        "tokenIndex": {
+          "type": "integer",
+          "format": "int32",
+          "title": "The index of the token"
+        },
+        "amount": {
+          "type": "string",
+          "title": "The amount of the token"
+        }
+      },
+      "description": "The balance of a specific token."
     },
     "v1Transaction": {
       "type": "object",
@@ -837,11 +1154,21 @@
           "title": "indicates if the request was successful"
         },
         "data": {
-          "$ref": "#/definitions/WithdrawalRequestResponseData",
+          "$ref": "#/definitions/v1WithdrawalRequestResponseData",
           "title": "contains additional data about the response"
         }
       },
       "title": "WithdrawalRequestResponse describes the response for a withdrawal request"
+    },
+    "v1WithdrawalRequestResponseData": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "title": "the message with additional details"
+        }
+      },
+      "title": "Data contains additional information in the response"
     },
     "v1WithdrawalsByHashesRequest": {
       "type": "object",

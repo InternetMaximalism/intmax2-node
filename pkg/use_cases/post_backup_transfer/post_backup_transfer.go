@@ -3,29 +3,40 @@ package post_backup_transfer
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
+	"intmax2-node/configs"
+	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
+	service "intmax2-node/internal/store_vault_service"
 	intMaxTypes "intmax2-node/internal/types"
-	"intmax2-node/internal/use_cases/backup_transfer"
+	backupTransfer "intmax2-node/internal/use_cases/backup_transfer"
 	"io"
 
 	"go.opentelemetry.io/otel/attribute"
 )
 
 // uc describes use case
-type uc struct{}
+type uc struct {
+	cfg *configs.Config
+	log logger.Logger
+	db  SQLDriverApp
+}
 
-func New() backup_transfer.UseCasePostBackupTransfer {
-	return &uc{}
+func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupTransfer.UseCasePostBackupTransfer {
+	return &uc{
+		cfg: cfg,
+		log: log,
+		db:  db,
+	}
 }
 
 func (u *uc) Do(
-	ctx context.Context, input *backup_transfer.UCPostBackupTransferInput,
-) (*backup_transfer.UCPostBackupTransfer, error) {
+	ctx context.Context, input *backupTransfer.UCPostBackupTransferInput,
+) error {
 	const (
-		hName                = "UseCase PostBackupTransfer"
-		recipientKey         = "recipient"
-		blockNumberKey       = "block_number"
-		encryptedTransferKey = "encrypted_transfer"
+		hName          = "UseCase PostBackupTransfer"
+		recipientKey   = "recipient"
+		blockNumberKey = "block_number"
 	)
 
 	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
@@ -33,22 +44,20 @@ func (u *uc) Do(
 
 	if input == nil {
 		open_telemetry.MarkSpanError(spanCtx, ErrUCPostBackupTransferInputEmpty)
-		return nil, ErrUCPostBackupTransferInputEmpty
+		return ErrUCPostBackupTransferInputEmpty
 	}
 
 	span.SetAttributes(
-		attribute.String(recipientKey, input.DecodeRecipient.ToAddress().String()),
+		attribute.String(recipientKey, input.Recipient),
 		attribute.Int64(blockNumberKey, int64(input.BlockNumber)),
-		attribute.String(encryptedTransferKey, input.EncryptedTransfer),
 	)
 
-	// TODO: Implement backup transfer logic here.
-
-	resp := backup_transfer.UCPostBackupTransfer{
-		Message: "Transfer data backup successful.",
+	err := service.PostBackupTransfer(ctx, u.cfg, u.log, u.db, input)
+	if err != nil {
+		return fmt.Errorf("failed to post backup transfer: %w", err)
 	}
 
-	return &resp, nil
+	return nil
 }
 
 func WriteTransfer(buf io.Writer, transfer *intMaxTypes.Transfer) error {

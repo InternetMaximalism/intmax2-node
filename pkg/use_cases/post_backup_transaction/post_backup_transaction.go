@@ -3,11 +3,15 @@ package post_backup_transaction
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
+	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/finite_field"
+	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
+	service "intmax2-node/internal/store_vault_service"
 	intMaxTypes "intmax2-node/internal/types"
-	"intmax2-node/internal/use_cases/backup_transaction"
+	backupTransaction "intmax2-node/internal/use_cases/backup_transaction"
 	"intmax2-node/pkg/use_cases/post_backup_transfer"
 	"io"
 
@@ -16,15 +20,23 @@ import (
 )
 
 // uc describes use case
-type uc struct{}
+type uc struct {
+	cfg *configs.Config
+	log logger.Logger
+	db  SQLDriverApp
+}
 
-func New() backup_transaction.UseCasePostBackupTransaction {
-	return &uc{}
+func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupTransaction.UseCasePostBackupTransaction {
+	return &uc{
+		cfg: cfg,
+		log: log,
+		db:  db,
+	}
 }
 
 func (u *uc) Do(
-	ctx context.Context, input *backup_transaction.UCPostBackupTransactionInput,
-) (*backup_transaction.UCPostBackupTransaction, error) {
+	ctx context.Context, input *backupTransaction.UCPostBackupTransactionInput,
+) error {
 	const (
 		hName          = "UseCase PostBackupTransaction"
 		senderKey      = "sender"
@@ -37,22 +49,21 @@ func (u *uc) Do(
 
 	if input == nil {
 		open_telemetry.MarkSpanError(spanCtx, ErrUCPostBackupTransactionInputEmpty)
-		return nil, ErrUCPostBackupTransactionInputEmpty
+		return ErrUCPostBackupTransactionInputEmpty
 	}
 
 	span.SetAttributes(
-		attribute.String(senderKey, input.DecodeSender.ToAddress().String()),
+		attribute.String(senderKey, input.Sender),
 		attribute.Int64(blockNumberKey, int64(input.BlockNumber)),
 		attribute.String(encryptedTxKey, input.EncryptedTx),
 	)
 
-	// TODO: Implement backup transaction logic here.
-
-	resp := backup_transaction.UCPostBackupTransaction{
-		Message: "Transaction data backup successful.",
+	err := service.PostBackupTransaction(ctx, u.cfg, u.log, u.db, input)
+	if err != nil {
+		return fmt.Errorf("failed to post backup transfer: %w", err)
 	}
 
-	return &resp, nil
+	return nil
 }
 
 func WriteTransfers(buf io.Writer, transfers []*intMaxTypes.Transfer) error {

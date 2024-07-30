@@ -3,6 +3,9 @@ package db_app
 import (
 	"context"
 	"encoding/json"
+	backupDeposit "intmax2-node/internal/use_cases/backup_deposit"
+	backupTransaction "intmax2-node/internal/use_cases/backup_transaction"
+	backupTransfer "intmax2-node/internal/use_cases/backup_transfer"
 	postWithdrwalRequest "intmax2-node/internal/use_cases/post_withdrawal_request"
 	"intmax2-node/pkg/sql_db/db_app/models"
 
@@ -14,12 +17,15 @@ type SQLDb interface {
 	GenericCommands
 	ServiceCommands
 	Tokens
-	Withdrawals
 	Signatures
 	// Transactions
 	TxMerkleProofs
 	EventBlockNumbers
 	Balances
+	Withdrawals
+	BackupTransfers
+	BackupTransactions
+	BackupDeposits
 }
 
 type GenericCommands interface {
@@ -86,4 +92,22 @@ type Withdrawals interface {
 	WithdrawalByID(id string) (*models.Withdrawal, error)
 	WithdrawalsByHashes(transferHashes []string) (*[]models.Withdrawal, error)
 	WithdrawalsByStatus(status models.WithdrawalStatus, limit *int) (*[]models.Withdrawal, error)
+}
+
+type BackupTransfers interface {
+	CreateBackupTransfer(input *backupTransfer.UCPostBackupTransferInput) (*models.BackupTransfer, error)
+	GetBackupTransfer(condition string, value string) (*models.BackupTransfer, error)
+	GetBackupTransfers(condition string, value interface{}) ([]*models.BackupTransfer, error)
+}
+
+type BackupTransactions interface {
+	CreateBackupTransaction(input *backupTransaction.UCPostBackupTransactionInput) (*models.BackupTransaction, error)
+	GetBackupTransaction(condition string, value string) (*models.BackupTransaction, error)
+	GetBackupTransactions(condition string, value interface{}) ([]*models.BackupTransaction, error)
+}
+
+type BackupDeposits interface {
+	CreateBackupDeposit(input *backupDeposit.UCPostBackupDepositInput) (*models.BackupDeposit, error)
+	GetBackupDeposit(condition string, value string) (*models.BackupDeposit, error)
+	GetBackupDeposits(condition string, value interface{}) ([]*models.BackupDeposit, error)
 }
