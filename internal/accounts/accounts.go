@@ -304,7 +304,13 @@ func NewPublicKeyFromAddressHex(address string) (*PublicKey, error) {
 }
 
 func NewAddressFromAddressInt(a *big.Int) (Address, error) {
-	return NewAddressFromBytes(a.Bytes())
+	const int64Key = 64
+	addressHex := hex.EncodeToString(a.Bytes())
+	// padded 32 bytes
+	if len(addressHex) < int64Key {
+		addressHex = fmt.Sprintf("%064s", addressHex)
+	}
+	return NewAddressFromHex("0x" + addressHex)
 }
 
 func NewPublicKeyFromAddressInt(a *big.Int) (*PublicKey, error) {
@@ -367,8 +373,20 @@ func (a Address) Public() (*PublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
+	publicKey, err := NewPublicKey(point)
+	if err == nil {
+		return publicKey, nil
+	}
 
-	return NewPublicKey(point)
+	// Try the largest y coordinate
+	point.Y.Neg(&point.Y)
+
+	publicKey, err = NewPublicKey(point)
+	if err != nil {
+		return nil, errors.Join(ErrValidPublicKeyFail, err)
+	}
+
+	return publicKey, nil
 }
 
 func (a Address) Bytes() []byte {
