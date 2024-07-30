@@ -151,6 +151,8 @@ message DataBlockProposedResponse {
   string tx_root = 10 [json_name="txRoot", (tagger.tags)="json:\"txRoot,omitempty\""];
   // the Merkle proof from the tx tree for the specified tx_hash
   repeated string tx_tree_merkle_proof = 20 [json_name="txTreeMerkleProof", (tagger.tags)="json:\"txTreeMerkleProof,omitempty\""];
+
+  repeated string public_keys = 30 [json_name="publicKeys", (tagger.tags)="json:\"publicKeys,omitempty\""];
 }
 
 // BlockProposedResponse describes response about retrieves the Merkle proof of a block containing the user's transaction, if available
@@ -161,14 +163,32 @@ message BlockProposedResponse {
   DataBlockProposedResponse data = 10 [json_name="data", (tagger.tags)="json:\"data,omitempty\""];
 }
 
+// Plonky2ProofOfEnoughBalanceProofOfBlockSignatureRequest describes the Plonky2Proof values for BlockSignatureRequest
+message Plonky2ProofBlockSignatureRequest {
+  // the publicInputs value
+  repeated uint64 public_inputs = 10 [json_name="publicInputs", (tagger.tags)="json:\"publicInputs,omitempty\""];
+  // the proof value
+  bytes proof = 20 [json_name="proof", (tagger.tags)="json:\"proof,omitempty\""];
+}
+
+// EnoughBalanceOfProofBlockSignatureRequest describes the proof of sufficient balance after sending for BlockSignatureRequest
+message EnoughBalanceOfProofBlockSignatureRequest {
+  // the previous balance proof value
+  Plonky2ProofBlockSignatureRequest prev_balance_proof = 10 [json_name="prevBalanceProof", (tagger.tags)="json:\"prevBalanceProof,omitempty\""];
+  // the transfer step proof value
+  Plonky2ProofBlockSignatureRequest transfer_step_proof = 20 [json_name="transferStepProof", (tagger.tags)="json:\"transferStepProof,omitempty\""];
+}
+
 // BlockSignatureRequest describes request about sends the signature to approve the proposed block by signing the tx tree root
 message BlockSignatureRequest {
+  // the sender's INTMAX address
+  string sender = 10 [json_name="sender", (tagger.tags)="json:\"sender,omitempty\""];
   // the transaction tree root hash
-  string tx_root = 10 [json_name="txRoot", (tagger.tags)="json:\"txRoot,omitempty\""];
+  string tx_hash = 20 [json_name="txHash", (tagger.tags)="json:\"txHash,omitempty\""];
   // the user's signature
-  string signature = 20 [json_name="signature", (tagger.tags)="json:\"signature,omitempty\""];
+  string signature = 30 [json_name="signature", (tagger.tags)="json:\"signature,omitempty\""];
   // the proof of sufficient balance after sending
-  string enough_balance_proof = 30 [json_name="enoughBalanceProof", (tagger.tags)="json:\"enoughBalanceProof,omitempty\""];
+  EnoughBalanceOfProofBlockSignatureRequest enough_balance_proof = 40 [json_name="enoughBalanceProof", (tagger.tags)="json:\"enoughBalanceProof,omitempty\""];
 }
 
 // DataBlockSignatureResponse describes the data of response about sends the signature to approve the proposed block by signing the tx tree root

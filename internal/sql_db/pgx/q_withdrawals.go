@@ -128,6 +128,51 @@ func (p *pgx) WithdrawalByID(id string) (*mDBApp.Withdrawal, error) {
 	return &wDBApp, nil
 }
 
+func (p *pgx) WithdrawalsByHashes(transferHashes []string) (*[]mDBApp.Withdrawal, error) {
+	const query = `
+        SELECT id, status, transfer_data, transfer_merkle_proof, transaction, tx_merkle_proof, enough_balance_proof, transfer_hash, block_number, block_hash, created_at
+        FROM withdrawals
+        WHERE transfer_hash = ANY($1)
+        ORDER BY created_at ASC`
+
+	var args []interface{}
+	args = append(args, transferHashes)
+
+	rows, err := p.query(p.ctx, query, args...)
+	if err != nil {
+		return nil, errPgx.Err(err)
+	}
+	defer rows.Close()
+
+	var withdrawals []mDBApp.Withdrawal
+	for rows.Next() {
+		var w models.Withdrawal
+		var transferDataJSON, transferMerkleProofJSON, transactionJSON, txMerkleProofJSON, enoughBalanceProofJSON []byte
+
+		err = rows.Scan(
+			&w.ID, &w.Status, &transferDataJSON, &transferMerkleProofJSON,
+			&transactionJSON, &txMerkleProofJSON, &enoughBalanceProofJSON,
+			&w.TransferHash, &w.BlockNumber, &w.BlockHash, &w.CreatedAt,
+		)
+		if err != nil {
+			return nil, errPgx.Err(err)
+		}
+
+		err = unmarshalWithdrawalData(&w, transferDataJSON, transferMerkleProofJSON, transactionJSON, txMerkleProofJSON, enoughBalanceProofJSON)
+		if err != nil {
+			return nil, err
+		}
+
+		withdrawals = append(withdrawals, p.wToDBApp(&w))
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, errPgx.Err(err)
+	}
+
+	return &withdrawals, nil
+}
+
 func (p *pgx) WithdrawalsByStatus(status mDBApp.WithdrawalStatus, limit *int) (*[]mDBApp.Withdrawal, error) {
 	baseQuery := `
         SELECT id, status, transfer_data, transfer_merkle_proof, transaction, tx_merkle_proof, enough_balance_proof, transfer_hash, block_number, block_hash, created_at

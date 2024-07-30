@@ -18,7 +18,7 @@ type PGX interface {
 	ServiceCommands
 	Tokens
 	Signatures
-	Transactions
+	// Transactions
 	TxMerkleProofs
 	EventBlockNumbers
 	Balances
@@ -54,18 +54,19 @@ type Signatures interface {
 	SignatureByID(txID string) (*mDBApp.Signature, error)
 }
 
-type Transactions interface {
-	CreateTransaction(
-		senderPublicKey, txHash, signatureID string,
-	) (*mDBApp.Transactions, error)
-	TransactionByID(txID string) (*mDBApp.Transactions, error)
-}
+// type Transactions interface {
+// 	CreateTransaction(
+// 		senderPublicKey, txHash, signatureID, txTreeRoot string, txMerkleProof []string,
+// 	) (*mDBApp.Transactions, error)
+// 	TransactionByID(txID string) (*mDBApp.Transactions, error)
+// }
 
 type TxMerkleProofs interface {
 	CreateTxMerkleProofs(
-		senderPublicKey, txHash, txID string,
+		senderPublicKey, txHash, signatureID string,
 		txTreeIndex *uint256.Int,
 		txMerkleProof json.RawMessage,
+		txTreeRoot string,
 	) (*mDBApp.TxMerkleProofs, error)
 	TxMerkleProofsByID(id string) (*mDBApp.TxMerkleProofs, error)
 	TxMerkleProofsByTxHash(txHash string) (*mDBApp.TxMerkleProofs, error)
@@ -89,6 +90,7 @@ type Withdrawals interface {
 	CreateWithdrawal(id string, input *postWithdrwalRequest.UCPostWithdrawalRequestInput) (*mDBApp.Withdrawal, error)
 	UpdateWithdrawalsStatus(ids []string, status mDBApp.WithdrawalStatus) error
 	WithdrawalByID(id string) (*mDBApp.Withdrawal, error)
+	WithdrawalsByHashes(transferHashes []string) (*[]mDBApp.Withdrawal, error)
 	WithdrawalsByStatus(status mDBApp.WithdrawalStatus, limit *int) (*[]mDBApp.Withdrawal, error)
 }
 

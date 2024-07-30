@@ -18,7 +18,7 @@ type SQLDb interface {
 	ServiceCommands
 	Tokens
 	Signatures
-	Transactions
+	// Transactions
 	TxMerkleProofs
 	EventBlockNumbers
 	Balances
@@ -54,18 +54,19 @@ type Signatures interface {
 	SignatureByID(txID string) (*models.Signature, error)
 }
 
-type Transactions interface {
-	CreateTransaction(
-		senderPublicKey, txHash, signatureID string,
-	) (*models.Transactions, error)
-	TransactionByID(txID string) (*models.Transactions, error)
-}
+// type Transactions interface {
+// 	CreateTransaction(
+// 		senderPublicKey, txHash, signatureID, txRootHash string, txMerkleProof []string,
+// 	) (*models.Transactions, error)
+// 	TransactionByID(txID string) (*models.Transactions, error)
+// }
 
 type TxMerkleProofs interface {
 	CreateTxMerkleProofs(
-		senderPublicKey, txHash, txID string,
+		senderPublicKey, txHash, signatureID string,
 		txTreeIndex *uint256.Int,
 		txMerkleProof json.RawMessage,
+		txTreeRoot string,
 	) (*models.TxMerkleProofs, error)
 	TxMerkleProofsByID(id string) (*models.TxMerkleProofs, error)
 	TxMerkleProofsByTxHash(txHash string) (*models.TxMerkleProofs, error)
@@ -89,6 +90,7 @@ type Withdrawals interface {
 	CreateWithdrawal(id string, input *postWithdrwalRequest.UCPostWithdrawalRequestInput) (*models.Withdrawal, error)
 	UpdateWithdrawalsStatus(ids []string, status models.WithdrawalStatus) error
 	WithdrawalByID(id string) (*models.Withdrawal, error)
+	WithdrawalsByHashes(transferHashes []string) (*[]models.Withdrawal, error)
 	WithdrawalsByStatus(status models.WithdrawalStatus, limit *int) (*[]models.Withdrawal, error)
 }
 

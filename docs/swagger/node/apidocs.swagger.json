@@ -410,7 +410,47 @@
         ]
       }
     },
-    "/v1/withdrawal/request": {
+    "/v1/withdrawals/find-by-hashes": {
+      "post": {
+        "summary": "WithdrawalsByHashes retrieves withdrawal records by their transfer hashes",
+        "description": "## WithdrawalsByHashes retrieves withdrawal records by their transfer hashes",
+        "operationId": "WithdrawalService_WithdrawalsByHashes",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1WithdrawalsByHashesResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1WithdrawalsByHashesRequest"
+            }
+          }
+        ],
+        "tags": [
+          "WithdrawalService"
+        ]
+      }
+    },
+    "/v1/withdrawals/request": {
       "post": {
         "summary": "WithdrawalRequest processes a request for withdrawal",
         "description": "## WithdrawalRequest processes a request for withdrawal",
@@ -627,7 +667,11 @@
     "v1BlockSignatureRequest": {
       "type": "object",
       "properties": {
-        "txRoot": {
+        "sender": {
+          "type": "string",
+          "title": "the sender's INTMAX address"
+        },
+        "txHash": {
           "type": "string",
           "title": "the transaction tree root hash"
         },
@@ -636,7 +680,7 @@
           "title": "the user's signature"
         },
         "enoughBalanceProof": {
-          "type": "string",
+          "$ref": "#/definitions/v1EnoughBalanceOfProofBlockSignatureRequest",
           "title": "the proof of sufficient balance after sending"
         }
       },
@@ -669,6 +713,12 @@
             "type": "string"
           },
           "title": "the Merkle proof from the tx tree for the specified tx_hash"
+        },
+        "publicKeys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "title": "DataBlockProposedResponse describes the data of response about retrieves the Merkle proof of a block containing the user's transaction, if available"
@@ -692,6 +742,20 @@
         }
       },
       "title": "DataTransactionResponse describes the data of response to get info about the create new transaction"
+    },
+    "v1EnoughBalanceOfProofBlockSignatureRequest": {
+      "type": "object",
+      "properties": {
+        "prevBalanceProof": {
+          "$ref": "#/definitions/v1Plonky2ProofBlockSignatureRequest",
+          "title": "the previous balance proof value"
+        },
+        "transferStepProof": {
+          "$ref": "#/definitions/v1Plonky2ProofBlockSignatureRequest",
+          "title": "the transfer step proof value"
+        }
+      },
+      "title": "EnoughBalanceOfProofBlockSignatureRequest describes the proof of sufficient balance after sending for BlockSignatureRequest"
     },
     "v1EnoughBalanceProof": {
       "type": "object",
@@ -751,6 +815,25 @@
         }
       },
       "title": "InfoResponse describes response about retrieves the block builder's Scroll address, transaction fee, and difficulty"
+    },
+    "v1Plonky2ProofBlockSignatureRequest": {
+      "type": "object",
+      "properties": {
+        "publicInputs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uint64"
+          },
+          "title": "the publicInputs value"
+        },
+        "proof": {
+          "type": "string",
+          "format": "byte",
+          "title": "the proof value"
+        }
+      },
+      "title": "Plonky2ProofOfEnoughBalanceProofOfBlockSignatureRequest describes the Plonky2Proof values for BlockSignatureRequest"
     },
     "v1RecipientTransferDataTransactionRequest": {
       "type": "object",
@@ -945,6 +1028,37 @@
       },
       "title": "VersionResponse describes response to get info about the build version info and build time"
     },
+    "v1Withdrawal": {
+      "type": "object",
+      "properties": {
+        "transferData": {
+          "$ref": "#/definitions/v1TransferData",
+          "title": "the transfer data"
+        },
+        "transaction": {
+          "$ref": "#/definitions/v1Transaction",
+          "title": "the transaction data"
+        },
+        "transferHash": {
+          "type": "string",
+          "title": "the transfer hash"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64",
+          "title": "the block number"
+        },
+        "blockHash": {
+          "type": "string",
+          "title": "the block hash"
+        },
+        "status": {
+          "type": "string",
+          "description": "the status of the withdrawal (e.g., pending, success, failed)."
+        }
+      },
+      "title": "Withdrawal represents the withdrawal data"
+    },
     "v1WithdrawalRequestRequest": {
       "type": "object",
       "properties": {
@@ -1007,6 +1121,32 @@
         }
       },
       "title": "Data contains additional information in the response"
+    },
+    "v1WithdrawalsByHashesRequest": {
+      "type": "object",
+      "properties": {
+        "transferHashes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "WithdrawalsByHashesRequest is the request message for WithdrawalsByHashes"
+    },
+    "v1WithdrawalsByHashesResponse": {
+      "type": "object",
+      "properties": {
+        "withdrawals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Withdrawal"
+          },
+          "description": "A list of Withdrawal messages that match the provided transfer hashes."
+        }
+      },
+      "title": "WithdrawalsByHashesResponse is the response message for WithdrawalsByHashes"
     }
   }
 }

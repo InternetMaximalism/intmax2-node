@@ -2,8 +2,10 @@ package transaction
 
 import (
 	"errors"
+	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
+	intMaxTypes "intmax2-node/internal/types"
 	"time"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
@@ -149,12 +151,30 @@ func (input *UCTransactionInput) isPoW(pow PoWNonce) validation.Rule {
 			return ErrValueInvalid
 		}
 
-		messageForPow, err := hexutil.Decode(input.TransfersHash)
+		transfersHashBytes, err := hexutil.Decode(input.TransfersHash)
 		if err != nil {
 			ErrFailToDecodeTransfersHash := errors.New("failed to decode transfers hash")
 			return ErrFailToDecodeTransfersHash
 		}
 
+		transfersHash := new(intMaxTypes.PoseidonHashOut)
+		err = transfersHash.Unmarshal(transfersHashBytes)
+		if err != nil {
+			ErrFailToUnmarshalTransfersHash := errors.New("failed to unmarshal transfers hash")
+			return ErrFailToUnmarshalTransfersHash
+		}
+
+		tx, err := intMaxTypes.NewTx(
+			transfersHash,
+			input.Nonce,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create new tx: %w", err)
+		}
+
+		txHash := tx.Hash()
+
+		messageForPow := txHash.Marshal()
 		err = pow.Verify(v, messageForPow)
 		if err != nil {
 			ErrFailToVerifyPoWNonce := errors.New("failed to verify PoW nonce")

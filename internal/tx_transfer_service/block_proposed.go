@@ -3,37 +3,59 @@ package tx_transfer_service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
-	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/hash/goldenposeidon"
+	"intmax2-node/internal/logger"
+	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/block_proposed"
-	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/go-resty/resty/v2"
+	"github.com/iden3/go-iden3-crypto/ffg"
 )
+
+const signTimeout = 60 * time.Minute
 
 func GetBlockProposed(
 	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
 	senderAccount *intMaxAcc.PrivateKey,
 	transfersHash goldenposeidon.PoseidonHashOut,
+	nonce uint64,
 ) (*BlockProposedResponseData, error) {
-	message := finite_field.BytesToFieldElementSlice(transfersHash.Marshal())
+	tx, err := intMaxTypes.NewTx(
+		&transfersHash,
+		nonce,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new tx: %w", err)
+	}
+
+	txHash := tx.Hash()
+	log.Printf("transfersHash: %s", transfersHash.String())
+	log.Printf("nonce: %d", nonce)
+	log.Printf("tx hash: %s", tx.Hash())
+
+	expiration := time.Now().Add(signTimeout)
+	var message []ffg.Element
+	message, err = block_proposed.MakeMessage(txHash.String(), senderAccount.ToAddress().String(), expiration)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make message: %w", err)
+	}
+
 	signature, err := senderAccount.Sign(message)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign message: %w", err)
 	}
 
-	const duration = 60 * time.Minute
-	expiration := time.Now().Add(duration)
-
 	res, err := retryRequest(
-		ctx, senderAccount.ToAddress(), transfersHash, expiration, signature,
+		ctx, cfg, log, senderAccount.ToAddress(), *txHash, expiration, signature,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get proposed block: %w", err)
@@ -42,39 +64,54 @@ func GetBlockProposed(
 	return res, nil
 }
 
-const retryInterval = 10 * time.Second
+const (
+	retryInterval   = 10 * time.Second
+	timeoutInterval = 120 * time.Second
+)
 
 func retryRequest(
-	_ context.Context,
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
 	senderAddress intMaxAcc.Address,
 	txHash goldenposeidon.PoseidonHashOut,
 	expiration time.Time,
 	signature *bn254.G2Affine,
 ) (*BlockProposedResponseData, error) {
-	// TODO: Implement context with timeout
-	const numRetry = 6
-	for i := 0; i < numRetry; i++ {
-		response, err := GetBlockProposedRawRequest(
-			senderAddress,
-			txHash,
-			expiration,
-			signature,
-		)
-		if err == nil {
-			return response, nil
+	ticker := time.NewTicker(retryInterval)
+
+	gbpCtx, cancel := context.WithTimeout(ctx, timeoutInterval)
+	defer cancel()
+
+	for {
+		select {
+		case <-gbpCtx.Done():
+			const msg = "failed to get proposed block"
+			return nil, fmt.Errorf(msg)
+		case <-ticker.C:
+			response, err := GetBlockProposedRawRequest(
+				ctx,
+				cfg,
+				log,
+				senderAddress,
+				txHash,
+				expiration,
+				signature,
+			)
+			if err == nil {
+				return response, nil
+			}
+
+			const msg = "Cannot get successful response. Retry in %f second(s)"
+			log.WithError(err).Errorf(msg, retryInterval.Seconds())
 		}
-
-		fmt.Println("Cannot get successful response. Retry in", retryInterval)
-		time.Sleep(retryInterval)
 	}
-
-	return nil, errors.New("failed to get proposed block")
 }
 
 type BlockProposedResponseData struct {
 	TxTreeRoot        goldenposeidon.PoseidonHashOut    `json:"txTreeRoot"`
 	TxTreeMerkleProof []*goldenposeidon.PoseidonHashOut `json:"txTreeMerkleProof"`
-	PublicKeysHash    []byte                            `json:"publicKeysHash"`
+	PublicKeys        []*intMaxAcc.PublicKey            `json:"publicKeys"`
 }
 
 type BlockProposedResponse struct {
@@ -83,17 +120,23 @@ type BlockProposedResponse struct {
 }
 
 func GetBlockProposedRawRequest(
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
 	senderAddress intMaxAcc.Address,
 	txHash goldenposeidon.PoseidonHashOut,
 	expiration time.Time,
 	signature *bn254.G2Affine,
 ) (*BlockProposedResponseData, error) {
 	return getBlockProposedRawRequest(
-		senderAddress.String(), hexutil.Encode(txHash.Marshal()), expiration, hexutil.Encode(signature.Marshal()),
+		ctx, cfg, log, senderAddress.String(), hexutil.Encode(txHash.Marshal()), expiration, hexutil.Encode(signature.Marshal()),
 	)
 }
 
 func getBlockProposedRawRequest(
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
 	senderAddress, txHash string,
 	expiration time.Time,
 	signature string,
@@ -110,39 +153,62 @@ func getBlockProposedRawRequest(
 		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	body := strings.NewReader(string(bd))
-
 	const (
-		apiBaseUrl  = "http://localhost"
-		contentType = "application/json"
+		httpKey     = "http"
+		httpsKey    = "https"
+		contentType = "Content-Type"
+		appJSON     = "application/json"
 	)
-	apiUrl := fmt.Sprintf("%s/v1/block/proposed", apiBaseUrl)
 
-	resp, err := http.Post(apiUrl, contentType, body) // nolint:gosec
-	if err != nil {
-		return nil, fmt.Errorf("failed to request API: %w", err)
+	schema := httpKey
+	if cfg.HTTP.TLSUse {
+		schema = httpsKey
 	}
+
+	apiUrl := fmt.Sprintf("%s://%s/v1/block/proposed", schema, cfg.HTTP.Addr())
+
+	r := resty.New().R()
+	var resp *resty.Response
+	resp, err = r.SetContext(ctx).SetHeaders(map[string]string{
+		contentType: appJSON,
+	}).SetBody(bd).Post(apiUrl)
+	if err != nil {
+		const msg = "failed to send ot the block proposed request: %w"
+		return nil, fmt.Errorf(msg, err)
+	}
+
+	if resp == nil {
+		const msg = "send request error occurred"
+		return nil, fmt.Errorf(msg)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		err = fmt.Errorf("failed to get response")
+		log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return nil, err
+	}
+
 	defer func() {
-		_ = resp.Body.Close()
+		if err != nil {
+			log.WithFields(logger.Fields{
+				"status_code": resp.StatusCode(),
+				"response":    resp.String(),
+			}).WithError(err).Errorf("Processing ended error occurred")
+		}
 	}()
 
-	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("Unexpected status code: %d\n", resp.StatusCode)
-		var bodyBytes []byte
-		bodyBytes, err = io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, fmt.Errorf("error reading response body: %w", err)
-		}
-		return nil, fmt.Errorf("response body: %s", string(bodyBytes))
-	}
-
 	var res BlockProposedResponse
-	if err = json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return nil, fmt.Errorf("failed to decode JSON response: %w", err)
+	if err = json.Unmarshal(resp.Body(), &res); err != nil {
+		err = fmt.Errorf("failed to unmarshal response: %w", err)
+		return nil, err
 	}
 
 	if !res.Success {
-		return nil, fmt.Errorf("failed to get proposed block: %v", res)
+		err = fmt.Errorf("failed to get proposed block: %v", res)
+		return nil, err
 	}
 
 	txRoot := new(goldenposeidon.PoseidonHashOut)
@@ -156,19 +222,23 @@ func getBlockProposedRawRequest(
 		sibling := new(goldenposeidon.PoseidonHashOut)
 		err = sibling.FromString(proof)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode tx tree merkle proof: %w", err)
+			err = fmt.Errorf("failed to decode tx tree merkle proof: %w", err)
+			return nil, err
 		}
 		txTreeMerkleProof[i] = sibling
 	}
 
-	publicKeysHash, err := hexutil.Decode(res.Data.PublicKeysHash)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode public keys hash: %w", err)
+	publicKeys := make([]*intMaxAcc.PublicKey, len(res.Data.PublicKeys))
+	for i, address := range res.Data.PublicKeys {
+		publicKeys[i], err = intMaxAcc.NewPublicKeyFromAddressHex(address)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode public keys hash: %w", err)
+		}
 	}
 
 	return &BlockProposedResponseData{
 		TxTreeRoot:        *txRoot,
 		TxTreeMerkleProof: txTreeMerkleProof,
-		PublicKeysHash:    publicKeysHash,
+		PublicKeys:        publicKeys,
 	}, nil
 }

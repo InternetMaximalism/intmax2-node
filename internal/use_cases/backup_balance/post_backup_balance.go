@@ -5,6 +5,7 @@ import (
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/hash/goldenposeidon"
+	"intmax2-node/internal/use_cases/block_signature"
 	"math/big"
 
 	"github.com/iden3/go-iden3-crypto/ffg"
@@ -32,12 +33,79 @@ type PublicState struct {
 	BlockNumber         uint32
 }
 
+func (pis *PublicState) Equal(other *PublicState) bool {
+	if !pis.BlockTreeRoot.Equal(&other.BlockTreeRoot) {
+		return false
+	}
+	if !pis.PrevAccountTreeRoot.Equal(&other.PrevAccountTreeRoot) {
+		return false
+	}
+	if !pis.AccountTreeRoot.Equal(&other.AccountTreeRoot) {
+		return false
+	}
+	if pis.DepositTreeRoot != other.DepositTreeRoot {
+		return false
+	}
+	if pis.BlockHash != other.BlockHash {
+		return false
+	}
+	if pis.BlockNumber != other.BlockNumber {
+		return false
+	}
+	return true
+}
+
 type BalancePublicInputs struct {
 	PublicKey               *big.Int                       `json:"pubkey"`
 	PrivateCommitment       goldenposeidon.PoseidonHashOut `json:"private_commitment"`
 	LastTxHash              goldenposeidon.PoseidonHashOut `json:"last_tx_hash"`
 	LastTxInsufficientFlags InsufficientFlags              `json:"last_tx_insufficient_flags"`
 	PublicState             PublicState                    `json:"public_state"`
+}
+
+func (pis *BalancePublicInputs) Equal(other *BalancePublicInputs) bool {
+	if pis.PublicKey.Cmp(other.PublicKey) != 0 {
+		return false
+	}
+	if !pis.PrivateCommitment.Equal(&other.PrivateCommitment) {
+		return false
+	}
+	if !pis.LastTxHash.Equal(&other.LastTxHash) {
+		return false
+	}
+	if pis.LastTxInsufficientFlags != other.LastTxInsufficientFlags {
+		return false
+	}
+	if !pis.PublicState.Equal(&other.PublicState) {
+		return false
+	}
+	return true
+}
+
+func VerifyEnoughBalanceProof(enoughBalanceProof *block_signature.Plonky2Proof) (*BalancePublicInputs, error) {
+	publicInputs := make([]ffg.Element, len(enoughBalanceProof.PublicInputs))
+	for i, publicInput := range enoughBalanceProof.PublicInputs {
+		publicInputs[i].SetUint64(publicInput)
+	}
+	decodedPublicInputs := new(BalancePublicInputs).FromPublicInputs(publicInputs)
+	err := decodedPublicInputs.Verify()
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Verify verifier data in public inputs.
+
+	// TODO: Verify enough balance proof by using Balance Validity Prover.
+	return decodedPublicInputs, nil
+}
+func (pis *BalancePublicInputs) FromPublicInputs(publicInputs []ffg.Element) *BalancePublicInputs {
+	// TODO: Implement this function
+
+	return pis
+}
+
+func (pis *BalancePublicInputs) Verify() error {
+	return nil
 }
 
 type EncryptedPlonky2Proof struct {
