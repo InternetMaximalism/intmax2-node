@@ -1,8 +1,10 @@
 package types
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	intMaxAccTypes "intmax2-node/internal/accounts/types"
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/hash/goldenposeidon"
@@ -30,6 +32,24 @@ func (ga *GenericAddress) Set(genericAddress *GenericAddress) *GenericAddress {
 
 func (ga *GenericAddress) Marshal() []byte {
 	return ga.Address
+}
+
+func (ga *GenericAddress) Unmarshal(data []byte) error {
+	const int20Key = 20
+	const int32Key = 32
+
+	switch len(data) {
+	case int20Key:
+		ga.TypeOfAddress = intMaxAccTypes.EthereumAddressType
+	case int32Key:
+		ga.TypeOfAddress = intMaxAccTypes.INTMAXAddressType
+	default:
+		return errors.New("address invalid")
+	}
+
+	ga.Address = make([]byte, len(data))
+	copy(ga.Address, data)
+	return nil
 }
 
 func (ga *GenericAddress) String() string {
@@ -148,10 +168,78 @@ func (td *Transfer) Marshal() []byte {
 		amountBytes[int31Key-i] = v
 	}
 
-	return append(append(
-		append(td.Recipient.Marshal(), tokenIndexBytes...),
-		amountBytes...,
-	), td.Salt.Marshal()...)
+	buf := bytes.NewBuffer(make([]byte, 0))
+	recipientBytes := td.Recipient.Marshal()
+	err := binary.Write(buf, binary.BigEndian, uint32(len(recipientBytes)))
+	if err != nil {
+		panic(err)
+	}
+	_, err = buf.Write(recipientBytes)
+	if err != nil {
+		panic(err)
+	}
+	_, err = buf.Write(tokenIndexBytes)
+	if err != nil {
+		panic(err)
+	}
+	_, err = buf.Write(amountBytes)
+	if err != nil {
+		panic(err)
+	}
+	_, err = buf.Write(td.Salt.Marshal())
+	if err != nil {
+		panic(err)
+	}
+
+	return buf.Bytes()
+}
+
+func (td *Transfer) Write(buf *bytes.Buffer) error {
+	_, err := buf.Write(td.Marshal())
+
+	return err
+}
+
+func (td *Transfer) Read(buf *bytes.Buffer) error {
+	const int32Key = 32
+
+	recipientBytes := make([]byte, int32Key)
+	if _, err := buf.Read(recipientBytes); err != nil {
+		return err
+	}
+	td.Recipient = new(GenericAddress)
+	if err := td.Recipient.Unmarshal(recipientBytes); err != nil {
+		return err
+	}
+
+	tokenIndexBytes := make([]byte, int32Key)
+	if _, err := buf.Read(tokenIndexBytes); err != nil {
+		return err
+	}
+	td.TokenIndex = binary.BigEndian.Uint32(tokenIndexBytes)
+
+	amountBytes := make([]byte, int32Key)
+	if _, err := buf.Read(amountBytes); err != nil {
+		return err
+	}
+	td.Amount = new(big.Int)
+	td.Amount.SetBytes(amountBytes)
+
+	saltBytes := make([]byte, int32Key)
+	if _, err := buf.Read(saltBytes); err != nil {
+		return err
+	}
+	td.Salt = new(PoseidonHashOut)
+	if err := td.Salt.Unmarshal(saltBytes); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (td *Transfer) Unmarshal(data []byte) error {
+	buf := bytes.NewBuffer(data)
+	return td.Read(buf)
 }
 
 func (td *Transfer) ToFieldElementSlice() []ffg.Element {

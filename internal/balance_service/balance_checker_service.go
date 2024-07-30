@@ -2,6 +2,7 @@ package balance_service
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,7 +21,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -144,7 +144,7 @@ func GetBalance(
 	db SQLDriverApp,
 	sb ServiceBlockchain,
 	args []string,
-	userAddress string,
+	userPrivateKey string,
 ) {
 	tokenInfo := parseTokenInfo(args)
 
@@ -154,13 +154,13 @@ func GetBalance(
 		os.Exit(1)
 	}
 
-	userPublicKey, err := intMaxAcc.NewPublicKeyFromAddressHex(userAddress)
+	userPk, err := intMaxAcc.NewPrivateKeyFromString(userPrivateKey)
 	if err != nil {
 		fmt.Printf("fail to parse user address: %v\n", err)
 		os.Exit(1)
 	}
 
-	balance, err := GetUserBalance(db, userPublicKey.ToAddress(), tokenIndex)
+	balance, err := GetUserBalance(ctx, cfg, lg, db, userPk, tokenIndex)
 	if err != nil {
 		fmt.Printf(ErrFailedToGetBalance+": %v\n", err)
 		os.Exit(1)
@@ -247,118 +247,40 @@ func getTokenIndexFromLiquidityContract(
 	return tokenIndex, nil
 }
 
-type BalanceState struct {
-	BalanceProof *intMaxTypes.Plonky2Proof
-	BalanceData  map[uint32]*big.Int
-	Txs          []intMaxTypes.Tx
-	Transfers    []intMaxTypes.Transfer
-	Deposits     []intMaxTypes.Transfer
-}
-
-func NewBalanceState(
-	balanceProof *intMaxTypes.Plonky2Proof,
-	balanceData map[uint32]*big.Int,
-	txs []intMaxTypes.Tx,
-	transfers []intMaxTypes.Transfer,
-	deposits []intMaxTypes.Transfer,
-) *BalanceState {
-	return &BalanceState{
-		BalanceProof: balanceProof,
-		BalanceData:  balanceData,
-		Txs:          txs,
-		Transfers:    transfers,
-		Deposits:     deposits,
+func GetUserBalance(
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
+	db SQLDriverApp,
+	userPrivateKey *intMaxAcc.PrivateKey,
+	tokenIndex uint32,
+) (*big.Int, error) {
+	// tokenIndexStr := strconv.FormatUint(uint64(tokenIndex), int10Key)
+	userAllData, err := getUserBalancesRawRequest(ctx, cfg, log, userPrivateKey.ToAddress().String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user balances: %w", err)
 	}
-}
-
-func (b *BalanceState) SetZero() *BalanceState {
-	b.BalanceProof = nil
-	b.BalanceData = make(map[uint32]*big.Int, 0)
-	b.Txs = make([]intMaxTypes.Tx, 0)
-	b.Transfers = make([]intMaxTypes.Transfer, 0)
-	b.Deposits = make([]intMaxTypes.Transfer, 0)
-
-	return b
-}
-
-func (b *BalanceState) SetBalance(tokenIndex uint32, amount *big.Int) {
-	b.BalanceData[tokenIndex] = amount
-}
-
-func (b *BalanceState) GetBalance(tokenIndex uint32) *big.Int {
-	balanceData, ok := b.BalanceData[tokenIndex]
-	if !ok {
-		return big.NewInt(0)
-	}
-
-	return balanceData
-}
-
-func GetUserBalance(db SQLDriverApp, userAddress intMaxAcc.Address, tokenIndex uint32) (*big.Int, error) {
-	const int10Key = 10
-
-	tokenIndexStr := strconv.FormatUint(uint64(tokenIndex), int10Key)
-	balanceData, err := db.BalanceByUserAndTokenIndex(userAddress.String(), tokenIndexStr)
+	balanceData, err := CalculateBalance(userAllData, tokenIndex, *userPrivateKey)
 	if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
 		return nil, ErrFetchBalanceByUserAddressAndTokenInfoWithDBApp
 	}
 	if errors.Is(err, errorsDB.ErrNotFound) {
-		fmt.Printf("Balance not found for user %s and token index %d\n", userAddress.String(), tokenIndex)
+		fmt.Printf("Balance not found for user %s and token index %d\n", userPrivateKey.ToAddress().String(), tokenIndex)
 		return big.NewInt(0), nil
 	}
-
-	balanceDataInt, ok := new(big.Int).SetString(balanceData.Balance, int10Key)
-	if !ok {
-		return nil, fmt.Errorf("failed to convert balance to int: %v", err)
+	if balanceData.Amount.Cmp(big.NewInt(0)) < 0 {
+		return nil, fmt.Errorf("balance is negative: %v", balanceData.Amount)
 	}
 
-	return balanceDataInt, nil
+	return balanceData.Amount, nil
 }
 
-func MakeSampleBalanceState(userAddress intMaxAcc.Address) (BalanceState, error) {
-	const (
-		int100Key = 100
-		int200Key = 200
-	)
-
-	balanceData := make(map[uint32]*big.Int)
-	balanceData[0] = big.NewInt(int100Key)
-	balanceData[1] = big.NewInt(int200Key)
-
-	balanceProof, err := intMaxTypes.MakeSamplePlonky2Proof()
-	if err != nil {
-		return BalanceState{}, fmt.Errorf("failed to make sample plonky2 proof: %v", err)
-	}
-
-	balanceState := BalanceState{
-		BalanceProof: balanceProof,
-		BalanceData:  balanceData,
-		Txs:          []intMaxTypes.Tx{},
-		Transfers:    []intMaxTypes.Transfer{},
-		Deposits:     []intMaxTypes.Transfer{},
-	}
-
-	return balanceState, nil
-}
-
-func sendTransactionRawRequest(
+func getUserBalancesRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
-	senderAddress, transfersHash string,
-	nonce uint64,
-	expiration time.Time,
-	powNonce, signature string,
+	address string,
 ) (*backup_balance.UCGetBalances, error) {
-	ucInput := backup_balance.UCGetBalancesInput{
-		Address: senderAddress,
-	}
-
-	bd, err := json.Marshal(ucInput)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
-	}
-
 	const (
 		httpKey     = "http"
 		httpsKey    = "https"
@@ -371,13 +293,12 @@ func sendTransactionRawRequest(
 		schema = httpsKey
 	}
 
-	apiUrl := fmt.Sprintf("%s://%s/v1/transaction", schema, cfg.HTTP.Addr())
+	apiUrl := fmt.Sprintf("%s://%s/v1/balances/%s", schema, cfg.HTTP.Addr(), address)
 
 	r := resty.New().R()
-	var resp *resty.Response
-	resp, err = r.SetContext(ctx).SetHeaders(map[string]string{
+	resp, err := r.SetContext(ctx).SetHeaders(map[string]string{
 		contentType: appJSON,
-	}).SetBody(bd).Post(apiUrl)
+	}).Get(apiUrl)
 	if err != nil {
 		const msg = "failed to send of the transaction request: %w"
 		return nil, fmt.Errorf(msg, err)
@@ -403,4 +324,81 @@ func sendTransactionRawRequest(
 	}
 
 	return response, nil
+}
+
+func CalculateBalance(userAllData *backup_balance.UCGetBalances, tokenIndex uint32, userPrivateKey intMaxAcc.PrivateKey) (*intMaxTypes.Balance, error) {
+	balance := big.NewInt(0)
+	for _, deposit := range userAllData.Deposits {
+		encryptedDepositBytes, err := base64.StdEncoding.DecodeString(deposit.EncryptedDeposit)
+		if err != nil {
+			log.Printf("failed to decode deposit: %v", err)
+			continue
+		}
+		encodedDeposit, err := userPrivateKey.DecryptECIES(encryptedDepositBytes)
+		if err != nil {
+			log.Printf("failed to decrypt deposit: %v", err)
+			continue
+		}
+
+		var decodedDeposit intMaxTypes.Deposit
+		err = decodedDeposit.Unmarshal(encodedDeposit)
+		if err != nil {
+			log.Printf("failed to unmarshal deposit: %v", err)
+			continue
+		}
+		if decodedDeposit.TokenIndex == tokenIndex {
+			balance = new(big.Int).Add(balance, decodedDeposit.Amount)
+		}
+	}
+
+	for _, transfer := range userAllData.Transfers {
+		encryptedTransferBytes, err := base64.StdEncoding.DecodeString(transfer.EncryptedTransfer)
+		if err != nil {
+			log.Printf("failed to decode transfer: %v", err)
+			continue
+		}
+		encodedTransfer, err := userPrivateKey.DecryptECIES(encryptedTransferBytes)
+		if err != nil {
+			log.Printf("failed to decrypt transfer: %v", err)
+			continue
+		}
+		var decodedTransfer intMaxTypes.Transfer
+		err = decodedTransfer.Unmarshal(encodedTransfer)
+		if err != nil {
+			log.Printf("failed to unmarshal transfer: %v", err)
+			continue
+		}
+		if tokenIndex == decodedTransfer.TokenIndex {
+			balance = new(big.Int).Add(balance, decodedTransfer.Amount)
+		}
+	}
+
+	for _, transaction := range userAllData.Transactions {
+		encryptedTxBytes, err := base64.StdEncoding.DecodeString(transaction.EncryptedTx)
+		if err != nil {
+			log.Printf("failed to decode transaction: %v", err)
+			continue
+		}
+		encodedTx, err := userPrivateKey.DecryptECIES(encryptedTxBytes)
+		if err != nil {
+			log.Printf("failed to decrypt transaction: %v", err)
+			continue
+		}
+		var decodedTx intMaxTypes.TxDetails
+		err = decodedTx.Unmarshal(encodedTx)
+		if err != nil {
+			log.Printf("failed to unmarshal transaction: %v", err)
+			continue
+		}
+		for _, transfer := range decodedTx.Transfers {
+			if tokenIndex == transfer.TokenIndex {
+				balance = new(big.Int).Sub(balance, transfer.Amount)
+			}
+		}
+	}
+
+	return &intMaxTypes.Balance{
+		TokenIndex: tokenIndex,
+		Amount:     balance,
+	}, nil
 }

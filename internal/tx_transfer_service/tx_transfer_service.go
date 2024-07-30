@@ -39,7 +39,7 @@ func SendTransferTransaction(
 		log.Fatalf("%s", errors.Join(ErrTokenNotFound, err))
 	}
 
-	balance, err := balance_service.GetUserBalance(db, userAccount.ToAddress(), tokenIndex)
+	balance, err := balance_service.GetUserBalance(ctx, cfg, log, db, userAccount, tokenIndex)
 	if err != nil {
 		log.Fatalf(ErrFailedToGetBalance+": %v", err)
 	}
