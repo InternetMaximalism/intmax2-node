@@ -52,7 +52,8 @@ func (s *Server) BlockProposed(
 	resp.Success = true
 	resp.Data = &node.DataBlockProposedResponse{
 		TxRoot:            ucBP.TxRoot,
-		TxTreeMerkleProof: make([]string, len(ucBP.TxTreeMerkleProof)),
+		TxTreeMerkleProof: ucBP.TxTreeMerkleProof,
+		PublicKeys:        ucBP.PublicKeys,
 	}
 	copy(resp.Data.TxTreeMerkleProof, ucBP.TxTreeMerkleProof)
 

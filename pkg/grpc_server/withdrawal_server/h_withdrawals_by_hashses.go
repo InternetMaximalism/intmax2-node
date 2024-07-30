@@ -46,7 +46,8 @@ func (s *WithdrawalServer) WithdrawalsByHashes(ctx context.Context, req *node.Wi
 			const msg = "failed to post withdrawals by hashes: %w"
 			return fmt.Errorf(msg, err)
 		}
-		for _, w := range *withdrawals {
+		for i := range *withdrawals {
+			w := (*withdrawals)[i]
 			resp.Withdrawals = append(resp.Withdrawals, &node.Withdrawal{
 				TransferData: &node.TransferData{
 					Recipient:  w.TransferData.Recipient,

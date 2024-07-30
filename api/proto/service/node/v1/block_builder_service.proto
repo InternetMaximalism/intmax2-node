@@ -151,6 +151,8 @@ message DataBlockProposedResponse {
   string tx_root = 10 [json_name="txRoot", (tagger.tags)="json:\"txRoot,omitempty\""];
   // the Merkle proof from the tx tree for the specified tx_hash
   repeated string tx_tree_merkle_proof = 20 [json_name="txTreeMerkleProof", (tagger.tags)="json:\"txTreeMerkleProof,omitempty\""];
+
+  repeated string public_keys = 30 [json_name="publicKeys", (tagger.tags)="json:\"publicKeys,omitempty\""];
 }
 
 // BlockProposedResponse describes response about retrieves the Merkle proof of a block containing the user's transaction, if available

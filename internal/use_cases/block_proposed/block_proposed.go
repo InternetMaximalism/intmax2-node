@@ -10,9 +10,9 @@ import (
 //go:generate mockgen -destination=../mocks/mock_block_proposed.go -package=mocks -source=block_proposed.go
 
 type UCBlockProposed struct {
-	TxRoot            string   `json:"txTreeRoot"`
+	TxRoot            string   `json:"txRoot"`
 	TxTreeMerkleProof []string `json:"txTreeMerkleProof"`
-	PublicKeysHash    string   `json:"publicKeysHash"`
+	PublicKeys        []string `json:"publicKeys"`
 }
 
 type UCBlockProposedInput struct {

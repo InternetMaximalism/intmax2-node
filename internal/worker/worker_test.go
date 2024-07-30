@@ -153,9 +153,9 @@ func TestWorkerReceiver(t *testing.T) {
 
 			transferTreeRoot, _, _ := transferTree.GetCurrentRootCountAndSiblings()
 			rw := &worker.ReceiverWorker{
-				Sender:       sendersList[index].IntMaxWalletAddress,
-				TransferHash: transferTreeRoot.String(), // hex
-				TransferData: transferTree.Leaves,
+				Sender:        sendersList[index].IntMaxWalletAddress,
+				TransfersHash: transferTreeRoot.String(), // hex
+				//TransferData:  transferTree.Leaves,
 			}
 
 			receiversListForWorker = append(receiversListForWorker, rw)
@@ -268,10 +268,10 @@ func TestWorkerReceiverNotUniqueTransfer(t *testing.T) {
 	tx.Recipient = gaAddr
 
 	rw := &worker.ReceiverWorker{
-		Sender:       sender.IntMaxWalletAddress,
-		Nonce:        nonceIndex,
-		TransferHash: hexutil.Encode(keccak256.Hash(tx.Hash().Marshal())),
-		TransferData: []*intMaxTypes.Transfer{&tx},
+		Sender:        sender.IntMaxWalletAddress,
+		Nonce:         nonceIndex,
+		TransfersHash: hexutil.Encode(keccak256.Hash(tx.Hash().Marshal())),
+		//TransferData:  []*intMaxTypes.Transfer{&tx},
 	}
 
 	err = w.Receiver(rw)
@@ -379,10 +379,10 @@ func TestWorkerReceiverUniqueTransferByNonce(t *testing.T) {
 	tx.Recipient = gaAddr
 
 	rw := &worker.ReceiverWorker{
-		Sender:       sender.IntMaxWalletAddress,
-		Nonce:        uint64(nonceIndex),
-		TransferHash: hexutil.Encode(keccak256.Hash(tx.Hash().Marshal())),
-		TransferData: []*intMaxTypes.Transfer{&tx},
+		Sender:        sender.IntMaxWalletAddress,
+		Nonce:         uint64(nonceIndex),
+		TransfersHash: hexutil.Encode(keccak256.Hash(tx.Hash().Marshal())),
+		//TransferData:  []*intMaxTypes.Transfer{&tx},
 	}
 
 	err = w.Receiver(rw)
@@ -403,10 +403,10 @@ func TestWorkerReceiverUniqueTransferByNonce(t *testing.T) {
 	)
 
 	rw2 := &worker.ReceiverWorker{
-		Sender:       sender.IntMaxWalletAddress,
-		Nonce:        uint64(nonceIndex),
-		TransferHash: hexutil.Encode(keccak256.Hash(tx2.Hash().Marshal())),
-		TransferData: []*intMaxTypes.Transfer{&tx2},
+		Sender:        sender.IntMaxWalletAddress,
+		Nonce:         uint64(nonceIndex),
+		TransfersHash: hexutil.Encode(keccak256.Hash(tx2.Hash().Marshal())),
+		//TransferData:  []*intMaxTypes.Transfer{&tx2},
 	}
 
 	err = w.Receiver(rw2)
