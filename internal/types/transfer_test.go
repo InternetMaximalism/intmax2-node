@@ -19,19 +19,21 @@ func TestTransferData(t *testing.T) {
 	for i := 0; i < 32; i++ {
 		address[i] = byte(i)
 	}
+	a, _ := new(big.Int).SetString("5072999951032826783367862081641321578167449493857840371024146051846401100402", 10)
+	copy(address[32-len(a.Bytes()):], a.Bytes())
 	recipient, err := intMaxTypes.NewINTMAXAddress(address)
 	assert.NoError(t, err)
 	assert.NotNil(t, recipient)
-	amount := new(big.Int).SetUint64(100)
+	amount, _ := new(big.Int).SetString("4098227373595779913487602621708067623280365761755196974852", 10)
 	assert.NoError(t, err)
 	salt := new(intMaxTypes.PoseidonHashOut)
-	salt.Elements[0] = *new(ffg.Element).SetUint64(1)
-	salt.Elements[1] = *new(ffg.Element).SetUint64(2)
-	salt.Elements[2] = *new(ffg.Element).SetUint64(3)
-	salt.Elements[3] = *new(ffg.Element).SetUint64(4)
+	salt.Elements[0] = *new(ffg.Element).SetUint64(3645147740416515513)
+	salt.Elements[1] = *new(ffg.Element).SetUint64(16630279128197546175)
+	salt.Elements[2] = *new(ffg.Element).SetUint64(5615096774476642530)
+	salt.Elements[3] = *new(ffg.Element).SetUint64(7135915778368184935)
 	transferData := intMaxTypes.Transfer{
 		Recipient:  recipient,
-		TokenIndex: 1,
+		TokenIndex: 827790650,
 		Amount:     amount,
 		Salt:       salt,
 	}
@@ -39,13 +41,13 @@ func TestTransferData(t *testing.T) {
 	flattenedTransfer := transferData.Marshal()
 	assert.Equal(t, 100, len(flattenedTransfer))
 
+	t.Log("transferData.ToUint64Slice()", transferData.ToUint64Slice())
+
 	transferHash := transferData.Hash()
-	assert.Equal(t, transferHash.String(), "0x448cb4641023c5c62338428ee32e0f267d33246cc7275e1b9f994236d92870d7")
+	assert.Equal(t, transferHash.String(), "0xb91d589d8e2a9632bfc0ce8fc19ecae6e2381f2ec4d4ec4d67a2bdbc97dd0763")
 }
 
 func TestEncryptTransfers(t *testing.T) {
-	senderAccount, err := intMaxAcc.NewPrivateKey(big.NewInt(2))
-	require.NoError(t, err)
 	recipientAccount, err := intMaxAcc.NewPrivateKey(big.NewInt(4))
 	require.NoError(t, err)
 	recipient, err := intMaxTypes.NewINTMAXAddress(recipientAccount.ToAddress().Bytes())
@@ -59,40 +61,38 @@ func TestEncryptTransfers(t *testing.T) {
 	transfer := intMaxTypes.Transfer{
 		Recipient:  recipient,
 		TokenIndex: 0,
-		Amount:     big.NewInt(100),
+		Amount:     big.NewInt(500),
 		Salt:       salt,
 	}
 
 	encodedTransfer := transfer.Marshal()
-	// t.Log("encodedTransfer", len(encodedTransfer))
 
 	encryptedTransfer, err := intMaxAcc.EncryptECIES(
 		rand.Reader,
-		senderAccount.Public(),
+		recipientAccount.Public(),
 		encodedTransfer,
 	)
 	require.NoError(t, err)
 
 	encodedText := base64.StdEncoding.EncodeToString(encryptedTransfer)
 
-	// t.Log("encodedTransfer", encodedText)
+	t.Log("encodedTransfer", encodedText)
 
 	decodedText, err := base64.StdEncoding.DecodeString(encodedText)
 	require.NoError(t, err)
 
-	decryptedTransferBytes, err := senderAccount.DecryptECIES(
+	decryptedTransferBytes, err := recipientAccount.DecryptECIES(
 		decodedText,
 	)
 	require.NoError(t, err)
-	// t.Log("decryptedDepositBytes", len(decryptedTransferBytes))
 	require.Equal(t, encodedTransfer, decryptedTransferBytes)
 
-	decryptedDeposit := new(intMaxTypes.Transfer)
+	decryptedTransfer := new(intMaxTypes.Transfer)
 
-	err = decryptedDeposit.Unmarshal(decryptedTransferBytes)
+	err = decryptedTransfer.Unmarshal(decryptedTransferBytes)
 	require.NoError(t, err)
 	assert.True(
-		t, transfer.Equal(decryptedDeposit),
-		"recipients should be equal: %v != %v", transfer, decryptedDeposit,
+		t, transfer.Equal(decryptedTransfer),
+		"transfer should be equal: %v != %v", transfer, decryptedTransfer,
 	)
 }
