@@ -65,9 +65,8 @@ func (input *UCBlockSignatureInput) Valid(w Worker) (err error) {
 			// Verify signature.
 			err = VerifyTxTreeSignature(sb, publicKey, txTreeRootBytes, senderPublicKeys)
 			if err != nil {
-				// TODO: error handling
 				fmt.Printf("VerifySignature error: %v\n", err)
-				// return ErrValueInvalid
+				// TODO: error handling: return ErrValueInvalid
 			}
 
 			return nil

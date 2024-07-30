@@ -209,7 +209,6 @@ func postBlockSignatureRawRequest(
 	prevBalanceProof block_signature.Plonky2Proof,
 	transferStepProof block_signature.Plonky2Proof,
 ) error {
-	fmt.Printf("txHash: %s\n", txHash)
 	ucInput := block_signature.UCBlockSignatureInput{
 		Sender:    senderAddress,
 		TxHash:    txHash,

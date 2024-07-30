@@ -2,7 +2,6 @@ package block_proposed
 
 import (
 	"context"
-	"fmt"
 	"intmax2-node/internal/open_telemetry"
 	"intmax2-node/internal/use_cases/block_proposed"
 
@@ -52,9 +51,6 @@ func (u *uc) Do(
 		TxTreeMerkleProof: make([]string, len(input.TxTree.Siblings)),
 		PublicKeys:        senderPublicKeys,
 	}
-	fmt.Printf("resp: %v\n", resp.TxRoot)
-	fmt.Printf("resp: %v\n", resp.TxTreeMerkleProof)
-	fmt.Printf("resp: %v\n", resp.PublicKeys)
 
 	for key := range input.TxTree.Siblings {
 		resp.TxTreeMerkleProof[key] = input.TxTree.Siblings[key].String()

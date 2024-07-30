@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"intmax2-node/internal/open_telemetry"
 	"intmax2-node/internal/pb/gen/service/node"
 	"intmax2-node/internal/use_cases/block_proposed"
@@ -41,7 +40,6 @@ func (s *Server) BlockProposed(
 		open_telemetry.MarkSpanError(spanCtx, err)
 		return &resp, utils.BadRequest(spanCtx, err)
 	}
-	fmt.Printf("input tx tree: %+v\n", input.TxTree)
 
 	var ucBP *block_proposed.UCBlockProposed
 	ucBP, err = s.commands.BlockProposed().Do(spanCtx, &input)

@@ -173,7 +173,6 @@ func (input *UCTransactionInput) isPoW(pow PoWNonce) validation.Rule {
 		}
 
 		txHash := tx.Hash()
-		fmt.Printf("txHash: %v\n", txHash)
 
 		messageForPow := txHash.Marshal()
 		err = pow.Verify(v, messageForPow)

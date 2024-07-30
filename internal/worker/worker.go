@@ -261,7 +261,6 @@ func (w *worker) AvailableFiles() (list []*os.File, err error) {
 		cond1 := w.files.CurrentFile.Name() != key.Name()
 		cond2 := atomic.LoadInt32(&w.files.FilesList[key].TransactionsCounter) == 0
 		if cond1 && cond2 && !w.files.FilesList[key].Processing {
-			fmt.Println("AvailableFiles cond1 && cond2")
 			if !w.files.FilesList[key].Delivered {
 				err = w.leafsProcessing(key)
 				if err != nil {
@@ -372,18 +371,16 @@ func (w *worker) Start(
 				return errors.Join(ErrAvailableFilesProcessing, err)
 			}
 
-			fmt.Printf("tickerSignaturesAvailableFiles list %v\n", list)
 			for key := range list {
 				// cond1 - all transactions are processed
 				cond1 := w.files.FilesList[list[key]].Delivered
-				// cond2 - signature collection for tx tree completed
+				// cond2 - transaction collection for tx tree completed
 				cond2 := w.files.FilesList[list[key]].Timestamp != nil &&
 					w.files.FilesList[list[key]].Timestamp.UTC().Add(
 						w.cfg.Worker.TimeoutForSignaturesAvailableFiles,
 					).UnixNano() < time.Now().UTC().UnixNano()
 				if cond1 && cond2 {
 					if atomic.LoadInt32(&w.numWorkers) < w.maxWorkers {
-						fmt.Println("tickerSignaturesAvailableFiles cond1 && cond2")
 						// Change status to processing
 						w.files.FilesList[list[key]].Processing = true
 						atomic.AddInt32(&w.numWorkers, 1)
@@ -621,10 +618,8 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 				}
 			}()
 
-			fmt.Printf("signatures len %d\n", len(w.files.FilesList[f].LeafsTree.Signatures))
 			const emptySignature = 0
 			if len(w.files.FilesList[f].LeafsTree.Signatures) == emptySignature {
-				fmt.Println("emptySignature")
 				return nil
 			}
 

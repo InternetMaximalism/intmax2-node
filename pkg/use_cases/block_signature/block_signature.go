@@ -3,7 +3,6 @@ package block_signature
 import (
 	"context"
 	"errors"
-	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/open_telemetry"
 	"intmax2-node/internal/use_cases/backup_balance"
@@ -57,18 +56,19 @@ func (u *uc) Do(
 	prevBalancePublicInputs, err := backup_balance.VerifyEnoughBalanceProof(input.EnoughBalanceProof.PrevBalanceProof)
 	transferPublicInputs, err := VerifyTransferStepProof(input.EnoughBalanceProof.TransferStepProof)
 	_ = prevBalancePublicInputs.Equal(&transferPublicInputs.PrevBalancePis)
-	// TODO: Check public inputs.
-	// if !ok {
-	// 	open_telemetry.MarkSpanError(spanCtx, ErrInvalidEnoughBalanceProof)
-	// 	return ErrInvalidEnoughBalanceProof
-	// }
+	/*
+		// TODO: Check public inputs.
+		if !ok {
+			open_telemetry.MarkSpanError(spanCtx, ErrInvalidEnoughBalanceProof)
+			return ErrInvalidEnoughBalanceProof
+		}
 
-	// input.TxInfo = &worker.TransactionHashesWithSenderAndFile{
-	// 	Sender: input.Sender,
-	// 	File:   nil,
-	// }
+		input.TxInfo = &worker.TransactionHashesWithSenderAndFile{
+			Sender: input.Sender,
+			File:   nil,
+		}
+	*/
 
-	fmt.Printf("SignTxTreeByAvailableFile input tx tree: %+v\n", input.TxTree)
 	err = u.w.SignTxTreeByAvailableFile(input.Signature, &worker.TransactionHashesWithSenderAndFile{
 		Sender: input.TxInfo.Sender,
 		File:   input.TxInfo.File,
