@@ -1,6 +1,7 @@
 package pgx
 
 import (
+	"database/sql"
 	"fmt"
 	errPgx "intmax2-node/internal/sql_db/pgx/errors"
 	"intmax2-node/internal/sql_db/pgx/models"
@@ -21,28 +22,15 @@ func (p *pgx) CreateBackupTransfer(input *backupTransfer.UCPostBackupTransferInp
 	id := uuid.New().String()
 	createdAt := time.Now().UTC()
 
-	_, err := p.exec(
-		p.ctx,
-		query,
-		id,
-		input.Recipient,
-		input.EncryptedTransfer,
-		input.BlockNumber,
-		createdAt,
-	)
-	if err != nil {
-		return nil, errPgx.Err(err)
-	}
-
-	var mDBApp *mDBApp.BackupTransfer
-	mDBApp, err = p.GetBackupTransfer("id", id)
+	err := p.createBackupEntry(query, id, input.Recipient, input.EncryptedTransfer, input.BlockNumber, createdAt)
 	if err != nil {
 		return nil, err
 	}
-	return mDBApp, nil
+
+	return p.GetBackupTransfer("id", id)
 }
 
-func (p *pgx) GetBackupTransfer(condition string, value string) (*mDBApp.BackupTransfer, error) {
+func (p *pgx) GetBackupTransfer(condition, value string) (*mDBApp.BackupTransfer, error) {
 	const baseQuery = `
         SELECT id, recipient, encrypted_transfer, block_number, created_at
         FROM backup_transfers
@@ -62,8 +50,8 @@ func (p *pgx) GetBackupTransfer(condition string, value string) (*mDBApp.BackupT
 	if err != nil {
 		return nil, err
 	}
-	mDBApp := p.backupTransferToDBApp(&b)
-	return &mDBApp, nil
+	transfer := p.backupTransferToDBApp(&b)
+	return &transfer, nil
 }
 
 func (p *pgx) GetBackupTransfers(condition string, value interface{}) ([]*mDBApp.BackupTransfer, error) {
@@ -73,46 +61,29 @@ func (p *pgx) GetBackupTransfers(condition string, value interface{}) ([]*mDBApp
         WHERE %s = $1
     `
 	query := fmt.Sprintf(baseQuery, condition)
-
-	rows, err := p.query(p.ctx, query, value)
+	var transfers []*mDBApp.BackupTransfer
+	err := p.getBackupEntries(query, value, func(rows *sql.Rows) error {
+		var b models.BackupTransfer
+		err := rows.Scan(&b.ID, &b.Recipient, &b.EncryptedTransfer, &b.BlockNumber, &b.CreatedAt)
+		if err != nil {
+			return err
+		}
+		transfer := p.backupTransferToDBApp(&b)
+		transfers = append(transfers, &transfer)
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	var transfers []*mDBApp.BackupTransfer
-
-	for rows.Next() {
-		var b models.BackupTransfer
-		err := rows.Scan(
-			&b.ID,
-			&b.Recipient,
-			&b.EncryptedTransfer,
-			&b.BlockNumber,
-			&b.CreatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-		mDBApp := p.backupTransferToDBApp(&b)
-		transfers = append(transfers, &mDBApp)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
 	return transfers, nil
 }
 
 func (p *pgx) backupTransferToDBApp(b *models.BackupTransfer) mDBApp.BackupTransfer {
-	m := mDBApp.BackupTransfer{
+	return mDBApp.BackupTransfer{
 		ID:                b.ID,
 		Recipient:         b.Recipient,
 		EncryptedTransfer: b.EncryptedTransfer,
 		BlockNumber:       b.BlockNumber,
 		CreatedAt:         b.CreatedAt,
 	}
-
-	return m
 }

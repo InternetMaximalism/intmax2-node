@@ -12,8 +12,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-func (s *StoreVaultServer) BackupDeposit(ctx context.Context, req *node.BackupDepositRequest) (*node.BackupSuccessResponse, error) {
-	resp := node.BackupSuccessResponse{}
+func (s *StoreVaultServer) BackupDeposit(ctx context.Context, req *node.BackupDepositRequest) (*node.BackupDepositResponse, error) {
+	resp := node.BackupDepositResponse{}
 
 	const (
 		hName      = "Handler BackupDeposit"
@@ -44,19 +44,19 @@ func (s *StoreVaultServer) BackupDeposit(ctx context.Context, req *node.BackupDe
 		err = s.commands.PostBackupDeposit(s.config, s.log, q).Do(spanCtx, &input)
 		if err != nil {
 			open_telemetry.MarkSpanError(spanCtx, err)
-			const msg = "failed to post withdrawal request: %w"
+			const msg = "failed to post backup deposit: %w"
 			return fmt.Errorf(msg, err)
 		}
 
 		return nil
 	})
 	if err != nil {
-		const msg = "failed to post backup transfer with DB App: %+v"
+		const msg = "failed to post backup deposit with DB App: %+v"
 		return &resp, utils.Internal(spanCtx, s.log, msg, err)
 	}
 
 	resp.Success = true
-	resp.Data = &node.BackupSuccessResponse_Data{Message: "Backup deposit accepted."}
+	resp.Data = &node.BackupDepositResponse_Data{Message: backupDeposit.SuccessMsg}
 
 	return &resp, utils.OK(spanCtx)
 }

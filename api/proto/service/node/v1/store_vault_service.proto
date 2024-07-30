@@ -13,7 +13,7 @@ service StoreVaultService {
   // BackupTransfer processes a request for data backup transfer
   //
   // ## This method handles the transfer of backup data.
-  rpc BackupTransfer(BackupTransferRequest) returns (BackupSuccessResponse) {
+  rpc BackupTransfer(BackupTransferRequest) returns (BackupTransferResponse) {
     option (google.api.http) = {
       post: "/v1/backups/transfer"
       body: "*"
@@ -23,7 +23,7 @@ service StoreVaultService {
   // BackupTransaction processes a request for data backup transaction
   //
   // ## This method handles the transaction of backup data.
-  rpc BackupTransaction(BackupTransactionRequest) returns (BackupSuccessResponse) {
+  rpc BackupTransaction(BackupTransactionRequest) returns (BackupTransactionResponse) {
     option (google.api.http) = {
       post: "/v1/backups/transaction"
       body: "*"
@@ -33,7 +33,7 @@ service StoreVaultService {
   // BackupDeposit processes a request for data backup deposit
   //
   // ## This method handles the deposit of backup data.
-  rpc BackupDeposit(BackupDepositRequest) returns (BackupSuccessResponse) {
+  rpc BackupDeposit(BackupDepositRequest) returns (BackupDepositResponse) {
     option (google.api.http) = {
       post: "/v1/backups/deposit"
       body: "*"
@@ -53,23 +53,49 @@ service StoreVaultService {
 // BackupTransferRequest is the request message for BackupTransfer method.
 message BackupTransferRequest {
   // The encrypted data for the transfer
-  string encryptedTransfer = 1;
+  string encrypted_transfer = 1;
   // The recipient address
   string recipient = 2;
   // The block number associated with the transfer
-  int32 blockNumber = 3;
+  uint64 block_number = 3;
+}
+
+// BackupTransferResponse is the response message for Backup method.
+message BackupTransferResponse {
+  // Indicates if the backup transfer was successful
+  bool success = 1;
+  // Additional data related to the response
+  Data data = 2;
+  // Data is the nested message containing detailed response information
+  message Data {
+    // A message indicating the result of the backup transfer
+    string message = 1;
+  }
 }
 
 // BackupTransactionRequest is the request message for BackupTransaction method.
 message BackupTransactionRequest {
   // The encrypted transaction data
-  string encryptedTx = 1;
+  string encrypted_tx = 1;
   // The sender address
   string sender = 2;
   // The block number associated with the transaction
-  int32 blockNumber = 3;
+  uint64 block_number = 3;
   // The signature for the transaction
   string signature = 4;
+}
+
+// BackupTransactionResponse is the response message for Backup method.
+message BackupTransactionResponse {
+  // Indicates if the backup transfer was successful
+  bool success = 1;
+  // Additional data related to the response
+  Data data = 2;
+  // Data is the nested message containing detailed response information
+  message Data {
+    // A message indicating the result of the backup transfer
+    string message = 1;
+  }
 }
 
 // BackupDepositRequest is the request message for BackupDeposit method.
@@ -77,13 +103,13 @@ message BackupDepositRequest {
   // The recipient address
   string recipient = 1;
   // The encrypted deposit data
-  string encryptedDeposit = 2;
+  string encrypted_deposit = 2;
   // The block number associated with the deposit
-  int32 blockNumber = 3;
+  uint64 block_number = 3;
 }
 
-// BackupSuccessResponse is the response message for Backup method.
-message BackupSuccessResponse {
+// BackupDepositResponse is the response message for Backup method.
+message BackupDepositResponse {
   // Indicates if the backup transfer was successful
   bool success = 1;
   // Additional data related to the response
@@ -104,7 +130,7 @@ message GetBalancesRequest {
 // The balance of a specific token.
 message TokenBalance {
   // The index of the token
-  int32 tokenIndex = 1;
+  int32 token_index = 1;
   // The amount of the token
   string amount = 2;
 }

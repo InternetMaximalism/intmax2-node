@@ -218,3 +218,4 @@ issues:
     - path: internal/sql_db/pgx
       linters:
         - revive
+        - dupl

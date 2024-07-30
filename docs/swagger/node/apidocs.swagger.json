@@ -71,7 +71,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1BackupSuccessResponse"
+              "$ref": "#/definitions/v1BackupDepositResponse"
             }
           },
           "400": {
@@ -112,7 +112,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1BackupSuccessResponse"
+              "$ref": "#/definitions/v1BackupTransactionResponse"
             }
           },
           "400": {
@@ -153,7 +153,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1BackupSuccessResponse"
+              "$ref": "#/definitions/v1BackupTransferResponse"
             }
           },
           "400": {
@@ -554,14 +554,14 @@
           "title": "The encrypted deposit data"
         },
         "blockNumber": {
-          "type": "integer",
-          "format": "int32",
+          "type": "string",
+          "format": "uint64",
           "title": "The block number associated with the deposit"
         }
       },
       "description": "BackupDepositRequest is the request message for BackupDeposit method."
     },
-    "v1BackupSuccessResponse": {
+    "v1BackupDepositResponse": {
       "type": "object",
       "properties": {
         "success": {
@@ -569,13 +569,13 @@
           "title": "Indicates if the backup transfer was successful"
         },
         "data": {
-          "$ref": "#/definitions/v1BackupSuccessResponseData",
+          "$ref": "#/definitions/v1BackupDepositResponseData",
           "title": "Additional data related to the response"
         }
       },
-      "description": "BackupSuccessResponse is the response message for Backup method."
+      "description": "BackupDepositResponse is the response message for Backup method."
     },
-    "v1BackupSuccessResponseData": {
+    "v1BackupDepositResponseData": {
       "type": "object",
       "properties": {
         "message": {
@@ -597,8 +597,8 @@
           "title": "The sender address"
         },
         "blockNumber": {
-          "type": "integer",
-          "format": "int32",
+          "type": "string",
+          "format": "uint64",
           "title": "The block number associated with the transaction"
         },
         "signature": {
@@ -607,6 +607,30 @@
         }
       },
       "description": "BackupTransactionRequest is the request message for BackupTransaction method."
+    },
+    "v1BackupTransactionResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "Indicates if the backup transfer was successful"
+        },
+        "data": {
+          "$ref": "#/definitions/v1BackupTransactionResponseData",
+          "title": "Additional data related to the response"
+        }
+      },
+      "description": "BackupTransactionResponse is the response message for Backup method."
+    },
+    "v1BackupTransactionResponseData": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "title": "A message indicating the result of the backup transfer"
+        }
+      },
+      "title": "Data is the nested message containing detailed response information"
     },
     "v1BackupTransferRequest": {
       "type": "object",
@@ -620,12 +644,36 @@
           "title": "The recipient address"
         },
         "blockNumber": {
-          "type": "integer",
-          "format": "int32",
+          "type": "string",
+          "format": "uint64",
           "title": "The block number associated with the transfer"
         }
       },
       "description": "BackupTransferRequest is the request message for BackupTransfer method."
+    },
+    "v1BackupTransferResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "Indicates if the backup transfer was successful"
+        },
+        "data": {
+          "$ref": "#/definitions/v1BackupTransferResponseData",
+          "title": "Additional data related to the response"
+        }
+      },
+      "description": "BackupTransferResponse is the response message for Backup method."
+    },
+    "v1BackupTransferResponseData": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "title": "A message indicating the result of the backup transfer"
+        }
+      },
+      "title": "Data is the nested message containing detailed response information"
     },
     "v1BlockProposedRequest": {
       "type": "object",

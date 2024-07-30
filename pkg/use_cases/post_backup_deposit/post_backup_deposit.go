@@ -7,7 +7,6 @@ import (
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
 	service "intmax2-node/internal/store_vault_service"
-	"intmax2-node/internal/use_cases/backup_deposit"
 	backupDeposit "intmax2-node/internal/use_cases/backup_deposit"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -29,7 +28,7 @@ func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupDeposit.
 }
 
 func (u *uc) Do(
-	ctx context.Context, input *backup_deposit.UCPostBackupDepositInput,
+	ctx context.Context, input *backupDeposit.UCPostBackupDepositInput,
 ) error {
 	const (
 		hName               = "UseCase PostBackupDeposit"

@@ -1,6 +1,7 @@
 package pgx
 
 import (
+	"database/sql"
 	"fmt"
 	errPgx "intmax2-node/internal/sql_db/pgx/errors"
 	"intmax2-node/internal/sql_db/pgx/models"
@@ -21,29 +22,15 @@ func (p *pgx) CreateBackupDeposit(input *backupDeposit.UCPostBackupDepositInput)
 	id := uuid.New().String()
 	createdAt := time.Now().UTC()
 
-	_, err := p.exec(
-		p.ctx,
-		query,
-		id,
-		input.Recipient,
-		input.EncryptedDeposit,
-		input.BlockNumber,
-		createdAt,
-	)
-	if err != nil {
-		return nil, errPgx.Err(err)
-	}
-
-	var mDBApp *mDBApp.BackupDeposit
-	mDBApp, err = p.GetBackupDeposit("id", id)
+	err := p.createBackupEntry(query, id, input.Recipient, input.EncryptedDeposit, input.BlockNumber, createdAt)
 	if err != nil {
 		return nil, err
 	}
 
-	return mDBApp, nil
+	return p.GetBackupDeposit("id", id)
 }
 
-func (p *pgx) GetBackupDeposit(condition string, value string) (*mDBApp.BackupDeposit, error) {
+func (p *pgx) GetBackupDeposit(condition, value string) (*mDBApp.BackupDeposit, error) {
 	const baseQuery = `
         SELECT id, recipient, encrypted_deposit, block_number, created_at
         FROM backup_deposits
@@ -63,8 +50,8 @@ func (p *pgx) GetBackupDeposit(condition string, value string) (*mDBApp.BackupDe
 	if err != nil {
 		return nil, err
 	}
-	mDBApp := p.backupDepositToDBApp(&b)
-	return &mDBApp, nil
+	deposit := p.backupDepositToDBApp(&b)
+	return &deposit, nil
 }
 
 func (p *pgx) GetBackupDeposits(condition string, value interface{}) ([]*mDBApp.BackupDeposit, error) {
@@ -74,46 +61,29 @@ func (p *pgx) GetBackupDeposits(condition string, value interface{}) ([]*mDBApp.
         WHERE %s = $1
     `
 	query := fmt.Sprintf(baseQuery, condition)
-
-	rows, err := p.query(p.ctx, query, value)
+	var deposits []*mDBApp.BackupDeposit
+	err := p.getBackupEntries(query, value, func(rows *sql.Rows) error {
+		var b models.BackupDeposit
+		err := rows.Scan(&b.ID, &b.Recipient, &b.EncryptedDeposit, &b.BlockNumber, &b.CreatedAt)
+		if err != nil {
+			return err
+		}
+		deposit := p.backupDepositToDBApp(&b)
+		deposits = append(deposits, &deposit)
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	var deposits []*mDBApp.BackupDeposit
-
-	for rows.Next() {
-		var b models.BackupDeposit
-		err := rows.Scan(
-			&b.ID,
-			&b.Recipient,
-			&b.EncryptedDeposit,
-			&b.BlockNumber,
-			&b.CreatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-		mDBApp := p.backupDepositToDBApp(&b)
-		deposits = append(deposits, &mDBApp)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
 	return deposits, nil
 }
 
 func (p *pgx) backupDepositToDBApp(b *models.BackupDeposit) mDBApp.BackupDeposit {
-	m := mDBApp.BackupDeposit{
+	return mDBApp.BackupDeposit{
 		ID:               b.ID,
 		Recipient:        b.Recipient,
 		EncryptedDeposit: b.EncryptedDeposit,
 		BlockNumber:      b.BlockNumber,
 		CreatedAt:        b.CreatedAt,
 	}
-
-	return m
 }

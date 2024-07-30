@@ -1,6 +1,7 @@
 package pgx
 
 import (
+	"database/sql"
 	"fmt"
 	errPgx "intmax2-node/internal/sql_db/pgx/errors"
 	"intmax2-node/internal/sql_db/pgx/models"
@@ -21,30 +22,15 @@ func (p *pgx) CreateBackupTransaction(input *backupTransaction.UCPostBackupTrans
 	id := uuid.New().String()
 	createdAt := time.Now().UTC()
 
-	_, err := p.exec(
-		p.ctx,
-		query,
-		id,
-		input.Sender,
-		input.EncryptedTx,
-		input.BlockNumber,
-		input.Signature,
-		createdAt,
-	)
-	if err != nil {
-		return nil, errPgx.Err(err)
-	}
-
-	var mDBApp *mDBApp.BackupTransaction
-	mDBApp, err = p.GetBackupTransaction("id", id)
+	err := p.createBackupEntry(query, id, input.Sender, input.EncryptedTx, input.BlockNumber, input.Signature, createdAt)
 	if err != nil {
 		return nil, err
 	}
 
-	return mDBApp, nil
+	return p.GetBackupTransaction("id", id)
 }
 
-func (p *pgx) GetBackupTransaction(condition string, value string) (*mDBApp.BackupTransaction, error) {
+func (p *pgx) GetBackupTransaction(condition, value string) (*mDBApp.BackupTransaction, error) {
 	const baseQuery = `
         SELECT id, sender, encrypted_tx, block_number, signature, created_at
         FROM backup_transactions
@@ -65,8 +51,8 @@ func (p *pgx) GetBackupTransaction(condition string, value string) (*mDBApp.Back
 	if err != nil {
 		return nil, err
 	}
-	mDBApp := p.backupTransactionToDBApp(&b)
-	return &mDBApp, nil
+	transaction := p.backupTransactionToDBApp(&b)
+	return &transaction, nil
 }
 
 func (p *pgx) GetBackupTransactions(condition string, value interface{}) ([]*mDBApp.BackupTransaction, error) {
@@ -74,43 +60,27 @@ func (p *pgx) GetBackupTransactions(condition string, value interface{}) ([]*mDB
         SELECT id, sender, encrypted_tx, block_number, signature, created_at
         FROM backup_transactions
         WHERE %s = $1
-    `
+`
 	query := fmt.Sprintf(baseQuery, condition)
-
-	rows, err := p.query(p.ctx, query, value)
+	var transactions []*mDBApp.BackupTransaction
+	err := p.getBackupEntries(query, value, func(rows *sql.Rows) error {
+		var b models.BackupTransaction
+		err := rows.Scan(&b.ID, &b.Sender, &b.EncryptedTx, &b.BlockNumber, &b.Signature, &b.CreatedAt)
+		if err != nil {
+			return err
+		}
+		transaction := p.backupTransactionToDBApp(&b)
+		transactions = append(transactions, &transaction)
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	var transactions []*mDBApp.BackupTransaction
-
-	for rows.Next() {
-		var b models.BackupTransaction
-		err := rows.Scan(
-			&b.ID,
-			&b.Sender,
-			&b.EncryptedTx,
-			&b.BlockNumber,
-			&b.Signature,
-			&b.CreatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-		mDBApp := p.backupTransactionToDBApp(&b)
-		transactions = append(transactions, &mDBApp)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
 	return transactions, nil
 }
 
 func (p *pgx) backupTransactionToDBApp(b *models.BackupTransaction) mDBApp.BackupTransaction {
-	m := mDBApp.BackupTransaction{
+	return mDBApp.BackupTransaction{
 		ID:          b.ID,
 		Sender:      b.Sender,
 		EncryptedTx: b.EncryptedTx,
@@ -118,6 +88,4 @@ func (p *pgx) backupTransactionToDBApp(b *models.BackupTransaction) mDBApp.Backu
 		Signature:   b.Signature,
 		CreatedAt:   b.CreatedAt,
 	}
-
-	return m
 }
