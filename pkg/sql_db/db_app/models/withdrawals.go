@@ -10,6 +10,10 @@ const (
 	WS_FAILED
 )
 
+func (s WithdrawalStatus) String() string {
+	return [...]string{"pending", "success", "failed"}[s]
+}
+
 type TransferData struct {
 	Recipient  string `json:"recipient"`
 	TokenIndex int32  `json:"token_index"`

@@ -6,23 +6,24 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/logger"
 	"intmax2-node/internal/pow"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/transaction"
-	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/go-resty/resty/v2"
 )
 
 func SendTransactionRequest(
-	cfg *configs.Config,
 	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
 	senderAccount *intMaxAcc.PrivateKey,
-	txHash intMaxTypes.PoseidonHashOut,
+	transfersHash intMaxTypes.PoseidonHashOut,
 	nonce uint64,
 ) error {
 	const duration = 60 * time.Minute
@@ -32,6 +33,16 @@ func SendTransactionRequest(
 	pWorker := pow.NewWorker(cfg.PoW.Workers, pw)
 	pwNonce := pow.NewPoWNonce(pw, pWorker)
 
+	tx, err := intMaxTypes.NewTx(
+		&transfersHash,
+		nonce,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create new tx: %w", err)
+	}
+
+	txHash := tx.Hash()
+	log.Printf("transfersHash: %v", transfersHash.String())
 	messageForPow := txHash.Marshal()
 	powNonceStr, err := pwNonce.Nonce(ctx, messageForPow)
 	if err != nil {
@@ -44,7 +55,7 @@ func SendTransactionRequest(
 	}
 
 	message, err := transaction.MakeMessage(
-		txHash.Marshal(),
+		transfersHash.Marshal(),
 		nonce,
 		powNonceStr,
 		senderAccount.ToAddress(),
@@ -59,20 +70,28 @@ func SendTransactionRequest(
 		return fmt.Errorf("failed to sign message: %w", err)
 	}
 
-	return SendTransactionWithRawRequest(senderAccount, txHash, nonce, expiration, powNonceStr, signatureInput)
+	return SendTransactionWithRawRequest(
+		ctx, cfg, log, senderAccount, transfersHash, nonce, expiration, powNonceStr, signatureInput,
+	)
 }
 
 func SendTransactionWithRawRequest(
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
 	senderAccount *intMaxAcc.PrivateKey,
-	txHash intMaxTypes.PoseidonHashOut,
+	transfersHash intMaxTypes.PoseidonHashOut,
 	nonce uint64,
 	expiration time.Time,
 	powNonce string,
 	signature *bn254.G2Affine,
 ) error {
 	return sendTransactionRawRequest(
+		ctx,
+		cfg,
+		log,
 		senderAccount.ToAddress().String(),
-		txHash.String(),
+		transfersHash.String(),
 		nonce,
 		expiration,
 		powNonce,
@@ -81,14 +100,17 @@ func SendTransactionWithRawRequest(
 }
 
 func sendTransactionRawRequest(
-	senderAddress, txHash string,
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
+	senderAddress, transfersHash string,
 	nonce uint64,
 	expiration time.Time,
 	powNonce, signature string,
 ) error {
 	ucInput := transaction.UCTransactionInput{
 		Sender:        senderAddress,
-		TransfersHash: txHash,
+		TransfersHash: transfersHash,
 		Nonce:         nonce,
 		PowNonce:      powNonce,
 		Expiration:    expiration,
@@ -100,39 +122,46 @@ func sendTransactionRawRequest(
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	body := strings.NewReader(string(bd))
-
 	const (
-		apiBaseUrl  = "http://localhost"
-		contentType = "application/json"
+		httpKey     = "http"
+		httpsKey    = "https"
+		contentType = "Content-Type"
+		appJSON     = "application/json"
 	)
-	apiUrl := fmt.Sprintf("%s/v1/transaction", apiBaseUrl)
 
-	resp, err := http.Post(apiUrl, contentType, body) // nolint:gosec
-	if err != nil {
-		return fmt.Errorf("failed to request API: %w", err)
-	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("Unexpected status code: %d", resp.StatusCode)
-		var bodyBytes []byte
-		bodyBytes, err = io.ReadAll(resp.Body)
-		if err != nil {
-			return fmt.Errorf("error reading response body: %w", err)
-		}
-		return fmt.Errorf("response body: %s", string(bodyBytes))
+	schema := httpKey
+	if cfg.HTTP.TLSUse {
+		schema = httpsKey
 	}
 
-	bodyBytes, err := io.ReadAll(resp.Body)
+	apiUrl := fmt.Sprintf("%s://%s/v1/transaction", schema, cfg.HTTP.Addr())
+
+	r := resty.New().R()
+	var resp *resty.Response
+	resp, err = r.SetContext(ctx).SetHeaders(map[string]string{
+		contentType: appJSON,
+	}).SetBody(bd).Post(apiUrl)
 	if err != nil {
-		return fmt.Errorf("failed to read response body: %w", err)
+		const msg = "failed to send of the transaction request: %w"
+		return fmt.Errorf(msg, err)
+	}
+
+	if resp == nil {
+		const msg = "send request error occurred"
+		return fmt.Errorf(msg)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		err = fmt.Errorf("failed to get response")
+		log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return err
 	}
 
 	response := new(SendTransactionResponse)
-	if err = json.Unmarshal(bodyBytes, response); err != nil {
+	if err = json.Unmarshal(resp.Body(), response); err != nil {
 		return fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 

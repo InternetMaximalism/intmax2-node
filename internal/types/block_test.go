@@ -57,12 +57,15 @@ func TestPublicKeyBlockValidation(t *testing.T) {
 	txRoot, err := new(intMaxTypes.PoseidonHashOut).SetRandom()
 	require.NoError(t, err)
 
-	senderPublicKeysBytes := make([]byte, len(senders)*intMaxTypes.NumPublicKeyBytes)
-	for i, sender := range senders {
-		if sender.IsSigned {
-			senderPublicKey := sender.PublicKey.Pk.X.Bytes() // Only x coordinate is used
-			copy(senderPublicKeysBytes[32*i:32*(i+1)], senderPublicKey[:])
-		}
+	const numOfSenders = 128
+	senderPublicKeysBytes := make([]byte, numOfSenders*intMaxTypes.NumPublicKeyBytes)
+	for i, pk := range senders {
+		senderPublicKey := pk.PublicKey.Pk.X.Bytes() // Only x coordinate is used
+		copy(senderPublicKeysBytes[32*i:32*(i+1)], senderPublicKey[:])
+	}
+	for i := len(senders); i < numOfSenders; i++ {
+		senderPublicKey := defaultPublicKey.Pk.X.Bytes() // Only x coordinate is used
+		copy(senderPublicKeysBytes[32*i:32*(i+1)], senderPublicKey[:])
 	}
 
 	publicKeysHash := crypto.Keccak256(senderPublicKeysBytes)
@@ -139,12 +142,15 @@ func TestAccountIDBlockValidation(t *testing.T) {
 	txRoot, err := new(intMaxTypes.PoseidonHashOut).SetRandom()
 	require.NoError(t, err)
 
-	senderPublicKeys := make([]byte, len(senders)*intMaxTypes.NumPublicKeyBytes)
+	const numOfSenders = 128
+	senderPublicKeys := make([]byte, numOfSenders*intMaxTypes.NumPublicKeyBytes)
 	for i, sender := range senders {
-		if sender.IsSigned {
-			senderPublicKey := sender.PublicKey.Pk.X.Bytes() // Only x coordinate is used
-			copy(senderPublicKeys[32*i:32*(i+1)], senderPublicKey[:])
-		}
+		senderPublicKey := sender.PublicKey.Pk.X.Bytes() // Only x coordinate is used
+		copy(senderPublicKeys[32*i:32*(i+1)], senderPublicKey[:])
+	}
+	for i := len(senders); i < numOfSenders; i++ {
+		senderPublicKey := defaultPublicKey.Pk.X.Bytes() // Only x coordinate is used
+		copy(senderPublicKeys[32*i:32*(i+1)], senderPublicKey[:])
 	}
 
 	publicKeysHash := crypto.Keccak256(senderPublicKeys)
