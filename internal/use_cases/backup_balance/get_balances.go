@@ -2,17 +2,36 @@ package backup_balance
 
 import (
 	"context"
+	"time"
 )
 
 //go:generate mockgen -destination=../mocks/mock_get_backup_balance.go -package=mocks -source=get_backup_balance.go
 
-type TokenBalance struct {
-	TokenIndex int    `json:"tokenIndex"`
-	Amount     string `json:"amount"`
+type BackupDeposit struct {
+	Recipient        string    `json:"recipient"`
+	EncryptedDeposit string    `json:"encrypted_deposit"`
+	BlockNumber      uint64    `json:"block_number"`
+	CreatedAt        time.Time `json:"created_at"`
+}
+
+type BackupTransfer struct {
+	EncryptedTransfer string    `json:"encrypted_transfer"`
+	Recipient         string    `json:"recipient"`
+	BlockNumber       uint64    `json:"block_number"`
+	CreatedAt         time.Time `json:"created_at"`
+}
+
+type BackupTransaction struct {
+	Sender      string    `json:"sender"`
+	EncryptedTx string    `json:"encrypted_tx"`
+	BlockNumber uint64    `json:"block_number"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 type UCGetBalances struct {
-	Balances []*TokenBalance `json:"balances"`
+	Deposits     []*BackupDeposit     `json:"deposits"`
+	Transfers    []*BackupTransfer    `json:"transfers"`
+	Transactions []*BackupTransaction `json:"transactions"`
 }
 
 type UCGetBalancesInput struct {

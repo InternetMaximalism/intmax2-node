@@ -542,6 +542,24 @@
       "description": "- EMPTY: the EMPTY address type\n - INTMAX: the INTMAX address type\n - ETHEREUM: the ETHEREUM address type",
       "title": "AddressType describes type of address"
     },
+    "v1BackupDeposit": {
+      "type": "object",
+      "properties": {
+        "recipient": {
+          "type": "string"
+        },
+        "encryptedDeposit": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      }
+    },
     "v1BackupDepositRequest": {
       "type": "object",
       "properties": {
@@ -584,6 +602,23 @@
         }
       },
       "title": "Data is the nested message containing detailed response information"
+    },
+    "v1BackupTransaction": {
+      "type": "object",
+      "properties": {
+        "sender": {
+          "type": "string"
+        },
+        "encryptedTx": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      }
     },
     "v1BackupTransactionRequest": {
       "type": "object",
@@ -631,6 +666,24 @@
         }
       },
       "title": "Data is the nested message containing detailed response information"
+    },
+    "v1BackupTransfer": {
+      "type": "object",
+      "properties": {
+        "encryptedTransfer": {
+          "type": "string"
+        },
+        "recipient": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      }
     },
     "v1BackupTransferRequest": {
       "type": "object",
@@ -822,13 +875,29 @@
     "v1GetBalancesResponse": {
       "type": "object",
       "properties": {
-        "balances": {
+        "deposits": {
           "type": "array",
           "items": {
             "type": "object",
-            "$ref": "#/definitions/v1TokenBalance"
+            "$ref": "#/definitions/v1BackupDeposit"
           },
-          "title": "The list of token balances"
+          "title": "The list of deposits"
+        },
+        "transfers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1BackupTransfer"
+          },
+          "title": "The list of transfers"
+        },
+        "transactions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1BackupTransaction"
+          },
+          "title": "The list of transactions"
         }
       },
       "description": "The response message containing a list of token balances."
@@ -896,21 +965,6 @@
         }
       },
       "title": "RecipientTransferDataTransactionRequest describes recipient of request to get info about the create new transaction"
-    },
-    "v1TokenBalance": {
-      "type": "object",
-      "properties": {
-        "tokenIndex": {
-          "type": "integer",
-          "format": "int32",
-          "title": "The index of the token"
-        },
-        "amount": {
-          "type": "string",
-          "title": "The amount of the token"
-        }
-      },
-      "description": "The balance of a specific token."
     },
     "v1Transaction": {
       "type": "object",

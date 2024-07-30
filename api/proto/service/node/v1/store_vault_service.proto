@@ -127,16 +127,33 @@ message GetBalancesRequest {
   string address = 1;
 }
 
-// The balance of a specific token.
-message TokenBalance {
-  // The index of the token
-  int32 token_index = 1;
-  // The amount of the token
-  string amount = 2;
+message BackupDeposit {
+  string recipient = 1;
+  string encrypted_deposit = 2;
+  uint64 block_number = 3;
+  string created_at = 4;
+}
+
+message BackupTransfer {
+  string encrypted_transfer = 1;
+  string recipient = 2;
+  uint64 block_number = 3;
+  string created_at = 4;
+}
+
+message BackupTransaction {
+	string sender = 1;
+	string encrypted_tx = 2;
+	string block_number = 3;
+	string created_at = 4;
 }
 
 // The response message containing a list of token balances.
 message GetBalancesResponse {
-  // The list of token balances
-  repeated TokenBalance balances = 1;
+  // The list of deposits
+  repeated BackupDeposit deposits = 1;
+  // The list of transfers
+  repeated BackupTransfer transfers = 2;
+  // The list of transactions
+  repeated BackupTransaction transactions = 3;
 }

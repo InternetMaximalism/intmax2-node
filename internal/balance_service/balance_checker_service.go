@@ -2,6 +2,7 @@ package balance_service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
@@ -10,18 +11,22 @@ import (
 	"intmax2-node/internal/deposit_service"
 	"intmax2-node/internal/logger"
 	intMaxTypes "intmax2-node/internal/types"
+	"intmax2-node/internal/use_cases/backup_balance"
 	errorsDB "intmax2-node/pkg/sql_db/errors"
 	"intmax2-node/pkg/utils"
 	"log"
 	"math/big"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/go-resty/resty/v2"
 )
 
 const (
@@ -334,4 +339,68 @@ func MakeSampleBalanceState(userAddress intMaxAcc.Address) (BalanceState, error)
 	}
 
 	return balanceState, nil
+}
+
+func sendTransactionRawRequest(
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
+	senderAddress, transfersHash string,
+	nonce uint64,
+	expiration time.Time,
+	powNonce, signature string,
+) (*backup_balance.UCGetBalances, error) {
+	ucInput := backup_balance.UCGetBalancesInput{
+		Address: senderAddress,
+	}
+
+	bd, err := json.Marshal(ucInput)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+
+	const (
+		httpKey     = "http"
+		httpsKey    = "https"
+		contentType = "Content-Type"
+		appJSON     = "application/json"
+	)
+
+	schema := httpKey
+	if cfg.HTTP.TLSUse {
+		schema = httpsKey
+	}
+
+	apiUrl := fmt.Sprintf("%s://%s/v1/transaction", schema, cfg.HTTP.Addr())
+
+	r := resty.New().R()
+	var resp *resty.Response
+	resp, err = r.SetContext(ctx).SetHeaders(map[string]string{
+		contentType: appJSON,
+	}).SetBody(bd).Post(apiUrl)
+	if err != nil {
+		const msg = "failed to send of the transaction request: %w"
+		return nil, fmt.Errorf(msg, err)
+	}
+
+	if resp == nil {
+		const msg = "send request error occurred"
+		return nil, fmt.Errorf(msg)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		err = fmt.Errorf("failed to get response")
+		log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return nil, err
+	}
+
+	response := new(backup_balance.UCGetBalances)
+	if err = json.Unmarshal(resp.Body(), response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	return response, nil
 }

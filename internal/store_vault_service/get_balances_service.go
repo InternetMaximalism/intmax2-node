@@ -19,29 +19,52 @@ func GetBalances(
 	if err != nil {
 		return nil, fmt.Errorf("failed to create get backup depsits from db: %w", err)
 	}
-	fmt.Println("deposits", deposits)
+	fmt.Printf("deposits: %+v\n", deposits)
 
 	transactions, err := db.GetBackupTransactions("sender", input.Address)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create get backup transactions from db: %w", err)
 	}
-	fmt.Println("transactions", transactions)
+	fmt.Printf("transactions: %+v\n", transactions)
 
 	transfers, err := db.GetBackupTransfers("recipient", input.Address)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create get backup transfers from db: %w", err)
 	}
-	fmt.Println("transfers", transfers)
+	fmt.Printf("transfers: %+v\n", transfers)
 
-	balanceMap := map[int]string{
-		1: "100",
-		2: "200",
+	resDeposits := make([]*backupBalance.BackupDeposit, len(deposits))
+	for i, deposit := range deposits {
+		resDeposits[i] = &backupBalance.BackupDeposit{
+			Recipient:        deposit.Recipient,
+			EncryptedDeposit: deposit.EncryptedDeposit,
+			BlockNumber:      deposit.BlockNumber,
+			CreatedAt:        deposit.CreatedAt,
+		}
 	}
 
-	var balances []*backupBalance.TokenBalance
-	for index, amount := range balanceMap {
-		balances = append(balances, &backupBalance.TokenBalance{TokenIndex: index, Amount: amount})
+	resTransfers := make([]*backupBalance.BackupTransfer, len(transfers))
+	for i, transfer := range transfers {
+		resTransfers[i] = &backupBalance.BackupTransfer{
+			EncryptedTransfer: transfer.EncryptedTransfer,
+			Recipient:         transfer.Recipient,
+			BlockNumber:       transfer.BlockNumber,
+			CreatedAt:         transfer.CreatedAt,
+		}
+	}
+	resTransactions := make([]*backupBalance.BackupTransaction, len(transactions))
+	for i, transaction := range transactions {
+		resTransactions[i] = &backupBalance.BackupTransaction{
+			Sender:      transaction.Sender,
+			EncryptedTx: transaction.EncryptedTx,
+			BlockNumber: transaction.BlockNumber,
+			CreatedAt:   transaction.CreatedAt,
+		}
 	}
 
-	return &backupBalance.UCGetBalances{Balances: balances}, nil
+	return &backupBalance.UCGetBalances{
+		Deposits:     resDeposits,
+		Transactions: resTransactions,
+		Transfers:    resTransfers,
+	}, nil
 }
