@@ -13,6 +13,8 @@ type Blockchain struct {
 	RollupContractAddress      string `env:"BLOCKCHAIN_ROLLUP_CONTRACT_ADDRESS,required"`
 	TemplateContractRollupPath string `env:"BLOCKCHAIN_TEMPLATE_CONTRACT_ROLLUP_PATH,required" envDefault:"third_party/contracts/Rollup.json"`
 
+	RollupContractDeployedBlockNumber uint64 `env:"BLOCKCHAIN_ROLLUP_CONTRACT_DEPLOYED_BLOCK_NUMBER" envDefault:"0"`
+
 	EthereumNetworkChainID string `env:"BLOCKCHAIN_ETHEREUM_NETWORK_CHAIN_ID"`
 	EthereumPrivateKeyHex  string `env:"BLOCKCHAIN_ETHEREUM_PRIVATE_KEY_HEX"`
 	EthereumNetworkRpcUrl  string `env:"BLOCKCHAIN_ETHEREUM_NETWORK_RPC_URL"`

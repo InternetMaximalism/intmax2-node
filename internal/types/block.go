@@ -439,10 +439,9 @@ func MakePostRegistrationBlockInput(blockContent *BlockContent) (*PostRegistrati
 	for i, sender := range blockContent.Senders {
 		if sender.IsSigned {
 			senderFlags[i/int8Key] |= 1 << (i % int8Key)
-			senderPublicKeys[i] = sender.PublicKey.BigInt()
-		} else {
-			senderPublicKeys[i] = big.NewInt(0)
 		}
+
+		senderPublicKeys[i] = new(big.Int).Set(sender.PublicKey.BigInt())
 	}
 
 	// Follow the ordering of the coordinates in the smart contract.
@@ -509,7 +508,7 @@ func MakePostNonRegistrationBlockInput(blockContent *BlockContent) (*PostNonRegi
 
 func MakeAccountIds(blockContent *BlockContent) ([]byte, error) {
 	if blockContent.SenderType != AccountIDSenderType {
-		return nil, errors.New("invalid sender type")
+		return nil, ErrBlockContentSenderTypeInvalid
 	}
 
 	accountIds := make([]uint64, len(blockContent.Senders))
@@ -557,33 +556,33 @@ func UnmarshalAccountIds(accountIdsBytes []byte) ([]uint64, error) {
 }
 
 type RollupContractConfig struct {
-	// EthereumNetworkRpcUrl is the URL of the Ethereum network RPC endpoint
-	EthereumNetworkRpcUrl string
+	// NetworkChainID is the chain ID of the network
+	NetworkChainID string
+
+	// NetworkRpcUrl is the URL of the network RPC endpoint
+	NetworkRpcUrl string
 
 	// RollupContractAddressHex is the address of the Rollup contract
 	RollupContractAddressHex string
 
 	// EthereumPrivateKeyHex is the private key used to sign transactions
 	EthereumPrivateKeyHex string
-
-	// EthereumNetworkChainID is the chain ID of the Ethereum network
-	EthereumNetworkChainID string
 }
 
 // NewRollupContractConfigFromEnv creates a new RollupContractConfig from the environment variables.
-func NewRollupContractConfigFromEnv(cfg *configs.Config) *RollupContractConfig {
+func NewRollupContractConfigFromEnv(cfg *configs.Config, networkRpcUrl string) *RollupContractConfig {
 	return &RollupContractConfig{
-		EthereumNetworkRpcUrl:    cfg.Blockchain.EthereumNetworkRpcUrl,
+		NetworkRpcUrl:            networkRpcUrl,
 		RollupContractAddressHex: cfg.Blockchain.RollupContractAddress,
 		EthereumPrivateKeyHex:    cfg.Blockchain.EthereumPrivateKeyHex,
-		EthereumNetworkChainID:   cfg.Blockchain.EthereumNetworkChainID,
+		NetworkChainID:           cfg.Blockchain.ScrollNetworkChainID,
 	}
 }
 
 // PostRegistrationBlock posts a registration block on the Rollup contract.
 // It returns the transaction hash if the block is successfully posted.
 func PostRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockContent) (*types.Transaction, error) {
-	client, err := utils.NewClient(cfg.EthereumNetworkRpcUrl)
+	client, err := utils.NewClient(cfg.NetworkRpcUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new client: %w", err)
 	}
@@ -608,13 +607,19 @@ func PostRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockContent
 		int10Key = 10
 		int64Key = 64
 	)
-	chainID, err := strconv.ParseInt(cfg.EthereumNetworkChainID, int10Key, int64Key)
+	chainID, err := strconv.ParseInt(cfg.NetworkChainID, int10Key, int64Key)
 	if err != nil {
 		return nil, fmt.Errorf("invalid chain ID: %w", err)
 	}
 	transactOpts, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(chainID))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transactor: %w", err)
+	}
+
+	// Check recover block content
+	err = blockContent.IsValid()
+	if err != nil {
+		return nil, fmt.Errorf("block content is invalid: %w", err)
 	}
 
 	return rollup.PostRegistrationBlock(
@@ -631,7 +636,7 @@ func PostRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockContent
 // PostNonRegistrationBlock posts a non-registration block on the Rollup contract.
 // It returns the transaction hash if the block is successfully posted.
 func PostNonRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockContent) (*types.Transaction, error) {
-	client, err := utils.NewClient(cfg.EthereumNetworkRpcUrl)
+	client, err := utils.NewClient(cfg.NetworkRpcUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new client: %w", err)
 	}
@@ -656,7 +661,7 @@ func PostNonRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockCont
 		int10Key = 10
 		int64Key = 64
 	)
-	chainID, err := strconv.ParseInt(cfg.EthereumNetworkChainID, int10Key, int64Key)
+	chainID, err := strconv.ParseInt(cfg.NetworkChainID, int10Key, int64Key)
 	if err != nil {
 		return nil, fmt.Errorf("invalid chain ID: %w", err)
 	}

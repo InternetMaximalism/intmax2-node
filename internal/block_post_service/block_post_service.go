@@ -8,15 +8,18 @@ import (
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/bindings"
 	intMaxTypes "intmax2-node/internal/types"
+	"intmax2-node/internal/use_cases/block_signature"
 	"intmax2-node/pkg/utils"
 	"io"
 	"math/big"
+	"sort"
 	"strings"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
@@ -41,7 +44,7 @@ const (
 	int32Key = 32
 )
 
-type BlockPostService struct {
+type blockPostService struct {
 	ctx context.Context
 	// cfg       *configs.Config
 	// log       logger.Logger
@@ -51,7 +54,7 @@ type BlockPostService struct {
 	rollup       *bindings.Rollup
 }
 
-func NewBlockPostService(ctx context.Context, cfg *configs.Config) (*BlockPostService, error) {
+func NewBlockPostService(ctx context.Context, cfg *configs.Config) (BlockPostService, error) {
 	ethClient, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
 	if err != nil {
 		return nil, errors.Join(ErrNewEthereumClientFail, err)
@@ -83,7 +86,7 @@ func NewBlockPostService(ctx context.Context, cfg *configs.Config) (*BlockPostSe
 		return nil, errors.Join(ErrInstantiateRollupContractFail, err)
 	}
 
-	return &BlockPostService{
+	return &blockPostService{
 		ctx:          ctx,
 		ethClient:    ethClient,
 		scrollClient: scrollClient,
@@ -92,7 +95,16 @@ func NewBlockPostService(ctx context.Context, cfg *configs.Config) (*BlockPostSe
 	}, nil
 }
 
-func (d *BlockPostService) FetchNewPostedBlocks(startBlock uint64) ([]*bindings.RollupBlockPosted, *big.Int, error) {
+func (d *blockPostService) FetchLatestBlockNumber(ctx context.Context) (uint64, error) {
+	blockNumber, err := d.scrollClient.BlockNumber(ctx)
+	if err != nil {
+		return 0, errors.Join(ErrFetchLatestBlockNumberFail, err)
+	}
+
+	return blockNumber, nil
+}
+
+func (d *blockPostService) FetchNewPostedBlocks(startBlock uint64) ([]*bindings.RollupBlockPosted, *big.Int, error) {
 	nextBlock := startBlock + int1Key
 	iterator, err := d.rollup.FilterBlockPosted(&bind.FilterOpts{
 		Start:   nextBlock,
@@ -125,7 +137,7 @@ func (d *BlockPostService) FetchNewPostedBlocks(startBlock uint64) ([]*bindings.
 	return events, maxBlockNumber, nil
 }
 
-func (d *BlockPostService) FetchScrollCalldataByHash(txHash common.Hash) ([]byte, error) {
+func (d *blockPostService) FetchScrollCalldataByHash(txHash common.Hash) ([]byte, error) {
 	tx, isPending, err := d.scrollClient.TransactionByHash(context.Background(), txHash)
 	if err != nil {
 		return nil, errors.Join(ErrTransactionByHashNotFound, err)
@@ -141,6 +153,7 @@ func (d *BlockPostService) FetchScrollCalldataByHash(txHash common.Hash) ([]byte
 }
 
 // FetchIntMaxBlockContentByCalldata fetches the block content by transaction hash.
+// accountInfoMap is mutable and will be updated with new account information.
 //
 // Example:
 //
@@ -153,7 +166,7 @@ func (d *BlockPostService) FetchScrollCalldataByHash(txHash common.Hash) ([]byte
 //	blockContent, err := FetchIntMaxBlockContentByCalldata(calldata)
 func FetchIntMaxBlockContentByCalldata(calldata []byte, accountInfoMap AccountInfoMap) (*intMaxTypes.BlockContent, error) {
 	// Parse calldata
-	rollupABI := io.Reader(strings.NewReader(bindings.RollupABI))
+	rollupABI := io.Reader(strings.NewReader(bindings.RollupMetaData.ABI))
 	parsedABI, err := abi.JSON(rollupABI)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse ABI: %w", err)
@@ -203,6 +216,11 @@ func recoverBlockContent(
 			return nil, errors.Join(ErrDecodeCallDataFail, err)
 		}
 
+		err = blockContent.IsValid()
+		if err != nil {
+			return nil, fmt.Errorf("failed to validate block content: %w", err)
+		}
+
 		dummyAddress := intMaxAcc.NewDummyPublicKey().ToAddress().String()
 		for _, sender := range blockContent.Senders {
 			if accountInfoMap.PublicKeyMap[sender.PublicKey.ToAddress().String()] == int0Key {
@@ -231,20 +249,26 @@ func recoverBlockContent(
 			return nil, errors.Join(ErrDecodeCallDataFail, err)
 		}
 
-		/**
-		// TODO
-		// for _, sender := range blockContent.Senders {
-		// 	if accountInfoMap.PublicKeyMap[sender.PublicKey.ToAddress().String()] == int0Key {
-		// 		accountInfoMap.LastAccountID += int1Key
-		// 		accountInfoMap.AccountMap[accountInfoMap.LastAccountID] = sender.PublicKey
-		// 		accountInfoMap.PublicKeyMap[sender.PublicKey.ToAddress().String()] = accountInfoMap.LastAccountID
-		// 	} else {
-		// 		// TODO: error handling
-		// 		if
-		// 		fmt.Println("Account already exists")
-		// 	}
-		// }
-		*/
+		err = blockContent.IsValid()
+		if err != nil {
+			return nil, fmt.Errorf("failed to validate block content: %w", err)
+		}
+
+		defaultAddress := intMaxAcc.NewDummyPublicKey().ToAddress().String()
+		for _, sender := range blockContent.Senders {
+			address := sender.PublicKey.ToAddress().String()
+			if address != defaultAddress {
+				if accountInfoMap.PublicKeyMap[address] == 0 {
+					accountInfoMap.LastAccountID += 1
+					accountInfoMap.AccountMap[accountInfoMap.LastAccountID] = sender.PublicKey
+					accountInfoMap.PublicKeyMap[address] = accountInfoMap.LastAccountID
+				} else {
+					fmt.Printf("Account already exists %v\n", address)
+				}
+			} else {
+				fmt.Printf("Account is default %v\n", address)
+			}
+		}
 
 		return blockContent, nil
 	default:
@@ -451,7 +475,7 @@ func recoverNonRegistrationBlockContent(
 	return blockContent, nil
 }
 
-// func (d *BlockPostService) FetchNewDeposits(startBlock uint64) ([]*bindings.LiquidityDeposited, *big.Int, map[uint32]bool, error) {
+// func (d *blockPostService) FetchNewDeposits(startBlock uint64) ([]*bindings.LiquidityDeposited, *big.Int, map[uint32]bool, error) {
 // 	nextBlock := startBlock + 1
 // 	iterator, err := d.liquidity.FilterDeposited(&bind.FilterOpts{
 // 		Start:   nextBlock,
@@ -483,3 +507,205 @@ func recoverNonRegistrationBlockContent(
 
 // 	return events, maxDepositIndex, tokenIndexMap, nil
 // }
+
+// MakeRegistrationBlock creates a block content for registration block.
+// txRoot - root of the transaction tree.
+// senderPublicKeys - list of public keys for each sender.
+// signatures - list of signatures for each sender. Empty string means no signature.
+func (d *blockPostService) MakeRegistrationBlock(
+	txRoot intMaxTypes.PoseidonHashOut,
+	senderPublicKeys []*intMaxAcc.PublicKey,
+	signatures []string,
+) (*intMaxTypes.BlockContent, error) {
+	if len(senderPublicKeys) != len(signatures) {
+		return nil, errors.New("length of senderPublicKeys, accountIDs, and signatures must be equal")
+	}
+
+	// Sort by x-coordinate of public key
+	sort.Slice(senderPublicKeys, func(i, j int) bool {
+		return senderPublicKeys[i].Pk.X.Cmp(&senderPublicKeys[j].Pk.X) > 0
+	})
+
+	senders := make([]intMaxTypes.Sender, numOfSenders)
+	for i, publicKey := range senderPublicKeys {
+		if publicKey == nil {
+			return nil, errors.New("publicKey must not be nil")
+		}
+
+		senders[i] = intMaxTypes.Sender{
+			PublicKey: publicKey,
+			AccountID: 0,
+			IsSigned:  signatures[i] != "",
+		}
+	}
+
+	defaultPublicKey := intMaxAcc.NewDummyPublicKey()
+	for i := len(senderPublicKeys); i < len(senders); i++ {
+		senders[i] = intMaxTypes.Sender{
+			PublicKey: defaultPublicKey,
+			AccountID: 0,
+			IsSigned:  false,
+		}
+	}
+
+	const numPublicKeyBytes = intMaxTypes.NumPublicKeyBytes
+
+	senderPublicKeysBytes := make([]byte, len(senders)*numPublicKeyBytes)
+	for i, sender := range senders {
+		senderPublicKey := sender.PublicKey.Pk.X.Bytes() // Only x coordinate is used
+		copy(senderPublicKeysBytes[numPublicKeyBytes*i:numPublicKeyBytes*(i+1)], senderPublicKey[:])
+	}
+
+	publicKeysHash := crypto.Keccak256(senderPublicKeysBytes)
+	aggregatedPublicKey := new(intMaxAcc.PublicKey)
+	for _, sender := range senders {
+		if sender.IsSigned {
+			weightedPublicKey := sender.PublicKey.WeightByHash(publicKeysHash)
+			aggregatedPublicKey.Add(aggregatedPublicKey, weightedPublicKey)
+		}
+	}
+
+	aggregatedSignature := new(bn254.G2Affine)
+	for i, sender := range senders {
+		if senders[i].IsSigned {
+			if sender.IsSigned {
+				signature := new(bn254.G2Affine)
+				signatureBytes, err := hexutil.Decode(signatures[i])
+				if err != nil {
+					fmt.Printf("Failed to decode signature: %s\n", signatures[i])
+					continue
+				}
+				err = signature.Unmarshal(signatureBytes)
+				if err != nil {
+					fmt.Printf("Failed to unmarshal signature: %s\n", signatures[i])
+					continue
+				}
+
+				err = block_signature.VerifyTxTreeSignature(
+					signatureBytes, sender.PublicKey, txRoot.Marshal(), senderPublicKeys,
+				)
+				if err != nil {
+					fmt.Printf("Failed to verify signature: %s\n", signatures[i])
+					continue
+				}
+
+				aggregatedSignature.Add(aggregatedSignature, signature)
+			}
+		}
+	}
+
+	blockContent := intMaxTypes.NewBlockContent(
+		intMaxTypes.PublicKeySenderType,
+		senders,
+		txRoot,
+		aggregatedSignature,
+	)
+
+	return blockContent, nil
+}
+
+// MakeNonRegistrationBlock creates a block content for non-registration block.
+// txRoot - root of the transaction tree.
+// accountIDs - list of account IDs for each sender.
+// senderPublicKeys - list of public keys for each sender.
+// signatures - list of signatures for each sender. Empty string means no signature.
+func (d *blockPostService) MakeNonRegistrationBlock(
+	txRoot intMaxTypes.PoseidonHashOut,
+	accountIDs []uint64,
+	senderPublicKeys []*intMaxAcc.PublicKey,
+	signatures []string,
+) (*intMaxTypes.BlockContent, error) {
+	if len(senderPublicKeys) != len(signatures) || len(senderPublicKeys) != len(accountIDs) {
+		return nil, errors.New("length of senderPublicKeys, accountIDs, and signatures must be equal")
+	}
+
+	// Sort by x-coordinate of public key
+	sort.Slice(senderPublicKeys, func(i, j int) bool {
+		return senderPublicKeys[i].Pk.X.Cmp(&senderPublicKeys[j].Pk.X) > 0
+	})
+
+	const maxAccountIDBits = 40
+
+	senders := make([]intMaxTypes.Sender, numOfSenders)
+	for i, publicKey := range senderPublicKeys {
+		if accountIDs[i] == 0 {
+			return nil, errors.New("accountID must be greater than 0")
+		}
+		if accountIDs[i] > uint64(1)<<maxAccountIDBits {
+			return nil, fmt.Errorf("accountID must be less than or equal to 2^%d", maxAccountIDBits)
+		}
+		if publicKey == nil {
+			return nil, errors.New("publicKey must not be nil")
+		}
+
+		senders[i] = intMaxTypes.Sender{
+			PublicKey: publicKey,
+			AccountID: accountIDs[i],
+			IsSigned:  signatures[i] != "",
+		}
+	}
+
+	defaultPublicKey := intMaxAcc.NewDummyPublicKey()
+	for i := len(senderPublicKeys); i < len(senders); i++ {
+		senders[i] = intMaxTypes.Sender{
+			PublicKey: defaultPublicKey,
+			AccountID: 0,
+			IsSigned:  false,
+		}
+	}
+
+	const numPublicKeyBytes = intMaxTypes.NumPublicKeyBytes
+
+	senderPublicKeysBytes := make([]byte, len(senders)*numPublicKeyBytes)
+	for i, sender := range senders {
+		senderPublicKey := sender.PublicKey.Pk.X.Bytes() // Only x coordinate is used
+		copy(senderPublicKeysBytes[numPublicKeyBytes*i:numPublicKeyBytes*(i+1)], senderPublicKey[:])
+	}
+
+	publicKeysHash := crypto.Keccak256(senderPublicKeysBytes)
+	aggregatedPublicKey := new(intMaxAcc.PublicKey)
+	for _, sender := range senders {
+		if sender.IsSigned {
+			weightedPublicKey := sender.PublicKey.WeightByHash(publicKeysHash)
+			aggregatedPublicKey.Add(aggregatedPublicKey, weightedPublicKey)
+		}
+	}
+
+	aggregatedSignature := new(bn254.G2Affine)
+	for i, sender := range senders {
+		if senders[i].IsSigned {
+			if sender.IsSigned {
+				signature := new(bn254.G2Affine)
+				signatureBytes, err := hexutil.Decode(signatures[i])
+				if err != nil {
+					fmt.Printf("Failed to decode signature: %s\n", signatures[i])
+					continue
+				}
+				err = signature.Unmarshal(signatureBytes)
+				if err != nil {
+					fmt.Printf("Failed to unmarshal signature: %s\n", signatures[i])
+					continue
+				}
+
+				err = block_signature.VerifyTxTreeSignature(
+					signatureBytes, sender.PublicKey, txRoot.Marshal(), senderPublicKeys,
+				)
+				if err != nil {
+					fmt.Printf("Failed to verify signature: %s\n", signatures[i])
+					continue
+				}
+
+				aggregatedSignature.Add(aggregatedSignature, signature)
+			}
+		}
+	}
+
+	blockContent := intMaxTypes.NewBlockContent(
+		intMaxTypes.PublicKeySenderType,
+		senders,
+		txRoot,
+		aggregatedSignature,
+	)
+
+	return blockContent, nil
+}

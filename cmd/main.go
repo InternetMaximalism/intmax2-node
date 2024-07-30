@@ -18,6 +18,7 @@ import (
 	"intmax2-node/cmd/withdrawal_server"
 	"intmax2-node/configs"
 	"intmax2-node/internal/block_builder_registry_service"
+	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/blockchain"
 	"intmax2-node/internal/cli"
 	"intmax2-node/internal/network_service"
@@ -75,6 +76,7 @@ func main() {
 	}
 
 	w := worker.New(cfg, log, dbApp)
+	blockValidityProver := block_validity_prover.New(cfg, log, dbApp)
 	bc := blockchain.New(ctx, cfg)
 	ns := network_service.New(cfg)
 	hc := health.NewHandler()
@@ -89,18 +91,19 @@ func main() {
 	err = cli.Run(
 		ctx,
 		server.NewServerCmd(&server.Server{
-			Context: ctx,
-			Cancel:  cancel,
-			Config:  cfg,
-			Log:     log,
-			DbApp:   dbApp,
-			WG:      &wg,
-			BBR:     bbr,
-			SB:      bc,
-			NS:      ns,
-			HC:      &hc,
-			PoW:     pwNonce,
-			Worker:  w,
+			Context:             ctx,
+			Cancel:              cancel,
+			Config:              cfg,
+			Log:                 log,
+			DbApp:               dbApp,
+			WG:                  &wg,
+			BBR:                 bbr,
+			SB:                  bc,
+			NS:                  ns,
+			HC:                  &hc,
+			PoW:                 pwNonce,
+			Worker:              w,
+			BlockValidityProver: blockValidityProver,
 		}),
 		migrator.NewMigratorCmd(ctx, log, dbApp),
 		deposit.NewDepositCmd(&deposit.Deposit{

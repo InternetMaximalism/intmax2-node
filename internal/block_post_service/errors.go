@@ -46,3 +46,6 @@ var ErrSetTxRootFail = errors.New("failed to set tx tree root")
 
 // ErrRecoverAccountIDsFromBytesFail error: failed to recover account IDs from bytes.
 var ErrRecoverAccountIDsFromBytesFail = errors.New("failed to recover account IDs from bytes")
+
+// ErrFetchLatestBlockNumberFail error: failed to fetch latest block number.
+var ErrFetchLatestBlockNumberFail = errors.New("failed to fetch latest block number")
