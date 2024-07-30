@@ -2,7 +2,6 @@ package block_signature
 
 import (
 	"errors"
-	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/finite_field"
 	intMaxTypes "intmax2-node/internal/types"
@@ -44,7 +43,11 @@ func (input *UCBlockSignatureInput) Valid(w Worker) (err error) {
 				return ErrValueInvalid
 			}
 
-			txTreeRootBytes := input.TxTree.RootHash.Marshal()
+			var sb []byte
+			sb, err = hexutil.Decode(v)
+			if err != nil {
+				return ErrValueInvalid
+			}
 
 			var publicKey *intMaxAcc.PublicKey
 			publicKey, err = intMaxAcc.NewPublicKeyFromAddressHex(input.Sender)
@@ -52,21 +55,10 @@ func (input *UCBlockSignatureInput) Valid(w Worker) (err error) {
 				return ErrValueInvalid
 			}
 
-			var sb []byte
-			sb, err = hexutil.Decode(v)
+			// Verify signature.
+			err = VerifyTxTreeSignature(sb, publicKey, input.TxTree.RootHash.Marshal(), input.TxTree.SenderPublicKeys)
 			if err != nil {
 				return ErrValueInvalid
-			}
-
-			// TODO: Include all public keys contained in the tx tree.
-			senderPublicKeys := make([]*intMaxAcc.PublicKey, 1)
-			senderPublicKeys[0] = publicKey
-
-			// Verify signature.
-			err = VerifyTxTreeSignature(sb, publicKey, txTreeRootBytes, senderPublicKeys)
-			if err != nil {
-				fmt.Printf("VerifySignature error: %v\n", err)
-				// TODO: error handling: return ErrValueInvalid
 			}
 
 			return nil

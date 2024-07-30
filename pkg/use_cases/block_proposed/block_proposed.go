@@ -42,18 +42,18 @@ func (u *uc) Do(
 		txTreeMerkleProof[i] = v.String()
 	}
 
-	// TODO: publicKeys is all sender public keys included in this block.
-	senderPublicKeys := make([]string, 1)
-	senderPublicKeys[0] = input.DecodeSender.ToAddress().String()
-
 	resp := block_proposed.UCBlockProposed{
 		TxRoot:            input.TxTree.RootHash.String(),
 		TxTreeMerkleProof: make([]string, len(input.TxTree.Siblings)),
-		PublicKeys:        senderPublicKeys,
+		PublicKeys:        make([]string, len(input.TxTree.SenderPublicKeys)),
 	}
 
 	for key := range input.TxTree.Siblings {
 		resp.TxTreeMerkleProof[key] = input.TxTree.Siblings[key].String()
+	}
+
+	for key := range input.TxTree.SenderPublicKeys {
+		resp.PublicKeys[key] = input.TxTree.SenderPublicKeys[key].ToAddress().String()
 	}
 
 	return &resp, nil
