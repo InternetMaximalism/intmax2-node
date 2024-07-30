@@ -21,7 +21,7 @@ type blockValidityProver struct {
 	accountInfoMap            block_post_service.AccountInfoMap
 }
 
-func New(cfg *configs.Config, log logger.Logger, dbApp SQLDriverApp) *blockValidityProver {
+func New(cfg *configs.Config, log logger.Logger, dbApp SQLDriverApp) BlockValidityProver {
 	return &blockValidityProver{
 		cfg:                       cfg,
 		log:                       log,

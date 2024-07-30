@@ -8,15 +8,18 @@ import (
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/bindings"
 	intMaxTypes "intmax2-node/internal/types"
+	"intmax2-node/internal/use_cases/block_signature"
 	"intmax2-node/pkg/utils"
 	"io"
 	"math/big"
+	"sort"
 	"strings"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
@@ -41,7 +44,7 @@ const (
 	int32Key = 32
 )
 
-type BlockPostService struct {
+type blockPostService struct {
 	ctx context.Context
 	// cfg       *configs.Config
 	// log       logger.Logger
@@ -51,7 +54,7 @@ type BlockPostService struct {
 	rollup       *bindings.Rollup
 }
 
-func NewBlockPostService(ctx context.Context, cfg *configs.Config) (*BlockPostService, error) {
+func NewBlockPostService(ctx context.Context, cfg *configs.Config) (BlockPostService, error) {
 	ethClient, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
 	if err != nil {
 		return nil, errors.Join(ErrNewEthereumClientFail, err)
@@ -83,7 +86,7 @@ func NewBlockPostService(ctx context.Context, cfg *configs.Config) (*BlockPostSe
 		return nil, errors.Join(ErrInstantiateRollupContractFail, err)
 	}
 
-	return &BlockPostService{
+	return &blockPostService{
 		ctx:          ctx,
 		ethClient:    ethClient,
 		scrollClient: scrollClient,
@@ -92,7 +95,7 @@ func NewBlockPostService(ctx context.Context, cfg *configs.Config) (*BlockPostSe
 	}, nil
 }
 
-func (d *BlockPostService) FetchLatestBlockNumber(ctx context.Context) (uint64, error) {
+func (d *blockPostService) FetchLatestBlockNumber(ctx context.Context) (uint64, error) {
 	blockNumber, err := d.scrollClient.BlockNumber(ctx)
 	if err != nil {
 		return 0, errors.Join(ErrFetchLatestBlockNumberFail, err)
@@ -101,7 +104,7 @@ func (d *BlockPostService) FetchLatestBlockNumber(ctx context.Context) (uint64, 
 	return blockNumber, nil
 }
 
-func (d *BlockPostService) FetchNewPostedBlocks(startBlock uint64) ([]*bindings.RollupBlockPosted, *big.Int, error) {
+func (d *blockPostService) FetchNewPostedBlocks(startBlock uint64) ([]*bindings.RollupBlockPosted, *big.Int, error) {
 	nextBlock := startBlock + int1Key
 	iterator, err := d.rollup.FilterBlockPosted(&bind.FilterOpts{
 		Start:   nextBlock,
@@ -134,7 +137,7 @@ func (d *BlockPostService) FetchNewPostedBlocks(startBlock uint64) ([]*bindings.
 	return events, maxBlockNumber, nil
 }
 
-func (d *BlockPostService) FetchScrollCalldataByHash(txHash common.Hash) ([]byte, error) {
+func (d *blockPostService) FetchScrollCalldataByHash(txHash common.Hash) ([]byte, error) {
 	tx, isPending, err := d.scrollClient.TransactionByHash(context.Background(), txHash)
 	if err != nil {
 		return nil, errors.Join(ErrTransactionByHashNotFound, err)
@@ -149,7 +152,7 @@ func (d *BlockPostService) FetchScrollCalldataByHash(txHash common.Hash) ([]byte
 	return calldata, nil
 }
 
-// FetchIntMaxBlockContentByHash fetches the block content by transaction hash.
+// FetchIntMaxBlockContentByCalldata fetches the block content by transaction hash.
 // accountInfoMap is mutable and will be updated with new account information.
 //
 // Example:
@@ -163,7 +166,7 @@ func (d *BlockPostService) FetchScrollCalldataByHash(txHash common.Hash) ([]byte
 //	blockContent, err := FetchIntMaxBlockContentByCalldata(calldata)
 func FetchIntMaxBlockContentByCalldata(calldata []byte, accountInfoMap AccountInfoMap) (*intMaxTypes.BlockContent, error) {
 	// Parse calldata
-	rollupABI := io.Reader(strings.NewReader(bindings.RollupABI))
+	rollupABI := io.Reader(strings.NewReader(bindings.RollupMetaData.ABI))
 	parsedABI, err := abi.JSON(rollupABI)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse ABI: %w", err)
@@ -472,7 +475,7 @@ func recoverNonRegistrationBlockContent(
 	return blockContent, nil
 }
 
-// func (d *BlockPostService) FetchNewDeposits(startBlock uint64) ([]*bindings.LiquidityDeposited, *big.Int, map[uint32]bool, error) {
+// func (d *blockPostService) FetchNewDeposits(startBlock uint64) ([]*bindings.LiquidityDeposited, *big.Int, map[uint32]bool, error) {
 // 	nextBlock := startBlock + 1
 // 	iterator, err := d.liquidity.FilterDeposited(&bind.FilterOpts{
 // 		Start:   nextBlock,
@@ -509,7 +512,7 @@ func recoverNonRegistrationBlockContent(
 // txRoot - root of the transaction tree.
 // senderPublicKeys - list of public keys for each sender.
 // signatures - list of signatures for each sender. Empty string means no signature.
-func (d *BlockPostService) MakeRegistrationBlock(
+func (d *blockPostService) MakeRegistrationBlock(
 	txRoot intMaxTypes.PoseidonHashOut,
 	senderPublicKeys []*intMaxAcc.PublicKey,
 	signatures []string,
@@ -606,7 +609,7 @@ func (d *BlockPostService) MakeRegistrationBlock(
 // accountIDs - list of account IDs for each sender.
 // senderPublicKeys - list of public keys for each sender.
 // signatures - list of signatures for each sender. Empty string means no signature.
-func (d *BlockPostService) MakeNonRegistrationBlock(
+func (d *blockPostService) MakeNonRegistrationBlock(
 	txRoot intMaxTypes.PoseidonHashOut,
 	accountIDs []uint64,
 	senderPublicKeys []*intMaxAcc.PublicKey,
