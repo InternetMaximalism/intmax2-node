@@ -1,6 +1,9 @@
 package types_test
 
 import (
+	"crypto/rand"
+	"encoding/base64"
+	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
@@ -9,6 +12,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // {
@@ -74,51 +78,95 @@ func TestTxHash(t *testing.T) {
 	assert.NoError(t, err)
 
 	txHash := tx.Hash()
-	assert.Equal(t, "0x378999af8ce0013df99b58c799161f711150fa56c8255c432235a2e0b9fd605f", txHash.String())
+	assert.Equal(t, "0xa4460a8c4854ea15d0b30aebd85bcefde22fe412ca526a86745df7470ebb3927", txHash.String())
 }
 
-// func TestRandomTxHash(t *testing.T) {
-// 	// transfersHash, err := new(intMaxTypes.PoseidonHashOut).SetRandom()
-// 	// assert.Nil(t, err)
-// 	initialLeaves := make([]*intMaxTypes.Transfer, 2)
+func TestEncryptTxDetails(t *testing.T) {
+	senderAccount, err := intMaxAcc.NewPrivateKey(big.NewInt(2))
+	require.NoError(t, err)
+	recipientAccount1, err := intMaxAcc.NewPrivateKey(big.NewInt(4))
+	require.NoError(t, err)
+	recipient1, err := intMaxTypes.NewINTMAXAddress(recipientAccount1.ToAddress().Bytes())
+	require.NoError(t, err)
+	recipientAccount2, err := intMaxAcc.NewPrivateKey(big.NewInt(5))
+	require.NoError(t, err)
+	recipient2, err := intMaxTypes.NewINTMAXAddress(recipientAccount2.ToAddress().Bytes())
+	require.NoError(t, err)
+	recipientAccount3, err := intMaxAcc.NewPrivateKey(big.NewInt(6))
+	require.NoError(t, err)
+	recipient3, err := intMaxTypes.NewINTMAXAddress(recipientAccount3.ToAddress().Bytes())
+	require.NoError(t, err)
 
-// 	tx := intMaxTypes.Tx{
-// 		Nonce:     1,
-// 		PowNonce:  0xc1,
-// 		Transfers: []intMaxTypes.Transfer{},
-// 	}
-// 	zeroHash := intMaxTypes.Tx{
-// 		Nonce:     0,
-// 		PowNonce:  0,
-// 		Transfers: []intMaxTypes.Transfer{},
-// 	}
-// 	var height uint8 = 7
-// 	txTreeRoot, err := tree.NewTransferTree(height, initialLeaves, zeroHash)
-// 	assert.Nil(t, err)
+	salt := new(goldenposeidon.PoseidonHashOut)
+	saltBytes := make([]byte, 32)
+	_, err = rand.Read(saltBytes)
+	require.NoError(t, err)
 
-// 	permutedTx := goldenposeidon.Permute([12]*ffg.Element{
-// 		new(ffg.Element).Set(&txTreeRoot.Elements[0]),
-// 		new(ffg.Element).Set(&txTreeRoot.Elements[1]),
-// 		new(ffg.Element).Set(&txTreeRoot.Elements[2]),
-// 		new(ffg.Element).Set(&txTreeRoot.Elements[3]),
-// 		new(ffg.Element).SetUint64(tx.Nonce),
-// 		new(ffg.Element).SetUint64(tx.PowNonce),
-// 		new(ffg.Element).SetZero(),
-// 		new(ffg.Element).SetZero(),
-// 		new(ffg.Element).SetZero(),
-// 		new(ffg.Element).SetZero(),
-// 		new(ffg.Element).SetZero(),
-// 		new(ffg.Element).SetZero(),
-// 	})
-// 	expected := intMaxTypes.PoseidonHashOut{
-// 		Elements: [4]ffg.Element{
-// 			*permutedTx[0],
-// 			*permutedTx[1],
-// 			*permutedTx[2],
-// 			*permutedTx[3],
-// 		},
-// 	}
+	transfers := []*intMaxTypes.Transfer{
+		{
+			Recipient:  recipient1,
+			TokenIndex: 0,
+			Amount:     big.NewInt(100),
+			Salt:       salt,
+		},
+		{
+			Recipient:  recipient2,
+			TokenIndex: 1,
+			Amount:     big.NewInt(200),
+			Salt:       salt,
+		},
+		{
+			Recipient:  recipient3,
+			TokenIndex: 0,
+			Amount:     big.NewInt(300),
+			Salt:       salt,
+		},
+	}
 
-// 	txHash := tx.Hash()
-// 	assert.Equal(t, expected.String(), txHash.String())
-// }
+	zeroTransfer := new(intMaxTypes.Transfer).SetZero()
+	transferTree, err := tree.NewTransferTree(7, transfers, zeroTransfer.Hash())
+	require.NoError(t, err)
+
+	TransferTreeRoot, _, _ := transferTree.GetCurrentRootCountAndSiblings()
+
+	tx := intMaxTypes.Tx{
+		Nonce:            2,
+		TransferTreeRoot: &TransferTreeRoot,
+	}
+
+	txDetails := intMaxTypes.TxDetails{
+		Tx:        tx,
+		Transfers: transfers,
+	}
+
+	encodedTx := txDetails.Marshal()
+
+	encryptedTransfer, err := intMaxAcc.EncryptECIES(
+		rand.Reader,
+		senderAccount.Public(),
+		encodedTx,
+	)
+	require.NoError(t, err)
+
+	encodedText := base64.StdEncoding.EncodeToString(encryptedTransfer)
+
+	t.Log("encodedTransfer", encodedText)
+
+	decodedText, err := base64.StdEncoding.DecodeString(encodedText)
+	require.NoError(t, err)
+
+	decryptedTxBytes, err := senderAccount.DecryptECIES(
+		decodedText,
+	)
+	require.NoError(t, err)
+	require.Equal(t, encodedTx, decryptedTxBytes)
+
+	decryptedTx := new(intMaxTypes.TxDetails)
+
+	err = decryptedTx.Unmarshal(decryptedTxBytes)
+	require.NoError(t, err)
+	assert.True(
+		t, txDetails.Tx.Equal(&decryptedTx.Tx),
+		"recipients should be equal: %+v != %+v", txDetails, decryptedTx,
+	)
+}

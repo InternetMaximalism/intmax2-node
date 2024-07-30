@@ -31,24 +31,40 @@ func (ga *GenericAddress) Set(genericAddress *GenericAddress) *GenericAddress {
 }
 
 func (ga *GenericAddress) Marshal() []byte {
-	return ga.Address
+	const int32Key = 32
+	d := make([]byte, int32Key)
+	copy(d[int32Key-len(ga.Address):], ga.Address)
+
+	if ga.TypeOfAddress == intMaxAccTypes.INTMAXAddressType {
+		if d[0]&0b11000000 != 0 {
+			panic("address type is not INTMAX")
+		}
+
+		d[0] |= 0x80
+	}
+
+	return d
 }
 
 func (ga *GenericAddress) Unmarshal(data []byte) error {
 	const int20Key = 20
 	const int32Key = 32
 
-	switch len(data) {
-	case int20Key:
-		ga.TypeOfAddress = intMaxAccTypes.EthereumAddressType
-	case int32Key:
+	ga.Address = make([]byte, int32Key)
+	copy(ga.Address[int32Key-len(data):], data)
+
+	if ga.Address[0]&0b11000000 == 0b10000000 {
 		ga.TypeOfAddress = intMaxAccTypes.INTMAXAddressType
-	default:
-		return errors.New("address invalid")
+		ga.Address[0] &= 0b00111111
+	} else {
+		ga.TypeOfAddress = intMaxAccTypes.EthereumAddressType
+		for i := 0; i < int32Key-int20Key; i++ {
+			if ga.Address[i] != 0 {
+				return errors.New("address invalid: not an Ethereum address")
+			}
+		}
 	}
 
-	ga.Address = make([]byte, len(data))
-	copy(ga.Address, data)
 	return nil
 }
 
@@ -157,24 +173,20 @@ func (td *Transfer) SetZero() *Transfer {
 func (td *Transfer) Marshal() []byte {
 	const (
 		int4Key  = 4
-		int31Key = 31
 		int32Key = 32
 	)
 
+	recipientBytes := make([]byte, int32Key)
+	copy(recipientBytes, td.Recipient.Marshal())
 	tokenIndexBytes := make([]byte, int4Key)
 	binary.BigEndian.PutUint32(tokenIndexBytes, td.TokenIndex)
 	amountBytes := make([]byte, int32Key)
 	for i, v := range td.Amount.Bytes() {
-		amountBytes[int31Key-i] = v
+		amountBytes[int32Key-1-i] = v
 	}
 
 	buf := bytes.NewBuffer(make([]byte, 0))
-	recipientBytes := td.Recipient.Marshal()
-	err := binary.Write(buf, binary.BigEndian, uint32(len(recipientBytes)))
-	if err != nil {
-		panic(err)
-	}
-	_, err = buf.Write(recipientBytes)
+	_, err := buf.Write(recipientBytes)
 	if err != nil {
 		panic(err)
 	}
@@ -201,18 +213,18 @@ func (td *Transfer) Write(buf *bytes.Buffer) error {
 }
 
 func (td *Transfer) Read(buf *bytes.Buffer) error {
-	const int32Key = 32
+	const (
+		int4Key  = 4
+		int32Key = 32
+	)
 
-	recipientBytes := make([]byte, int32Key)
-	if _, err := buf.Read(recipientBytes); err != nil {
-		return err
-	}
 	td.Recipient = new(GenericAddress)
-	if err := td.Recipient.Unmarshal(recipientBytes); err != nil {
+	a := buf.Next(int32Key)
+	if err := td.Recipient.Unmarshal(a); err != nil {
 		return err
 	}
 
-	tokenIndexBytes := make([]byte, int32Key)
+	tokenIndexBytes := make([]byte, int4Key)
 	if _, err := buf.Read(tokenIndexBytes); err != nil {
 		return err
 	}

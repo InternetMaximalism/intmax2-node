@@ -70,48 +70,19 @@ func (dd *DepositLeaf) Equal(other *DepositLeaf) bool {
 }
 
 type Deposit struct {
-	Recipient  [numHashBytes]byte
+	Recipient  *intMaxAcc.PublicKey
 	TokenIndex uint32
 	Amount     *big.Int
-	Salt       goldenposeidon.PoseidonHashOut
+	Salt       *goldenposeidon.PoseidonHashOut
 }
 
 func (d *Deposit) Set(deposit *Deposit) *Deposit {
-	d.Recipient = deposit.Recipient
+	d.Recipient = new(intMaxAcc.PublicKey).Set(deposit.Recipient)
 	d.TokenIndex = deposit.TokenIndex
-	d.Amount = deposit.Amount
-	d.Salt = deposit.Salt
+	d.Amount = new(big.Int).Set(deposit.Amount)
+	d.Salt = new(goldenposeidon.PoseidonHashOut).Set(deposit.Salt)
 	return d
 }
-
-func (d *Deposit) SetZero() *Deposit {
-	d.Recipient = [numHashBytes]byte{}
-	d.TokenIndex = 0
-	d.Amount = big.NewInt(0)
-	d.Salt = goldenposeidon.PoseidonHashOut{}
-	return d
-}
-
-// export function getPubkeySaltHash(intMaxAddress: bigint, salt: string): string {
-// 	const pubkeyChunks = splitBigIntTo32BitChunks(intMaxAddress)
-// 	const saltChunks = splitSaltTo64BitChunks(salt)
-// 	const inputs = [...pubkeyChunks, ...saltChunks]
-// 	const hashChunks = hashNoPad(inputs)
-// 	const hash = combine64BitChunksToBigInt(hashChunks)
-// 	return '0x' + hash.toString(16).padStart(64, '0')
-// }
-
-// export function splitBigIntTo32BitChunks(value: bigint): bigint[] {
-// 	const chunkSize = 32n
-// 	const mask = (1n << chunkSize) - 1n
-// 	const chunks: bigint[] = []
-// 	while (value > 0n) {
-// 		const chunk = value & mask
-// 		chunks.unshift(chunk)
-// 		value >>= chunkSize
-// 	}
-// 	return chunks
-// }
 
 func SplitBigIntTo32BitChunks(value *big.Int) []uint32 {
 	const chunkSize = 32
@@ -165,7 +136,7 @@ func (d *Deposit) Marshal() []byte {
 	}
 
 	return append(
-		append(append(d.Recipient[:], tokenIndexBytes...), amountBytes...),
+		append(append(d.Recipient.ToAddress().Bytes(), tokenIndexBytes...), amountBytes...),
 		d.Salt.Marshal()...,
 	)
 }
@@ -181,11 +152,22 @@ func (d *Deposit) Unmarshal(data []byte) error {
 		return ErrInvalidDepositData
 	}
 
-	copy(d.Recipient[:], data[:int32Key])
+	recipientAddress, err := intMaxAcc.NewAddressFromBytes(data[:int32Key])
+	if err != nil {
+		ErrorInvalidRecipient := errors.New("failed to unmarshal recipient address")
+		return errors.Join(ErrorInvalidRecipient, err)
+	}
+	d.Recipient, err = recipientAddress.Public()
+	if err != nil {
+		ErrorInvalidRecipient := errors.New("failed to unmarshal recipient public key")
+		return errors.Join(ErrorInvalidRecipient, err)
+	}
 	d.TokenIndex = binary.BigEndian.Uint32(data[int32Key : int32Key+int4Key])
 	d.Amount = new(big.Int).SetBytes(data[int32Key+int4Key : int32Key+int4Key+int32Key])
+	d.Salt = new(goldenposeidon.PoseidonHashOut)
 	if err := d.Salt.Unmarshal(data[int32Key+int4Key+int32Key : int32Key+int4Key+int32Key+int32Key]); err != nil {
-		return err
+		ErrorInvalidSalt := errors.New("failed to unmarshal salt")
+		return errors.Join(ErrorInvalidSalt, err)
 	}
 
 	return nil

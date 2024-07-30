@@ -3,6 +3,8 @@ package types
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"intmax2-node/internal/hash/goldenposeidon"
 
 	"github.com/iden3/go-iden3-crypto/ffg"
@@ -41,6 +43,10 @@ func (t *Tx) SetZero() *Tx {
 	t.TransferTreeRoot = new(PoseidonHashOut).SetZero()
 
 	return t
+}
+
+func (t *Tx) Equal(tx *Tx) bool {
+	return t.Nonce == tx.Nonce && t.TransferTreeRoot.Equal(tx.TransferTreeRoot)
 }
 
 // // SetRandom return Tx
@@ -112,9 +118,14 @@ func (td *TxDetails) Write(buf *bytes.Buffer) error {
 func (td *TxDetails) Read(buf *bytes.Buffer) error {
 	const int32Key = 32
 
-	if err := td.TransferTreeRoot.Unmarshal(buf.Next(int32Key)); err != nil {
-		return err
+	transferTreeRoot := new(PoseidonHashOut)
+	err := transferTreeRoot.Unmarshal(buf.Next(int32Key))
+	if err != nil {
+		var ErrUnmarshalTransferTreeRoot = fmt.Errorf("failed to unmarshal transfer tree root: %w", err)
+		return errors.Join(ErrUnmarshalTransferTreeRoot, err)
 	}
+	td.TransferTreeRoot = new(PoseidonHashOut).Set(transferTreeRoot)
+
 	if err := binary.Read(buf, binary.BigEndian, &td.Nonce); err != nil {
 		return err
 	}
