@@ -504,3 +504,205 @@ func recoverNonRegistrationBlockContent(
 
 // 	return events, maxDepositIndex, tokenIndexMap, nil
 // }
+
+// MakeRegistrationBlock creates a block content for registration block.
+// txRoot - root of the transaction tree.
+// senderPublicKeys - list of public keys for each sender.
+// signatures - list of signatures for each sender. Empty string means no signature.
+func (d *BlockPostService) MakeRegistrationBlock(
+	txRoot intMaxTypes.PoseidonHashOut,
+	senderPublicKeys []*intMaxAcc.PublicKey,
+	signatures []string,
+) (*intMaxTypes.BlockContent, error) {
+	if len(senderPublicKeys) != len(signatures) {
+		return nil, errors.New("length of senderPublicKeys, accountIDs, and signatures must be equal")
+	}
+
+	// Sort by x-coordinate of public key
+	sort.Slice(senderPublicKeys, func(i, j int) bool {
+		return senderPublicKeys[i].Pk.X.Cmp(&senderPublicKeys[j].Pk.X) > 0
+	})
+
+	senders := make([]intMaxTypes.Sender, numOfSenders)
+	for i, publicKey := range senderPublicKeys {
+		if publicKey == nil {
+			return nil, errors.New("publicKey must not be nil")
+		}
+
+		senders[i] = intMaxTypes.Sender{
+			PublicKey: publicKey,
+			AccountID: 0,
+			IsSigned:  signatures[i] != "",
+		}
+	}
+
+	defaultPublicKey := intMaxAcc.NewDummyPublicKey()
+	for i := len(senderPublicKeys); i < len(senders); i++ {
+		senders[i] = intMaxTypes.Sender{
+			PublicKey: defaultPublicKey,
+			AccountID: 0,
+			IsSigned:  false,
+		}
+	}
+
+	const numPublicKeyBytes = intMaxTypes.NumPublicKeyBytes
+
+	senderPublicKeysBytes := make([]byte, len(senders)*numPublicKeyBytes)
+	for i, sender := range senders {
+		senderPublicKey := sender.PublicKey.Pk.X.Bytes() // Only x coordinate is used
+		copy(senderPublicKeysBytes[numPublicKeyBytes*i:numPublicKeyBytes*(i+1)], senderPublicKey[:])
+	}
+
+	publicKeysHash := crypto.Keccak256(senderPublicKeysBytes)
+	aggregatedPublicKey := new(intMaxAcc.PublicKey)
+	for _, sender := range senders {
+		if sender.IsSigned {
+			weightedPublicKey := sender.PublicKey.WeightByHash(publicKeysHash)
+			aggregatedPublicKey.Add(aggregatedPublicKey, weightedPublicKey)
+		}
+	}
+
+	aggregatedSignature := new(bn254.G2Affine)
+	for i, sender := range senders {
+		if senders[i].IsSigned {
+			if sender.IsSigned {
+				signature := new(bn254.G2Affine)
+				signatureBytes, err := hexutil.Decode(signatures[i])
+				if err != nil {
+					fmt.Printf("Failed to decode signature: %s\n", signatures[i])
+					continue
+				}
+				err = signature.Unmarshal(signatureBytes)
+				if err != nil {
+					fmt.Printf("Failed to unmarshal signature: %s\n", signatures[i])
+					continue
+				}
+
+				err = block_signature.VerifyTxTreeSignature(
+					signatureBytes, sender.PublicKey, txRoot.Marshal(), senderPublicKeys,
+				)
+				if err != nil {
+					fmt.Printf("Failed to verify signature: %s\n", signatures[i])
+					continue
+				}
+
+				aggregatedSignature.Add(aggregatedSignature, signature)
+			}
+		}
+	}
+
+	blockContent := intMaxTypes.NewBlockContent(
+		intMaxTypes.PublicKeySenderType,
+		senders,
+		txRoot,
+		aggregatedSignature,
+	)
+
+	return blockContent, nil
+}
+
+// MakeNonRegistrationBlock creates a block content for non-registration block.
+// txRoot - root of the transaction tree.
+// accountIDs - list of account IDs for each sender.
+// senderPublicKeys - list of public keys for each sender.
+// signatures - list of signatures for each sender. Empty string means no signature.
+func (d *BlockPostService) MakeNonRegistrationBlock(
+	txRoot intMaxTypes.PoseidonHashOut,
+	accountIDs []uint64,
+	senderPublicKeys []*intMaxAcc.PublicKey,
+	signatures []string,
+) (*intMaxTypes.BlockContent, error) {
+	if len(senderPublicKeys) != len(signatures) || len(senderPublicKeys) != len(accountIDs) {
+		return nil, errors.New("length of senderPublicKeys, accountIDs, and signatures must be equal")
+	}
+
+	// Sort by x-coordinate of public key
+	sort.Slice(senderPublicKeys, func(i, j int) bool {
+		return senderPublicKeys[i].Pk.X.Cmp(&senderPublicKeys[j].Pk.X) > 0
+	})
+
+	const maxAccountIDBits = 40
+
+	senders := make([]intMaxTypes.Sender, numOfSenders)
+	for i, publicKey := range senderPublicKeys {
+		if accountIDs[i] == 0 {
+			return nil, errors.New("accountID must be greater than 0")
+		}
+		if accountIDs[i] > uint64(1)<<maxAccountIDBits {
+			return nil, fmt.Errorf("accountID must be less than or equal to 2^%d", maxAccountIDBits)
+		}
+		if publicKey == nil {
+			return nil, errors.New("publicKey must not be nil")
+		}
+
+		senders[i] = intMaxTypes.Sender{
+			PublicKey: publicKey,
+			AccountID: accountIDs[i],
+			IsSigned:  signatures[i] != "",
+		}
+	}
+
+	defaultPublicKey := intMaxAcc.NewDummyPublicKey()
+	for i := len(senderPublicKeys); i < len(senders); i++ {
+		senders[i] = intMaxTypes.Sender{
+			PublicKey: defaultPublicKey,
+			AccountID: 0,
+			IsSigned:  false,
+		}
+	}
+
+	const numPublicKeyBytes = intMaxTypes.NumPublicKeyBytes
+
+	senderPublicKeysBytes := make([]byte, len(senders)*numPublicKeyBytes)
+	for i, sender := range senders {
+		senderPublicKey := sender.PublicKey.Pk.X.Bytes() // Only x coordinate is used
+		copy(senderPublicKeysBytes[numPublicKeyBytes*i:numPublicKeyBytes*(i+1)], senderPublicKey[:])
+	}
+
+	publicKeysHash := crypto.Keccak256(senderPublicKeysBytes)
+	aggregatedPublicKey := new(intMaxAcc.PublicKey)
+	for _, sender := range senders {
+		if sender.IsSigned {
+			weightedPublicKey := sender.PublicKey.WeightByHash(publicKeysHash)
+			aggregatedPublicKey.Add(aggregatedPublicKey, weightedPublicKey)
+		}
+	}
+
+	aggregatedSignature := new(bn254.G2Affine)
+	for i, sender := range senders {
+		if senders[i].IsSigned {
+			if sender.IsSigned {
+				signature := new(bn254.G2Affine)
+				signatureBytes, err := hexutil.Decode(signatures[i])
+				if err != nil {
+					fmt.Printf("Failed to decode signature: %s\n", signatures[i])
+					continue
+				}
+				err = signature.Unmarshal(signatureBytes)
+				if err != nil {
+					fmt.Printf("Failed to unmarshal signature: %s\n", signatures[i])
+					continue
+				}
+
+				err = block_signature.VerifyTxTreeSignature(
+					signatureBytes, sender.PublicKey, txRoot.Marshal(), senderPublicKeys,
+				)
+				if err != nil {
+					fmt.Printf("Failed to verify signature: %s\n", signatures[i])
+					continue
+				}
+
+				aggregatedSignature.Add(aggregatedSignature, signature)
+			}
+		}
+	}
+
+	blockContent := intMaxTypes.NewBlockContent(
+		intMaxTypes.PublicKeySenderType,
+		senders,
+		txRoot,
+		aggregatedSignature,
+	)
+
+	return blockContent, nil
+}
