@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	intMaxAcc "intmax2-node/internal/accounts"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"os"
@@ -43,8 +44,9 @@ type SenderTransfers struct {
 }
 
 type TxTree struct {
-	RootHash *intMaxTree.PoseidonHashOut   `json:"siblings"`
-	Siblings []*intMaxTree.PoseidonHashOut `json:"rootHash"`
+	RootHash         *intMaxTree.PoseidonHashOut   `json:"siblings"`
+	Siblings         []*intMaxTree.PoseidonHashOut `json:"rootHash"`
+	SenderPublicKeys []*intMaxAcc.PublicKey        `json:"senderPublicKeys"`
 
 	Sender    string                      `json:"sender"`
 	TxHash    *intMaxTree.PoseidonHashOut `json:"txTreeHash"`

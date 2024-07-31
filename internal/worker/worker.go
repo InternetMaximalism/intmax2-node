@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
+	intMaxAcc "intmax2-node/internal/accounts"
 	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
 	intMaxTree "intmax2-node/internal/tree"
@@ -29,11 +30,12 @@ const (
 )
 
 type LeafsTree struct {
-	TxTree     *intMaxTree.TxTree
-	TxRoot     *intMaxTree.PoseidonHashOut
-	Count      uint64
-	Siblings   []*intMaxTree.PoseidonHashOut
-	Signatures []string
+	TxTree           *intMaxTree.TxTree
+	TxRoot           *intMaxTree.PoseidonHashOut
+	Count            uint64
+	Siblings         []*intMaxTree.PoseidonHashOut
+	SenderPublicKeys []*intMaxAcc.PublicKey
+	Signatures       []string
 }
 
 type kvInfo struct {
@@ -333,8 +335,9 @@ func (w *worker) TxTreeByAvailableFile(sf *TransactionHashesWithSenderAndFile) (
 	}
 
 	txTreeRoot = &TxTree{
-		RootHash: &root,
-		Siblings: siblings,
+		RootHash:         &root,
+		Siblings:         siblings,
+		SenderPublicKeys: f.LeafsTree.SenderPublicKeys,
 	}
 
 	return txTreeRoot, err
@@ -523,6 +526,8 @@ func (w *worker) leafsProcessing(f *os.File) (err error) {
 		return errors.Join(ErrNewTxTreeFail, err)
 	}
 
+	spKeys := make(map[string]*intMaxAcc.PublicKey)
+
 	err = w.files.FilesList[f].KvDB.View(func(tx *bolt.Tx) (err error) {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
@@ -549,6 +554,14 @@ func (w *worker) leafsProcessing(f *os.File) (err error) {
 					Sender: info.TxsList[key].Sender,
 					Index:  cn,
 				}
+				if _, ok := spKeys[info.TxsList[key].Sender]; !ok {
+					var publicKey *intMaxAcc.PublicKey
+					publicKey, err = intMaxAcc.NewPublicKeyFromAddressHex(info.TxsList[key].Sender)
+					if err != nil {
+						return errors.Join(ErrNewPublicKeyFromAddressHexFail, err)
+					}
+					spKeys[info.TxsList[key].Sender] = publicKey
+				}
 				number++
 			}
 		}
@@ -559,16 +572,29 @@ func (w *worker) leafsProcessing(f *os.File) (err error) {
 		return err
 	}
 
+	var (
+		senderPublicKeys []*intMaxAcc.PublicKey
+	)
+	for key := range spKeys {
+		senderPublicKeys = append(senderPublicKeys, spKeys[key])
+	}
+
+	// Sort by x-coordinate of public key
+	sort.Slice(senderPublicKeys, func(i, j int) bool {
+		return senderPublicKeys[i].Pk.X.Cmp(&senderPublicKeys[j].Pk.X) > 0
+	})
+
 	txRoot, count, sb := txTree.GetCurrentRootCountAndSiblings()
 
 	w.files.FilesList[f].Lock()
 	defer w.files.FilesList[f].Unlock()
 
 	w.files.FilesList[f].LeafsTree = &LeafsTree{
-		TxTree:   txTree,
-		TxRoot:   &txRoot,
-		Count:    count,
-		Siblings: sb,
+		TxTree:           txTree,
+		TxRoot:           &txRoot,
+		Count:            count,
+		Siblings:         sb,
+		SenderPublicKeys: senderPublicKeys,
 	}
 
 	return nil
