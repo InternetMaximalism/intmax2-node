@@ -1,6 +1,7 @@
 package models
 
 import (
+	"database/sql"
 	"encoding/json"
 	"time"
 
@@ -10,9 +11,11 @@ import (
 type TxMerkleProofs struct {
 	ID              string
 	SenderPublicKey string
+	SignatureID     sql.NullString
 	TxHash          string
-	TxID            string
 	TxTreeIndex     *uint256.Int
 	TxMerkleProof   json.RawMessage
+	TxTreeRoot      string
+	ProposalBlockID string
 	CreatedAt       time.Time
 }

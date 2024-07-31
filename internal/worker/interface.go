@@ -67,5 +67,10 @@ type Worker interface {
 	AvailableFiles() (list []*os.File, err error)
 	TrHash(trHash string) (*TransactionHashesWithSenderAndFile, error)
 	TxTreeByAvailableFile(sf *TransactionHashesWithSenderAndFile) (txTreeRoot *TxTree, err error)
-	SignTxTreeByAvailableFile(signature string, sf *TransactionHashesWithSenderAndFile) error
+	SignTxTreeByAvailableFile(
+		signature string,
+		sf *TransactionHashesWithSenderAndFile,
+		txHash *intMaxTree.PoseidonHashOut,
+		leafIndex uint64,
+	) error
 }

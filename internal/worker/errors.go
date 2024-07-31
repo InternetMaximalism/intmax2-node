@@ -94,6 +94,9 @@ var ErrCreateSignatureFail = errors.New("failed to create signature")
 // ErrNewPublicKeyFromAddressHexFail error: failed to get public key from INTMAX address.
 var ErrNewPublicKeyFromAddressHexFail = errors.New("failed to get public key from INTMAX address")
 
+// ErrCreateBlockFail error: failed to create block.
+var ErrCreateBlockFail = errors.New("failed to create block")
+
 // ErrCreateTransactionFail error: failed to create transaction.
 var ErrCreateTransactionFail = errors.New("failed to create transaction")
 
@@ -114,3 +117,6 @@ var ErrLeafsProcessing = errors.New("failed to processing of leafs")
 
 // ErrAvailableFilesProcessing error: failed to processing of the available files.
 var ErrAvailableFilesProcessing = errors.New("failed to processing of the available files")
+
+// ErrMakeRegistrationBlockFail error: failed to make registration block.
+var ErrMakeRegistrationBlockFail = errors.New("failed to make registration block")

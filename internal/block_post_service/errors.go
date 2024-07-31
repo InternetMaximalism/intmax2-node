@@ -49,3 +49,15 @@ var ErrRecoverAccountIDsFromBytesFail = errors.New("failed to recover account ID
 
 // ErrFetchLatestBlockNumberFail error: failed to fetch latest block number.
 var ErrFetchLatestBlockNumberFail = errors.New("failed to fetch latest block number")
+
+// ErrInvalidSendersLength error: invalid senders length.
+var ErrInvalidSendersLength = errors.New("invalid senders length")
+
+// ErrTooManySenderPublicKeys error: too many sender public keys.
+var ErrTooManySenderPublicKeys = errors.New("too many sender public keys")
+
+// ErrUnmarshalSignatureFail error: failed to unmarshal signature.
+var ErrUnmarshalSignatureFail = errors.New("failed to unmarshal signature")
+
+// ErrInvalidSignature error: fail to verify signature.
+var ErrInvalidSignature = errors.New("fail to verify signature")

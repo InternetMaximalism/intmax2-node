@@ -10,9 +10,11 @@ import (
 type TxMerkleProofs struct {
 	ID              string
 	SenderPublicKey string
+	SignatureID     string
 	TxHash          string
-	TxID            string
 	TxTreeIndex     *uint256.Int
 	TxMerkleProof   json.RawMessage
+	TxTreeRoot      string
+	ProposalBlockID string
 	CreatedAt       time.Time
 }

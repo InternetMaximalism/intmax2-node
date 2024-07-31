@@ -7,6 +7,7 @@ import (
 	"errors"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/mnemonic_wallet"
 	intMaxTree "intmax2-node/internal/tree"
@@ -118,7 +119,7 @@ func TestUseCaseTransaction(t *testing.T) {
 				Signature:          hex.EncodeToString(signature.Marshal()),
 				EnoughBalanceProof: enoughBalanceProof,
 			},
-			err: blockSignature.ErrInvalidSignature,
+			err: block_post_service.ErrInvalidSignature,
 		},
 		{
 			desc: "Invalid enough balance proof",

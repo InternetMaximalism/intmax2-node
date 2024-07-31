@@ -16,27 +16,45 @@ func (p *pgx) CreateTxMerkleProofs(
 	txTreeIndex *uint256.Int,
 	txMerkleProof json.RawMessage,
 	txTreeRoot string,
+	proposalBlockID string,
 ) (*mDBApp.TxMerkleProofs, error) {
-	// TODO: Insert txTreeRoot
 	tmp := models.TxMerkleProofs{
 		ID:              uuid.New().String(),
 		SenderPublicKey: senderPublicKey,
 		TxHash:          txHash,
 		TxTreeIndex:     txTreeIndex,
 		TxMerkleProof:   txMerkleProof,
+		TxTreeRoot:      txTreeRoot,
+		ProposalBlockID: proposalBlockID,
 		CreatedAt:       time.Now().UTC(),
 	}
 
 	txiID, _ := tmp.TxTreeIndex.Value()
 
 	const (
-		q = ` INSERT INTO tx_merkle_proofs
-              (id, sender_public_key, tx_hash, tx_id, tx_tree_index, tx_merkle_proof, created_at)
-              VALUES ($1, $2, $3, $4, $5, $6, $7) `
+		qWithoutSign = ` INSERT INTO tx_merkle_proofs (
+              id ,sender_public_key ,tx_hash ,tx_tree_index ,tx_merkle_proof
+              ,tx_tree_root ,proposal_block_id ,created_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) `
+
+		qWithSign = ` INSERT INTO tx_merkle_proofs (
+              id ,sender_public_key ,tx_hash ,tx_tree_index ,tx_merkle_proof
+              ,tx_tree_root ,signature_id ,proposal_block_id ,created_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) `
 	)
 
-	_, err := p.exec(p.ctx, q,
-		tmp.ID, tmp.SenderPublicKey, tmp.TxHash, signatureID, txiID, tmp.TxMerkleProof, tmp.CreatedAt)
+	var err error
+	if signatureID == "" {
+		_, err = p.exec(p.ctx, qWithoutSign,
+			tmp.ID, tmp.SenderPublicKey, tmp.TxHash, txiID,
+			tmp.TxMerkleProof, tmp.TxTreeRoot, tmp.ProposalBlockID, tmp.CreatedAt,
+		)
+	} else {
+		_, err = p.exec(p.ctx, qWithSign,
+			tmp.ID, tmp.SenderPublicKey, tmp.TxHash, txiID,
+			tmp.TxMerkleProof, tmp.TxTreeRoot, signatureID, tmp.ProposalBlockID, tmp.CreatedAt,
+		)
+	}
 	if err != nil {
 		return nil, errPgx.Err(err)
 	}
@@ -52,7 +70,9 @@ func (p *pgx) CreateTxMerkleProofs(
 
 func (p *pgx) TxMerkleProofsByID(id string) (*mDBApp.TxMerkleProofs, error) {
 	const (
-		q = ` SELECT id, sender_public_key, tx_hash, tx_id, tx_tree_index, tx_merkle_proof, created_at
+		q = ` SELECT
+              id ,sender_public_key ,tx_hash ,tx_tree_index ,tx_merkle_proof
+              ,tx_tree_root ,signature_id ,proposal_block_id ,created_at
               FROM tx_merkle_proofs WHERE id = $1 `
 	)
 
@@ -62,9 +82,11 @@ func (p *pgx) TxMerkleProofsByID(id string) (*mDBApp.TxMerkleProofs, error) {
 			&tmp.ID,
 			&tmp.SenderPublicKey,
 			&tmp.TxHash,
-			&tmp.TxID,
 			&tmp.TxTreeIndex,
 			&tmp.TxMerkleProof,
+			&tmp.TxTreeRoot,
+			&tmp.SignatureID,
+			&tmp.ProposalBlockID,
 			&tmp.CreatedAt,
 		))
 	if err != nil {
@@ -78,7 +100,9 @@ func (p *pgx) TxMerkleProofsByID(id string) (*mDBApp.TxMerkleProofs, error) {
 
 func (p *pgx) TxMerkleProofsByTxHash(txHash string) (*mDBApp.TxMerkleProofs, error) {
 	const (
-		q = ` SELECT id, sender_public_key, tx_hash, tx_id, tx_tree_index, tx_merkle_proof, created_at
+		q = ` SELECT
+              id ,sender_public_key ,tx_hash ,tx_tree_index ,tx_merkle_proof
+              ,tx_tree_root ,signature_id ,proposal_block_id ,created_at             
               FROM tx_merkle_proofs WHERE tx_hash = $1 `
 	)
 
@@ -88,9 +112,11 @@ func (p *pgx) TxMerkleProofsByTxHash(txHash string) (*mDBApp.TxMerkleProofs, err
 			&tmp.ID,
 			&tmp.SenderPublicKey,
 			&tmp.TxHash,
-			&tmp.TxID,
 			&tmp.TxTreeIndex,
 			&tmp.TxMerkleProof,
+			&tmp.TxTreeRoot,
+			&tmp.SignatureID,
+			&tmp.ProposalBlockID,
 			&tmp.CreatedAt,
 		))
 	if err != nil {
@@ -107,9 +133,11 @@ func (p *pgx) tmpToDBApp(tmp *models.TxMerkleProofs) mDBApp.TxMerkleProofs {
 		ID:              tmp.ID,
 		SenderPublicKey: tmp.SenderPublicKey,
 		TxHash:          tmp.TxHash,
-		TxID:            tmp.TxID,
 		TxTreeIndex:     tmp.TxTreeIndex,
 		TxMerkleProof:   tmp.TxMerkleProof,
+		TxTreeRoot:      tmp.TxTreeRoot,
+		ProposalBlockID: tmp.ProposalBlockID,
+		SignatureID:     tmp.SignatureID.String,
 		CreatedAt:       tmp.CreatedAt,
 	}
 

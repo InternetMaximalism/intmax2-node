@@ -69,10 +69,16 @@ func (u *uc) Do(
 		}
 	*/
 
-	err = u.w.SignTxTreeByAvailableFile(input.Signature, &worker.TransactionHashesWithSenderAndFile{
-		Sender: input.TxInfo.Sender,
-		File:   input.TxInfo.File,
-	})
+	err = u.w.SignTxTreeByAvailableFile(
+		input.Signature,
+		&worker.TransactionHashesWithSenderAndFile{
+			Sender: input.TxInfo.Sender,
+			TxHash: input.TxInfo.TxHash,
+			File:   input.TxInfo.File,
+		},
+		input.TxTree.TxHash,
+		input.TxTree.LeafIndex,
+	)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
 		return errors.Join(ErrSignTxTreeByAvailableFileFail, err)

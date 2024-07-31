@@ -3,15 +3,11 @@ package block_signature
 import (
 	"errors"
 	intMaxAcc "intmax2-node/internal/accounts"
-	"intmax2-node/internal/finite_field"
-	intMaxTypes "intmax2-node/internal/types"
+	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/worker"
-	"sort"
 	"strings"
 
-	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/prodadidb/go-validation"
 )
 
@@ -26,6 +22,9 @@ var ErrTxTreeNotBuild = errors.New("the tx tree not build")
 
 // ErrTxTreeSignatureCollectionComplete error: signature collection for tx tree completed.
 var ErrTxTreeSignatureCollectionComplete = errors.New("signature collection for tx tree completed")
+
+// ErrInvalidEnoughBalanceProof error: invalid enough balance proof.
+var ErrInvalidEnoughBalanceProof = errors.New("invalid enough balance proof")
 
 func (input *UCBlockSignatureInput) Valid(w Worker) (err error) {
 	return validation.ValidateStruct(input,
@@ -56,7 +55,7 @@ func (input *UCBlockSignatureInput) Valid(w Worker) (err error) {
 			}
 
 			// Verify signature.
-			err = VerifyTxTreeSignature(sb, publicKey, input.TxTree.RootHash.Marshal(), input.TxTree.SenderPublicKeys)
+			err = block_post_service.VerifyTxTreeSignature(sb, publicKey, input.TxTree.RootHash.Marshal(), input.TxTree.SenderPublicKeys)
 			if err != nil {
 				return ErrValueInvalid
 			}
@@ -179,49 +178,4 @@ func (input *UCBlockSignatureInput) isPlonky2Proof() validation.Rule {
 			validation.Field(&p2p.Proof, validation.Required),
 		)
 	})
-}
-
-func VerifyTxTreeSignature(signatureBytes []byte, sender *intMaxAcc.PublicKey, txTreeRootBytes []byte, senderPublicKeys []*intMaxAcc.PublicKey) error {
-	const int32Key = 32
-
-	if len(senderPublicKeys) == 0 {
-		return ErrInvalidSendersLength
-	}
-	if len(senderPublicKeys) > intMaxTypes.NumOfSenders {
-		return ErrTooManySenderPublicKeys
-	}
-
-	// Sort by x-coordinate of public key
-	sort.Slice(senderPublicKeys, func(i, j int) bool {
-		return senderPublicKeys[i].Pk.X.Cmp(&senderPublicKeys[j].Pk.X) > 0
-	})
-
-	senderPublicKeysBytes := make([]byte, intMaxTypes.NumOfSenders*intMaxTypes.NumPublicKeyBytes)
-	for i, sender := range senderPublicKeys {
-		senderPublicKey := sender.Pk.X.Bytes() // Only x coordinate is used
-		copy(senderPublicKeysBytes[int32Key*i:int32Key*(i+1)], senderPublicKey[:])
-	}
-	defaultPublicKey := intMaxAcc.NewDummyPublicKey()
-	for i := len(senderPublicKeys); i < intMaxTypes.NumOfSenders; i++ {
-		senderPublicKey := defaultPublicKey.Pk.X.Bytes() // Only x coordinate is used
-		copy(senderPublicKeysBytes[int32Key*i:int32Key*(i+1)], senderPublicKey[:])
-	}
-
-	publicKeysHash := crypto.Keccak256(senderPublicKeysBytes)
-
-	messagePoint := finite_field.BytesToFieldElementSlice(txTreeRootBytes)
-
-	signature := new(bn254.G2Affine)
-	err := signature.Unmarshal(signatureBytes)
-	if err != nil {
-		return errors.Join(ErrUnmarshalSignatureFail, err)
-	}
-
-	senderWithWeight := sender.WeightByHash(publicKeysHash)
-	err = intMaxAcc.VerifySignature(signature, senderWithWeight, messagePoint)
-	if err != nil {
-		return errors.Join(ErrInvalidSignature, err)
-	}
-
-	return nil
 }
