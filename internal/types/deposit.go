@@ -84,6 +84,13 @@ func (d *Deposit) Set(deposit *Deposit) *Deposit {
 	return d
 }
 
+func (d *Deposit) Equal(other *Deposit) bool {
+	return d.Recipient.Equal(other.Recipient) &&
+		d.TokenIndex == other.TokenIndex &&
+		d.Amount.Cmp(other.Amount) == 0 &&
+		d.Salt.Equal(other.Salt)
+}
+
 func SplitBigIntTo32BitChunks(value *big.Int) []uint32 {
 	const chunkSize = 32
 	mask := new(big.Int).Lsh(big.NewInt(1), chunkSize)

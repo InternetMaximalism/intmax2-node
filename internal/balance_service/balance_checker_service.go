@@ -11,8 +11,9 @@ import (
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/deposit_service"
 	"intmax2-node/internal/logger"
+	"intmax2-node/internal/mnemonic_wallet"
+	"intmax2-node/internal/pb/gen/service/node"
 	intMaxTypes "intmax2-node/internal/types"
-	"intmax2-node/internal/use_cases/backup_balance"
 	errorsDB "intmax2-node/pkg/sql_db/errors"
 	"intmax2-node/pkg/utils"
 	"log"
@@ -144,8 +145,9 @@ func GetBalance(
 	db SQLDriverApp,
 	sb ServiceBlockchain,
 	args []string,
-	userPrivateKey string,
+	userEthPrivateKey string,
 ) {
+	fmt.Printf("GetBalance args: %v\n", args)
 	tokenInfo := parseTokenInfo(args)
 
 	tokenIndex, err := GetTokenIndex(ctx, cfg, db, sb, tokenInfo)
@@ -154,11 +156,19 @@ func GetBalance(
 		os.Exit(1)
 	}
 
-	userPk, err := intMaxAcc.NewPrivateKeyFromString(userPrivateKey)
+	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(removeZeroX(userEthPrivateKey))
 	if err != nil {
 		fmt.Printf("fail to parse user address: %v\n", err)
 		os.Exit(1)
 	}
+	fmt.Printf("wallet: %v\n", wallet)
+
+	userPk, err := intMaxAcc.NewPrivateKeyFromString(wallet.IntMaxPrivateKey)
+	if err != nil {
+		fmt.Printf("fail to parse user address: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("User address: %s\n", userPk.ToAddress().String())
 
 	balance, err := GetUserBalance(ctx, cfg, lg, db, userPk, tokenIndex)
 	if err != nil {
@@ -183,7 +193,7 @@ func GetTokenIndex(
 	}
 
 	// Check liquidity contract for token index
-	return getTokenIndexFromLiquidityContract(ctx, cfg, sb, tokenInfo)
+	return GetTokenIndexFromLiquidityContract(ctx, cfg, sb, tokenInfo)
 }
 
 func getLocalTokenIndex(db SQLDriverApp, tokenInfo intMaxTypes.TokenInfo) (uint32, error) {
@@ -211,7 +221,7 @@ func getLocalTokenIndex(db SQLDriverApp, tokenInfo intMaxTypes.TokenInfo) (uint3
 }
 
 // Get token index from liquidity contract
-func getTokenIndexFromLiquidityContract(
+func GetTokenIndexFromLiquidityContract(
 	ctx context.Context,
 	cfg *configs.Config,
 	sb deposit_service.ServiceBlockchain,
@@ -260,6 +270,7 @@ func GetUserBalance(
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user balances: %w", err)
 	}
+	fmt.Printf("userAllData: %v\n", userAllData.Deposits)
 	balanceData, err := CalculateBalance(userAllData, tokenIndex, *userPrivateKey)
 	if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
 		return nil, ErrFetchBalanceByUserAddressAndTokenInfoWithDBApp
@@ -280,7 +291,7 @@ func getUserBalancesRawRequest(
 	cfg *configs.Config,
 	log logger.Logger,
 	address string,
-) (*backup_balance.UCGetBalances, error) {
+) (*node.GetBalancesResponse, error) {
 	const (
 		httpKey     = "http"
 		httpsKey    = "https"
@@ -318,7 +329,7 @@ func getUserBalancesRawRequest(
 		return nil, err
 	}
 
-	response := new(backup_balance.UCGetBalances)
+	response := new(node.GetBalancesResponse)
 	if err = json.Unmarshal(resp.Body(), response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
@@ -326,14 +337,18 @@ func getUserBalancesRawRequest(
 	return response, nil
 }
 
-func CalculateBalance(userAllData *backup_balance.UCGetBalances, tokenIndex uint32, userPrivateKey intMaxAcc.PrivateKey) (*intMaxTypes.Balance, error) {
+func CalculateBalance(userAllData *node.GetBalancesResponse, tokenIndex uint32, userPrivateKey intMaxAcc.PrivateKey) (*intMaxTypes.Balance, error) {
 	balance := big.NewInt(0)
 	for _, deposit := range userAllData.Deposits {
+		fmt.Printf("deposit.EncryptedDeposit: %v\n", len(deposit.EncryptedDeposit))
+		fmt.Printf("deposit: %v\n", deposit)
 		encryptedDepositBytes, err := base64.StdEncoding.DecodeString(deposit.EncryptedDeposit)
 		if err != nil {
 			log.Printf("failed to decode deposit: %v", err)
 			continue
 		}
+
+		fmt.Printf("encryptedDepositBytes: %v\n", encryptedDepositBytes)
 		encodedDeposit, err := userPrivateKey.DecryptECIES(encryptedDepositBytes)
 		if err != nil {
 			log.Printf("failed to decrypt deposit: %v", err)
@@ -401,4 +416,11 @@ func CalculateBalance(userAllData *backup_balance.UCGetBalances, tokenIndex uint
 		TokenIndex: tokenIndex,
 		Amount:     balance,
 	}, nil
+}
+
+func removeZeroX(s string) string {
+	if len(s) >= 2 && s[:2] == "0x" {
+		return s[2:]
+	}
+	return s
 }

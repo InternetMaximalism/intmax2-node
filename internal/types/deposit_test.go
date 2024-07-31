@@ -17,9 +17,12 @@ func TestEncryptDeposit(t *testing.T) {
 	recipientAccount, err := intMaxAcc.NewPrivateKey(big.NewInt(4))
 	require.NoError(t, err)
 
-	salt := new(goldenposeidon.PoseidonHashOut)
 	saltBytes := make([]byte, 32)
 	_, err = rand.Read(saltBytes)
+	require.NoError(t, err)
+
+	salt := new(goldenposeidon.PoseidonHashOut)
+	err = salt.Unmarshal(saltBytes)
 	require.NoError(t, err)
 
 	deposit := intMaxTypes.Deposit{
@@ -54,7 +57,7 @@ func TestEncryptDeposit(t *testing.T) {
 	err = decryptedDeposit.Unmarshal(decryptedDepositBytes)
 	assert.NoError(t, err)
 	assert.True(
-		t, deposit.Recipient.Equal(decryptedDeposit.Recipient),
-		"recipients should be equal: %v != %v", deposit.Recipient, decryptedDeposit.Recipient,
+		t, deposit.Equal(decryptedDeposit),
+		"recipients should be equal: %v != %v", deposit, decryptedDeposit,
 	)
 }

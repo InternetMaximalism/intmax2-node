@@ -34,7 +34,7 @@ func SendTransferTransaction(
 		log.Fatalf("%s", err)
 	}
 
-	tokenIndex, err := balance_service.GetTokenIndex(ctx, cfg, db, sb, *tokenInfo)
+	tokenIndex, err := balance_service.GetTokenIndexFromLiquidityContract(ctx, cfg, sb, *tokenInfo)
 	if err != nil {
 		log.Fatalf("%s", errors.Join(ErrTokenNotFound, err))
 	}
