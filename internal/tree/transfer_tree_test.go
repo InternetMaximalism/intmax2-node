@@ -23,6 +23,7 @@ func TestTransferTree(t *testing.T) {
 	for i := 0; i < 8; i++ {
 		address := make([]byte, 32)
 		_, err := r.Read(address)
+		address[0] &= 0b00011111
 		assert.NoError(t, err)
 		recipient, err := intMaxTypes.NewINTMAXAddress(address)
 		assert.NoError(t, err)

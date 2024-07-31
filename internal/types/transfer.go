@@ -1,8 +1,10 @@
 package types
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	intMaxAccTypes "intmax2-node/internal/accounts/types"
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/hash/goldenposeidon"
@@ -29,7 +31,41 @@ func (ga *GenericAddress) Set(genericAddress *GenericAddress) *GenericAddress {
 }
 
 func (ga *GenericAddress) Marshal() []byte {
-	return ga.Address
+	const int32Key = 32
+	d := make([]byte, int32Key)
+	copy(d[int32Key-len(ga.Address):], ga.Address)
+
+	if ga.TypeOfAddress == intMaxAccTypes.INTMAXAddressType {
+		if d[0]&0b11000000 != 0 {
+			panic("address type is not INTMAX")
+		}
+
+		d[0] |= 0x80
+	}
+
+	return d
+}
+
+func (ga *GenericAddress) Unmarshal(data []byte) error {
+	const int20Key = 20
+	const int32Key = 32
+
+	ga.Address = make([]byte, int32Key)
+	copy(ga.Address[int32Key-len(data):], data)
+
+	if ga.Address[0]&0b11000000 == 0b10000000 {
+		ga.TypeOfAddress = intMaxAccTypes.INTMAXAddressType
+		ga.Address[0] &= 0b00111111
+	} else {
+		ga.TypeOfAddress = intMaxAccTypes.EthereumAddressType
+		for i := 0; i < int32Key-int20Key; i++ {
+			if ga.Address[i] != 0 {
+				return errors.New("address invalid: not an Ethereum address")
+			}
+		}
+	}
+
+	return nil
 }
 
 func (ga *GenericAddress) String() string {
@@ -134,24 +170,143 @@ func (td *Transfer) SetZero() *Transfer {
 	return td
 }
 
+func (td *Transfer) ToUint64Slice() []uint64 {
+	isPubicKey := 0
+	if td.Recipient.AddressType() == intMaxAccTypes.INTMAXAddressType {
+		isPubicKey = 1
+	}
+
+	recipientBytes := make([]byte, 32)
+	copy(recipientBytes[32-len(td.Recipient.Address):], td.Recipient.Address)
+
+	amountBytes := make([]byte, 32)
+	copy(amountBytes[32-len(td.Amount.Bytes()):], td.Amount.Bytes())
+
+	result := []uint64{uint64(isPubicKey)}
+	result = append(result, BytesToUint64Array(recipientBytes)...)
+	result = append(result, uint64(td.TokenIndex))
+	result = append(result, BytesToUint64Array(amountBytes)...)
+	for i := 0; i < 4; i++ {
+		result = append(result, uint64(td.Salt.Elements[i].ToUint64Regular()))
+	}
+
+	return result
+}
+
+func bytesToUint64(b []byte) uint64 {
+	return uint64(b[0])<<24 | uint64(b[1])<<16 | uint64(b[2])<<8 | uint64(b[3])
+}
+
+func BytesToUint64Array(bytes []byte) []uint64 {
+	resultLength := (len(bytes) + 4 - 1) / 4
+	result := make([]uint64, resultLength)
+
+	for i := 0; i < resultLength; i++ {
+		start := i * 4
+		end := start + 4
+
+		if end > len(bytes) {
+			end = len(bytes)
+		}
+
+		chunk := make([]byte, 4)
+		copy(chunk, bytes[start:end])
+
+		result[i] = bytesToUint64(chunk)
+	}
+
+	return result
+}
+
 func (td *Transfer) Marshal() []byte {
 	const (
 		int4Key  = 4
-		int31Key = 31
 		int32Key = 32
 	)
 
+	recipientBytes := make([]byte, int32Key)
+	copy(recipientBytes, td.Recipient.Marshal())
 	tokenIndexBytes := make([]byte, int4Key)
 	binary.BigEndian.PutUint32(tokenIndexBytes, td.TokenIndex)
 	amountBytes := make([]byte, int32Key)
-	for i, v := range td.Amount.Bytes() {
-		amountBytes[int31Key-i] = v
+	tdAmountBytes := td.Amount.Bytes()
+	copy(amountBytes[int32Key-len(tdAmountBytes):], tdAmountBytes)
+	reversedAmountBytes := make([]byte, int32Key)
+	for i := range td.Amount.Bytes() {
+		reversedAmountBytes[i] = amountBytes[int32Key-1-i]
 	}
 
-	return append(append(
-		append(td.Recipient.Marshal(), tokenIndexBytes...),
-		amountBytes...,
-	), td.Salt.Marshal()...)
+	buf := bytes.NewBuffer(make([]byte, 0))
+	_, err := buf.Write(recipientBytes)
+	if err != nil {
+		panic(err)
+	}
+	_, err = buf.Write(tokenIndexBytes)
+	if err != nil {
+		panic(err)
+	}
+	_, err = buf.Write(reversedAmountBytes)
+	if err != nil {
+		panic(err)
+	}
+	_, err = buf.Write(td.Salt.Marshal())
+	if err != nil {
+		panic(err)
+	}
+
+	return buf.Bytes()
+}
+
+func (td *Transfer) Write(buf *bytes.Buffer) error {
+	_, err := buf.Write(td.Marshal())
+
+	return err
+}
+
+func (td *Transfer) Read(buf *bytes.Buffer) error {
+	const (
+		int4Key  = 4
+		int32Key = 32
+	)
+
+	td.Recipient = new(GenericAddress)
+	a := buf.Next(int32Key)
+	if err := td.Recipient.Unmarshal(a); err != nil {
+		return err
+	}
+
+	tokenIndexBytes := make([]byte, int4Key)
+	if _, err := buf.Read(tokenIndexBytes); err != nil {
+		return err
+	}
+	td.TokenIndex = binary.BigEndian.Uint32(tokenIndexBytes)
+
+	amountBytes := make([]byte, int32Key)
+	if _, err := buf.Read(amountBytes); err != nil {
+		return err
+	}
+	reversedAmountBytes := make([]byte, int32Key)
+	for i := range amountBytes {
+		reversedAmountBytes[i] = amountBytes[int32Key-1-i]
+	}
+	td.Amount = new(big.Int)
+	td.Amount.SetBytes(reversedAmountBytes)
+
+	saltBytes := make([]byte, int32Key)
+	if _, err := buf.Read(saltBytes); err != nil {
+		return err
+	}
+	td.Salt = new(PoseidonHashOut)
+	if err := td.Salt.Unmarshal(saltBytes); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (td *Transfer) Unmarshal(data []byte) error {
+	buf := bytes.NewBuffer(data)
+	return td.Read(buf)
 }
 
 func (td *Transfer) ToFieldElementSlice() []ffg.Element {
@@ -159,7 +314,13 @@ func (td *Transfer) ToFieldElementSlice() []ffg.Element {
 }
 
 func (td *Transfer) Hash() *PoseidonHashOut {
-	return goldenposeidon.HashNoPad(td.ToFieldElementSlice())
+	uint64Slice := td.ToUint64Slice()
+	inputs := make([]ffg.Element, len(uint64Slice))
+	for i, v := range uint64Slice {
+		inputs[i].SetUint64(v)
+	}
+
+	return goldenposeidon.HashNoPad(inputs)
 }
 
 func (td *Transfer) Equal(other *Transfer) bool {
