@@ -2,9 +2,11 @@ package tx_transfer
 
 import (
 	"context"
+	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/logger"
+	"intmax2-node/internal/mnemonic_wallet"
 	"intmax2-node/internal/open_telemetry"
 	service "intmax2-node/internal/tx_transfer_service"
 	txTransfer "intmax2-node/internal/use_cases/tx_transfer"
@@ -34,7 +36,7 @@ func New(
 	}
 }
 
-func (u *uc) Do(ctx context.Context, args []string, amount, recipientAddressStr, userPrivateKey string) (err error) {
+func (u *uc) Do(ctx context.Context, args []string, amount, recipientAddressStr, userEthPrivateKey string) (err error) {
 	const (
 		hName     = "UseCase TxTransfer"
 		senderKey = "sender"
@@ -43,20 +45,25 @@ func (u *uc) Do(ctx context.Context, args []string, amount, recipientAddressStr,
 	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
 	defer span.End()
 
+	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
+
 	// The userPrivateKey is acceptable in either format:
 	// it may include the '0x' prefix at the beginning,
 	// or it can be provided without this prefix.
-	userAccount, err := intMaxAcc.NewPrivateKeyFromString(userPrivateKey)
+	userAccount, err := intMaxAcc.NewPrivateKeyFromString(wallet.IntMaxPrivateKey)
 	if err != nil {
 		return err
 	}
 
+	fmt.Printf("Public key: %s\n", userAccount.Public())
 	userAddress := userAccount.ToAddress()
+	fmt.Printf("address: %s\n", userAddress)
+
 	span.SetAttributes(
 		attribute.String(senderKey, userAddress.String()),
 	)
 
-	service.SendTransferTransaction(spanCtx, u.cfg, u.log, u.db, u.sb, args, amount, recipientAddressStr, userPrivateKey)
+	service.SendTransferTransaction(spanCtx, u.cfg, u.log, u.db, u.sb, args, amount, recipientAddressStr, userEthPrivateKey)
 
 	return nil
 }

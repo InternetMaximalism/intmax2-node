@@ -7,6 +7,7 @@ import (
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_service"
 	"intmax2-node/internal/logger"
+	"intmax2-node/internal/mnemonic_wallet"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"math/big"
@@ -22,9 +23,14 @@ func SendTransferTransaction(
 	args []string,
 	amountStr string,
 	recipientAddressStr string,
-	userPrivateKey string,
+	userEthPrivateKey string,
 ) {
-	userAccount, err := intMaxAcc.NewPrivateKeyFromString(userPrivateKey)
+	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
+	if err != nil {
+		log.Fatalf("fail to parse user private key: %v", err)
+	}
+
+	userAccount, err := intMaxAcc.NewPrivateKeyFromString(wallet.IntMaxPrivateKey)
 	if err != nil {
 		log.Fatalf("fail to parse user private key: %v", err)
 	}
