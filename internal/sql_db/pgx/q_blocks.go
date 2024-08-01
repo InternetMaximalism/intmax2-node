@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	errPgx "intmax2-node/internal/sql_db/pgx/errors"
 	"intmax2-node/internal/sql_db/pgx/models"
+	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"strings"
 	"time"
@@ -12,16 +13,21 @@ import (
 )
 
 func (p *pgx) CreateBlock(
-	builderPublicKey, txRoot, aggregatedSignature, aggregatedPublicKey string,
+	builderPublicKey, txRoot, aggregatedSignature, aggregatedPublicKey string, senders []intMaxTypes.ColumnSender,
 	senderType uint,
 	options []byte,
 ) (*mDBApp.Block, error) {
+	sendersJSON, err := json.Marshal(senders)
+	if err != nil {
+		return nil, err
+	}
 	s := models.Block{
 		ProposalBlockID:     uuid.New().String(),
 		BuilderPublicKey:    builderPublicKey,
 		TxRoot:              txRoot,
 		AggregatedSignature: aggregatedSignature,
 		AggregatedPublicKey: aggregatedPublicKey,
+		Senders:             sendersJSON,
 		CreatedAt:           time.Now().UTC(),
 		SenderType:          int64(senderType),
 		Options:             options,
@@ -33,14 +39,14 @@ func (p *pgx) CreateBlock(
 	const (
 		q = `INSERT INTO blocks (
              proposal_block_id ,builder_public_key ,tx_root
-             ,aggregated_signature ,aggregated_public_key
+             ,aggregated_signature ,aggregated_public_key ,senders
              ,created_at ,sender_type ,options
-             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)  `
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)  `
 	)
 
-	_, err := p.exec(p.ctx, q,
+	_, err = p.exec(p.ctx, q,
 		s.ProposalBlockID, s.BuilderPublicKey, s.TxRoot,
-		s.AggregatedSignature, s.AggregatedPublicKey,
+		s.AggregatedSignature, s.AggregatedPublicKey, s.Senders,
 		s.CreatedAt, s.SenderType, s.Options)
 	if err != nil {
 		return nil, errPgx.Err(err)
@@ -88,6 +94,62 @@ func (p *pgx) Block(proposalBlockID string) (*mDBApp.Block, error) {
 	return bDBApp, nil
 }
 
+// UpdateBlockStatus updates the status of the block with the given proposalBlockID.
+func (p *pgx) UpdateBlockStatus(proposalBlockID string, status int64) error {
+	const (
+		q = `UPDATE blocks SET status = $1 WHERE proposal_block_id = $2`
+	)
+
+	_, err := p.exec(p.ctx, q, status, proposalBlockID)
+	if err != nil {
+		return errPgx.Err(err)
+	}
+
+	return nil
+}
+
+func (p *pgx) GetUnprocessedBlocks() ([]*mDBApp.Block, error) {
+	const (
+		q = `SELECT
+			 proposal_block_id ,builder_public_key ,tx_root
+			 ,block_hash ,aggregated_signature ,aggregated_public_key ,status ,senders
+			 ,created_at ,posted_at ,sender_type ,options
+			 FROM blocks WHERE status IS NULL`
+	)
+
+	rows, err := p.query(p.ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var blocks []*mDBApp.Block
+	for rows.Next() {
+		var tmp models.Block
+		err = rows.Scan(
+			&tmp.ProposalBlockID,
+			&tmp.BuilderPublicKey,
+			&tmp.TxRoot,
+			&tmp.BlockHash,
+			&tmp.AggregatedSignature,
+			&tmp.AggregatedPublicKey,
+			&tmp.Status,
+			&tmp.Senders,
+			&tmp.CreatedAt,
+			&tmp.PostedAt,
+			&tmp.SenderType,
+			&tmp.Options,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		blocks = append(blocks, p.blockToDBApp(&tmp))
+	}
+
+	return blocks, nil
+}
+
 func (p *pgx) blockToDBApp(tmp *models.Block) *mDBApp.Block {
 	m := mDBApp.Block{
 		ProposalBlockID:     tmp.ProposalBlockID,
@@ -95,6 +157,7 @@ func (p *pgx) blockToDBApp(tmp *models.Block) *mDBApp.Block {
 		TxRoot:              tmp.TxRoot,
 		AggregatedSignature: tmp.AggregatedSignature,
 		AggregatedPublicKey: tmp.BuilderPublicKey,
+		Senders:             tmp.Senders,
 		CreatedAt:           tmp.CreatedAt,
 		SenderType:          tmp.SenderType,
 		Options:             tmp.Options,

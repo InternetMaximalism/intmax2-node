@@ -25,6 +25,7 @@ type Config struct {
 	Wallet              Wallet
 	PoW                 PoW
 	Worker              Worker
+	DepositSynchronizer DepositSynchronizer
 	BlockValidityProver BlockValidityProver
 	Blockchain          Blockchain
 	Network             Network

@@ -118,8 +118,7 @@ func (td *TxDetails) Read(buf *bytes.Buffer) error {
 	const int32Key = 32
 
 	transferTreeRoot := new(PoseidonHashOut)
-	err := transferTreeRoot.Unmarshal(buf.Next(int32Key))
-	if err != nil {
+	if err := transferTreeRoot.Unmarshal(buf.Next(int32Key)); err != nil {
 		var ErrUnmarshalTransferTreeRoot = fmt.Errorf("failed to unmarshal transfer tree root: %w", err)
 		return errors.Join(ErrUnmarshalTransferTreeRoot, err)
 	}

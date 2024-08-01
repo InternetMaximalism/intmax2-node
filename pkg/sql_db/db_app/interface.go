@@ -3,6 +3,7 @@ package db_app
 import (
 	"context"
 	"encoding/json"
+	intMaxTypes "intmax2-node/internal/types"
 	backupDeposit "intmax2-node/internal/use_cases/backup_deposit"
 	backupTransaction "intmax2-node/internal/use_cases/backup_transaction"
 	backupTransfer "intmax2-node/internal/use_cases/backup_transfer"
@@ -42,11 +43,13 @@ type ServiceCommands interface {
 
 type Blocks interface {
 	CreateBlock(
-		builderPublicKey, txRoot, aggregatedSignature, aggregatedPublicKey string,
+		builderPublicKey, txRoot, aggregatedSignature, aggregatedPublicKey string, senders []intMaxTypes.ColumnSender,
 		senderType uint,
 		options []byte,
 	) (*models.Block, error)
 	Block(proposalBlockID string) (*models.Block, error)
+	UpdateBlockStatus(proposalBlockID string, status int64) error
+	GetUnprocessedBlocks() ([]*models.Block, error)
 }
 
 type Tokens interface {

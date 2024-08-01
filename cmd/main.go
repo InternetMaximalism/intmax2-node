@@ -21,6 +21,7 @@ import (
 	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/blockchain"
 	"intmax2-node/internal/cli"
+	"intmax2-node/internal/deposit_synchronizer"
 	"intmax2-node/internal/network_service"
 	"intmax2-node/internal/open_telemetry"
 	"intmax2-node/internal/pow"
@@ -76,6 +77,7 @@ func main() {
 	}
 
 	w := worker.New(cfg, log, dbApp)
+	depositSynchronizer := deposit_synchronizer.New(cfg, log, dbApp)
 	blockValidityProver := block_validity_prover.New(cfg, log, dbApp)
 	bc := blockchain.New(ctx, cfg)
 	ns := network_service.New(cfg)
@@ -103,6 +105,7 @@ func main() {
 			HC:                  &hc,
 			PoW:                 pwNonce,
 			Worker:              w,
+			DepositSynchronizer: depositSynchronizer,
 			BlockValidityProver: blockValidityProver,
 		}),
 		migrator.NewMigratorCmd(ctx, log, dbApp),

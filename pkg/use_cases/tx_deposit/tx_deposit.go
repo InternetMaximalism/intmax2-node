@@ -16,6 +16,8 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
+const int3Key = 3
+
 // uc describes use case
 type uc struct {
 	cfg *configs.Config
@@ -66,7 +68,7 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressStr, amount,
 		return err
 	}
 
-	if len(args) > 3 {
+	if len(args) > int3Key {
 		return errors.New("too many arguments")
 	}
 
@@ -89,9 +91,11 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressStr, amount,
 
 	if tokenInfo.TokenType == 0 {
 		// ETH
-		d.DepositETHWithRandomSalt(userEthPrivateKeyHex, recipientAddress, tokenIndex, amount)
+		if err := d.DepositETHWithRandomSalt(userEthPrivateKeyHex, recipientAddress, tokenIndex, amount); err != nil {
+			return err
+		}
 
-		fmt.Printf("ETH deposit is successful\n")
+		fmt.Println("ETH deposit is successful")
 		return nil
 	}
 
