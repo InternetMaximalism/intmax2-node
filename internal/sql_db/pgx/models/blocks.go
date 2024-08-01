@@ -12,6 +12,7 @@ type Block struct {
 	BlockHash           sql.NullString
 	AggregatedSignature string
 	AggregatedPublicKey string
+	Senders             []byte
 	Status              sql.NullInt64
 	CreatedAt           time.Time
 	PostedAt            sql.NullTime

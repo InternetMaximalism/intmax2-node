@@ -259,13 +259,12 @@ func GetTokenIndexFromLiquidityContract(
 func GetUserBalance(
 	ctx context.Context,
 	cfg *configs.Config,
-	log logger.Logger,
+	lg logger.Logger,
 	db SQLDriverApp,
 	userPrivateKey *intMaxAcc.PrivateKey,
 	tokenIndex uint32,
 ) (*big.Int, error) {
-	// tokenIndexStr := strconv.FormatUint(uint64(tokenIndex), int10Key)
-	userAllData, err := getUserBalancesRawRequest(ctx, cfg, log, userPrivateKey.ToAddress().String())
+	userAllData, err := getUserBalancesRawRequest(ctx, cfg, lg, userPrivateKey.ToAddress().String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user balances: %w", err)
 	}
@@ -287,7 +286,7 @@ func GetUserBalance(
 func getUserBalancesRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
-	log logger.Logger,
+	lg logger.Logger,
 	address string,
 ) (*GetBalancesResponse, error) {
 	const (
@@ -320,14 +319,13 @@ func getUserBalancesRawRequest(
 
 	if resp.StatusCode() != http.StatusOK {
 		err = fmt.Errorf("failed to get response")
-		log.WithFields(logger.Fields{
+		lg.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
 			"response":    resp.String(),
 		}).WithError(err).Errorf("Unexpected status code")
 		return nil, err
 	}
 
-	// response := new(node.GetBalancesResponse)
 	response := new(GetBalancesResponse)
 	if err = json.Unmarshal(resp.Body(), response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)

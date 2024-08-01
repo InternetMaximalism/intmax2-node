@@ -67,3 +67,7 @@ var ErrTokenNotFound = errors.New("token not found on INTMAX network")
 var ErrFailedToGetBalance = errors.New("failed to get balance")
 
 var ErrFetchTokenByTokenAddressAndTokenIDWithDBApp = errors.New("failed to fetch token by tokenAddress and tokenId with DBApp")
+
+var ErrFilterLogsFail = errors.New("failed to filter logs")
+
+var ErrEncounteredWhileIterating = errors.New("encountered while iterating error occurred")

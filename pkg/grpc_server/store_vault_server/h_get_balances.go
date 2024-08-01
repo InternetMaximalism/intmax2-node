@@ -7,11 +7,14 @@ import (
 	"intmax2-node/internal/pb/gen/service/node"
 	backupBalance "intmax2-node/internal/use_cases/backup_balance"
 	"intmax2-node/pkg/grpc_server/utils"
+	"strconv"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
+
+const int10Key = 10
 
 func (s *StoreVaultServer) GetBalances(ctx context.Context, req *node.GetBalancesRequest) (*node.GetBalancesResponse, error) {
 	resp := node.GetBalancesResponse{}
@@ -91,7 +94,7 @@ func convertToTransactions(transactions []*backupBalance.BackupTransaction) []*n
 		result[i] = &node.BackupTransaction{
 			Sender:      transaction.Sender,
 			EncryptedTx: transaction.EncryptedTx,
-			BlockNumber: string(transaction.BlockNumber),
+			BlockNumber: strconv.FormatUint(transaction.BlockNumber, int10Key),
 			CreatedAt:   transaction.CreatedAt.Format(time.RFC3339),
 		}
 	}
