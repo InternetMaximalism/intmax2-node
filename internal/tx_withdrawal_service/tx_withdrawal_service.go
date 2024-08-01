@@ -150,7 +150,7 @@ func SendWithdrawalTransaction(
 	log.Printf("The transaction has been successfully sent.")
 
 	// TODO: Get the block number and block hash
-	blockNumber := uint32(0)
+	blockNumber := uint32(1)
 	blockHash := common.Hash{}.Hex()
 
 	txMerkleProof := proposedBlock.TxTreeMerkleProof
