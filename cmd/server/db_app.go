@@ -14,8 +14,8 @@ import (
 type SQLDriverApp interface {
 	GenericCommandsApp
 	ServiceCommands
+	Blocks
 	Signatures
-	// Transactions
 	TxMerkleProofs
 }
 
@@ -27,17 +27,19 @@ type ServiceCommands interface {
 	Check(ctx context.Context) health.Health
 }
 
-type Signatures interface {
-	CreateSignature(signature string) (*mDBApp.Signature, error)
-	SignatureByID(txID string) (*mDBApp.Signature, error)
+type Blocks interface {
+	CreateBlock(
+		builderPublicKey, txRoot, aggregatedSignature, aggregatedPublicKey string,
+		senderType uint,
+		options []byte,
+	) (*mDBApp.Block, error)
+	Block(proposalBlockID string) (*mDBApp.Block, error)
 }
 
-// type Transactions interface {
-// 	CreateTransaction(
-// 		senderPublicKey, txHash, signatureID, txTreeRoot string, txMerkleProof []string,
-// 	) (*mDBApp.Transactions, error)
-// 	TransactionByID(txID string) (*mDBApp.Transactions, error)
-// }
+type Signatures interface {
+	CreateSignature(signature, proposalBlockID string) (*mDBApp.Signature, error)
+	SignatureByID(signatureID string) (*mDBApp.Signature, error)
+}
 
 type TxMerkleProofs interface {
 	CreateTxMerkleProofs(
@@ -45,6 +47,7 @@ type TxMerkleProofs interface {
 		txTreeIndex *uint256.Int,
 		txMerkleProof json.RawMessage,
 		txTreeRoot string,
+		proposalBlockID string,
 	) (*mDBApp.TxMerkleProofs, error)
 	TxMerkleProofsByID(id string) (*mDBApp.TxMerkleProofs, error)
 	TxMerkleProofsByTxHash(txHash string) (*mDBApp.TxMerkleProofs, error)

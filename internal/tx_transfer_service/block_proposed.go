@@ -65,7 +65,7 @@ func GetBlockProposed(
 }
 
 const (
-	retryInterval   = 10 * time.Second
+	retryInterval   = 1 * time.Second
 	timeoutInterval = 120 * time.Second
 )
 

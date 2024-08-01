@@ -14,20 +14,17 @@ import (
 
 // uc describes use case
 type uc struct {
-	cfg   *configs.Config
-	dbApp SQLDriverApp
-	w     Worker
+	cfg *configs.Config
+	w   Worker
 }
 
 func New(
 	cfg *configs.Config,
-	dbApp SQLDriverApp,
 	w Worker,
 ) transaction.UseCaseTransaction {
 	return &uc{
-		cfg:   cfg,
-		dbApp: dbApp,
-		w:     w,
+		cfg: cfg,
+		w:   w,
 	}
 }
 

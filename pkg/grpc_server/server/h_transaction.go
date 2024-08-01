@@ -60,18 +60,7 @@ func (s *Server) Transaction(
 		return &resp, utils.BadRequest(spanCtx, err)
 	}
 
-	err = s.dbApp.Exec(spanCtx, nil, func(d interface{}, _ interface{}) (err error) {
-		q, _ := d.(SQLDriverApp)
-
-		err = s.commands.Transaction(s.config, q, s.worker).Do(spanCtx, &input)
-		if err != nil {
-			open_telemetry.MarkSpanError(spanCtx, err)
-			const msg = "failed to commit transaction: %w"
-			return fmt.Errorf(msg, err)
-		}
-
-		return nil
-	})
+	err = s.commands.Transaction(s.config, s.worker).Do(spanCtx, &input)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
 		if errors.Is(err, worker.ErrReceiverWorkerDuplicate) {
@@ -79,7 +68,7 @@ func (s *Server) Transaction(
 			return &resp, utils.BadRequest(spanCtx, fmt.Errorf(msg, transaction.NotUniqueMsg))
 		}
 
-		const msg = "failed to commit transaction with DB App: %+v"
+		const msg = "failed to commit transaction: %+v"
 		return &resp, utils.Internal(spanCtx, s.log, msg, err)
 	}
 

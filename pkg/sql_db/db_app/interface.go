@@ -16,9 +16,9 @@ import (
 type SQLDb interface {
 	GenericCommands
 	ServiceCommands
+	Blocks
 	Tokens
 	Signatures
-	// Transactions
 	TxMerkleProofs
 	EventBlockNumbers
 	Balances
@@ -40,6 +40,15 @@ type ServiceCommands interface {
 	Check(ctx context.Context) health.Health
 }
 
+type Blocks interface {
+	CreateBlock(
+		builderPublicKey, txRoot, aggregatedSignature, aggregatedPublicKey string,
+		senderType uint,
+		options []byte,
+	) (*models.Block, error)
+	Block(proposalBlockID string) (*models.Block, error)
+}
+
 type Tokens interface {
 	CreateToken(
 		tokenIndex, tokenAddress string,
@@ -50,16 +59,9 @@ type Tokens interface {
 }
 
 type Signatures interface {
-	CreateSignature(signature string) (*models.Signature, error)
-	SignatureByID(txID string) (*models.Signature, error)
+	CreateSignature(signature, proposalBlockID string) (*models.Signature, error)
+	SignatureByID(signatureID string) (*models.Signature, error)
 }
-
-// type Transactions interface {
-// 	CreateTransaction(
-// 		senderPublicKey, txHash, signatureID, txRootHash string, txMerkleProof []string,
-// 	) (*models.Transactions, error)
-// 	TransactionByID(txID string) (*models.Transactions, error)
-// }
 
 type TxMerkleProofs interface {
 	CreateTxMerkleProofs(
@@ -67,6 +69,7 @@ type TxMerkleProofs interface {
 		txTreeIndex *uint256.Int,
 		txMerkleProof json.RawMessage,
 		txTreeRoot string,
+		proposalBlockID string,
 	) (*models.TxMerkleProofs, error)
 	TxMerkleProofsByID(id string) (*models.TxMerkleProofs, error)
 	TxMerkleProofsByTxHash(txHash string) (*models.TxMerkleProofs, error)

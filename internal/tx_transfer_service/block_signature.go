@@ -3,9 +3,11 @@ package tx_transfer_service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
@@ -173,6 +175,18 @@ func SendSignedProposedBlock(
 		return fmt.Errorf("failed to marshal prevBalanceProof: %w", err)
 	}
 	log.Printf("encodedPrevBalanceProof: %v", encodedPrevBalanceProof)
+
+	publicKey, err := senderAccount.ToAddress().Public()
+	if err != nil {
+		return fmt.Errorf("failed to get public key: %w", err)
+	}
+
+	// Assertion
+	err = block_post_service.VerifyTxTreeSignature(signature.Marshal(), publicKey, txTreeRoot.Marshal(), publicKeys)
+	if err != nil {
+		fmt.Printf("Signature verification failed: %v\n", err)
+		return errors.New("signature verification failed")
+	}
 
 	return PostBlockSignatureRawRequest(
 		ctx, cfg, log,

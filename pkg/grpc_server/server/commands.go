@@ -23,7 +23,6 @@ type Commands interface {
 	HealthCheck(hc *health.Handler) healthCheck.UseCaseHealthCheck
 	Transaction(
 		cfg *configs.Config,
-		dbApp SQLDriverApp,
 		worker Worker,
 	) transaction.UseCaseTransaction
 	BlockProposed() blockProposed.UseCaseBlockProposed
@@ -49,10 +48,9 @@ func (c *commands) HealthCheck(hc *health.Handler) healthCheck.UseCaseHealthChec
 
 func (c *commands) Transaction(
 	cfg *configs.Config,
-	dbApp SQLDriverApp,
 	worker Worker,
 ) transaction.UseCaseTransaction {
-	return ucTransaction.New(cfg, dbApp, worker)
+	return ucTransaction.New(cfg, worker)
 }
 
 func (c *commands) BlockProposed() blockProposed.UseCaseBlockProposed {
