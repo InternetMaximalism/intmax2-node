@@ -18,7 +18,6 @@ func SendTransferTransaction(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
-	db SQLDriverApp,
 	sb ServiceBlockchain,
 	args []string,
 	amountStr string,
