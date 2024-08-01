@@ -282,12 +282,7 @@ func getUserBalancesRawRequest(
 		appJSON     = "application/json"
 	)
 
-	schema := httpKey
-	if cfg.HTTP.TLSUse {
-		schema = httpsKey
-	}
-
-	apiUrl := fmt.Sprintf("%s://%s/v1/balances/%s", schema, cfg.HTTP.DataStoreVaultAddr(), address)
+	apiUrl := fmt.Sprintf("%s/v1/balances/%s", cfg.HTTP.DataStoreVaultUrl, address)
 
 	r := resty.New().R()
 	resp, err := r.SetContext(ctx).SetHeaders(map[string]string{
