@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 
 	"github.com/holiman/uint256"
@@ -23,7 +24,7 @@ type GenericCommandsApp interface {
 
 type Blocks interface {
 	CreateBlock(
-		builderPublicKey, txRoot, aggregatedSignature, aggregatedPublicKey string,
+		builderPublicKey, txRoot, aggregatedSignature, aggregatedPublicKey string, senders []intMaxTypes.ColumnSender,
 		senderType uint,
 		options []byte,
 	) (*mDBApp.Block, error)

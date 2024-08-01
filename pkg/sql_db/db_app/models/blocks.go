@@ -23,6 +23,7 @@ type Block struct {
 	BlockHash           string
 	AggregatedSignature string
 	AggregatedPublicKey string
+	Senders             []byte
 	Status              *int64
 	CreatedAt           time.Time
 	PostedAt            *time.Time

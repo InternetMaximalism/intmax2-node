@@ -1,7 +1,9 @@
 package types
 
 import (
+	"context"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
@@ -17,6 +19,7 @@ import (
 	"github.com/consensys/gnark-crypto/ecc/bn254/fp"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/prodadidb/go-validation"
@@ -34,6 +37,9 @@ const (
 	numG2PointLimbs = 4
 	int8Key         = 8
 	int32Key        = 32
+	int10Key        = 10
+	int64Key        = 64
+	int128Key       = 128
 )
 
 type PoseidonHashOut = goldenposeidon.PoseidonHashOut
@@ -41,9 +47,15 @@ type PoseidonHashOut = goldenposeidon.PoseidonHashOut
 // Sender represents an individual sender's details, including their public key, account ID,
 // and a flag indicating if the sender has posted.
 type Sender struct {
-	PublicKey *accounts.PublicKey
-	AccountID uint64
-	IsSigned  bool
+	PublicKey *accounts.PublicKey `json:"publicKey"`
+	AccountID uint64              `json:"accountId"`
+	IsSigned  bool                `json:"isSigned"`
+}
+
+type ColumnSender struct {
+	PublicKey string `json:"publicKey"`
+	AccountID uint64 `json:"accountId"`
+	IsSigned  bool   `json:"isSigned"`
 }
 
 // BlockContent represents the content of a block, including sender details, transaction root,
@@ -86,7 +98,7 @@ func NewBlockContent(
 
 	defaultPublicKey := accounts.NewDummyPublicKey()
 
-	const numOfSenders = 128
+	const numOfSenders = NumOfSenders
 	senderPublicKeys := make([]byte, numOfSenders*NumPublicKeyBytes)
 	for i, sender := range bc.Senders {
 		senderPublicKey := sender.PublicKey.Pk.X.Bytes() // Only x coordinate is used
@@ -115,9 +127,8 @@ func NewBlockContent(
 
 func (bc *BlockContent) IsValid() error {
 	const (
-		int0Key   = 0
-		int1Key   = 1
-		int128Key = 128
+		int0Key = 0
+		int1Key = 1
 	)
 
 	return validation.ValidateStruct(bc,
@@ -622,6 +633,30 @@ func PostRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockContent
 		return nil, fmt.Errorf("block content is invalid: %w", err)
 	}
 
+	blockSignature := BlockSignature{}
+	blockSignature.TxTreeRoot = hexutil.Encode(input.TxTreeRoot[:])
+	blockSignature.SenderFlags = hexutil.Encode(input.SenderFlags[:])
+	for i := 0; i < len(input.AggregatedPublicKey); i++ {
+		blockSignature.AggregatedPublicKey[i] = hexutil.Encode(input.AggregatedPublicKey[i][:])
+	}
+	for i := 0; i < len(input.AggregatedSignature); i++ {
+		blockSignature.AggregatedSignature[i] = hexutil.Encode(input.AggregatedSignature[i][:])
+	}
+	for i := 0; i < len(input.MessagePoint); i++ {
+		blockSignature.MessagePoint[i] = hexutil.Encode(input.MessagePoint[i][:])
+	}
+	blockSignature.SenderPublicKeys = make([]string, len(input.SenderPublicKeys))
+	for i := 0; i < len(input.SenderPublicKeys); i++ {
+		senderPublicKey := BigIntToBytes32BeArray(input.SenderPublicKeys[i])
+		blockSignature.SenderPublicKeys[i] = hexutil.Encode(senderPublicKey[:])
+	}
+
+	blockSignatureJSON, err := json.Marshal(blockSignature)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal block signature: %w", err)
+	}
+	fmt.Printf("Block signature: %s\n", blockSignatureJSON)
+
 	return rollup.PostRegistrationBlock(
 		transactOpts,
 		input.TxTreeRoot,
@@ -631,6 +666,17 @@ func PostRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockContent
 		input.MessagePoint,
 		input.SenderPublicKeys,
 	)
+}
+
+type BlockSignature struct {
+	IsRegistrationBlock bool      `json:"isRegistrationBlock"`
+	TxTreeRoot          string    `json:"txTreeRoot"`
+	SenderFlags         string    `json:"senderFlag"`
+	AccountIdHash       string    `json:"accountIdHash"`
+	AggregatedPublicKey [2]string `json:"aggPubkey"`
+	AggregatedSignature [4]string `json:"aggSignature"`
+	MessagePoint        [4]string `json:"messagePoint"`
+	SenderPublicKeys    []string  `json:"pubkeys"`
 }
 
 // PostNonRegistrationBlock posts a non-registration block on the Rollup contract.
@@ -689,4 +735,161 @@ func PostNonRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockCont
 		input.PublicKeysHash,
 		input.SenderAccountIds,
 	)
+}
+
+func FetchDepositRoot(cfg *RollupContractConfig, ctx context.Context) ([int32Key]byte, error) {
+	client, err := utils.NewClient(cfg.NetworkRpcUrl)
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("failed to create new client: %w", err)
+	}
+	defer client.Close()
+
+	rollup, err := bindings.NewRollup(common.HexToAddress(cfg.RollupContractAddressHex), client)
+	if err != nil {
+		return common.Hash{}, fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
+	}
+
+	opts := bind.CallOpts{
+		Pending: false,
+		Context: ctx,
+	}
+	depositRoot, err := rollup.DepositTreeRoot(&opts)
+
+	return depositRoot, err
+}
+
+func FetchLatestIntMaxBlockNumber(cfg *RollupContractConfig, ctx context.Context) (uint32, error) {
+	client, err := utils.NewClient(cfg.NetworkRpcUrl)
+	if err != nil {
+		return 0, err
+	}
+	defer client.Close()
+
+	rollup, err := bindings.NewRollup(common.HexToAddress(cfg.RollupContractAddressHex), client)
+	if err != nil {
+		return 0, err
+	}
+
+	opts := bind.CallOpts{
+		Pending: false,
+		Context: ctx,
+	}
+	latestBlockNumber, err := rollup.GetLatestBlockNumber(&opts)
+
+	return latestBlockNumber, err
+}
+
+func FetchIntMaxBlock(cfg *RollupContractConfig, ctx context.Context, blockNumber uint32) (common.Hash, error) {
+	client, err := utils.NewClient(cfg.NetworkRpcUrl)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	defer client.Close()
+
+	rollup, err := bindings.NewRollup(common.HexToAddress(cfg.RollupContractAddressHex), client)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	opts := bind.CallOpts{
+		Pending: false,
+		Context: ctx,
+	}
+	blockHash, err := rollup.GetBlockHash(&opts, blockNumber)
+
+	return blockHash, err
+}
+
+func FetchPostedBlocks(
+	cfg *RollupContractConfig,
+	ctx context.Context,
+	startBlock uint64,
+	prevBlockHash [][int32Key]byte,
+	blockBuilder []common.Address,
+) ([]*bindings.RollupBlockPosted, *big.Int, error) {
+	client, err := utils.NewClient(cfg.NetworkRpcUrl)
+	if err != nil {
+		var ErrFilterLogsFail = errors.New("failed to create new client")
+		return nil, nil, errors.Join(ErrFilterLogsFail, err)
+	}
+	defer client.Close()
+
+	rollup, err := bindings.NewRollup(common.HexToAddress(cfg.RollupContractAddressHex), client)
+	if err != nil {
+		var ErrFilterLogsFail = errors.New("failed to instantiate a Liquidity contract")
+		return nil, nil, errors.Join(ErrFilterLogsFail, err)
+	}
+
+	const int5000Key = 5000
+
+	nextBlock := startBlock + 1
+	endBlock := nextBlock + int5000Key
+	iterator, err := rollup.FilterBlockPosted(&bind.FilterOpts{
+		Start:   nextBlock,
+		End:     &endBlock,
+		Context: ctx,
+	}, prevBlockHash, blockBuilder)
+	if err != nil {
+		return nil, nil, errors.Join(ErrFilterLogsFail, err)
+	}
+
+	defer func() {
+		_ = iterator.Close()
+	}()
+
+	var events []*bindings.RollupBlockPosted
+	maxBlockNumber := new(big.Int)
+
+	for iterator.Next() {
+		event := iterator.Event
+		events = append(events, event)
+		if event.BlockNumber.Cmp(maxBlockNumber) > 0 {
+			maxBlockNumber.Set(event.BlockNumber)
+		}
+	}
+
+	if err = iterator.Error(); err != nil {
+		return nil, nil, errors.Join(ErrEncounteredWhileIterating, err)
+	}
+
+	return events, maxBlockNumber, nil
+}
+
+func FetchLatestIntMaxBlock(cfg *RollupContractConfig, ctx context.Context) (*bindings.RollupBlockPosted, error) {
+	latestBlockNumber, err := FetchLatestIntMaxBlockNumber(cfg, ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch latest block number: %w", err)
+	}
+	if latestBlockNumber == 0 {
+		defaultDepositTreeRoot := [int32Key]byte{}
+		var decodedDefaultDepositTreeRoot []byte
+		decodedDefaultDepositTreeRoot, err = hexutil.Decode("0xb6155ab566bbd2e341525fd88c43b4d69572bf4afe7df45cd74d6901a172e41c")
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode default deposit tree root: %w", err)
+		}
+
+		copy(defaultDepositTreeRoot[:], decodedDefaultDepositTreeRoot)
+		return &bindings.RollupBlockPosted{
+			PrevBlockHash:   [int32Key]byte{},
+			BlockBuilder:    common.Address{},
+			BlockNumber:     big.NewInt(0),
+			DepositTreeRoot: defaultDepositTreeRoot,
+			SignatureHash:   [int32Key]byte{},
+		}, nil
+	}
+
+	latestPrevBlockHash, err := FetchIntMaxBlock(cfg, ctx, latestBlockNumber-1)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch latest block: %w", err)
+	}
+
+	blocks, _, err := FetchPostedBlocks(cfg, ctx, 0, [][int32Key]byte{latestPrevBlockHash}, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch posted blocks: %w", err)
+	}
+	if len(blocks) == 0 {
+		return nil, errors.New("no posted blocks found")
+	}
+
+	return blocks[0], nil
 }

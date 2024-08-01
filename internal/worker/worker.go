@@ -703,12 +703,22 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 				return errors.Join(errorsB.ErrWalletAddressNotRecognized, err)
 			}
 
+			senders := make([]intMaxTypes.ColumnSender, 0)
+			for i := range bc.Senders {
+				senders = append(senders, intMaxTypes.ColumnSender{
+					PublicKey: bc.Senders[i].PublicKey.ToAddress().String(),
+					AccountID: bc.Senders[i].AccountID,
+					IsSigned:  bc.Senders[i].IsSigned,
+				})
+			}
+
 			var block *mDBApp.Block
 			block, err = q.CreateBlock(
 				mw.IntMaxPublicKey,
 				hexutils.BytesToHex(bc.TxTreeRoot.Marshal()),
 				hexutils.BytesToHex(bc.AggregatedSignature.Marshal()),
 				hexutils.BytesToHex(bc.AggregatedPublicKey.Marshal()),
+				senders,
 				mDBApp.ST_PUBLIC_KEY,
 				bytesLfsTree,
 			)
