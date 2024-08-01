@@ -13,6 +13,14 @@ import (
 	"github.com/iden3/go-iden3-crypto/ffg"
 )
 
+const (
+	int3Key  = 3
+	int4Key  = 4
+	int16Key = 16
+	int20Key = 20
+	int24Key = 24
+)
+
 // GenericAddress struct to hold address and its type
 //
 // TODO: Implement MarshalJSON and UnmarshalJSON methods for GenericAddress
@@ -31,31 +39,34 @@ func (ga *GenericAddress) Set(genericAddress *GenericAddress) *GenericAddress {
 }
 
 func (ga *GenericAddress) Marshal() []byte {
-	const int32Key = 32
+	const mask = 0b11000000
+	const flag = 0x80
 	d := make([]byte, int32Key)
 	copy(d[int32Key-len(ga.Address):], ga.Address)
 
 	if ga.TypeOfAddress == intMaxAccTypes.INTMAXAddressType {
-		if d[0]&0b11000000 != 0 {
+		if d[0]&mask != 0 {
 			panic("address type is not INTMAX")
 		}
 
-		d[0] |= 0x80
+		d[0] |= flag
 	}
 
 	return d
 }
 
 func (ga *GenericAddress) Unmarshal(data []byte) error {
-	const int20Key = 20
-	const int32Key = 32
-
+	const (
+		filter = 0b10000000
+		flag   = 0b11000000
+		mask   = 0b00111111
+	)
 	ga.Address = make([]byte, int32Key)
 	copy(ga.Address[int32Key-len(data):], data)
 
-	if ga.Address[0]&0b11000000 == 0b10000000 {
+	if ga.Address[0]&flag == filter {
 		ga.TypeOfAddress = intMaxAccTypes.INTMAXAddressType
-		ga.Address[0] &= 0b00111111
+		ga.Address[0] &= mask
 	} else {
 		ga.TypeOfAddress = intMaxAccTypes.EthereumAddressType
 		for i := 0; i < int32Key-int20Key; i++ {
@@ -176,41 +187,41 @@ func (td *Transfer) ToUint64Slice() []uint64 {
 		isPubicKey = 1
 	}
 
-	recipientBytes := make([]byte, 32)
-	copy(recipientBytes[32-len(td.Recipient.Address):], td.Recipient.Address)
+	recipientBytes := make([]byte, int32Key)
+	copy(recipientBytes[int32Key-len(td.Recipient.Address):], td.Recipient.Address)
 
-	amountBytes := make([]byte, 32)
-	copy(amountBytes[32-len(td.Amount.Bytes()):], td.Amount.Bytes())
+	amountBytes := make([]byte, int32Key)
+	copy(amountBytes[int32Key-len(td.Amount.Bytes()):], td.Amount.Bytes())
 
 	result := []uint64{uint64(isPubicKey)}
 	result = append(result, BytesToUint64Array(recipientBytes)...)
 	result = append(result, uint64(td.TokenIndex))
 	result = append(result, BytesToUint64Array(amountBytes)...)
-	for i := 0; i < 4; i++ {
-		result = append(result, uint64(td.Salt.Elements[i].ToUint64Regular()))
+	for i := 0; i < int4Key; i++ {
+		result = append(result, td.Salt.Elements[i].ToUint64Regular())
 	}
 
 	return result
 }
 
 func bytesToUint64(b []byte) uint64 {
-	return uint64(b[0])<<24 | uint64(b[1])<<16 | uint64(b[2])<<8 | uint64(b[3])
+	return uint64(b[0])<<int24Key | uint64(b[1])<<int16Key | uint64(b[2])<<int8Key | uint64(b[int3Key])
 }
 
-func BytesToUint64Array(bytes []byte) []uint64 {
-	resultLength := (len(bytes) + 4 - 1) / 4
+func BytesToUint64Array(b []byte) []uint64 {
+	resultLength := (len(b) + int4Key - 1) / int4Key
 	result := make([]uint64, resultLength)
 
 	for i := 0; i < resultLength; i++ {
-		start := i * 4
-		end := start + 4
+		start := i * int4Key
+		end := start + int4Key
 
-		if end > len(bytes) {
-			end = len(bytes)
+		if end > len(b) {
+			end = len(b)
 		}
 
-		chunk := make([]byte, 4)
-		copy(chunk, bytes[start:end])
+		chunk := make([]byte, int4Key)
+		copy(chunk, b[start:end])
 
 		result[i] = bytesToUint64(chunk)
 	}
@@ -219,11 +230,6 @@ func BytesToUint64Array(bytes []byte) []uint64 {
 }
 
 func (td *Transfer) Marshal() []byte {
-	const (
-		int4Key  = 4
-		int32Key = 32
-	)
-
 	recipientBytes := make([]byte, int32Key)
 	copy(recipientBytes, td.Recipient.Marshal())
 	tokenIndexBytes := make([]byte, int4Key)
@@ -264,11 +270,6 @@ func (td *Transfer) Write(buf *bytes.Buffer) error {
 }
 
 func (td *Transfer) Read(buf *bytes.Buffer) error {
-	const (
-		int4Key  = 4
-		int32Key = 32
-	)
-
 	td.Recipient = new(GenericAddress)
 	a := buf.Next(int32Key)
 	if err := td.Recipient.Unmarshal(a); err != nil {

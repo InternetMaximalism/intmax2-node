@@ -189,24 +189,26 @@ func NewServerCmd(s *Server) *cobra.Command {
 				}
 			}()
 
-			// wg.Add(1)
-			// s.WG.Add(1)
-			// go func() {
-			// 	defer func() {
-			// 		wg.Done()
-			// 		s.WG.Done()
-			// 	}()
-			// 	tickerEventWatcher := time.NewTicker(s.Config.DepositSynchronizer.TimeoutForEventWatcher)
-			// 	defer func() {
-			// 		if tickerEventWatcher != nil {
-			// 			tickerEventWatcher.Stop()
-			// 		}
-			// 	}()
-			// 	if err = s.DepositSynchronizer.Start(s.Context, tickerEventWatcher); err != nil {
-			// 		const msg = "failed to start Deposit Synchronizer: %+v"
-			// 		s.Log.Fatalf(msg, err.Error())
-			// 	}
-			// }()
+			/*
+				// wg.Add(1)
+				// s.WG.Add(1)
+				// go func() {
+				// 	defer func() {
+				// 		wg.Done()
+				// 		s.WG.Done()
+				// 	}()
+				// 	tickerEventWatcher := time.NewTicker(s.Config.DepositSynchronizer.TimeoutForEventWatcher)
+				// 	defer func() {
+				// 		if tickerEventWatcher != nil {
+				// 			tickerEventWatcher.Stop()
+				// 		}
+				// 	}()
+				// 	if err = s.DepositSynchronizer.Start(s.Context, tickerEventWatcher); err != nil {
+				// 		const msg = "failed to start Deposit Synchronizer: %+v"
+				// 		s.Log.Fatalf(msg, err.Error())
+				// 	}
+				// }()
+			*/
 
 			wg.Add(1)
 			s.WG.Add(1)

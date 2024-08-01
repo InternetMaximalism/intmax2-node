@@ -25,6 +25,8 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
+const int10Key = 10
+
 const DepositEventSignatureID = "0x1e88950eef3c1bd8dd83d765aec1f21f34ca153104f0acd7a6218bf8f48e8410"
 
 type DepositRequestService struct {
@@ -66,7 +68,7 @@ func (d *DepositRequestService) DepositETHWithRandomSalt(
 	tokenIndex uint32,
 	amountStr string,
 ) error {
-	amount, ok := new(big.Int).SetString(amountStr, 10)
+	amount, ok := new(big.Int).SetString(amountStr, int10Key)
 	if !ok {
 		return fmt.Errorf("failed to convert amount to int: %s", amountStr)
 	}

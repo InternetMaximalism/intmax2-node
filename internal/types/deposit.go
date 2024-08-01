@@ -172,7 +172,7 @@ func (d *Deposit) Unmarshal(data []byte) error {
 	d.TokenIndex = binary.BigEndian.Uint32(data[int32Key : int32Key+int4Key])
 	d.Amount = new(big.Int).SetBytes(data[int32Key+int4Key : int32Key+int4Key+int32Key])
 	d.Salt = new(goldenposeidon.PoseidonHashOut)
-	if err := d.Salt.Unmarshal(data[int32Key+int4Key+int32Key : int32Key+int4Key+int32Key+int32Key]); err != nil {
+	if err = d.Salt.Unmarshal(data[int32Key+int4Key+int32Key : int32Key+int4Key+int32Key+int32Key]); err != nil {
 		ErrorInvalidSalt := errors.New("failed to unmarshal salt")
 		return errors.Join(ErrorInvalidSalt, err)
 	}

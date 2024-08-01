@@ -483,7 +483,8 @@ const int32Key = 32
 func GetPublicKeySaltHash(intmaxAddress *big.Int, salt *goldenposeidon.PoseidonHashOut) (hashBytes [int32Key]byte) {
 	pubkeyChunks := SplitBigIntTo32BitChunks(intmaxAddress)
 	saltChunks := SplitSaltTo64BitChunks(salt)
-	inputs := append(pubkeyChunks, saltChunks...)
+	inputs := pubkeyChunks
+	inputs = append(inputs, saltChunks...)
 	inputsGL := make([]ffg.Element, len(inputs))
 	for i, v := range inputs {
 		inputsGL[i].SetBytes(v.Bytes())

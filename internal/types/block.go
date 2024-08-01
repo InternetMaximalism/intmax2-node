@@ -37,6 +37,9 @@ const (
 	numG2PointLimbs = 4
 	int8Key         = 8
 	int32Key        = 32
+	int10Key        = 10
+	int64Key        = 64
+	int128Key       = 128
 )
 
 type PoseidonHashOut = goldenposeidon.PoseidonHashOut
@@ -95,7 +98,7 @@ func NewBlockContent(
 
 	defaultPublicKey := accounts.NewDummyPublicKey()
 
-	const numOfSenders = 128
+	const numOfSenders = NumOfSenders
 	senderPublicKeys := make([]byte, numOfSenders*NumPublicKeyBytes)
 	for i, sender := range bc.Senders {
 		senderPublicKey := sender.PublicKey.Pk.X.Bytes() // Only x coordinate is used
@@ -124,9 +127,8 @@ func NewBlockContent(
 
 func (bc *BlockContent) IsValid() error {
 	const (
-		int0Key   = 0
-		int1Key   = 1
-		int128Key = 128
+		int0Key = 0
+		int1Key = 1
 	)
 
 	return validation.ValidateStruct(bc,
@@ -759,13 +761,13 @@ func FetchDepositRoot(cfg *RollupContractConfig, ctx context.Context) ([int32Key
 func FetchLatestIntMaxBlockNumber(cfg *RollupContractConfig, ctx context.Context) (uint32, error) {
 	client, err := utils.NewClient(cfg.NetworkRpcUrl)
 	if err != nil {
-		return 0, fmt.Errorf("failed to create new client: %w", err)
+		return 0, err
 	}
 	defer client.Close()
 
 	rollup, err := bindings.NewRollup(common.HexToAddress(cfg.RollupContractAddressHex), client)
 	if err != nil {
-		return 0, fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
+		return 0, err
 	}
 
 	opts := bind.CallOpts{
@@ -780,13 +782,13 @@ func FetchLatestIntMaxBlockNumber(cfg *RollupContractConfig, ctx context.Context
 func FetchIntMaxBlock(cfg *RollupContractConfig, ctx context.Context, blockNumber uint32) (common.Hash, error) {
 	client, err := utils.NewClient(cfg.NetworkRpcUrl)
 	if err != nil {
-		return common.Hash{}, fmt.Errorf("failed to create new client: %w", err)
+		return common.Hash{}, err
 	}
 	defer client.Close()
 
 	rollup, err := bindings.NewRollup(common.HexToAddress(cfg.RollupContractAddressHex), client)
 	if err != nil {
-		return common.Hash{}, fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
+		return common.Hash{}, err
 	}
 
 	opts := bind.CallOpts{
@@ -798,20 +800,30 @@ func FetchIntMaxBlock(cfg *RollupContractConfig, ctx context.Context, blockNumbe
 	return blockHash, err
 }
 
-func FetchPostedBlocks(cfg *RollupContractConfig, ctx context.Context, startBlock uint64, prevBlockHash [][32]byte, blockBuilder []common.Address) ([]*bindings.RollupBlockPosted, *big.Int, error) {
+func FetchPostedBlocks(
+	cfg *RollupContractConfig,
+	ctx context.Context,
+	startBlock uint64,
+	prevBlockHash [][int32Key]byte,
+	blockBuilder []common.Address,
+) ([]*bindings.RollupBlockPosted, *big.Int, error) {
 	client, err := utils.NewClient(cfg.NetworkRpcUrl)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create new client: %w", err)
+		var ErrFilterLogsFail = errors.New("failed to create new client")
+		return nil, nil, errors.Join(ErrFilterLogsFail, err)
 	}
 	defer client.Close()
 
 	rollup, err := bindings.NewRollup(common.HexToAddress(cfg.RollupContractAddressHex), client)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
+		var ErrFilterLogsFail = errors.New("failed to instantiate a Liquidity contract")
+		return nil, nil, errors.Join(ErrFilterLogsFail, err)
 	}
 
+	const int5000Key = 5000
+
 	nextBlock := startBlock + 1
-	endBlock := nextBlock + 5000
+	endBlock := nextBlock + int5000Key
 	iterator, err := rollup.FilterBlockPosted(&bind.FilterOpts{
 		Start:   nextBlock,
 		End:     &endBlock,
@@ -849,19 +861,20 @@ func FetchLatestIntMaxBlock(cfg *RollupContractConfig, ctx context.Context) (*bi
 		return nil, fmt.Errorf("failed to fetch latest block number: %w", err)
 	}
 	if latestBlockNumber == 0 {
-		defaultDepositTreeRoot := [32]byte{}
-		decodedDefaultDepositTreeRoot, err := hexutil.Decode("0xb6155ab566bbd2e341525fd88c43b4d69572bf4afe7df45cd74d6901a172e41c")
+		defaultDepositTreeRoot := [int32Key]byte{}
+		var decodedDefaultDepositTreeRoot []byte
+		decodedDefaultDepositTreeRoot, err = hexutil.Decode("0xb6155ab566bbd2e341525fd88c43b4d69572bf4afe7df45cd74d6901a172e41c")
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode default deposit tree root: %w", err)
 		}
 
 		copy(defaultDepositTreeRoot[:], decodedDefaultDepositTreeRoot)
 		return &bindings.RollupBlockPosted{
-			PrevBlockHash:   [32]byte{},
+			PrevBlockHash:   [int32Key]byte{},
 			BlockBuilder:    common.Address{},
 			BlockNumber:     big.NewInt(0),
 			DepositTreeRoot: defaultDepositTreeRoot,
-			SignatureHash:   [32]byte{},
+			SignatureHash:   [int32Key]byte{},
 		}, nil
 	}
 

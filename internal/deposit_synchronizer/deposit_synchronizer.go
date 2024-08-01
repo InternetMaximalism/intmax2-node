@@ -12,7 +12,6 @@ import (
 	"intmax2-node/internal/logger"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/pkg/utils"
-	"log"
 	"math/big"
 	"sort"
 	"time"
@@ -23,6 +22,11 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
+)
+
+const (
+	int32Key  = 32
+	int128Key = 128
 )
 
 var ErrStatCurrentFileFail = errors.New("stat current file fail")
@@ -60,23 +64,25 @@ func (w *depositSynchronizer) Start(
 			return nil
 		case <-tickerEventWatcher.C:
 			shouldProcess := func() (bool, error) {
-				// latestBlock, err := intMaxTypes.FetchLatestIntMaxBlock(rollupCfg, ctx)
-				// if err != nil {
-				// 	// "no posted blocks found"のときはエラーを返さない
-				// 	if err.Error() != "no posted blocks found" {
-				// 		return false, err
-				// 	}
+				/*
+					// latestBlock, err := intMaxTypes.FetchLatestIntMaxBlock(rollupCfg, ctx)
+					// if err != nil {
+					// 	// "no posted blocks found"のときはエラーを返さない
+					// 	if err.Error() != "no posted blocks found" {
+					// 		return false, err
+					// 	}
 
-				// 	return true, nil
-				// }
-				// latestDepositTreeRoot, err := intMaxTypes.FetchDepositRoot(rollupCfg, ctx)
-				// if err != nil {
-				// 	return false, err
-				// }
+					// 	return true, nil
+					// }
+					// latestDepositTreeRoot, err := intMaxTypes.FetchDepositRoot(rollupCfg, ctx)
+					// if err != nil {
+					// 	return false, err
+					// }
 
-				// if latestBlock.DepositTreeRoot == latestDepositTreeRoot {
-				// 	return false, nil
-				// }
+					// if latestBlock.DepositTreeRoot == latestDepositTreeRoot {
+					// 	return false, nil
+					// }
+				*/
 
 				return true, nil
 			}
@@ -95,7 +101,8 @@ func (w *depositSynchronizer) Start(
 			// TODO: If there is a block already in the process of being created, there is no need to post this block.
 			keyPairs := make([]*intMaxAcc.PrivateKey, 1)
 			for i := 0; i < len(keyPairs); i++ {
-				privateKey, err := rand.Int(rand.Reader, new(big.Int).Sub(fr.Modulus(), big.NewInt(1)))
+				var privateKey *big.Int
+				privateKey, err = rand.Int(rand.Reader, new(big.Int).Sub(fr.Modulus(), big.NewInt(1)))
 				if err != nil {
 					return err
 				}
@@ -112,7 +119,7 @@ func (w *depositSynchronizer) Start(
 				return keyPairs[i].Pk.X.Cmp(&keyPairs[j].Pk.X) > 0
 			})
 
-			senders := make([]intMaxTypes.Sender, 128)
+			senders := make([]intMaxTypes.Sender, int128Key)
 			for i, keyPair := range keyPairs {
 				senders[i] = intMaxTypes.Sender{
 					PublicKey: keyPair.Public(),
@@ -139,7 +146,7 @@ func (w *depositSynchronizer) Start(
 			for i, sender := range senders {
 				if sender.IsSigned {
 					senderPublicKey := sender.PublicKey.Pk.X.Bytes() // Only x coordinate is used
-					copy(senderPublicKeysBytes[32*i:32*(i+1)], senderPublicKey[:])
+					copy(senderPublicKeysBytes[int32Key*i:int32Key*(i+1)], senderPublicKey[:])
 				}
 			}
 
@@ -156,7 +163,8 @@ func (w *depositSynchronizer) Start(
 			aggregatedSignature := new(bn254.G2Affine)
 			for i, keyPair := range keyPairs {
 				if senders[i].IsSigned {
-					signature, err := keyPair.WeightByHash(publicKeysHash).Sign(message)
+					var signature *bn254.G2Affine
+					signature, err = keyPair.WeightByHash(publicKeysHash).Sign(message)
 					if err != nil {
 						return err
 					}
@@ -170,8 +178,8 @@ func (w *depositSynchronizer) Start(
 				*txRoot,
 				aggregatedSignature,
 			)
-			if err = blockContent.IsValid(); err != nil {
-				return err
+			if innerErr := blockContent.IsValid(); innerErr != nil {
+				return innerErr
 			}
 
 			_, err = intMaxTypes.MakePostRegistrationBlockInput(
@@ -208,7 +216,7 @@ func SubscribeDepositsProcessed(cfg *intMaxTypes.RollupContractConfig, ctx conte
 
 	subscription, err = rollup.WatchDepositsProcessed(opts, eventChan, []*big.Int{})
 	if err != nil {
-		log.Fatal(err)
+		return nil, nil, fmt.Errorf("failed to subscribe to event: %w", err)
 	}
 
 	return eventChan, subscription, nil
