@@ -212,12 +212,7 @@ func backupDepositRawRequest(
 		appJSON     = "application/json"
 	)
 
-	schema := httpKey
-	if cfg.HTTP.TLSUse {
-		schema = httpsKey
-	}
-
-	apiUrl := fmt.Sprintf("%s://%s/v1/backups/deposit", schema, cfg.HTTP.DataStoreVaultAddr())
+	apiUrl := fmt.Sprintf("%s/v1/backups/deposit", cfg.HTTP.DataStoreVaultUrl)
 
 	r := resty.New().R()
 	var resp *resty.Response

@@ -129,12 +129,7 @@ func sendTransactionRawRequest(
 		appJSON     = "application/json"
 	)
 
-	schema := httpKey
-	if cfg.HTTP.TLSUse {
-		schema = httpsKey
-	}
-
-	apiUrl := fmt.Sprintf("%s://%s/v1/transaction", schema, cfg.HTTP.Addr())
+	apiUrl := fmt.Sprintf("%s/v1/transaction", cfg.HTTP.BlockBuilderUrl)
 
 	r := resty.New().R()
 	var resp *resty.Response
