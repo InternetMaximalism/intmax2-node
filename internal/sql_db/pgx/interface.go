@@ -42,11 +42,13 @@ type ServiceCommands interface {
 
 type Blocks interface {
 	CreateBlock(
-		builderPublicKey, txRoot, aggregatedSignature, aggregatedPublicKey string,
+		builderPublicKey, txRoot, aggregatedSignature, aggregatedPublicKey, sendersJSON string,
 		senderType uint,
 		options []byte,
 	) (*mDBApp.Block, error)
 	Block(proposalBlockID string) (*mDBApp.Block, error)
+	UpdateBlockStatus(proposalBlockID string, status int64) error
+	GetUnprocessedBlocks() ([]*mDBApp.Block, error)
 }
 
 type Tokens interface {

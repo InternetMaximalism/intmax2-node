@@ -43,9 +43,15 @@ type PoseidonHashOut = goldenposeidon.PoseidonHashOut
 // Sender represents an individual sender's details, including their public key, account ID,
 // and a flag indicating if the sender has posted.
 type Sender struct {
-	PublicKey *accounts.PublicKey
-	AccountID uint64
-	IsSigned  bool
+	PublicKey *accounts.PublicKey `json:"publicKey"`
+	AccountID uint64              `json:"accountId"`
+	IsSigned  bool                `json:"isSigned"`
+}
+
+type ColumnSender struct {
+	PublicKey string `json:"publicKey"`
+	AccountID uint64 `json:"accountId"`
+	IsSigned  bool   `json:"isSigned"`
 }
 
 // BlockContent represents the content of a block, including sender details, transaction root,

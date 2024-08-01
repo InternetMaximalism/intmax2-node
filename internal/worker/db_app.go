@@ -23,7 +23,7 @@ type GenericCommandsApp interface {
 
 type Blocks interface {
 	CreateBlock(
-		builderPublicKey, txRoot, aggregatedSignature, aggregatedPublicKey string,
+		builderPublicKey, txRoot, aggregatedSignature, aggregatedPublicKey, sendersJSON string,
 		senderType uint,
 		options []byte,
 	) (*mDBApp.Block, error)

@@ -703,12 +703,15 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 				return errors.Join(errorsB.ErrWalletAddressNotRecognized, err)
 			}
 
+			sendersJSON := json.Marshal(bc.Senders)
+
 			var block *mDBApp.Block
 			block, err = q.CreateBlock(
 				mw.IntMaxPublicKey,
 				hexutils.BytesToHex(bc.TxTreeRoot.Marshal()),
 				hexutils.BytesToHex(bc.AggregatedSignature.Marshal()),
 				hexutils.BytesToHex(bc.AggregatedPublicKey.Marshal()),
+				sendersJSON,
 				mDBApp.ST_PUBLIC_KEY,
 				bytesLfsTree,
 			)

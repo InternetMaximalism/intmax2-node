@@ -2,6 +2,7 @@ package block_validity_prover
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
@@ -9,6 +10,7 @@ import (
 	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
+	intMaxTypes "intmax2-node/internal/types"
 	"math/big"
 	"time"
 
@@ -96,7 +98,7 @@ func (w *blockValidityProver) Start(
 
 			w.lastSeenScrollBlockNumber = lastSeenBlockNumber
 
-			// rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(w.cfg, "https://sepolia-rpc.scroll.io")
+			rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(w.cfg, "https://sepolia-rpc.scroll.io")
 
 			// Post unprocessed block
 			unprocessedBlocks, err := w.dbApp.GetUnprocessedBlocks()
@@ -105,21 +107,33 @@ func (w *blockValidityProver) Start(
 			}
 
 			for _, unprocessedBlock := range unprocessedBlocks {
-				// var senderType string
-				// if unprocessedBlock.SenderType == 0 {
-				// 	senderType = "PUBLIC_KEY"
-				// } else {
-				// 	senderType = "ACCOUNT_ID"
-				// }
+				var senderType string
+				if unprocessedBlock.SenderType == 0 {
+					senderType = "PUBLIC_KEY"
+				} else {
+					senderType = "ACCOUNT_ID"
+				}
 
-				// senders := make([]*intMaxAcc.PublicKey, 0)
-				// for _, sender := range unprocessedBlock.Senders {
-				// 	publicKey, err := intMaxAcc.NewPublicKeyFromBytes(sender)
-				// 	if err != nil {
-				// 		return err
-				// 	}
-				// 	senders = append(senders, publicKey)
-				// }
+				var qSenders []intMaxTypes.ColumnSender
+				err := json.Unmarshal(unprocessedBlock.Senders, qSenders)
+				if err != nil {
+					return err
+				}
+
+				senders := make([]intMaxTypes.Sender, 0)
+				for _, sender := range qSenders {
+					publicKey, err := intMaxAcc.NewPublicKeyFromAddressHex(sender.PublicKey)
+					if err != nil {
+						return err
+					}
+
+					sender := intMaxTypes.Sender{
+						PublicKey: publicKey,
+						AccountID: sender.AccountID,
+						IsSigned:  sender.IsSigned,
+					}
+					senders = append(senders, sender)
+				}
 
 				txTreeRootBytes, err := hexutil.Decode(unprocessedBlock.TxRoot)
 				if err != nil {
@@ -139,34 +153,34 @@ func (w *blockValidityProver) Start(
 					return err
 				}
 
-				// blockContent := intMaxTypes.NewBlockContent(
-				// 	senderType,
-				// 	senders,
-				// 	*txTreeRoot,
-				// 	aggregatedSignature,
-				// )
-				// if err = blockContent.IsValid(); err != nil {
-				// 	return err
-				// }
+				blockContent := intMaxTypes.NewBlockContent(
+					senderType,
+					senders,
+					*txTreeRoot,
+					aggregatedSignature,
+				)
+				if err = blockContent.IsValid(); err != nil {
+					return err
+				}
 
-				// _, err = intMaxTypes.MakePostRegistrationBlockInput(
-				// 	blockContent,
-				// )
-				// if err != nil {
-				// 	return err
-				// }
+				_, err = intMaxTypes.MakePostRegistrationBlockInput(
+					blockContent,
+				)
+				if err != nil {
+					return err
+				}
 
-				// tx, err := intMaxTypes.PostRegistrationBlock(rollupCfg, blockContent)
-				// if err != nil {
-				// 	return err
-				// }
+				tx, err := intMaxTypes.PostRegistrationBlock(rollupCfg, blockContent)
+				if err != nil {
+					return err
+				}
 
-				// fmt.Printf("Transaction sent: %s\n", tx.Hash().Hex())
+				fmt.Printf("Transaction sent: %s\n", tx.Hash().Hex())
 
-				// err = w.dbApp.UpdateBlockStatus(unprocessedBlock.ProposalBlockID, 1)
-				// if err != nil {
-				// 	return err
-				// }
+				err = w.dbApp.UpdateBlockStatus(unprocessedBlock.ProposalBlockID, 1)
+				if err != nil {
+					return err
+				}
 
 				fmt.Println("UpdateBlockStatus")
 			}
