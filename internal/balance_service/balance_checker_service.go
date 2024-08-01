@@ -12,7 +12,6 @@ import (
 	"intmax2-node/internal/deposit_service"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
-	"intmax2-node/internal/pb/gen/service/node"
 	intMaxTypes "intmax2-node/internal/types"
 	errorsDB "intmax2-node/pkg/sql_db/errors"
 	"intmax2-node/pkg/utils"
@@ -270,7 +269,6 @@ func GetUserBalance(
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user balances: %w", err)
 	}
-	fmt.Printf("userAllData: %v\n", userAllData.Deposits)
 	balanceData, err := CalculateBalance(userAllData, tokenIndex, *userPrivateKey)
 	if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
 		return nil, ErrFetchBalanceByUserAddressAndTokenInfoWithDBApp
@@ -291,7 +289,7 @@ func getUserBalancesRawRequest(
 	cfg *configs.Config,
 	log logger.Logger,
 	address string,
-) (*node.GetBalancesResponse, error) {
+) (*GetBalancesResponse, error) {
 	const (
 		httpKey     = "http"
 		httpsKey    = "https"
@@ -304,7 +302,7 @@ func getUserBalancesRawRequest(
 		schema = httpsKey
 	}
 
-	apiUrl := fmt.Sprintf("%s://%s/v1/balances/%s", schema, cfg.HTTP.Addr(), address)
+	apiUrl := fmt.Sprintf("%s://%s/v1/balances/%s", schema, cfg.HTTP.DataStoreVaultAddr(), address)
 
 	r := resty.New().R()
 	resp, err := r.SetContext(ctx).SetHeaders(map[string]string{
@@ -329,7 +327,8 @@ func getUserBalancesRawRequest(
 		return nil, err
 	}
 
-	response := new(node.GetBalancesResponse)
+	// response := new(node.GetBalancesResponse)
+	response := new(GetBalancesResponse)
 	if err = json.Unmarshal(resp.Body(), response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
@@ -337,18 +336,45 @@ func getUserBalancesRawRequest(
 	return response, nil
 }
 
-func CalculateBalance(userAllData *node.GetBalancesResponse, tokenIndex uint32, userPrivateKey intMaxAcc.PrivateKey) (*intMaxTypes.Balance, error) {
+type GetBalancesResponse struct {
+	// The list of deposits
+	Deposits []*BackupDeposit `json:"deposits,omitempty"`
+	// The list of transfers
+	Transfers []*BackupTransfer `json:"transfers,omitempty"`
+	// The list of transactions
+	Transactions []*BackupTransaction `json:"transactions,omitempty"`
+}
+
+type BackupDeposit struct {
+	Recipient        string `json:"recipient,omitempty"`
+	EncryptedDeposit string `json:"encryptedDeposit,omitempty"`
+	BlockNumber      string `json:"blockNumber,omitempty"`
+	CreatedAt        string `json:"createdAt,omitempty"`
+}
+
+type BackupTransfer struct {
+	EncryptedTransfer string `json:"encryptedTransfer,omitempty"`
+	Recipient         string `json:"recipient,omitempty"`
+	BlockNumber       string `json:"blockNumber,omitempty"`
+	CreatedAt         string `json:"createdAt,omitempty"`
+}
+
+type BackupTransaction struct {
+	Sender      string `json:"sender,omitempty"`
+	EncryptedTx string `json:"encryptedTx,omitempty"`
+	BlockNumber string `json:"blockNumber,omitempty"`
+	CreatedAt   string `json:"createdAt,omitempty"`
+}
+
+func CalculateBalance(userAllData *GetBalancesResponse, tokenIndex uint32, userPrivateKey intMaxAcc.PrivateKey) (*intMaxTypes.Balance, error) {
 	balance := big.NewInt(0)
 	for _, deposit := range userAllData.Deposits {
-		fmt.Printf("deposit.EncryptedDeposit: %v\n", len(deposit.EncryptedDeposit))
-		fmt.Printf("deposit: %v\n", deposit)
 		encryptedDepositBytes, err := base64.StdEncoding.DecodeString(deposit.EncryptedDeposit)
 		if err != nil {
 			log.Printf("failed to decode deposit: %v", err)
 			continue
 		}
 
-		fmt.Printf("encryptedDepositBytes: %v\n", encryptedDepositBytes)
 		encodedDeposit, err := userPrivateKey.DecryptECIES(encryptedDepositBytes)
 		if err != nil {
 			log.Printf("failed to decrypt deposit: %v", err)

@@ -32,7 +32,7 @@ func New(
 	}
 }
 
-func (u *uc) Do(ctx context.Context, args []string, userAddress string) (err error) {
+func (u *uc) Do(ctx context.Context, args []string, userEthPrivateKey string) (err error) {
 	const (
 		hName = "UseCase GetBalance"
 	)
@@ -48,7 +48,7 @@ func (u *uc) Do(ctx context.Context, args []string, userAddress string) (err err
 		}
 	}()
 
-	service.GetBalance(spanCtx, u.cfg, u.log, u.db, u.sb, args, userAddress)
+	service.GetBalance(spanCtx, u.cfg, u.log, u.db, u.sb, args, userEthPrivateKey)
 
 	return err
 }

@@ -90,7 +90,7 @@ func txDepositCmd(b *Transaction) *cobra.Command {
 		emptyKey               = ""
 		amountDescription      = "specify amount without decimals. use as --amount \"10\""
 		recipientKey           = "recipient"
-		recipientDescription   = "specify recipient address. use as --recipient \"0x0000000000000000000000000000000000000000000000000000000000000000\""
+		recipientDescription   = "specify recipient INTMAX address. use as --recipient \"0x0000000000000000000000000000000000000000000000000000000000000000\""
 		userPrivateKeyKey      = "user-private"
 		userPrivateDescription = "specify user address. use as --user-private \"0x0000000000000000000000000000000000000000000000000000000000000000\""
 	)
