@@ -3,6 +3,7 @@ package types
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
@@ -630,6 +631,30 @@ func PostRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockContent
 		return nil, fmt.Errorf("block content is invalid: %w", err)
 	}
 
+	blockSignature := BlockSignature{}
+	blockSignature.TxTreeRoot = hexutil.Encode(input.TxTreeRoot[:])
+	blockSignature.SenderFlags = hexutil.Encode(input.SenderFlags[:])
+	for i := 0; i < len(input.AggregatedPublicKey); i++ {
+		blockSignature.AggregatedPublicKey[i] = hexutil.Encode(input.AggregatedPublicKey[i][:])
+	}
+	for i := 0; i < len(input.AggregatedSignature); i++ {
+		blockSignature.AggregatedSignature[i] = hexutil.Encode(input.AggregatedSignature[i][:])
+	}
+	for i := 0; i < len(input.MessagePoint); i++ {
+		blockSignature.MessagePoint[i] = hexutil.Encode(input.MessagePoint[i][:])
+	}
+	blockSignature.SenderPublicKeys = make([]string, len(input.SenderPublicKeys))
+	for i := 0; i < len(input.SenderPublicKeys); i++ {
+		senderPublicKey := BigIntToBytes32BeArray(input.SenderPublicKeys[i])
+		blockSignature.SenderPublicKeys[i] = hexutil.Encode(senderPublicKey[:])
+	}
+
+	blockSignatureJSON, err := json.Marshal(blockSignature)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal block signature: %w", err)
+	}
+	fmt.Printf("Block signature: %s\n", blockSignatureJSON)
+
 	return rollup.PostRegistrationBlock(
 		transactOpts,
 		input.TxTreeRoot,
@@ -639,6 +664,17 @@ func PostRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockContent
 		input.MessagePoint,
 		input.SenderPublicKeys,
 	)
+}
+
+type BlockSignature struct {
+	IsRegistrationBlock bool      `json:"isRegistrationBlock"`
+	TxTreeRoot          string    `json:"txTreeRoot"`
+	SenderFlags         string    `json:"senderFlag"`
+	AccountIdHash       string    `json:"accountIdHash"`
+	AggregatedPublicKey [2]string `json:"aggPubkey"`
+	AggregatedSignature [4]string `json:"aggSignature"`
+	MessagePoint        [4]string `json:"messagePoint"`
+	SenderPublicKeys    []string  `json:"pubkeys"`
 }
 
 // PostNonRegistrationBlock posts a non-registration block on the Rollup contract.
@@ -775,9 +811,10 @@ func FetchPostedBlocks(cfg *RollupContractConfig, ctx context.Context, startBloc
 	}
 
 	nextBlock := startBlock + 1
+	endBlock := nextBlock + 5000
 	iterator, err := rollup.FilterBlockPosted(&bind.FilterOpts{
 		Start:   nextBlock,
-		End:     nil,
+		End:     &endBlock,
 		Context: ctx,
 	}, prevBlockHash, blockBuilder)
 	if err != nil {

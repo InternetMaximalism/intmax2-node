@@ -59,16 +59,33 @@ func (w *depositSynchronizer) Start(
 		case <-ctx.Done():
 			return nil
 		case <-tickerEventWatcher.C:
-			latestBlock, err := intMaxTypes.FetchLatestIntMaxBlock(rollupCfg, ctx)
-			if err != nil {
-				return err
-			}
-			latestDepositTreeRoot, err := intMaxTypes.FetchDepositRoot(rollupCfg, ctx)
-			if err != nil {
-				return err
+			shouldProcess := func() (bool, error) {
+				// latestBlock, err := intMaxTypes.FetchLatestIntMaxBlock(rollupCfg, ctx)
+				// if err != nil {
+				// 	// "no posted blocks found"のときはエラーを返さない
+				// 	if err.Error() != "no posted blocks found" {
+				// 		return false, err
+				// 	}
+
+				// 	return true, nil
+				// }
+				// latestDepositTreeRoot, err := intMaxTypes.FetchDepositRoot(rollupCfg, ctx)
+				// if err != nil {
+				// 	return false, err
+				// }
+
+				// if latestBlock.DepositTreeRoot == latestDepositTreeRoot {
+				// 	return false, nil
+				// }
+
+				return true, nil
 			}
 
-			if latestBlock.DepositTreeRoot == latestDepositTreeRoot {
+			ok, err := shouldProcess()
+			if err != nil {
+				return err
+			}
+			if !ok {
 				fmt.Printf("No new deposits\n")
 				continue
 			}

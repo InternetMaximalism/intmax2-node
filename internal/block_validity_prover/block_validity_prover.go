@@ -51,52 +51,52 @@ func (w *blockValidityProver) Start(
 		case <-ctx.Done():
 			return nil
 		case <-tickerEventWatcher.C:
-			d, err := block_post_service.NewBlockPostService(ctx, w.cfg)
-			if err != nil {
-				return err
-			}
+			// d, err := block_post_service.NewBlockPostService(ctx, w.cfg)
+			// if err != nil {
+			// 	return err
+			// }
 
-			events, _, err := d.FetchNewPostedBlocks(w.lastSeenScrollBlockNumber)
-			if err != nil {
-				return err
-			}
+			// events, _, err := d.FetchNewPostedBlocks(w.lastSeenScrollBlockNumber)
+			// if err != nil {
+			// 	return err
+			// }
 
-			latestBlockNumber, err := d.FetchLatestBlockNumber(ctx)
-			if err != nil {
-				return err
-			}
+			// latestBlockNumber, err := d.FetchLatestBlockNumber(ctx)
+			// if err != nil {
+			// 	return err
+			// }
 
-			if len(events) == 0 {
-				w.lastSeenScrollBlockNumber = latestBlockNumber
-				continue
-			}
+			// if len(events) == 0 {
+			// 	w.lastSeenScrollBlockNumber = latestBlockNumber
+			// 	continue
+			// }
 
-			lastSeenBlockNumber := w.lastSeenScrollBlockNumber
-			for _, event := range events {
-				if event.Raw.BlockNumber > lastSeenBlockNumber {
-					lastSeenBlockNumber = event.Raw.BlockNumber
-				}
+			// lastSeenBlockNumber := w.lastSeenScrollBlockNumber
+			// for _, event := range events {
+			// 	if event.Raw.BlockNumber > lastSeenBlockNumber {
+			// 		lastSeenBlockNumber = event.Raw.BlockNumber
+			// 	}
 
-				var calldata []byte
-				calldata, err = d.FetchScrollCalldataByHash(event.Raw.TxHash)
-				if err != nil {
-					continue
-				}
+			// 	var calldata []byte
+			// 	calldata, err = d.FetchScrollCalldataByHash(event.Raw.TxHash)
+			// 	if err != nil {
+			// 		continue
+			// 	}
 
-				_, err = block_post_service.FetchIntMaxBlockContentByCalldata(calldata, w.accountInfoMap)
-				if err != nil {
-					if errors.Is(err, block_post_service.ErrUnknownAccountID) {
-						continue
-					}
-					if errors.Is(err, block_post_service.ErrCannotDecodeAddress) {
-						continue
-					}
+			// 	_, err = block_post_service.FetchIntMaxBlockContentByCalldata(calldata, w.accountInfoMap)
+			// 	if err != nil {
+			// 		if errors.Is(err, block_post_service.ErrUnknownAccountID) {
+			// 			continue
+			// 		}
+			// 		if errors.Is(err, block_post_service.ErrCannotDecodeAddress) {
+			// 			continue
+			// 		}
 
-					continue
-				}
-			}
+			// 		continue
+			// 	}
+			// }
 
-			w.lastSeenScrollBlockNumber = lastSeenBlockNumber
+			// w.lastSeenScrollBlockNumber = lastSeenBlockNumber
 
 			rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(w.cfg, "https://sepolia-rpc.scroll.io")
 
@@ -105,7 +105,12 @@ func (w *blockValidityProver) Start(
 			if err != nil {
 				return err
 			}
+			if len(unprocessedBlocks) == 0 {
+				fmt.Printf("No unprocessed blocks\n")
+				continue
+			}
 
+			w.log.Infof("Unprocessed blocks: %d\n", len(unprocessedBlocks))
 			for _, unprocessedBlock := range unprocessedBlocks {
 				var senderType string
 				if unprocessedBlock.SenderType == 0 {
@@ -115,7 +120,7 @@ func (w *blockValidityProver) Start(
 				}
 
 				var qSenders []intMaxTypes.ColumnSender
-				err := json.Unmarshal(unprocessedBlock.Senders, qSenders)
+				err := json.Unmarshal(unprocessedBlock.Senders, &qSenders)
 				if err != nil {
 					return err
 				}
@@ -135,7 +140,7 @@ func (w *blockValidityProver) Start(
 					senders = append(senders, sender)
 				}
 
-				txTreeRootBytes, err := hexutil.Decode(unprocessedBlock.TxRoot)
+				txTreeRootBytes, err := hexutil.Decode("0x" + unprocessedBlock.TxRoot)
 				if err != nil {
 					return err
 				}
@@ -146,7 +151,10 @@ func (w *blockValidityProver) Start(
 					return err
 				}
 
-				aggregatedSignatureHex, err := hexutil.Decode(unprocessedBlock.AggregatedSignature)
+				aggregatedSignatureHex, err := hexutil.Decode("0x" + unprocessedBlock.AggregatedSignature)
+				if err != nil {
+					return err
+				}
 				aggregatedSignature := new(bn254.G2Affine)
 				err = aggregatedSignature.Unmarshal(aggregatedSignatureHex)
 				if err != nil {
