@@ -124,18 +124,6 @@ func parseTokenInfo(args []string) intMaxTypes.TokenInfo {
 	return intMaxTypes.TokenInfo{TokenType: tokenType, TokenAddress: tokenAddress, TokenID: tokenID}
 }
 
-func SyncBalance(
-	ctx context.Context,
-	cfg *configs.Config,
-	lg logger.Logger,
-	db SQLDriverApp,
-	sb ServiceBlockchain,
-	args []string,
-	userPrivateKey string,
-) {
-	fmt.Println("Not implemented")
-}
-
 func GetBalance(
 	ctx context.Context,
 	cfg *configs.Config,

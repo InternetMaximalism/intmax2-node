@@ -87,7 +87,6 @@ type TxDetails struct {
 }
 
 func (td *TxDetails) Marshal() []byte {
-
 	buf := bytes.NewBuffer(make([]byte, 0))
 
 	if _, err := buf.Write(td.TransferTreeRoot.Marshal()); err != nil {
