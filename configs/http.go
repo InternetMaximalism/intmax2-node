@@ -13,8 +13,11 @@ type HTTP struct {
 	CORSExposeHeaders    []string `env:"HTTP_CORS_EXPOSE_HEADS" envSeparator:";" envDefault:""`
 	Host                 string   `env:"HTTP_HOST" envDefault:"0.0.0.0"`
 	Port                 string   `env:"HTTP_PORT" envDefault:"80"`
+	BlockBuilderUrl      string   `env:"BLOCK_BUILDER_HTTP_URL" envDefault:"http://0.0.0.0"`
+	DataStoreVaultUrl    string   `env:"DATA_STORE_VAULT_HTTP_URL" envDefault:"http://0.0.0.0"`
 	DataStoreVaultHost   string   `env:"DATA_STORE_VAULT_HTTP_HOST" envDefault:"0.0.0.0"`
 	DataStoreVaultPort   string   `env:"DATA_STORE_VAULT_HTTP_PORT" envDefault:"80"`
+	WithdrawalServerUrl  string   `env:"WITHDRAWAL_SERVER_HTTP_URL" envDefault:"http://0.0.0.0"`
 	WithdrawalServerHost string   `env:"WITHDRAWAL_SERVER_HTTP_HOST" envDefault:"0.0.0.0"`
 	WithdrawalServerPort string   `env:"WITHDRAWAL_SERVER_HTTP_PORT" envDefault:"80"`
 	TLSUse               bool     `env:"HTTP_TLS_USE" envDefault:"false"`
@@ -31,12 +34,4 @@ type HTTP struct {
 
 func (http *HTTP) Addr() string {
 	return http.Host + hostPortDelimiter + http.Port
-}
-
-func (http *HTTP) DataStoreVaultAddr() string {
-	return http.DataStoreVaultHost + hostPortDelimiter + http.DataStoreVaultPort
-}
-
-func (http *HTTP) WithdrawalServerAddr() string {
-	return http.WithdrawalServerHost + hostPortDelimiter + http.WithdrawalServerPort
 }

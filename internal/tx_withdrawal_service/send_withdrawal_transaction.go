@@ -186,12 +186,7 @@ func sendWithdrawalRawRequest(
 		appJSON     = "application/json"
 	)
 
-	schema := httpKey
-	if cfg.HTTP.TLSUse {
-		schema = httpsKey
-	}
-
-	apiUrl := fmt.Sprintf("%s://%s/v1/withdrawals/request", schema, cfg.HTTP.WithdrawalServerAddr())
+	apiUrl := fmt.Sprintf("%s/v1/withdrawals/request", cfg.HTTP.WithdrawalServerUrl)
 
 	r := resty.New().R()
 	var resp *resty.Response
