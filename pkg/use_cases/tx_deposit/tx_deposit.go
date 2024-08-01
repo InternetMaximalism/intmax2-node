@@ -89,9 +89,11 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressStr, amount,
 
 	if tokenInfo.TokenType == 0 {
 		// ETH
-		d.DepositETHWithRandomSalt(userEthPrivateKeyHex, recipientAddress, tokenIndex, amount)
+		if err := d.DepositETHWithRandomSalt(userEthPrivateKeyHex, recipientAddress, tokenIndex, amount); err != nil {
+			return err
+		}
 
-		fmt.Printf("ETH deposit is successful\n")
+		fmt.Println("ETH deposit is successful")
 		return nil
 	}
 
