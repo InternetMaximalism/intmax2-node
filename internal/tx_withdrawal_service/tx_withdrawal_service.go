@@ -3,18 +3,24 @@ package tx_transfer_service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_service"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
 	intMaxTree "intmax2-node/internal/tree"
+	"intmax2-node/internal/tx_transfer_service"
 	intMaxTypes "intmax2-node/internal/types"
 	"math/big"
+	"slices"
 	"strings"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
-func SendTransferTransaction(
+func SendWithdrawalTransaction(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
@@ -22,7 +28,7 @@ func SendTransferTransaction(
 	sb ServiceBlockchain,
 	args []string,
 	amountStr string,
-	recipientAddressStr string,
+	recipientAddressHex string,
 	userEthPrivateKey string,
 ) {
 	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
@@ -45,6 +51,8 @@ func SendTransferTransaction(
 		log.Fatalf("%s", errors.Join(ErrTokenNotFound, err))
 	}
 
+	fmt.Printf("userAccount: %s\n", userAccount.ToAddress().String())
+	fmt.Printf("tokenIndex: %d\n", tokenIndex)
 	balance, err := balance_service.GetUserBalance(ctx, cfg, log, db, userAccount, tokenIndex)
 	if err != nil {
 		log.Fatalf(ErrFailedToGetBalance+": %v", err)
@@ -65,12 +73,12 @@ func SendTransferTransaction(
 	}
 
 	// Send transfer transaction
-	recipient, err := intMaxAcc.NewPublicKeyFromAddressHex(recipientAddressStr)
+	recipientBytes, err := hexutil.Decode(recipientAddressHex)
 	if err != nil {
 		log.Fatalf("failed to parse recipient address: %v", err)
 	}
 
-	recipientAddress, err := intMaxTypes.NewINTMAXAddress(recipient.ToAddress().Bytes())
+	recipientAddress, err := intMaxTypes.NewEthereumAddress(recipientBytes)
 	if err != nil {
 		log.Fatalf("failed to create recipient address: %v", err)
 	}
@@ -90,10 +98,14 @@ func SendTransferTransaction(
 		log.Fatalf("failed to create transfer tree: %v", err)
 	}
 
-	transfersHash, _, _ := transferTree.GetCurrentRootCountAndSiblings()
+	// transfersHash, _, _ := transferTree.GetCurrentRootCountAndSiblings()
+	transferMerkleProof, transfersHash, err := transferTree.ComputeMerkleProof(0)
+	if err != nil {
+		log.Fatalf("failed to compute merkle proof: %v", err)
+	}
 
 	var nonce uint64 = 1 // TODO: Incremented with each transaction
-	err = SendTransactionRequest(
+	err = SendWithdrawalRequest(
 		ctx,
 		cfg,
 		log,
@@ -108,7 +120,7 @@ func SendTransferTransaction(
 	log.Printf("The transaction request has been successfully sent. Please wait for the server's response.")
 
 	// Get proposed block
-	proposedBlock, err := GetBlockProposed(
+	proposedBlock, err := tx_transfer_service.GetBlockProposed(
 		ctx, cfg, log, userAccount, transfersHash, nonce,
 	)
 	if err != nil {
@@ -128,11 +140,37 @@ func SendTransferTransaction(
 	txHash := tx.Hash()
 
 	// Accept proposed block
-	err = SendSignedProposedBlock(
+	err = tx_transfer_service.SendSignedProposedBlock(
 		ctx, cfg, log, userAccount, proposedBlock.TxTreeRoot, *txHash, proposedBlock.PublicKeys,
 	)
 	if err != nil {
 		log.Fatalf("failed to send transaction: %v", err)
+	}
+
+	log.Printf("The transaction has been successfully sent.")
+
+	// TODO: Get the block number and block hash
+	blockNumber := uint32(1)
+	blockHash := common.Hash{}.Hex()
+
+	txMerkleProof := proposedBlock.TxTreeMerkleProof
+
+	publicKeysStr := make([]string, len(proposedBlock.PublicKeys))
+	for i, key := range proposedBlock.PublicKeys {
+		publicKeysStr[i] = key.ToAddress().String()
+	}
+	txIndex := slices.Index(publicKeysStr, userAccount.ToAddress().String())
+	fmt.Printf("txIndex: %d\n", txIndex)
+	if txIndex == -1 {
+		log.Fatalf("failed to find user's public key in the proposed block")
+	}
+
+	err = SendWithdrawalWithRawRequest(
+		ctx, cfg, log, userAccount, transfer, transfersHash, nonce, transferMerkleProof, 0, txMerkleProof, int32(txIndex),
+		blockNumber, blockHash,
+	)
+	if err != nil {
+		log.Fatalf("failed to request withdrawal: %v", err)
 	}
 
 	log.Printf("The transaction has been successfully sent.")

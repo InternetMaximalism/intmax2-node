@@ -217,7 +217,7 @@ func backupDepositRawRequest(
 		schema = httpsKey
 	}
 
-	apiUrl := fmt.Sprintf("%s://%s/v1/backups/deposit", schema, cfg.HTTP.Addr())
+	apiUrl := fmt.Sprintf("%s://%s/v1/backups/deposit", schema, cfg.HTTP.DataStoreVaultAddr())
 
 	r := resty.New().R()
 	var resp *resty.Response
