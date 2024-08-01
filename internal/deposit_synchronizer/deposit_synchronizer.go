@@ -52,7 +52,7 @@ func (w *depositSynchronizer) Start(
 	ctx context.Context,
 	tickerEventWatcher *time.Ticker,
 ) error {
-	rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(w.cfg)
+	rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(w.cfg, "https://sepolia-rpc.scroll.io")
 
 	for {
 		select {

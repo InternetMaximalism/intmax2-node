@@ -88,6 +88,61 @@ func (p *pgx) Block(proposalBlockID string) (*mDBApp.Block, error) {
 	return bDBApp, nil
 }
 
+// UpdateBlockStatus updates the status of the block with the given proposalBlockID.
+func (p *pgx) UpdateBlockStatus(proposalBlockID string, status int64) error {
+	const (
+		q = `UPDATE blocks SET status = $1 WHERE proposal_block_id = $2`
+	)
+
+	_, err := p.exec(p.ctx, q, status, proposalBlockID)
+	if err != nil {
+		return errPgx.Err(err)
+	}
+
+	return nil
+}
+
+func (p *pgx) GetUnprocessedBlocks() ([]*mDBApp.Block, error) {
+	const (
+		q = `SELECT
+			 proposal_block_id ,builder_public_key ,tx_root
+			 ,block_hash ,aggregated_signature ,aggregated_public_key ,status
+			 ,created_at ,posted_at ,sender_type ,options
+			 FROM blocks WHERE status IS NULL`
+	)
+
+	rows, err := p.query(p.ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var blocks []*mDBApp.Block
+	for rows.Next() {
+		var tmp models.Block
+		err = rows.Scan(
+			&tmp.ProposalBlockID,
+			&tmp.BuilderPublicKey,
+			&tmp.TxRoot,
+			&tmp.BlockHash,
+			&tmp.AggregatedSignature,
+			&tmp.AggregatedPublicKey,
+			&tmp.Status,
+			&tmp.CreatedAt,
+			&tmp.PostedAt,
+			&tmp.SenderType,
+			&tmp.Options,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		blocks = append(blocks, p.blockToDBApp(&tmp))
+	}
+
+	return blocks, nil
+}
+
 func (p *pgx) blockToDBApp(tmp *models.Block) *mDBApp.Block {
 	m := mDBApp.Block{
 		ProposalBlockID:     tmp.ProposalBlockID,

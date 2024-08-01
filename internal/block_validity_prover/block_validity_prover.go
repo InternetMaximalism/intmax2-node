@@ -3,12 +3,17 @@ package block_validity_prover
 import (
 	"context"
 	"errors"
+	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_post_service"
+	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
 	"math/big"
 	"time"
+
+	"github.com/consensys/gnark-crypto/ecc/bn254"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 var ErrStatCurrentFileFail = errors.New("stat current file fail")
@@ -90,6 +95,81 @@ func (w *blockValidityProver) Start(
 			}
 
 			w.lastSeenScrollBlockNumber = lastSeenBlockNumber
+
+			// rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(w.cfg, "https://sepolia-rpc.scroll.io")
+
+			// Post unprocessed block
+			unprocessedBlocks, err := w.dbApp.GetUnprocessedBlocks()
+			if err != nil {
+				return err
+			}
+
+			for _, unprocessedBlock := range unprocessedBlocks {
+				// var senderType string
+				// if unprocessedBlock.SenderType == 0 {
+				// 	senderType = "PUBLIC_KEY"
+				// } else {
+				// 	senderType = "ACCOUNT_ID"
+				// }
+
+				// senders := make([]*intMaxAcc.PublicKey, 0)
+				// for _, sender := range unprocessedBlock.Senders {
+				// 	publicKey, err := intMaxAcc.NewPublicKeyFromBytes(sender)
+				// 	if err != nil {
+				// 		return err
+				// 	}
+				// 	senders = append(senders, publicKey)
+				// }
+
+				txTreeRootBytes, err := hexutil.Decode(unprocessedBlock.TxRoot)
+				if err != nil {
+					return err
+				}
+
+				txTreeRoot := new(goldenposeidon.PoseidonHashOut)
+				err = txTreeRoot.Unmarshal(txTreeRootBytes)
+				if err != nil {
+					return err
+				}
+
+				aggregatedSignatureHex, err := hexutil.Decode(unprocessedBlock.AggregatedSignature)
+				aggregatedSignature := new(bn254.G2Affine)
+				err = aggregatedSignature.Unmarshal(aggregatedSignatureHex)
+				if err != nil {
+					return err
+				}
+
+				// blockContent := intMaxTypes.NewBlockContent(
+				// 	senderType,
+				// 	senders,
+				// 	*txTreeRoot,
+				// 	aggregatedSignature,
+				// )
+				// if err = blockContent.IsValid(); err != nil {
+				// 	return err
+				// }
+
+				// _, err = intMaxTypes.MakePostRegistrationBlockInput(
+				// 	blockContent,
+				// )
+				// if err != nil {
+				// 	return err
+				// }
+
+				// tx, err := intMaxTypes.PostRegistrationBlock(rollupCfg, blockContent)
+				// if err != nil {
+				// 	return err
+				// }
+
+				// fmt.Printf("Transaction sent: %s\n", tx.Hash().Hex())
+
+				// err = w.dbApp.UpdateBlockStatus(unprocessedBlock.ProposalBlockID, 1)
+				// if err != nil {
+				// 	return err
+				// }
+
+				fmt.Println("UpdateBlockStatus")
+			}
 		}
 	}
 }
