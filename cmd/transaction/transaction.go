@@ -12,7 +12,6 @@ type Transaction struct {
 	Context context.Context
 	Config  *configs.Config
 	Log     logger.Logger
-	DbApp   SQLDriverApp
 	SB      ServiceBlockchain
 }
 
@@ -68,11 +67,7 @@ func txTransferCmd(b *Transaction) *cobra.Command {
 			l.Fatalf(msg, err.Error())
 		}
 
-		err = b.DbApp.Exec(b.Context, nil, func(db interface{}, _ interface{}) (err error) {
-			q := db.(SQLDriverApp)
-
-			return newCommands().SendTransferTransaction(b.Config, b.Log, q, b.SB).Do(b.Context, args, amount, recipientAddressStr, removeZeroX(userEthPrivateKey))
-		})
+		err = newCommands().SendTransferTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, amount, recipientAddressStr, removeZeroX(userEthPrivateKey))
 		if err != nil {
 			const msg = "failed to get balance: %v"
 			l.Fatalf(msg, err.Error())
@@ -118,11 +113,7 @@ func txDepositCmd(b *Transaction) *cobra.Command {
 			l.Fatalf(msg, err.Error())
 		}
 
-		err = b.DbApp.Exec(b.Context, nil, func(db interface{}, _ interface{}) (err error) {
-			q := db.(SQLDriverApp)
-
-			return newCommands().SendDepositTransaction(b.Config, b.Log, q, b.SB).Do(b.Context, args, recipientAddressStr, amount, removeZeroX(userPrivateKey))
-		})
+		err = newCommands().SendDepositTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, recipientAddressStr, amount, removeZeroX(userPrivateKey))
 		if err != nil {
 			const msg = "failed to get balance: %v"
 			l.Fatalf(msg, err.Error())

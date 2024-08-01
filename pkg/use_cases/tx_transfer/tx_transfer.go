@@ -25,13 +25,11 @@ type uc struct {
 func New(
 	cfg *configs.Config,
 	log logger.Logger,
-	db SQLDriverApp,
 	sb ServiceBlockchain,
 ) txTransfer.UseCaseTxTransfer {
 	return &uc{
 		cfg: cfg,
 		log: log,
-		db:  db,
 		sb:  sb,
 	}
 }

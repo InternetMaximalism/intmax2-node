@@ -152,7 +152,6 @@ func main() {
 			Context: ctx,
 			Config:  cfg,
 			Log:     log,
-			DbApp:   dbApp,
 			SB:      bc,
 		}),
 		block_builder.NewCmd(ctx, log, bc, bbr),

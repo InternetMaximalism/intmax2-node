@@ -6,19 +6,12 @@ import (
 
 	balanceChecker "intmax2-node/internal/use_cases/balance_checker"
 	ucGetBalance "intmax2-node/pkg/use_cases/get_balance"
-	ucSyncBalance "intmax2-node/pkg/use_cases/sync_balance"
 )
 
 type Commands interface {
 	GetBalance(
 		cfg *configs.Config,
 		log logger.Logger,
-		sb ServiceBlockchain,
-	) balanceChecker.UseCaseBalanceChecker
-	SyncBalance(
-		cfg *configs.Config,
-		log logger.Logger,
-		db SQLDriverApp,
 		sb ServiceBlockchain,
 	) balanceChecker.UseCaseBalanceChecker
 }
@@ -35,13 +28,4 @@ func (c *commands) GetBalance(
 	sb ServiceBlockchain,
 ) balanceChecker.UseCaseBalanceChecker {
 	return ucGetBalance.New(cfg, log, sb)
-}
-
-func (c *commands) SyncBalance(
-	cfg *configs.Config,
-	log logger.Logger,
-	db SQLDriverApp,
-	sb ServiceBlockchain,
-) balanceChecker.UseCaseBalanceChecker {
-	return ucSyncBalance.New(cfg, log, db, sb)
 }
