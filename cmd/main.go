@@ -146,7 +146,6 @@ func main() {
 			Context: ctx,
 			Config:  cfg,
 			Log:     log,
-			DbApp:   dbApp,
 			SB:      bc,
 		}),
 		transaction.NewTransactionCmd(&transaction.Transaction{

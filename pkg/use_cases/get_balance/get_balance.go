@@ -14,20 +14,17 @@ import (
 type uc struct {
 	cfg *configs.Config
 	log logger.Logger
-	db  SQLDriverApp
 	sb  ServiceBlockchain
 }
 
 func New(
 	cfg *configs.Config,
 	log logger.Logger,
-	db SQLDriverApp,
 	sb ServiceBlockchain,
 ) balanceChecker.UseCaseBalanceChecker {
 	return &uc{
 		cfg: cfg,
 		log: log,
-		db:  db,
 		sb:  sb,
 	}
 }
@@ -48,7 +45,7 @@ func (u *uc) Do(ctx context.Context, args []string, userEthPrivateKey string) (e
 		}
 	}()
 
-	service.GetBalance(spanCtx, u.cfg, u.log, u.db, u.sb, args, userEthPrivateKey)
+	service.GetBalance(spanCtx, u.cfg, u.log, u.sb, args, userEthPrivateKey)
 
 	return err
 }

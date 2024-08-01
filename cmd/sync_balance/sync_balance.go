@@ -13,7 +13,6 @@ type Balance struct {
 	Context context.Context
 	Config  *configs.Config
 	Log     logger.Logger
-	DbApp   SQLDriverApp
 	SB      ServiceBlockchain
 }
 
@@ -59,11 +58,7 @@ func getBalanceCmd(b *Balance) *cobra.Command {
 			l.Fatalf(msg, err.Error())
 		}
 
-		err = b.DbApp.Exec(b.Context, nil, func(db interface{}, _ interface{}) (err error) {
-			q := db.(SQLDriverApp)
-
-			return newCommands().GetBalance(b.Config, b.Log, q, b.SB).Do(b.Context, args, userEthPrivateKey)
-		})
+		err = newCommands().GetBalance(b.Config, b.Log, b.SB).Do(b.Context, args, userEthPrivateKey)
 		if err != nil {
 			const msg = "failed to get balance: %v"
 			l.Fatalf(msg, err.Error())

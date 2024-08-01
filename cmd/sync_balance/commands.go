@@ -13,7 +13,6 @@ type Commands interface {
 	GetBalance(
 		cfg *configs.Config,
 		log logger.Logger,
-		db SQLDriverApp,
 		sb ServiceBlockchain,
 	) balanceChecker.UseCaseBalanceChecker
 	SyncBalance(
@@ -33,10 +32,9 @@ func newCommands() Commands {
 func (c *commands) GetBalance(
 	cfg *configs.Config,
 	log logger.Logger,
-	db SQLDriverApp,
 	sb ServiceBlockchain,
 ) balanceChecker.UseCaseBalanceChecker {
-	return ucGetBalance.New(cfg, log, db, sb)
+	return ucGetBalance.New(cfg, log, sb)
 }
 
 func (c *commands) SyncBalance(
