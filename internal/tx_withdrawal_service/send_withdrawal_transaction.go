@@ -3,6 +3,7 @@ package tx_transfer_service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
@@ -91,9 +92,21 @@ func SendWithdrawalWithRawRequest(
 	transfer *intMaxTypes.Transfer,
 	transferTreeRoot goldenposeidon.PoseidonHashOut,
 	nonce uint64,
+	transferMerkleProof []*goldenposeidon.PoseidonHashOut,
+	transferIndex int32,
+	txMerkleProof []*goldenposeidon.PoseidonHashOut,
+	txIndex int32,
 	blockNumber uint32,
 	blockHash string,
 ) error {
+	transferMerkleProofStr := make([]string, len(transferMerkleProof))
+	for i, v := range transferMerkleProof {
+		transferMerkleProofStr[i] = v.String()
+	}
+	txMerkleProofStr := make([]string, len(txMerkleProof))
+	for i, v := range txMerkleProof {
+		txMerkleProofStr[i] = v.String()
+	}
 	return sendWithdrawalRawRequest(
 		ctx,
 		cfg,
@@ -102,6 +115,10 @@ func SendWithdrawalWithRawRequest(
 		transfer,
 		transferTreeRoot.String(),
 		nonce,
+		transferMerkleProofStr,
+		transferIndex,
+		txMerkleProofStr,
+		txIndex,
 		blockNumber,
 		blockHash,
 	)
@@ -115,6 +132,10 @@ func sendWithdrawalRawRequest(
 	transfer *intMaxTypes.Transfer,
 	transferTreeRoot string,
 	nonce uint64,
+	transferMerkleProof []string,
+	transferIndex int32,
+	txMerkleProof []string,
+	txIndex int32,
 	blockNumber uint32,
 	blockHash string,
 ) error {
@@ -132,18 +153,25 @@ func sendWithdrawalRawRequest(
 			Amount:     transfer.Amount.String(),
 			Salt:       hexutil.Encode(transfer.Salt.Marshal()),
 		},
+		TransferMerkleProof: withdrawal_request.TransferMerkleProof{
+			Siblings: transferMerkleProof,
+			Index:    transferIndex,
+		},
 		Transaction: withdrawal_request.Transaction{
 			Nonce:            int32(nonce),
 			TransferTreeRoot: transferTreeRoot,
 		},
 		TxMerkleProof: withdrawal_request.TxMerkleProof{
-			Siblings: []string{},
-			Index:    0,
+			Siblings: txMerkleProof,
+			Index:    txIndex,
 		},
-		TransferHash:       transferHash,
-		BlockNumber:        blockNumber,
-		BlockHash:          blockHash,
-		EnoughBalanceProof: withdrawal_request.EnoughBalanceProof{},
+		TransferHash: transferHash,
+		BlockNumber:  blockNumber,
+		BlockHash:    blockHash,
+		EnoughBalanceProof: withdrawal_request.EnoughBalanceProof{
+			Proof:        "AA==", // dummy
+			PublicInputs: "AA==", // dummy
+		},
 	}
 
 	bd, err := json.Marshal(ucInput)
@@ -163,7 +191,7 @@ func sendWithdrawalRawRequest(
 		schema = httpsKey
 	}
 
-	apiUrl := fmt.Sprintf("%s://%s/v1/withdrawal/request", schema, cfg.HTTP.WithdrawalServerAddr())
+	apiUrl := fmt.Sprintf("%s://%s/v1/withdrawals/request", schema, cfg.HTTP.WithdrawalServerAddr())
 
 	r := resty.New().R()
 	var resp *resty.Response
@@ -190,12 +218,13 @@ func sendWithdrawalRawRequest(
 	}
 
 	response := new(SendWithdrawalResponse)
-	if err = json.Unmarshal(resp.Body(), response); err != nil {
-		return fmt.Errorf("failed to unmarshal response: %w", err)
+	if err := json.Unmarshal(resp.Body(), response); err != nil {
+		ErrUnmarshalResponse := errors.New("failed to unmarshal response")
+		return errors.Join(ErrUnmarshalResponse, err)
 	}
 
 	if !response.Success {
-		return fmt.Errorf("failed to send transaction: %s", response.Data.Message)
+		return errors.New("failed to request withdrawal")
 	}
 
 	return nil

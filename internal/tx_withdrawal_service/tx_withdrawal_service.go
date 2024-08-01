@@ -3,14 +3,17 @@ package tx_transfer_service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_service"
 	"intmax2-node/internal/logger"
+	"intmax2-node/internal/mnemonic_wallet"
 	intMaxTree "intmax2-node/internal/tree"
 	"intmax2-node/internal/tx_transfer_service"
 	intMaxTypes "intmax2-node/internal/types"
 	"math/big"
+	"slices"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -26,9 +29,14 @@ func SendWithdrawalTransaction(
 	args []string,
 	amountStr string,
 	recipientAddressHex string,
-	userPrivateKey string,
+	userEthPrivateKey string,
 ) {
-	userAccount, err := intMaxAcc.NewPrivateKeyFromString(userPrivateKey)
+	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
+	if err != nil {
+		log.Fatalf("fail to parse user private key: %v", err)
+	}
+
+	userAccount, err := intMaxAcc.NewPrivateKeyFromString(wallet.IntMaxPrivateKey)
 	if err != nil {
 		log.Fatalf("fail to parse user private key: %v", err)
 	}
@@ -43,6 +51,8 @@ func SendWithdrawalTransaction(
 		log.Fatalf("%s", errors.Join(ErrTokenNotFound, err))
 	}
 
+	fmt.Printf("userAccount: %s\n", userAccount.ToAddress().String())
+	fmt.Printf("tokenIndex: %d\n", tokenIndex)
 	balance, err := balance_service.GetUserBalance(ctx, cfg, log, db, userAccount, tokenIndex)
 	if err != nil {
 		log.Fatalf(ErrFailedToGetBalance+": %v", err)
@@ -55,7 +65,7 @@ func SendWithdrawalTransaction(
 	const int10Key = 10
 	amount, ok := new(big.Int).SetString(amountStr, int10Key)
 	if !ok {
-		log.Fatalf("failed to convert amount to int: %v", err)
+		log.Fatalf("failed to convert amount to int: %v", amountStr)
 	}
 
 	if balance.Cmp(amount) < 0 {
@@ -88,7 +98,11 @@ func SendWithdrawalTransaction(
 		log.Fatalf("failed to create transfer tree: %v", err)
 	}
 
-	transfersHash, _, _ := transferTree.GetCurrentRootCountAndSiblings()
+	// transfersHash, _, _ := transferTree.GetCurrentRootCountAndSiblings()
+	transferMerkleProof, transfersHash, err := transferTree.ComputeMerkleProof(0)
+	if err != nil {
+		log.Fatalf("failed to compute merkle proof: %v", err)
+	}
 
 	var nonce uint64 = 1 // TODO: Incremented with each transaction
 	err = SendWithdrawalRequest(
@@ -139,11 +153,24 @@ func SendWithdrawalTransaction(
 	blockNumber := uint32(0)
 	blockHash := common.Hash{}.Hex()
 
+	txMerkleProof := proposedBlock.TxTreeMerkleProof
+
+	publicKeysStr := make([]string, len(proposedBlock.PublicKeys))
+	for i, key := range proposedBlock.PublicKeys {
+		publicKeysStr[i] = key.ToAddress().String()
+	}
+	txIndex := slices.Index(publicKeysStr, userAccount.ToAddress().String())
+	fmt.Printf("txIndex: %d\n", txIndex)
+	if txIndex == -1 {
+		log.Fatalf("failed to find user's public key in the proposed block")
+	}
+
 	err = SendWithdrawalWithRawRequest(
-		ctx, cfg, log, userAccount, transfer, transfersHash, nonce, blockNumber, blockHash,
+		ctx, cfg, log, userAccount, transfer, transfersHash, nonce, transferMerkleProof, 0, txMerkleProof, int32(txIndex),
+		blockNumber, blockHash,
 	)
 	if err != nil {
-		log.Fatalf("failed to send transaction: %v", err)
+		log.Fatalf("failed to request withdrawal: %v", err)
 	}
 
 	log.Printf("The transaction has been successfully sent.")

@@ -5,6 +5,7 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/logger"
+	"intmax2-node/internal/mnemonic_wallet"
 	"intmax2-node/internal/open_telemetry"
 	service "intmax2-node/internal/tx_withdrawal_service"
 	txTransfer "intmax2-node/internal/use_cases/tx_transfer"
@@ -32,7 +33,7 @@ func New(
 	}
 }
 
-func (u *uc) Do(ctx context.Context, args []string, amount, recipientAddressHex, userPrivateKey string) (err error) {
+func (u *uc) Do(ctx context.Context, args []string, recipientAddressHex, amount, userEthPrivateKey string) (err error) {
 	const (
 		hName     = "UseCase TxTransfer"
 		senderKey = "sender"
@@ -41,10 +42,12 @@ func (u *uc) Do(ctx context.Context, args []string, amount, recipientAddressHex,
 	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
 	defer span.End()
 
+	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
+
 	// The userPrivateKey is acceptable in either format:
 	// it may include the '0x' prefix at the beginning,
 	// or it can be provided without this prefix.
-	userAccount, err := intMaxAcc.NewPrivateKeyFromString(userPrivateKey)
+	userAccount, err := intMaxAcc.NewPrivateKeyFromString(wallet.IntMaxPrivateKey)
 	if err != nil {
 		return err
 	}
@@ -54,7 +57,7 @@ func (u *uc) Do(ctx context.Context, args []string, amount, recipientAddressHex,
 		attribute.String(senderKey, userAddress.String()),
 	)
 
-	service.SendWithdrawalTransaction(spanCtx, u.cfg, u.log, u.db, u.sb, args, amount, recipientAddressHex, userPrivateKey)
+	service.SendWithdrawalTransaction(spanCtx, u.cfg, u.log, u.db, u.sb, args, amount, recipientAddressHex, userEthPrivateKey)
 
 	return nil
 }

@@ -157,8 +157,8 @@ func txWithdrawalCmd(b *Transaction) *cobra.Command {
 	var recipientAddressStr string
 	cmd.PersistentFlags().StringVar(&recipientAddressStr, recipientKey, emptyKey, recipientDescription)
 
-	var userPrivateKey string
-	cmd.PersistentFlags().StringVar(&userPrivateKey, userPrivateKeyKey, emptyKey, userPrivateDescription)
+	var userEthPrivateKey string
+	cmd.PersistentFlags().StringVar(&userEthPrivateKey, userPrivateKeyKey, emptyKey, userPrivateDescription)
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		l := b.Log.WithFields(logger.Fields{"module": use})
@@ -172,7 +172,7 @@ func txWithdrawalCmd(b *Transaction) *cobra.Command {
 		err = b.DbApp.Exec(b.Context, nil, func(db interface{}, _ interface{}) (err error) {
 			q := db.(SQLDriverApp)
 
-			return newCommands().SendWithdrawalTransaction(b.Config, b.Log, q, b.SB).Do(b.Context, args, recipientAddressStr, amount, removeZeroX(userPrivateKey))
+			return newCommands().SendWithdrawalTransaction(b.Config, b.Log, q, b.SB).Do(b.Context, args, recipientAddressStr, amount, removeZeroX(userEthPrivateKey))
 		})
 		if err != nil {
 			const msg = "failed to get balance: %v"

@@ -57,7 +57,7 @@ func SendTransferTransaction(
 	const int10Key = 10
 	amount, ok := new(big.Int).SetString(amountStr, int10Key)
 	if !ok {
-		log.Fatalf("failed to convert amount to int: %v", err)
+		log.Fatalf("failed to convert amount to int: %v", amountStr)
 	}
 
 	if balance.Cmp(amount) < 0 {
