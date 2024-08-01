@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"intmax2-node/internal/hash/goldenposeidon"
 	"math/big"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
@@ -433,4 +434,68 @@ func (a Address) Format(s fmt.State, c rune) {
 	default:
 		_, _ = fmt.Fprintf(s, "%%!%c(address=%x)", c, a)
 	}
+}
+
+func SplitBigIntTo32BitChunks(value *big.Int) []*big.Int {
+	const chunkSize = 32
+	mask := new(big.Int).Lsh(big.NewInt(1), chunkSize)
+	mask.Sub(mask, big.NewInt(1))
+	chunks := make([]*big.Int, 0)
+	for value.Cmp(big.NewInt(0)) > 0 {
+		chunk := new(big.Int).And(value, mask)
+		chunks = append([]*big.Int{chunk}, chunks...)
+		value.Rsh(value, chunkSize)
+	}
+	return chunks
+}
+
+func SplitBigIntTo64BitChunks(value *big.Int) []*big.Int {
+	const chunkSize = 64
+	mask := new(big.Int).Lsh(big.NewInt(1), chunkSize)
+	mask.Sub(mask, big.NewInt(1))
+	chunks := make([]*big.Int, 0)
+	for value.Cmp(big.NewInt(0)) > 0 {
+		chunk := new(big.Int).And(value, mask)
+		chunks = append([]*big.Int{chunk}, chunks...)
+		value.Rsh(value, chunkSize)
+	}
+	return chunks
+}
+
+func Combine64BitChunksToBigInt(chunks []*big.Int) *big.Int {
+	const chunkSize = 64
+	result := big.NewInt(0)
+	for _, chunk := range chunks {
+		result.Lsh(result, chunkSize)
+		result.Or(result, chunk)
+	}
+
+	return result
+}
+
+func SplitSaltTo64BitChunks(salt *goldenposeidon.PoseidonHashOut) []*big.Int {
+	value := salt.Marshal() // TODO: js implementation is big-endian, but this is little-endian
+	return SplitBigIntTo64BitChunks(new(big.Int).SetBytes(value))
+}
+
+const int32Key = 32
+
+func GetPublicKeySaltHash(intmaxAddress *big.Int, salt *goldenposeidon.PoseidonHashOut) (hashBytes [int32Key]byte) {
+	pubkeyChunks := SplitBigIntTo32BitChunks(intmaxAddress)
+	saltChunks := SplitSaltTo64BitChunks(salt)
+	inputs := append(pubkeyChunks, saltChunks...)
+	inputsGL := make([]ffg.Element, len(inputs))
+	for i, v := range inputs {
+		inputsGL[i].SetBytes(v.Bytes())
+	}
+	hashChunks := goldenposeidon.HashNoPad(inputsGL)
+	hashChunksBI := make([]*big.Int, len(hashChunks.Elements))
+	for i, v := range hashChunks.Elements {
+		b := v.Bytes()
+		hashChunksBI[i] = new(big.Int).SetBytes(b[:])
+	}
+	hash := Combine64BitChunksToBigInt(hashChunksBI)
+	copy(hashBytes[int32Key-len(hash.Bytes()):], hash.Bytes())
+
+	return hashBytes
 }
