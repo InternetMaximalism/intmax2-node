@@ -3,6 +3,9 @@ package db_app
 import (
 	"context"
 	"encoding/json"
+	backupDeposit "intmax2-node/internal/use_cases/backup_deposit"
+	backupTransaction "intmax2-node/internal/use_cases/backup_transaction"
+	backupTransfer "intmax2-node/internal/use_cases/backup_transfer"
 	postWithdrwalRequest "intmax2-node/internal/use_cases/post_withdrawal_request"
 	"intmax2-node/pkg/sql_db/db_app/models"
 
@@ -13,13 +16,16 @@ import (
 type SQLDb interface {
 	GenericCommands
 	ServiceCommands
+	Blocks
 	Tokens
-	Withdrawals
 	Signatures
-	Transactions
 	TxMerkleProofs
 	EventBlockNumbers
 	Balances
+	Withdrawals
+	BackupTransfers
+	BackupTransactions
+	BackupDeposits
 }
 
 type GenericCommands interface {
@@ -34,6 +40,15 @@ type ServiceCommands interface {
 	Check(ctx context.Context) health.Health
 }
 
+type Blocks interface {
+	CreateBlock(
+		builderPublicKey, txRoot, aggregatedSignature, aggregatedPublicKey string,
+		senderType uint,
+		options []byte,
+	) (*models.Block, error)
+	Block(proposalBlockID string) (*models.Block, error)
+}
+
 type Tokens interface {
 	CreateToken(
 		tokenIndex, tokenAddress string,
@@ -44,22 +59,17 @@ type Tokens interface {
 }
 
 type Signatures interface {
-	CreateSignature(signature string) (*models.Signature, error)
-	SignatureByID(txID string) (*models.Signature, error)
-}
-
-type Transactions interface {
-	CreateTransaction(
-		senderPublicKey, txHash, signatureID string,
-	) (*models.Transactions, error)
-	TransactionByID(txID string) (*models.Transactions, error)
+	CreateSignature(signature, proposalBlockID string) (*models.Signature, error)
+	SignatureByID(signatureID string) (*models.Signature, error)
 }
 
 type TxMerkleProofs interface {
 	CreateTxMerkleProofs(
-		senderPublicKey, txHash, txID string,
+		senderPublicKey, txHash, signatureID string,
 		txTreeIndex *uint256.Int,
 		txMerkleProof json.RawMessage,
+		txTreeRoot string,
+		proposalBlockID string,
 	) (*models.TxMerkleProofs, error)
 	TxMerkleProofsByID(id string) (*models.TxMerkleProofs, error)
 	TxMerkleProofsByTxHash(txHash string) (*models.TxMerkleProofs, error)
@@ -83,5 +93,24 @@ type Withdrawals interface {
 	CreateWithdrawal(id string, input *postWithdrwalRequest.UCPostWithdrawalRequestInput) (*models.Withdrawal, error)
 	UpdateWithdrawalsStatus(ids []string, status models.WithdrawalStatus) error
 	WithdrawalByID(id string) (*models.Withdrawal, error)
+	WithdrawalsByHashes(transferHashes []string) (*[]models.Withdrawal, error)
 	WithdrawalsByStatus(status models.WithdrawalStatus, limit *int) (*[]models.Withdrawal, error)
+}
+
+type BackupTransfers interface {
+	CreateBackupTransfer(input *backupTransfer.UCPostBackupTransferInput) (*models.BackupTransfer, error)
+	GetBackupTransfer(condition string, value string) (*models.BackupTransfer, error)
+	GetBackupTransfers(condition string, value interface{}) ([]*models.BackupTransfer, error)
+}
+
+type BackupTransactions interface {
+	CreateBackupTransaction(input *backupTransaction.UCPostBackupTransactionInput) (*models.BackupTransaction, error)
+	GetBackupTransaction(condition string, value string) (*models.BackupTransaction, error)
+	GetBackupTransactions(condition string, value interface{}) ([]*models.BackupTransaction, error)
+}
+
+type BackupDeposits interface {
+	CreateBackupDeposit(input *backupDeposit.UCPostBackupDepositInput) (*models.BackupDeposit, error)
+	GetBackupDeposit(condition string, value string) (*models.BackupDeposit, error)
+	GetBackupDeposits(condition string, value interface{}) ([]*models.BackupDeposit, error)
 }

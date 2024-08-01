@@ -32,10 +32,9 @@ func TestUseCaseTransaction(t *testing.T) {
 	defer ctrl.Finish()
 
 	cfg := configs.New()
-	dbApp := NewMockSQLDriverApp(ctrl)
 	w := NewMockWorker(ctrl)
 
-	uc := ucTransaction.New(cfg, dbApp, w)
+	uc := ucTransaction.New(cfg, w)
 
 	cases := []struct {
 		desc    string

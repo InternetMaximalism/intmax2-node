@@ -280,7 +280,7 @@ func (h *PoseidonHashOut) Unmarshal(data []byte) error {
 
 	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
 		r := reverseBytes(data[i*elementSize : (i+1)*elementSize])
-		h.Elements[i].SetBytes(r)
+		h.Elements[i] = *new(ffg.Element).SetBytes(r)
 	}
 
 	return nil

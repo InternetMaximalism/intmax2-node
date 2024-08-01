@@ -3,6 +3,9 @@ package pgx
 import (
 	"context"
 	"encoding/json"
+	backupDeposit "intmax2-node/internal/use_cases/backup_deposit"
+	backupTransaction "intmax2-node/internal/use_cases/backup_transaction"
+	backupTransfer "intmax2-node/internal/use_cases/backup_transfer"
 	postWithdrwalRequest "intmax2-node/internal/use_cases/post_withdrawal_request"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 
@@ -13,13 +16,16 @@ import (
 type PGX interface {
 	GenericCommands
 	ServiceCommands
+	Blocks
 	Tokens
 	Signatures
-	Transactions
 	TxMerkleProofs
 	EventBlockNumbers
 	Balances
 	Withdrawals
+	BackupTransfers
+	BackupTransactions
+	BackupDeposits
 }
 
 type GenericCommands interface {
@@ -34,6 +40,15 @@ type ServiceCommands interface {
 	Check(ctx context.Context) health.Health
 }
 
+type Blocks interface {
+	CreateBlock(
+		builderPublicKey, txRoot, aggregatedSignature, aggregatedPublicKey string,
+		senderType uint,
+		options []byte,
+	) (*mDBApp.Block, error)
+	Block(proposalBlockID string) (*mDBApp.Block, error)
+}
+
 type Tokens interface {
 	CreateToken(
 		tokenIndex, tokenAddress string,
@@ -44,22 +59,17 @@ type Tokens interface {
 }
 
 type Signatures interface {
-	CreateSignature(signature string) (*mDBApp.Signature, error)
-	SignatureByID(txID string) (*mDBApp.Signature, error)
-}
-
-type Transactions interface {
-	CreateTransaction(
-		senderPublicKey, txHash, signatureID string,
-	) (*mDBApp.Transactions, error)
-	TransactionByID(txID string) (*mDBApp.Transactions, error)
+	CreateSignature(signature, proposalBlockID string) (*mDBApp.Signature, error)
+	SignatureByID(signatureID string) (*mDBApp.Signature, error)
 }
 
 type TxMerkleProofs interface {
 	CreateTxMerkleProofs(
-		senderPublicKey, txHash, txID string,
+		senderPublicKey, txHash, signatureID string,
 		txTreeIndex *uint256.Int,
 		txMerkleProof json.RawMessage,
+		txTreeRoot string,
+		proposalBlockID string,
 	) (*mDBApp.TxMerkleProofs, error)
 	TxMerkleProofsByID(id string) (*mDBApp.TxMerkleProofs, error)
 	TxMerkleProofsByTxHash(txHash string) (*mDBApp.TxMerkleProofs, error)
@@ -83,5 +93,24 @@ type Withdrawals interface {
 	CreateWithdrawal(id string, input *postWithdrwalRequest.UCPostWithdrawalRequestInput) (*mDBApp.Withdrawal, error)
 	UpdateWithdrawalsStatus(ids []string, status mDBApp.WithdrawalStatus) error
 	WithdrawalByID(id string) (*mDBApp.Withdrawal, error)
+	WithdrawalsByHashes(transferHashes []string) (*[]mDBApp.Withdrawal, error)
 	WithdrawalsByStatus(status mDBApp.WithdrawalStatus, limit *int) (*[]mDBApp.Withdrawal, error)
+}
+
+type BackupTransfers interface {
+	CreateBackupTransfer(input *backupTransfer.UCPostBackupTransferInput) (*mDBApp.BackupTransfer, error)
+	GetBackupTransfer(condition string, value string) (*mDBApp.BackupTransfer, error)
+	GetBackupTransfers(condition string, value interface{}) ([]*mDBApp.BackupTransfer, error)
+}
+
+type BackupTransactions interface {
+	CreateBackupTransaction(input *backupTransaction.UCPostBackupTransactionInput) (*mDBApp.BackupTransaction, error)
+	GetBackupTransaction(condition string, value string) (*mDBApp.BackupTransaction, error)
+	GetBackupTransactions(condition string, value interface{}) ([]*mDBApp.BackupTransaction, error)
+}
+
+type BackupDeposits interface {
+	CreateBackupDeposit(input *backupDeposit.UCPostBackupDepositInput) (*mDBApp.BackupDeposit, error)
+	GetBackupDeposit(condition string, value string) (*mDBApp.BackupDeposit, error)
+	GetBackupDeposits(condition string, value interface{}) ([]*mDBApp.BackupDeposit, error)
 }

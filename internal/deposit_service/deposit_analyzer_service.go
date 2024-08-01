@@ -170,7 +170,12 @@ func (d *DepositAnalyzerService) fetchLastDepositAnalyzedEvent(startBlockNumber 
 	}
 
 	if lastEvent == nil {
-		return nil, fmt.Errorf("no deposits relayed events found")
+		lastDepositId := uint64(0)
+		blockNumber := uint64(0)
+		return &DepositEventInfo{
+			LastDepositId: &lastDepositId,
+			BlockNumber:   &blockNumber,
+		}, nil
 	}
 
 	return lastEvent, nil
@@ -249,7 +254,7 @@ func (d *DepositAnalyzerService) getTokenInfoMap(tokenIndexMap map[uint32]bool) 
 }
 
 func (d *DepositAnalyzerService) analyzeDeposits(upToDepositId *big.Int, rejectDepositIndices []*big.Int) (*types.Receipt, error) {
-	transactOpts, err := utils.CreateTransactor(d.cfg)
+	transactOpts, err := utils.CreateTransactor(d.cfg.Blockchain.DepositAnalyzerPrivateKeyHex, d.cfg.Blockchain.EthereumNetworkChainID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transactor: %w", err)
 	}

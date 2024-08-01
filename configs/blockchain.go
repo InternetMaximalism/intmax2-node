@@ -13,6 +13,8 @@ type Blockchain struct {
 	RollupContractAddress      string `env:"BLOCKCHAIN_ROLLUP_CONTRACT_ADDRESS,required"`
 	TemplateContractRollupPath string `env:"BLOCKCHAIN_TEMPLATE_CONTRACT_ROLLUP_PATH,required" envDefault:"third_party/contracts/Rollup.json"`
 
+	RollupContractDeployedBlockNumber uint64 `env:"BLOCKCHAIN_ROLLUP_CONTRACT_DEPLOYED_BLOCK_NUMBER" envDefault:"0"`
+
 	EthereumNetworkChainID string `env:"BLOCKCHAIN_ETHEREUM_NETWORK_CHAIN_ID"`
 	EthereumPrivateKeyHex  string `env:"BLOCKCHAIN_ETHEREUM_PRIVATE_KEY_HEX"`
 	EthereumNetworkRpcUrl  string `env:"BLOCKCHAIN_ETHEREUM_NETWORK_RPC_URL"`
@@ -20,6 +22,11 @@ type Blockchain struct {
 	BlockBuilderRegistryContractAddress string `env:"BLOCKCHAIN_BLOCK_BUILDER_REGISTRY_CONTRACT_ADDRESS"`
 	LiquidityContractAddress            string `env:"BLOCKCHAIN_LIQUIDITY_CONTRACT_ADDRESS"`
 	WithdrawalContractAddress           string `env:"BLOCKCHAIN_WITHDRAWAL_CONTRACT_ADDRESS"`
+
+	DepositAnalyzerPrivateKeyHex string `env:"BLOCKCHAIN_ETHEREUM_DEPOSIT_ANALYZER_PRIVATE_KEY_HEX"`
+	DepositRelayerPrivateKeyHex  string `env:"BLOCKCHAIN_ETHEREUM_DEPOSIT_RELAYER_PRIVATE_KEY_HEX"`
+	WithdrawalPrivateKeyHex      string `env:"BLOCKCHAIN_ETHEREUM_WITHDRAWAL_PRIVATE_KEY_HEX"`
+	MockMessagingPrivateKeyHex   string `env:"BLOCKCHAIN_ETHEREUM_MOCK_MESSAGING_PRIVATE_KEY_HEX"`
 
 	MaxCounterOfTransaction int `env:"BLOCKCHAIN_MAX_COUNTER_OF_TRANSACTION" envDefault:"128"`
 }

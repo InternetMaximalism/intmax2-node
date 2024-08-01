@@ -7,8 +7,12 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/block_post_service"
+	errorsB "intmax2-node/internal/blockchain/errors"
 	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
+	"intmax2-node/internal/mnemonic_wallet"
+	modelsMW "intmax2-node/internal/mnemonic_wallet/models"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
@@ -20,8 +24,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/google/uuid"
 	"github.com/holiman/uint256"
+	"github.com/status-im/keycard-go/hexutils"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -29,6 +35,26 @@ const (
 	bucket     = "transfers"
 	int1024Key = 1024
 )
+
+type signaturesByLeafIndex struct {
+	Sender    string
+	TxHash    string
+	Signature string
+	LeafIndex uint64
+	CreatedAt int64
+}
+
+type LeafsTree struct {
+	TxTree                 *intMaxTree.TxTree
+	TxRoot                 *intMaxTree.PoseidonHashOut
+	Count                  uint64
+	Siblings               []*intMaxTree.PoseidonHashOut
+	SenderPublicKeys       []*intMaxAcc.PublicKey
+	KeysOfSenderPublicKeys map[string]int
+	SignaturesCounter      int
+	Signatures             []*signaturesByLeafIndex
+	SignaturesByLeafIndex  []*signaturesByLeafIndex
+}
 
 type kvInfo struct {
 	Ctx                 context.Context
@@ -39,13 +65,19 @@ type kvInfo struct {
 	Processing          bool
 	Timestamp           *time.Time
 	Receiver            chan func() error
+	LeafsTree           *LeafsTree
+}
+
+type leafsOfHash struct {
+	Sender string
+	Index  uint64
 }
 
 type fileInfo struct {
 	sync.Mutex
 	kvInfo
 	UsersCounter map[string]string
-	Hashes       map[string]string
+	Hashes       map[string]*leafsOfHash
 }
 
 type workerFileList struct {
@@ -58,6 +90,7 @@ type workerFileList struct {
 
 type TransactionHashesWithSenderAndFile struct {
 	Sender string
+	TxHash string
 	File   *os.File
 }
 
@@ -182,7 +215,7 @@ func (w *worker) newTempFile(dir string) error {
 			Receiver:  make(chan func() error, int1024Key),
 		},
 		UsersCounter: make(map[string]string),
-		Hashes:       make(map[string]string),
+		Hashes:       make(map[string]*leafsOfHash),
 	}
 
 	if w.files.CurrentFile != nil {
@@ -243,12 +276,17 @@ func (w *worker) CurrentFileName() string {
 	return w.files.CurrentFile.Name()
 }
 
-func (w *worker) AvailableFiles() (list []*os.File) {
+func (w *worker) AvailableFiles() (list []*os.File, err error) {
 	for key := range w.files.FilesList {
-		if w.files.CurrentFile.Name() != key.Name() &&
-			atomic.LoadInt32(&w.files.FilesList[key].TransactionsCounter) == 0 &&
-			!w.files.FilesList[key].Processing {
+		cond1 := w.files.CurrentFile.Name() != key.Name()
+		cond2 := atomic.LoadInt32(&w.files.FilesList[key].TransactionsCounter) == 0
+		if cond1 && cond2 && !w.files.FilesList[key].Processing {
 			if !w.files.FilesList[key].Delivered {
+				err = w.leafsProcessing(key)
+				if err != nil {
+					return nil, errors.Join(ErrLeafsProcessing, err)
+				}
+
 				w.files.FilesList[key].CtxCancel()
 				continue
 			}
@@ -261,7 +299,7 @@ func (w *worker) AvailableFiles() (list []*os.File) {
 		return b.ModTime().Before(b2.ModTime())
 	})
 
-	return list
+	return list, nil
 }
 
 func (w *worker) TxTreeByAvailableFile(sf *TransactionHashesWithSenderAndFile) (txTreeRoot *TxTree, err error) {
@@ -305,29 +343,19 @@ func (w *worker) TxTreeByAvailableFile(sf *TransactionHashesWithSenderAndFile) (
 		}
 	}
 
-	var kv *bolt.DB
-	kv, err = w.kvStore(sf.File.Name())
+	var (
+		siblings []*intMaxTree.PoseidonHashOut
+		root     intMaxTree.PoseidonHashOut
+	)
+	siblings, root, err = f.LeafsTree.TxTree.ComputeMerkleProof(f.Hashes[sf.TxHash].Index)
 	if err != nil {
-		err = errors.Join(ErrKVStoreFail, err)
-		return nil, err
+		return nil, errors.Join(ErrTxTreeComputeMerkleProofFail, err)
 	}
-	defer func() {
-		_ = kv.Close()
-	}()
 
-	err = kv.View(func(tx *bolt.Tx) (err error) {
-		b := tx.Bucket([]byte(bucket))
-		s := b.Get([]byte(sf.Sender))
-
-		err = json.Unmarshal(s, &txTreeRoot)
-		if err != nil {
-			return errors.Join(ErrUnmarshalFail, err)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, errors.Join(ErrViewBucketKVStoreFail, err)
+	txTreeRoot = &TxTree{
+		RootHash:         &root,
+		Siblings:         siblings,
+		SenderPublicKeys: f.LeafsTree.SenderPublicKeys,
 	}
 
 	return txTreeRoot, err
@@ -348,29 +376,37 @@ func (w *worker) Start(
 				return errors.Join(ErrStatCurrentFileFail, err)
 			}
 
-			if st.ModTime().UTC().Add(
-				w.cfg.Worker.CurrentFileLifetime,
-			).UnixNano()-time.Now().UTC().UnixNano() <= 0 ||
-				len(w.files.FilesList[w.files.CurrentFile].UsersCounter) > w.cfg.Worker.MaxCounterOfUsers {
+			// cond1 - current file lifetime expired
+			cond1 := st.ModTime().UTC().Add(w.cfg.Worker.CurrentFileLifetime).UnixNano()-time.Now().UTC().UnixNano() <= 0
+			// cond2 - the number of users exceeded the limit
+			cond2 := len(w.files.FilesList[w.files.CurrentFile].UsersCounter) > w.cfg.Worker.MaxCounterOfUsers
+			if cond1 || cond2 {
 				err = w.newTempFile(w.files.CurrentDir)
 				if err != nil {
 					return errors.Join(ErrCreateNewTempFileFail, err)
 				}
 			}
 		case <-tickerSignaturesAvailableFiles.C:
-			list := w.AvailableFiles()
+			list, err := w.AvailableFiles()
+			if err != nil {
+				return errors.Join(ErrAvailableFilesProcessing, err)
+			}
+
 			for key := range list {
-				if w.files.FilesList[list[key]].Delivered &&
-					w.files.FilesList[list[key]].Timestamp != nil &&
+				// cond1 - all transactions are processed
+				cond1 := w.files.FilesList[list[key]].Delivered
+				// cond2 - transaction collection for tx tree completed
+				cond2 := w.files.FilesList[list[key]].Timestamp != nil &&
 					w.files.FilesList[list[key]].Timestamp.UTC().Add(
 						w.cfg.Worker.TimeoutForSignaturesAvailableFiles,
-					).UnixNano() < time.Now().UTC().UnixNano() {
+					).UnixNano() < time.Now().UTC().UnixNano()
+				if cond1 && cond2 {
 					if atomic.LoadInt32(&w.numWorkers) < w.maxWorkers {
+						// Change status to processing
 						w.files.FilesList[list[key]].Processing = true
 						atomic.AddInt32(&w.numWorkers, 1)
 						go func(f *os.File) {
-							err := w.postProcessing(ctx, f)
-							if err != nil {
+							if err = w.postProcessing(ctx, f); err != nil {
 								const msg = "failed to apply post processing"
 								w.log.WithError(err).Errorf(msg)
 							}
@@ -391,14 +427,19 @@ func (w *worker) Receiver(input *ReceiverWorker) error {
 		return ErrReceiverWorkerEmpty
 	}
 
-	crcs, err := w.currentRootCountAndSiblingsFromRW(input)
+	transfersHashBytes, err := hexutil.Decode(input.TransfersHash)
 	if err != nil {
-		return errors.Join(ErrCurrentRootCountAndSiblingsFromRW, err)
+		return errors.Join(ErrHexDecodeFail, err)
+	}
+	transfersHash := new(intMaxGP.PoseidonHashOut)
+	err = transfersHash.Unmarshal(transfersHashBytes)
+	if err != nil {
+		return errors.Join(ErrUnmarshalFail, err)
 	}
 
 	var currTx *intMaxTypes.Tx
 	currTx, err = intMaxTypes.NewTx(
-		&crcs.TransferTreeRoot,
+		transfersHash,
 		input.Nonce,
 	)
 	if err != nil {
@@ -417,6 +458,7 @@ func (w *worker) Receiver(input *ReceiverWorker) error {
 
 	w.trHashes.Hashes[currTx.Hash().String()] = &TransactionHashesWithSenderAndFile{
 		Sender: input.Sender,
+		TxHash: currTx.Hash().String(),
 		File:   w.files.CurrentFile,
 	}
 
@@ -436,9 +478,11 @@ func (w *worker) registerReceiver(input *ReceiverWorker) (err error) {
 	current := w.files.CurrentFile
 	atomic.AddInt32(&w.files.FilesList[current].TransactionsCounter, 1)
 	w.files.FilesList[current].UsersCounter[input.Sender] = input.Sender
-	w.files.FilesList[current].Hashes[input.TransferHash] = input.TransferHash
+	w.files.FilesList[current].Hashes[input.TxHash.Hash().String()] = nil
 
 	w.files.FilesList[current].Receiver <- func() error {
+		defer atomic.AddInt32(&w.files.FilesList[current].TransactionsCounter, -1)
+
 		var tx *bolt.Tx
 		tx, err = w.files.FilesList[current].KvDB.Begin(true)
 		if err != nil {
@@ -451,82 +495,26 @@ func (w *worker) registerReceiver(input *ReceiverWorker) (err error) {
 		b := tx.Bucket([]byte(bucket))
 
 		var (
-			s          []byte
-			crcs       *CurrentRootCountAndSiblings
-			txTreeRoot TxTree
+			s    []byte
+			info SenderInfo
 		)
 		s = b.Get([]byte(input.Sender))
 		if s != nil {
-			err = json.Unmarshal(s, &txTreeRoot)
+			err = json.Unmarshal(s, &info)
 			if err != nil {
 				return errors.Join(ErrUnmarshalFail, err)
 			}
 		} else {
-			txTreeRoot = TxTree{}
-			txTreeRoot.Sender = input.Sender
-		}
-
-		txTreeRoot.LeafIndexes = make(map[string]uint64)
-
-		zeroHash := new(intMaxTypes.PoseidonHashOut).SetZero()
-		var txTree *intMaxTree.TxTree
-		txTree, err = intMaxTree.NewTxTree(intMaxTree.TX_TREE_HEIGHT, []*intMaxTypes.Tx{}, zeroHash)
-		if err != nil {
-			return errors.Join(ErrNewTxTreeFail, err)
-		}
-
-		crcs, err = w.currentRootCountAndSiblingsFromRW(input)
-		if err != nil {
-			return errors.Join(ErrCurrentRootCountAndSiblingsFromRW, err)
-		}
-
-		var st SenderTransfers
-		st.ReceiverWorker = input
-		st.CurrentRootCountAndSiblings = crcs
-
-		txTreeRoot.SenderTransfers = append(txTreeRoot.SenderTransfers, &st)
-
-		var txTreeLeafHash []*intMaxTree.PoseidonHashOut
-		for key := range txTreeRoot.SenderTransfers {
-			var currTx *intMaxTypes.Tx
-			currTx, err = intMaxTypes.NewTx(
-				&txTreeRoot.SenderTransfers[key].CurrentRootCountAndSiblings.TransferTreeRoot,
-				txTreeRoot.SenderTransfers[key].ReceiverWorker.Nonce,
-			)
-			if err != nil {
-				return errors.Join(ErrNewTxFail, err)
+			info = SenderInfo{
+				Sender:  &intMaxTypes.Sender{},
+				TxsList: make(map[string]*ReceiverWorker),
 			}
-
-			txTreeRoot.SenderTransfers[key].TxHash = currTx.Hash()
-
-			txTreeRoot.SenderTransfers[key].TxTreeLeafHash, err = txTree.AddLeaf(uint64(key), currTx)
-			if err != nil {
-				return errors.Join(ErrAddLeafIntoTxTreeFail, err)
-			}
-			txTreeLeafHash = append(txTreeLeafHash, txTreeRoot.SenderTransfers[key].TxTreeLeafHash)
-
-			txTreeRoot.LeafIndexes[txTreeRoot.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String()] = uint64(key)
 		}
 
-		txTreeRoot.TxTreeHash, err = txTree.BuildMerkleRoot(txTreeLeafHash)
-		if err != nil {
-			return errors.Join(ErrTxTreeBuildMerkleRootFail, err)
-		}
-
-		for key := range txTreeRoot.SenderTransfers {
-			var cmp ComputeMerkleProof
-			cmp.Siblings, _, err = txTree.ComputeMerkleProof(
-				txTreeRoot.LeafIndexes[txTreeRoot.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String()],
-			)
-			if err != nil {
-				err = errors.Join(ErrTxTreeComputeMerkleProofFail, err)
-				return err
-			}
-			txTreeRoot.SenderTransfers[key].TxTreeSiblings = cmp.Siblings
-		}
+		info.TxsList[input.TxHash.Hash().String()] = input
 
 		var bST []byte
-		bST, err = json.Marshal(&txTreeRoot)
+		bST, err = json.Marshal(&info)
 		if err != nil {
 			return errors.Join(ErrMarshalFail, err)
 		}
@@ -541,9 +529,99 @@ func (w *worker) registerReceiver(input *ReceiverWorker) (err error) {
 			return errors.Join(ErrTxCommitKVStoreFail, err)
 		}
 
-		atomic.AddInt32(&w.files.FilesList[current].TransactionsCounter, -1)
+		return nil
+	}
+
+	return nil
+}
+
+func (w *worker) leafsProcessing(f *os.File) (err error) {
+	defer atomic.AddInt32(&w.numWorkers, -1)
+
+	zeroHash := new(intMaxTypes.PoseidonHashOut).SetZero()
+	var txTree *intMaxTree.TxTree
+	txTree, err = intMaxTree.NewTxTree(intMaxTree.TX_TREE_HEIGHT, []*intMaxTypes.Tx{}, zeroHash)
+	if err != nil {
+		return errors.Join(ErrNewTxTreeFail, err)
+	}
+
+	spKeys := make(map[string]*intMaxAcc.PublicKey)
+
+	var number int
+	err = w.files.FilesList[f].KvDB.View(func(tx *bolt.Tx) (err error) {
+		b := tx.Bucket([]byte(bucket))
+		if b == nil {
+			return fmt.Errorf("bucket %s not found", bucket)
+		}
+
+		c := b.Cursor()
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			var info SenderInfo
+			err = json.Unmarshal(v, &info)
+			if err != nil {
+				err = errors.Join(ErrUnmarshalFail, err)
+				return err
+			}
+
+			for key := range info.TxsList {
+				cn := uint64(number)
+				_, err = txTree.AddLeaf(cn, info.TxsList[key].TxHash)
+				if err != nil {
+					return errors.Join(ErrAddLeafIntoTxTreeFail, err)
+				}
+				w.files.FilesList[f].Hashes[info.TxsList[key].TxHash.Hash().String()] = &leafsOfHash{
+					Sender: info.TxsList[key].Sender,
+					Index:  cn,
+				}
+				if _, ok := spKeys[info.TxsList[key].Sender]; !ok {
+					var publicKey *intMaxAcc.PublicKey
+					publicKey, err = intMaxAcc.NewPublicKeyFromAddressHex(info.TxsList[key].Sender)
+					if err != nil {
+						return errors.Join(ErrNewPublicKeyFromAddressHexFail, err)
+					}
+					spKeys[info.TxsList[key].Sender] = publicKey
+				}
+				number++
+			}
+		}
 
 		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	var (
+		senderPublicKeys []*intMaxAcc.PublicKey
+	)
+	for key := range spKeys {
+		senderPublicKeys = append(senderPublicKeys, spKeys[key])
+	}
+
+	// Sort by x-coordinate of public key
+	sort.Slice(senderPublicKeys, func(i, j int) bool {
+		return senderPublicKeys[i].Pk.X.Cmp(&senderPublicKeys[j].Pk.X) > 0
+	})
+
+	keysOfSenderPublicKeys := make(map[string]int)
+	for key := range senderPublicKeys {
+		keysOfSenderPublicKeys[senderPublicKeys[key].ToAddress().String()] = key
+	}
+
+	txRoot, count, sb := txTree.GetCurrentRootCountAndSiblings()
+
+	w.files.FilesList[f].Lock()
+	defer w.files.FilesList[f].Unlock()
+
+	w.files.FilesList[f].LeafsTree = &LeafsTree{
+		TxTree:                 txTree,
+		TxRoot:                 &txRoot,
+		Count:                  count,
+		Siblings:               sb,
+		SenderPublicKeys:       senderPublicKeys,
+		KeysOfSenderPublicKeys: keysOfSenderPublicKeys,
+		Signatures:             make([]*signaturesByLeafIndex, len(senderPublicKeys)),
+		SignaturesByLeafIndex:  make([]*signaturesByLeafIndex, number),
 	}
 
 	return nil
@@ -566,144 +644,150 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 		w.files.FilesList[f].Processing = false
 	}()
 
-	var kv *bolt.DB
-	kv, err = w.kvStore(f.Name())
-	if err != nil {
-		err = errors.Join(ErrKVStoreFail, err)
-		return err
-	}
-	defer func() {
-		_ = kv.Close()
-	}()
+	for key := range w.files.FilesList[f].Hashes {
+		err = w.dbApp.Exec(ctx, nil, func(d interface{}, _ interface{}) (err error) {
+			q := d.(SQLDriverApp)
+			_ = q
 
-	err = kv.View(func(tx *bolt.Tx) (err error) {
-		b := tx.Bucket([]byte(bucket))
-		c := b.Cursor()
-		for k, v := c.First(); k != nil; k, v = c.Next() {
-			err = w.dbApp.Exec(ctx, nil, func(d interface{}, _ interface{}) (err error) {
-				q := d.(SQLDriverApp)
+			var (
+				siblings []*intMaxTree.PoseidonHashOut
+				root     intMaxTree.PoseidonHashOut
+			)
+			siblings, root, err = w.files.FilesList[f].LeafsTree.
+				TxTree.ComputeMerkleProof(w.files.FilesList[f].Hashes[key].Index)
+			if err != nil {
+				return errors.Join(ErrTxTreeComputeMerkleProofFail, err)
+			}
 
-				var txTreeRoot TxTree
-				err = json.Unmarshal(v, &txTreeRoot)
+			_ = siblings
+			_ = root
+
+			defer func() {
+				delete(w.files.FilesList[f].Hashes, key)
+				w.trHashes.Cleaner <- func() {
+					w.trHashes.Lock()
+					defer w.trHashes.Unlock()
+					delete(w.trHashes.Hashes, key)
+				}
+			}()
+
+			const int0Key = 0
+			if w.files.FilesList[f].LeafsTree.SignaturesCounter <= int0Key {
+				return nil
+			}
+
+			var bytesLfsTree []byte
+			bytesLfsTree, err = json.Marshal(&w.files.FilesList[f].LeafsTree)
+			if err != nil {
+				return errors.Join(ErrMarshalFail, err)
+			}
+
+			signatures := make([]string, len(w.files.FilesList[f].LeafsTree.SenderPublicKeys))
+			for indexSPK := range w.files.FilesList[f].LeafsTree.SenderPublicKeys {
+				signatures[indexSPK] = w.files.FilesList[f].LeafsTree.Signatures[indexSPK].Signature
+			}
+
+			var bc *intMaxTypes.BlockContent
+			bc, err = block_post_service.MakeRegistrationBlock(
+				*w.files.FilesList[f].LeafsTree.TxRoot,
+				w.files.FilesList[f].LeafsTree.SenderPublicKeys,
+				signatures,
+			)
+			if err != nil {
+				return errors.Join(ErrMakeRegistrationBlockFail, err)
+			}
+
+			var mw *modelsMW.Wallet
+			mw, err = mnemonic_wallet.New().WalletFromPrivateKeyHex(w.cfg.Wallet.PrivateKeyHex)
+			if err != nil {
+				return errors.Join(errorsB.ErrWalletAddressNotRecognized, err)
+			}
+
+			var block *mDBApp.Block
+			block, err = q.CreateBlock(
+				mw.IntMaxPublicKey,
+				hexutils.BytesToHex(bc.TxTreeRoot.Marshal()),
+				hexutils.BytesToHex(bc.AggregatedSignature.Marshal()),
+				hexutils.BytesToHex(bc.AggregatedPublicKey.Marshal()),
+				mDBApp.ST_PUBLIC_KEY,
+				bytesLfsTree,
+			)
+			if err != nil {
+				return errors.Join(ErrCreateBlockFail, err)
+			}
+			_ = block
+
+			for index := range w.files.FilesList[f].LeafsTree.SignaturesByLeafIndex {
+				var (
+					siblingsByLeafIndex []*intMaxTree.PoseidonHashOut
+					rootByLeafIndex     intMaxTree.PoseidonHashOut
+				)
+				siblingsByLeafIndex, rootByLeafIndex, err = w.files.FilesList[f].LeafsTree.TxTree.ComputeMerkleProof(
+					w.files.FilesList[f].LeafsTree.SignaturesByLeafIndex[index].LeafIndex,
+				)
 				if err != nil {
-					err = errors.Join(ErrUnmarshalFail, err)
-					return err
-				}
-
-				var trHashes []string
-				for key := range txTreeRoot.SenderTransfers {
-					trHashes = append(trHashes, txTreeRoot.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String())
-				}
-				defer func() {
-					for keyT := range trHashes {
-						delete(w.files.FilesList[f].Hashes, trHashes[keyT])
-						w.trHashes.Cleaner <- func() {
-							w.trHashes.Lock()
-							defer w.trHashes.Unlock()
-							delete(w.trHashes.Hashes, trHashes[keyT])
-						}
-					}
-				}()
-
-				const emptySignature = ""
-				if txTreeRoot.Signature == emptySignature {
-					return nil
+					return errors.Join(ErrTxTreeComputeMerkleProofFail, err)
 				}
 
 				var sign *mDBApp.Signature
-				sign, err = q.CreateSignature(txTreeRoot.Signature)
-				if err != nil {
-					err = errors.Join(ErrCreateSignatureFail, err)
-					return err
+				if w.files.FilesList[f].LeafsTree.SignaturesByLeafIndex[index].Signature != "" {
+					sign, err = q.CreateSignature(
+						w.files.FilesList[f].LeafsTree.SignaturesByLeafIndex[index].Signature,
+						block.ProposalBlockID,
+					)
+					if err != nil {
+						return errors.Join(ErrCreateSignatureFail, err)
+					}
 				}
 
 				var publicKey *intMaxAcc.PublicKey
-				publicKey, err = intMaxAcc.NewPublicKeyFromAddressHex(txTreeRoot.Sender)
+				publicKey, err = intMaxAcc.NewPublicKeyFromAddressHex(
+					w.files.FilesList[f].LeafsTree.SignaturesByLeafIndex[index].Sender,
+				)
 				if err != nil {
 					err = errors.Join(ErrNewPublicKeyFromAddressHexFail, err)
 					return err
 				}
 
-				var transaction *mDBApp.Transactions
-				transaction, err = q.CreateTransaction(
-					publicKey.String(), txTreeRoot.TxTreeHash.String(), sign.SignatureID,
+				var txTreeIndex uint256.Int
+				_ = txTreeIndex.SetUint64(w.files.FilesList[f].LeafsTree.SignaturesByLeafIndex[index].LeafIndex)
+
+				var cmp ComputeMerkleProof
+				cmp.Root = rootByLeafIndex
+				cmp.Siblings = siblingsByLeafIndex
+
+				var bCMP []byte
+				bCMP, err = json.Marshal(&cmp)
+				if err != nil {
+					return errors.Join(ErrMarshalFail, err)
+				}
+
+				var signatureID string
+				if sign != nil {
+					signatureID = sign.SignatureID
+				}
+				_, err = q.CreateTxMerkleProofs(
+					publicKey.String(),
+					w.files.FilesList[f].LeafsTree.SignaturesByLeafIndex[index].TxHash,
+					signatureID,
+					&txTreeIndex,
+					bCMP,
+					w.files.FilesList[f].LeafsTree.TxRoot.String(),
+					block.ProposalBlockID,
 				)
 				if err != nil {
-					err = errors.Join(ErrCreateTransactionFail, err)
-					return err
+					return errors.Join(ErrCreateTxMerkleProofsFail, err)
 				}
-
-				for key := range txTreeRoot.SenderTransfers {
-					_, ok := w.files.FilesList[f].Hashes[txTreeRoot.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String()]
-					if !ok {
-						err = ErrTransactionHashNotFound
-						return err
-					}
-
-					var txIndex uint256.Int
-					_ = txIndex.SetUint64(
-						txTreeRoot.LeafIndexes[txTreeRoot.SenderTransfers[key].ReceiverWorker.TxHash.Hash().String()],
-					)
-
-					var cmp ComputeMerkleProof
-					cmp.Root = *txTreeRoot.SenderTransfers[key].TxTreeLeafHash
-					cmp.Siblings = txTreeRoot.SenderTransfers[key].TxTreeSiblings
-
-					var bCMP []byte
-					bCMP, err = json.Marshal(&cmp)
-					if err != nil {
-						err = errors.Join(ErrMarshalFail, err)
-						return err
-					}
-
-					_, err = q.CreateTxMerkleProofs(
-						publicKey.String(),
-						txTreeRoot.SenderTransfers[key].TxHash.String(),
-						transaction.TxID,
-						&txIndex,
-						bCMP,
-					)
-					if err != nil {
-						err = errors.Join(ErrCreateTxMerkleProofsFail, err)
-						return err
-					}
-				}
-
-				return nil
-			})
-			if err != nil {
-				return err
 			}
-		}
 
-		return nil
-	})
-	if err != nil {
-		return err
+			return nil
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
-}
-
-func (w *worker) currentRootCountAndSiblingsFromRW(
-	rw *ReceiverWorker,
-) (*CurrentRootCountAndSiblings, error) {
-	transferTree, err := intMaxTree.NewTransferTree(
-		intMaxTree.TX_TREE_HEIGHT,
-		rw.TransferData,
-		intMaxGP.NewPoseidonHashOut(),
-	)
-	if err != nil {
-		return nil, errors.Join(ErrNewTransferTreeFail, err)
-	}
-
-	transferRoot, count, siblings := transferTree.GetCurrentRootCountAndSiblings()
-
-	return &CurrentRootCountAndSiblings{
-		TransferTreeRoot: transferRoot,
-		Count:            count,
-		Siblings:         siblings,
-	}, err
 }
 
 func (w *worker) TrHash(trHash string) (*TransactionHashesWithSenderAndFile, error) {
@@ -716,6 +800,77 @@ func (w *worker) TrHash(trHash string) (*TransactionHashesWithSenderAndFile, err
 	}
 
 	return info, nil
+}
+
+func (w *worker) SignTxTreeByAvailableFile(
+	signature string,
+	sf *TransactionHashesWithSenderAndFile,
+	txHash *intMaxTree.PoseidonHashOut,
+	leafIndex uint64,
+) error {
+	f, ok := w.files.FilesList[sf.File]
+	if !ok {
+		// transfersHash not found
+		return ErrTxTreeByAvailableFileFail
+	}
+
+	switch {
+	case
+		w.files.CurrentFile.Name() == sf.File.Name(),
+		atomic.LoadInt32(&f.TransactionsCounter) != 0,
+		!f.Delivered:
+		// transfersHash exists, tx tree not found
+		return ErrTxTreeNotFound
+	case
+		w.files.CurrentFile.Name() != sf.File.Name() &&
+			atomic.LoadInt32(&f.TransactionsCounter) == 0 &&
+			f.Delivered &&
+			f.Timestamp != nil && f.Timestamp.UTC().Add(
+			w.cfg.Worker.TimeoutForSignaturesAvailableFiles,
+		).UnixNano() <= time.Now().UTC().UnixNano():
+		for {
+			if !f.Processing {
+				// transfersHash exists, tx tree exists, signature collection for tx tree completed
+				return ErrTxTreeSignatureCollectionComplete
+			}
+		}
+	case
+		w.files.CurrentFile.Name() != sf.File.Name() &&
+			atomic.LoadInt32(&f.TransactionsCounter) == 0 &&
+			f.Delivered &&
+			f.Timestamp != nil && f.Timestamp.UTC().Add(
+			w.cfg.Worker.TimeoutForSignaturesAvailableFiles,
+		).UnixNano() > time.Now().UTC().UnixNano():
+		for {
+			if !f.Processing {
+				break
+			}
+		}
+	}
+
+	w.files.FilesList[sf.File].Lock()
+	defer w.files.FilesList[sf.File].Unlock()
+
+	tm := time.Now().UTC().UnixNano()
+	if vKeys, okKeys := w.files.FilesList[sf.File].LeafsTree.KeysOfSenderPublicKeys[sf.Sender]; okKeys {
+		w.files.FilesList[sf.File].LeafsTree.Signatures[vKeys] = &signaturesByLeafIndex{
+			Sender:    sf.Sender,
+			TxHash:    sf.TxHash,
+			Signature: signature,
+			LeafIndex: leafIndex,
+			CreatedAt: tm,
+		}
+		w.files.FilesList[sf.File].LeafsTree.SignaturesByLeafIndex[leafIndex] = &signaturesByLeafIndex{
+			Sender:    sf.Sender,
+			TxHash:    sf.TxHash,
+			Signature: signature,
+			LeafIndex: leafIndex,
+			CreatedAt: tm,
+		}
+		w.files.FilesList[sf.File].LeafsTree.SignaturesCounter++
+	}
+
+	return nil
 }
 
 func (w *worker) kvStore(filename string) (*bolt.DB, error) {

@@ -1,6 +1,10 @@
 package types
 
 import (
+	"bytes"
+	"encoding/binary"
+	"errors"
+	"fmt"
 	"intmax2-node/internal/hash/goldenposeidon"
 
 	"github.com/iden3/go-iden3-crypto/ffg"
@@ -34,6 +38,17 @@ func (t *Tx) Set(tx *Tx) *Tx {
 	return t
 }
 
+func (t *Tx) SetZero() *Tx {
+	t.Nonce = 0
+	t.TransferTreeRoot = new(PoseidonHashOut).SetZero()
+
+	return t
+}
+
+func (t *Tx) Equal(tx *Tx) bool {
+	return t.Nonce == tx.Nonce && t.TransferTreeRoot.Equal(tx.TransferTreeRoot)
+}
+
 // // SetRandom return Tx
 // // Testing purposes only
 // func (t *Tx) SetRandom() (*Tx, error) {
@@ -64,4 +79,74 @@ func (t *Tx) ToFieldElementSlice() []ffg.Element {
 func (t *Tx) Hash() *PoseidonHashOut {
 	input := t.ToFieldElementSlice()
 	return goldenposeidon.HashNoPad(input)
+}
+
+type TxDetails struct {
+	Tx
+	Transfers []*Transfer
+}
+
+func (td *TxDetails) Marshal() []byte {
+
+	buf := bytes.NewBuffer(make([]byte, 0))
+
+	if _, err := buf.Write(td.TransferTreeRoot.Marshal()); err != nil {
+		panic(err)
+	}
+	if err := binary.Write(buf, binary.BigEndian, td.Nonce); err != nil {
+		panic(err)
+	}
+	if err := binary.Write(buf, binary.BigEndian, uint32(len(td.Transfers))); err != nil {
+		panic(err)
+	}
+
+	for _, transfer := range td.Transfers {
+		if _, err := buf.Write(transfer.Marshal()); err != nil {
+			panic(err)
+		}
+	}
+
+	return buf.Bytes()
+}
+
+func (td *TxDetails) Write(buf *bytes.Buffer) error {
+	_, err := buf.Write(td.Marshal())
+
+	return err
+}
+
+func (td *TxDetails) Read(buf *bytes.Buffer) error {
+	const int32Key = 32
+
+	transferTreeRoot := new(PoseidonHashOut)
+	err := transferTreeRoot.Unmarshal(buf.Next(int32Key))
+	if err != nil {
+		var ErrUnmarshalTransferTreeRoot = fmt.Errorf("failed to unmarshal transfer tree root: %w", err)
+		return errors.Join(ErrUnmarshalTransferTreeRoot, err)
+	}
+	td.TransferTreeRoot = new(PoseidonHashOut).Set(transferTreeRoot)
+
+	if err := binary.Read(buf, binary.BigEndian, &td.Nonce); err != nil {
+		return err
+	}
+	var numTransfers uint32
+	if err := binary.Read(buf, binary.BigEndian, &numTransfers); err != nil {
+		return err
+	}
+
+	td.Transfers = make([]*Transfer, numTransfers)
+	for i := 0; i < int(numTransfers); i++ {
+		transfer := new(Transfer)
+		if err := transfer.Read(buf); err != nil {
+			return err
+		}
+		td.Transfers[i] = transfer
+	}
+
+	return nil
+}
+
+func (td *TxDetails) Unmarshal(data []byte) error {
+	buf := bytes.NewBuffer(data)
+	return td.Read(buf)
 }

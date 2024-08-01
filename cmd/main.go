@@ -7,15 +7,18 @@ import (
 	"intmax2-node/cmd/ethereum_private_key_wallet"
 	"intmax2-node/cmd/generate_account"
 	"intmax2-node/cmd/intmax_private_key_wallet"
+	"intmax2-node/cmd/messenger"
 	"intmax2-node/cmd/migrator"
 	"intmax2-node/cmd/mnemonic_account"
 	"intmax2-node/cmd/server"
+	"intmax2-node/cmd/store_vault_server"
 	"intmax2-node/cmd/sync_balance"
 	"intmax2-node/cmd/transaction"
 	"intmax2-node/cmd/withdrawal"
 	"intmax2-node/cmd/withdrawal_server"
 	"intmax2-node/configs"
 	"intmax2-node/internal/block_builder_registry_service"
+	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/blockchain"
 	"intmax2-node/internal/cli"
 	"intmax2-node/internal/deposit_synchronizer"
@@ -75,6 +78,7 @@ func main() {
 
 	w := worker.New(cfg, log, dbApp)
 	depositSynchronizer := deposit_synchronizer.New(cfg, log, dbApp)
+	blockValidityProver := block_validity_prover.New(cfg, log, dbApp)
 	bc := blockchain.New(ctx, cfg)
 	ns := network_service.New(cfg)
 	hc := health.NewHandler()
@@ -102,6 +106,7 @@ func main() {
 			PoW:                 pwNonce,
 			Worker:              w,
 			DepositSynchronizer: depositSynchronizer,
+			BlockValidityProver: blockValidityProver,
 		}),
 		migrator.NewMigratorCmd(ctx, log, dbApp),
 		deposit.NewDepositCmd(&deposit.Deposit{
@@ -119,6 +124,15 @@ func main() {
 			SB:      bc,
 		}),
 		withdrawal_server.NewServerCmd(&withdrawal_server.WithdrawalServer{
+			Context: ctx,
+			Cancel:  cancel,
+			Config:  cfg,
+			Log:     log,
+			DbApp:   dbApp,
+			WG:      &wg,
+			HC:      &hc,
+		}),
+		store_vault_server.NewServerCmd(&store_vault_server.StoreVaultServer{
 			Context: ctx,
 			Cancel:  cancel,
 			Config:  cfg,
@@ -146,6 +160,13 @@ func main() {
 			SB:      bc,
 		}),
 		block_builder.NewCmd(ctx, log, bc, bbr),
+		messenger.NewMessengerCmd(&messenger.Messenger{
+			Context: ctx,
+			Config:  cfg,
+			Log:     log,
+			DbApp:   dbApp,
+			SB:      bc,
+		}),
 	)
 	if err != nil {
 		const msg = "cli: %v"

@@ -12,8 +12,8 @@ import (
 
 type SQLDriverApp interface {
 	GenericCommandsApp
+	Blocks
 	Signatures
-	Transactions
 	TxMerkleProofs
 }
 
@@ -21,23 +21,27 @@ type GenericCommandsApp interface {
 	Exec(ctx context.Context, input interface{}, executor func(d interface{}, input interface{}) error) (err error)
 }
 
-type Signatures interface {
-	CreateSignature(signature string) (*mDBApp.Signature, error)
-	SignatureByID(txID string) (*mDBApp.Signature, error)
+type Blocks interface {
+	CreateBlock(
+		builderPublicKey, txRoot, aggregatedSignature, aggregatedPublicKey string,
+		senderType uint,
+		options []byte,
+	) (*mDBApp.Block, error)
+	Block(proposalBlockID string) (*mDBApp.Block, error)
 }
 
-type Transactions interface {
-	CreateTransaction(
-		senderPublicKey, txHash, signatureID string,
-	) (*mDBApp.Transactions, error)
-	TransactionByID(txID string) (*mDBApp.Transactions, error)
+type Signatures interface {
+	CreateSignature(signature, proposalBlockID string) (*mDBApp.Signature, error)
+	SignatureByID(signatureID string) (*mDBApp.Signature, error)
 }
 
 type TxMerkleProofs interface {
 	CreateTxMerkleProofs(
-		senderPublicKey, txHash, txID string,
+		senderPublicKey, txHash, signatureID string,
 		txTreeIndex *uint256.Int,
 		txMerkleProof json.RawMessage,
+		txTreeRoot string,
+		proposalBlockID string,
 	) (*mDBApp.TxMerkleProofs, error)
 	TxMerkleProofsByID(id string) (*mDBApp.TxMerkleProofs, error)
 }

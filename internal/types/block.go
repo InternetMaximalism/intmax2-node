@@ -75,10 +75,6 @@ func NewBlockContent(
 	txTreeRoot PoseidonHashOut,
 	aggregatedSignature *bn254.G2Affine,
 ) *BlockContent {
-	const (
-		int1Key = 1
-	)
-
 	var bc BlockContent
 
 	if senderType != PublicKeySenderType && senderType != AccountIDSenderType {
@@ -90,12 +86,17 @@ func NewBlockContent(
 	bc.TxTreeRoot.Set(&txTreeRoot)
 	bc.AggregatedSignature = new(bn254.G2Affine).Set(aggregatedSignature)
 
-	senderPublicKeys := make([]byte, len(bc.Senders)*NumPublicKeyBytes)
+	defaultPublicKey := accounts.NewDummyPublicKey()
+
+	const numOfSenders = 128
+	senderPublicKeys := make([]byte, numOfSenders*NumPublicKeyBytes)
 	for i, sender := range bc.Senders {
-		if sender.IsSigned {
-			senderPublicKey := sender.PublicKey.Pk.X.Bytes() // Only x coordinate is used
-			copy(senderPublicKeys[NumPublicKeyBytes*i:NumPublicKeyBytes*(i+int1Key)], senderPublicKey[:])
-		}
+		senderPublicKey := sender.PublicKey.Pk.X.Bytes() // Only x coordinate is used
+		copy(senderPublicKeys[NumPublicKeyBytes*i:NumPublicKeyBytes*(i+1)], senderPublicKey[:])
+	}
+	for i := len(bc.Senders); i < numOfSenders; i++ {
+		senderPublicKey := defaultPublicKey.Pk.X.Bytes() // Only x coordinate is used
+		copy(senderPublicKeys[NumPublicKeyBytes*i:NumPublicKeyBytes*(i+1)], senderPublicKey[:])
 	}
 
 	publicKeysHash := crypto.Keccak256(senderPublicKeys)
@@ -183,15 +184,20 @@ func (bc *BlockContent) IsValid() error {
 					return ErrBlockContentAggPubKeyEmpty
 				}
 
-				senderPublicKeysBytes := make([]byte, len(bc.Senders)*NumPublicKeyBytes)
+				defaultPublicKey := accounts.NewDummyPublicKey()
+
+				const numOfSenders = 128
+				senderPublicKeysBytes := make([]byte, numOfSenders*NumPublicKeyBytes)
 				for key := range bc.Senders {
-					if bc.Senders[key].IsSigned {
-						senderPublicKey := bc.Senders[key].PublicKey.Pk.X.Bytes() // Only x coordinate is used
-						copy(
-							senderPublicKeysBytes[NumPublicKeyBytes*key:NumPublicKeyBytes*(key+int1Key)],
-							senderPublicKey[:],
-						)
-					}
+					senderPublicKey := bc.Senders[key].PublicKey.Pk.X.Bytes() // Only x coordinate is used
+					copy(
+						senderPublicKeysBytes[NumPublicKeyBytes*key:NumPublicKeyBytes*(key+int1Key)],
+						senderPublicKey[:],
+					)
+				}
+				for i := len(bc.Senders); i < numOfSenders; i++ {
+					senderPublicKey := defaultPublicKey.Pk.X.Bytes() // Only x coordinate is used
+					copy(senderPublicKeysBytes[NumPublicKeyBytes*i:NumPublicKeyBytes*(i+1)], senderPublicKey[:])
 				}
 
 				publicKeysHash := crypto.Keccak256(senderPublicKeysBytes)
@@ -435,10 +441,9 @@ func MakePostRegistrationBlockInput(blockContent *BlockContent) (*PostRegistrati
 	for i, sender := range blockContent.Senders {
 		if sender.IsSigned {
 			senderFlags[i/int8Key] |= 1 << (i % int8Key)
-			senderPublicKeys[i] = sender.PublicKey.BigInt()
-		} else {
-			senderPublicKeys[i] = big.NewInt(0)
 		}
+
+		senderPublicKeys[i] = new(big.Int).Set(sender.PublicKey.BigInt())
 	}
 
 	// Follow the ordering of the coordinates in the smart contract.
@@ -505,7 +510,7 @@ func MakePostNonRegistrationBlockInput(blockContent *BlockContent) (*PostNonRegi
 
 func MakeAccountIds(blockContent *BlockContent) ([]byte, error) {
 	if blockContent.SenderType != AccountIDSenderType {
-		return nil, errors.New("invalid sender type")
+		return nil, ErrBlockContentSenderTypeInvalid
 	}
 
 	accountIds := make([]uint64, len(blockContent.Senders))
@@ -553,10 +558,10 @@ func UnmarshalAccountIds(accountIdsBytes []byte) ([]uint64, error) {
 }
 
 type RollupContractConfig struct {
-	// EthereumNetworkChainID is the chain ID of the Ethereum network
+	// NetworkChainID is the chain ID of the network
 	NetworkChainID string
 
-	// EthereumNetworkRpcUrl is the URL of the Ethereum network RPC endpoint
+	// NetworkRpcUrl is the URL of the network RPC endpoint
 	NetworkRpcUrl string
 
 	// RollupContractAddressHex is the address of the Rollup contract
@@ -567,9 +572,9 @@ type RollupContractConfig struct {
 }
 
 // NewRollupContractConfigFromEnv creates a new RollupContractConfig from the environment variables.
-func NewRollupContractConfigFromEnv(cfg *configs.Config) *RollupContractConfig {
+func NewRollupContractConfigFromEnv(cfg *configs.Config, networkRpcUrl string) *RollupContractConfig {
 	return &RollupContractConfig{
-		NetworkRpcUrl:            "https://sepolia-rpc.scroll.io",
+		NetworkRpcUrl:            networkRpcUrl,
 		RollupContractAddressHex: cfg.Blockchain.RollupContractAddress,
 		EthereumPrivateKeyHex:    cfg.Blockchain.EthereumPrivateKeyHex,
 		NetworkChainID:           cfg.Blockchain.ScrollNetworkChainID,
@@ -611,6 +616,12 @@ func PostRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockContent
 	transactOpts, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(chainID))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transactor: %w", err)
+	}
+
+	// Check recover block content
+	err = blockContent.IsValid()
+	if err != nil {
+		return nil, fmt.Errorf("block content is invalid: %w", err)
 	}
 
 	return rollup.PostRegistrationBlock(

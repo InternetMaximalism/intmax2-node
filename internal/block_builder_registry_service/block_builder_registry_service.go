@@ -130,8 +130,6 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 		}
 	}()
 
-	value = &bbr.cfg.Blockchain.ScrollNetworkStakeBalance
-
 	link, err := bbr.sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
 	if err != nil {
 		return errors.Join(ErrScrollNetworkChainLinkEvmJSONRPCFail, err)
@@ -146,6 +144,35 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 	defer func() {
 		client.Close()
 	}()
+
+	// Check to see if you have already done a 0.1 ETH stake.
+	callerBBR, err := bindings.NewBlockBuilderRegistry(
+		common.HexToAddress(bbr.cfg.Blockchain.BlockBuilderRegistryContractAddress),
+		client,
+	)
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return errors.Join(ErrNewBlockBuilderRegistryCallerFail, err)
+	}
+
+	privateKey, err := crypto.HexToECDSA(bbr.cfg.Wallet.PrivateKeyHex)
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return errors.Join(ErrLoadPrivateKeyFail, err)
+	}
+	builderAddress := crypto.PubkeyToAddress(privateKey.PublicKey)
+	res, err := callerBBR.BlockBuilders(&bind.CallOpts{Context: spanCtx}, builderAddress)
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return errors.Join(ErrGetBlockBuilderInfoFail, err)
+	}
+
+	// If the stake is more than 0.1 ETH and the URL has not changed, the update function is not executed.
+	if res.StakeAmount.Cmp(&bbr.cfg.Blockchain.ScrollNetworkStakeBalance) >= 0 && res.BlockBuilderUrl == url {
+		return nil
+	}
+
+	value = new(big.Int).Sub(&bbr.cfg.Blockchain.ScrollNetworkStakeBalance, res.StakeAmount)
 
 	var transactorBBR *bindings.BlockBuilderRegistryTransactor
 	transactorBBR, err = bindings.NewBlockBuilderRegistryTransactor(

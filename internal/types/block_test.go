@@ -14,17 +14,17 @@ import (
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPublicKeyBlockValidation(t *testing.T) {
-	keyPairs := make([]*accounts.PrivateKey, 10)
+	keyPairs := make([]*accounts.PrivateKey, 100)
 	for i := 0; i < len(keyPairs); i++ {
 		privateKey, err := rand.Int(rand.Reader, new(big.Int).Sub(fr.Modulus(), big.NewInt(1)))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		privateKey.Add(privateKey, big.NewInt(1))
 		keyPairs[i], err = accounts.NewPrivateKeyWithReCalcPubKeyIfPkNegates(privateKey)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 
 	// Sort by x-coordinate of public key
@@ -32,12 +32,16 @@ func TestPublicKeyBlockValidation(t *testing.T) {
 		return keyPairs[i].Pk.X.Cmp(&keyPairs[j].Pk.X) > 0
 	})
 
+	for i := 1; i < len(keyPairs); i++ {
+		require.True(t, keyPairs[i-1].Pk.X.Cmp(&keyPairs[i].Pk.X) > 0)
+	}
+
 	senders := make([]intMaxTypes.Sender, 128)
 	for i, keyPair := range keyPairs {
 		senders[i] = intMaxTypes.Sender{
 			PublicKey: keyPair.Public(),
 			AccountID: 0,
-			IsSigned:  true,
+			IsSigned:  randomBool(),
 		}
 	}
 
@@ -51,14 +55,17 @@ func TestPublicKeyBlockValidation(t *testing.T) {
 	}
 
 	txRoot, err := new(intMaxTypes.PoseidonHashOut).SetRandom()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	senderPublicKeysBytes := make([]byte, len(senders)*intMaxTypes.NumPublicKeyBytes)
-	for i, sender := range senders {
-		if sender.IsSigned {
-			senderPublicKey := sender.PublicKey.Pk.X.Bytes() // Only x coordinate is used
-			copy(senderPublicKeysBytes[32*i:32*(i+1)], senderPublicKey[:])
-		}
+	const numOfSenders = 128
+	senderPublicKeysBytes := make([]byte, numOfSenders*intMaxTypes.NumPublicKeyBytes)
+	for i, pk := range senders {
+		senderPublicKey := pk.PublicKey.Pk.X.Bytes() // Only x coordinate is used
+		copy(senderPublicKeysBytes[32*i:32*(i+1)], senderPublicKey[:])
+	}
+	for i := len(senders); i < numOfSenders; i++ {
+		senderPublicKey := defaultPublicKey.Pk.X.Bytes() // Only x coordinate is used
+		copy(senderPublicKeysBytes[32*i:32*(i+1)], senderPublicKey[:])
 	}
 
 	publicKeysHash := crypto.Keccak256(senderPublicKeysBytes)
@@ -75,7 +82,7 @@ func TestPublicKeyBlockValidation(t *testing.T) {
 	for i, keyPair := range keyPairs {
 		if senders[i].IsSigned {
 			signature, err := keyPair.WeightByHash(publicKeysHash).Sign(message)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			aggregatedSignature.Add(aggregatedSignature, signature)
 		}
 	}
@@ -86,28 +93,23 @@ func TestPublicKeyBlockValidation(t *testing.T) {
 		*txRoot,
 		aggregatedSignature,
 	)
-	assert.NoError(t, blockContent.IsValid())
+	err = blockContent.IsValid()
+	require.NoError(t, err)
 
 	_, err = intMaxTypes.MakePostRegistrationBlockInput(
 		blockContent,
 	)
-	assert.NoError(t, err)
-
-	// Usage of PostRegistrationBlock:
-	// tx, err := intMaxTypes.PostRegistrationBlock(cfg, blockContent)
-	// assert.NoError(t, err)
-
-	// fmt.Printf("Transaction sent: %s\n", tx.Hash().Hex())
+	require.NoError(t, err)
 }
 
 func TestAccountIDBlockValidation(t *testing.T) {
-	keyPairs := make([]*accounts.PrivateKey, 10)
+	keyPairs := make([]*accounts.PrivateKey, 100)
 	for i := 0; i < len(keyPairs); i++ {
 		privateKey, err := rand.Int(rand.Reader, new(big.Int).Sub(fr.Modulus(), big.NewInt(1)))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		privateKey.Add(privateKey, big.NewInt(1))
 		keyPairs[i], err = accounts.NewPrivateKeyWithReCalcPubKeyIfPkNegates(privateKey)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 
 	// Sort by x-coordinate of public key
@@ -115,12 +117,16 @@ func TestAccountIDBlockValidation(t *testing.T) {
 		return keyPairs[i].Pk.X.Cmp(&keyPairs[j].Pk.X) > 0
 	})
 
+	for i := 1; i < len(keyPairs); i++ {
+		require.True(t, keyPairs[i-1].Pk.X.Cmp(&keyPairs[i].Pk.X) > 0)
+	}
+
 	senders := make([]intMaxTypes.Sender, 128)
 	for i, keyPair := range keyPairs {
 		senders[i] = intMaxTypes.Sender{
 			PublicKey: keyPair.Public(),
 			AccountID: uint64(i) + 1,
-			IsSigned:  true,
+			IsSigned:  randomBool(),
 		}
 	}
 
@@ -134,14 +140,17 @@ func TestAccountIDBlockValidation(t *testing.T) {
 	}
 
 	txRoot, err := new(intMaxTypes.PoseidonHashOut).SetRandom()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	senderPublicKeys := make([]byte, len(senders)*intMaxTypes.NumPublicKeyBytes)
+	const numOfSenders = 128
+	senderPublicKeys := make([]byte, numOfSenders*intMaxTypes.NumPublicKeyBytes)
 	for i, sender := range senders {
-		if sender.IsSigned {
-			senderPublicKey := sender.PublicKey.Pk.X.Bytes() // Only x coordinate is used
-			copy(senderPublicKeys[32*i:32*(i+1)], senderPublicKey[:])
-		}
+		senderPublicKey := sender.PublicKey.Pk.X.Bytes() // Only x coordinate is used
+		copy(senderPublicKeys[32*i:32*(i+1)], senderPublicKey[:])
+	}
+	for i := len(senders); i < numOfSenders; i++ {
+		senderPublicKey := defaultPublicKey.Pk.X.Bytes() // Only x coordinate is used
+		copy(senderPublicKeys[32*i:32*(i+1)], senderPublicKey[:])
 	}
 
 	publicKeysHash := crypto.Keccak256(senderPublicKeys)
@@ -158,7 +167,7 @@ func TestAccountIDBlockValidation(t *testing.T) {
 	for i, keyPair := range keyPairs {
 		if senders[i].IsSigned {
 			signature, err := keyPair.WeightByHash(publicKeysHash).Sign(message)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			aggregatedSignature.Add(aggregatedSignature, signature)
 		}
 	}
@@ -169,31 +178,25 @@ func TestAccountIDBlockValidation(t *testing.T) {
 		*txRoot,
 		aggregatedSignature,
 	)
-	assert.NoError(t, blockContent.IsValid())
+	require.NoError(t, blockContent.IsValid())
 
 	_, err = intMaxTypes.MakePostRegistrationBlockInput(
 		blockContent,
 	)
-	assert.NoError(t, err)
-
-	// Usage of PostNonRegistrationBlock:
-	// tx, err := intMaxTypes.PostNonRegistrationBlock(cfg, blockContent)
-	// assert.NoError(t, err)
-
-	// fmt.Printf("Transaction sent: %s\n", tx.Hash().Hex())
+	require.NoError(t, err)
 }
 
 func TestMarshalAccountIds(t *testing.T) {
 	accountIds := []uint64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	encodedAccountIds, err := intMaxTypes.MarshalAccountIds(accountIds)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	fmt.Printf("Marshaled account IDs: %x\n", encodedAccountIds)
 
 	decodedAccountIds, err := intMaxTypes.UnmarshalAccountIds(encodedAccountIds)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	assert.Equal(t, accountIds, decodedAccountIds)
+	require.Equal(t, accountIds, decodedAccountIds)
 }
 
 func TestBlockHash(t *testing.T) {
@@ -208,5 +211,15 @@ func TestBlockHash(t *testing.T) {
 	}
 
 	currentHash := postedBlock.Hash()
-	assert.Equal(t, currentHash.String(), "0x913fb9e1f6f1c6d910fd574a5cad8857aa43bfba24e401ada4f56090d4d997a7")
+	require.Equal(t, currentHash.String(), "0x913fb9e1f6f1c6d910fd574a5cad8857aa43bfba24e401ada4f56090d4d997a7")
+}
+
+func randomBool() bool {
+	var b [1]byte
+	_, err := rand.Read(b[:])
+	if err != nil {
+		panic(err)
+	}
+
+	return b[0]%2 == 0
 }

@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	intMaxAcc "intmax2-node/internal/accounts"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"os"
@@ -20,27 +21,38 @@ type CurrentRootCountAndSiblings struct {
 }
 
 type ReceiverWorker struct {
-	Sender       string                  `json:"sender"`
-	Nonce        uint64                  `json:"nonce"`
-	TxHash       *intMaxTypes.Tx         `json:"txHash"`
-	TransferHash string                  `json:"transferHash"`
-	TransferData []*intMaxTypes.Transfer `json:"transferData"`
+	Sender        string
+	Nonce         uint64
+	TxHash        *intMaxTypes.Tx
+	TransfersHash string
+}
+
+type SenderTxs map[string]*ReceiverWorker
+
+type SenderInfo struct {
+	Sender  *intMaxTypes.Sender
+	TxsList map[string]*ReceiverWorker
 }
 
 type SenderTransfers struct {
-	TxHash                      *intMaxTypes.PoseidonHashOut  `json:"txHash"`
-	TxTreeLeafHash              *intMaxTree.PoseidonHashOut   `json:"txTreeLeafHash"`
+	TxHash *intMaxTypes.PoseidonHashOut `json:"txHash"`
+	// TxTreeLeafHash              *intMaxTree.PoseidonHashOut   `json:"txTreeLeafHash"`
+	TxTreeRootHash              *intMaxTree.PoseidonHashOut   `json:"txTreeLeafHash"`
 	TxTreeSiblings              []*intMaxTree.PoseidonHashOut `json:"txTreeSiblings"`
 	CurrentRootCountAndSiblings *CurrentRootCountAndSiblings  `json:"currentRootCountAndSiblings"`
 	ReceiverWorker              *ReceiverWorker               `json:"receiverWorker"`
 }
 
 type TxTree struct {
-	Sender          string                      `json:"sender"`
-	TxTreeHash      *intMaxTree.PoseidonHashOut `json:"txTreeHash"`
-	LeafIndexes     map[string]uint64           `json:"leafIndexes"`
-	SenderTransfers []*SenderTransfers          `json:"senderTransfers"`
-	Signature       string                      `json:"signature"`
+	RootHash         *intMaxTree.PoseidonHashOut   `json:"siblings"`
+	Siblings         []*intMaxTree.PoseidonHashOut `json:"rootHash"`
+	SenderPublicKeys []*intMaxAcc.PublicKey        `json:"senderPublicKeys"`
+
+	Sender    string                      `json:"sender"`
+	TxHash    *intMaxTree.PoseidonHashOut `json:"txTreeHash"`
+	LeafIndex uint64                      `json:"leafIndex"`
+	// SenderTransfers []*SenderTransfers            `json:"senderTransfers"`
+	Signature string `json:"signature"`
 }
 
 type Worker interface {
@@ -52,7 +64,13 @@ type Worker interface {
 	Receiver(input *ReceiverWorker) error
 	CurrentDir() string
 	CurrentFileName() string
-	AvailableFiles() (list []*os.File)
+	AvailableFiles() (list []*os.File, err error)
 	TrHash(trHash string) (*TransactionHashesWithSenderAndFile, error)
 	TxTreeByAvailableFile(sf *TransactionHashesWithSenderAndFile) (txTreeRoot *TxTree, err error)
+	SignTxTreeByAvailableFile(
+		signature string,
+		sf *TransactionHashesWithSenderAndFile,
+		txHash *intMaxTree.PoseidonHashOut,
+		leafIndex uint64,
+	) error
 }

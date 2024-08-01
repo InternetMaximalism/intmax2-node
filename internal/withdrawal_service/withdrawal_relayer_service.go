@@ -25,7 +25,7 @@ type WithdrawalRelayerService struct {
 	cfg             *configs.Config
 	log             logger.Logger
 	client          *ethclient.Client
-	scrollMessenger *bindings.L1ScrollMessanger
+	scrollMessenger *bindings.L1ScrollMessenger
 }
 
 func newWithdrawalRelayerService(ctx context.Context, cfg *configs.Config, log logger.Logger, _ ServiceBlockchain) (*WithdrawalRelayerService, error) {
@@ -39,7 +39,7 @@ func newWithdrawalRelayerService(ctx context.Context, cfg *configs.Config, log l
 		return nil, fmt.Errorf("failed to create new client: %w", err)
 	}
 
-	scrollMessenger, err := bindings.NewL1ScrollMessanger(common.HexToAddress(cfg.Blockchain.ScrollMessengerL1ContractAddress), client)
+	scrollMessenger, err := bindings.NewL1ScrollMessenger(common.HexToAddress(cfg.Blockchain.ScrollMessengerL1ContractAddress), client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to instantiate L1ScrollMessenger contract: %w", err)
 	}
@@ -135,7 +135,7 @@ func filterClaimableResults(results []*ScrollMessengerResult) (filtered []*Scrol
 }
 
 func (w *WithdrawalRelayerService) relayMessageWithProof(result *ScrollMessengerResult) (*types.Receipt, error) {
-	transactOpts, err := utils.CreateTransactor(w.cfg)
+	transactOpts, err := utils.CreateTransactor(w.cfg.Blockchain.WithdrawalPrivateKeyHex, w.cfg.Blockchain.EthereumNetworkChainID)
 	if err != nil {
 		return nil, err
 	}

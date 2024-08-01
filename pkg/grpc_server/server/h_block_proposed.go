@@ -53,8 +53,10 @@ func (s *Server) BlockProposed(
 	resp.Data = &node.DataBlockProposedResponse{
 		TxRoot:            ucBP.TxRoot,
 		TxTreeMerkleProof: make([]string, len(ucBP.TxTreeMerkleProof)),
+		PublicKeys:        make([]string, len(ucBP.PublicKeys)),
 	}
 	copy(resp.Data.TxTreeMerkleProof, ucBP.TxTreeMerkleProof)
+	copy(resp.Data.PublicKeys, ucBP.PublicKeys)
 
 	return &resp, utils.OK(spanCtx)
 }

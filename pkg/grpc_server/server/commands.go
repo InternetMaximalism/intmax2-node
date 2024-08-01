@@ -3,10 +3,12 @@ package server
 import (
 	"intmax2-node/configs"
 	blockProposed "intmax2-node/internal/use_cases/block_proposed"
+	blockSignature "intmax2-node/internal/use_cases/block_signature"
 	getVersion "intmax2-node/internal/use_cases/get_version"
 	healthCheck "intmax2-node/internal/use_cases/health_check"
 	"intmax2-node/internal/use_cases/transaction"
 	ucBlockProposed "intmax2-node/pkg/use_cases/block_proposed"
+	ucBlockSignature "intmax2-node/pkg/use_cases/block_signature"
 	ucGetVersion "intmax2-node/pkg/use_cases/get_version"
 	ucHealthCheck "intmax2-node/pkg/use_cases/health_check"
 	ucTransaction "intmax2-node/pkg/use_cases/transaction"
@@ -21,10 +23,13 @@ type Commands interface {
 	HealthCheck(hc *health.Handler) healthCheck.UseCaseHealthCheck
 	Transaction(
 		cfg *configs.Config,
-		dbApp SQLDriverApp,
 		worker Worker,
 	) transaction.UseCaseTransaction
 	BlockProposed() blockProposed.UseCaseBlockProposed
+	BlockSignature(
+		cfg *configs.Config,
+		worker Worker,
+	) blockSignature.UseCaseBlockSignature
 }
 
 type commands struct{}
@@ -43,12 +48,18 @@ func (c *commands) HealthCheck(hc *health.Handler) healthCheck.UseCaseHealthChec
 
 func (c *commands) Transaction(
 	cfg *configs.Config,
-	dbApp SQLDriverApp,
 	worker Worker,
 ) transaction.UseCaseTransaction {
-	return ucTransaction.New(cfg, dbApp, worker)
+	return ucTransaction.New(cfg, worker)
 }
 
 func (c *commands) BlockProposed() blockProposed.UseCaseBlockProposed {
 	return ucBlockProposed.New()
+}
+
+func (c *commands) BlockSignature(
+	cfg *configs.Config,
+	worker Worker,
+) blockSignature.UseCaseBlockSignature {
+	return ucBlockSignature.New(cfg, worker)
 }

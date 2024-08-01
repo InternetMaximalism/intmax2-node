@@ -15,6 +15,9 @@ var ErrCreateNewClientOfRPCEthFail = errors.New(
 // ErrLoadPrivateKeyFail error: failed to load private key.
 var ErrLoadPrivateKeyFail = errors.New("failed to load private key")
 
+// ErrGetBlockBuilderInfoFail error: failed to get block builder info.
+var ErrGetBlockBuilderInfoFail = errors.New("failed to get block builder info")
+
 // ErrParseStrToIntFail error: failed to parse string to integer.
 var ErrParseStrToIntFail = errors.New("failed to parse string to integer")
 
@@ -46,5 +49,5 @@ var ErrProcessingFuncStopOfBlockBuilderRegistryFail = errors.New(
 
 // ErrProcessingFuncUnStakeOfBlockBuilderRegistryFail error: failed to processing the func 'unstake' of 'block-builder-registry contract'.
 var ErrProcessingFuncUnStakeOfBlockBuilderRegistryFail = errors.New(
-	"failed to processing the func 'stop' of 'block-builder-registry contract'",
+	"failed to processing the func 'unstake' of 'block-builder-registry contract'",
 )
