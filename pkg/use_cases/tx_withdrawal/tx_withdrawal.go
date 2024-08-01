@@ -17,7 +17,6 @@ import (
 type uc struct {
 	cfg *configs.Config
 	log logger.Logger
-	db  SQLDriverApp
 	sb  ServiceBlockchain
 }
 
@@ -57,7 +56,7 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressHex, amount,
 		attribute.String(senderKey, userAddress.String()),
 	)
 
-	service.SendWithdrawalTransaction(spanCtx, u.cfg, u.log, u.db, u.sb, args, amount, recipientAddressHex, userEthPrivateKey)
+	service.SendWithdrawalTransaction(spanCtx, u.cfg, u.log, u.sb, args, amount, recipientAddressHex, userEthPrivateKey)
 
 	return nil
 }

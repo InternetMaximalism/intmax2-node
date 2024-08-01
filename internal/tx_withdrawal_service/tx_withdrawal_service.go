@@ -24,7 +24,6 @@ func SendWithdrawalTransaction(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
-	db SQLDriverApp,
 	sb ServiceBlockchain,
 	args []string,
 	amountStr string,
@@ -53,7 +52,7 @@ func SendWithdrawalTransaction(
 
 	fmt.Printf("userAccount: %s\n", userAccount.ToAddress().String())
 	fmt.Printf("tokenIndex: %d\n", tokenIndex)
-	balance, err := balance_service.GetUserBalance(ctx, cfg, log, db, userAccount, tokenIndex)
+	balance, err := balance_service.GetUserBalance(ctx, cfg, log, userAccount, tokenIndex)
 	if err != nil {
 		log.Fatalf(ErrFailedToGetBalance+": %v", err)
 	}

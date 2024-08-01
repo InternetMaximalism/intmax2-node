@@ -24,7 +24,6 @@ type Commands interface {
 	SendWithdrawalTransaction(
 		cfg *configs.Config,
 		log logger.Logger,
-		db SQLDriverApp,
 		sb ServiceBlockchain,
 	) balanceChecker.UseCaseTxTransfer
 }
@@ -54,7 +53,6 @@ func (c *commands) SendDepositTransaction(
 func (c *commands) SendWithdrawalTransaction(
 	cfg *configs.Config,
 	log logger.Logger,
-	db SQLDriverApp,
 	sb ServiceBlockchain,
 ) balanceChecker.UseCaseTxTransfer {
 	return ucTxWithdraw.New(cfg, log, sb)
