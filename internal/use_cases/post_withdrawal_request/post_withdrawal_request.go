@@ -1,4 +1,4 @@
-package post_withdrwal_request
+package post_withdrawal_request
 
 import (
 	"context"

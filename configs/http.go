@@ -15,6 +15,8 @@ type HTTP struct {
 	Port                 string   `env:"HTTP_PORT" envDefault:"80"`
 	DataStoreVaultHost   string   `env:"DATA_STORE_VAULT_HTTP_HOST" envDefault:"0.0.0.0"`
 	DataStoreVaultPort   string   `env:"DATA_STORE_VAULT_HTTP_PORT" envDefault:"80"`
+	WithdrawalServerHost string   `env:"WITHDRAWAL_SERVER_HTTP_HOST" envDefault:"0.0.0.0"`
+	WithdrawalServerPort string   `env:"WITHDRAWAL_SERVER_HTTP_PORT" envDefault:"80"`
 	TLSUse               bool     `env:"HTTP_TLS_USE" envDefault:"false"`
 
 	CookieSecure             bool   `env:"COOKIE_SECURE"`
@@ -33,4 +35,8 @@ func (http *HTTP) Addr() string {
 
 func (http *HTTP) DataStoreVaultAddr() string {
 	return http.DataStoreVaultHost + hostPortDelimiter + http.DataStoreVaultPort
+}
+
+func (http *HTTP) WithdrawalServerAddr() string {
+	return http.WithdrawalServerHost + hostPortDelimiter + http.WithdrawalServerPort
 }

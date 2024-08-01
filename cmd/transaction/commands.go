@@ -7,6 +7,7 @@ import (
 	balanceChecker "intmax2-node/internal/use_cases/tx_transfer"
 	ucTxDeposit "intmax2-node/pkg/use_cases/tx_deposit"
 	ucTxTransfer "intmax2-node/pkg/use_cases/tx_transfer"
+	ucTxWithdraw "intmax2-node/pkg/use_cases/tx_withdrawal"
 )
 
 type Commands interface {
@@ -17,6 +18,12 @@ type Commands interface {
 		sb ServiceBlockchain,
 	) balanceChecker.UseCaseTxTransfer
 	SendDepositTransaction(
+		cfg *configs.Config,
+		log logger.Logger,
+		db SQLDriverApp,
+		sb ServiceBlockchain,
+	) balanceChecker.UseCaseTxTransfer
+	SendWithdrawalTransaction(
 		cfg *configs.Config,
 		log logger.Logger,
 		db SQLDriverApp,
@@ -46,4 +53,13 @@ func (c *commands) SendDepositTransaction(
 	sb ServiceBlockchain,
 ) balanceChecker.UseCaseTxTransfer {
 	return ucTxDeposit.New(cfg, log, sb)
+}
+
+func (c *commands) SendWithdrawalTransaction(
+	cfg *configs.Config,
+	log logger.Logger,
+	db SQLDriverApp,
+	sb ServiceBlockchain,
+) balanceChecker.UseCaseTxTransfer {
+	return ucTxWithdraw.New(cfg, log, sb)
 }

@@ -28,6 +28,7 @@ func NewTransactionCmd(b *Transaction) *cobra.Command {
 	}
 	depositCmd.AddCommand(txTransferCmd(b))
 	depositCmd.AddCommand(txDepositCmd(b))
+	depositCmd.AddCommand(txWithdrawalCmd(b))
 
 	return depositCmd
 }
@@ -92,6 +93,56 @@ func txDepositCmd(b *Transaction) *cobra.Command {
 		recipientKey           = "recipient"
 		recipientDescription   = "specify recipient INTMAX address. use as --recipient \"0x0000000000000000000000000000000000000000000000000000000000000000\""
 		userPrivateKeyKey      = "user-private"
+		userPrivateDescription = "specify user's Ethereum address. use as --user-private \"0x0000000000000000000000000000000000000000000000000000000000000000\""
+	)
+
+	cmd := cobra.Command{
+		Use:   use,
+		Short: short,
+	}
+
+	var amount string
+	cmd.PersistentFlags().StringVar(&amount, amountKey, emptyKey, amountDescription)
+
+	var recipientAddressStr string
+	cmd.PersistentFlags().StringVar(&recipientAddressStr, recipientKey, emptyKey, recipientDescription)
+
+	var userEthPrivateKey string
+	cmd.PersistentFlags().StringVar(&userEthPrivateKey, userPrivateKeyKey, emptyKey, userPrivateDescription)
+
+	cmd.Run = func(cmd *cobra.Command, args []string) {
+		l := b.Log.WithFields(logger.Fields{"module": use})
+
+		err := b.SB.CheckEthereumPrivateKey(b.Context)
+		if err != nil {
+			const msg = "check private key error occurred: %v"
+			l.Fatalf(msg, err.Error())
+		}
+
+		err = b.DbApp.Exec(b.Context, nil, func(db interface{}, _ interface{}) (err error) {
+			q := db.(SQLDriverApp)
+
+			return newCommands().SendDepositTransaction(b.Config, b.Log, q, b.SB).Do(b.Context, args, recipientAddressStr, amount, removeZeroX(userEthPrivateKey))
+		})
+		if err != nil {
+			const msg = "failed to get balance: %v"
+			l.Fatalf(msg, err.Error())
+		}
+	}
+
+	return &cmd
+}
+
+func txWithdrawalCmd(b *Transaction) *cobra.Command {
+	const (
+		use                    = "withdrawal"
+		short                  = "Send withdraw transaction"
+		amountKey              = "amount"
+		emptyKey               = ""
+		amountDescription      = "specify amount without decimals. use as --amount \"10\""
+		recipientKey           = "recipient"
+		recipientDescription   = "specify recipient Ethereum address. use as --recipient \"0x0000000000000000000000000000000000000000\""
+		userPrivateKeyKey      = "user-private"
 		userPrivateDescription = "specify user address. use as --user-private \"0x0000000000000000000000000000000000000000000000000000000000000000\""
 	)
 
@@ -121,7 +172,7 @@ func txDepositCmd(b *Transaction) *cobra.Command {
 		err = b.DbApp.Exec(b.Context, nil, func(db interface{}, _ interface{}) (err error) {
 			q := db.(SQLDriverApp)
 
-			return newCommands().SendDepositTransaction(b.Config, b.Log, q, b.SB).Do(b.Context, args, recipientAddressStr, amount, removeZeroX(userPrivateKey))
+			return newCommands().SendWithdrawalTransaction(b.Config, b.Log, q, b.SB).Do(b.Context, args, recipientAddressStr, amount, removeZeroX(userPrivateKey))
 		})
 		if err != nil {
 			const msg = "failed to get balance: %v"
