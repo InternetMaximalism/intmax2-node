@@ -14,13 +14,11 @@ type Commands interface {
 	SendTransferTransaction(
 		cfg *configs.Config,
 		log logger.Logger,
-		db SQLDriverApp,
 		sb ServiceBlockchain,
 	) balanceChecker.UseCaseTxTransfer
 	SendDepositTransaction(
 		cfg *configs.Config,
 		log logger.Logger,
-		db SQLDriverApp,
 		sb ServiceBlockchain,
 	) balanceChecker.UseCaseTxTransfer
 	SendWithdrawalTransaction(
@@ -40,16 +38,14 @@ func newCommands() Commands {
 func (c *commands) SendTransferTransaction(
 	cfg *configs.Config,
 	log logger.Logger,
-	db SQLDriverApp,
 	sb ServiceBlockchain,
 ) balanceChecker.UseCaseTxTransfer {
-	return ucTxTransfer.New(cfg, log, db, sb)
+	return ucTxTransfer.New(cfg, log, sb)
 }
 
 func (c *commands) SendDepositTransaction(
 	cfg *configs.Config,
 	log logger.Logger,
-	db SQLDriverApp,
 	sb ServiceBlockchain,
 ) balanceChecker.UseCaseTxTransfer {
 	return ucTxDeposit.New(cfg, log, sb)

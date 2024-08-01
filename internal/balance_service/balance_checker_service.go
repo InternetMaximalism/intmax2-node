@@ -19,7 +19,6 @@ import (
 	"math/big"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -125,23 +124,10 @@ func parseTokenInfo(args []string) intMaxTypes.TokenInfo {
 	return intMaxTypes.TokenInfo{TokenType: tokenType, TokenAddress: tokenAddress, TokenID: tokenID}
 }
 
-func SyncBalance(
-	ctx context.Context,
-	cfg *configs.Config,
-	lg logger.Logger,
-	db SQLDriverApp,
-	sb ServiceBlockchain,
-	args []string,
-	userPrivateKey string,
-) {
-	fmt.Println("Not implemented")
-}
-
 func GetBalance(
 	ctx context.Context,
 	cfg *configs.Config,
 	lg logger.Logger,
-	db SQLDriverApp,
 	sb ServiceBlockchain,
 	args []string,
 	userEthPrivateKey string,
@@ -149,7 +135,7 @@ func GetBalance(
 	fmt.Printf("GetBalance args: %v\n", args)
 	tokenInfo := parseTokenInfo(args)
 
-	tokenIndex, err := GetTokenIndex(ctx, cfg, db, sb, tokenInfo)
+	tokenIndex, err := GetTokenIndex(ctx, cfg, sb, tokenInfo)
 	if err != nil {
 		fmt.Println(ErrTokenNotFound, err)
 		os.Exit(1)
@@ -169,7 +155,7 @@ func GetBalance(
 	}
 	fmt.Printf("User address: %s\n", userPk.ToAddress().String())
 
-	balance, err := GetUserBalance(ctx, cfg, lg, db, userPk, tokenIndex)
+	balance, err := GetUserBalance(ctx, cfg, lg, userPk, tokenIndex)
 	if err != nil {
 		fmt.Printf(ErrFailedToGetBalance+": %v\n", err)
 		os.Exit(1)
@@ -181,20 +167,20 @@ func GetBalance(
 func GetTokenIndex(
 	ctx context.Context,
 	cfg *configs.Config,
-	db SQLDriverApp,
 	sb deposit_service.ServiceBlockchain,
 	tokenInfo intMaxTypes.TokenInfo,
 ) (uint32, error) {
 	// Check local DB for token index
-	localTokenIndex, err := getLocalTokenIndex(db, tokenInfo)
-	if err == nil {
-		return localTokenIndex, nil
-	}
+	// localTokenIndex, err := getLocalTokenIndex(db, tokenInfo)
+	// if err == nil {
+	// 	return localTokenIndex, nil
+	// }
 
 	// Check liquidity contract for token index
 	return GetTokenIndexFromLiquidityContract(ctx, cfg, sb, tokenInfo)
 }
 
+/*
 func getLocalTokenIndex(db SQLDriverApp, tokenInfo intMaxTypes.TokenInfo) (uint32, error) {
 	tokenAddressStr := tokenInfo.TokenAddress.String()
 	tokenIDStr := fmt.Sprintf("%d", tokenInfo.TokenID)
@@ -218,6 +204,7 @@ func getLocalTokenIndex(db SQLDriverApp, tokenInfo intMaxTypes.TokenInfo) (uint3
 
 	return uint32(tokenIndex), err
 }
+*/
 
 // Get token index from liquidity contract
 func GetTokenIndexFromLiquidityContract(
@@ -260,7 +247,6 @@ func GetUserBalance(
 	ctx context.Context,
 	cfg *configs.Config,
 	lg logger.Logger,
-	db SQLDriverApp,
 	userPrivateKey *intMaxAcc.PrivateKey,
 	tokenIndex uint32,
 ) (*big.Int, error) {

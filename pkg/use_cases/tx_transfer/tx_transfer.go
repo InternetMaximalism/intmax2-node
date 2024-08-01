@@ -18,20 +18,17 @@ import (
 type uc struct {
 	cfg *configs.Config
 	log logger.Logger
-	db  SQLDriverApp
 	sb  ServiceBlockchain
 }
 
 func New(
 	cfg *configs.Config,
 	log logger.Logger,
-	db SQLDriverApp,
 	sb ServiceBlockchain,
 ) txTransfer.UseCaseTxTransfer {
 	return &uc{
 		cfg: cfg,
 		log: log,
-		db:  db,
 		sb:  sb,
 	}
 }
@@ -63,7 +60,7 @@ func (u *uc) Do(ctx context.Context, args []string, amount, recipientAddressStr,
 		attribute.String(senderKey, userAddress.String()),
 	)
 
-	service.SendTransferTransaction(spanCtx, u.cfg, u.log, u.db, u.sb, args, amount, recipientAddressStr, userEthPrivateKey)
+	service.SendTransferTransaction(spanCtx, u.cfg, u.log, u.sb, args, amount, recipientAddressStr, userEthPrivateKey)
 
 	return nil
 }

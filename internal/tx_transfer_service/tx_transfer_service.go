@@ -18,7 +18,6 @@ func SendTransferTransaction(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
-	db SQLDriverApp,
 	sb ServiceBlockchain,
 	args []string,
 	amountStr string,
@@ -45,7 +44,7 @@ func SendTransferTransaction(
 		log.Fatalf("%s", errors.Join(ErrTokenNotFound, err))
 	}
 
-	balance, err := balance_service.GetUserBalance(ctx, cfg, log, db, userAccount, tokenIndex)
+	balance, err := balance_service.GetUserBalance(ctx, cfg, log, userAccount, tokenIndex)
 	if err != nil {
 		log.Fatalf(ErrFailedToGetBalance+": %v", err)
 	}
