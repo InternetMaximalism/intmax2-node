@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_service"
@@ -53,8 +52,7 @@ func SendWithdrawalTransaction(
 		log.Fatalf("%s", errors.Join(ErrTokenNotFound, err))
 	}
 
-	fmt.Printf("userAccount: %s\n", userAccount.ToAddress().String())
-	fmt.Printf("tokenIndex: %d\n", tokenIndex)
+	log.Infof("User's INTMAX Address: %s\n", userAccount.ToAddress().String())
 	balance, err := balance_service.GetUserBalance(ctx, cfg, log, userAccount, tokenIndex)
 	if err != nil {
 		log.Fatalf(ErrFailedToGetBalance+": %v", err)
@@ -161,7 +159,7 @@ func SendWithdrawalTransaction(
 		log.Fatalf("failed to send transaction: %v", err)
 	}
 
-	log.Printf("The proposed block has been successfully received. Please wait for the server's response.")
+	log.Infof("The proposed block has been successfully received. Please wait for the server's response.")
 
 	tx, err := intMaxTypes.NewTx(
 		&transfersHash,
@@ -181,7 +179,7 @@ func SendWithdrawalTransaction(
 		log.Fatalf("failed to send transaction: %v", err)
 	}
 
-	log.Printf("The transaction has been successfully sent.")
+	log.Infof("The transaction has been successfully sent.")
 
 	// TODO: Get the block number and block hash
 	blockNumber := uint32(1)
@@ -194,7 +192,6 @@ func SendWithdrawalTransaction(
 		publicKeysStr[i] = key.ToAddress().String()
 	}
 	txIndex := slices.Index(publicKeysStr, userAccount.ToAddress().String())
-	fmt.Printf("txIndex: %d\n", txIndex)
 	if txIndex == -1 {
 		log.Fatalf("failed to find user's public key in the proposed block")
 	}
@@ -207,5 +204,5 @@ func SendWithdrawalTransaction(
 		log.Fatalf("failed to request withdrawal: %v", err)
 	}
 
-	log.Printf("The transaction has been successfully sent.")
+	log.Infof("The withdrawal request has been successfully sent.")
 }

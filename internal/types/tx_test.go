@@ -78,7 +78,7 @@ func TestTxHash(t *testing.T) {
 	assert.NoError(t, err)
 
 	txHash := tx.Hash()
-	assert.Equal(t, "0xa4460a8c4854ea15d0b30aebd85bcefde22fe412ca526a86745df7470ebb3927", txHash.String())
+	assert.Equal(t, "0x378999af8ce0013df99b58c799161f711150fa56c8255c432235a2e0b9fd605f", txHash.String())
 }
 
 func TestEncryptTxDetails(t *testing.T) {

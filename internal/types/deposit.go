@@ -178,7 +178,6 @@ func (d *Deposit) Unmarshal(data []byte) error {
 	for i, v := range data[int32Key+int4Key : int32Key+int4Key+int32Key] {
 		amountBytes[int32Key-1-i] = v
 	}
-	fmt.Printf("amountBytes: %v\n", amountBytes)
 
 	d.Amount = new(big.Int).SetBytes(amountBytes)
 	d.Salt = new(goldenposeidon.PoseidonHashOut)
