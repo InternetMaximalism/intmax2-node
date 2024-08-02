@@ -2,7 +2,6 @@ package sync_balance
 
 import (
 	"context"
-	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 
@@ -49,7 +48,6 @@ func getBalanceCmd(b *Balance) *cobra.Command {
 	cmd.PersistentFlags().StringVar(&userEthPrivateKey, userPrivateKeyKey, emptyKey, userAddressDescription)
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
-		fmt.Printf("args %s\n", args)
 		l := b.Log.WithFields(logger.Fields{"module": use})
 
 		err := b.SB.CheckEthereumPrivateKey(b.Context)

@@ -132,7 +132,6 @@ func GetBalance(
 	args []string,
 	userEthPrivateKey string,
 ) {
-	fmt.Printf("GetBalance args: %v\n", args)
 	tokenInfo := parseTokenInfo(args)
 
 	tokenIndex, err := GetTokenIndex(ctx, cfg, sb, tokenInfo)
