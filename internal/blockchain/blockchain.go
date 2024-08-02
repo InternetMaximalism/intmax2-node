@@ -10,7 +10,6 @@ import (
 	modelsMW "intmax2-node/internal/mnemonic_wallet/models"
 	"intmax2-node/internal/open_telemetry"
 	"math/big"
-	"syscall"
 
 	"github.com/dimiro1/health"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -146,7 +145,7 @@ func (sb *serviceBlockchain) recognizingScrollPrivateKey(
 				text   string
 				bytePK []byte
 			)
-			bytePK, err = term.ReadPassword(syscall.Stdin)
+			bytePK, err = term.ReadPassword(0)
 			if err != nil {
 				open_telemetry.MarkSpanError(spanCtx, err)
 				return emptyKey, errors.Join(errorsB.ErrStdinProcessingFail, err)
@@ -188,7 +187,7 @@ func (sb *serviceBlockchain) recognizingEthereumPrivateKey(
 			text   string
 			bytePK []byte
 		)
-		bytePK, err = term.ReadPassword(syscall.Stdin)
+		bytePK, err = term.ReadPassword(0)
 		if err != nil {
 			open_telemetry.MarkSpanError(spanCtx, err)
 			return emptyKey, errors.Join(errorsB.ErrStdinProcessingFail, err)
