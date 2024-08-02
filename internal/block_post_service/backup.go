@@ -21,31 +21,6 @@ func (d *blockPostService) BackupTransaction(
 	signature string,
 	blockNumber uint64,
 ) error {
-	// senderPublicKey, err := sender.Public()
-	// if err != nil {
-	// 	return fmt.Errorf("failed to get recipient public key: %w", err)
-	// }
-
-	// txDetails := intMaxTypes.TxDetails{
-	// 	Tx: intMaxTypes.Tx{
-	// 		TransferTreeRoot: transferTreeRoot,
-	// 		Nonce:            nonce,
-	// 	},
-	// 	Transfers: transfers,
-	// }
-
-	// encodedTx := txDetails.Marshal()
-	// encryptedTx, err := intMaxAcc.EncryptECIES(
-	// 	rand.Reader,
-	// 	senderPublicKey,
-	// 	encodedTx,
-	// )
-	// if err != nil {
-	// 	return fmt.Errorf("failed to encrypt deposit: %w", err)
-	// }
-
-	// encodedEncryptedTx := base64.StdEncoding.EncodeToString(encryptedTx)
-
 	err := backupTransactionRawRequest(
 		d.ctx,
 		d.cfg,
@@ -134,35 +109,6 @@ func (d *blockPostService) BackupTransfer(
 	encodedEncryptedTransfer string,
 	blockNumber uint64,
 ) error {
-	// recipientPublicKey, err := recipient.Public()
-	// if err != nil {
-	// 	return fmt.Errorf("failed to get recipient public key: %w", err)
-	// }
-
-	// recipientGenericAddress, err := intMaxTypes.NewINTMAXAddress(recipientPublicKey.ToAddress().Bytes())
-	// if err != nil {
-	// 	return fmt.Errorf("failed to create recipient address: %w", err)
-	// }
-
-	// transfer := intMaxTypes.Transfer{
-	// 	Recipient:  recipientGenericAddress,
-	// 	TokenIndex: tokenIndex,
-	// 	Amount:     amount,
-	// 	Salt:       salt,
-	// }
-
-	// encodedTransfer := transfer.Marshal()
-	// encryptedTransfer, err := intMaxAcc.EncryptECIES(
-	// 	rand.Reader,
-	// 	recipientPublicKey,
-	// 	encodedTransfer,
-	// )
-	// if err != nil {
-	// 	return fmt.Errorf("failed to encrypt transfer: %w", err)
-	// }
-
-	// encodedEncryptedTransfer := base64.StdEncoding.EncodeToString(encryptedTransfer)
-
 	err := backupTransferRawRequest(
 		d.ctx,
 		d.cfg,

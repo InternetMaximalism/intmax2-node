@@ -68,19 +68,20 @@ func (u *uc) Do(ctx context.Context, input *transaction.UCTransactionInput) (err
 	blockNumber := uint64(1) // dummy
 	sender, err := intMaxAcc.NewPublicKeyFromAddressHex(input.Sender)
 	fmt.Printf("input.EncodedEncryptedTx: %v", input.BackupTx)
-	if err := b.BackupTransaction(
+	if innerErr := b.BackupTransaction(
 		sender.ToAddress(),
 		input.BackupTx.EncodedEncryptedTx,
 		input.BackupTx.Signature,
 		blockNumber,
-	); err != nil {
-		open_telemetry.MarkSpanError(spanCtx, err)
-		return err
+	); innerErr != nil {
+		open_telemetry.MarkSpanError(spanCtx, innerErr)
+		return innerErr
 	}
 
 	for i := 0; i < len(input.BackupTransfers); i++ {
 		encodedEncryptedTransfer := input.BackupTransfers[i]
-		addressBytes, err := hexutil.Decode(encodedEncryptedTransfer.Recipient)
+		var addressBytes []byte
+		addressBytes, err = hexutil.Decode(encodedEncryptedTransfer.Recipient)
 		if err != nil {
 			open_telemetry.MarkSpanError(spanCtx, err)
 			return err
@@ -94,17 +95,18 @@ func (u *uc) Do(ctx context.Context, input *transaction.UCTransactionInput) (err
 
 		// TODO: Write the process when the recipient is Ethereum.
 		if recipient.TypeOfAddress == "INTMAX" {
-			intMaxAddress, err := recipient.ToINTMAXAddress()
+			var intMaxAddress intMaxAcc.Address
+			intMaxAddress, err = recipient.ToINTMAXAddress()
 			if err != nil {
 				open_telemetry.MarkSpanError(spanCtx, err)
 				return err
 			}
 			fmt.Printf("INTMAX Address: %s\n", intMaxAddress.String())
-			if err := b.BackupTransfer(
+			if innerErr := b.BackupTransfer(
 				intMaxAddress, encodedEncryptedTransfer.EncodedEncryptedTransfer, blockNumber,
-			); err != nil {
-				open_telemetry.MarkSpanError(spanCtx, err)
-				return err
+			); innerErr != nil {
+				open_telemetry.MarkSpanError(spanCtx, innerErr)
+				return innerErr
 			}
 		}
 

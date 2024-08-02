@@ -117,7 +117,6 @@ func sendTransactionRawRequest(
 	backupTx *transaction.BackupTransactionData,
 	backupTransfers []*transaction.BackupTransferInput,
 ) error {
-	fmt.Printf("backupTx: %s\n", backupTx)
 	ucInput := transaction.UCTransactionInput{
 		Sender:          senderAddress,
 		TransfersHash:   transfersHash,

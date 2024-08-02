@@ -169,25 +169,25 @@ func NewServerCmd(s *Server) *cobra.Command {
 				}
 			}()
 
-			// // TODO: Occur error: Block range is too large
-			// wg.Add(1)
-			// s.WG.Add(1)
-			// go func() {
-			// 	defer func() {
-			// 		wg.Done()
-			// 		s.WG.Done()
-			// 	}()
-			// 	tickerEventWatcher := time.NewTicker(s.Config.BlockValidityProver.TimeoutForEventWatcher)
-			// 	defer func() {
-			// 		if tickerEventWatcher != nil {
-			// 			tickerEventWatcher.Stop()
-			// 		}
-			// 	}()
-			// 	if err = s.BlockValidityProver.Start(s.Context, tickerEventWatcher); err != nil {
-			// 		const msg = "failed to start Block Validity Prover: %+v"
-			// 		s.Log.Fatalf(msg, err.Error())
-			// 	}
-			// }()
+			// TODO: Occur error: Block range is too large
+			wg.Add(1)
+			s.WG.Add(1)
+			go func() {
+				defer func() {
+					wg.Done()
+					s.WG.Done()
+				}()
+				tickerEventWatcher := time.NewTicker(s.Config.BlockValidityProver.TimeoutForEventWatcher)
+				defer func() {
+					if tickerEventWatcher != nil {
+						tickerEventWatcher.Stop()
+					}
+				}()
+				if err = s.BlockValidityProver.Start(s.Context, tickerEventWatcher); err != nil {
+					const msg = "failed to start Block Validity Prover: %+v"
+					s.Log.Fatalf(msg, err.Error())
+				}
+			}()
 
 			/*
 				// wg.Add(1)

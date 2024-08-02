@@ -30,10 +30,6 @@ func (s *Server) Transaction(
 	))
 	defer span.End()
 
-	fmt.Println("Transaction request")
-	fmt.Printf("BackupTransfers request: %v\n", req.BackupTransaction)
-	fmt.Printf("BackupTransfers request: %v\n", req.BackupTransfers)
-
 	input := transaction.UCTransactionInput{
 		Sender:        req.Sender,
 		TransfersHash: req.TransfersHash,

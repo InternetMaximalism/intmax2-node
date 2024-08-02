@@ -146,7 +146,6 @@ func GetBalance(
 		fmt.Printf("fail to parse user address: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("wallet: %v\n", wallet)
 
 	userPk, err := intMaxAcc.NewPrivateKeyFromString(wallet.IntMaxPrivateKey)
 	if err != nil {

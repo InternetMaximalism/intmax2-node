@@ -100,7 +100,6 @@ func SendWithdrawalTransaction(
 		log.Fatalf("failed to create transfer tree: %v", err)
 	}
 
-	// transfersHash, _, _ := transferTree.GetCurrentRootCountAndSiblings()
 	transferMerkleProof, transfersHash, err := transferTree.ComputeMerkleProof(0)
 	if err != nil {
 		log.Fatalf("failed to compute merkle proof: %v", err)

@@ -4,9 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_service"
@@ -127,17 +125,10 @@ func SendTransferTransaction(
 		log.Fatalf("failed to make backup data: %v", err)
 	}
 
-	fmt.Printf("encodedEncryptedTx: %s\n", encodedEncryptedTx)
 	backupTx := transaction.BackupTransactionData{
 		EncodedEncryptedTx: encodedEncryptedTx,
 		Signature:          "0x",
 	}
-
-	s2, err := json.Marshal(backupTransfers)
-	if err != nil {
-		log.Fatalf("failed to marshal JSON: %v", err)
-	}
-	fmt.Printf("encodedEncryptedTransfers: %v\n", s2)
 
 	err = SendTransactionRequest(
 		ctx,

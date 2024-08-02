@@ -113,7 +113,6 @@ func SendWithdrawalWithRawRequest(
 		ctx,
 		cfg,
 		log,
-		senderAccount.ToAddress().String(),
 		transfer,
 		transferTreeRoot.String(),
 		nonce,
@@ -130,7 +129,6 @@ func sendWithdrawalRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
-	senderAddress string,
 	transfer *intMaxTypes.Transfer,
 	transferTreeRoot string,
 	nonce uint64,
@@ -215,9 +213,9 @@ func sendWithdrawalRawRequest(
 	}
 
 	response := new(SendWithdrawalResponse)
-	if err := json.Unmarshal(resp.Body(), response); err != nil {
+	if innerErr := json.Unmarshal(resp.Body(), response); innerErr != nil {
 		ErrUnmarshalResponse := errors.New("failed to unmarshal response")
-		return errors.Join(ErrUnmarshalResponse, err)
+		return errors.Join(ErrUnmarshalResponse, innerErr)
 	}
 
 	if !response.Success {

@@ -28,6 +28,7 @@ func New(
 ) ucBlockSignature.UseCaseBlockSignature {
 	return &uc{
 		cfg: cfg,
+		log: log,
 		w:   w,
 	}
 }
