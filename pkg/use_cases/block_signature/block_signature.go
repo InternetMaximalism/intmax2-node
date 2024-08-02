@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"intmax2-node/configs"
+	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
 	"intmax2-node/internal/use_cases/backup_balance"
 	ucBlockSignature "intmax2-node/internal/use_cases/block_signature"
@@ -16,15 +17,18 @@ import (
 
 type uc struct {
 	cfg *configs.Config
+	log logger.Logger
 	w   Worker
 }
 
 func New(
 	cfg *configs.Config,
+	log logger.Logger,
 	w Worker,
 ) ucBlockSignature.UseCaseBlockSignature {
 	return &uc{
 		cfg: cfg,
+		log: log,
 		w:   w,
 	}
 }

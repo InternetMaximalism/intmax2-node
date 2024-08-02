@@ -37,6 +37,11 @@ func (s *Server) Transaction(
 		PowNonce:      req.PowNonce,
 		Expiration:    req.Expiration.AsTime(),
 		Signature:     req.Signature,
+		BackupTx: &transaction.BackupTransactionData{
+			EncodedEncryptedTx: req.BackupTransaction.EncryptedTx,
+			Signature:          req.BackupTransaction.Signature,
+		},
+		BackupTransfers: make([]*transaction.BackupTransferInput, len(req.BackupTransfers)),
 	}
 
 	for key := range req.TransferData {
@@ -54,13 +59,21 @@ func (s *Server) Transaction(
 		input.TransferData = append(input.TransferData, &data)
 	}
 
+	for key := range req.BackupTransfers {
+		data := transaction.BackupTransferInput{
+			Recipient:                req.BackupTransfers[key].Recipient,
+			EncodedEncryptedTransfer: req.BackupTransfers[key].EncryptedTransfer,
+		}
+		input.BackupTransfers[key] = &data
+	}
+
 	err := input.Valid(s.config, s.pow)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
 		return &resp, utils.BadRequest(spanCtx, err)
 	}
 
-	err = s.commands.Transaction(s.config, s.worker).Do(spanCtx, &input)
+	err = s.commands.Transaction(s.config, s.log, s.worker).Do(spanCtx, &input)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
 		if errors.Is(err, worker.ErrReceiverWorkerDuplicate) {

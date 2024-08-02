@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
@@ -28,6 +29,10 @@ import (
 const int10Key = 10
 
 const DepositEventSignatureID = "0x1e88950eef3c1bd8dd83d765aec1f21f34ca153104f0acd7a6218bf8f48e8410"
+
+var ErrRecipientPublicKey = errors.New("failed to get recipient public key")
+var ErrCreateTransactor = errors.New("failed to create transactor")
+var ErrWaitForTransaction = errors.New("failed to wait for transaction to be mined")
 
 type DepositRequestService struct {
 	ctx       context.Context
@@ -65,26 +70,25 @@ func newDepositAnalyzerService(ctx context.Context, cfg *configs.Config, log log
 func (d *DepositRequestService) DepositETHWithRandomSalt(
 	userEthPrivateKeyHex string,
 	recipient intMaxAcc.Address,
-	tokenIndex uint32,
 	amountStr string,
-) error {
+) (uint64, *goldenposeidon.PoseidonHashOut, error) {
 	amount, ok := new(big.Int).SetString(amountStr, int10Key)
 	if !ok {
-		return fmt.Errorf("failed to convert amount to int: %s", amountStr)
+		return 0, nil, fmt.Errorf("failed to convert amount to int: %s", amountStr)
 	}
 
 	salt, err := new(goldenposeidon.PoseidonHashOut).SetRandom()
 	if err != nil {
-		return fmt.Errorf("failed to set random salt: %w", err)
+		return 0, nil, fmt.Errorf("failed to set random salt: %w", err)
 	}
 
 	receipt, err := d.depositEth(userEthPrivateKeyHex, recipient, amount, salt)
 	if err != nil {
-		return fmt.Errorf("failed to deposit ETH: %w", err)
+		return 0, nil, fmt.Errorf("failed to deposit ETH: %w", err)
 	}
 
 	if receipt.Status != types.ReceiptStatusSuccessful {
-		return fmt.Errorf("failed to deposit ETH: receipt status is %d", receipt.Status)
+		return 0, nil, fmt.Errorf("failed to deposit ETH: receipt status is %d", receipt.Status)
 	}
 
 	var depositID uint64
@@ -97,15 +101,133 @@ func (d *DepositRequestService) DepositETHWithRandomSalt(
 		}
 	}
 	if !ok {
-		return fmt.Errorf("failed to get deposit ID")
+		return 0, nil, fmt.Errorf("failed to get deposit ID")
 	}
 
-	err = d.backupDeposit(recipient, 0, amount, salt, depositID)
+	return depositID, salt, nil
+}
+
+func (d *DepositRequestService) DepositERC20WithRandomSalt(
+	userEthPrivateKeyHex string,
+	recipient intMaxAcc.Address,
+	tokenAddress common.Address,
+	amountStr string,
+) (uint64, *goldenposeidon.PoseidonHashOut, error) {
+	amount, ok := new(big.Int).SetString(amountStr, int10Key)
+	if !ok {
+		return 0, nil, fmt.Errorf("failed to convert amount to int: %s", amountStr)
+	}
+
+	salt, err := new(goldenposeidon.PoseidonHashOut).SetRandom()
 	if err != nil {
-		return fmt.Errorf("failed to backup deposit: %w", err)
+		return 0, nil, fmt.Errorf("failed to set random salt: %w", err)
 	}
 
-	return nil
+	receipt, err := d.depositErc20(userEthPrivateKeyHex, tokenAddress, recipient, amount, salt)
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to deposit ETH: %w", err)
+	}
+
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		return 0, nil, fmt.Errorf("failed to deposit ETH: receipt status is %d", receipt.Status)
+	}
+
+	var depositID uint64
+	ok = false
+	for i := 0; i < len(receipt.Logs); i++ {
+		if receipt.Logs[i].Topics[0].Hex() == DepositEventSignatureID {
+			depositID = receipt.Logs[i].Topics[1].Big().Uint64()
+			ok = true
+			break
+		}
+	}
+	if !ok {
+		return 0, nil, fmt.Errorf("failed to get deposit ID")
+	}
+
+	return depositID, salt, nil
+}
+
+func (d *DepositRequestService) DepositERC721WithRandomSalt(
+	userEthPrivateKeyHex string,
+	recipient intMaxAcc.Address,
+	tokenAddress common.Address,
+	tokenId *big.Int,
+) (uint64, *goldenposeidon.PoseidonHashOut, error) {
+	salt, err := new(goldenposeidon.PoseidonHashOut).SetRandom()
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to set random salt: %w", err)
+	}
+
+	receipt, err := d.depositErc721(userEthPrivateKeyHex, tokenAddress, recipient, tokenId, salt)
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to deposit ETH: %w", err)
+	}
+
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		return 0, nil, fmt.Errorf("failed to deposit ETH: receipt status is %d", receipt.Status)
+	}
+
+	var depositID uint64
+	ok := false
+	for i := 0; i < len(receipt.Logs); i++ {
+		if receipt.Logs[i].Topics[0].Hex() == DepositEventSignatureID {
+			depositID = receipt.Logs[i].Topics[1].Big().Uint64()
+			ok = true
+			break
+		}
+	}
+	if !ok {
+		return 0, nil, fmt.Errorf("failed to get deposit ID")
+	}
+
+	return depositID, salt, nil
+}
+
+func (d *DepositRequestService) DepositERC1155WithRandomSalt(
+	userEthPrivateKeyHex string,
+	recipient intMaxAcc.Address,
+	tokenAddress common.Address,
+	tokenId *big.Int,
+	amountStr string,
+) (uint64, *goldenposeidon.PoseidonHashOut, error) {
+	amount, ok := new(big.Int).SetString(amountStr, int10Key)
+	if !ok {
+		return 0, nil, fmt.Errorf("failed to convert amount to int: %s", amountStr)
+	}
+
+	salt, err := new(goldenposeidon.PoseidonHashOut).SetRandom()
+	if err != nil {
+		var ErrSetRandomSalt = errors.New("failed to set random salt")
+		return 0, nil, errors.Join(ErrSetRandomSalt, err)
+	}
+
+	receipt, err := d.depositErc1155(userEthPrivateKeyHex, tokenAddress, recipient, tokenId, amount, salt)
+	if err != nil {
+		var ErrDepositErc1155 = errors.New("failed to deposit ERC1155")
+		return 0, nil, errors.Join(ErrDepositErc1155, err)
+	}
+
+	if receipt.Status != types.ReceiptStatusSuccessful {
+		var ErrDepositErc1155ReceiptStatus = errors.New("failed to deposit ERC1155")
+		return 0, nil, errors.Join(ErrDepositErc1155ReceiptStatus, fmt.Errorf("receipt status is %d", receipt.Status))
+	}
+
+	var depositID uint64
+	ok = false
+	for i := 0; i < len(receipt.Logs); i++ {
+		if receipt.Logs[i].Topics[0].Hex() == DepositEventSignatureID {
+			depositID = receipt.Logs[i].Topics[1].Big().Uint64()
+			ok = true
+			break
+		}
+	}
+	if !ok {
+		var ErrGetDepositID = errors.New("failed to get deposit ID")
+		return 0, nil, ErrGetDepositID
+	}
+
+	return depositID, salt, nil
 }
 
 func (d *DepositRequestService) depositEth(
@@ -116,7 +238,7 @@ func (d *DepositRequestService) depositEth(
 ) (*types.Receipt, error) {
 	recipientPublicKey, err := recipient.Public()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get recipient public key: %w", err)
+		return nil, errors.Join(ErrRecipientPublicKey, err)
 	}
 	recipientSaltHash := intMaxAcc.GetPublicKeySaltHash(recipientPublicKey.Pk.X.BigInt(new(big.Int)), salt)
 
@@ -128,18 +250,157 @@ func (d *DepositRequestService) depositEth(
 
 	tx, err := d.liquidity.DepositETH(transactOpts, recipientSaltHash)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send AnalyzeDeposits transaction: %w", err)
+		return nil, fmt.Errorf("failed to send DepositETH transaction: %w", err)
 	}
 
 	receipt, err := bind.WaitMined(d.ctx, d.client, tx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to wait for transaction to be mined: %w", err)
+		return nil, errors.Join(ErrWaitForTransaction, err)
 	}
 
 	return receipt, nil
 }
 
-func (d *DepositRequestService) backupDeposit(
+func (d *DepositRequestService) depositErc20(
+	userEthPrivateKeyHex string,
+	tokenAddress common.Address,
+	recipient intMaxAcc.Address,
+	amount *big.Int,
+	salt *goldenposeidon.PoseidonHashOut,
+) (*types.Receipt, error) {
+	recipientPublicKey, err := recipient.Public()
+	if err != nil {
+		return nil, errors.Join(ErrRecipientPublicKey, err)
+	}
+	recipientSaltHash := intMaxAcc.GetPublicKeySaltHash(recipientPublicKey.Pk.X.BigInt(new(big.Int)), salt)
+
+	transactOpts, err := utils.CreateTransactor(userEthPrivateKeyHex, d.cfg.Blockchain.EthereumNetworkChainID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create transactor: %w", err)
+	}
+
+	client, err := utils.NewClient(d.cfg.Blockchain.EthereumNetworkRpcUrl)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new client: %w", err)
+	}
+	defer client.Close()
+
+	erc20, err := bindings.NewErc20(tokenAddress, client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to instantiate a ERC20 contract: %w", err)
+	}
+
+	tx, err := erc20.Approve(transactOpts, common.HexToAddress(d.cfg.Blockchain.LiquidityContractAddress), amount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send ERC20.Approve transaction: %w", err)
+	}
+
+	_, err = bind.WaitMined(d.ctx, d.client, tx)
+	if err != nil {
+		return nil, errors.Join(ErrWaitForTransaction, err)
+	}
+
+	tx2, err := d.liquidity.DepositERC20(transactOpts, tokenAddress, recipientSaltHash, amount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send DepositERC20 transaction: %w", err)
+	}
+
+	receipt, err := bind.WaitMined(d.ctx, d.client, tx2)
+	if err != nil {
+		return nil, errors.Join(ErrWaitForTransaction, err)
+	}
+
+	return receipt, nil
+}
+
+func (d *DepositRequestService) depositErc721(
+	userEthPrivateKeyHex string,
+	tokenAddress common.Address,
+	recipient intMaxAcc.Address,
+	tokenId *big.Int,
+	salt *goldenposeidon.PoseidonHashOut,
+) (*types.Receipt, error) {
+	recipientPublicKey, err := recipient.Public()
+	if err != nil {
+		return nil, errors.Join(ErrRecipientPublicKey, err)
+	}
+	recipientSaltHash := intMaxAcc.GetPublicKeySaltHash(recipientPublicKey.Pk.X.BigInt(new(big.Int)), salt)
+
+	transactOpts, err := utils.CreateTransactor(userEthPrivateKeyHex, d.cfg.Blockchain.EthereumNetworkChainID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create transactor: %w", err)
+	}
+
+	client, err := utils.NewClient(d.cfg.Blockchain.EthereumNetworkRpcUrl)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new client: %w", err)
+	}
+	defer client.Close()
+
+	erc20, err := bindings.NewErc721(tokenAddress, client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to instantiate a ERC20 contract: %w", err)
+	}
+
+	tx, err := erc20.Approve(transactOpts, common.HexToAddress(d.cfg.Blockchain.LiquidityContractAddress), tokenId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send ERC721.Approve transaction: %w", err)
+	}
+
+	_, err = bind.WaitMined(d.ctx, d.client, tx)
+	if err != nil {
+		return nil, errors.Join(ErrWaitForTransaction, err)
+	}
+
+	tx2, err := d.liquidity.DepositERC721(transactOpts, tokenAddress, recipientSaltHash, tokenId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send DepositERC721 transaction: %w", err)
+	}
+
+	receipt, err := bind.WaitMined(d.ctx, d.client, tx2)
+	if err != nil {
+		return nil, errors.Join(ErrWaitForTransaction, err)
+	}
+
+	return receipt, nil
+}
+
+func (d *DepositRequestService) depositErc1155(
+	userEthPrivateKeyHex string,
+	tokenAddress common.Address,
+	recipient intMaxAcc.Address,
+	tokenId *big.Int,
+	amount *big.Int,
+	salt *goldenposeidon.PoseidonHashOut,
+) (*types.Receipt, error) {
+	recipientPublicKey, err := recipient.Public()
+	if err != nil {
+		return nil, errors.Join(ErrRecipientPublicKey, err)
+	}
+	recipientSaltHash := intMaxAcc.GetPublicKeySaltHash(recipientPublicKey.Pk.X.BigInt(new(big.Int)), salt)
+
+	transactOpts, err := utils.CreateTransactor(userEthPrivateKeyHex, d.cfg.Blockchain.EthereumNetworkChainID)
+	if err != nil {
+		return nil, errors.Join(ErrCreateTransactor, err)
+	}
+
+	// TODO: Implement ERC1155.Approve
+
+	tx, err := d.liquidity.DepositERC1155(transactOpts, tokenAddress, recipientSaltHash, tokenId, amount)
+	if err != nil {
+		var ErrDepositERC1155Transaction = errors.New("failed to send DepositERC1155 transaction")
+		return nil, errors.Join(ErrDepositERC1155Transaction, err)
+	}
+
+	receipt, err := bind.WaitMined(d.ctx, d.client, tx)
+	if err != nil {
+		return nil, errors.Join(ErrWaitForTransaction, err)
+	}
+
+	return receipt, nil
+}
+
+func (d *DepositRequestService) BackupDeposit(
 	recipient intMaxAcc.Address,
 	tokenIndex uint32,
 	amount *big.Int,
@@ -148,7 +409,7 @@ func (d *DepositRequestService) backupDeposit(
 ) error {
 	recipientPublicKey, err := recipient.Public()
 	if err != nil {
-		return fmt.Errorf("failed to get recipient public key: %w", err)
+		return errors.Join(ErrRecipientPublicKey, err)
 	}
 
 	deposit := intMaxTypes.Deposit{
@@ -249,122 +510,3 @@ func backupDepositRawRequest(
 
 	return nil
 }
-
-// func SendTransferTransaction(
-// 	ctx context.Context,
-// 	cfg *configs.Config,
-// 	log logger.Logger,
-// 	db SQLDriverApp,
-// 	sb ServiceBlockchain,
-// 	args []string,
-// 	amountStr string,
-// 	recipientAddressStr string,
-// 	userPrivateKey string,
-// ) {
-// 	userAccount, err := intMaxAcc.NewPrivateKeyFromString(userPrivateKey)
-// 	if err != nil {
-// 		log.Fatalf("fail to parse user private key: %v", err)
-// 	}
-
-// 	tokenInfo, err := new(intMaxTypes.TokenInfo).ParseFromStrings(args)
-// 	if err != nil {
-// 		log.Fatalf("%s", err)
-// 	}
-
-// 	tokenIndex, err := balance_service.GetTokenIndex(ctx, cfg, db, sb, *tokenInfo)
-// 	if err != nil {
-// 		log.Fatalf("%s", errors.Join(ErrTokenNotFound, err))
-// 	}
-
-// 	balance, err := balance_service.GetUserBalance(db, userAccount.ToAddress(), tokenIndex)
-// 	if err != nil {
-// 		log.Fatalf(ErrFailedToGetBalance+": %v", err)
-// 	}
-
-// 	if strings.TrimSpace(amountStr) == "" {
-// 		log.Fatalf("Amount is required")
-// 	}
-
-// 	const int10Key = 10
-// 	amount, ok := new(big.Int).SetString(amountStr, int10Key)
-// 	if !ok {
-// 		log.Fatalf("failed to convert amount to int: %v", err)
-// 	}
-
-// 	if balance.Cmp(amount) < 0 {
-// 		log.Fatalf("Insufficient balance: %s", balance)
-// 	}
-
-// 	// Send transfer transaction
-// 	recipient, err := intMaxAcc.NewPublicKeyFromAddressHex(recipientAddressStr)
-// 	if err != nil {
-// 		log.Fatalf("failed to parse recipient address: %v", err)
-// 	}
-
-// 	recipientAddress, err := intMaxTypes.NewINTMAXAddress(recipient.ToAddress().Bytes())
-// 	if err != nil {
-// 		log.Fatalf("failed to create recipient address: %v", err)
-// 	}
-
-// 	transfer := intMaxTypes.NewTransferWithRandomSalt(
-// 		recipientAddress,
-// 		tokenIndex,
-// 		amount,
-// 	)
-
-// 	zeroTransfer := new(intMaxTypes.Transfer).SetZero()
-// 	initialLeaves := make([]*intMaxTypes.Transfer, 1)
-// 	initialLeaves[0] = transfer
-
-// 	transferTree, err := intMaxTree.NewTransferTree(intMaxTree.TRANSFER_TREE_HEIGHT, initialLeaves, zeroTransfer.Hash())
-// 	if err != nil {
-// 		log.Fatalf("failed to create transfer tree: %v", err)
-// 	}
-
-// 	transfersHash, _, _ := transferTree.GetCurrentRootCountAndSiblings()
-
-// 	var nonce uint64 = 1 // TODO: Incremented with each transaction
-// 	err = SendTransactionRequest(
-// 		ctx,
-// 		cfg,
-// 		log,
-// 		userAccount,
-// 		transfersHash,
-// 		nonce,
-// 	)
-// 	if err != nil {
-// 		log.Fatalf("failed to send transaction: %v", err)
-// 	}
-
-// 	log.Printf("The transaction request has been successfully sent. Please wait for the server's response.")
-
-// 	// Get proposed block
-// 	proposedBlock, err := GetBlockProposed(
-// 		ctx, cfg, log, userAccount, transfersHash, nonce,
-// 	)
-// 	if err != nil {
-// 		log.Fatalf("failed to send transaction: %v", err)
-// 	}
-
-// 	log.Printf("The proposed block has been successfully received. Please wait for the server's response.")
-
-// 	tx, err := intMaxTypes.NewTx(
-// 		&transfersHash,
-// 		nonce,
-// 	)
-// 	if err != nil {
-// 		log.Fatalf("failed to create new tx: %w", err)
-// 	}
-
-// 	txHash := tx.Hash()
-
-// 	// Accept proposed block
-// 	err = SendSignedProposedBlock(
-// 		ctx, cfg, log, userAccount, proposedBlock.TxTreeRoot, *txHash, proposedBlock.PublicKeys,
-// 	)
-// 	if err != nil {
-// 		log.Fatalf("failed to send transaction: %v", err)
-// 	}
-
-// 	log.Printf("The transaction has been successfully sent.")
-// }

@@ -7,7 +7,8 @@ intmax2-node
 mock_*
 mocks/
 vendor
-.env
+.env*
+!.env/example
 cmd/examples/*
 !cmd/examples/.gitkeep
 build/sql_dbs/*

@@ -3,7 +3,6 @@ package types
 import (
 	"context"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
@@ -632,30 +631,6 @@ func PostRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockContent
 	if err != nil {
 		return nil, fmt.Errorf("block content is invalid: %w", err)
 	}
-
-	blockSignature := BlockSignature{}
-	blockSignature.TxTreeRoot = hexutil.Encode(input.TxTreeRoot[:])
-	blockSignature.SenderFlags = hexutil.Encode(input.SenderFlags[:])
-	for i := 0; i < len(input.AggregatedPublicKey); i++ {
-		blockSignature.AggregatedPublicKey[i] = hexutil.Encode(input.AggregatedPublicKey[i][:])
-	}
-	for i := 0; i < len(input.AggregatedSignature); i++ {
-		blockSignature.AggregatedSignature[i] = hexutil.Encode(input.AggregatedSignature[i][:])
-	}
-	for i := 0; i < len(input.MessagePoint); i++ {
-		blockSignature.MessagePoint[i] = hexutil.Encode(input.MessagePoint[i][:])
-	}
-	blockSignature.SenderPublicKeys = make([]string, len(input.SenderPublicKeys))
-	for i := 0; i < len(input.SenderPublicKeys); i++ {
-		senderPublicKey := BigIntToBytes32BeArray(input.SenderPublicKeys[i])
-		blockSignature.SenderPublicKeys[i] = hexutil.Encode(senderPublicKey[:])
-	}
-
-	blockSignatureJSON, err := json.Marshal(blockSignature)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal block signature: %w", err)
-	}
-	fmt.Printf("Block signature: %s\n", blockSignatureJSON)
 
 	return rollup.PostRegistrationBlock(
 		transactOpts,

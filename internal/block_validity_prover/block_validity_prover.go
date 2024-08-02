@@ -108,7 +108,6 @@ func (w *blockValidityProver) Start(
 				return err
 			}
 			if len(unprocessedBlocks) == 0 {
-				fmt.Printf("No unprocessed blocks\n")
 				continue
 			}
 
