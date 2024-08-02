@@ -59,10 +59,6 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressStr, amount,
 		attribute.String(senderKey, userAddress.String()),
 	)
 
-	fmt.Printf("userAddress: %s\n", userAddress.String())
-
-	fmt.Printf("recipientAddressStr: %s\n", recipientAddressStr)
-	fmt.Printf("amount: %s\n", amount)
 	recipientAddress, err := intMaxAcc.NewAddressFromHex(recipientAddressStr)
 	if err != nil {
 		return err
