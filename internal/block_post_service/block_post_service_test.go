@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDecode(t *testing.T) {
+func TestAccountInfoMap(t *testing.T) {
 	ctx := context.Background()
 	cfg := configs.Config{}
 	cfg.Blockchain.EthereumNetworkRpcUrl = "https://eth-sepolia.g.alchemy.com/v2/OE-Ocf1AKEHq5UlRKEXGYJ6mc7dJamOV"
@@ -24,7 +24,7 @@ func TestDecode(t *testing.T) {
 	cfg.SQLDb.DNSConnection = "postgresql://postgres:pass@intmax2-node-postgres:5432/state?sslmode=disable"
 	cfg.Blockchain.RollupContractDeployedBlockNumber = 5843354
 
-	d, err := block_post_service.NewBlockPostService(ctx, &cfg)
+	d, err := block_post_service.NewBlockPostService(ctx, &cfg, nil)
 	require.NoError(t, err)
 
 	events, _, err := d.FetchNewPostedBlocks(cfg.Blockchain.RollupContractDeployedBlockNumber)

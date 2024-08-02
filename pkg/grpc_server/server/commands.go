@@ -2,6 +2,7 @@ package server
 
 import (
 	"intmax2-node/configs"
+	"intmax2-node/internal/logger"
 	blockProposed "intmax2-node/internal/use_cases/block_proposed"
 	blockSignature "intmax2-node/internal/use_cases/block_signature"
 	getVersion "intmax2-node/internal/use_cases/get_version"
@@ -23,11 +24,13 @@ type Commands interface {
 	HealthCheck(hc *health.Handler) healthCheck.UseCaseHealthCheck
 	Transaction(
 		cfg *configs.Config,
+		log logger.Logger,
 		worker Worker,
 	) transaction.UseCaseTransaction
 	BlockProposed() blockProposed.UseCaseBlockProposed
 	BlockSignature(
 		cfg *configs.Config,
+		log logger.Logger,
 		worker Worker,
 	) blockSignature.UseCaseBlockSignature
 }
@@ -48,9 +51,10 @@ func (c *commands) HealthCheck(hc *health.Handler) healthCheck.UseCaseHealthChec
 
 func (c *commands) Transaction(
 	cfg *configs.Config,
+	log logger.Logger,
 	worker Worker,
 ) transaction.UseCaseTransaction {
-	return ucTransaction.New(cfg, worker)
+	return ucTransaction.New(cfg, log, worker)
 }
 
 func (c *commands) BlockProposed() blockProposed.UseCaseBlockProposed {
@@ -59,7 +63,8 @@ func (c *commands) BlockProposed() blockProposed.UseCaseBlockProposed {
 
 func (c *commands) BlockSignature(
 	cfg *configs.Config,
+	log logger.Logger,
 	worker Worker,
 ) blockSignature.UseCaseBlockSignature {
-	return ucBlockSignature.New(cfg, worker)
+	return ucBlockSignature.New(cfg, log, worker)
 }

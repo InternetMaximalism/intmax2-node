@@ -34,7 +34,7 @@ func TestUseCaseTransaction(t *testing.T) {
 	cfg := configs.New()
 	w := NewMockWorker(ctrl)
 
-	uc := ucTransaction.New(cfg, w)
+	uc := ucTransaction.New(cfg, nil, w)
 
 	cases := []struct {
 		desc    string

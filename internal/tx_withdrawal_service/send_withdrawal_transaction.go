@@ -29,8 +29,10 @@ func SendWithdrawalRequest(
 	senderAccount *intMaxAcc.PrivateKey,
 	transfersHash intMaxTypes.PoseidonHashOut,
 	nonce uint64,
+	encodedEncryptedTx *transaction.BackupTransactionData,
+	encodedEncryptedTransfers []*transaction.BackupTransferInput,
 ) error {
-	const duration = 60 * time.Minute
+	const duration = 300 * time.Minute
 	expiration := time.Now().Add(duration)
 
 	pw := pow.New(cfg.PoW.Difficulty)
@@ -75,7 +77,7 @@ func SendWithdrawalRequest(
 	}
 
 	err = tx_transfer_service.SendTransactionWithRawRequest(
-		ctx, cfg, log, senderAccount, transfersHash, nonce, expiration, powNonceStr, signatureInput,
+		ctx, cfg, log, senderAccount, transfersHash, nonce, expiration, powNonceStr, signatureInput, encodedEncryptedTx, encodedEncryptedTransfers,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to send transaction: %w", err)
@@ -111,7 +113,6 @@ func SendWithdrawalWithRawRequest(
 		ctx,
 		cfg,
 		log,
-		senderAccount.ToAddress().String(),
 		transfer,
 		transferTreeRoot.String(),
 		nonce,
@@ -128,7 +129,6 @@ func sendWithdrawalRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
-	senderAddress string,
 	transfer *intMaxTypes.Transfer,
 	transferTreeRoot string,
 	nonce uint64,
@@ -213,9 +213,9 @@ func sendWithdrawalRawRequest(
 	}
 
 	response := new(SendWithdrawalResponse)
-	if err := json.Unmarshal(resp.Body(), response); err != nil {
+	if innerErr := json.Unmarshal(resp.Body(), response); innerErr != nil {
 		ErrUnmarshalResponse := errors.New("failed to unmarshal response")
-		return errors.Join(ErrUnmarshalResponse, err)
+		return errors.Join(ErrUnmarshalResponse, innerErr)
 	}
 
 	if !response.Success {

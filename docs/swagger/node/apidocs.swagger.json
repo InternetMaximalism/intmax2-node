@@ -620,6 +620,20 @@
         }
       }
     },
+    "v1BackupTransactionData": {
+      "type": "object",
+      "properties": {
+        "encryptedTx": {
+          "type": "string",
+          "title": "The encrypted transaction data"
+        },
+        "signature": {
+          "type": "string",
+          "title": "The signature for the transaction"
+        }
+      },
+      "title": "BackupTransaction describes the backup data of transaction"
+    },
     "v1BackupTransactionRequest": {
       "type": "object",
       "properties": {
@@ -684,6 +698,20 @@
           "type": "string"
         }
       }
+    },
+    "v1BackupTransferData": {
+      "type": "object",
+      "properties": {
+        "encryptedTransfer": {
+          "type": "string",
+          "title": "The encrypted data for the transfer"
+        },
+        "recipient": {
+          "type": "string",
+          "title": "The recipient address"
+        }
+      },
+      "title": "BackupTransaction describes the backup data of transaction"
     },
     "v1BackupTransferRequest": {
       "type": "object",
@@ -1017,6 +1045,18 @@
         "signature": {
           "type": "string",
           "title": "the signature of request (the hash calculated from transfersHash, nonce, powNonce, sender, and expiration)"
+        },
+        "backupTx": {
+          "$ref": "#/definitions/v1BackupTransactionData",
+          "title": "The encrypted transaction data"
+        },
+        "backupTransfers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1BackupTransferData"
+          },
+          "title": "The encrypted transfer data"
         }
       },
       "title": "TransactionRequest describes request to get info about the create new transaction"

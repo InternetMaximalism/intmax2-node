@@ -117,6 +117,27 @@ message TransactionRequest {
   google.protobuf.Timestamp expiration = 70 [json_name="expiration", (tagger.tags)="json:\"expiration,omitempty\""];
   // the signature of request (the hash calculated from transfersHash, nonce, powNonce, sender, and expiration)
   string signature = 80 [json_name="signature", (tagger.tags)="json:\"signature,omitempty\""];
+  // The encrypted transaction data
+  BackupTransactionData backup_transaction = 90 [json_name="backupTx", (tagger.tags)="json:\"backupTx,omitempty\""];
+  // The encrypted transfer data
+  repeated BackupTransferData backup_transfers = 100 [json_name="backupTransfers", (tagger.tags)="json:\"backupTransfers,omitempty\""];
+}
+
+// BackupTransaction describes the backup data of transaction
+message BackupTransactionData {
+  // The encrypted transaction data
+  string encrypted_tx = 10 [json_name="encryptedTx", (tagger.tags)="json:\"encryptedTx,omitempty\""];
+
+  // The signature for the transaction
+  string signature = 20 [json_name="signature", (tagger.tags)="json:\"signature,omitempty\""];
+}
+
+// BackupTransaction describes the backup data of transaction
+message BackupTransferData {
+  // The encrypted data for the transfer
+  string encrypted_transfer = 10 [json_name="encryptedTransfer", (tagger.tags)="json:\"encryptedTransfer,omitempty\""];
+  // The recipient address
+  string recipient = 20 [json_name="recipient", (tagger.tags)="json:\"recipient,omitempty\""];
 }
 
 // DataTransactionResponse describes the data of response to get info about the create new transaction

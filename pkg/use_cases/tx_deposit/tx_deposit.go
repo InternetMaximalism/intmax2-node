@@ -89,10 +89,11 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressStr, amount,
 		return err
 	}
 
+	// TODO: ERC20, ERC721, ERC1155
 	if tokenInfo.TokenType == 0 {
 		// ETH
-		if err := d.DepositETHWithRandomSalt(userEthPrivateKeyHex, recipientAddress, tokenIndex, amount); err != nil {
-			return err
+		if innerErr := d.DepositETHWithRandomSalt(userEthPrivateKeyHex, recipientAddress, tokenIndex, amount); innerErr != nil {
+			return innerErr
 		}
 
 		fmt.Println("ETH deposit is successful")
