@@ -2,6 +2,8 @@ package tx_transfer_service
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
@@ -12,6 +14,7 @@ import (
 	intMaxTree "intmax2-node/internal/tree"
 	"intmax2-node/internal/tx_transfer_service"
 	intMaxTypes "intmax2-node/internal/types"
+	"intmax2-node/internal/use_cases/transaction"
 	"math/big"
 	"slices"
 	"strings"
@@ -104,6 +107,37 @@ func SendWithdrawalTransaction(
 	}
 
 	var nonce uint64 = 1 // TODO: Incremented with each transaction
+
+	txDetails := intMaxTypes.TxDetails{
+		Tx: intMaxTypes.Tx{
+			TransferTreeRoot: &transfersHash,
+			Nonce:            nonce,
+		},
+		Transfers: initialLeaves,
+	}
+
+	encodedTx := txDetails.Marshal()
+	encryptedTx, err := intMaxAcc.EncryptECIES(
+		rand.Reader,
+		userAccount.Public(),
+		encodedTx,
+	)
+	if err != nil {
+		log.Errorf("failed to encrypt deposit: %w", err)
+		return
+	}
+
+	encodedEncryptedTx := base64.StdEncoding.EncodeToString(encryptedTx)
+	backupTx := transaction.BackupTransactionData{
+		EncodedEncryptedTx: encodedEncryptedTx,
+		Signature:          "0x",
+	}
+
+	backupTransfers, err := tx_transfer_service.MakeBackupData(initialLeaves)
+	if err != nil {
+		log.Fatalf("failed to make backup data: %v", err)
+	}
+
 	err = SendWithdrawalRequest(
 		ctx,
 		cfg,
@@ -111,6 +145,8 @@ func SendWithdrawalTransaction(
 		userAccount,
 		transfersHash,
 		nonce,
+		&backupTx,
+		backupTransfers,
 	)
 	if err != nil {
 		log.Fatalf("failed to send transaction: %v", err)

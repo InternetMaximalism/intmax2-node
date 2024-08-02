@@ -5,11 +5,13 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	intMaxAcc "intmax2-node/internal/accounts"
 	intMaxAccTypes "intmax2-node/internal/accounts/types"
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/iden3/go-iden3-crypto/ffg"
 )
 
@@ -85,6 +87,22 @@ func (ga *GenericAddress) String() string {
 
 func (ga *GenericAddress) AddressType() string {
 	return ga.TypeOfAddress
+}
+
+func (ga *GenericAddress) ToINTMAXAddress() (intMaxAcc.Address, error) {
+	if ga.TypeOfAddress != intMaxAccTypes.INTMAXAddressType {
+		return intMaxAcc.Address{}, errors.New("address is not INTMAX")
+	}
+
+	return intMaxAcc.NewAddressFromBytes(ga.Address)
+}
+
+func (ga *GenericAddress) ToEthereumAddress() (common.Address, error) {
+	if ga.TypeOfAddress != intMaxAccTypes.EthereumAddressType {
+		return common.Address{}, errors.New("address is not Ethereum")
+	}
+
+	return common.BytesToAddress(ga.Address), nil
 }
 
 func (ga *GenericAddress) Equal(other *GenericAddress) bool {

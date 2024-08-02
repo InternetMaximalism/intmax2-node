@@ -40,7 +40,7 @@ func TestUseCaseTransaction(t *testing.T) {
 	w := NewMockWorker(ctrl)
 
 	cfg := new(configs.Config)
-	uc := ucBlockSignature.New(cfg, w)
+	uc := ucBlockSignature.New(cfg, nil, w)
 
 	const (
 		mnPassword = ""

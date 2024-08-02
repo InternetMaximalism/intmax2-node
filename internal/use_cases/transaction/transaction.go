@@ -33,6 +33,16 @@ type TransferDataTransaction struct {
 	DecodeSalt *intMaxTypes.PoseidonHashOut `json:"-"`
 }
 
+type BackupTransactionData struct {
+	EncodedEncryptedTx string `json:"encryptedTx"`
+	Signature          string `json:"signature"`
+}
+
+type BackupTransferInput struct {
+	Recipient                string `json:"recipient"`
+	EncodedEncryptedTransfer string `json:"encryptedTransfer"`
+}
+
 type UCTransactionInput struct {
 	Sender             string                     `json:"sender"`
 	DecodeSender       *intMaxAcc.PublicKey       `json:"-"`
@@ -43,6 +53,8 @@ type UCTransactionInput struct {
 	DecodeTransferData []*intMaxTypes.Transfer    `json:"-"`
 	Expiration         time.Time                  `json:"expiration"`
 	Signature          string                     `json:"signature"`
+	BackupTx           *BackupTransactionData     `json:"backupTx"`
+	BackupTransfers    []*BackupTransferInput     `json:"backupTransfers"`
 }
 
 // UseCaseTransaction describes Transaction contract.

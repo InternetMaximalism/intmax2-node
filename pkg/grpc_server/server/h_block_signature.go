@@ -36,6 +36,8 @@ func (s *Server) BlockSignature(
 			PrevBalanceProof:  &block_signature.Plonky2Proof{},
 			TransferStepProof: &block_signature.Plonky2Proof{},
 		},
+		// EncodedEncryptedTx:        req.EncodedEncryptedTx,
+		// EncodedEncryptedTransfers: req.EncodedEncryptedTransfers,
 	}
 
 	if req.EnoughBalanceProof != nil {
@@ -59,7 +61,7 @@ func (s *Server) BlockSignature(
 		return &resp, utils.BadRequest(spanCtx, err)
 	}
 
-	err = s.commands.BlockSignature(s.config, s.worker).Do(spanCtx, &input)
+	err = s.commands.BlockSignature(s.config, s.log, s.worker).Do(spanCtx, &input)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
 		const msg = "failed to get block signature: %v"

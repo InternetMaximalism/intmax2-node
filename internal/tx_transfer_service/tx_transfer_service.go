@@ -2,7 +2,11 @@ package tx_transfer_service
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_service"
@@ -10,9 +14,14 @@ import (
 	"intmax2-node/internal/mnemonic_wallet"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
+	"intmax2-node/internal/use_cases/transaction"
 	"math/big"
 	"strings"
+
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
+
+const MyTransferIndex = 0 // TODO: 1
 
 func SendTransferTransaction(
 	ctx context.Context,
@@ -82,7 +91,7 @@ func SendTransferTransaction(
 
 	zeroTransfer := new(intMaxTypes.Transfer).SetZero()
 	initialLeaves := make([]*intMaxTypes.Transfer, 1)
-	initialLeaves[0] = transfer
+	initialLeaves[MyTransferIndex] = transfer
 
 	transferTree, err := intMaxTree.NewTransferTree(intMaxTree.TRANSFER_TREE_HEIGHT, initialLeaves, zeroTransfer.Hash())
 	if err != nil {
@@ -92,6 +101,44 @@ func SendTransferTransaction(
 	transfersHash, _, _ := transferTree.GetCurrentRootCountAndSiblings()
 
 	var nonce uint64 = 1 // TODO: Incremented with each transaction
+
+	txDetails := intMaxTypes.TxDetails{
+		Tx: intMaxTypes.Tx{
+			TransferTreeRoot: &transfersHash,
+			Nonce:            nonce,
+		},
+		Transfers: initialLeaves,
+	}
+
+	encodedTx := txDetails.Marshal()
+	encryptedTx, err := intMaxAcc.EncryptECIES(
+		rand.Reader,
+		userAccount.Public(),
+		encodedTx,
+	)
+	if err != nil {
+		log.Errorf("failed to encrypt deposit: %w", err)
+		return
+	}
+
+	encodedEncryptedTx := base64.StdEncoding.EncodeToString(encryptedTx)
+	backupTransfers, err := MakeBackupData(initialLeaves)
+	if err != nil {
+		log.Fatalf("failed to make backup data: %v", err)
+	}
+
+	fmt.Printf("encodedEncryptedTx: %s\n", encodedEncryptedTx)
+	backupTx := transaction.BackupTransactionData{
+		EncodedEncryptedTx: encodedEncryptedTx,
+		Signature:          "0x",
+	}
+
+	s2, err := json.Marshal(backupTransfers)
+	if err != nil {
+		log.Fatalf("failed to marshal JSON: %v", err)
+	}
+	fmt.Printf("encodedEncryptedTransfers: %v\n", s2)
+
 	err = SendTransactionRequest(
 		ctx,
 		cfg,
@@ -99,6 +146,8 @@ func SendTransferTransaction(
 		userAccount,
 		transfersHash,
 		nonce,
+		&backupTx,
+		backupTransfers,
 	)
 	if err != nil {
 		log.Fatalf("failed to send transaction: %v", err)
@@ -135,4 +184,44 @@ func SendTransferTransaction(
 	}
 
 	log.Printf("The transaction has been successfully sent.")
+}
+
+func MakeBackupData(transfers []*intMaxTypes.Transfer) (encodedEncryptedTransfers []*transaction.BackupTransferInput, _ error) {
+	var ErrFailedToCreateRecipientAddress = errors.New("failed to create recipient address")
+	var ErrFailedToGetRecipientPublicKey = errors.New("failed to get recipient public key")
+	var ErrFailedToEncryptTransfer = errors.New("failed to encrypt transfer")
+
+	encodedEncryptedTransfers = make([]*transaction.BackupTransferInput, len(transfers))
+	for i, transfer := range transfers {
+		var encryptedTransfer []byte
+		if transfer.Recipient.TypeOfAddress == "INTMAX" {
+			recipientAddress, err := transfer.Recipient.ToINTMAXAddress()
+			if err != nil {
+				return nil, errors.Join(ErrFailedToCreateRecipientAddress, err)
+			}
+			recipientPublicKey, err := recipientAddress.Public()
+			if err != nil {
+				return nil, errors.Join(ErrFailedToGetRecipientPublicKey, err)
+			}
+
+			encryptedTransfer, err = intMaxAcc.EncryptECIES(
+				rand.Reader,
+				recipientPublicKey,
+				transfer.Marshal(),
+			)
+			if err != nil {
+				return nil, errors.Join(ErrFailedToEncryptTransfer, err)
+			}
+		} else {
+			// No encryption
+			encryptedTransfer = transfer.Marshal()
+		}
+
+		encodedEncryptedTransfers[i] = &transaction.BackupTransferInput{
+			Recipient:                hexutil.Encode(transfer.Recipient.Marshal()),
+			EncodedEncryptedTransfer: base64.StdEncoding.EncodeToString(encryptedTransfer),
+		}
+	}
+
+	return encodedEncryptedTransfers, nil
 }

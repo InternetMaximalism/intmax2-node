@@ -5,6 +5,7 @@ import (
 	"errors"
 	"intmax2-node/configs"
 	"intmax2-node/internal/bindings"
+	"intmax2-node/internal/logger"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/pkg/utils"
 	"math/big"
@@ -35,16 +36,17 @@ const (
 )
 
 type blockPostService struct {
-	ctx context.Context
-	// cfg       *configs.Config
-	// log       logger.Logger
+	ctx          context.Context
+	cfg          *configs.Config
+	log          logger.Logger
 	ethClient    *ethclient.Client
 	scrollClient *ethclient.Client
 	liquidity    *bindings.Liquidity
 	rollup       *bindings.Rollup
 }
 
-func NewBlockPostService(ctx context.Context, cfg *configs.Config) (BlockPostService, error) {
+// func NewBlockPostService(ctx context.Context, cfg *configs.Config, log logger.Logger) (BlockPostService, error) {
+func NewBlockPostService(ctx context.Context, cfg *configs.Config, log logger.Logger) (*blockPostService, error) {
 	ethClient, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
 	if err != nil {
 		return nil, errors.Join(ErrNewEthereumClientFail, err)
@@ -78,6 +80,8 @@ func NewBlockPostService(ctx context.Context, cfg *configs.Config) (BlockPostSer
 
 	return &blockPostService{
 		ctx:          ctx,
+		cfg:          cfg,
+		log:          log,
 		ethClient:    ethClient,
 		scrollClient: scrollClient,
 		liquidity:    liquidity,
