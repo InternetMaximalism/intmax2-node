@@ -44,7 +44,7 @@ func TestTransferData(t *testing.T) {
 	t.Log("transferData.ToUint64Slice()", transferData.ToUint64Slice())
 
 	transferHash := transferData.Hash()
-	assert.Equal(t, transferHash.String(), "0xb91d589d8e2a9632bfc0ce8fc19ecae6e2381f2ec4d4ec4d67a2bdbc97dd0763")
+	assert.Equal(t, transferHash.String(), "0x9b469cf21563c28179698ccac6a789450e68b270b586e6ec583cead158f44631")
 }
 
 func TestEncryptTransfers(t *testing.T) {
