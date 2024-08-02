@@ -58,6 +58,6 @@ func TestEncryptDeposit(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(
 		t, deposit.Equal(decryptedDeposit),
-		"recipients should be equal: %v != %v", deposit, decryptedDeposit,
+		"deposit should be equal: %v != %v", deposit, decryptedDeposit,
 	)
 }

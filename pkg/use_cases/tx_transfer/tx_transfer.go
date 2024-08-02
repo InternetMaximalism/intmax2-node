@@ -2,7 +2,6 @@ package tx_transfer
 
 import (
 	"context"
-	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/logger"
@@ -52,9 +51,7 @@ func (u *uc) Do(ctx context.Context, args []string, amount, recipientAddressStr,
 		return err
 	}
 
-	fmt.Printf("Public key: %s\n", userAccount.Public())
 	userAddress := userAccount.ToAddress()
-	fmt.Printf("address: %s\n", userAddress)
 
 	span.SetAttributes(
 		attribute.String(senderKey, userAddress.String()),
