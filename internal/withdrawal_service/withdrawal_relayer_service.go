@@ -1,3 +1,4 @@
+//nolint:gocritic
 package withdrawal_service
 
 import (
@@ -20,49 +21,35 @@ import (
 const defaultPage = 1
 
 type WithdrawalRelayerService struct {
-	ctx               context.Context
-	cfg               *configs.Config
-	log               logger.Logger
-	ethClient         *ethclient.Client
-	scrollClient      *ethclient.Client
-	l1ScrollMessenger *bindings.L1ScrollMessenger
-	l2ScrollMessenger *bindings.L2ScrollMessenger
+	ctx             context.Context
+	cfg             *configs.Config
+	log             logger.Logger
+	client          *ethclient.Client
+	scrollMessenger *bindings.L1ScrollMessenger
 }
 
-func newWithdrawalRelayerService(ctx context.Context, cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) (*WithdrawalRelayerService, error) {
-	scrollLink, err := sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
-	}
+func newWithdrawalRelayerService(ctx context.Context, cfg *configs.Config, log logger.Logger, _ ServiceBlockchain) (*WithdrawalRelayerService, error) {
+	// link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
+	// }
 
-	ethClient, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create new client: %w", err)
-	}
-
-	scrollClient, err := utils.NewClient(scrollLink)
+	client, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new client: %w", err)
 	}
 
-	l1ScrollMessenger, err := bindings.NewL1ScrollMessenger(common.HexToAddress(cfg.Blockchain.ScrollMessengerL1ContractAddress), ethClient)
+	scrollMessenger, err := bindings.NewL1ScrollMessenger(common.HexToAddress(cfg.Blockchain.ScrollMessengerL1ContractAddress), client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to instantiate L1ScrollMessenger contract: %w", err)
 	}
 
-	l2ScrollMessenger, err := bindings.NewL2ScrollMessenger(common.HexToAddress(cfg.Blockchain.ScrollMessengerL2ContractAddress), scrollClient)
-	if err != nil {
-		return nil, fmt.Errorf("failed to instantiate L2ScrollMessenger contract: %w", err)
-	}
-
 	return &WithdrawalRelayerService{
-		ctx:               ctx,
-		cfg:               cfg,
-		log:               log,
-		ethClient:         ethClient,
-		scrollClient:      scrollClient,
-		l1ScrollMessenger: l1ScrollMessenger,
-		l2ScrollMessenger: l2ScrollMessenger,
+		ctx:             ctx,
+		cfg:             cfg,
+		log:             log,
+		client:          client,
+		scrollMessenger: scrollMessenger,
 	}, nil
 }
 
@@ -165,7 +152,7 @@ func (w *WithdrawalRelayerService) relayMessageWithProof(result *ScrollMessenger
 		MerkleProof: merkleProof,
 	}
 
-	tx, err := w.l1ScrollMessenger.RelayMessageWithProof(
+	tx, err := w.scrollMessenger.RelayMessageWithProof(
 		transactOpts,
 		common.HexToAddress(result.ClaimInfo.From),
 		common.HexToAddress(result.ClaimInfo.To),
@@ -178,7 +165,7 @@ func (w *WithdrawalRelayerService) relayMessageWithProof(result *ScrollMessenger
 		return nil, fmt.Errorf("failed to send relayMessageWithProof transaction: %w", err)
 	}
 
-	receipt, err := bind.WaitMined(w.ctx, w.ethClient, tx)
+	receipt, err := bind.WaitMined(w.ctx, w.client, tx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to wait for transaction to be mined: %w", err)
 	}
