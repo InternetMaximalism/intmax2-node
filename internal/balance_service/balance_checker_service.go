@@ -280,7 +280,7 @@ func getUserBalancesRawRequest(
 		appJSON     = "application/json"
 	)
 
-	apiUrl := fmt.Sprintf("%s/v1/balances/%s", cfg.HTTP.DataStoreVaultUrl, address)
+	apiUrl := fmt.Sprintf("%s/v1/balances/%s", cfg.API.DataStoreVaultUrl, address)
 
 	r := resty.New().R()
 	resp, err := r.SetContext(ctx).SetHeaders(map[string]string{

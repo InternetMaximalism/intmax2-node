@@ -277,7 +277,7 @@ func MakeWithdrawalInfo(
 // 		idsQuery = idsQuery[:len(idsQuery)-1]
 // 	}
 // 	apiUrl := fmt.Sprintf("%s/proofs?%s",
-// 		w.cfg.API.WithdrawalProverApiURL,
+// 		w.cfg.API.WithdrawalProverUrl,
 // 		idsQuery,
 // 	)
 

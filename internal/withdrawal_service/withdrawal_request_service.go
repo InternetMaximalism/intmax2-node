@@ -158,7 +158,7 @@ func (w *WithdrawalRequestService) requestWithdrawalProofToProver(id string, inp
 		}
 
 		apiUrl := fmt.Sprintf("%s/proof",
-			w.cfg.API.WithdrawalProverApiURL,
+			w.cfg.API.WithdrawalProverUrl,
 		)
 		resp, err := http.Post(apiUrl, "application/json", bytes.NewBuffer(jsonBody)) // nolint:gosec
 		if err != nil {
