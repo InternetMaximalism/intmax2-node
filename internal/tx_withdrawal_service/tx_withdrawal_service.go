@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_service"
@@ -21,7 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
-func SendWithdrawalTransaction(
+func WithdrawalTransaction(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
@@ -90,7 +92,8 @@ func SendWithdrawalTransaction(
 
 	zeroTransfer := new(intMaxTypes.Transfer).SetZero()
 	initialLeaves := make([]*intMaxTypes.Transfer, 1)
-	initialLeaves[0] = transfer
+	const transferIndex = 0
+	initialLeaves[transferIndex] = transfer
 
 	transferTree, err := intMaxTree.NewTransferTree(intMaxTree.TRANSFER_TREE_HEIGHT, initialLeaves, zeroTransfer.Hash())
 	if err != nil {
@@ -123,26 +126,13 @@ func SendWithdrawalTransaction(
 		return
 	}
 
-	encodedEncryptedTx := base64.StdEncoding.EncodeToString(encryptedTx)
-	backupTx := transaction.BackupTransactionData{
-		EncodedEncryptedTx: encodedEncryptedTx,
-		Signature:          "0x",
-	}
-
-	backupTransfers, err := tx_transfer_service.MakeBackupData(initialLeaves)
-	if err != nil {
-		log.Fatalf("failed to make backup data: %v", err)
-	}
-
-	err = SendWithdrawalRequest(
+	err = SendWithdrawalTransaction(
 		ctx,
 		cfg,
 		log,
 		userAccount,
 		transfersHash,
 		nonce,
-		&backupTx,
-		backupTransfers,
 	)
 	if err != nil {
 		log.Fatalf("failed to send transaction: %v", err)
@@ -170,9 +160,44 @@ func SendWithdrawalTransaction(
 
 	txHash := tx.Hash()
 
+	publicKeysStr := make([]string, len(proposedBlock.PublicKeys))
+	for i, key := range proposedBlock.PublicKeys {
+		publicKeysStr[i] = key.ToAddress().String()
+	}
+
+	txIndex := slices.Index(publicKeysStr, userAccount.ToAddress().String())
+	if txIndex == -1 {
+		log.Fatalf("failed to find user's public key in the proposed block")
+	}
+
+	encodedEncryptedTx := base64.StdEncoding.EncodeToString(encryptedTx)
+	backupTx := transaction.BackupTransactionData{
+		EncodedEncryptedTx: encodedEncryptedTx,
+		Signature:          "0x",
+	}
+
+	backupTransfers := make([]*transaction.BackupTransferInput, len(initialLeaves))
+	for i, transfer := range initialLeaves {
+		backupTransfers[i], err = tx_transfer_service.MakeWithdrawalBackupData(
+			transfer,
+			userAccount.ToAddress(),
+			transfersHash,
+			nonce,
+			proposedBlock.TxTreeRoot,
+			proposedBlock.TxTreeMerkleProof,
+			transferMerkleProof,
+			transferIndex,
+			int32(txIndex),
+		)
+		if err != nil {
+			log.Fatalf("failed to make backup data: %v", err)
+		}
+	}
+
 	// Accept proposed block
 	err = tx_transfer_service.SendSignedProposedBlock(
 		ctx, cfg, log, userAccount, proposedBlock.TxTreeRoot, *txHash, proposedBlock.PublicKeys,
+		&backupTx, backupTransfers,
 	)
 	if err != nil {
 		log.Fatalf("failed to send transaction: %v", err)
@@ -180,36 +205,83 @@ func SendWithdrawalTransaction(
 
 	log.Infof("The transaction has been successfully sent.")
 
-	// TODO: Get the block number and block hash
-	// Specify the block number containing the transaction.
-	rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(cfg, "https://sepolia-rpc.scroll.io")
-	blockNumber, err := intMaxTypes.FetchLatestIntMaxBlockNumber(rollupCfg, ctx)
-	if err != nil {
-		log.Fatalf("failed to fetch latest intmax block: %v", err)
-	}
-	blockHash, err := intMaxTypes.FetchBlockHash(rollupCfg, ctx, blockNumber)
-	if err != nil {
-		log.Fatalf("failed to fetch block hash: %v", err)
-	}
+	// TODO: Make it safe to interrupt here.
 
-	txMerkleProof := proposedBlock.TxTreeMerkleProof
-
-	publicKeysStr := make([]string, len(proposedBlock.PublicKeys))
-	for i, key := range proposedBlock.PublicKeys {
-		publicKeysStr[i] = key.ToAddress().String()
-	}
-	txIndex := slices.Index(publicKeysStr, userAccount.ToAddress().String())
-	if txIndex == -1 {
-		log.Fatalf("failed to find user's public key in the proposed block")
-	}
-
-	err = SendWithdrawalWithRawRequest(
-		ctx, cfg, log, userAccount, transfer, transfersHash, nonce, transferMerkleProof, 0, txMerkleProof, int32(txIndex),
-		blockNumber, blockHash,
-	)
+	// Send withdrawal request
+	err = SendWithdrawalRequest(ctx, cfg, log, &tx_transfer_service.BackupWithdrawal{
+		SenderAddress:       userAccount.ToAddress(),
+		Transfer:            transfer,
+		TransferMerkleProof: transferMerkleProof,
+		TransferIndex:       transferIndex,
+		TransferTreeRoot:    transfersHash,
+		Nonce:               nonce,
+		TxTreeMerkleProof:   proposedBlock.TxTreeMerkleProof,
+		TxIndex:             int32(txIndex),
+		TxTreeRoot:          proposedBlock.TxTreeRoot,
+	})
 	if err != nil {
 		log.Fatalf("failed to request withdrawal: %v", err)
 	}
 
 	log.Infof("The withdrawal request has been successfully sent.")
+}
+
+func SendWithdrawalTransactionFromBackupTransfer(
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
+	backupWithdrawal *transaction.BackupTransferInput,
+) error {
+	// base64 decode
+	encodedEncryptedTransfer, err := base64.StdEncoding.DecodeString(backupWithdrawal.EncodedEncryptedTransfer)
+	if err != nil {
+		return fmt.Errorf("failed to decode base64: %w", err)
+	}
+
+	// json unmarshal
+	var withdrawal tx_transfer_service.BackupWithdrawal
+	err = json.Unmarshal(encodedEncryptedTransfer, &withdrawal)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal json: %w", err)
+	}
+
+	// Send withdrawal transaction
+	return SendWithdrawalRequest(ctx, cfg, log, &withdrawal)
+}
+
+func SendWithdrawalRequest(
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
+	withdrawal *tx_transfer_service.BackupWithdrawal,
+) error {
+	// TODO: Get the block number and block hash
+	// Specify the block number containing the transaction.
+	rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(cfg, "https://sepolia-rpc.scroll.io")
+	blockNumber, err := intMaxTypes.FetchLatestIntMaxBlockNumber(rollupCfg, ctx)
+	if err != nil {
+		return fmt.Errorf("failed to fetch latest intmax block: %w", err)
+	}
+	blockHash, err := intMaxTypes.FetchBlockHash(rollupCfg, ctx, blockNumber)
+	if err != nil {
+		return fmt.Errorf("failed to fetch block hash: %w", err)
+	}
+
+	err = SendWithdrawalWithRawRequest(
+		ctx, cfg, log,
+		withdrawal.Transfer,
+		withdrawal.TransferTreeRoot,
+		withdrawal.Nonce,
+		withdrawal.TransferMerkleProof,
+		withdrawal.TransferIndex,
+		withdrawal.TxTreeMerkleProof,
+		withdrawal.TxIndex,
+		blockNumber,
+		blockHash,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to request withdrawal: %w", err)
+	}
+
+	return nil
 }

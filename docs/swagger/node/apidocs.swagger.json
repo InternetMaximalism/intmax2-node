@@ -811,6 +811,18 @@
         "enoughBalanceProof": {
           "$ref": "#/definitions/v1EnoughBalanceOfProofBlockSignatureRequest",
           "title": "the proof of sufficient balance after sending"
+        },
+        "backupTx": {
+          "$ref": "#/definitions/v1BackupTransactionData",
+          "title": "The encrypted transaction data"
+        },
+        "backupTransfers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1BackupTransferData"
+          },
+          "title": "The encrypted transfer data"
         }
       },
       "title": "BlockSignatureRequest describes request about sends the signature to approve the proposed block by signing the tx tree root"
@@ -1045,18 +1057,6 @@
         "signature": {
           "type": "string",
           "title": "the signature of request (the hash calculated from transfersHash, nonce, powNonce, sender, and expiration)"
-        },
-        "backupTx": {
-          "$ref": "#/definitions/v1BackupTransactionData",
-          "title": "The encrypted transaction data"
-        },
-        "backupTransfers": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1BackupTransferData"
-          },
-          "title": "The encrypted transfer data"
         }
       },
       "title": "TransactionRequest describes request to get info about the create new transaction"

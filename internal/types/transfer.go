@@ -166,6 +166,7 @@ func NewTransfer(recipient *GenericAddress, tokenIndex uint32, amount *big.Int, 
 		Recipient:  recipient,
 		TokenIndex: tokenIndex,
 		Amount:     amount,
+		Salt:       salt,
 	}
 }
 
@@ -175,12 +176,7 @@ func NewTransferWithRandomSalt(recipient *GenericAddress, tokenIndex uint32, amo
 		panic(err)
 	}
 
-	return &Transfer{
-		Recipient:  recipient,
-		TokenIndex: tokenIndex,
-		Amount:     amount,
-		Salt:       salt,
-	}
+	return NewTransfer(recipient, tokenIndex, amount, salt)
 }
 
 func (td *Transfer) Set(transferData *Transfer) *Transfer {

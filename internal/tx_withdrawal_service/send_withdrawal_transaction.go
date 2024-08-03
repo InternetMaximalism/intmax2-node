@@ -23,15 +23,13 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
-func SendWithdrawalRequest(
+func SendWithdrawalTransaction(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
 	senderAccount *intMaxAcc.PrivateKey,
 	transfersHash intMaxTypes.PoseidonHashOut,
 	nonce uint64,
-	encodedEncryptedTx *transaction.BackupTransactionData,
-	encodedEncryptedTransfers []*transaction.BackupTransferInput,
 ) error {
 	const duration = 300 * time.Minute
 	expiration := time.Now().Add(duration)
@@ -78,7 +76,7 @@ func SendWithdrawalRequest(
 	}
 
 	err = tx_transfer_service.SendTransactionWithRawRequest(
-		ctx, cfg, log, senderAccount, transfersHash, nonce, expiration, powNonceStr, signatureInput, encodedEncryptedTx, encodedEncryptedTransfers,
+		ctx, cfg, log, senderAccount, transfersHash, nonce, expiration, powNonceStr, signatureInput,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to send transaction: %w", err)
@@ -91,7 +89,6 @@ func SendWithdrawalWithRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
-	senderAccount *intMaxAcc.PrivateKey,
 	transfer *intMaxTypes.Transfer,
 	transferTreeRoot goldenposeidon.PoseidonHashOut,
 	nonce uint64,

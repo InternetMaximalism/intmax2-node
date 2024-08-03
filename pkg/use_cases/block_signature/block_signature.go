@@ -3,13 +3,19 @@ package block_signature
 import (
 	"context"
 	"errors"
+	"fmt"
 	"intmax2-node/configs"
+	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
+	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/backup_balance"
 	ucBlockSignature "intmax2-node/internal/use_cases/block_signature"
 	"intmax2-node/internal/worker"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/iden3/go-iden3-crypto/ffg"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -72,6 +78,73 @@ func (u *uc) Do(
 			File:   nil,
 		}
 	*/
+	b, err := block_post_service.NewBlockPostService(ctx, u.cfg, u.log)
+	if err != nil {
+		var ErrNewBlockPostServiceFail = errors.New("new block post service fail")
+		return errors.Join(ErrNewBlockPostServiceFail, err)
+	}
+
+	// Backup transaction and transfer
+	blockNumber := uint64(1) // dummy
+	sender, err := intMaxAcc.NewPublicKeyFromAddressHex(input.Sender)
+	fmt.Printf("input.EncodedEncryptedTx: %v", input.BackupTx)
+	if innerErr := b.BackupTransaction(
+		sender.ToAddress(),
+		input.BackupTx.EncodedEncryptedTx,
+		input.BackupTx.Signature,
+		blockNumber,
+	); innerErr != nil {
+		open_telemetry.MarkSpanError(spanCtx, innerErr)
+		return innerErr
+	}
+
+	for i := 0; i < len(input.BackupTransfers); i++ {
+		encodedEncryptedTransfer := input.BackupTransfers[i]
+		var addressBytes []byte
+		addressBytes, err = hexutil.Decode(encodedEncryptedTransfer.Recipient)
+		if err != nil {
+			open_telemetry.MarkSpanError(spanCtx, err)
+			return err
+		}
+		recipient := new(intMaxTypes.GenericAddress)
+		err = recipient.Unmarshal(addressBytes)
+		if err != nil {
+			open_telemetry.MarkSpanError(spanCtx, err)
+			return err
+		}
+
+		// TODO: Write the process when the recipient is Ethereum.
+		if recipient.TypeOfAddress == "INTMAX" {
+			var intMaxAddress intMaxAcc.Address
+			intMaxAddress, err = recipient.ToINTMAXAddress()
+			if err != nil {
+				open_telemetry.MarkSpanError(spanCtx, err)
+				return err
+			}
+			u.log.Printf("INTMAX Address: %s\n", intMaxAddress.String())
+			if innerErr := b.BackupTransfer(
+				intMaxAddress, encodedEncryptedTransfer.EncodedEncryptedTransfer, blockNumber,
+			); innerErr != nil {
+				open_telemetry.MarkSpanError(spanCtx, innerErr)
+				return innerErr
+			}
+		} else {
+			var ethAddress common.Address
+			ethAddress, err = recipient.ToEthereumAddress()
+			if err != nil {
+				open_telemetry.MarkSpanError(spanCtx, err)
+				return err
+			}
+
+			u.log.Printf("ETH Address: %s\n", ethAddress.String())
+			if innerErr := b.BackupWithdrawal(
+				ethAddress, encodedEncryptedTransfer.EncodedEncryptedTransfer, blockNumber,
+			); innerErr != nil {
+				open_telemetry.MarkSpanError(spanCtx, innerErr)
+				return innerErr
+			}
+		}
+	}
 
 	err = u.w.SignTxTreeByAvailableFile(
 		input.Signature,

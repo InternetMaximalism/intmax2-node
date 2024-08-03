@@ -5,6 +5,7 @@ import (
 	"intmax2-node/internal/open_telemetry"
 	"intmax2-node/internal/pb/gen/service/node"
 	"intmax2-node/internal/use_cases/block_signature"
+	"intmax2-node/internal/use_cases/transaction"
 	"intmax2-node/pkg/grpc_server/utils"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -36,8 +37,21 @@ func (s *Server) BlockSignature(
 			PrevBalanceProof:  &block_signature.Plonky2Proof{},
 			TransferStepProof: &block_signature.Plonky2Proof{},
 		},
+		BackupTx: &transaction.BackupTransactionData{
+			EncodedEncryptedTx: req.BackupTransaction.EncryptedTx,
+			Signature:          req.BackupTransaction.Signature,
+		},
+		BackupTransfers: make([]*transaction.BackupTransferInput, len(req.BackupTransfers)),
 		// EncodedEncryptedTx:        req.EncodedEncryptedTx,
 		// EncodedEncryptedTransfers: req.EncodedEncryptedTransfers,
+	}
+
+	for key := range req.BackupTransfers {
+		data := transaction.BackupTransferInput{
+			Recipient:                req.BackupTransfers[key].Recipient,
+			EncodedEncryptedTransfer: req.BackupTransfers[key].EncryptedTransfer,
+		}
+		input.BackupTransfers[key] = &data
 	}
 
 	if req.EnoughBalanceProof != nil {

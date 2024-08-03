@@ -60,7 +60,7 @@ func (u *uc) Do(ctx context.Context, args []string, amount, recipientAddressStr,
 		attribute.String(senderKey, userAddress.String()),
 	)
 
-	service.SendTransferTransaction(spanCtx, u.cfg, u.log, u.sb, args, amount, recipientAddressStr, userEthPrivateKey)
+	service.TransferTransaction(spanCtx, u.cfg, u.log, u.sb, args, amount, recipientAddressStr, userEthPrivateKey)
 
 	return nil
 }

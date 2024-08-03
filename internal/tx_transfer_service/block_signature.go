@@ -15,6 +15,7 @@ import (
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/block_signature"
+	"intmax2-node/internal/use_cases/transaction"
 	"math/big"
 	"net/http"
 
@@ -128,6 +129,8 @@ func SendSignedProposedBlock(
 	txTreeRoot goldenposeidon.PoseidonHashOut,
 	txHash goldenposeidon.PoseidonHashOut,
 	publicKeys []*intMaxAcc.PublicKey,
+	backupTx *transaction.BackupTransactionData,
+	backupTransfers []*transaction.BackupTransferInput,
 	// prevBalanceProof block_signature.Plonky2Proof,
 	// transferStepProof block_signature.Plonky2Proof,
 ) error {
@@ -178,6 +181,7 @@ func SendSignedProposedBlock(
 	return PostBlockSignatureRawRequest(
 		ctx, cfg, log,
 		senderAccount.ToAddress(), txHash, signature,
+		backupTx, backupTransfers,
 		prevBalanceProof, transferStepProof,
 	)
 }
@@ -189,6 +193,8 @@ func PostBlockSignatureRawRequest(
 	senderAddress intMaxAcc.Address,
 	txHash goldenposeidon.PoseidonHashOut,
 	signature *bn254.G2Affine,
+	backupTx *transaction.BackupTransactionData,
+	backupTransfers []*transaction.BackupTransferInput,
 	prevBalanceProof block_signature.Plonky2Proof,
 	transferStepProof block_signature.Plonky2Proof,
 ) error {
@@ -197,6 +203,8 @@ func PostBlockSignatureRawRequest(
 		senderAddress.String(),
 		hexutil.Encode(txHash.Marshal()),
 		hexutil.Encode(signature.Marshal()),
+		backupTx,
+		backupTransfers,
 		prevBalanceProof,
 		transferStepProof,
 	)
@@ -207,6 +215,8 @@ func postBlockSignatureRawRequest(
 	cfg *configs.Config,
 	log logger.Logger,
 	senderAddress, txHash, signature string,
+	backupTx *transaction.BackupTransactionData,
+	backupTransfers []*transaction.BackupTransferInput,
 	prevBalanceProof block_signature.Plonky2Proof,
 	transferStepProof block_signature.Plonky2Proof,
 ) error {
@@ -218,6 +228,8 @@ func postBlockSignatureRawRequest(
 			PrevBalanceProof:  &prevBalanceProof,
 			TransferStepProof: &transferStepProof,
 		}),
+		BackupTx:        backupTx,
+		BackupTransfers: backupTransfers,
 	}
 
 	bd, err := json.Marshal(ucInput)
