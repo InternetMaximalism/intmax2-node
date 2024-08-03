@@ -18,7 +18,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-const depositThreshold uint64 = 128
 const duration = 1 * time.Hour
 const FixedDepositValueInWei = 1e17 // 0.1 ETH in Wei
 
@@ -193,7 +192,7 @@ func (d *DepositRelayerService) shouldProcessDeposits(unprocessedDepositCount, r
 		return false, nil
 	}
 
-	if unprocessedDepositCount >= depositThreshold {
+	if unprocessedDepositCount >= d.cfg.Blockchain.DepositRelayerThreshold {
 		fmt.Println("Deposit threshold is reached")
 		return true, nil
 	}
