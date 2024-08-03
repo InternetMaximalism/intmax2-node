@@ -1,10 +1,10 @@
-package sync_balance
+package balance_checker
 
 import (
 	"context"
 )
 
-//go:generate mockgen -destination=mock_blockchain_service.go -package=sync_balance -source=blockchain_service.go
+//go:generate mockgen -destination=mock_blockchain_service.go -package=balance_checker -source=blockchain_service.go
 
 type ServiceBlockchain interface {
 	GenericCommandsSB
