@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"math/big"
@@ -138,12 +139,15 @@ func (d *Deposit) Marshal() []byte {
 	tokenIndexBytes := make([]byte, int4Key)
 	binary.BigEndian.PutUint32(tokenIndexBytes, d.TokenIndex)
 	amountBytes := make([]byte, int32Key)
-	for i, v := range d.Amount.Bytes() {
-		amountBytes[int32Key-1-i] = v
+	copy(amountBytes[int32Key-len(d.Amount.Bytes()):], d.Amount.Bytes())
+	amountRevertedBytes := make([]byte, int32Key)
+	for i, v := range amountBytes {
+		amountRevertedBytes[int32Key-1-i] = v
 	}
+	fmt.Printf("amountRevertedBytes: %v\n", amountRevertedBytes)
 
 	return append(
-		append(append(d.Recipient.ToAddress().Bytes(), tokenIndexBytes...), amountBytes...),
+		append(append(d.Recipient.ToAddress().Bytes(), tokenIndexBytes...), amountRevertedBytes...),
 		d.Salt.Marshal()...,
 	)
 }
@@ -170,7 +174,12 @@ func (d *Deposit) Unmarshal(data []byte) error {
 		return errors.Join(ErrorInvalidRecipient, err)
 	}
 	d.TokenIndex = binary.BigEndian.Uint32(data[int32Key : int32Key+int4Key])
-	d.Amount = new(big.Int).SetBytes(data[int32Key+int4Key : int32Key+int4Key+int32Key])
+	amountBytes := make([]byte, int32Key)
+	for i, v := range data[int32Key+int4Key : int32Key+int4Key+int32Key] {
+		amountBytes[int32Key-1-i] = v
+	}
+
+	d.Amount = new(big.Int).SetBytes(amountBytes)
 	d.Salt = new(goldenposeidon.PoseidonHashOut)
 	if err = d.Salt.Unmarshal(data[int32Key+int4Key+int32Key : int32Key+int4Key+int32Key+int32Key]); err != nil {
 		ErrorInvalidSalt := errors.New("failed to unmarshal salt")

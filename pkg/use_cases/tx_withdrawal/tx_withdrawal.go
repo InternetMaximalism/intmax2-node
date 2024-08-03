@@ -42,6 +42,9 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressHex, amount,
 	defer span.End()
 
 	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
+	if err != nil {
+		u.log.Errorf("fail to parse user private key: %v", err)
+	}
 
 	// The userPrivateKey is acceptable in either format:
 	// it may include the '0x' prefix at the beginning,

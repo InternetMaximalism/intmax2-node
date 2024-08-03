@@ -256,7 +256,7 @@ func (td *Transfer) Marshal() []byte {
 	tdAmountBytes := td.Amount.Bytes()
 	copy(amountBytes[int32Key-len(tdAmountBytes):], tdAmountBytes)
 	reversedAmountBytes := make([]byte, int32Key)
-	for i := range td.Amount.Bytes() {
+	for i := range amountBytes {
 		reversedAmountBytes[i] = amountBytes[int32Key-1-i]
 	}
 

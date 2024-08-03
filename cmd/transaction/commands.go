@@ -4,10 +4,12 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 
-	balanceChecker "intmax2-node/internal/use_cases/tx_transfer"
+	txDeposit "intmax2-node/internal/use_cases/tx_deposit"
+	txTransfer "intmax2-node/internal/use_cases/tx_transfer"
+	txWithdrawal "intmax2-node/internal/use_cases/tx_withdrawal"
 	ucTxDeposit "intmax2-node/pkg/use_cases/tx_deposit"
 	ucTxTransfer "intmax2-node/pkg/use_cases/tx_transfer"
-	ucTxWithdraw "intmax2-node/pkg/use_cases/tx_withdrawal"
+	ucTxWithdrawal "intmax2-node/pkg/use_cases/tx_withdrawal"
 )
 
 type Commands interface {
@@ -15,17 +17,17 @@ type Commands interface {
 		cfg *configs.Config,
 		log logger.Logger,
 		sb ServiceBlockchain,
-	) balanceChecker.UseCaseTxTransfer
+	) txTransfer.UseCaseTxTransfer
 	SendDepositTransaction(
 		cfg *configs.Config,
 		log logger.Logger,
 		sb ServiceBlockchain,
-	) balanceChecker.UseCaseTxTransfer
+	) txDeposit.UseCaseTxDeposit
 	SendWithdrawalTransaction(
 		cfg *configs.Config,
 		log logger.Logger,
 		sb ServiceBlockchain,
-	) balanceChecker.UseCaseTxTransfer
+	) txWithdrawal.UseCaseTxWithdrawal
 }
 
 type commands struct{}
@@ -38,7 +40,7 @@ func (c *commands) SendTransferTransaction(
 	cfg *configs.Config,
 	log logger.Logger,
 	sb ServiceBlockchain,
-) balanceChecker.UseCaseTxTransfer {
+) txTransfer.UseCaseTxTransfer {
 	return ucTxTransfer.New(cfg, log, sb)
 }
 
@@ -46,7 +48,7 @@ func (c *commands) SendDepositTransaction(
 	cfg *configs.Config,
 	log logger.Logger,
 	sb ServiceBlockchain,
-) balanceChecker.UseCaseTxTransfer {
+) txDeposit.UseCaseTxDeposit {
 	return ucTxDeposit.New(cfg, log, sb)
 }
 
@@ -54,6 +56,6 @@ func (c *commands) SendWithdrawalTransaction(
 	cfg *configs.Config,
 	log logger.Logger,
 	sb ServiceBlockchain,
-) balanceChecker.UseCaseTxTransfer {
-	return ucTxWithdraw.New(cfg, log, sb)
+) txWithdrawal.UseCaseTxWithdrawal {
+	return ucTxWithdrawal.New(cfg, log, sb)
 }

@@ -38,9 +38,6 @@ func GetBlockProposed(
 	}
 
 	txHash := tx.Hash()
-	log.Printf("transfersHash: %s", transfersHash.String())
-	log.Printf("nonce: %d", nonce)
-	log.Printf("tx hash: %s", tx.Hash())
 
 	expiration := time.Now().Add(signTimeout)
 	var message []ffg.Element

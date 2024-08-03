@@ -44,7 +44,6 @@ func SendTransactionRequest(
 	}
 
 	txHash := tx.Hash()
-	log.Printf("transfersHash: %v", transfersHash.String())
 	messageForPow := txHash.Marshal()
 	powNonceStr, err := pwNonce.Nonce(ctx, messageForPow)
 	if err != nil {
