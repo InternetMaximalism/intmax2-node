@@ -157,7 +157,7 @@ func getBlockProposedRawRequest(
 		appJSON     = "application/json"
 	)
 
-	apiUrl := fmt.Sprintf("%s/v1/block/proposed", cfg.HTTP.BlockBuilderUrl)
+	apiUrl := fmt.Sprintf("%s/v1/block/proposed", cfg.API.BlockBuilderUrl)
 
 	r := resty.New().R()
 	var resp *resty.Response
