@@ -3,6 +3,7 @@ package withdrawal_server
 import (
 	"context"
 	"fmt"
+	"intmax2-node/internal/blockchain"
 	"intmax2-node/internal/open_telemetry"
 	"intmax2-node/internal/pb/gen/service/node"
 	postWithdrwalRequest "intmax2-node/internal/use_cases/post_withdrawal_request"
@@ -61,10 +62,12 @@ func (s *WithdrawalServer) WithdrawalRequest(ctx context.Context, req *node.With
 		return &resp, utils.BadRequest(spanCtx, err)
 	}
 
+	bc := blockchain.New(ctx, s.config)
+
 	err = s.dbApp.Exec(spanCtx, nil, func(d interface{}, _ interface{}) (err error) {
 		q, _ := d.(SQLDriverApp)
 
-		err = s.commands.PostWithdrawalRequest(s.config, s.log, q).Do(spanCtx, &input)
+		err = s.commands.PostWithdrawalRequest(s.config, s.log, q, bc).Do(spanCtx, &input)
 		if err != nil {
 			open_telemetry.MarkSpanError(spanCtx, err)
 			const msg = "failed to post withdrawal request: %w"

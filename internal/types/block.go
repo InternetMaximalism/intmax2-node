@@ -371,15 +371,15 @@ type PostedBlock struct {
 	// The deposit root at the time of block posting (written in the Rollup contract).
 	DepositRoot common.Hash
 	// The hash value that the Block Builder must provide to the Rollup contract when posting a new block.
-	ContentHash common.Hash
+	SignatureHash common.Hash
 }
 
-func NewPostedBlock(prevBlockHash, depositRoot common.Hash, blockNumber uint32, contentHash common.Hash) *PostedBlock {
+func NewPostedBlock(prevBlockHash, depositRoot common.Hash, blockNumber uint32, signatureHash common.Hash) *PostedBlock {
 	return &PostedBlock{
 		PrevBlockHash: prevBlockHash,
 		BlockNumber:   blockNumber,
 		DepositRoot:   depositRoot,
-		ContentHash:   contentHash,
+		SignatureHash: signatureHash,
 	}
 }
 
@@ -393,7 +393,7 @@ func (pb *PostedBlock) Marshal() []byte {
 	binary.BigEndian.PutUint32(blockNumberBytes[:], pb.BlockNumber)
 	data = append(data, blockNumberBytes[:]...)
 	data = append(data, pb.DepositRoot.Bytes()...)
-	data = append(data, pb.ContentHash.Bytes()...)
+	data = append(data, pb.SignatureHash.Bytes()...)
 
 	return data
 }
@@ -577,15 +577,18 @@ type RollupContractConfig struct {
 
 	// EthereumPrivateKeyHex is the private key used to sign transactions
 	EthereumPrivateKeyHex string
+
+	RollupContractDeployedBlockNumber uint64
 }
 
 // NewRollupContractConfigFromEnv creates a new RollupContractConfig from the environment variables.
 func NewRollupContractConfigFromEnv(cfg *configs.Config, networkRpcUrl string) *RollupContractConfig {
 	return &RollupContractConfig{
-		NetworkRpcUrl:            networkRpcUrl,
-		RollupContractAddressHex: cfg.Blockchain.RollupContractAddress,
-		EthereumPrivateKeyHex:    cfg.Blockchain.EthereumPrivateKeyHex,
-		NetworkChainID:           cfg.Blockchain.ScrollNetworkChainID,
+		NetworkRpcUrl:                     networkRpcUrl,
+		RollupContractAddressHex:          cfg.Blockchain.RollupContractAddress,
+		EthereumPrivateKeyHex:             cfg.Blockchain.EthereumPrivateKeyHex,
+		NetworkChainID:                    cfg.Blockchain.ScrollNetworkChainID,
+		RollupContractDeployedBlockNumber: cfg.Blockchain.RollupContractDeployedBlockNumber,
 	}
 }
 
@@ -775,6 +778,27 @@ func FetchIntMaxBlock(cfg *RollupContractConfig, ctx context.Context, blockNumbe
 	return blockHash, err
 }
 
+func FetchBlockHash(cfg *RollupContractConfig, ctx context.Context, blockNumber uint32) (common.Hash, error) {
+	client, err := utils.NewClient(cfg.NetworkRpcUrl)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	defer client.Close()
+
+	rollup, err := bindings.NewRollup(common.HexToAddress(cfg.RollupContractAddressHex), client)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	opts := bind.CallOpts{
+		Pending: false,
+		Context: ctx,
+	}
+	blockHash, err := rollup.GetBlockHash(&opts, blockNumber)
+
+	return blockHash, err
+}
+
 func FetchPostedBlocks(
 	cfg *RollupContractConfig,
 	ctx context.Context,
@@ -795,13 +819,10 @@ func FetchPostedBlocks(
 		return nil, nil, errors.Join(ErrFilterLogsFail, err)
 	}
 
-	const int5000Key = 5000
-
 	nextBlock := startBlock + 1
-	endBlock := nextBlock + int5000Key
 	iterator, err := rollup.FilterBlockPosted(&bind.FilterOpts{
 		Start:   nextBlock,
-		End:     &endBlock,
+		End:     nil,
 		Context: ctx,
 	}, prevBlockHash, blockBuilder)
 	if err != nil {
@@ -858,7 +879,7 @@ func FetchLatestIntMaxBlock(cfg *RollupContractConfig, ctx context.Context) (*bi
 		return nil, fmt.Errorf("failed to fetch latest block: %w", err)
 	}
 
-	blocks, _, err := FetchPostedBlocks(cfg, ctx, 0, [][int32Key]byte{latestPrevBlockHash}, nil)
+	blocks, _, err := FetchPostedBlocks(cfg, ctx, cfg.RollupContractDeployedBlockNumber, [][int32Key]byte{latestPrevBlockHash}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch posted blocks: %w", err)
 	}

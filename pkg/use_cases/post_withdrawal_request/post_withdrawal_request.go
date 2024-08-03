@@ -18,13 +18,15 @@ type uc struct {
 	cfg *configs.Config
 	log logger.Logger
 	db  SQLDriverApp
+	sb  service.ServiceBlockchain
 }
 
-func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) postWithdrwalRequest.UseCasePostWithdrawalRequest {
+func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp, sb service.ServiceBlockchain) postWithdrwalRequest.UseCasePostWithdrawalRequest {
 	return &uc{
 		cfg: cfg,
 		log: log,
 		db:  db,
+		sb:  sb,
 	}
 }
 
@@ -46,7 +48,7 @@ func (u *uc) Do(ctx context.Context, input *postWithdrwalRequest.UCPostWithdrawa
 		attribute.String(txHashKey, input.TransferHash),
 	)
 
-	err := service.PostWithdrawalRequest(ctx, u.cfg, u.log, u.db, input)
+	err := service.PostWithdrawalRequest(ctx, u.cfg, u.log, u.db, u.sb, input)
 	if err != nil {
 		return fmt.Errorf("failed to post withdrawal request: %w", err)
 	}
