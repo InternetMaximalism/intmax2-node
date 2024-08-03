@@ -23,6 +23,7 @@ import (
 )
 
 const AMLRejectionThreshold = 70
+const NoDepositEventsFoundError = "No deposit events found"
 
 type DepositAnalyzerService struct {
 	ctx       context.Context
@@ -239,7 +240,7 @@ func (d *DepositAnalyzerService) shouldProcessDepositAnalyzer(events []*bindings
 	depositIds := []*big.Int{}
 	eventInfo, err := fetchDepositEvent(d.liquidity, lastBlockNumber, depositIds)
 	if err != nil {
-		if err.Error() == "No deposit events found" {
+		if err.Error() == NoDepositEventsFoundError {
 			fmt.Println("No deposit events found, skipping process")
 			return false, nil
 		}
