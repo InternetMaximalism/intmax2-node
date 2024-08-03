@@ -202,12 +202,12 @@ func TestMarshalAccountIds(t *testing.T) {
 func TestBlockHash(t *testing.T) {
 	prevBlockHash := common.Hash{}
 	depositRoot := common.Hash{}
-	contentHash := common.Hash{}
+	signatureHash := common.Hash{}
 	postedBlock := intMaxTypes.PostedBlock{
 		PrevBlockHash: prevBlockHash,
 		BlockNumber:   0,
 		DepositRoot:   depositRoot,
-		ContentHash:   contentHash,
+		SignatureHash: signatureHash,
 	}
 
 	currentHash := postedBlock.Hash()

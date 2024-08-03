@@ -18,7 +18,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
@@ -182,8 +181,16 @@ func SendWithdrawalTransaction(
 	log.Infof("The transaction has been successfully sent.")
 
 	// TODO: Get the block number and block hash
-	blockNumber := uint32(1)
-	blockHash := common.Hash{}.Hex()
+	// Specify the block number containing the transaction.
+	rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(cfg, "https://sepolia-rpc.scroll.io")
+	blockNumber, err := intMaxTypes.FetchLatestIntMaxBlockNumber(rollupCfg, ctx)
+	if err != nil {
+		log.Fatalf("failed to fetch latest intmax block: %v", err)
+	}
+	blockHash, err := intMaxTypes.FetchBlockHash(rollupCfg, ctx, blockNumber)
+	if err != nil {
+		log.Fatalf("failed to fetch block hash: %v", err)
+	}
 
 	txMerkleProof := proposedBlock.TxTreeMerkleProof
 

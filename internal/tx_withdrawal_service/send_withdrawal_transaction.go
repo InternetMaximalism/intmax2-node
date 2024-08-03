@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/go-resty/resty/v2"
 )
@@ -99,7 +100,7 @@ func SendWithdrawalWithRawRequest(
 	txMerkleProof []*goldenposeidon.PoseidonHashOut,
 	txIndex int32,
 	blockNumber uint32,
-	blockHash string,
+	blockHash common.Hash,
 ) error {
 	transferMerkleProofStr := make([]string, len(transferMerkleProof))
 	for i, v := range transferMerkleProof {
@@ -121,7 +122,7 @@ func SendWithdrawalWithRawRequest(
 		txMerkleProofStr,
 		txIndex,
 		blockNumber,
-		blockHash,
+		blockHash.Hex(),
 	)
 }
 
