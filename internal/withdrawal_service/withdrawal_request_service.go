@@ -118,7 +118,7 @@ func (s *WithdrawalRequestService) verifyBalanceProof() error {
 
 // Check the block number
 func (s *WithdrawalRequestService) checkBlockNumber(input *postWithdrwalRequest.UCPostWithdrawalRequestInput) error {
-	if input.BlockNumber >= uint64(1)<<32 {
+	if input.BlockNumber >= uint64(1)<<int32Key {
 		return fmt.Errorf("block number is too large")
 	}
 
