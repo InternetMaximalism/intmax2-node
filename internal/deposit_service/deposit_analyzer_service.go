@@ -99,8 +99,20 @@ func DepositAnalyzer(ctx context.Context, cfg *configs.Config, log logger.Logger
 		panic(fmt.Sprintf("Failed to fetch new deposits: %v", err.Error()))
 	}
 
-	if len(events) == 0 {
-		log.Infof("No new Deposited Events")
+	shouldSubmit, err := depositAnalyzerService.shouldProcessDepositAnalyzer(
+		events,
+		*lastEventInfo.BlockNumber,
+	)
+	if err != nil {
+		panic(fmt.Sprintf("Error in threshold and time diff check: %v", err.Error()))
+	}
+
+	if !shouldSubmit {
+		log.Infof(
+			"Deposit analyzer will not be processed at this time. Unprocessed deposit count: %d, Last deposit block number: %d",
+			len(events),
+			*lastEventInfo.BlockNumber,
+		)
 		return
 	}
 
@@ -212,6 +224,44 @@ func (d *DepositAnalyzerService) fetchNewDeposits(startBlock uint64) (_ []*bindi
 	}
 
 	return events, maxDepositIndex, tokenIndexMap, nil
+}
+
+func (d *DepositAnalyzerService) shouldProcessDepositAnalyzer(events []*bindings.LiquidityDeposited, lastBlockNumber uint64) (bool, error) {
+	eventCount := len(events)
+	if eventCount <= 0 {
+		return false, nil
+	}
+	if eventCount >= int(d.cfg.Blockchain.DepositAnalyzerThreshold) {
+		d.log.Infof("Deposit analyzer threshold is reached: %d", eventCount)
+		return true, nil
+	}
+
+	depositIds := []*big.Int{}
+	eventInfo, err := fetchDepositEvent(d.liquidity, lastBlockNumber, depositIds)
+	if err != nil {
+		if err.Error() == "No deposit events found" {
+			fmt.Println("No deposit events found, skipping process")
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to get last block number: %w", err)
+	}
+	fmt.Println("eventInfo ", eventInfo)
+
+	if *eventInfo.BlockNumber == 0 {
+		return false, nil
+	}
+
+	isExceeded, err := isBlockTimeExceeded(d.client, *eventInfo.BlockNumber, int(d.cfg.Blockchain.DepositAnalyzerMinutesThreshold))
+	if err != nil {
+		return false, fmt.Errorf("error occurred while checking time difference: %w", err)
+	}
+
+	if !isExceeded {
+		return false, nil
+	}
+
+	fmt.Println("Block time difference exceeded the specified duration")
+	return true, nil
 }
 
 func (d *DepositAnalyzerService) getTokenInfoMap(tokenIndexMap map[uint32]bool) (map[uint32]common.Address, error) {
