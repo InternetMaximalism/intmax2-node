@@ -1,4 +1,4 @@
-package sync_balance
+package balance_checker
 
 import (
 	"context"
