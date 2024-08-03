@@ -186,7 +186,7 @@ func sendWithdrawalRawRequest(
 		appJSON     = "application/json"
 	)
 
-	apiUrl := fmt.Sprintf("%s/v1/withdrawals/request", cfg.HTTP.WithdrawalServerUrl)
+	apiUrl := fmt.Sprintf("%s/v1/withdrawals/request", cfg.API.WithdrawalServerUrl)
 
 	r := resty.New().R()
 	var resp *resty.Response
