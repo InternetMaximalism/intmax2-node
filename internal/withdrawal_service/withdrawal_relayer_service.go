@@ -125,15 +125,6 @@ func (w *WithdrawalRelayerService) fetchClaimableScrollMessengerRequests() ([]*S
 	return filterClaimableResults(res.Data.Results), nil
 }
 
-func filterClaimableResults(results []*ScrollMessengerResult) (filtered []*ScrollMessengerResult) {
-	for _, result := range results {
-		if result.ClaimInfo != nil && result.ClaimInfo.Claimable {
-			filtered = append(filtered, result)
-		}
-	}
-	return filtered
-}
-
 func (w *WithdrawalRelayerService) relayMessageWithProof(result *ScrollMessengerResult) (*types.Receipt, error) {
 	transactOpts, err := utils.CreateTransactor(w.cfg.Blockchain.WithdrawalPrivateKeyHex, w.cfg.Blockchain.EthereumNetworkChainID)
 	if err != nil {
@@ -171,6 +162,15 @@ func (w *WithdrawalRelayerService) relayMessageWithProof(result *ScrollMessenger
 	}
 
 	return receipt, nil
+}
+
+func filterClaimableResults(results []*ScrollMessengerResult) (filtered []*ScrollMessengerResult) {
+	for _, result := range results {
+		if result.ClaimInfo != nil && result.ClaimInfo.Claimable {
+			filtered = append(filtered, result)
+		}
+	}
+	return filtered
 }
 
 func parseNumericValues(result *ScrollMessengerResult) (value, nonce, batchIndex *big.Int, err error) {

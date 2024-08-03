@@ -7,8 +7,10 @@ import (
 	"intmax2-node/internal/logger"
 	withdrawalAggregator "intmax2-node/internal/use_cases/withdrawal_aggregator"
 	withdrawalRelayer "intmax2-node/internal/use_cases/withdrawal_relayer"
+	withdrawalRelayerMock "intmax2-node/internal/use_cases/withdrawal_relayer_mock"
 	ucWithdrawalAggregator "intmax2-node/pkg/use_cases/withdrawal_aggregator"
 	ucWithdrawalRelayer "intmax2-node/pkg/use_cases/withdrawal_relayer"
+	ucWithdrawalRelayerMock "intmax2-node/pkg/use_cases/withdrawal_relayer_mock"
 )
 
 //go:generate mockgen -destination=mock_command.go -package=withdrawal -source=commands.go
@@ -27,6 +29,12 @@ type Commands interface {
 		log logger.Logger,
 		sb ServiceBlockchain,
 	) withdrawalRelayer.UseCaseWithdrawalRelayer
+	WithdrawalRelayerMock(
+		ctx context.Context,
+		cfg *configs.Config,
+		log logger.Logger,
+		sb ServiceBlockchain,
+	) withdrawalRelayerMock.UseCaseWithdrawalRelayerMock
 }
 
 type commands struct{}
@@ -52,4 +60,13 @@ func (c *commands) WithdrawalRelayer(
 	sb ServiceBlockchain,
 ) withdrawalRelayer.UseCaseWithdrawalRelayer {
 	return ucWithdrawalRelayer.New(ctx, cfg, log, sb)
+}
+
+func (c *commands) WithdrawalRelayerMock(
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
+	sb ServiceBlockchain,
+) withdrawalRelayerMock.UseCaseWithdrawalRelayerMock {
+	return ucWithdrawalRelayerMock.New(ctx, cfg, log, sb)
 }
