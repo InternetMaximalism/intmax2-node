@@ -230,6 +230,17 @@ Usage:
 Flags:
   -h, --help   help for relayer
 ```
+### Command `./intmax2-node store-valut-server run --help`
+```
+# ./intmax2-node store-valut-server run --help
+Run store vault server
+
+Usage:
+  app store-valut-server run [flags]
+
+Flags:
+  -h, --help help for server
+```
 ### Command `./intmax2-node withdrawal-server run --help`
 ```
 # ./intmax2-node withdrawal-server run --help
@@ -330,12 +341,12 @@ When a node starts, it tries to find and remember its external address in this o
 |   | BLOCKCHAIN_SCROLL_NETWORK_CHAIN_ID                    |                                                                    | the Scroll blockchain network ID. Chain ID must be equal: ScrollSepolia = `534351`; Scroll = `534352`                                      |
 |   | BLOCKCHAIN_SCROLL_MIN_BALANCE                         | 100000000000000000                                                 | the Scroll blockchain balance minimal value for node start (min value equal or more then 0.1ETH)                                           |
 |   | BLOCKCHAIN_SCROLL_STAKE_BALANCE                       | 100000000000000000                                                 | the Scroll blockchain balance value for stake with block builder update (min value equal or more then 0.1ETH)                              |
-|   | BLOCKCHAIN_SCROLL_BRIDGE_API_URL                      |                                                                    | the Scroll bridge api url                                                                                                                  |
 |   | BLOCKCHAIN_SCROLL_MESSENGER_L1_CONTRACT_ADDRESS       |                                                                    | the Scroll messagenger contract address on L1 Mainnet                                                                                      |
 |   | BLOCKCHAIN_SCROLL_MESSENGER_L2_CONTRACT_ADDRESS       |                                                                    | the Scroll messagenger contract address on L2 Scroll                                                                                       |
+| * | BLOCKCHAIN_BLOCK_BUILDER_REGISTRY_CONTRACT_ADDRESS    |                                                                    | the Block Builder Registry Contract address in the Scroll blockchain                                                                       |
 | * | BLOCKCHAIN_ROLLUP_CONTRACT_ADDRESS                    |                                                                    | the Rollup Contract address in the Scroll blockchain                                                                                       |
+| * | BLOCKCHAIN_LIQUIDITY_CONTRACT_ADDRESS                 |                                                                    | the Liquidity Contract address in the Mainnet                                                                                              |
 | * | BLOCKCHAIN_WITHDRAWAL_CONTRACT_ADDRESS                |                                                                    | the Withdrawal Contract address in the Scroll blockchain                                                                                   |
-| * | BLOCKCHAIN_TEMPLATE_CONTRACT_ROLLUP_PATH              | templates/contracts/Rollup.json                                    | path to a file with information template for Rollup contract                                                                               |
 |   | BLOCKCHAIN_ETHEREUM_NETWORK_CHAIN_ID                  |                                                                    | the Ethereum blockchain network ID. Chain ID must be equal: Sepolia = `11155111`; Ethereum = `1`                                           |
 |   | BLOCKCHAIN_ETHEREUM_PRIVATE_KEY_HEX                   |                                                                    | (pk) Ethereum private key                                                                                                                  |
 |   | BLOCKCHAIN_ETHEREUM_DEPOSIT_ANALYZER_PRIVATE_KEY_HEX  |                                                                    | (pk) Ethereum deposit analyzer private key                                                                                                 |
@@ -360,10 +371,6 @@ When a node starts, it tries to find and remember its external address in this o
 |   | HTTP_CORS_STATUS_CODE                                 | 204                                                                | (node) status code for the answer of the cross-origin resource sharing                                                                     |
 |   | HTTP_HOST                                             | 0.0.0.0                                                            | (node) host address for bind http external server                                                                                          |
 |   | HTTP_PORT                                             | 80                                                                 | (node) port for bind http external server                                                                                                  |
-|   | DATA_STORE_VAULT_HTTP_HOST                                             | 0.0.0.0                                                            | (node) host address for bind http external server from CLI                                                                                          |
-|   | DATA_STORE_VAULT_HTTP_PORT                                             | 80                                                                 | (node) port for bind http external server from CLI                                                                                                  |
-|   | WITHDRAWAL_SERVER_HTTP_HOST                                             | 0.0.0.0                                                            | (node) host address for bind http external server from CLI                                                                                          |
-|   | WITHDRAWAL_SERVER_HTTP_PORT                                             | 80                                                                 | (node) port for bind http external server from CLI                                                                                                  |
 |   | HTTP_CORS_ALLOW_CREDENTIALS                           | true                                                               | (node) allowed credentials                                                                                                                 |
 |   | HTTP_CORS_ALLOW_METHODS                               | OPTIONS                                                            | (node) allowed http methods                                                                                                                |
 |   | HTTP_CORS_ALLOW_HEADS                                 | Accept;Authorization;Content-Type;X-CSRF-Token;X-User-Id;X-Api-Key | (node) allowed http heads                                                                                                                  |
@@ -384,7 +391,11 @@ When a node starts, it tries to find and remember its external address in this o
 |   | NETWORK_PORT                                          |                                                                    | `port` of external proxy-server for connections with node                                                                                  |
 |   | NETWORK_HTTPS_USE                                     | false                                                              | flag of turn off (false) or turn on (true) about use HTTPS schema for external proxy-server for connections with node                      |
 |   | **API**                                               |                                                                    |                                                                                                                                            |
-| * | WITHDRAWAL_PROVER_API_URL                             |                                                                    | API endpoint for verifying and processing withdrawal requests.                                                                             |
+| * | API_WITHDRAWAL_PROVER_URL                             |                                                                    | API endpoint for verifying and processing withdrawal prover requests.                                                                      |
+| * | API_SCROLL_BRIDGE_URL                                 |                                                                    | API endpoint for verifying and processing scroll bridge requests.                                                                          |
+| * | API_BLOCK_BUILDER_URL                                 |                                                                    | API endpoint for verifying and processing block builder requests.                                                                          |
+| * | API_DATA_STORE_VAULT_URL                              |                                                                    | API endpoint for verifying and processing data store vault requests.                                                                       |
+| * | API_WITHDRAWAL_SERVER_URL                             |                                                                    | API endpoint for verifying and processing withdrawal requests.                                                                             |
 |   | **STUN SERVER**                                       |                                                                    |                                                                                                                                            |
 | * | STUN_SERVER_NETWORK_TYPE                              | udp6;udp4                                                          | network type for dial with stun server (separator equal `;`)                                                                               |
 | * | STUN_SERVER_LIST                                      | stun.l.google.com:19302                                            | network address for dial with stun server (separator equal `;`)                                                                            |
@@ -397,9 +408,9 @@ When a node starts, it tries to find and remember its external address in this o
 |   | WORKER_TIMEOUT_FOR_CHECK_CURRENT_FILE                 | 10s                                                                | timeout for check the status of current file of worker                                                                                     |
 |   | WORKER_TIMEOUT_FOR_SIGNATURES_AVAILABLE_FILES         | 15s                                                                | timeout for processing the transaction signature of current file of worker                                                                 |
 |   | WORKER_MAX_COUNTER_OF_USERS                           | 128                                                                | condition for create new of current file of worker                                                                                         |
-|   | **BLOCK VALIDITY PROVER**                                     |                                                                    |                                                                                                                                            |
-|   | BLOCK_VALIDITY_PROVER_EVENT_WATCHER_LIFETIME          | 1m                                                                 | timeout for block validity prover event watcher |
-|   | BLOCKCHAIN_ROLLUP_CONTRACT_DEPLOYED_BLOCK_NUMBER      | 0                                                                  | the block number when the Rollup contract was deployed |
+|   | **BLOCK VALIDITY PROVER**                             |                                                                    |                                                                                                                                            |
+|   | BLOCK_VALIDITY_PROVER_EVENT_WATCHER_LIFETIME          | 1m                                                                 | timeout for block validity prover event watcher                                                                                            |
+|   | BLOCKCHAIN_ROLLUP_CONTRACT_DEPLOYED_BLOCK_NUMBER      | 0                                                                  | the block number when the Rollup contract was deployed                                                                                     |
 |   | **SQL DB OF APP**                                     |                                                                    |                                                                                                                                            |
 |   | SQL_DB_APP_DRIVER_NAME                                | pgx                                                                | system driver name with sql driver of application (only, `pgx` of `postgres`)                                                              |
 | * | SQL_DB_APP_DNS_CONNECTION                             |                                                                    | connection string for connect with sql driver of application                                                                               |

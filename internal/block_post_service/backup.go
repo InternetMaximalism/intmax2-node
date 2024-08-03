@@ -66,7 +66,7 @@ func backupTransactionRawRequest(
 		appJSON     = "application/json"
 	)
 
-	apiUrl := fmt.Sprintf("%s/v1/backups/transaction", cfg.HTTP.DataStoreVaultUrl)
+	apiUrl := fmt.Sprintf("%s/v1/backups/transaction", cfg.API.DataStoreVaultUrl)
 
 	r := resty.New().R()
 	var resp *resty.Response
@@ -151,7 +151,7 @@ func backupTransferRawRequest(
 		appJSON     = "application/json"
 	)
 
-	apiUrl := fmt.Sprintf("%s/v1/backups/transfer", cfg.HTTP.DataStoreVaultUrl)
+	apiUrl := fmt.Sprintf("%s/v1/backups/transfer", cfg.API.DataStoreVaultUrl)
 
 	r := resty.New().R()
 	var resp *resty.Response

@@ -3,7 +3,6 @@ package types
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"math/big"
@@ -144,7 +143,6 @@ func (d *Deposit) Marshal() []byte {
 	for i, v := range amountBytes {
 		amountRevertedBytes[int32Key-1-i] = v
 	}
-	fmt.Printf("amountRevertedBytes: %v\n", amountRevertedBytes)
 
 	return append(
 		append(append(d.Recipient.ToAddress().Bytes(), tokenIndexBytes...), amountRevertedBytes...),

@@ -253,6 +253,7 @@ func (p *pgx) wToDBApp(w *models.Withdrawal) mDBApp.Withdrawal {
 		},
 		TransferHash: w.TransferHash,
 		BlockNumber:  w.BlockNumber,
+		BlockHash:    w.BlockHash,
 		CreatedAt:    w.CreatedAt,
 	}
 

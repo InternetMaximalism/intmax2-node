@@ -232,7 +232,7 @@ func postBlockSignatureRawRequest(
 		appJSON     = "application/json"
 	)
 
-	apiUrl := fmt.Sprintf("%s/v1/block/signature", cfg.HTTP.BlockBuilderUrl)
+	apiUrl := fmt.Sprintf("%s/v1/block/signature", cfg.API.BlockBuilderUrl)
 
 	r := resty.New().R()
 	var resp *resty.Response

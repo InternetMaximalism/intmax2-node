@@ -11,6 +11,7 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/logger"
+	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"intmax2-node/pkg/utils"
 	"log"
@@ -197,9 +198,7 @@ func HashWithdrawalWithPrevHash(
 	prevHash common.Hash,
 	withdrawal bindings.ChainedWithdrawalLibChainedWithdrawal,
 ) (common.Hash, error) {
-	amount := make([]byte, int32Key)
-	amountBytes := withdrawal.Amount.Bytes()
-	copy(amount[int32Key-len(amountBytes):], amountBytes)
+	amount := intMaxTypes.BigIntToBytes32BeArray(withdrawal.Amount)
 
 	var buf bytes.Buffer
 	if err := binary.Write(&buf, binary.BigEndian, prevHash[:]); err != nil {
@@ -211,7 +210,7 @@ func HashWithdrawalWithPrevHash(
 	if err := binary.Write(&buf, binary.BigEndian, withdrawal.TokenIndex); err != nil {
 		return common.Hash{}, err
 	}
-	if err := binary.Write(&buf, binary.BigEndian, amountBytes); err != nil {
+	if err := binary.Write(&buf, binary.BigEndian, amount); err != nil {
 		return common.Hash{}, err
 	}
 	if err := binary.Write(&buf, binary.BigEndian, withdrawal.Nullifier); err != nil {
@@ -278,7 +277,7 @@ func MakeWithdrawalInfo(
 // 		idsQuery = idsQuery[:len(idsQuery)-1]
 // 	}
 // 	apiUrl := fmt.Sprintf("%s/proofs?%s",
-// 		w.cfg.API.WithdrawalProverApiURL,
+// 		w.cfg.API.WithdrawalProverUrl,
 // 		idsQuery,
 // 	)
 

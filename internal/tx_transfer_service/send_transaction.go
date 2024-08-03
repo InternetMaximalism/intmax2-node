@@ -139,7 +139,7 @@ func sendTransactionRawRequest(
 		appJSON     = "application/json"
 	)
 
-	apiUrl := fmt.Sprintf("%s/v1/transaction", cfg.HTTP.BlockBuilderUrl)
+	apiUrl := fmt.Sprintf("%s/v1/transaction", cfg.API.BlockBuilderUrl)
 
 	r := resty.New().R()
 	var resp *resty.Response
