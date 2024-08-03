@@ -14,6 +14,7 @@ import (
 	ucBlockSignature "intmax2-node/internal/use_cases/block_signature"
 	"intmax2-node/internal/worker"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/iden3/go-iden3-crypto/ffg"
 	"go.opentelemetry.io/otel/attribute"
@@ -128,18 +129,19 @@ func (u *uc) Do(
 				return innerErr
 			}
 		} else {
-			ethAddress, err := recipient.ToEthereumAddress()
+			var ethAddress common.Address
+			ethAddress, err = recipient.ToEthereumAddress()
 			if err != nil {
 				open_telemetry.MarkSpanError(spanCtx, err)
 				return err
 			}
 
 			u.log.Printf("ETH Address: %s\n", ethAddress.String())
-			if err := b.BackupWithdrawal(
+			if innerErr := b.BackupWithdrawal(
 				ethAddress, encodedEncryptedTransfer.EncodedEncryptedTransfer, blockNumber,
-			); err != nil {
-				open_telemetry.MarkSpanError(spanCtx, err)
-				return err
+			); innerErr != nil {
+				open_telemetry.MarkSpanError(spanCtx, innerErr)
+				return innerErr
 			}
 		}
 	}

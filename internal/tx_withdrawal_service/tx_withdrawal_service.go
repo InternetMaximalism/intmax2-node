@@ -206,22 +206,19 @@ func WithdrawalTransaction(
 	log.Infof("The transaction has been successfully sent.")
 
 	// TODO: Make it safe to interrupt here.
-	err = SendWithdrawalTransactionFromBackupTransfer(
-		ctx, cfg, log, backupTransfers[transferIndex],
-	)
 
-	// // Send withdrawal request
-	// err = SendWithdrawalRequest(ctx, cfg, log, tx_transfer_service.BackupWithdrawal{
-	// 	SenderAddress:       userAccount.ToAddress(),
-	// 	Transfer:            transfer,
-	// 	TransferMerkleProof: transferMerkleProof,
-	// 	TransferIndex:       transferIndex,
-	// 	TransferTreeRoot:    transfersHash,
-	// 	Nonce:               nonce,
-	// 	TxTreeMerkleProof:   proposedBlock.TxTreeMerkleProof,
-	// 	TxIndex:             int32(txIndex),
-	// 	TxTreeRoot:          proposedBlock.TxTreeRoot,
-	// })
+	// Send withdrawal request
+	err = SendWithdrawalRequest(ctx, cfg, log, &tx_transfer_service.BackupWithdrawal{
+		SenderAddress:       userAccount.ToAddress(),
+		Transfer:            transfer,
+		TransferMerkleProof: transferMerkleProof,
+		TransferIndex:       transferIndex,
+		TransferTreeRoot:    transfersHash,
+		Nonce:               nonce,
+		TxTreeMerkleProof:   proposedBlock.TxTreeMerkleProof,
+		TxIndex:             int32(txIndex),
+		TxTreeRoot:          proposedBlock.TxTreeRoot,
+	})
 	if err != nil {
 		log.Fatalf("failed to request withdrawal: %v", err)
 	}
@@ -249,14 +246,14 @@ func SendWithdrawalTransactionFromBackupTransfer(
 	}
 
 	// Send withdrawal transaction
-	return SendWithdrawalRequest(ctx, cfg, log, withdrawal)
+	return SendWithdrawalRequest(ctx, cfg, log, &withdrawal)
 }
 
 func SendWithdrawalRequest(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
-	withdrawal tx_transfer_service.BackupWithdrawal,
+	withdrawal *tx_transfer_service.BackupWithdrawal,
 ) error {
 	// TODO: Get the block number and block hash
 	// Specify the block number containing the transaction.

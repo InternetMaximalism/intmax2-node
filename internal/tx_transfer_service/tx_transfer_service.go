@@ -1,6 +1,7 @@
 package tx_transfer_service
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
@@ -9,6 +10,7 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
+	intMaxAccTypes "intmax2-node/internal/accounts/types"
 	"intmax2-node/internal/balance_service"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
@@ -170,7 +172,6 @@ func TransferTransaction(
 		Signature:          "0x",
 	}
 
-	// backupTransfers, err := MakeBackupData(initialLeaves)
 	backupTransfers := make([]*transaction.BackupTransferInput, len(initialLeaves))
 	for i := range initialLeaves {
 		backupTransfers[i], err = MakeTransferBackupData(initialLeaves[i])
@@ -269,7 +270,7 @@ type backupWithdrawal struct {
 }
 
 func (bw *BackupWithdrawal) MarshalJSON() ([]byte, error) {
-	if bw.Transfer.Recipient.TypeOfAddress != "ETHEREUM" {
+	if bw.Transfer.Recipient.TypeOfAddress != intMaxAccTypes.EthereumAddressType {
 		return nil, errors.New("recipient address should be ETHEREUM")
 	}
 
@@ -373,7 +374,7 @@ func MakeWithdrawalBackupData(
 		TransferMerkleProof: transferMerkleProof,
 		TransferTreeRoot:    transfersHash,
 		TransferIndex:       transferIndex,
-		Nonce:               strconv.FormatUint(uint64(nonce), 10),
+		Nonce:               strconv.FormatUint(nonce, base10Key),
 		TxTreeMerkleProof:   txTreeMerkleProof,
 		TxTreeRoot:          txTreeRoot,
 		TxIndex:             txIndex,
@@ -399,7 +400,7 @@ func MakeWithdrawalBackupData(
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
 	}
-	if string(encryptedTransfer) != string(encryptedTransfer2) {
+	if !bytes.Equal(encryptedTransfer, encryptedTransfer2) {
 		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
