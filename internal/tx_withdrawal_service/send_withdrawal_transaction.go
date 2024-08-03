@@ -23,7 +23,7 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
-func SendWithdrawalRequest(
+func SendWithdrawalTransaction(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
@@ -91,7 +91,6 @@ func SendWithdrawalWithRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
-	senderAccount *intMaxAcc.PrivateKey,
 	transfer *intMaxTypes.Transfer,
 	transferTreeRoot goldenposeidon.PoseidonHashOut,
 	nonce uint64,

@@ -108,25 +108,21 @@ func (u *uc) Do(ctx context.Context, input *transaction.UCTransactionInput) (err
 				open_telemetry.MarkSpanError(spanCtx, innerErr)
 				return innerErr
 			}
-		}
-
-		/*
-			else {
-				ethAddress, err := recipient.ToEthereumAddress()
-				if err != nil {
-					open_telemetry.MarkSpanError(spanCtx, err)
-					return err
-				}
-
-				fmt.Printf("ETH Address: %s\n", ethAddress.String())
-				if err := b.BackupWithdrawal(
-					ethAddress, encodedEncryptedTransfer.EncodedEncryptedTransfer, blockNumber,
-				); err != nil {
-					open_telemetry.MarkSpanError(spanCtx, err)
-					return err
-				}
+		} else {
+			ethAddress, err := recipient.ToEthereumAddress()
+			if err != nil {
+				open_telemetry.MarkSpanError(spanCtx, err)
+				return err
 			}
-		*/
+
+			fmt.Printf("ETH Address: %s\n", ethAddress.String())
+			if err := b.BackupWithdrawal(
+				ethAddress, encodedEncryptedTransfer.EncodedEncryptedTransfer, blockNumber,
+			); err != nil {
+				open_telemetry.MarkSpanError(spanCtx, err)
+				return err
+			}
+		}
 	}
 
 	transferData := make([]*intMaxTypes.Transfer, len(input.TransferData))

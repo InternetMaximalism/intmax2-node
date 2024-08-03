@@ -18,7 +18,7 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
-func SendTransactionRequest(
+func SendTransferTransaction(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,

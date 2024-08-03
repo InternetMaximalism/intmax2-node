@@ -59,7 +59,7 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressHex, amount,
 		attribute.String(senderKey, userAddress.String()),
 	)
 
-	service.SendWithdrawalTransaction(spanCtx, u.cfg, u.log, u.sb, args, amount, recipientAddressHex, userEthPrivateKey)
+	service.WithdrawalTransaction(spanCtx, u.cfg, u.log, u.sb, args, amount, recipientAddressHex, userEthPrivateKey)
 
 	return nil
 }

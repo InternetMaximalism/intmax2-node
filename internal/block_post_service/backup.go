@@ -12,6 +12,7 @@ import (
 	"intmax2-node/internal/use_cases/backup_transfer"
 	"net/http"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/go-resty/resty/v2"
 )
 
@@ -126,6 +127,91 @@ func (d *blockPostService) BackupTransfer(
 }
 
 func backupTransferRawRequest(
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
+	encodedEncryptedTransfer string,
+	recipient string,
+	blockNumber uint32,
+) error {
+	ucInput := backup_transfer.UCPostBackupTransferInput{
+		EncryptedTransfer: encodedEncryptedTransfer,
+		Recipient:         recipient,
+		BlockNumber:       blockNumber,
+	}
+
+	bd, err := json.Marshal(ucInput)
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+
+	const (
+		httpKey     = "http"
+		httpsKey    = "https"
+		contentType = "Content-Type"
+		appJSON     = "application/json"
+	)
+
+	apiUrl := fmt.Sprintf("%s/v1/backups/transfer", cfg.API.DataStoreVaultUrl)
+
+	r := resty.New().R()
+	var resp *resty.Response
+	resp, err = r.SetContext(ctx).SetHeaders(map[string]string{
+		contentType: appJSON,
+	}).SetBody(bd).Post(apiUrl)
+	if err != nil {
+		const msg = "failed to send of the transaction request: %w"
+		return fmt.Errorf(msg, err)
+	}
+
+	if resp == nil {
+		const msg = "send request error occurred"
+		return fmt.Errorf(msg)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		err = fmt.Errorf("failed to get response")
+		log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return err
+	}
+
+	response := new(node.BackupTransferResponse)
+	if err = json.Unmarshal(resp.Body(), response); err != nil {
+		return fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if !response.Success {
+		return fmt.Errorf("failed to send transaction: %s", response.Data.Message)
+	}
+
+	return nil
+}
+
+func (d *blockPostService) BackupWithdrawal(
+	recipient common.Address,
+	encodedEncryptedTransfer string,
+	blockNumber uint64,
+) error {
+	err := backupWithdrawalRawRequest(
+		d.ctx,
+		d.cfg,
+		d.log,
+		encodedEncryptedTransfer,
+		recipient.Hex(),
+		uint32(blockNumber),
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to backup transfer: %w", err)
+	}
+
+	return nil
+}
+
+func backupWithdrawalRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,

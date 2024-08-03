@@ -15,6 +15,7 @@ import (
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/block_signature"
+	"intmax2-node/internal/use_cases/transaction"
 	"math/big"
 	"net/http"
 
@@ -128,6 +129,8 @@ func SendSignedProposedBlock(
 	txTreeRoot goldenposeidon.PoseidonHashOut,
 	txHash goldenposeidon.PoseidonHashOut,
 	publicKeys []*intMaxAcc.PublicKey,
+	backupTx *transaction.BackupTransactionData,
+	backupTransfers []*transaction.BackupTransferInput,
 	// prevBalanceProof block_signature.Plonky2Proof,
 	// transferStepProof block_signature.Plonky2Proof,
 ) error {
