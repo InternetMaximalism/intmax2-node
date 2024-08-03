@@ -26,4 +26,9 @@ type Blockchain struct {
 	DepositRelayerPrivateKeyHex  string `env:"BLOCKCHAIN_ETHEREUM_DEPOSIT_RELAYER_PRIVATE_KEY_HEX"`
 	WithdrawalPrivateKeyHex      string `env:"BLOCKCHAIN_ETHEREUM_WITHDRAWAL_PRIVATE_KEY_HEX"`
 	MockMessagingPrivateKeyHex   string `env:"BLOCKCHAIN_ETHEREUM_MOCK_MESSAGING_PRIVATE_KEY_HEX"`
+
+	DepositAnalyzerThreshold        uint64 `env:"BLOCKCHAIN_DEPOSIT_ANALYZER_THRESHOLD" envDefault:"10"`
+	DepositAnalyzerMinutesThreshold uint64 `env:"BLOCKCHAIN_DEPOSIT_ANALYZER_MINUTES_THRESHOLD" envDefault:"10"`
+	DepositRelayerThreshold         uint64 `env:"BLOCKCHAIN_DEPOSIT_RELAYER_THRESHOLD" envDefault:"128"`
+	DepositRelayerMinutesThreshold  uint64 `env:"BLOCKCHAIN_DEPOSIT_RELAYER_MINUTES_THRESHOLD" envDefault:"60"`
 }

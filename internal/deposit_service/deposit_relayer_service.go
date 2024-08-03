@@ -10,7 +10,6 @@ import (
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"intmax2-node/pkg/utils"
 	"math/big"
-	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -18,8 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-const depositThreshold uint64 = 128
-const duration = 1 * time.Hour
 const FixedDepositValueInWei = 1e17 // 0.1 ETH in Wei
 
 type DepositIndices struct {
@@ -84,7 +81,7 @@ func DepositRelayer(ctx context.Context, cfg *configs.Config, log logger.Logger,
 	}
 
 	unprocessedDepositCount := *depositIndices.LastDepositAnalyzedEventInfo.LastDepositId - *depositIndices.LastDepositRelayedEventInfo.LastDepositId
-	shouldSubmit, err := depositRelayerService.shouldProcessDeposits(
+	shouldSubmit, err := depositRelayerService.shouldProcessDepositRelayer(
 		unprocessedDepositCount,
 		*depositIndices.LastDepositRelayedEventInfo.BlockNumber,
 	)
@@ -188,13 +185,13 @@ func (d *DepositRelayerService) fetchLastDepositEventIndices(depositAnalyzedBloc
 	}
 }
 
-func (d *DepositRelayerService) shouldProcessDeposits(unprocessedDepositCount, relayedBlockNumber uint64) (bool, error) {
+func (d *DepositRelayerService) shouldProcessDepositRelayer(unprocessedDepositCount, relayedBlockNumber uint64) (bool, error) {
 	if unprocessedDepositCount <= 0 {
 		return false, nil
 	}
 
-	if unprocessedDepositCount >= depositThreshold {
-		fmt.Println("Deposit threshold is reached")
+	if unprocessedDepositCount >= d.cfg.Blockchain.DepositRelayerThreshold {
+		d.log.Infof("Deposit relayer threshold is reached. Unprocessed deposit count: %d", unprocessedDepositCount)
 		return true, nil
 	}
 
@@ -202,7 +199,7 @@ func (d *DepositRelayerService) shouldProcessDeposits(unprocessedDepositCount, r
 	eventInfo, err := fetchDepositEvent(d.liquidity, relayedBlockNumber, depositIds)
 	if err != nil {
 		if err.Error() == "No deposit events found" {
-			fmt.Println("No deposit events found, skipping process")
+			d.log.Infof("No deposit events found, skipping process")
 			return false, nil
 		}
 		return false, fmt.Errorf("failed to get last block number: %w", err)
@@ -212,7 +209,7 @@ func (d *DepositRelayerService) shouldProcessDeposits(unprocessedDepositCount, r
 		return false, nil
 	}
 
-	isExceeded, err := isBlockTimeExceeded(d.client, *eventInfo.BlockNumber)
+	isExceeded, err := isBlockTimeExceeded(d.client, *eventInfo.BlockNumber, int(d.cfg.Blockchain.DepositRelayerMinutesThreshold))
 	if err != nil {
 		return false, fmt.Errorf("error occurred while checking time difference: %w", err)
 	}
@@ -221,7 +218,7 @@ func (d *DepositRelayerService) shouldProcessDeposits(unprocessedDepositCount, r
 		return false, nil
 	}
 
-	fmt.Println("Block time difference exceeded the specified duration")
+	d.log.Infof("Block time difference exceeded the specified duration")
 	return true, nil
 }
 
@@ -245,21 +242,6 @@ func (d *DepositRelayerService) relayDeposits(maxLastSeenDepositIndex, numDeposi
 	}
 
 	return receipt, nil
-}
-
-func isBlockTimeExceeded(client *ethclient.Client, blockNumber uint64) (bool, error) {
-	block, err := client.BlockByNumber(context.Background(), big.NewInt(int64(blockNumber)))
-	if err != nil {
-		return false, fmt.Errorf("failed to get block by number: %w", err)
-	}
-
-	timestamp := block.Time()
-	currentTime := time.Now()
-
-	blockTime := time.Unix(int64(timestamp), 0)
-	diff := currentTime.Sub(blockTime)
-
-	return diff > duration, nil
 }
 
 func calculateRelayDepositsGasLimit(numDepositsToRelay uint64) uint64 {
