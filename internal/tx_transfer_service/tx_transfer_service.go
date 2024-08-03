@@ -24,7 +24,11 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
-const MyTransferIndex = 0 // TODO: 1
+const (
+	MyTransferIndex = 0 // TODO: 1
+	base10Key       = 10
+	uint64Key       = 64
+)
 
 func TransferTransaction(
 	ctx context.Context,
@@ -105,6 +109,42 @@ func TransferTransaction(
 
 	var nonce uint64 = 1 // TODO: Incremented with each transaction
 
+	err = SendTransferTransaction(
+		ctx,
+		cfg,
+		log,
+		userAccount,
+		transfersHash,
+		nonce,
+		// &backupTx,
+		// backupTransfers,
+	)
+	if err != nil {
+		log.Fatalf("failed to send transaction: %v", err)
+	}
+
+	log.Printf("The transaction request has been successfully sent. Please wait for the server's response.")
+
+	// Get proposed block
+	proposedBlock, err := GetBlockProposed(
+		ctx, cfg, log, userAccount, transfersHash, nonce,
+	)
+	if err != nil {
+		log.Fatalf("failed to send transaction: %v", err)
+	}
+
+	log.Infof("The proposed block has been successfully received. Please wait for the server's response.")
+
+	tx, err := intMaxTypes.NewTx(
+		&transfersHash,
+		nonce,
+	)
+	if err != nil {
+		log.Fatalf("failed to create new tx: %w", err)
+	}
+
+	txHash := tx.Hash()
+
 	txDetails := intMaxTypes.TxDetails{
 		Tx: intMaxTypes.Tx{
 			TransferTreeRoot: &transfersHash,
@@ -138,42 +178,6 @@ func TransferTransaction(
 			log.Fatalf("failed to make backup data: %v", err)
 		}
 	}
-
-	err = SendTransferTransaction(
-		ctx,
-		cfg,
-		log,
-		userAccount,
-		transfersHash,
-		nonce,
-		&backupTx,
-		backupTransfers,
-	)
-	if err != nil {
-		log.Fatalf("failed to send transaction: %v", err)
-	}
-
-	log.Printf("The transaction request has been successfully sent. Please wait for the server's response.")
-
-	// Get proposed block
-	proposedBlock, err := GetBlockProposed(
-		ctx, cfg, log, userAccount, transfersHash, nonce,
-	)
-	if err != nil {
-		log.Fatalf("failed to send transaction: %v", err)
-	}
-
-	log.Infof("The proposed block has been successfully received. Please wait for the server's response.")
-
-	tx, err := intMaxTypes.NewTx(
-		&transfersHash,
-		nonce,
-	)
-	if err != nil {
-		log.Fatalf("failed to create new tx: %w", err)
-	}
-
-	txHash := tx.Hash()
 
 	// Accept proposed block
 	err = SendSignedProposedBlock(
@@ -220,7 +224,19 @@ func MakeTransferBackupData(transfer *intMaxTypes.Transfer) (backupTransfer *tra
 	}, nil
 }
 
-type WithdrawalTransfer struct {
+type BackupWithdrawal struct {
+	SenderAddress       intMaxAcc.Address                 `json:"senderAddress"`
+	Transfer            *intMaxTypes.Transfer             `json:"transfer"`
+	TransferMerkleProof []*intMaxTypes.PoseidonHashOut    `json:"transferMerkleProof"`
+	TransferIndex       int32                             `json:"transferIndex"`
+	TransferTreeRoot    intMaxTypes.PoseidonHashOut       `json:"transferTreeRoot"`
+	Nonce               uint64                            `json:"nonce"`
+	TxTreeMerkleProof   []*goldenposeidon.PoseidonHashOut `json:"txTreeMerkleProof"`
+	TxIndex             int32                             `json:"txIndex"`
+	TxTreeRoot          goldenposeidon.PoseidonHashOut    `json:"txTreeRoot"`
+}
+
+type withdrawalTransfer struct {
 	Recipient common.Address `json:"recipient"`
 
 	TokenIndex uint32 `json:"tokenIndex"`
@@ -231,10 +247,10 @@ type WithdrawalTransfer struct {
 	Salt *goldenposeidon.PoseidonHashOut `json:"salt"`
 }
 
-type Withdrawal struct {
+type backupWithdrawal struct {
 	SenderAddress string `json:"senderAddress"`
 
-	Transfer WithdrawalTransfer `json:"transfer"`
+	Transfer withdrawalTransfer `json:"transfer"`
 
 	TransferMerkleProof []*goldenposeidon.PoseidonHashOut `json:"transferMerkleProof"`
 
@@ -252,13 +268,90 @@ type Withdrawal struct {
 	TxTreeRoot goldenposeidon.PoseidonHashOut `json:"txTreeRoot"`
 }
 
+func (bw *BackupWithdrawal) MarshalJSON() ([]byte, error) {
+	if bw.Transfer.Recipient.TypeOfAddress != "ETHEREUM" {
+		return nil, errors.New("recipient address should be ETHEREUM")
+	}
+
+	recipient, err := bw.Transfer.Recipient.ToEthereumAddress()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert recipient address: %w", err)
+	}
+
+	return json.Marshal(&backupWithdrawal{
+		SenderAddress: bw.SenderAddress.String(),
+		Transfer: withdrawalTransfer{
+			Recipient:  recipient,
+			TokenIndex: bw.Transfer.TokenIndex,
+			Amount:     bw.Transfer.Amount.String(),
+			Salt:       bw.Transfer.Salt,
+		},
+		TransferMerkleProof: bw.TransferMerkleProof,
+		TransferIndex:       bw.TransferIndex,
+		TransferTreeRoot:    bw.TransferTreeRoot,
+		Nonce:               strconv.FormatUint(bw.Nonce, base10Key),
+		TxTreeMerkleProof:   bw.TxTreeMerkleProof,
+		TxIndex:             bw.TxIndex,
+		TxTreeRoot:          bw.TxTreeRoot,
+	})
+}
+
+func (bw *BackupWithdrawal) UnmarshalJSON(data []byte) error {
+	var withdrawal backupWithdrawal
+	err := json.Unmarshal(data, &withdrawal)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal json: %w", err)
+	}
+
+	recipientBytes := withdrawal.Transfer.Recipient.Bytes()
+	recipient, err := intMaxTypes.NewEthereumAddress(recipientBytes)
+	if err != nil {
+		return fmt.Errorf("failed to create recipient address: %w", err)
+	}
+	amount, ok := new(big.Int).SetString(withdrawal.Transfer.Amount, base10Key)
+	if !ok {
+		return fmt.Errorf("failed to convert amount to int: %v", withdrawal.Transfer.Amount)
+	}
+	transfer := intMaxTypes.NewTransfer(
+		recipient,
+		withdrawal.Transfer.TokenIndex,
+		amount,
+		withdrawal.Transfer.Salt,
+	)
+
+	nonce, err := strconv.ParseUint(withdrawal.Nonce, base10Key, uint64Key)
+	if err != nil {
+		return fmt.Errorf("failed to parse nonce: %w", err)
+	}
+
+	senderAddress, err := intMaxAcc.NewAddressFromHex(withdrawal.SenderAddress)
+	if err != nil {
+		return fmt.Errorf("failed to parse sender address: %w", err)
+	}
+
+	bw.SenderAddress = senderAddress
+	bw.Transfer = transfer
+	bw.TransferMerkleProof = withdrawal.TransferMerkleProof
+	bw.TransferIndex = withdrawal.TransferIndex
+	bw.TransferTreeRoot = withdrawal.TransferTreeRoot
+	bw.Nonce = nonce
+	bw.TxTreeMerkleProof = withdrawal.TxTreeMerkleProof
+	bw.TxIndex = withdrawal.TxIndex
+	bw.TxTreeRoot = withdrawal.TxTreeRoot
+
+	return nil
+}
+
 func MakeWithdrawalBackupData(
 	transfer *intMaxTypes.Transfer,
 	senderAddress intMaxAcc.Address,
 	transfersHash goldenposeidon.PoseidonHashOut,
 	nonce uint64,
-	proposedBlock *BlockProposedResponseData,
+	txTreeRoot goldenposeidon.PoseidonHashOut,
+	txTreeMerkleProof []*goldenposeidon.PoseidonHashOut,
 	transferMerkleProof []*goldenposeidon.PoseidonHashOut,
+	txIndex int32,
+	transferIndex int32,
 ) (backupTransfer *transaction.BackupTransferInput, _ error) {
 	if transfer.Recipient.TypeOfAddress != "ETHEREUM" {
 		return nil, errors.New("recipient address should be ETHEREUM")
@@ -269,9 +362,9 @@ func MakeWithdrawalBackupData(
 		return nil, fmt.Errorf("failed to create recipient address: %w", err)
 	}
 
-	withdrawal := Withdrawal{
+	withdrawal := backupWithdrawal{
 		SenderAddress: senderAddress.String(),
-		Transfer: WithdrawalTransfer{
+		Transfer: withdrawalTransfer{
 			Recipient:  recipient,
 			TokenIndex: transfer.TokenIndex,
 			Amount:     transfer.Amount.String(),
@@ -279,14 +372,34 @@ func MakeWithdrawalBackupData(
 		},
 		TransferMerkleProof: transferMerkleProof,
 		TransferTreeRoot:    transfersHash,
+		TransferIndex:       transferIndex,
 		Nonce:               strconv.FormatUint(uint64(nonce), 10),
-		TxTreeMerkleProof:   proposedBlock.TxTreeMerkleProof,
-		TxTreeRoot:          proposedBlock.TxTreeRoot,
+		TxTreeMerkleProof:   txTreeMerkleProof,
+		TxTreeRoot:          txTreeRoot,
+		TxIndex:             txIndex,
 	}
 
 	// No encryption
 	encryptedTransfer, err := json.Marshal(&withdrawal)
 	if err != nil {
+		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+
+	encryptedTransfer2, err := json.Marshal(&BackupWithdrawal{
+		SenderAddress:       senderAddress,
+		Transfer:            transfer,
+		TransferMerkleProof: transferMerkleProof,
+		TransferIndex:       transferIndex,
+		TransferTreeRoot:    transfersHash,
+		Nonce:               nonce,
+		TxTreeMerkleProof:   txTreeMerkleProof,
+		TxIndex:             txIndex,
+		TxTreeRoot:          txTreeRoot,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+	if string(encryptedTransfer) != string(encryptedTransfer2) {
 		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 

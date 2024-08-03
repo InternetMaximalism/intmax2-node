@@ -10,7 +10,6 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_service"
-	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
 	intMaxTree "intmax2-node/internal/tree"
@@ -19,7 +18,6 @@ import (
 	"intmax2-node/internal/use_cases/transaction"
 	"math/big"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -128,11 +126,6 @@ func WithdrawalTransaction(
 		return
 	}
 
-	emptyBackupTx := transaction.BackupTransactionData{
-		EncodedEncryptedTx: "",
-		Signature:          "0x",
-	}
-	emptyBackupTransfers := make([]*transaction.BackupTransferInput, len(initialLeaves))
 	err = SendWithdrawalTransaction(
 		ctx,
 		cfg,
@@ -140,8 +133,6 @@ func WithdrawalTransaction(
 		userAccount,
 		transfersHash,
 		nonce,
-		&emptyBackupTx,
-		emptyBackupTransfers,
 	)
 	if err != nil {
 		log.Fatalf("failed to send transaction: %v", err)
@@ -169,6 +160,16 @@ func WithdrawalTransaction(
 
 	txHash := tx.Hash()
 
+	publicKeysStr := make([]string, len(proposedBlock.PublicKeys))
+	for i, key := range proposedBlock.PublicKeys {
+		publicKeysStr[i] = key.ToAddress().String()
+	}
+
+	txIndex := slices.Index(publicKeysStr, userAccount.ToAddress().String())
+	if txIndex == -1 {
+		log.Fatalf("failed to find user's public key in the proposed block")
+	}
+
 	encodedEncryptedTx := base64.StdEncoding.EncodeToString(encryptedTx)
 	backupTx := transaction.BackupTransactionData{
 		EncodedEncryptedTx: encodedEncryptedTx,
@@ -178,7 +179,15 @@ func WithdrawalTransaction(
 	backupTransfers := make([]*transaction.BackupTransferInput, len(initialLeaves))
 	for i, transfer := range initialLeaves {
 		backupTransfers[i], err = tx_transfer_service.MakeWithdrawalBackupData(
-			transfer, userAccount.ToAddress(), transfersHash, nonce, proposedBlock, transferMerkleProof,
+			transfer,
+			userAccount.ToAddress(),
+			transfersHash,
+			nonce,
+			proposedBlock.TxTreeRoot,
+			proposedBlock.TxTreeMerkleProof,
+			transferMerkleProof,
+			transferIndex,
+			int32(txIndex),
 		)
 		if err != nil {
 			log.Fatalf("failed to make backup data: %v", err)
@@ -197,34 +206,22 @@ func WithdrawalTransaction(
 	log.Infof("The transaction has been successfully sent.")
 
 	// TODO: Make it safe to interrupt here.
-
-	publicKeysStr := make([]string, len(proposedBlock.PublicKeys))
-	for i, key := range proposedBlock.PublicKeys {
-		publicKeysStr[i] = key.ToAddress().String()
-	}
-
-	txIndex := slices.Index(publicKeysStr, userAccount.ToAddress().String())
-	if txIndex == -1 {
-		log.Fatalf("failed to find user's public key in the proposed block")
-	}
-
 	err = SendWithdrawalTransactionFromBackupTransfer(
 		ctx, cfg, log, backupTransfers[transferIndex],
 	)
 
 	// // Send withdrawal request
-	// err = SendWithdrawalRequest(
-	// 	ctx, cfg, log,
-	// 	userAccount.ToAddress(),
-	// 	transfer,
-	// 	transferMerkleProof,
-	// 	transferIndex,
-	// 	transfersHash,
-	// 	nonce,
-	// 	proposedBlock.TxTreeMerkleProof,
-	// 	int32(txIndex),
-	// 	proposedBlock.TxTreeRoot,
-	// )
+	// err = SendWithdrawalRequest(ctx, cfg, log, tx_transfer_service.BackupWithdrawal{
+	// 	SenderAddress:       userAccount.ToAddress(),
+	// 	Transfer:            transfer,
+	// 	TransferMerkleProof: transferMerkleProof,
+	// 	TransferIndex:       transferIndex,
+	// 	TransferTreeRoot:    transfersHash,
+	// 	Nonce:               nonce,
+	// 	TxTreeMerkleProof:   proposedBlock.TxTreeMerkleProof,
+	// 	TxIndex:             int32(txIndex),
+	// 	TxTreeRoot:          proposedBlock.TxTreeRoot,
+	// })
 	if err != nil {
 		log.Fatalf("failed to request withdrawal: %v", err)
 	}
@@ -245,71 +242,21 @@ func SendWithdrawalTransactionFromBackupTransfer(
 	}
 
 	// json unmarshal
-	var withdrawal tx_transfer_service.Withdrawal
+	var withdrawal tx_transfer_service.BackupWithdrawal
 	err = json.Unmarshal(encodedEncryptedTransfer, &withdrawal)
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal json: %w", err)
 	}
 
-	proposedBlock := tx_transfer_service.BlockProposedResponseData{
-		TxTreeRoot:        withdrawal.TxTreeRoot,
-		TxTreeMerkleProof: withdrawal.TxTreeMerkleProof,
-	}
-
-	recipientBytes := withdrawal.Transfer.Recipient.Bytes()
-	recipient, err := intMaxTypes.NewEthereumAddress(recipientBytes)
-	if err != nil {
-		return fmt.Errorf("failed to create recipient address: %w", err)
-	}
-	amount, ok := new(big.Int).SetString(withdrawal.Transfer.Amount, 10)
-	if !ok {
-		return fmt.Errorf("failed to convert amount to int: %v", withdrawal.Transfer.Amount)
-	}
-	transfer := intMaxTypes.NewTransfer(
-		recipient,
-		withdrawal.Transfer.TokenIndex,
-		amount,
-		withdrawal.Transfer.Salt,
-	)
-
-	nonce, err := strconv.ParseUint(withdrawal.Nonce, 10, 64)
-	if err != nil {
-		return fmt.Errorf("failed to parse nonce: %w", err)
-	}
-
-	senderAddress, err := intMaxAcc.NewAddressFromHex(withdrawal.SenderAddress)
-	if err != nil {
-		return fmt.Errorf("failed to parse sender address: %w", err)
-	}
-
 	// Send withdrawal transaction
-	return SendWithdrawalRequest(
-		ctx, cfg, log,
-		senderAddress,
-		transfer,
-		withdrawal.TransferMerkleProof,
-		withdrawal.TransferIndex,
-		withdrawal.TransferTreeRoot,
-		nonce,
-		proposedBlock.TxTreeMerkleProof,
-		withdrawal.TxIndex,
-		proposedBlock.TxTreeRoot,
-	)
+	return SendWithdrawalRequest(ctx, cfg, log, withdrawal)
 }
 
 func SendWithdrawalRequest(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
-	senderAddress intMaxAcc.Address,
-	transfer *intMaxTypes.Transfer,
-	transferMerkleProof []*intMaxTypes.PoseidonHashOut,
-	transferIndex int32,
-	TransferTreeRoot intMaxTypes.PoseidonHashOut,
-	nonce uint64,
-	txTreeMerkleProof []*goldenposeidon.PoseidonHashOut,
-	txIndex int32,
-	txTreeRoot goldenposeidon.PoseidonHashOut,
+	withdrawal tx_transfer_service.BackupWithdrawal,
 ) error {
 	// TODO: Get the block number and block hash
 	// Specify the block number containing the transaction.
@@ -324,8 +271,16 @@ func SendWithdrawalRequest(
 	}
 
 	err = SendWithdrawalWithRawRequest(
-		ctx, cfg, log, transfer, TransferTreeRoot, nonce, transferMerkleProof, transferIndex, txTreeMerkleProof, int32(txIndex),
-		blockNumber, blockHash,
+		ctx, cfg, log,
+		withdrawal.Transfer,
+		withdrawal.TransferTreeRoot,
+		withdrawal.Nonce,
+		withdrawal.TransferMerkleProof,
+		withdrawal.TransferIndex,
+		withdrawal.TxTreeMerkleProof,
+		withdrawal.TxIndex,
+		blockNumber,
+		blockHash,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to request withdrawal: %w", err)

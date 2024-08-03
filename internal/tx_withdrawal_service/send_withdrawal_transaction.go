@@ -30,8 +30,6 @@ func SendWithdrawalTransaction(
 	senderAccount *intMaxAcc.PrivateKey,
 	transfersHash intMaxTypes.PoseidonHashOut,
 	nonce uint64,
-	encodedEncryptedTx *transaction.BackupTransactionData,
-	encodedEncryptedTransfers []*transaction.BackupTransferInput,
 ) error {
 	const duration = 300 * time.Minute
 	expiration := time.Now().Add(duration)
@@ -78,7 +76,7 @@ func SendWithdrawalTransaction(
 	}
 
 	err = tx_transfer_service.SendTransactionWithRawRequest(
-		ctx, cfg, log, senderAccount, transfersHash, nonce, expiration, powNonceStr, signatureInput, encodedEncryptedTx, encodedEncryptedTransfers,
+		ctx, cfg, log, senderAccount, transfersHash, nonce, expiration, powNonceStr, signatureInput,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to send transaction: %w", err)

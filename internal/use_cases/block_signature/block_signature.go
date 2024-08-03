@@ -3,6 +3,7 @@ package block_signature
 import (
 	"context"
 	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/use_cases/transaction"
 	"intmax2-node/internal/worker"
 )
 
@@ -46,6 +47,8 @@ type UCBlockSignatureInput struct {
 	TxInfo             *worker.TransactionHashesWithSenderAndFile `json:"-"`
 	Signature          string                                     `json:"signature"`
 	EnoughBalanceProof *EnoughBalanceProofInput                   `json:"enoughBalanceProof"`
+	BackupTx           *transaction.BackupTransactionData         `json:"backupTx"`
+	BackupTransfers    []*transaction.BackupTransferInput         `json:"backupTransfers"`
 }
 
 // UseCaseBlockSignature describes BlockSignature contract.
