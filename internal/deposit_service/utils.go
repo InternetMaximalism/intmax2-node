@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"intmax2-node/internal/bindings"
-	"intmax2-node/internal/logger"
 	"math/big"
 	"time"
 
@@ -126,15 +125,6 @@ func fetchDepositEvent(liquidity *bindings.Liquidity, startBlockNumber uint64, d
 	}
 
 	return event, nil
-}
-
-func updateEventBlockNumber(db SQLDriverApp, log logger.Logger, eventName string, blockNumber uint64) error {
-	updatedEvent, err := db.UpsertEventBlockNumber(eventName, blockNumber)
-	if err != nil {
-		return err
-	}
-	log.Infof("Updated %s block number to %d", eventName, updatedEvent.LastProcessedBlockNumber)
-	return nil
 }
 
 func isBlockTimeExceeded(client *ethclient.Client, blockNumber uint64, minutes int) (bool, error) {

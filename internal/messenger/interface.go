@@ -1,5 +1,11 @@
 package messenger
 
+const (
+	NotFound         = "not found"
+	defaultPage      = 1
+	BlocksToLookBack = 10000
+)
+
 type ScrollMessengerResponse struct {
 	ErrCode int    `json:"errcode"`
 	ErrMsg  string `json:"errmsg"`

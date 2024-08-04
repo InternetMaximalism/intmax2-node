@@ -138,9 +138,9 @@ func WithdrawalRelayer(ctx context.Context, cfg *configs.Config, log logger.Logg
 			panic(fmt.Sprintf("Unexpected transaction status: %d. Transaction Hash: %v", receipt.Status, receipt.TxHash.Hex()))
 		}
 
-		err = updateEventBlockNumber(db, log, mDBApp.WithdrawalsQueuedEvent, currentBlockNumber)
+		_, err = db.UpsertEventBlockNumber(mDBApp.WithdrawalsQueuedEvent, currentBlockNumber)
 		if err != nil {
-			panic(fmt.Sprintf("Failed to update event block number: %v", err.Error()))
+			panic(fmt.Sprintf("Error updating event block number: %v", err.Error()))
 		}
 	} else {
 		log.Infof("No new withdrawals to relay")
@@ -274,13 +274,4 @@ func (w *WithdrawalRelayerService) fetchLastRelayedClaimableWithdrawalId() (uint
 		return 0, fmt.Errorf("last relayed claimable withdrawal id exceeds uint64 range")
 	}
 	return lastLastRelayedClaimableWithdrawalId.Uint64(), nil
-}
-
-func updateEventBlockNumber(db SQLDriverApp, log logger.Logger, eventName string, blockNumber uint64) error {
-	updatedEvent, err := db.UpsertEventBlockNumber(eventName, blockNumber)
-	if err != nil {
-		return err
-	}
-	log.Infof("Updated %s block number to %d", eventName, updatedEvent.LastProcessedBlockNumber)
-	return nil
 }

@@ -149,9 +149,9 @@ func DepositAnalyzer(ctx context.Context, cfg *configs.Config, log logger.Logger
 		panic(fmt.Sprintf("Unexpected transaction status: %d. Transaction Hash: %v", receipt.Status, receipt.TxHash.Hex()))
 	}
 
-	err = updateEventBlockNumber(db, log, mDBApp.DepositsAnalyzedEvent, *lastEventInfo.BlockNumber)
+	_, err = db.UpsertEventBlockNumber(mDBApp.DepositsAnalyzedEvent, *lastEventInfo.BlockNumber)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to update event block number: %v", err.Error()))
+		panic(fmt.Sprintf("Error updating event block number: %v", err.Error()))
 	}
 }
 

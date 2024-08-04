@@ -18,8 +18,6 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-const BlocksToLookBack = 10000
-
 type MessengerWithdrawalRelayerMockService struct {
 	ctx               context.Context
 	cfg               *configs.Config
@@ -78,18 +76,12 @@ func MessengerWithdrawalRelayerMock(ctx context.Context, cfg *configs.Config, lo
 	event, err := db.EventBlockNumberByEventName(mDBApp.SentMessageEvent)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) || err.Error() == NotFound {
-			event = &mDBApp.EventBlockNumber{
-				EventName:                mDBApp.SentMessageEvent,
-				LastProcessedBlockNumber: 0,
-			}
+			event = createDefaultEvent()
 		} else {
 			panic(fmt.Sprintf("Error fetching event block number: %v", err.Error()))
 		}
 	} else if event == nil {
-		event = &mDBApp.EventBlockNumber{
-			EventName:                mDBApp.SentMessageEvent,
-			LastProcessedBlockNumber: 0,
-		}
+		event = createDefaultEvent()
 	}
 
 	currentBlockNumber, err := service.scrollClient.BlockNumber(service.ctx)
@@ -132,11 +124,11 @@ func MessengerWithdrawalRelayerMock(ctx context.Context, cfg *configs.Config, lo
 		}
 	}
 
-	log.Infof("Successfully submitted relay message with proof by event for %d out of %d events", successfulEvents)
+	log.Infof("Successfully submitted relay message with proof by event for %d out of %d events", len(events), successfulEvents)
 
-	err = updateEventBlockNumber(db, log, mDBApp.SentMessageEvent, currentBlockNumber)
+	_, err = db.UpsertEventBlockNumber(mDBApp.SentMessageEvent, currentBlockNumber)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to update event block number: %v", err.Error()))
+		panic(fmt.Sprintf("Error updating event block number: %v", err.Error()))
 	}
 }
 
@@ -207,4 +199,11 @@ func (w *MessengerWithdrawalRelayerMockService) calculateStartBlockNumber(curren
 		return max(currentBlockNumber-BlocksToLookBack, 0)
 	}
 	return lastProcessedBlockNumber + 1
+}
+
+func createDefaultEvent() *mDBApp.EventBlockNumber {
+	return &mDBApp.EventBlockNumber{
+		EventName:                mDBApp.SentMessageEvent,
+		LastProcessedBlockNumber: 0,
+	}
 }
