@@ -67,7 +67,7 @@ func newMessengerRelayerMockService(ctx context.Context, cfg *configs.Config, lo
 	}, nil
 }
 
-func MessengerRelayer(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, sb ServiceBlockchain) {
+func MessengerRelayerMock(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, sb ServiceBlockchain) {
 	service, err := newMessengerRelayerMockService(ctx, cfg, log, db, sb)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to initialize MessengerRelayerMockService: %v", err.Error()))
