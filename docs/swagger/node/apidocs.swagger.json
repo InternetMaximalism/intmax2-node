@@ -1110,7 +1110,7 @@
             "type": "object",
             "$ref": "#/definitions/v1TransferDataTransactionRequest"
           },
-          "title": "the transfer data of the transaction"
+          "title": "DEPRECATED\nthe transfer data of the transaction"
         },
         "expiration": {
           "type": "string",
@@ -1181,7 +1181,7 @@
           "title": "the salt value"
         }
       },
-      "title": "TransferDataTransactionRequest describes the data of transaction"
+      "title": "DEPRECATED\nTransferDataTransactionRequest describes the data of transaction"
     },
     "v1TransferMerkleProof": {
       "type": "object",

@@ -16,7 +16,9 @@ import (
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
+	errorsDB "intmax2-node/pkg/sql_db/errors"
 	"io/fs"
+	"math/big"
 	"os"
 	"sort"
 	"strings"
@@ -51,6 +53,7 @@ type LeafsTree struct {
 	Siblings               []*intMaxTree.PoseidonHashOut
 	SenderPublicKeys       []*intMaxAcc.PublicKey
 	KeysOfSenderPublicKeys map[string]int
+	SenderAccountIDs       []*uint256.Int
 	SignaturesCounter      int
 	Signatures             []*signaturesByLeafIndex
 	SignaturesByLeafIndex  []*signaturesByLeafIndex
@@ -65,12 +68,14 @@ type kvInfo struct {
 	Processing          bool
 	Timestamp           *time.Time
 	Receiver            chan func() error
-	LeafsTree           *LeafsTree
+	LeafsTreePublicKeys *LeafsTree
+	LeafsTreeAccounts   *LeafsTree
 }
 
 type leafsOfHash struct {
-	Sender string
-	Index  uint64
+	Sender    string
+	AccountID *uint256.Int
+	Index     uint64
 }
 
 type fileInfo struct {
@@ -230,8 +235,10 @@ func (w *worker) newTempFile(dir string) error {
 		for {
 			select {
 			case <-w.files.FilesList[currentFile].Ctx.Done():
+				w.files.Lock()
 				w.files.FilesList[currentFile].Delivered = true
 				_ = w.files.FilesList[currentFile].KvDB.Close()
+				w.files.Unlock()
 				return
 			case fn := <-w.files.FilesList[currentFile].Receiver:
 				errTx := fn()
@@ -347,7 +354,23 @@ func (w *worker) TxTreeByAvailableFile(sf *TransactionHashesWithSenderAndFile) (
 		siblings []*intMaxTree.PoseidonHashOut
 		root     intMaxTree.PoseidonHashOut
 	)
-	siblings, root, err = f.LeafsTree.TxTree.ComputeMerkleProof(f.Hashes[sf.TxHash].Index)
+
+	if f.Hashes[sf.TxHash].AccountID != nil {
+		siblings, root, err = f.LeafsTreeAccounts.TxTree.ComputeMerkleProof(f.Hashes[sf.TxHash].Index)
+		if err != nil {
+			return nil, errors.Join(ErrTxTreeComputeMerkleProofFail, err)
+		}
+
+		txTreeRoot = &TxTree{
+			RootHash:         &root,
+			Siblings:         siblings,
+			SenderPublicKeys: f.LeafsTreeAccounts.SenderPublicKeys,
+		}
+
+		return txTreeRoot, nil
+	}
+
+	siblings, root, err = f.LeafsTreePublicKeys.TxTree.ComputeMerkleProof(f.Hashes[sf.TxHash].Index)
 	if err != nil {
 		return nil, errors.Join(ErrTxTreeComputeMerkleProofFail, err)
 	}
@@ -355,7 +378,7 @@ func (w *worker) TxTreeByAvailableFile(sf *TransactionHashesWithSenderAndFile) (
 	txTreeRoot = &TxTree{
 		RootHash:         &root,
 		Siblings:         siblings,
-		SenderPublicKeys: f.LeafsTree.SenderPublicKeys,
+		SenderPublicKeys: f.LeafsTreePublicKeys.SenderPublicKeys,
 	}
 
 	return txTreeRoot, err
@@ -476,12 +499,19 @@ func (w *worker) registerReceiver(input *ReceiverWorker) (err error) {
 	}
 
 	current := w.files.CurrentFile
+
+	w.files.Lock()
 	atomic.AddInt32(&w.files.FilesList[current].TransactionsCounter, 1)
 	w.files.FilesList[current].UsersCounter[input.Sender] = input.Sender
 	w.files.FilesList[current].Hashes[input.TxHash.Hash().String()] = nil
+	w.files.Unlock()
 
 	w.files.FilesList[current].Receiver <- func() error {
-		defer atomic.AddInt32(&w.files.FilesList[current].TransactionsCounter, -1)
+		w.files.Lock()
+		defer func() {
+			atomic.AddInt32(&w.files.FilesList[current].TransactionsCounter, -1)
+			w.files.Unlock()
+		}()
 
 		var tx *bolt.Tx
 		tx, err = w.files.FilesList[current].KvDB.Begin(true)
@@ -538,16 +568,28 @@ func (w *worker) registerReceiver(input *ReceiverWorker) (err error) {
 func (w *worker) leafsProcessing(f *os.File) (err error) {
 	defer atomic.AddInt32(&w.numWorkers, -1)
 
-	zeroHash := new(intMaxTypes.PoseidonHashOut).SetZero()
-	var txTree *intMaxTree.TxTree
-	txTree, err = intMaxTree.NewTxTree(intMaxTree.TX_TREE_HEIGHT, []*intMaxTypes.Tx{}, zeroHash)
+	var txTreePublicKeys *intMaxTree.TxTree
+	txTreePublicKeys, err = intMaxTree.NewTxTree(
+		intMaxTree.TX_TREE_HEIGHT, []*intMaxTypes.Tx{}, new(intMaxTypes.PoseidonHashOut).SetZero(),
+	)
+	if err != nil {
+		return errors.Join(ErrNewTxTreeFail, err)
+	}
+
+	var txTreeAccountIDs *intMaxTree.TxTree
+	txTreeAccountIDs, err = intMaxTree.NewTxTree(
+		intMaxTree.TX_TREE_HEIGHT, []*intMaxTypes.Tx{}, new(intMaxTypes.PoseidonHashOut).SetZero(),
+	)
 	if err != nil {
 		return errors.Join(ErrNewTxTreeFail, err)
 	}
 
 	spKeys := make(map[string]*intMaxAcc.PublicKey)
 
-	var number int
+	spKeysByAccIDs := make(map[string]*intMaxAcc.PublicKey)
+	accIDsByAccIDs := make(map[string]*uint256.Int)
+
+	var numberPublicKeys, numberAccountIDs int
 	err = w.files.FilesList[f].KvDB.View(func(tx *bolt.Tx) (err error) {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
@@ -564,24 +606,88 @@ func (w *worker) leafsProcessing(f *os.File) (err error) {
 			}
 
 			for key := range info.TxsList {
-				cn := uint64(number)
-				_, err = txTree.AddLeaf(cn, info.TxsList[key].TxHash)
-				if err != nil {
-					return errors.Join(ErrAddLeafIntoTxTreeFail, err)
-				}
-				w.files.FilesList[f].Hashes[info.TxsList[key].TxHash.Hash().String()] = &leafsOfHash{
-					Sender: info.TxsList[key].Sender,
-					Index:  cn,
-				}
-				if _, ok := spKeys[info.TxsList[key].Sender]; !ok {
-					var publicKey *intMaxAcc.PublicKey
-					publicKey, err = intMaxAcc.NewPublicKeyFromAddressHex(info.TxsList[key].Sender)
-					if err != nil {
-						return errors.Join(ErrNewPublicKeyFromAddressHexFail, err)
+				var accID uint256.Int
+				err = w.dbApp.Exec(w.files.FilesList[f].Ctx, &accID, func(d interface{}, in interface{}) error {
+					q := d.(SQLDriverApp)
+
+					ai := block_post_service.NewAccountInfo(q)
+					var accIDInfo *uint256.Int
+					accIDInfo, err = ai.AccountBySenderAddress(info.TxsList[key].Sender)
+					if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
+						return err
 					}
-					spKeys[info.TxsList[key].Sender] = publicKey
+					if errors.Is(err, errorsDB.ErrNotFound) {
+						return nil
+					}
+
+					if inV, ok := in.(*uint256.Int); ok {
+						*inV = *accIDInfo
+					} else {
+						const msg = "failed to convert of account ID from uint256.Int"
+						return fmt.Errorf(msg)
+					}
+
+					return nil
+				})
+				if err != nil {
+					const msg = "failed to get of account ID with DBApp"
+					return fmt.Errorf(msg)
 				}
-				number++
+
+				lfh := leafsOfHash{
+					Sender: info.TxsList[key].Sender,
+				}
+
+				var isAcc bool
+				if accID.ToBig().Cmp(new(big.Int)) == 1 {
+					isAcc = true
+				}
+
+				if isAcc {
+					lfh.Index = uint64(numberAccountIDs)
+					var lhfAccID uint256.Int
+					_ = lhfAccID.SetFromBig(accID.ToBig())
+					lfh.AccountID = &lhfAccID
+					_, err = txTreeAccountIDs.AddLeaf(lfh.Index, info.TxsList[key].TxHash)
+					if err != nil {
+						return errors.Join(ErrAddLeafIntoTxTreeFail, err)
+					}
+
+					if _, ok := spKeysByAccIDs[info.TxsList[key].Sender]; !ok {
+						var publicKey *intMaxAcc.PublicKey
+						publicKey, err = intMaxAcc.NewPublicKeyFromAddressHex(info.TxsList[key].Sender)
+						if err != nil {
+							return errors.Join(ErrNewPublicKeyFromAddressHexFail, err)
+						}
+						spKeysByAccIDs[info.TxsList[key].Sender] = publicKey
+						accIDsByAccIDs[info.TxsList[key].Sender] = lfh.AccountID
+					}
+				} else {
+					lfh.Index = uint64(numberPublicKeys)
+					_, err = txTreePublicKeys.AddLeaf(lfh.Index, info.TxsList[key].TxHash)
+					if err != nil {
+						return errors.Join(ErrAddLeafIntoTxTreeFail, err)
+					}
+
+					if _, ok := spKeys[info.TxsList[key].Sender]; !ok {
+						var publicKey *intMaxAcc.PublicKey
+						publicKey, err = intMaxAcc.NewPublicKeyFromAddressHex(info.TxsList[key].Sender)
+						if err != nil {
+							return errors.Join(ErrNewPublicKeyFromAddressHexFail, err)
+						}
+						spKeys[info.TxsList[key].Sender] = publicKey
+					}
+				}
+
+				w.files.Lock()
+				w.files.FilesList[f].Hashes[info.TxsList[key].TxHash.Hash().String()] = &lfh
+				w.files.Unlock()
+
+				if isAcc {
+					numberAccountIDs++
+				} else {
+					numberPublicKeys++
+				}
 			}
 		}
 
@@ -591,37 +697,75 @@ func (w *worker) leafsProcessing(f *os.File) (err error) {
 		return err
 	}
 
-	var (
-		senderPublicKeys []*intMaxAcc.PublicKey
-	)
-	for key := range spKeys {
-		senderPublicKeys = append(senderPublicKeys, spKeys[key])
+	if numberPublicKeys > 0 {
+		var (
+			senderPublicKeys []*intMaxAcc.PublicKey
+		)
+		for key := range spKeys {
+			senderPublicKeys = append(senderPublicKeys, spKeys[key])
+		}
+
+		// Sort by x-coordinate of public key
+		sort.Slice(senderPublicKeys, func(i, j int) bool {
+			return senderPublicKeys[i].Pk.X.Cmp(&senderPublicKeys[j].Pk.X) > 0
+		})
+
+		keysOfSenderPublicKeys := make(map[string]int)
+		for key := range senderPublicKeys {
+			keysOfSenderPublicKeys[senderPublicKeys[key].ToAddress().String()] = key
+		}
+
+		txRoot, count, sb := txTreePublicKeys.GetCurrentRootCountAndSiblings()
+
+		w.files.FilesList[f].Lock()
+		w.files.FilesList[f].LeafsTreePublicKeys = &LeafsTree{
+			TxTree:                 txTreePublicKeys,
+			TxRoot:                 &txRoot,
+			Count:                  count,
+			Siblings:               sb,
+			SenderPublicKeys:       senderPublicKeys,
+			KeysOfSenderPublicKeys: keysOfSenderPublicKeys,
+			Signatures:             make([]*signaturesByLeafIndex, len(senderPublicKeys)),
+			SignaturesByLeafIndex:  make([]*signaturesByLeafIndex, numberPublicKeys),
+		}
+		w.files.FilesList[f].Unlock()
 	}
 
-	// Sort by x-coordinate of public key
-	sort.Slice(senderPublicKeys, func(i, j int) bool {
-		return senderPublicKeys[i].Pk.X.Cmp(&senderPublicKeys[j].Pk.X) > 0
-	})
+	if numberAccountIDs > 0 {
+		var (
+			senderPublicKeys []*intMaxAcc.PublicKey
+			senderAccountIDs []*uint256.Int
+		)
+		for key := range spKeysByAccIDs {
+			senderPublicKeys = append(senderPublicKeys, spKeysByAccIDs[key])
+			senderAccountIDs = append(senderAccountIDs, accIDsByAccIDs[key])
+		}
 
-	keysOfSenderPublicKeys := make(map[string]int)
-	for key := range senderPublicKeys {
-		keysOfSenderPublicKeys[senderPublicKeys[key].ToAddress().String()] = key
-	}
+		// Sort by x-coordinate of public key
+		sort.Slice(senderPublicKeys, func(i, j int) bool {
+			return senderPublicKeys[i].Pk.X.Cmp(&senderPublicKeys[j].Pk.X) > 0
+		})
 
-	txRoot, count, sb := txTree.GetCurrentRootCountAndSiblings()
+		keysOfSenderPublicKeys := make(map[string]int)
+		for key := range senderPublicKeys {
+			keysOfSenderPublicKeys[senderPublicKeys[key].ToAddress().String()] = key
+		}
 
-	w.files.FilesList[f].Lock()
-	defer w.files.FilesList[f].Unlock()
+		txRoot, count, sb := txTreePublicKeys.GetCurrentRootCountAndSiblings()
 
-	w.files.FilesList[f].LeafsTree = &LeafsTree{
-		TxTree:                 txTree,
-		TxRoot:                 &txRoot,
-		Count:                  count,
-		Siblings:               sb,
-		SenderPublicKeys:       senderPublicKeys,
-		KeysOfSenderPublicKeys: keysOfSenderPublicKeys,
-		Signatures:             make([]*signaturesByLeafIndex, len(senderPublicKeys)),
-		SignaturesByLeafIndex:  make([]*signaturesByLeafIndex, number),
+		w.files.FilesList[f].Lock()
+		w.files.FilesList[f].LeafsTreeAccounts = &LeafsTree{
+			TxTree:                 txTreePublicKeys,
+			TxRoot:                 &txRoot,
+			Count:                  count,
+			Siblings:               sb,
+			SenderPublicKeys:       senderPublicKeys,
+			KeysOfSenderPublicKeys: keysOfSenderPublicKeys,
+			SenderAccountIDs:       senderAccountIDs,
+			Signatures:             make([]*signaturesByLeafIndex, len(senderPublicKeys)),
+			SignaturesByLeafIndex:  make([]*signaturesByLeafIndex, numberAccountIDs),
+		}
+		w.files.FilesList[f].Unlock()
 	}
 
 	return nil
@@ -641,66 +785,120 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 	}
 
 	defer func() {
+		w.files.Lock()
+		defer w.files.Unlock()
+		for key := range w.files.FilesList[f].Hashes {
+			delete(w.files.FilesList[f].Hashes, key)
+			w.trHashes.Cleaner <- func() {
+				w.trHashes.Lock()
+				defer w.trHashes.Unlock()
+				delete(w.trHashes.Hashes, key)
+			}
+		}
 		w.files.FilesList[f].Processing = false
 	}()
 
-	for key := range w.files.FilesList[f].Hashes {
-		err = w.dbApp.Exec(ctx, nil, func(d interface{}, _ interface{}) (err error) {
-			q := d.(SQLDriverApp)
-			_ = q
+	const int0Key = 0
+	if (w.files.FilesList[f].LeafsTreePublicKeys == nil ||
+		w.files.FilesList[f].LeafsTreePublicKeys.SignaturesCounter <= int0Key) &&
+		(w.files.FilesList[f].LeafsTreeAccounts == nil ||
+			w.files.FilesList[f].LeafsTreeAccounts.SignaturesCounter <= int0Key) {
+		return nil
+	}
 
-			var (
-				siblings []*intMaxTree.PoseidonHashOut
-				root     intMaxTree.PoseidonHashOut
-			)
-			siblings, root, err = w.files.FilesList[f].LeafsTree.
-				TxTree.ComputeMerkleProof(w.files.FilesList[f].Hashes[key].Index)
-			if err != nil {
-				return errors.Join(ErrTxTreeComputeMerkleProofFail, err)
-			}
+	var mw *modelsMW.Wallet
+	mw, err = mnemonic_wallet.New().WalletFromPrivateKeyHex(w.cfg.Blockchain.BuilderPrivateKeyHex)
+	if err != nil {
+		return errors.Join(errorsB.ErrWalletAddressNotRecognized, err)
+	}
 
-			_ = siblings
-			_ = root
+	err = w.dbApp.Exec(ctx, nil, func(d interface{}, _ interface{}) (err error) {
+		q := d.(SQLDriverApp)
 
-			defer func() {
-				delete(w.files.FilesList[f].Hashes, key)
-				w.trHashes.Cleaner <- func() {
-					w.trHashes.Lock()
-					defer w.trHashes.Unlock()
-					delete(w.trHashes.Hashes, key)
+		funcLFT := func(block *mDBApp.Block, lft *LeafsTree) error {
+			for index := range lft.SignaturesByLeafIndex {
+				var sign *mDBApp.Signature
+				if lft.SignaturesByLeafIndex[index].Signature != "" {
+					sign, err = q.CreateSignature(
+						lft.SignaturesByLeafIndex[index].Signature,
+						block.ProposalBlockID,
+					)
+					if err != nil {
+						return errors.Join(ErrCreateSignatureFail, err)
+					}
 				}
-			}()
 
-			const int0Key = 0
-			if w.files.FilesList[f].LeafsTree.SignaturesCounter <= int0Key {
-				return nil
+				var publicKey *intMaxAcc.PublicKey
+				publicKey, err = intMaxAcc.NewPublicKeyFromAddressHex(
+					lft.SignaturesByLeafIndex[index].Sender,
+				)
+				if err != nil {
+					err = errors.Join(ErrNewPublicKeyFromAddressHexFail, err)
+					return err
+				}
+
+				var txTreeIndex uint256.Int
+				_ = txTreeIndex.SetUint64(lft.SignaturesByLeafIndex[index].LeafIndex)
+
+				var cmp ComputeMerkleProof
+				cmp.Siblings, cmp.Root, err = lft.TxTree.ComputeMerkleProof(
+					lft.SignaturesByLeafIndex[index].LeafIndex,
+				)
+				if err != nil {
+					return errors.Join(ErrTxTreeComputeMerkleProofFail, err)
+				}
+
+				var bCMP []byte
+				bCMP, err = json.Marshal(&cmp)
+				if err != nil {
+					return errors.Join(ErrMarshalFail, err)
+				}
+
+				var signatureID string
+				if sign != nil {
+					signatureID = sign.SignatureID
+				}
+				_, err = q.CreateTxMerkleProofs(
+					publicKey.String(),
+					lft.SignaturesByLeafIndex[index].TxHash,
+					signatureID,
+					&txTreeIndex,
+					bCMP,
+					lft.TxRoot.String(),
+					block.ProposalBlockID,
+				)
+				if err != nil {
+					return errors.Join(ErrCreateTxMerkleProofsFail, err)
+				}
 			}
+
+			return nil
+		}
+
+		var lft *LeafsTree
+		if w.files.FilesList[f].LeafsTreePublicKeys != nil &&
+			w.files.FilesList[f].LeafsTreePublicKeys.SignaturesCounter > int0Key {
+			lft = w.files.FilesList[f].LeafsTreePublicKeys
 
 			var bytesLfsTree []byte
-			bytesLfsTree, err = json.Marshal(&w.files.FilesList[f].LeafsTree)
+			bytesLfsTree, err = json.Marshal(&lft)
 			if err != nil {
 				return errors.Join(ErrMarshalFail, err)
 			}
 
-			signatures := make([]string, len(w.files.FilesList[f].LeafsTree.SenderPublicKeys))
-			for indexSPK := range w.files.FilesList[f].LeafsTree.SenderPublicKeys {
-				signatures[indexSPK] = w.files.FilesList[f].LeafsTree.Signatures[indexSPK].Signature
+			signatures := make([]string, len(lft.SenderPublicKeys))
+			for indexSPK := range lft.SenderPublicKeys {
+				signatures[indexSPK] = lft.Signatures[indexSPK].Signature
 			}
 
 			var bc *intMaxTypes.BlockContent
 			bc, err = block_post_service.MakeRegistrationBlock(
-				*w.files.FilesList[f].LeafsTree.TxRoot,
-				w.files.FilesList[f].LeafsTree.SenderPublicKeys,
+				*lft.TxRoot,
+				lft.SenderPublicKeys,
 				signatures,
 			)
 			if err != nil {
 				return errors.Join(ErrMakeRegistrationBlockFail, err)
-			}
-
-			var mw *modelsMW.Wallet
-			mw, err = mnemonic_wallet.New().WalletFromPrivateKeyHex(w.cfg.Blockchain.BuilderPrivateKeyHex)
-			if err != nil {
-				return errors.Join(errorsB.ErrWalletAddressNotRecognized, err)
 			}
 
 			senders := make([]intMaxTypes.ColumnSender, 0)
@@ -725,76 +923,71 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 			if err != nil {
 				return errors.Join(ErrCreateBlockFail, err)
 			}
-			_ = block
 
-			for index := range w.files.FilesList[f].LeafsTree.SignaturesByLeafIndex {
-				var (
-					siblingsByLeafIndex []*intMaxTree.PoseidonHashOut
-					rootByLeafIndex     intMaxTree.PoseidonHashOut
-				)
-				siblingsByLeafIndex, rootByLeafIndex, err = w.files.FilesList[f].LeafsTree.TxTree.ComputeMerkleProof(
-					w.files.FilesList[f].LeafsTree.SignaturesByLeafIndex[index].LeafIndex,
-				)
-				if err != nil {
-					return errors.Join(ErrTxTreeComputeMerkleProofFail, err)
-				}
+			return funcLFT(block, lft)
+		}
 
-				var sign *mDBApp.Signature
-				if w.files.FilesList[f].LeafsTree.SignaturesByLeafIndex[index].Signature != "" {
-					sign, err = q.CreateSignature(
-						w.files.FilesList[f].LeafsTree.SignaturesByLeafIndex[index].Signature,
-						block.ProposalBlockID,
-					)
-					if err != nil {
-						return errors.Join(ErrCreateSignatureFail, err)
-					}
-				}
+		if w.files.FilesList[f].LeafsTreeAccounts != nil &&
+			w.files.FilesList[f].LeafsTreeAccounts.SignaturesCounter > int0Key {
+			lft = w.files.FilesList[f].LeafsTreeAccounts
 
-				var publicKey *intMaxAcc.PublicKey
-				publicKey, err = intMaxAcc.NewPublicKeyFromAddressHex(
-					w.files.FilesList[f].LeafsTree.SignaturesByLeafIndex[index].Sender,
-				)
-				if err != nil {
-					err = errors.Join(ErrNewPublicKeyFromAddressHexFail, err)
-					return err
-				}
-
-				var txTreeIndex uint256.Int
-				_ = txTreeIndex.SetUint64(w.files.FilesList[f].LeafsTree.SignaturesByLeafIndex[index].LeafIndex)
-
-				var cmp ComputeMerkleProof
-				cmp.Root = rootByLeafIndex
-				cmp.Siblings = siblingsByLeafIndex
-
-				var bCMP []byte
-				bCMP, err = json.Marshal(&cmp)
-				if err != nil {
-					return errors.Join(ErrMarshalFail, err)
-				}
-
-				var signatureID string
-				if sign != nil {
-					signatureID = sign.SignatureID
-				}
-				_, err = q.CreateTxMerkleProofs(
-					publicKey.String(),
-					w.files.FilesList[f].LeafsTree.SignaturesByLeafIndex[index].TxHash,
-					signatureID,
-					&txTreeIndex,
-					bCMP,
-					w.files.FilesList[f].LeafsTree.TxRoot.String(),
-					block.ProposalBlockID,
-				)
-				if err != nil {
-					return errors.Join(ErrCreateTxMerkleProofsFail, err)
-				}
+			var bytesLfsTree []byte
+			bytesLfsTree, err = json.Marshal(&lft)
+			if err != nil {
+				return errors.Join(ErrMarshalFail, err)
 			}
 
-			return nil
-		})
-		if err != nil {
-			return err
+			signatures := make([]string, len(lft.SenderPublicKeys))
+			for indexSPK := range lft.SenderPublicKeys {
+				signatures[indexSPK] = lft.Signatures[indexSPK].Signature
+			}
+
+			senderAccountIDs := make([]uint64, len(lft.SenderAccountIDs))
+			for indexSA := range lft.SenderAccountIDs {
+				senderAccountIDs[indexSA] = lft.SenderAccountIDs[indexSA].Uint64()
+			}
+
+			var bc *intMaxTypes.BlockContent
+			bc, err = block_post_service.MakeNonRegistrationBlock(
+				*lft.TxRoot,
+				senderAccountIDs,
+				lft.SenderPublicKeys,
+				signatures,
+			)
+			if err != nil {
+				return errors.Join(ErrMakeRegistrationBlockFail, err)
+			}
+
+			senders := make([]intMaxTypes.ColumnSender, 0)
+			for i := range bc.Senders {
+				senders = append(senders, intMaxTypes.ColumnSender{
+					PublicKey: bc.Senders[i].PublicKey.ToAddress().String(),
+					AccountID: bc.Senders[i].AccountID,
+					IsSigned:  bc.Senders[i].IsSigned,
+				})
+			}
+
+			var block *mDBApp.Block
+			block, err = q.CreateBlock(
+				mw.IntMaxPublicKey,
+				hexutils.BytesToHex(bc.TxTreeRoot.Marshal()),
+				hexutils.BytesToHex(bc.AggregatedSignature.Marshal()),
+				hexutils.BytesToHex(bc.AggregatedPublicKey.Marshal()),
+				senders,
+				mDBApp.ST_ACCOUNT_ID,
+				bytesLfsTree,
+			)
+			if err != nil {
+				return errors.Join(ErrCreateBlockFail, err)
+			}
+
+			return funcLFT(block, lft)
 		}
+
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -815,7 +1008,6 @@ func (w *worker) TrHash(trHash string) (*TransactionHashesWithSenderAndFile, err
 func (w *worker) SignTxTreeByAvailableFile(
 	signature string,
 	sf *TransactionHashesWithSenderAndFile,
-	txHash *intMaxTree.PoseidonHashOut,
 	leafIndex uint64,
 ) error {
 	f, ok := w.files.FilesList[sf.File]
@@ -858,26 +1050,50 @@ func (w *worker) SignTxTreeByAvailableFile(
 		}
 	}
 
-	w.files.FilesList[sf.File].Lock()
-	defer w.files.FilesList[sf.File].Unlock()
+	w.files.Lock()
+	defer w.files.Unlock()
 
 	tm := time.Now().UTC().UnixNano()
-	if vKeys, okKeys := w.files.FilesList[sf.File].LeafsTree.KeysOfSenderPublicKeys[sf.Sender]; okKeys {
-		w.files.FilesList[sf.File].LeafsTree.Signatures[vKeys] = &signaturesByLeafIndex{
-			Sender:    sf.Sender,
-			TxHash:    sf.TxHash,
-			Signature: signature,
-			LeafIndex: leafIndex,
-			CreatedAt: tm,
+	if w.files.FilesList[sf.File].Hashes[sf.TxHash].AccountID != nil &&
+		w.files.FilesList[sf.File].LeafsTreeAccounts != nil {
+		if vKeys, okKeys := w.files.FilesList[sf.File].LeafsTreeAccounts.KeysOfSenderPublicKeys[sf.Sender]; okKeys {
+			w.files.FilesList[sf.File].LeafsTreeAccounts.Signatures[vKeys] = &signaturesByLeafIndex{
+				Sender:    sf.Sender,
+				TxHash:    sf.TxHash,
+				Signature: signature,
+				LeafIndex: leafIndex,
+				CreatedAt: tm,
+			}
+			w.files.FilesList[sf.File].LeafsTreeAccounts.SignaturesByLeafIndex[leafIndex] = &signaturesByLeafIndex{
+				Sender:    sf.Sender,
+				TxHash:    sf.TxHash,
+				Signature: signature,
+				LeafIndex: leafIndex,
+				CreatedAt: tm,
+			}
+			w.files.FilesList[sf.File].LeafsTreeAccounts.SignaturesCounter++
 		}
-		w.files.FilesList[sf.File].LeafsTree.SignaturesByLeafIndex[leafIndex] = &signaturesByLeafIndex{
-			Sender:    sf.Sender,
-			TxHash:    sf.TxHash,
-			Signature: signature,
-			LeafIndex: leafIndex,
-			CreatedAt: tm,
+	}
+
+	if w.files.FilesList[sf.File].Hashes[sf.TxHash].AccountID == nil &&
+		w.files.FilesList[sf.File].LeafsTreePublicKeys != nil {
+		if vKeys, okKeys := w.files.FilesList[sf.File].LeafsTreePublicKeys.KeysOfSenderPublicKeys[sf.Sender]; okKeys {
+			w.files.FilesList[sf.File].LeafsTreePublicKeys.Signatures[vKeys] = &signaturesByLeafIndex{
+				Sender:    sf.Sender,
+				TxHash:    sf.TxHash,
+				Signature: signature,
+				LeafIndex: leafIndex,
+				CreatedAt: tm,
+			}
+			w.files.FilesList[sf.File].LeafsTreePublicKeys.SignaturesByLeafIndex[leafIndex] = &signaturesByLeafIndex{
+				Sender:    sf.Sender,
+				TxHash:    sf.TxHash,
+				Signature: signature,
+				LeafIndex: leafIndex,
+				CreatedAt: tm,
+			}
+			w.files.FilesList[sf.File].LeafsTreePublicKeys.SignaturesCounter++
 		}
-		w.files.FilesList[sf.File].LeafsTree.SignaturesCounter++
 	}
 
 	return nil

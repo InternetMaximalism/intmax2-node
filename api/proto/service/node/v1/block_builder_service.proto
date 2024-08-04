@@ -89,6 +89,7 @@ message RecipientTransferDataTransactionRequest {
   string      address = 20 [json_name="address", (tagger.tags)="json:\"address,omitempty\""];
 }
 
+// DEPRECATED
 // TransferDataTransactionRequest describes the data of transaction
 message TransferDataTransactionRequest {
   // the recipient info
@@ -111,6 +112,7 @@ message TransactionRequest {
   uint64 nonce = 30 [json_name="nonce", (tagger.tags)="json:\"nonce,omitempty\""];
   // the PoW nonce
   string pow_nonce = 40 [json_name="powNonce", (tagger.tags)="json:\"powNonce,omitempty\""];
+  // DEPRECATED
   // the transfer data of the transaction
   repeated TransferDataTransactionRequest transfer_data = 50 [json_name="transferData", (tagger.tags)="json:\"transferData,omitempty\""];
   // the expiration of request

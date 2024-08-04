@@ -5,6 +5,7 @@ const (
 	DepositsRelayedEvent   = "DepositsRelayed"
 	SentMessageEvent       = "SentMessage"
 	WithdrawalsQueuedEvent = "WithdrawalsQueued"
+	BlockPostedEvent       = "BlockPosted"
 )
 
 type EventBlockNumber struct {

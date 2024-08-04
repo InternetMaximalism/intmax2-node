@@ -7,59 +7,96 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/block_post_service"
+	"intmax2-node/pkg/logger"
+	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/google/uuid"
+	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestAccountInfoMap(t *testing.T) {
-	ctx := context.Background()
-	cfg := configs.Config{}
+	const int2Key = 2
+	assert.NoError(t, configs.LoadDotEnv(int2Key))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	cfg := configs.New()
 	cfg.Blockchain.EthereumNetworkRpcUrl = "https://eth-sepolia.g.alchemy.com/v2/OE-Ocf1AKEHq5UlRKEXGYJ6mc7dJamOV"
 	cfg.Blockchain.LiquidityContractAddress = "0x86f08b1DcDe0673A5562384eAFD5df6EE83cd73a"
 	cfg.Blockchain.RollupContractAddress = "0x33a463381140C97B3bFd41eAADAE38ee98fe410c"
 	cfg.SQLDb.DNSConnection = "postgresql://postgres:pass@intmax2-node-postgres:5432/state?sslmode=disable"
 	cfg.Blockchain.RollupContractDeployedBlockNumber = 5843354
 
-	d, err := block_post_service.NewBlockPostService(ctx, &cfg, nil)
-	require.NoError(t, err)
+	dbApp := NewMockSQLDriverApp(ctrl)
+	dbApp.EXPECT().DelAllAccounts().AnyTimes()
+	dbApp.EXPECT().ResetSequenceByAccounts().AnyTimes()
+	dbApp.EXPECT().UpsertEventBlockNumbersErrors(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	dbApp.EXPECT().EventBlockNumberByEventName(gomock.Any()).AnyTimes()
+	dbApp.EXPECT().UpsertEventBlockNumber(gomock.Any(), gomock.Any()).Return(&mDBApp.EventBlockNumber{
+		EventName:                mDBApp.BlockPostedEvent,
+		LastProcessedBlockNumber: cfg.Blockchain.RollupContractDeployedBlockNumber,
+	}, nil).AnyTimes()
+	dbApp.EXPECT().SenderByAddress(gomock.Any()).Return(&mDBApp.Sender{
+		ID:        uuid.New().String(),
+		Address:   "0x",
+		PublicKey: "0x",
+		CreatedAt: time.Now().UTC(),
+	}, nil).AnyTimes()
+	dbApp.EXPECT().AccountBySenderID(gomock.Any()).Return(&mDBApp.Account{
+		ID:        uuid.New().String(),
+		AccountID: new(uint256.Int).SetUint64(uint64(1)),
+		SenderID:  uuid.New().String(),
+		CreatedAt: time.Now().UTC(),
+	}, nil).AnyTimes()
 
-	events, _, err := d.FetchNewPostedBlocks(cfg.Blockchain.RollupContractDeployedBlockNumber)
-	require.NoError(t, err)
-
-	accountInfoMap := block_post_service.NewAccountInfoMap()
-	for i, event := range events {
-		calldata, err := d.FetchScrollCalldataByHash(event.Raw.TxHash)
-		require.NoError(t, err)
-
-		// fmt.Println("calldata:", hexutil.Encode(calldata))
-
-		_, err = block_post_service.FetchIntMaxBlockContentByCalldata(calldata, accountInfoMap)
-		if err != nil {
-			if errors.Is(err, block_post_service.ErrUnknownAccountID) {
-				fmt.Printf("block %d is ErrUnknownAccountID\n", i)
-				continue
-			}
-			if errors.Is(err, block_post_service.ErrCannotDecodeAddress) {
-				fmt.Printf("block %d is ErrCannotDecodeAddress\n", i)
-				continue
-			}
-			assert.NoError(t, err)
-			continue
-		}
-
-		fmt.Printf("block %d is valid\n", i)
-	}
+	lg := logger.New(cfg.LOG.Level, cfg.LOG.TimeFormat, cfg.LOG.JSON, cfg.LOG.IsLogLine)
+	assert.NoError(t, block_post_service.ProcessingPostedBlocks(ctx, cfg, lg, dbApp))
 }
 
 func TestFetchNewPostedBlocks(t *testing.T) {
 	calldataJson, err := readPostedBlockEventsJson("../../pkg/data/posted_block_calldata.json")
 	assert.NoError(t, err)
 
-	accountInfoMap := block_post_service.NewAccountInfoMap()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	dbApp := NewMockSQLDriverApp(ctrl)
+	dbApp.EXPECT().AccountByAccountID(gomock.Any()).Return(&mDBApp.Account{
+		ID:        uuid.New().String(),
+		AccountID: new(uint256.Int).SetUint64(uint64(1)),
+		SenderID:  uuid.New().String(),
+		CreatedAt: time.Now().UTC(),
+	}, nil).AnyTimes()
+	dbApp.EXPECT().SenderByID(gomock.Any()).Return(&mDBApp.Sender{
+		ID:        uuid.New().String(),
+		Address:   "0x",
+		PublicKey: "0x",
+		CreatedAt: time.Now().UTC(),
+	}, nil).AnyTimes()
+	dbApp.EXPECT().SenderByAddress(gomock.Any()).Return(&mDBApp.Sender{
+		ID:        uuid.New().String(),
+		Address:   "0x",
+		PublicKey: "0x",
+		CreatedAt: time.Now().UTC(),
+	}, nil).AnyTimes()
+	dbApp.EXPECT().AccountBySenderID(gomock.Any()).Return(&mDBApp.Account{
+		ID:        uuid.New().String(),
+		AccountID: new(uint256.Int).SetUint64(uint64(1)),
+		SenderID:  uuid.New().String(),
+		CreatedAt: time.Now().UTC(),
+	}, nil).AnyTimes()
+
+	accountInfoMap := block_post_service.NewAccountInfo(dbApp)
 	for i, calldata := range calldataJson {
 		_, err = block_post_service.FetchIntMaxBlockContentByCalldata(calldata, accountInfoMap)
 		if err != nil {

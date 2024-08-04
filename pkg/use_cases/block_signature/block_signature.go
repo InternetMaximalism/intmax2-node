@@ -153,7 +153,6 @@ func (u *uc) Do(
 			TxHash: input.TxInfo.TxHash,
 			File:   input.TxInfo.File,
 		},
-		input.TxTree.TxHash,
 		input.TxTree.LeafIndex,
 	)
 	if err != nil {

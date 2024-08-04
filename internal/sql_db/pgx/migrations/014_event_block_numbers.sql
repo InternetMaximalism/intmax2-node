@@ -1,10 +1,12 @@
 -- +migrate Up
 
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 CREATE TABLE event_block_numbers (
-    id UUID not null default uuid_generate_v4(),
-    event_name varchar(255) not null unique,
+    id                          UUID not null default uuid_generate_v4(),
+    event_name                  varchar(255) not null unique,
     last_processed_block_number bigint not null,
-    created_at timestamptz not null default now(),
+    created_at                  timestamptz not null default now(),
     PRIMARY KEY (id),
     CONSTRAINT check_last_processed_block_number_positive CHECK (last_processed_block_number >= 0)
 );

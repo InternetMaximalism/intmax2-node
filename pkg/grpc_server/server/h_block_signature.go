@@ -37,13 +37,13 @@ func (s *Server) BlockSignature(
 			PrevBalanceProof:  &block_signature.Plonky2Proof{},
 			TransferStepProof: &block_signature.Plonky2Proof{},
 		},
-		BackupTx: &transaction.BackupTransactionData{
-			EncodedEncryptedTx: req.BackupTransaction.EncryptedTx,
-			Signature:          req.BackupTransaction.Signature,
-		},
+		BackupTx:        &transaction.BackupTransactionData{},
 		BackupTransfers: make([]*transaction.BackupTransferInput, len(req.BackupTransfers)),
-		// EncodedEncryptedTx:        req.EncodedEncryptedTx,
-		// EncodedEncryptedTransfers: req.EncodedEncryptedTransfers,
+	}
+
+	if req.BackupTransaction != nil {
+		input.BackupTx.EncodedEncryptedTx = req.BackupTransaction.EncryptedTx
+		input.BackupTx.Signature = req.BackupTransaction.Signature
 	}
 
 	for key := range req.BackupTransfers {
