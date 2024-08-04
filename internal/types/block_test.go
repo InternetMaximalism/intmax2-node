@@ -193,7 +193,7 @@ func TestMarshalAccountIds(t *testing.T) {
 
 func TestBlockHash(t *testing.T) {
 	prevBlockHash := common.Hash{}
-	depositRoot := common.Hash{}
+	depositRoot := common.HexToHash("0xb6155ab566bbd2e341525fd88c43b4d69572bf4afe7df45cd74d6901a172e41c")
 	signatureHash := common.Hash{}
 	postedBlock := intMaxTypes.PostedBlock{
 		PrevBlockHash: prevBlockHash,
@@ -203,7 +203,7 @@ func TestBlockHash(t *testing.T) {
 	}
 
 	currentHash := postedBlock.Hash()
-	require.Equal(t, currentHash.String(), "0x913fb9e1f6f1c6d910fd574a5cad8857aa43bfba24e401ada4f56090d4d997a7")
+	require.Equal(t, currentHash.String(), "0x545cac70c52cf8589c16de1eb85e264d51e18adb15ac810db3f44efa190a1074")
 }
 
 func randomBool() bool {

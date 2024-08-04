@@ -24,6 +24,10 @@ const (
 	mLen              = 12 // poseidon.mLen
 	NUM_HASH_OUT_ELTS = 4
 	ALPHA             = 7
+
+	int4Key  = 4
+	int8Key  = 8
+	int32Key = 32
 )
 
 var (
@@ -319,6 +323,28 @@ func (h *PoseidonHashOut) UnmarshalJSON(data []byte) error {
 	}
 
 	return h.Unmarshal(hashOutHex)
+}
+
+func (h *PoseidonHashOut) Uint32Array() [int8Key]uint32 {
+	flatten := []uint32{}
+	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
+		e := h.Elements[i][0]
+		low := uint32(e)
+		high := uint32(e >> int32Key)
+		flatten = append(flatten, high, low)
+	}
+
+	limbs := [int8Key]uint32{}
+	for i := 0; i < len(limbs); i++ {
+		limbs[i] = flatten[i]
+	}
+
+	return limbs
+}
+
+func (h *PoseidonHashOut) Uint32Slice() []uint32 {
+	b := h.Uint32Array()
+	return b[:]
 }
 
 func reverseBytes(data []byte) []byte {

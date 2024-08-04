@@ -15,6 +15,7 @@ import (
 	"strconv"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
+	"github.com/consensys/gnark-crypto/ecc/bn254/fp"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -213,20 +214,22 @@ func (bc *BlockContent) IsValid() error {
 					return ErrBlockContentAggPubKeyEmpty
 				}
 
-				defaultPublicKey := accounts.NewDummyPublicKey()
+				dummyPublicKey := accounts.NewDummyPublicKey()
 
-				const numOfSenders = 128
-				senderPublicKeysBytes := make([]byte, numOfSenders*NumPublicKeyBytes)
-				for key := range bc.Senders {
-					senderPublicKey := bc.Senders[key].PublicKey.Pk.X.Bytes() // Only x coordinate is used
+				senderPublicKeysBytes := make([]byte, NumOfSenders*NumPublicKeyBytes)
+				for i := range bc.Senders {
+					senderPublicKey := bc.Senders[i].PublicKey.Pk.X.Bytes() // Only x coordinate is used
 					copy(
-						senderPublicKeysBytes[NumPublicKeyBytes*key:NumPublicKeyBytes*(key+int1Key)],
+						senderPublicKeysBytes[NumPublicKeyBytes*i:NumPublicKeyBytes*(i+1)],
 						senderPublicKey[:],
 					)
 				}
-				for i := len(bc.Senders); i < numOfSenders; i++ {
-					senderPublicKey := defaultPublicKey.Pk.X.Bytes() // Only x coordinate is used
-					copy(senderPublicKeysBytes[NumPublicKeyBytes*i:NumPublicKeyBytes*(i+1)], senderPublicKey[:])
+				for i := len(bc.Senders); i < NumOfSenders; i++ {
+					senderPublicKey := dummyPublicKey.Pk.X.Bytes() // Only x coordinate is used
+					copy(
+						senderPublicKeysBytes[NumPublicKeyBytes*i:NumPublicKeyBytes*(i+1)],
+						senderPublicKey[:],
+					)
 				}
 
 				publicKeysHash := crypto.Keccak256(senderPublicKeysBytes)
@@ -384,6 +387,50 @@ func (bc *BlockContent) Hash() common.Hash {
 	return crypto.Keccak256Hash(bc.Marshal())
 }
 
+func BaseFieldToUint32Array(v fp.Element) [int8Key]uint32 {
+	n := v.BigInt(new(big.Int))
+
+	a := BigIntToBytes32BeArray(n)
+
+	b := Bytes32{}
+	b.FromBytes(a[:])
+
+	return b
+}
+
+func BaseFieldToUint32Slice(v fp.Element) []uint32 {
+	b := BaseFieldToUint32Array(v)
+	return b[:]
+}
+
+func G1AffineToUint32Slice(p *bn254.G1Affine) []uint32 {
+	var buf []uint32
+	buf = append(buf, BaseFieldToUint32Slice(p.X)...)
+	buf = append(buf, BaseFieldToUint32Slice(p.Y)...)
+
+	return buf
+}
+
+func G2AffineToUint32Slice(p *bn254.G2Affine) []uint32 {
+	var buf []uint32
+	buf = append(buf, BaseFieldToUint32Slice(p.X.A1)...)
+	buf = append(buf, BaseFieldToUint32Slice(p.X.A0)...)
+	buf = append(buf, BaseFieldToUint32Slice(p.Y.A1)...)
+	buf = append(buf, BaseFieldToUint32Slice(p.Y.A0)...)
+
+	return buf
+}
+
+func (bc *BlockContent) Uint32Slice() []uint32 {
+	var buf []uint32
+	buf = append(buf, bc.TxTreeRoot.Uint32Slice()...)
+	buf = append(buf, G2AffineToUint32Slice(bc.AggregatedSignature)...)
+	buf = append(buf, G2AffineToUint32Slice(bc.MessagePoint)...)
+	buf = append(buf, G1AffineToUint32Slice(bc.AggregatedPublicKey.Pk)...)
+
+	return buf
+}
+
 type PostedBlock struct {
 	// The previous block hash.
 	PrevBlockHash common.Hash
@@ -410,17 +457,34 @@ func (pb *PostedBlock) Marshal() []byte {
 	data := make([]byte, 0)
 
 	data = append(data, pb.PrevBlockHash.Bytes()...)
+	data = append(data, pb.DepositRoot.Bytes()...)
+	data = append(data, pb.SignatureHash.Bytes()...)
 	blockNumberBytes := [int4Key]byte{}
 	binary.BigEndian.PutUint32(blockNumberBytes[:], pb.BlockNumber)
 	data = append(data, blockNumberBytes[:]...)
-	data = append(data, pb.DepositRoot.Bytes()...)
-	data = append(data, pb.SignatureHash.Bytes()...)
 
 	return data
 }
 
+func CommonHashToUint32Slice(h common.Hash) []uint32 {
+	b := Bytes32{}
+	b.FromBytes(h[:])
+
+	return b[:]
+}
+
+func (pb *PostedBlock) Uint32Slice() []uint32 {
+	var buf []uint32
+	buf = append(buf, CommonHashToUint32Slice(pb.PrevBlockHash)...)
+	buf = append(buf, CommonHashToUint32Slice(pb.DepositRoot)...)
+	buf = append(buf, CommonHashToUint32Slice(pb.SignatureHash)...)
+	buf = append(buf, pb.BlockNumber)
+
+	return buf
+}
+
 func (pb *PostedBlock) Hash() common.Hash {
-	return crypto.Keccak256Hash(pb.Marshal())
+	return crypto.Keccak256Hash(Uint32SliceToBytes(pb.Uint32Slice()))
 }
 
 type PostRegistrationBlockInput struct {
