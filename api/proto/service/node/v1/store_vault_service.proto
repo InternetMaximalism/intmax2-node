@@ -48,6 +48,15 @@ service StoreVaultService {
       get: "/v1/balances/{address}"
     };
   }
+
+  // GetVerifyDepositConfirmation verifies the confirmation of a deposit
+  //
+  // ## This method verifies if a deposit has been confirmed.
+  rpc GetVerifyDepositConfirmation(GetVerifyDepositConfirmationRequest) returns (GetVerifyDepositConfirmationResponse) {
+    option (google.api.http) = {
+      get: "/v1/deposits/{deposit_id}/verify-confirmation"
+    };
+  }
 }
 
 // BackupTransferRequest is the request message for BackupTransfer method.
@@ -156,4 +165,23 @@ message GetBalancesResponse {
   repeated BackupTransfer transfers = 2;
   // The list of transactions
   repeated BackupTransaction transactions = 3;
+}
+
+// The request message for verifying deposit confirmation
+message GetVerifyDepositConfirmationRequest {
+  // The ID of the deposit to be verified
+  string deposit_id = 1;
+}
+
+// The response message for verifying deposit confirmation
+message GetVerifyDepositConfirmationResponse {
+  // Indicates if the verify deposit confirmation was successful
+  bool success = 1;
+  // Additional data related to the response
+  Data data = 2;
+  // Data is the nested message containing detailed response information
+  message Data {
+    // Indicates whether the deposit is confirmed
+    bool confirmed = 1;
+  }
 }

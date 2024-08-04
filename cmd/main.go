@@ -137,6 +137,7 @@ func main() {
 			Cancel:  cancel,
 			Config:  cfg,
 			Log:     log,
+			SB:      bc,
 			DbApp:   dbApp,
 			WG:      &wg,
 			HC:      &hc,

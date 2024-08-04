@@ -12,6 +12,7 @@ type StoreVaultServer struct {
 	config           *configs.Config
 	dbApp            SQLDriverApp
 	commands         Commands
+	sb               ServiceBlockchain
 	cookieForAuthUse bool
 	hc               *health.Handler
 }
@@ -22,6 +23,7 @@ func New(
 	config *configs.Config,
 	dbApp SQLDriverApp,
 	commands Commands,
+	sb ServiceBlockchain,
 	cookieForAuthUse bool,
 	hc *health.Handler,
 ) *StoreVaultServer {
@@ -35,6 +37,7 @@ func New(
 		config:           config,
 		dbApp:            dbApp,
 		commands:         commands,
+		sb:               sb,
 		cookieForAuthUse: cookieForAuthUse,
 		hc:               hc,
 	}
