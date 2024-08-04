@@ -87,7 +87,7 @@ func DepositAnalyzer(ctx context.Context, cfg *configs.Config, log logger.Logger
 		}
 	}
 
-	lastEventInfo, err := depositAnalyzerService.fetchLastDepositAnalyzedEvent(uint64(event.LastProcessedBlockNumber))
+	lastEventInfo, err := depositAnalyzerService.fetchLastDepositAnalyzedEvent(event.LastProcessedBlockNumber)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to get last deposit analyzed block number: %v", err.Error()))
 	}

@@ -18,6 +18,8 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
+const NotFound = "not found"
+
 type MessengerRelayerMockService struct {
 	ctx               context.Context
 	cfg               *configs.Config
@@ -75,7 +77,7 @@ func MessengerRelayer(ctx context.Context, cfg *configs.Config, log logger.Logge
 
 	event, err := db.EventBlockNumberByEventName(mDBApp.SentMessageEvent)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) || err.Error() == "not found" {
+		if errors.Is(err, pgx.ErrNoRows) || err.Error() == NotFound {
 			event = &mDBApp.EventBlockNumber{
 				EventName:                mDBApp.SentMessageEvent,
 				LastProcessedBlockNumber: 0,
@@ -90,7 +92,7 @@ func MessengerRelayer(ctx context.Context, cfg *configs.Config, log logger.Logge
 		}
 	}
 
-	events, lastBlockNumber, err := service.fetchNewSentMessages(uint64(event.LastProcessedBlockNumber))
+	events, lastBlockNumber, err := service.fetchNewSentMessages(event.LastProcessedBlockNumber)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to fetch new sent messages: %v", err.Error()))
 	}

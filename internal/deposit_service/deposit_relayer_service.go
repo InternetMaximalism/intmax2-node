@@ -73,8 +73,8 @@ func DepositRelayer(ctx context.Context, cfg *configs.Config, log logger.Logger,
 	}
 
 	depositIndices, err := depositRelayerService.fetchLastDepositEventIndices(
-		uint64(blockNumberEvents[mDBApp.DepositsAnalyzedEvent].LastProcessedBlockNumber),
-		uint64(blockNumberEvents[mDBApp.DepositsRelayedEvent].LastProcessedBlockNumber),
+		blockNumberEvents[mDBApp.DepositsAnalyzedEvent].LastProcessedBlockNumber,
+		blockNumberEvents[mDBApp.DepositsRelayedEvent].LastProcessedBlockNumber,
 	)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to fetch deposit indices: %v", err.Error()))

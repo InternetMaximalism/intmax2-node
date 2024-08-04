@@ -77,7 +77,7 @@ func MessengerWithdrawalRelayerMock(ctx context.Context, cfg *configs.Config, lo
 
 	event, err := db.EventBlockNumberByEventName(mDBApp.SentMessageEvent)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) || err.Error() == "not found" {
+		if errors.Is(err, pgx.ErrNoRows) || err.Error() == NotFound {
 			event = &mDBApp.EventBlockNumber{
 				EventName:                mDBApp.SentMessageEvent,
 				LastProcessedBlockNumber: 0,
@@ -202,9 +202,9 @@ func (w *MessengerWithdrawalRelayerMockService) relayMessageWithProofByEvent(eve
 	return receipt, nil
 }
 
-func (w *MessengerWithdrawalRelayerMockService) calculateStartBlockNumber(currentBlockNumber uint64, lastProcessedBlockNumber uint64) uint64 {
+func (w *MessengerWithdrawalRelayerMockService) calculateStartBlockNumber(currentBlockNumber, lastProcessedBlockNumber uint64) uint64 {
 	if lastProcessedBlockNumber == 0 {
 		return max(currentBlockNumber-BlocksToLookBack, 0)
 	}
-	return uint64(lastProcessedBlockNumber) + 1
+	return lastProcessedBlockNumber + 1
 }
