@@ -2,10 +2,12 @@ package messenger
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/logger"
+	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"intmax2-node/pkg/utils"
 	"math/big"
 
@@ -13,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/jackc/pgx/v5"
 )
 
 const BlocksToLookBack = 10000
@@ -21,13 +24,14 @@ type MessengerWithdrawalRelayerMockService struct {
 	ctx               context.Context
 	cfg               *configs.Config
 	log               logger.Logger
+	db                SQLDriverApp
 	ethClient         *ethclient.Client
 	scrollClient      *ethclient.Client
 	l1ScrollMessenger *bindings.L1ScrollMessenger
 	l2ScrollMessenger *bindings.L2ScrollMessenger
 }
 
-func newMessengerWithdrawalRelayerMockService(ctx context.Context, cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) (*MessengerWithdrawalRelayerMockService, error) {
+func newMessengerWithdrawalRelayerMockService(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, sb ServiceBlockchain) (*MessengerWithdrawalRelayerMockService, error) {
 	scrollLink, err := sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
@@ -57,6 +61,7 @@ func newMessengerWithdrawalRelayerMockService(ctx context.Context, cfg *configs.
 		ctx:               ctx,
 		cfg:               cfg,
 		log:               log,
+		db:                db,
 		ethClient:         ethClient,
 		scrollClient:      scrollClient,
 		l1ScrollMessenger: l1ScrollMessenger,
@@ -64,13 +69,35 @@ func newMessengerWithdrawalRelayerMockService(ctx context.Context, cfg *configs.
 	}, nil
 }
 
-func MessengerWithdrawalRelayerMock(ctx context.Context, cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) {
-	service, err := newMessengerWithdrawalRelayerMockService(ctx, cfg, log, sb)
+func MessengerWithdrawalRelayerMock(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, sb ServiceBlockchain) {
+	service, err := newMessengerWithdrawalRelayerMockService(ctx, cfg, log, db, sb)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to initialize WithdrawalRelayerMockService: %v", err.Error()))
 	}
 
-	events, err := service.fetchSentMessageEvents()
+	event, err := db.EventBlockNumberByEventName(mDBApp.SentMessageEvent)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) || err.Error() == "not found" {
+			event = &mDBApp.EventBlockNumber{
+				EventName:                mDBApp.SentMessageEvent,
+				LastProcessedBlockNumber: 0,
+			}
+		} else {
+			panic(fmt.Sprintf("Error fetching event block number: %v", err.Error()))
+		}
+	} else if event == nil {
+		event = &mDBApp.EventBlockNumber{
+			EventName:                mDBApp.SentMessageEvent,
+			LastProcessedBlockNumber: 0,
+		}
+	}
+
+	currentBlockNumber, err := service.scrollClient.BlockNumber(service.ctx)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to get current block number: %v", err.Error()))
+	}
+
+	events, err := service.fetchSentMessageEvents(currentBlockNumber, event.LastProcessedBlockNumber)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to fetch sent message events: %v", err.Error()))
 	}
@@ -106,17 +133,19 @@ func MessengerWithdrawalRelayerMock(ctx context.Context, cfg *configs.Config, lo
 	}
 
 	log.Infof("Successfully submitted relay message with proof by event for %d out of %d events", successfulEvents)
+
+	err = updateEventBlockNumber(db, log, mDBApp.SentMessageEvent, currentBlockNumber)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to update event block number: %v", err.Error()))
+	}
 }
 
-func (w *MessengerWithdrawalRelayerMockService) fetchSentMessageEvents() ([]*bindings.L2ScrollMessengerSentMessage, error) {
-	blockNumber, err := w.scrollClient.BlockNumber(w.ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get block number: %w", err)
-	}
-	startBlock := blockNumber - BlocksToLookBack
+func (w *MessengerWithdrawalRelayerMockService) fetchSentMessageEvents(currentBlockNumber, lastProcessedBlockNumber uint64) ([]*bindings.L2ScrollMessengerSentMessage, error) {
+	startBlockNumber := w.calculateStartBlockNumber(currentBlockNumber, lastProcessedBlockNumber)
+
 	iterator, err := w.l2ScrollMessenger.FilterSentMessage(&bind.FilterOpts{
-		Start:   startBlock,
-		End:     &blockNumber,
+		Start:   startBlockNumber,
+		End:     &currentBlockNumber,
 		Context: w.ctx,
 	}, []common.Address{}, []common.Address{})
 	if err != nil {
@@ -171,4 +200,11 @@ func (w *MessengerWithdrawalRelayerMockService) relayMessageWithProofByEvent(eve
 	}
 
 	return receipt, nil
+}
+
+func (w *MessengerWithdrawalRelayerMockService) calculateStartBlockNumber(currentBlockNumber uint64, lastProcessedBlockNumber uint64) uint64 {
+	if lastProcessedBlockNumber == 0 {
+		return max(currentBlockNumber-BlocksToLookBack, 0)
+	}
+	return uint64(lastProcessedBlockNumber) + 1
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func (p *pgx) UpsertEventBlockNumber(eventName string, blockNumber int64) (*mDBApp.EventBlockNumber, error) {
+func (p *pgx) UpsertEventBlockNumber(eventName string, blockNumber uint64) (*mDBApp.EventBlockNumber, error) {
 	id := uuid.New().String()
 	now := time.Now().UTC()
 

@@ -33,6 +33,7 @@ type Commands interface {
 		ctx context.Context,
 		cfg *configs.Config,
 		log logger.Logger,
+		db SQLDriverApp,
 		sb ServiceBlockchain,
 	) messengerWithdrawalRelayerMock.UseCaseMessengerWithdrawalRelayerMock
 }
@@ -66,7 +67,8 @@ func (c *commands) MessengerWithdrawalRelayerMock(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
+	db SQLDriverApp,
 	sb ServiceBlockchain,
 ) messengerWithdrawalRelayerMock.UseCaseMessengerWithdrawalRelayerMock {
-	return ucMessengerWithdrawalRelayerMock.New(ctx, cfg, log, sb)
+	return ucMessengerWithdrawalRelayerMock.New(ctx, cfg, log, db, sb)
 }

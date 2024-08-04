@@ -113,7 +113,7 @@ func withdrawalRelayerMockCmd(w *Messenger) *cobra.Command {
 			l.Fatalf(msg, err.Error())
 		}
 
-		err = newCommands().MessengerWithdrawalRelayerMock(w.Context, w.Config, l, w.SB).Do(w.Context)
+		err = newCommands().MessengerWithdrawalRelayerMock(w.Context, w.Config, l, w.DbApp, w.SB).Do(w.Context)
 		if err != nil {
 			const msg = "failed to processing messenger withdrawal relayer mock: %v"
 			l.Fatalf(msg, err.Error())

@@ -1,4 +1,3 @@
-//nolint:gocritic
 package messenger
 
 import (
@@ -103,7 +102,7 @@ func MessengerRelayer(ctx context.Context, cfg *configs.Config, log logger.Logge
 
 	service.relayMessagesforEvents(events)
 
-	err = updateEventBlockNumber(db, log, mDBApp.SentMessageEvent, int64(lastBlockNumber))
+	err = updateEventBlockNumber(db, log, mDBApp.SentMessageEvent, lastBlockNumber)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to update event block number: %v", err.Error()))
 	}
@@ -197,7 +196,7 @@ func (m *MessengerRelayerMockService) relayMessagesforEvents(events []*bindings.
 	m.log.Infof("Successfully relayed %d messages", successfulMessages)
 }
 
-func updateEventBlockNumber(db SQLDriverApp, log logger.Logger, eventName string, blockNumber int64) error {
+func updateEventBlockNumber(db SQLDriverApp, log logger.Logger, eventName string, blockNumber uint64) error {
 	updatedEvent, err := db.UpsertEventBlockNumber(eventName, blockNumber)
 	if err != nil {
 		return err
