@@ -45,13 +45,9 @@ func TestPublicKeyBlockValidation(t *testing.T) {
 		}
 	}
 
-	defaultPublicKey := accounts.NewDummyPublicKey()
+	defaultSender := intMaxTypes.NewDummySender()
 	for i := len(keyPairs); i < len(senders); i++ {
-		senders[i] = intMaxTypes.Sender{
-			PublicKey: defaultPublicKey,
-			AccountID: 0,
-			IsSigned:  false,
-		}
+		senders[i] = defaultSender
 	}
 
 	txRoot, err := new(intMaxTypes.PoseidonHashOut).SetRandom()
@@ -64,7 +60,7 @@ func TestPublicKeyBlockValidation(t *testing.T) {
 		copy(senderPublicKeysBytes[32*i:32*(i+1)], senderPublicKey[:])
 	}
 	for i := len(senders); i < numOfSenders; i++ {
-		senderPublicKey := defaultPublicKey.Pk.X.Bytes() // Only x coordinate is used
+		senderPublicKey := defaultSender.PublicKey.Pk.X.Bytes() // Only x coordinate is used
 		copy(senderPublicKeysBytes[32*i:32*(i+1)], senderPublicKey[:])
 	}
 
@@ -130,13 +126,9 @@ func TestAccountIDBlockValidation(t *testing.T) {
 		}
 	}
 
-	defaultPublicKey := accounts.NewDummyPublicKey()
+	defaultSender := intMaxTypes.NewDummySender()
 	for i := len(keyPairs); i < len(senders); i++ {
-		senders[i] = intMaxTypes.Sender{
-			PublicKey: defaultPublicKey,
-			AccountID: 0,
-			IsSigned:  false,
-		}
+		senders[i] = defaultSender
 	}
 
 	txRoot, err := new(intMaxTypes.PoseidonHashOut).SetRandom()
@@ -149,7 +141,7 @@ func TestAccountIDBlockValidation(t *testing.T) {
 		copy(senderPublicKeys[32*i:32*(i+1)], senderPublicKey[:])
 	}
 	for i := len(senders); i < numOfSenders; i++ {
-		senderPublicKey := defaultPublicKey.Pk.X.Bytes() // Only x coordinate is used
+		senderPublicKey := defaultSender.PublicKey.Pk.X.Bytes() // Only x coordinate is used
 		copy(senderPublicKeys[32*i:32*(i+1)], senderPublicKey[:])
 	}
 

@@ -51,6 +51,15 @@ type Sender struct {
 	IsSigned  bool                `json:"isSigned"`
 }
 
+// NewDummySender creates a dummy Sender instance.
+func NewDummySender() Sender {
+	return Sender{
+		PublicKey: accounts.NewDummyPublicKey(),
+		AccountID: 1,
+		IsSigned:  false,
+	}
+}
+
 type ColumnSender struct {
 	PublicKey string `json:"publicKey"`
 	AccountID uint64 `json:"accountId"`

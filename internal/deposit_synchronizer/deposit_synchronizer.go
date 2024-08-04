@@ -128,13 +128,9 @@ func (w *depositSynchronizer) Start(
 				}
 			}
 
-			defaultPublicKey := intMaxAcc.NewDummyPublicKey()
+			defaultSender := intMaxTypes.NewDummySender()
 			for i := len(keyPairs); i < len(senders); i++ {
-				senders[i] = intMaxTypes.Sender{
-					PublicKey: defaultPublicKey,
-					AccountID: 0,
-					IsSigned:  false,
-				}
+				senders[i] = defaultSender
 			}
 
 			txRoot, err := new(intMaxTypes.PoseidonHashOut).SetRandom()
