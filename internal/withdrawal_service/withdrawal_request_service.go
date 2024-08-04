@@ -47,17 +47,17 @@ func newWithdrawalRequestService(ctx context.Context, cfg *configs.Config, log l
 		return nil, errors.Join(ErrScrollNetworkChainLinkEvmJSONRPCFail, err)
 	}
 
-	var client *ethclient.Client
-	client, err = ethclient.Dial(link)
+	var scrollClient *ethclient.Client
+	scrollClient, err = ethclient.Dial(link)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
 		return nil, errors.Join(ErrCreateNewClientOfRPCEthFail, err)
 	}
 	defer func() {
-		client.Close()
+		scrollClient.Close()
 	}()
 
-	rollup, err := bindings.NewRollup(common.HexToAddress(cfg.Blockchain.RollupContractAddress), client)
+	rollup, err := bindings.NewRollup(common.HexToAddress(cfg.Blockchain.RollupContractAddress), scrollClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
 	}

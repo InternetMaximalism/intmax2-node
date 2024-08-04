@@ -7,5 +7,5 @@ const (
 
 type EventBlockNumber struct {
 	EventName                string
-	LastProcessedBlockNumber int64
+	LastProcessedBlockNumber uint64
 }

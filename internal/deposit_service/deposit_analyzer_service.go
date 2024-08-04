@@ -87,7 +87,7 @@ func DepositAnalyzer(ctx context.Context, cfg *configs.Config, log logger.Logger
 		}
 	}
 
-	lastEventInfo, err := depositAnalyzerService.fetchLastDepositAnalyzedEvent(uint64(event.LastProcessedBlockNumber))
+	lastEventInfo, err := depositAnalyzerService.fetchLastDepositAnalyzedEvent(event.LastProcessedBlockNumber)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to get last deposit analyzed block number: %v", err.Error()))
 	}
@@ -149,7 +149,7 @@ func DepositAnalyzer(ctx context.Context, cfg *configs.Config, log logger.Logger
 		panic(fmt.Sprintf("Unexpected transaction status: %d. Transaction Hash: %v", receipt.Status, receipt.TxHash.Hex()))
 	}
 
-	err = updateEventBlockNumber(db, log, mDBApp.DepositsAnalyzedEvent, int64(*lastEventInfo.BlockNumber))
+	err = updateEventBlockNumber(db, log, mDBApp.DepositsAnalyzedEvent, *lastEventInfo.BlockNumber)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to update event block number: %v", err.Error()))
 	}

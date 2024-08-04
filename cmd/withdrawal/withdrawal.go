@@ -28,7 +28,6 @@ func NewWithdrawCmd(w *Withdrawal) *cobra.Command {
 	}
 	withdrawalCmd.AddCommand(aggregatorCmd(w))
 	withdrawalCmd.AddCommand(relayerCmd(w))
-	withdrawalCmd.AddCommand(relayerMockCmd(w))
 
 	return withdrawalCmd
 }
@@ -84,40 +83,12 @@ func relayerCmd(w *Withdrawal) *cobra.Command {
 			const msg = "check private key error occurred: %v"
 			l.Fatalf(msg, err.Error())
 		}
-
-		err = newCommands().WithdrawalRelayer(w.Context, w.Config, l, w.SB).Do(w.Context)
+		err = w.DbApp.Exec(w.Context, nil, func(db interface{}, _ interface{}) (err error) {
+			q := db.(SQLDriverApp)
+			return newCommands().WithdrawalRelayer(w.Context, w.Config, l, q, w.SB).Do(w.Context)
+		})
 		if err != nil {
 			const msg = "failed to processing withdrawal relayer: %v"
-			l.Fatalf(msg, err.Error())
-		}
-	}
-
-	return &cmd
-}
-
-func relayerMockCmd(w *Withdrawal) *cobra.Command {
-	const (
-		use   = "relayermock"
-		short = "Run withdrawal relayer mock service"
-	)
-
-	cmd := cobra.Command{
-		Use:   use,
-		Short: short,
-	}
-
-	cmd.Run = func(cmd *cobra.Command, args []string) {
-		l := w.Log.WithFields(logger.Fields{"module": use})
-
-		err := w.SB.CheckEthereumPrivateKey(w.Context)
-		if err != nil {
-			const msg = "check private key error occurred: %v"
-			l.Fatalf(msg, err.Error())
-		}
-
-		err = newCommands().WithdrawalRelayerMock(w.Context, w.Config, l, w.SB).Do(w.Context)
-		if err != nil {
-			const msg = "failed to processing withdrawal relayer mock: %v"
 			l.Fatalf(msg, err.Error())
 		}
 	}

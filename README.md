@@ -263,14 +263,49 @@ Usage:
 Flags:
   -h, --help help for aggregator
 ```
-### ./intmax2-node withdrawal relayer --help
+### Command `./intmax2-node withdrawal relayer --help`
+```
+# ./intmax2-node withdrawal relayer --help
 Run withdrawal relayer service
 
 Usage:
   app withdrawal relayer [flags]
 
 Flags:
-  -h, --help   help for relayer
+  -h, --help help for relayer
+```
+### Command `./intmax2-node messenger relayer --help`
+```
+# ./intmax2-node messenger relayer --help
+Run messenger relayer service
+
+Usage:
+  app messenger relayer [flags]
+
+Flags:
+  -h, --help help for relayer
+```
+### Command `./intmax2-node messenger withdrawal-relayer --help`
+```
+# ./intmax2-node withdrawal withdrawal-relayer --help
+Run messenger withdrawal-relayer service
+
+Usage:
+  app messenger withdrawal-relayer [flags]
+
+Flags:
+  -h, --help help for withdrawal-relayer
+```
+### Command `./intmax2-node messenger withdrawal-relayer-mock --help`
+```
+# ./intmax2-node withdrawal withdrawal-relayer-mock --help
+Run messenger withdrawal-relayer-mock service
+
+Usage:
+  app messenger withdrawal-relayer-mock [flags]
+
+Flags:
+  -h, --help help for withdrawal-relayer-mock
 ```
 ### Command `./intmax2-node balance get --help`
 ```

@@ -1,10 +1,10 @@
-package store_vault_service
+package store_vault_server
 
 import (
 	"context"
 )
 
-//go:generate mockgen -destination=mock_blockchain_service_test.go -package=store_vault_service_test -source=blockchain_service.go
+//go:generate mockgen -destination=mock_blockchain_service.go -package=store_vault_server -source=blockchain_service.go
 
 type ServiceBlockchain interface {
 	ChainSB

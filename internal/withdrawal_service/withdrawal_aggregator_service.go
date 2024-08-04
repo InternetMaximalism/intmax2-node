@@ -40,7 +40,7 @@ type WithdrawalAggregatorService struct {
 	cfg                *configs.Config
 	log                logger.Logger
 	db                 SQLDriverApp
-	client             *ethclient.Client
+	scrollClient       *ethclient.Client
 	withdrawalContract *bindings.Withdrawal
 }
 
@@ -53,15 +53,15 @@ func newWithdrawalAggregatorService(
 ) (*WithdrawalAggregatorService, error) {
 	link, err := sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
+		return nil, fmt.Errorf("failed to get Scroll network chain link: %w", err)
 	}
 
-	client, err := utils.NewClient(link)
+	scrollClient, err := utils.NewClient(link)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new client: %w", err)
+		return nil, fmt.Errorf("failed to create new scrollClient: %w", err)
 	}
 
-	withdrawalContract, err := bindings.NewWithdrawal(common.HexToAddress(cfg.Blockchain.WithdrawalContractAddress), client)
+	withdrawalContract, err := bindings.NewWithdrawal(common.HexToAddress(cfg.Blockchain.WithdrawalContractAddress), scrollClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to instantiate ScrollMessenger contract: %w", err)
 	}
@@ -71,7 +71,7 @@ func newWithdrawalAggregatorService(
 		cfg:                cfg,
 		log:                log,
 		db:                 db,
-		client:             client,
+		scrollClient:       scrollClient,
 		withdrawalContract: withdrawalContract,
 	}, nil
 }
@@ -395,7 +395,7 @@ func (w *WithdrawalAggregatorService) submitWithdrawalProof(
 		return nil, fmt.Errorf("failed to send submit withdrawal proof transaction: %w", err)
 	}
 
-	receipt, err := bind.WaitMined(w.ctx, w.client, tx)
+	receipt, err := bind.WaitMined(w.ctx, w.scrollClient, tx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to wait for transaction to be mined: %w", err)
 	}
