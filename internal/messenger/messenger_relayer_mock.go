@@ -18,8 +18,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-const NotFound = "not found"
-
 type MessengerRelayerMockService struct {
 	ctx               context.Context
 	cfg               *configs.Config
@@ -104,9 +102,9 @@ func MessengerRelayer(ctx context.Context, cfg *configs.Config, log logger.Logge
 
 	service.relayMessagesforEvents(events)
 
-	err = updateEventBlockNumber(db, log, mDBApp.SentMessageEvent, lastBlockNumber)
+	_, err = db.UpsertEventBlockNumber(mDBApp.SentMessageEvent, lastBlockNumber)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to update event block number: %v", err.Error()))
+		panic(fmt.Sprintf("Error updating event block number: %v", err.Error()))
 	}
 }
 
@@ -183,6 +181,7 @@ func (m *MessengerRelayerMockService) relayMessagesforEvents(events []*bindings.
 	for _, event := range events {
 		_, err := m.relayMessages(event)
 		if err != nil {
+			fmt.Println("err", err)
 			if err.Error() == "execution reverted: Message was already successfully executed" {
 				m.log.Infof("Message was already successfully executed")
 				continue
@@ -196,13 +195,4 @@ func (m *MessengerRelayerMockService) relayMessagesforEvents(events []*bindings.
 		successfulMessages++
 	}
 	m.log.Infof("Successfully relayed %d messages", successfulMessages)
-}
-
-func updateEventBlockNumber(db SQLDriverApp, log logger.Logger, eventName string, blockNumber uint64) error {
-	updatedEvent, err := db.UpsertEventBlockNumber(eventName, blockNumber)
-	if err != nil {
-		return err
-	}
-	log.Infof("Updated %s block number to %d", eventName, updatedEvent.LastProcessedBlockNumber)
-	return nil
 }

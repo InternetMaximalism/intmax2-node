@@ -18,14 +18,12 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-const defaultPage = 1
-
 type MessengerWithdrawalRelayerService struct {
-	ctx             context.Context
-	cfg             *configs.Config
-	log             logger.Logger
-	client          *ethclient.Client
-	scrollMessenger *bindings.L1ScrollMessenger
+	ctx               context.Context
+	cfg               *configs.Config
+	log               logger.Logger
+	client            *ethclient.Client
+	l1ScrollMessenger *bindings.L1ScrollMessenger
 }
 
 func newMessengerWithdrawalRelayerService(ctx context.Context, cfg *configs.Config, log logger.Logger, _ ServiceBlockchain) (*MessengerWithdrawalRelayerService, error) {
@@ -39,17 +37,17 @@ func newMessengerWithdrawalRelayerService(ctx context.Context, cfg *configs.Conf
 		return nil, fmt.Errorf("failed to create new client: %w", err)
 	}
 
-	scrollMessenger, err := bindings.NewL1ScrollMessenger(common.HexToAddress(cfg.Blockchain.ScrollMessengerL1ContractAddress), client)
+	l1ScrollMessenger, err := bindings.NewL1ScrollMessenger(common.HexToAddress(cfg.Blockchain.ScrollMessengerL1ContractAddress), client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to instantiate L1ScrollMessenger contract: %w", err)
 	}
 
 	return &MessengerWithdrawalRelayerService{
-		ctx:             ctx,
-		cfg:             cfg,
-		log:             log,
-		client:          client,
-		scrollMessenger: scrollMessenger,
+		ctx:               ctx,
+		cfg:               cfg,
+		log:               log,
+		client:            client,
+		l1ScrollMessenger: l1ScrollMessenger,
 	}, nil
 }
 
@@ -70,7 +68,6 @@ func MessengerWithdrawalRelayer(ctx context.Context, cfg *configs.Config, log lo
 	}
 
 	successfulClaims := 0
-
 	for _, claimableRequest := range claimableRequests {
 		var receipt *types.Receipt
 		receipt, err = service.relayMessageWithProof(claimableRequest)
@@ -143,7 +140,7 @@ func (w *MessengerWithdrawalRelayerService) relayMessageWithProof(result *Scroll
 		MerkleProof: merkleProof,
 	}
 
-	tx, err := w.scrollMessenger.RelayMessageWithProof(
+	tx, err := w.l1ScrollMessenger.RelayMessageWithProof(
 		transactOpts,
 		common.HexToAddress(result.ClaimInfo.From),
 		common.HexToAddress(result.ClaimInfo.To),
