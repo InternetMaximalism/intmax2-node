@@ -160,17 +160,7 @@ func txWithdrawalCmd(b *Transaction) *cobra.Command {
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		l := b.Log.WithFields(logger.Fields{"module": use})
 
-		if resume {
-			err := newCommands().ResumeWithdrawalTransaction(b.Config, b.Log, b.SB).Do(b.Context, recipientAddressStr)
-			if err != nil {
-				const msg = "failed to get balance: %v"
-				l.Fatalf(msg, err.Error())
-			}
-
-			return
-		}
-
-		err := newCommands().SendWithdrawalTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, recipientAddressStr, amount, removeZeroX(userEthPrivateKey))
+		err := newCommands().SendWithdrawalTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, recipientAddressStr, amount, removeZeroX(userEthPrivateKey), resume)
 		if err != nil {
 			const msg = "failed to get balance: %v"
 			l.Fatalf(msg, err.Error())

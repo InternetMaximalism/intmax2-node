@@ -230,6 +230,7 @@ func ResumeWithdrawalRequest(
 	cfg *configs.Config,
 	log logger.Logger,
 	recipientAddressHex string,
+	resumeIncompleteWithdrawals bool,
 ) {
 	backupWithdrawals, err := GetBackupWithdrawal(ctx, cfg, log, common.HexToAddress(recipientAddressHex))
 	if err != nil {
@@ -245,27 +246,34 @@ func ResumeWithdrawalRequest(
 		log.Fatalf("failed to find withdrawals: %v", err)
 	}
 
-	if len(withdrawalInfo) == 0 {
-		log.Infof("No withdrawal request found.")
-		return
-	}
-
 	shouldProcess := func(withdrawal *tx_transfer_service.BackupWithdrawal) bool {
 		transferHash := hexutil.Encode(withdrawal.Transfer.Hash().Marshal())
 		for _, withdrawalInfo := range withdrawalInfo {
 			if transferHash == withdrawalInfo.TransferHash {
-				return true
+				return false
 			}
 		}
 
-		return false
+		return true
 	}
 
+	incompleteBackupWithdrawals := make([]*tx_transfer_service.BackupWithdrawal, 0)
 	for _, backupWithdrawal := range backupWithdrawals {
-		if !shouldProcess(backupWithdrawal) {
-			continue
+		if shouldProcess(backupWithdrawal) {
+			incompleteBackupWithdrawals = append(incompleteBackupWithdrawals, backupWithdrawal)
 		}
+	}
 
+	if len(incompleteBackupWithdrawals) == 0 {
+		log.Infof("No incomplete withdrawal request found.")
+		return
+	}
+
+	if !resumeIncompleteWithdrawals {
+		log.Fatalf("The withdrawal request has been found. Please use --resume flag to resume the withdrawal.")
+	}
+
+	for _, backupWithdrawal := range incompleteBackupWithdrawals {
 		// Send withdrawal request
 		err = SendWithdrawalRequest(ctx, cfg, log, backupWithdrawal)
 		if err != nil {
@@ -274,8 +282,6 @@ func ResumeWithdrawalRequest(
 
 		log.Infof("The withdrawal request has been successfully sent.")
 	}
-
-	log.Infof("The withdrawal request has been successfully sent.")
 }
 
 func SendWithdrawalTransactionFromBackupTransfer(

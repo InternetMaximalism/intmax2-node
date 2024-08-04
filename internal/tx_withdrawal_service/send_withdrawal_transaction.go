@@ -9,7 +9,6 @@ import (
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
-	"intmax2-node/internal/pb/gen/service/node"
 	"intmax2-node/internal/pow"
 	"intmax2-node/internal/tx_transfer_service"
 	intMaxTypes "intmax2-node/internal/types"
@@ -241,7 +240,7 @@ func FindWithdrawalsByTransferHashes(
 	cfg *configs.Config,
 	log logger.Logger,
 	transferHashes []string,
-) ([]*node.Withdrawal, error) {
+) ([]*WithdrawalResponseData, error) {
 	ucInput := withdrawals_by_hashes.UCWithdrawalsByHashesInput{
 		TransferHashes: transferHashes,
 	}
@@ -283,7 +282,7 @@ func FindWithdrawalsByTransferHashes(
 		return nil, err
 	}
 
-	response := new(node.WithdrawalsByHashesResponse)
+	response := new(WithdrawalsByHashesResponse)
 	if innerErr := json.Unmarshal(resp.Body(), response); innerErr != nil {
 		ErrUnmarshalResponse := errors.New("failed to unmarshal response")
 		return nil, errors.Join(ErrUnmarshalResponse, innerErr)
@@ -292,7 +291,40 @@ func FindWithdrawalsByTransferHashes(
 	return response.Withdrawals, nil
 }
 
-type WithdrawalsByHashesData struct {
-	// Message is a message from the server
-	Message string `json:"message"`
+type TransferData struct {
+	// the recipient address
+	Recipient string `json:"recipient,omitempty"`
+	// the token index
+	TokenIndex int32 `json:"tokenIndex,omitempty"`
+	// the amount of the transfer
+	Amount string `json:"amount,omitempty"`
+	// the salt used in the transfer
+	Salt string `json:"salt,omitempty"`
+}
+
+type TransactionData struct {
+	// the root of the transfer tree
+	TransferTreeRoot string `json:"transferTreeRoot,omitempty"`
+	// the nonce of the transaction
+	Nonce int32 `json:"nonce,omitempty"`
+}
+
+type WithdrawalResponseData struct {
+	// the transfer data
+	TransferData *TransferData `json:"transferData,omitempty"`
+	// the transaction data
+	Transaction *TransactionData `json:"transaction,omitempty"`
+	// the transfer hash
+	TransferHash string `json:"transferHash,omitempty"`
+	// the block number
+	BlockNumber string `json:"blockNumber,omitempty"`
+	// the block hash
+	BlockHash string `json:"blockHash,omitempty"`
+	// the status of the withdrawal (e.g., pending, success, failed).
+	Status string `json:"status,omitempty"`
+}
+
+type WithdrawalsByHashesResponse struct {
+	// A list of Withdrawal messages that match the provided transfer hashes.
+	Withdrawals []*WithdrawalResponseData `json:"withdrawals,omitempty"`
 }
