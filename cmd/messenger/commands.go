@@ -4,11 +4,10 @@ import (
 	"context"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
-	messengerRelayer "intmax2-node/internal/use_cases/messenger_relayer"
-	ucMessengerRelayer "intmax2-node/pkg/use_cases/messenger_relayer"
-
+	messengerRelayerMock "intmax2-node/internal/use_cases/messenger_relayer_mock"
 	messengerWithdrawalRelayer "intmax2-node/internal/use_cases/messenger_withdrawal_relayer"
 	messengerWithdrawalRelayerMock "intmax2-node/internal/use_cases/messenger_withdrawal_relayer_mock"
+	ucMessengerRelayerMock "intmax2-node/pkg/use_cases/messenger_relayer_mock"
 	ucMessengerWithdrawalRelayer "intmax2-node/pkg/use_cases/messenger_withdrawal_relayer"
 	ucMessengerWithdrawalRelayerMock "intmax2-node/pkg/use_cases/messenger_withdrawal_relayer_mock"
 )
@@ -16,13 +15,13 @@ import (
 //go:generate mockgen -destination=mock_command.go -package=messenger -source=commands.go
 
 type Commands interface {
-	MessengerRelayer(
+	MessengerRelayerMock(
 		Context context.Context,
 		cfg *configs.Config,
 		log logger.Logger,
 		db SQLDriverApp,
 		sb ServiceBlockchain,
-	) messengerRelayer.UseCaseMessengerRelayer
+	) messengerRelayerMock.UseCaseMessengerRelayerMock
 	MessengerWithdrawalRelayer(
 		ctx context.Context,
 		cfg *configs.Config,
@@ -44,14 +43,14 @@ func newCommands() Commands {
 	return &commands{}
 }
 
-func (c *commands) MessengerRelayer(
+func (c *commands) MessengerRelayerMock(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
 	db SQLDriverApp,
 	sb ServiceBlockchain,
-) messengerRelayer.UseCaseMessengerRelayer {
-	return ucMessengerRelayer.New(ctx, cfg, log, db, sb)
+) messengerRelayerMock.UseCaseMessengerRelayerMock {
+	return ucMessengerRelayerMock.New(ctx, cfg, log, db, sb)
 }
 
 func (c *commands) MessengerWithdrawalRelayer(
