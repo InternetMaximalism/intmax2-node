@@ -42,8 +42,8 @@ func (s *StoreVaultServer) GetVerifyDepositConfirmation(ctx context.Context, req
 		return &resp, utils.Internal(spanCtx, s.log, msg, err)
 	}
 
-	resp.Success = result
-	resp.Data = &node.GetVerifyDepositConfirmationResponse_Data{Confirmed: true}
+	resp.Success = true
+	resp.Data = &node.GetVerifyDepositConfirmationResponse_Data{Confirmed: result}
 
 	return &resp, utils.OK(spanCtx)
 }

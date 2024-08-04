@@ -9,6 +9,7 @@ import (
 	verifyDepositConfirmation "intmax2-node/internal/use_cases/verify_deposit_confirmation"
 	"intmax2-node/pkg/utils"
 	"math/big"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -26,16 +27,16 @@ type VerifyDepositConfirmationService struct {
 }
 
 func newVerifyDepositConfirmationService(ctx context.Context, cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) (*VerifyDepositConfirmationService, error) {
-	scrollLink, err := sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get Scroll network chain link: %w", err)
-	}
-
 	client, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new client: %w", err)
 	}
 	defer client.Close()
+
+	scrollLink, err := sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Scroll network chain link: %w", err)
+	}
 
 	scrollClient, err := utils.NewClient(scrollLink)
 	if err != nil {
@@ -82,72 +83,79 @@ func GetVerifyDepositConfirmation(
 		panic(fmt.Sprintf("Failed to set depositId: %v", input.DepositId))
 	}
 
-	service.getDepositData(depositId)
-	service.getDepositCanceled(depositId)
-	service.getLastProcessedDepositId(depositId)
+	// TODO: Execute the following three tasks concurrently.
+	lastProcessedDepositId, err := service.getLastProcessedDepositId()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to get last processed depositId: %v", err.Error()))
+	}
+	if lastProcessedDepositId.Cmp(depositId) == -1 {
+		return false, nil
+	}
+
+	depositExists, err := service.checkDepositDataExists(depositId)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to check deposit data: %v", err.Error()))
+	}
+	if !depositExists {
+		return false, nil
+	}
+
+	isDepositCanceled, err := service.checkIfDepositCanceled(depositId)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to check deposit canceled: %v", err.Error()))
+	}
+	if isDepositCanceled {
+		return false, nil
+	}
 
 	return true, nil
 }
 
-func (v *VerifyDepositConfirmationService) getDepositData(depositId *big.Int) (*bindings.DepositQueueLibDepositData, error) {
+func (v *VerifyDepositConfirmationService) getLastProcessedDepositId() (*big.Int, error) {
+	result, err := v.rollup.LastProcessedDepositId(&bind.CallOpts{
+		Pending: false,
+		Context: v.ctx,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get last processed depositId: %w", err)
+	}
+	return result, nil
+
+}
+
+func (v *VerifyDepositConfirmationService) checkDepositDataExists(depositId *big.Int) (bool, error) {
 	result, err := v.liquidity.GetDepositData(&bind.CallOpts{
 		Pending: false,
 		Context: v.ctx,
 	}, depositId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get deposit data: %w", err)
+		if strings.Contains(err.Error(), "execution reverted: out-of-bounds access of an array or bytesN") {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to get deposit data: %w", err)
 	}
-	return &result, nil
+	return !result.IsRejected, nil
 }
 
-func (v *VerifyDepositConfirmationService) getDepositCanceled(depositId *big.Int) (error, error) {
-	depositIds := []*big.Int{
-		depositId,
-	}
+func (v *VerifyDepositConfirmationService) checkIfDepositCanceled(depositId *big.Int) (bool, error) {
+	depositIds := []*big.Int{depositId}
 	iterator, err := v.liquidity.FilterDepositCanceled(&bind.FilterOpts{
 		Start: 0,
 		End:   nil,
 	}, depositIds)
 	if err != nil {
-		return nil, fmt.Errorf("failed to filter logs: %v", err)
+		return false, fmt.Errorf("failed to filter logs: %v", err)
 	}
 
 	defer iterator.Close()
 
+	isCanceled := false
 	for iterator.Next() {
 		if iterator.Error() != nil {
-			return nil, fmt.Errorf("error encountered while iterating: %v", iterator.Error())
+			return false, fmt.Errorf("error encountered while iterating: %v", iterator.Error())
 		}
-
-		DepositId := iterator.Event.DepositId
-		fmt.Println("DepositId: ", DepositId)
+		isCanceled = true
 	}
 
-	return nil, nil
-}
-
-func (v *VerifyDepositConfirmationService) getLastProcessedDepositId(depositId *big.Int) (error, error) {
-	depositIds := []*big.Int{
-		depositId,
-	}
-	iterator, err := v.rollup.FilterDepositsProcessed(&bind.FilterOpts{
-		Start: 0,
-		End:   nil,
-	}, depositIds)
-	if err != nil {
-		return nil, fmt.Errorf("failed to filter logs: %v", err)
-	}
-
-	defer iterator.Close()
-
-	for iterator.Next() {
-		if iterator.Error() != nil {
-			return nil, fmt.Errorf("error encountered while iterating: %v", iterator.Error())
-		}
-
-		LastProcessedDepositId := iterator.Event.LastProcessedDepositId
-		fmt.Println("LastProcessedDepositId: ", LastProcessedDepositId)
-	}
-
-	return nil, nil
+	return isCanceled, nil
 }

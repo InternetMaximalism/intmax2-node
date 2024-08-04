@@ -70,7 +70,7 @@ func (s *StoreVaultServer) Init() error {
 	}
 
 	srv := server.New(
-		s.Log, s.Config, s.DbApp, server.NewCommands(), s.Config.HTTP.CookieForAuthUse, s.HC,
+		s.Log, s.Config, s.DbApp, server.NewCommands(), s.SB, s.Config.HTTP.CookieForAuthUse, s.HC,
 	)
 	ctx := context.WithValue(s.Context, consts.AppConfigs, s.Config)
 
