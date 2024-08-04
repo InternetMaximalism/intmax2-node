@@ -252,7 +252,7 @@ func GetUserBalance(
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user balances: %w", err)
 	}
-	balanceData, err := CalculateBalance(userAllData, tokenIndex, *userPrivateKey)
+	balanceData, err := CalculateBalance(ctx, cfg, lg, userAllData, tokenIndex, *userPrivateKey)
 	if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
 		return nil, ErrFetchBalanceByUserAddressAndTokenInfoWithDBApp
 	}
@@ -343,7 +343,77 @@ type BackupTransaction struct {
 	CreatedAt   string `json:"createdAt,omitempty"`
 }
 
-func CalculateBalance(userAllData *GetBalancesResponse, tokenIndex uint32, userPrivateKey intMaxAcc.PrivateKey) (*intMaxTypes.Balance, error) {
+type GetVerifyDepositConfirmationResponse struct {
+	// Indicates if the verify deposit confirmation was successful
+	Success bool ` json:"success,omitempty"`
+	// Additional data related to the response
+	Data *GetVerifyDepositConfirmationResponse_Data `json:"data,omitempty"`
+}
+
+type GetVerifyDepositConfirmationResponse_Data struct {
+	// Indicates whether the deposit is confirmed
+	Confirmed bool `json:"confirmed,omitempty"`
+}
+
+func GetDepositValidityRawRequest(
+	ctx context.Context,
+	cfg *configs.Config,
+	lg logger.Logger,
+	depositID string,
+) (bool, error) {
+	const (
+		httpKey     = "http"
+		httpsKey    = "https"
+		contentType = "Content-Type"
+		appJSON     = "application/json"
+	)
+
+	// GetVerifyDepositConfirmation
+	apiUrl := fmt.Sprintf("%s/v1/deposits/%s/verify-confirmation", cfg.API.DataStoreVaultUrl, depositID)
+
+	r := resty.New().R()
+	resp, err := r.SetContext(ctx).SetHeaders(map[string]string{
+		contentType: appJSON,
+	}).Get(apiUrl)
+	if err != nil {
+		const msg = "failed to send of the transaction request: %w"
+		return false, fmt.Errorf(msg, err)
+	}
+
+	if resp == nil {
+		const msg = "send request error occurred"
+		return false, fmt.Errorf(msg)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		err = fmt.Errorf("failed to get response")
+		lg.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return false, err
+	}
+
+	response := new(GetVerifyDepositConfirmationResponse)
+	if err = json.Unmarshal(resp.Body(), response); err != nil {
+		return false, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if !response.Success {
+		return false, fmt.Errorf("failed to get verify deposit confirmation response: %v", response)
+	}
+
+	return response.Data.Confirmed, nil
+}
+
+func CalculateBalance(
+	ctx context.Context,
+	cfg *configs.Config,
+	lg logger.Logger,
+	userAllData *GetBalancesResponse,
+	tokenIndex uint32,
+	userPrivateKey intMaxAcc.PrivateKey,
+) (*intMaxTypes.Balance, error) {
 	balance := big.NewInt(0)
 	for _, deposit := range userAllData.Deposits {
 		encryptedDepositBytes, err := base64.StdEncoding.DecodeString(deposit.EncryptedDeposit)
@@ -364,6 +434,23 @@ func CalculateBalance(userAllData *GetBalancesResponse, tokenIndex uint32, userP
 			log.Printf("failed to unmarshal deposit: %v", err)
 			continue
 		}
+
+		// Request data store vault if deposit is valid
+		depositID := deposit.BlockNumber
+		ok, err := GetDepositValidityRawRequest(
+			ctx,
+			cfg,
+			lg,
+			depositID,
+		)
+		if err != nil {
+			var ErrDepositValidity = errors.New("failed to get deposit validity")
+			return nil, errors.Join(ErrDepositValidity, err)
+		}
+		if !ok {
+			continue
+		}
+
 		if decodedDeposit.TokenIndex == tokenIndex {
 			balance = new(big.Int).Add(balance, decodedDeposit.Amount)
 		}
