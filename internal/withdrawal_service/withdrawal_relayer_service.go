@@ -114,7 +114,8 @@ func WithdrawalRelayer(ctx context.Context, cfg *configs.Config, log logger.Logg
 	}
 
 	if lastDirectWithdrawalId != *lastWithdrawalIds.DirectWithdrawalId || lastClaimableWithdrawalId != *lastWithdrawalIds.ClaimableWithdrawalId {
-		receipt, err := service.relayWithdrawals(lastDirectWithdrawalId, lastClaimableWithdrawalId)
+		var receipt *types.Receipt
+		receipt, err = service.relayWithdrawals(lastDirectWithdrawalId, lastClaimableWithdrawalId)
 		if err != nil {
 			panic(fmt.Sprintf("Failed to relay withdrawals: %v", err.Error()))
 		}
@@ -125,7 +126,12 @@ func WithdrawalRelayer(ctx context.Context, cfg *configs.Config, log logger.Logg
 
 		switch receipt.Status {
 		case types.ReceiptStatusSuccessful:
-			log.Infof("Successfully relay withdrawals lastDirectWithdrawalId: %d, lastClaimableWithdrawalId: %d. Transaction Hash: %v", lastDirectWithdrawalId, lastClaimableWithdrawalId, receipt.TxHash.Hex())
+			log.Infof(
+				"Successfully relay withdrawals lastDirectWithdrawalId: %d, lastClaimableWithdrawalId: %d. Transaction Hash: %v",
+				lastDirectWithdrawalId,
+				lastClaimableWithdrawalId,
+				receipt.TxHash.Hex(),
+			)
 		case types.ReceiptStatusFailed:
 			panic(fmt.Sprintf("Transaction failed: relay withdrawals unsuccessful. Transaction Hash: %v", receipt.TxHash.Hex()))
 		default:
@@ -196,11 +202,11 @@ func (w *WithdrawalRelayerService) fetchLastWithdrawalsQueuedEvent(currentBlockN
 	}, nil
 }
 
-func (w *WithdrawalRelayerService) calculateStartBlockNumber(currentBlockNumber uint64, lastProcessedBlockNumber uint64) uint64 {
+func (w *WithdrawalRelayerService) calculateStartBlockNumber(currentBlockNumber, lastProcessedBlockNumber uint64) uint64 {
 	if lastProcessedBlockNumber == 0 {
 		return max(currentBlockNumber-BlocksToLookBack, 0)
 	}
-	return uint64(lastProcessedBlockNumber) + 1
+	return lastProcessedBlockNumber + 1
 }
 
 func (w *WithdrawalRelayerService) fetchLastRelayedWithdrawalIds() (LastWithdrawalIds, error) {

@@ -16,6 +16,8 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
+const Base10 = 10
+
 type VerifyDepositConfirmationService struct {
 	ctx          context.Context
 	cfg          *configs.Config
@@ -78,7 +80,7 @@ func GetVerifyDepositConfirmation(
 	}
 
 	depositId := new(big.Int)
-	_, success := depositId.SetString(input.DepositId, 10)
+	_, success := depositId.SetString(input.DepositId, Base10)
 	if !success {
 		panic(fmt.Sprintf("Failed to set depositId: %v", input.DepositId))
 	}
@@ -120,7 +122,6 @@ func (v *VerifyDepositConfirmationService) getLastProcessedDepositId() (*big.Int
 		return nil, fmt.Errorf("failed to get last processed depositId: %w", err)
 	}
 	return result, nil
-
 }
 
 func (v *VerifyDepositConfirmationService) checkDepositDataExists(depositId *big.Int) (bool, error) {
