@@ -5,11 +5,13 @@ import (
 	"intmax2-node/internal/logger"
 	blockProposed "intmax2-node/internal/use_cases/block_proposed"
 	blockSignature "intmax2-node/internal/use_cases/block_signature"
+	blockStatus "intmax2-node/internal/use_cases/block_status"
 	getVersion "intmax2-node/internal/use_cases/get_version"
 	healthCheck "intmax2-node/internal/use_cases/health_check"
 	"intmax2-node/internal/use_cases/transaction"
 	ucBlockProposed "intmax2-node/pkg/use_cases/block_proposed"
 	ucBlockSignature "intmax2-node/pkg/use_cases/block_signature"
+	ucBlockStatus "intmax2-node/pkg/use_cases/block_status"
 	ucGetVersion "intmax2-node/pkg/use_cases/get_version"
 	ucHealthCheck "intmax2-node/pkg/use_cases/health_check"
 	ucTransaction "intmax2-node/pkg/use_cases/transaction"
@@ -33,6 +35,10 @@ type Commands interface {
 		log logger.Logger,
 		worker Worker,
 	) blockSignature.UseCaseBlockSignature
+	BlockStatus(
+		cfg *configs.Config,
+		log logger.Logger,
+	) blockStatus.UseCaseBlockStatus
 }
 
 type commands struct{}
@@ -67,4 +73,11 @@ func (c *commands) BlockSignature(
 	worker Worker,
 ) blockSignature.UseCaseBlockSignature {
 	return ucBlockSignature.New(cfg, log, worker)
+}
+
+func (c *commands) BlockStatus(
+	cfg *configs.Config,
+	log logger.Logger,
+) blockStatus.UseCaseBlockStatus {
+	return ucBlockStatus.New(cfg, log)
 }

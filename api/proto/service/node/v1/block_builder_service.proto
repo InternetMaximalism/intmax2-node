@@ -62,6 +62,11 @@ service BlockBuilderService {
       body: "*"
     };
   }
+  rpc BlockStatusByTxTreeRoot(BlockStatusRequest) returns (BlockStatusResponse) {
+    option (google.api.http) = {
+      get: "/v1/block/status/{tx_tree_root}"
+    };
+  }
   // Info returns the info about retrieves the block builder's Scroll address, transaction fee, and difficulty
   //
   // ## Info returns the info about retrieves the block builder's Scroll address, transaction fee, and difficulty
@@ -224,6 +229,22 @@ message BlockSignatureResponse {
   bool success = 1 [json_name="success", (tagger.tags)="json:\"success,omitempty\""];
   // the info about the request's result
   DataBlockSignatureResponse data = 10 [json_name="data", (tagger.tags)="json:\"data,omitempty\""];
+}
+
+
+// BlockStatusRequest describes request about retrieves the status of a block by its tx tree root
+message BlockStatusRequest {
+  // the transaction tree root hash
+  string tx_tree_root = 10 [json_name="txTreeRoot", (tagger.tags)="json:\"txTreeRoot,omitempty\""];
+}
+
+// BlockStatusResponse describes response about retrieves the status of a block by its tx tree root
+message BlockStatusResponse {
+  // the status of the block
+  bool is_posted = 10 [json_name="isPosted", (tagger.tags)="json:\"isPosted,omitempty\""];
+
+  // the block number
+  uint64 block_number = 20 [json_name="blockNumber", (tagger.tags)="json:\"blockNumber,omitempty\""];
 }
 
 
