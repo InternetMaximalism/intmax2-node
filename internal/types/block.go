@@ -15,7 +15,6 @@ import (
 	"strconv"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
-	"github.com/consensys/gnark-crypto/ecc/bn254/fp"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -31,14 +30,18 @@ const (
 	NumAccountIDBytes   = 5
 	AccountIDSenderType = "ACCOUNT_ID"
 
-	NumOfSenders    = 128
-	numFlagBytes    = 16
-	numG2PointLimbs = 4
-	int8Key         = 8
-	int32Key        = 32
-	int10Key        = 10
-	int64Key        = 64
-	int128Key       = 128
+	NumOfSenders                  = 128
+	numFlagBytes                  = 16
+	numBaseFieldOrderBytes        = 32
+	numG1PointLimbs               = 2
+	numG2PointLimbs               = 4
+	defaultAccountID       uint64 = 0
+	dummyAccountID         uint64 = 1
+	int8Key                       = 8
+	int32Key                      = 32
+	int10Key                      = 10
+	int64Key                      = 64
+	int128Key                     = 128
 )
 
 type PoseidonHashOut = goldenposeidon.PoseidonHashOut
@@ -169,25 +172,34 @@ func (bc *BlockContent) IsValid() error {
 					return ErrValueInvalid
 				}
 
+				dummyPublicKey := accounts.NewDummyPublicKey()
+
 				switch bc.SenderType {
 				case PublicKeySenderType:
 					if v.PublicKey == nil {
 						return ErrBlockContentPublicKeyInvalid
 					}
 
-					if v.AccountID != int0Key {
+					// Check if the account ID is valid for the sender type
+					if v.AccountID != defaultAccountID && !v.PublicKey.Equal(dummyPublicKey) {
 						return ErrBlockContentAccIDForPubKeyInvalid
+					}
+					if v.AccountID != dummyAccountID && v.PublicKey.Equal(dummyPublicKey) {
+						return ErrBlockContentAccIDForDefAccNotEmpty
 					}
 				case AccountIDSenderType:
 					if v.PublicKey == nil {
 						return ErrBlockContentPublicKeyInvalid
 					}
 
-					if v.AccountID == int0Key && v.PublicKey.Pk.X.Cmp(new(fp.Element).SetOne()) != int0Key {
+					if v.AccountID == defaultAccountID {
 						return ErrBlockContentAccIDForAccIDEmpty
 					}
-					if v.AccountID != int0Key && v.PublicKey.Pk.X.Cmp(new(fp.Element).SetOne()) == int0Key {
+					if v.AccountID == dummyAccountID && !v.PublicKey.Equal(dummyPublicKey) {
 						return ErrBlockContentAccIDForDefAccNotEmpty
+					}
+					if v.AccountID > dummyAccountID && v.PublicKey.Equal(dummyPublicKey) {
+						return ErrBlockContentAccIDForAccIDInvalid
 					}
 				}
 
@@ -448,8 +460,6 @@ func MakePostRegistrationBlockInput(blockContent *BlockContent) (*PostRegistrati
 		return nil, errors.New("invalid number of senders")
 	}
 
-	const int3Key = 3
-
 	txTreeRoot := [numHashBytes]byte{}
 	copy(txTreeRoot[:], blockContent.TxTreeRoot.Marshal())
 
@@ -464,21 +474,24 @@ func MakePostRegistrationBlockInput(blockContent *BlockContent) (*PostRegistrati
 	}
 
 	// Follow the ordering of the coordinates in the smart contract.
-	aggregatedPublicKey := [2][int32Key]byte{}
-	aggregatedPublicKey[0] = blockContent.AggregatedPublicKey.Pk.X.Bytes()
-	aggregatedPublicKey[1] = blockContent.AggregatedPublicKey.Pk.Y.Bytes()
+	aggregatedPublicKey := [numG1PointLimbs][numBaseFieldOrderBytes]byte{
+		blockContent.AggregatedPublicKey.Pk.X.Bytes(),
+		blockContent.AggregatedPublicKey.Pk.Y.Bytes(),
+	}
 
-	aggregatedSignature := [numG2PointLimbs][int32Key]byte{}
-	aggregatedSignature[0] = blockContent.AggregatedSignature.X.A1.Bytes()
-	aggregatedSignature[1] = blockContent.AggregatedSignature.X.A0.Bytes()
-	aggregatedSignature[2] = blockContent.AggregatedSignature.Y.A1.Bytes()
-	aggregatedSignature[int3Key] = blockContent.AggregatedSignature.Y.A0.Bytes()
+	aggregatedSignature := [numG2PointLimbs][numBaseFieldOrderBytes]byte{
+		blockContent.AggregatedSignature.X.A1.Bytes(),
+		blockContent.AggregatedSignature.X.A0.Bytes(),
+		blockContent.AggregatedSignature.Y.A1.Bytes(),
+		blockContent.AggregatedSignature.Y.A0.Bytes(),
+	}
 
-	messagePoint := [numG2PointLimbs][int32Key]byte{}
-	messagePoint[0] = blockContent.MessagePoint.X.A1.Bytes()
-	messagePoint[1] = blockContent.MessagePoint.X.A0.Bytes()
-	messagePoint[2] = blockContent.MessagePoint.Y.A1.Bytes()
-	messagePoint[int3Key] = blockContent.MessagePoint.Y.A0.Bytes()
+	messagePoint := [numG2PointLimbs][numBaseFieldOrderBytes]byte{
+		blockContent.MessagePoint.X.A1.Bytes(),
+		blockContent.MessagePoint.X.A0.Bytes(),
+		blockContent.MessagePoint.Y.A1.Bytes(),
+		blockContent.MessagePoint.Y.A0.Bytes(),
+	}
 
 	return &PostRegistrationBlockInput{
 		TxTreeRoot:          txTreeRoot,

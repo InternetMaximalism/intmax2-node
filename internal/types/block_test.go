@@ -121,7 +121,7 @@ func TestAccountIDBlockValidation(t *testing.T) {
 	for i, keyPair := range keyPairs {
 		senders[i] = intMaxTypes.Sender{
 			PublicKey: keyPair.Public(),
-			AccountID: uint64(i) + 1,
+			AccountID: uint64(i) + 2,
 			IsSigned:  randomBool(),
 		}
 	}
