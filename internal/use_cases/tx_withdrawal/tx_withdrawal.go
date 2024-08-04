@@ -1,4 +1,4 @@
-package tx_transfer
+package tx_withdrawal
 
 import (
 	"context"

@@ -135,6 +135,9 @@ func txWithdrawalCmd(b *Transaction) *cobra.Command {
 		recipientDescription   = "specify recipient Ethereum address. use as --recipient \"0x0000000000000000000000000000000000000000\""
 		userPrivateKeyKey      = "user-private"
 		userPrivateDescription = "specify user address. use as --user-private \"0x0000000000000000000000000000000000000000000000000000000000000000\""
+		resumeKey              = "resume"
+		defaultResume          = false
+		resumeDescription      = "resume withdrawal. use as --resume"
 	)
 
 	cmd := cobra.Command{
@@ -151,16 +154,23 @@ func txWithdrawalCmd(b *Transaction) *cobra.Command {
 	var userEthPrivateKey string
 	cmd.PersistentFlags().StringVar(&userEthPrivateKey, userPrivateKeyKey, emptyKey, userPrivateDescription)
 
+	var resume bool
+	cmd.PersistentFlags().BoolVar(&resume, resumeKey, defaultResume, resumeDescription)
+
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		l := b.Log.WithFields(logger.Fields{"module": use})
 
-		err := b.SB.CheckEthereumPrivateKey(b.Context)
-		if err != nil {
-			const msg = "check private key error occurred: %v"
-			l.Fatalf(msg, err.Error())
+		if resume {
+			err := newCommands().ResumeWithdrawalTransaction(b.Config, b.Log, b.SB).Do(b.Context, recipientAddressStr)
+			if err != nil {
+				const msg = "failed to get balance: %v"
+				l.Fatalf(msg, err.Error())
+			}
+
+			return
 		}
 
-		err = newCommands().SendWithdrawalTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, recipientAddressStr, amount, removeZeroX(userEthPrivateKey))
+		err := newCommands().SendWithdrawalTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, recipientAddressStr, amount, removeZeroX(userEthPrivateKey))
 		if err != nil {
 			const msg = "failed to get balance: %v"
 			l.Fatalf(msg, err.Error())

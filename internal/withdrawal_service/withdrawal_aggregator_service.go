@@ -329,19 +329,23 @@ func (w *WithdrawalAggregatorService) buildMockSubmitWithdrawalProofData(pending
 			return nil, fmt.Errorf("failed to set amount")
 		}
 
-		recipientBytes, err := hexutil.Decode(withdrawal.TransferData.Recipient)
+		var recipientBytes []byte
+		recipientBytes, err = hexutil.Decode(withdrawal.TransferData.Recipient)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode recipient address: %w", err)
 		}
-		recipient, err := intMaxTypes.NewEthereumAddress(recipientBytes)
+		var recipient *intMaxTypes.GenericAddress
+		recipient, err = intMaxTypes.NewEthereumAddress(recipientBytes)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert recipient address: %w", err)
 		}
 
-		saltBytes, err := hexutil.Decode(withdrawal.TransferData.Salt)
+		var saltBytes []byte
+		saltBytes, err = hexutil.Decode(withdrawal.TransferData.Salt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode salt: %w", err)
 		}
+
 		salt := new(goldenposeidon.PoseidonHashOut)
 		err = salt.Unmarshal(saltBytes)
 		if err != nil {
@@ -355,7 +359,7 @@ func (w *WithdrawalAggregatorService) buildMockSubmitWithdrawalProofData(pending
 			Salt:       salt,
 		}
 
-		nullifier := [32]byte{}
+		nullifier := [int32Key]byte{}
 		copy(nullifier[:], withdrawalTransfer.GetWithdrawalNullifier().Marshal())
 		singleWithdrawal := bindings.ChainedWithdrawalLibChainedWithdrawal{
 			Recipient:   common.HexToAddress(withdrawal.TransferData.Recipient),

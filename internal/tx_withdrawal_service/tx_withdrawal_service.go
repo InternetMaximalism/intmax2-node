@@ -244,7 +244,11 @@ func ResumeWithdrawalRequest(
 	if err != nil {
 		log.Fatalf("failed to find withdrawals: %v", err)
 	}
-	fmt.Printf("withdrawalInfo: %v", withdrawalInfo)
+
+	if len(withdrawalInfo) == 0 {
+		log.Infof("No withdrawal request found.")
+		return
+	}
 
 	shouldProcess := func(withdrawal *tx_transfer_service.BackupWithdrawal) bool {
 		transferHash := hexutil.Encode(withdrawal.Transfer.Hash().Marshal())
@@ -348,7 +352,8 @@ func GetBackupWithdrawal(
 	withdrawals := make([]*tx_transfer_service.BackupWithdrawal, 0)
 	for _, withdrawal := range userAllData.Transfers {
 		// base64 decode
-		encodedEncryptedTransfer, err := base64.StdEncoding.DecodeString(withdrawal.EncryptedTransfer)
+		var encodedEncryptedTransfer []byte
+		encodedEncryptedTransfer, err = base64.StdEncoding.DecodeString(withdrawal.EncryptedTransfer)
 		if err != nil {
 			lg.Warnf("failed to decode base64: %w", err)
 			continue

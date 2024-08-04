@@ -5,9 +5,11 @@ import (
 	"intmax2-node/internal/logger"
 
 	txDeposit "intmax2-node/internal/use_cases/tx_deposit"
+	txResumeWithdrawal "intmax2-node/internal/use_cases/tx_resume_withdrawal"
 	txTransfer "intmax2-node/internal/use_cases/tx_transfer"
 	txWithdrawal "intmax2-node/internal/use_cases/tx_withdrawal"
 	ucTxDeposit "intmax2-node/pkg/use_cases/tx_deposit"
+	ucTxResumeWithdrawal "intmax2-node/pkg/use_cases/tx_resume_withdrawal"
 	ucTxTransfer "intmax2-node/pkg/use_cases/tx_transfer"
 	ucTxWithdrawal "intmax2-node/pkg/use_cases/tx_withdrawal"
 )
@@ -28,6 +30,11 @@ type Commands interface {
 		log logger.Logger,
 		sb ServiceBlockchain,
 	) txWithdrawal.UseCaseTxWithdrawal
+	ResumeWithdrawalTransaction(
+		cfg *configs.Config,
+		log logger.Logger,
+		sb ServiceBlockchain,
+	) txResumeWithdrawal.UseCaseTxResumeWithdrawal
 }
 
 type commands struct{}
@@ -58,4 +65,12 @@ func (c *commands) SendWithdrawalTransaction(
 	sb ServiceBlockchain,
 ) txWithdrawal.UseCaseTxWithdrawal {
 	return ucTxWithdrawal.New(cfg, log, sb)
+}
+
+func (c *commands) ResumeWithdrawalTransaction(
+	cfg *configs.Config,
+	log logger.Logger,
+	sb ServiceBlockchain,
+) txResumeWithdrawal.UseCaseTxResumeWithdrawal {
+	return ucTxResumeWithdrawal.New(cfg, log, sb)
 }
