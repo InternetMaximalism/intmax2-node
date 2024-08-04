@@ -349,3 +349,21 @@ func (td *Transfer) Equal(other *Transfer) bool {
 		return true
 	}
 }
+
+func (td *Transfer) Commitment() *PoseidonHashOut {
+	flatten := td.ToUint64Slice()
+
+	inputs := make([]ffg.Element, len(flatten))
+	for i := 0; i < len(flatten); i++ {
+		inputs[i].SetUint64(flatten[i])
+	}
+
+	return goldenposeidon.HashNoPad(inputs)
+}
+
+func (td *Transfer) GetWithdrawalNullifier() *PoseidonHashOut {
+	transferCommitment := td.Commitment()
+	input := transferCommitment.Elements[:]
+	input = append(input, td.Salt.Elements[:]...)
+	return goldenposeidon.HashNoPad(input)
+}

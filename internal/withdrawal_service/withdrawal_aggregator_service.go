@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/bindings"
+	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -327,11 +329,43 @@ func (w *WithdrawalAggregatorService) buildMockSubmitWithdrawalProofData(pending
 			return nil, fmt.Errorf("failed to set amount")
 		}
 
+		var recipientBytes []byte
+		recipientBytes, err = hexutil.Decode(withdrawal.TransferData.Recipient)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode recipient address: %w", err)
+		}
+		var recipient *intMaxTypes.GenericAddress
+		recipient, err = intMaxTypes.NewEthereumAddress(recipientBytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert recipient address: %w", err)
+		}
+
+		var saltBytes []byte
+		saltBytes, err = hexutil.Decode(withdrawal.TransferData.Salt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode salt: %w", err)
+		}
+
+		salt := new(goldenposeidon.PoseidonHashOut)
+		err = salt.Unmarshal(saltBytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal salt: %w", err)
+		}
+
+		withdrawalTransfer := intMaxTypes.Transfer{
+			Recipient:  recipient,
+			TokenIndex: uint32(withdrawal.TransferData.TokenIndex),
+			Amount:     amount,
+			Salt:       salt,
+		}
+
+		nullifier := [int32Key]byte{}
+		copy(nullifier[:], withdrawalTransfer.GetWithdrawalNullifier().Marshal())
 		singleWithdrawal := bindings.ChainedWithdrawalLibChainedWithdrawal{
 			Recipient:   common.HexToAddress(withdrawal.TransferData.Recipient),
 			TokenIndex:  uint32(withdrawal.TransferData.TokenIndex),
 			Amount:      amount,
-			Nullifier:   common.HexToHash(withdrawal.TransferData.Salt),
+			Nullifier:   nullifier,
 			BlockHash:   common.HexToHash(withdrawal.BlockHash),
 			BlockNumber: uint32(withdrawal.BlockNumber),
 		}

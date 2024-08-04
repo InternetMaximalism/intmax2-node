@@ -14,6 +14,7 @@ import (
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/transaction"
 	"intmax2-node/internal/use_cases/withdrawal_request"
+	"intmax2-node/internal/use_cases/withdrawals_by_hashes"
 	"net/http"
 	"strconv"
 	"time"
@@ -232,4 +233,98 @@ type SendWithdrawalResponse struct {
 		// Message is a message from the server
 		Message string `json:"message"`
 	} `json:"data"`
+}
+
+func FindWithdrawalsByTransferHashes(
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
+	transferHashes []string,
+) ([]*WithdrawalResponseData, error) {
+	ucInput := withdrawals_by_hashes.UCWithdrawalsByHashesInput{
+		TransferHashes: transferHashes,
+	}
+
+	bd, err := json.Marshal(ucInput)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+
+	const (
+		httpKey     = "http"
+		httpsKey    = "https"
+		contentType = "Content-Type"
+		appJSON     = "application/json"
+	)
+
+	apiUrl := fmt.Sprintf("%s/v1/withdrawals/find-by-hashes", cfg.API.WithdrawalServerUrl)
+
+	r := resty.New().R()
+	var resp *resty.Response
+	resp, err = r.SetContext(ctx).SetHeaders(map[string]string{
+		contentType: appJSON,
+	}).SetBody(bd).Post(apiUrl)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send of the withdrawal search request: %w", err)
+	}
+
+	if resp == nil {
+		const msg = "send request error occurred"
+		return nil, fmt.Errorf(msg)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		err = fmt.Errorf("failed to get response")
+		log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return nil, err
+	}
+
+	response := new(WithdrawalsByHashesResponse)
+	if innerErr := json.Unmarshal(resp.Body(), response); innerErr != nil {
+		ErrUnmarshalResponse := errors.New("failed to unmarshal response")
+		return nil, errors.Join(ErrUnmarshalResponse, innerErr)
+	}
+
+	return response.Withdrawals, nil
+}
+
+type TransferData struct {
+	// the recipient address
+	Recipient string `json:"recipient,omitempty"`
+	// the token index
+	TokenIndex int32 `json:"tokenIndex,omitempty"`
+	// the amount of the transfer
+	Amount string `json:"amount,omitempty"`
+	// the salt used in the transfer
+	Salt string `json:"salt,omitempty"`
+}
+
+type TransactionData struct {
+	// the root of the transfer tree
+	TransferTreeRoot string `json:"transferTreeRoot,omitempty"`
+	// the nonce of the transaction
+	Nonce int32 `json:"nonce,omitempty"`
+}
+
+type WithdrawalResponseData struct {
+	// the transfer data
+	TransferData *TransferData `json:"transferData,omitempty"`
+	// the transaction data
+	Transaction *TransactionData `json:"transaction,omitempty"`
+	// the transfer hash
+	TransferHash string `json:"transferHash,omitempty"`
+	// the block number
+	BlockNumber string `json:"blockNumber,omitempty"`
+	// the block hash
+	BlockHash string `json:"blockHash,omitempty"`
+	// the status of the withdrawal (e.g., pending, success, failed).
+	Status string `json:"status,omitempty"`
+}
+
+type WithdrawalsByHashesResponse struct {
+	// A list of Withdrawal messages that match the provided transfer hashes.
+	Withdrawals []*WithdrawalResponseData `json:"withdrawals,omitempty"`
 }
