@@ -1,4 +1,4 @@
-package withdrawal_service
+package messenger
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 
 const BlocksToLookBack = 10000
 
-type WithdrawalRelayerMockService struct {
+type MessengerWithdrawalRelayerMockService struct {
 	ctx               context.Context
 	cfg               *configs.Config
 	log               logger.Logger
@@ -27,7 +27,7 @@ type WithdrawalRelayerMockService struct {
 	l2ScrollMessenger *bindings.L2ScrollMessenger
 }
 
-func newWithdrawalRelayerMockService(ctx context.Context, cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) (*WithdrawalRelayerMockService, error) {
+func newMessengerWithdrawalRelayerMockService(ctx context.Context, cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) (*MessengerWithdrawalRelayerMockService, error) {
 	scrollLink, err := sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
@@ -53,7 +53,7 @@ func newWithdrawalRelayerMockService(ctx context.Context, cfg *configs.Config, l
 		return nil, fmt.Errorf("failed to instantiate L2ScrollMessenger contract: %w", err)
 	}
 
-	return &WithdrawalRelayerMockService{
+	return &MessengerWithdrawalRelayerMockService{
 		ctx:               ctx,
 		cfg:               cfg,
 		log:               log,
@@ -64,13 +64,13 @@ func newWithdrawalRelayerMockService(ctx context.Context, cfg *configs.Config, l
 	}, nil
 }
 
-func WithdrawalRelayerMock(ctx context.Context, cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) {
-	withdrawalRelayerMockService, err := newWithdrawalRelayerMockService(ctx, cfg, log, sb)
+func MessengerWithdrawalRelayerMock(ctx context.Context, cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) {
+	service, err := newMessengerWithdrawalRelayerMockService(ctx, cfg, log, sb)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to initialize WithdrawalRelayerMockService: %v", err.Error()))
 	}
 
-	events, err := withdrawalRelayerMockService.fetchSentMessageEvents()
+	events, err := service.fetchSentMessageEvents()
 	if err != nil {
 		panic(fmt.Sprintf("Failed to fetch sent message events: %v", err.Error()))
 	}
@@ -83,7 +83,7 @@ func WithdrawalRelayerMock(ctx context.Context, cfg *configs.Config, log logger.
 	successfulEvents := 0
 	for _, event := range events {
 		var receipt *types.Receipt
-		receipt, err = withdrawalRelayerMockService.relayMessageWithProofByEvent(event)
+		receipt, err = service.relayMessageWithProofByEvent(event)
 		if err != nil {
 			log.Warnf("Failed to submit relayMessageWithProofByEvent: %v", err.Error())
 			continue
@@ -108,7 +108,7 @@ func WithdrawalRelayerMock(ctx context.Context, cfg *configs.Config, log logger.
 	log.Infof("Successfully submitted relay message with proof by event for %d out of %d events", successfulEvents)
 }
 
-func (w *WithdrawalRelayerMockService) fetchSentMessageEvents() ([]*bindings.L2ScrollMessengerSentMessage, error) {
+func (w *MessengerWithdrawalRelayerMockService) fetchSentMessageEvents() ([]*bindings.L2ScrollMessengerSentMessage, error) {
 	blockNumber, err := w.scrollClient.BlockNumber(w.ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get block number: %w", err)
@@ -139,7 +139,7 @@ func (w *WithdrawalRelayerMockService) fetchSentMessageEvents() ([]*bindings.L2S
 	return events, nil
 }
 
-func (w *WithdrawalRelayerMockService) relayMessageWithProofByEvent(event *bindings.L2ScrollMessengerSentMessage) (*types.Receipt, error) {
+func (w *MessengerWithdrawalRelayerMockService) relayMessageWithProofByEvent(event *bindings.L2ScrollMessengerSentMessage) (*types.Receipt, error) {
 	transactOpts, err := utils.CreateTransactor(w.cfg.Blockchain.MockMessagingPrivateKeyHex, w.cfg.Blockchain.EthereumNetworkChainID)
 	if err != nil {
 		return nil, err

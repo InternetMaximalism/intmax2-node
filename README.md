@@ -263,15 +263,6 @@ Usage:
 Flags:
   -h, --help help for aggregator
 ```
-### ./intmax2-node withdrawal relayer --help
-Run withdrawal relayer service
-
-Usage:
-  app withdrawal relayer [flags]
-
-Flags:
-  -h, --help   help for relayer
-```
 ### Command `./intmax2-node balance get --help`
 ```
 # ./intmax2-node balance get --help

@@ -1,5 +1,5 @@
 //nolint:gocritic
-package withdrawal_service
+package messenger
 
 import (
 	"context"
@@ -20,7 +20,7 @@ import (
 
 const defaultPage = 1
 
-type WithdrawalRelayerService struct {
+type MessengerWithdrawalRelayerService struct {
 	ctx             context.Context
 	cfg             *configs.Config
 	log             logger.Logger
@@ -28,7 +28,7 @@ type WithdrawalRelayerService struct {
 	scrollMessenger *bindings.L1ScrollMessenger
 }
 
-func newWithdrawalRelayerService(ctx context.Context, cfg *configs.Config, log logger.Logger, _ ServiceBlockchain) (*WithdrawalRelayerService, error) {
+func newMessengerWithdrawalRelayerService(ctx context.Context, cfg *configs.Config, log logger.Logger, _ ServiceBlockchain) (*MessengerWithdrawalRelayerService, error) {
 	// link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
 	// if err != nil {
 	// 	return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
@@ -44,7 +44,7 @@ func newWithdrawalRelayerService(ctx context.Context, cfg *configs.Config, log l
 		return nil, fmt.Errorf("failed to instantiate L1ScrollMessenger contract: %w", err)
 	}
 
-	return &WithdrawalRelayerService{
+	return &MessengerWithdrawalRelayerService{
 		ctx:             ctx,
 		cfg:             cfg,
 		log:             log,
@@ -53,13 +53,13 @@ func newWithdrawalRelayerService(ctx context.Context, cfg *configs.Config, log l
 	}, nil
 }
 
-func WithdrawalRelayer(ctx context.Context, cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) {
-	withdrawalRelayerService, err := newWithdrawalRelayerService(ctx, cfg, log, sb)
+func MessengerWithdrawalRelayer(ctx context.Context, cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) {
+	service, err := newMessengerWithdrawalRelayerService(ctx, cfg, log, sb)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to initialize WithdrawalRelayerService: %v", err.Error()))
 	}
 
-	claimableRequests, err := withdrawalRelayerService.fetchClaimableScrollMessengerRequests()
+	claimableRequests, err := service.fetchClaimableScrollMessengerRequests()
 	if err != nil {
 		panic(fmt.Sprintf("Failed to fetch claimable requests: %v", err.Error()))
 	}
@@ -73,7 +73,7 @@ func WithdrawalRelayer(ctx context.Context, cfg *configs.Config, log logger.Logg
 
 	for _, claimableRequest := range claimableRequests {
 		var receipt *types.Receipt
-		receipt, err = withdrawalRelayerService.relayMessageWithProof(claimableRequest)
+		receipt, err = service.relayMessageWithProof(claimableRequest)
 		if err != nil {
 			log.Warnf("Failed to submit relayMessageWithProof: %v", err.Error())
 			continue
@@ -98,7 +98,7 @@ func WithdrawalRelayer(ctx context.Context, cfg *configs.Config, log logger.Logg
 	log.Infof("Successfully submitted relay message with proof for %d out of %d claimable requests", successfulClaims, len(claimableRequests))
 }
 
-func (w *WithdrawalRelayerService) fetchClaimableScrollMessengerRequests() ([]*ScrollMessengerResult, error) {
+func (w *MessengerWithdrawalRelayerService) fetchClaimableScrollMessengerRequests() ([]*ScrollMessengerResult, error) {
 	apiUrl := fmt.Sprintf("%s/api/l2/unclaimed/withdrawals?address=%s&page_size=10&page=%d",
 		w.cfg.API.ScrollBridgeUrl,
 		w.cfg.Blockchain.WithdrawalContractAddress,
@@ -125,7 +125,7 @@ func (w *WithdrawalRelayerService) fetchClaimableScrollMessengerRequests() ([]*S
 	return filterClaimableResults(res.Data.Results), nil
 }
 
-func (w *WithdrawalRelayerService) relayMessageWithProof(result *ScrollMessengerResult) (*types.Receipt, error) {
+func (w *MessengerWithdrawalRelayerService) relayMessageWithProof(result *ScrollMessengerResult) (*types.Receipt, error) {
 	transactOpts, err := utils.CreateTransactor(w.cfg.Blockchain.WithdrawalPrivateKeyHex, w.cfg.Blockchain.EthereumNetworkChainID)
 	if err != nil {
 		return nil, err

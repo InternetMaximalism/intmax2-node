@@ -19,7 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-type MessengerRelayerService struct {
+type MessengerRelayerMockService struct {
 	ctx               context.Context
 	cfg               *configs.Config
 	log               logger.Logger
@@ -30,7 +30,7 @@ type MessengerRelayerService struct {
 	l2ScrollMessenger *bindings.L2ScrollMessenger
 }
 
-func newMessengerRelayerService(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, sb ServiceBlockchain) (*MessengerRelayerService, error) {
+func newMessengerRelayerMockService(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, sb ServiceBlockchain) (*MessengerRelayerMockService, error) {
 	scrollLink, err := sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
@@ -56,7 +56,7 @@ func newMessengerRelayerService(ctx context.Context, cfg *configs.Config, log lo
 		return nil, fmt.Errorf("failed to instantiate L2ScrollMessenger contract: %w", err)
 	}
 
-	return &MessengerRelayerService{
+	return &MessengerRelayerMockService{
 		ctx:               ctx,
 		cfg:               cfg,
 		log:               log,
@@ -69,9 +69,9 @@ func newMessengerRelayerService(ctx context.Context, cfg *configs.Config, log lo
 }
 
 func MessengerRelayer(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, sb ServiceBlockchain) {
-	messengerService, err := newMessengerRelayerService(ctx, cfg, log, db, sb)
+	service, err := newMessengerRelayerMockService(ctx, cfg, log, db, sb)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to initialize MockMessengerService: %v", err.Error()))
+		panic(fmt.Sprintf("Failed to initialize MessengerRelayerMockService: %v", err.Error()))
 	}
 
 	event, err := db.EventBlockNumberByEventName(mDBApp.SentMessageEvent)
@@ -91,7 +91,7 @@ func MessengerRelayer(ctx context.Context, cfg *configs.Config, log logger.Logge
 		}
 	}
 
-	events, lastBlockNumber, err := messengerService.fetchNewSentMessages(uint64(event.LastProcessedBlockNumber))
+	events, lastBlockNumber, err := service.fetchNewSentMessages(uint64(event.LastProcessedBlockNumber))
 	if err != nil {
 		panic(fmt.Sprintf("Failed to fetch new sent messages: %v", err.Error()))
 	}
@@ -101,7 +101,7 @@ func MessengerRelayer(ctx context.Context, cfg *configs.Config, log logger.Logge
 		return
 	}
 
-	messengerService.relayMessagesforEvents(events)
+	service.relayMessagesforEvents(events)
 
 	err = updateEventBlockNumber(db, log, mDBApp.SentMessageEvent, int64(lastBlockNumber))
 	if err != nil {
@@ -109,7 +109,7 @@ func MessengerRelayer(ctx context.Context, cfg *configs.Config, log logger.Logge
 	}
 }
 
-func (m *MessengerRelayerService) fetchNewSentMessages(lastProcessedBlockNumber uint64) (_ []*bindings.L1ScrollMessengerSentMessage, _ uint64, _ error) {
+func (m *MessengerRelayerMockService) fetchNewSentMessages(lastProcessedBlockNumber uint64) (_ []*bindings.L1ScrollMessengerSentMessage, _ uint64, _ error) {
 	var lastBlockNumber uint64
 
 	startBlock := lastProcessedBlockNumber + 1
@@ -140,7 +140,7 @@ func (m *MessengerRelayerService) fetchNewSentMessages(lastProcessedBlockNumber 
 	return events, lastBlockNumber, nil
 }
 
-func (m *MessengerRelayerService) relayMessages(event *bindings.L1ScrollMessengerSentMessage) (*types.Receipt, error) {
+func (m *MessengerRelayerMockService) relayMessages(event *bindings.L1ScrollMessengerSentMessage) (*types.Receipt, error) {
 	transactOpts, err := utils.CreateTransactor(m.cfg.Blockchain.MockMessagingPrivateKeyHex, m.cfg.Blockchain.ScrollNetworkChainID)
 	if err != nil {
 		return nil, err
@@ -177,7 +177,7 @@ func (m *MessengerRelayerService) relayMessages(event *bindings.L1ScrollMessenge
 	return receipt, nil
 }
 
-func (m *MessengerRelayerService) relayMessagesforEvents(events []*bindings.L1ScrollMessengerSentMessage) {
+func (m *MessengerRelayerMockService) relayMessagesforEvents(events []*bindings.L1ScrollMessengerSentMessage) {
 	successfulMessages := 0
 	for _, event := range events {
 		_, err := m.relayMessages(event)
