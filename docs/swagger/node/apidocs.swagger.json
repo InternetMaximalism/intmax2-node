@@ -310,6 +310,45 @@
         ]
       }
     },
+    "/v1/deposits/{depositId}/verify-confirmation": {
+      "get": {
+        "summary": "GetVerifyDepositConfirmation verifies the confirmation of a deposit",
+        "description": "## This method verifies if a deposit has been confirmed.",
+        "operationId": "StoreVaultService_GetVerifyDepositConfirmation",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetVerifyDepositConfirmationResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "depositId",
+            "description": "The ID of the deposit to be verified",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      }
+    },
     "/v1/info": {
       "get": {
         "summary": "Info returns the info about retrieves the block builder's Scroll address, transaction fee, and difficulty",
@@ -941,6 +980,30 @@
         }
       },
       "description": "The response message containing a list of token balances."
+    },
+    "v1GetVerifyDepositConfirmationResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "Indicates if the verify deposit confirmation was successful"
+        },
+        "data": {
+          "$ref": "#/definitions/v1GetVerifyDepositConfirmationResponseData",
+          "title": "Additional data related to the response"
+        }
+      },
+      "title": "The response message for verifying deposit confirmation"
+    },
+    "v1GetVerifyDepositConfirmationResponseData": {
+      "type": "object",
+      "properties": {
+        "confirmed": {
+          "type": "boolean",
+          "title": "Indicates whether the deposit is confirmed"
+        }
+      },
+      "title": "Data is the nested message containing detailed response information"
     },
     "v1HealthCheckResponse": {
       "type": "object",

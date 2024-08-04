@@ -29,6 +29,7 @@ type StoreVaultServer struct {
 	Config  *configs.Config
 	Log     logger.Logger
 	DbApp   SQLDriverApp
+	SB      ServiceBlockchain
 	HC      *health.Handler
 }
 

@@ -13,6 +13,7 @@ type StoreVaultServer struct {
 	dbApp            SQLDriverApp
 	commands         Commands
 	cookieForAuthUse bool
+	sb               ServiceBlockchain
 	hc               *health.Handler
 }
 
