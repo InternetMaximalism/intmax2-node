@@ -20,6 +20,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
@@ -205,8 +206,6 @@ func WithdrawalTransaction(
 
 	log.Infof("The transaction has been successfully sent.")
 
-	// TODO: Make it safe to interrupt here.
-
 	// Send withdrawal request
 	err = SendWithdrawalRequest(ctx, cfg, log, &tx_transfer_service.BackupWithdrawal{
 		SenderAddress:       userAccount.ToAddress(),
@@ -221,6 +220,55 @@ func WithdrawalTransaction(
 	})
 	if err != nil {
 		log.Fatalf("failed to request withdrawal: %v", err)
+	}
+
+	log.Infof("The withdrawal request has been successfully sent.")
+}
+
+func ResumeWithdrawalRequest(
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
+	recipientAddressHex string,
+) {
+	backupWithdrawals, err := GetBackupWithdrawal(ctx, cfg, log, common.HexToAddress(recipientAddressHex))
+	if err != nil {
+		log.Fatalf("failed to get backup withdrawal: %v", err)
+	}
+
+	transferHashes := make([]string, len(backupWithdrawals))
+	for i, backupWithdrawal := range backupWithdrawals {
+		transferHashes[i] = hexutil.Encode(backupWithdrawal.Transfer.Hash().Marshal())
+	}
+	withdrawalInfo, err := FindWithdrawalsByTransferHashes(ctx, cfg, log, transferHashes)
+	if err != nil {
+		log.Fatalf("failed to find withdrawals: %v", err)
+	}
+	fmt.Printf("withdrawalInfo: %v", withdrawalInfo)
+
+	shouldProcess := func(withdrawal *tx_transfer_service.BackupWithdrawal) bool {
+		transferHash := hexutil.Encode(withdrawal.Transfer.Hash().Marshal())
+		for _, withdrawalInfo := range withdrawalInfo {
+			if transferHash == withdrawalInfo.TransferHash {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	for _, backupWithdrawal := range backupWithdrawals {
+		if !shouldProcess(backupWithdrawal) {
+			continue
+		}
+
+		// Send withdrawal request
+		err = SendWithdrawalRequest(ctx, cfg, log, backupWithdrawal)
+		if err != nil {
+			log.Fatalf("failed to request withdrawal: %v", err)
+		}
+
+		log.Infof("The withdrawal request has been successfully sent.")
 	}
 
 	log.Infof("The withdrawal request has been successfully sent.")
@@ -284,4 +332,38 @@ func SendWithdrawalRequest(
 	}
 
 	return nil
+}
+
+func GetBackupWithdrawal(
+	ctx context.Context,
+	cfg *configs.Config,
+	lg logger.Logger,
+	userAddress common.Address,
+) ([]*tx_transfer_service.BackupWithdrawal, error) {
+	userAllData, err := balance_service.GetUserBalancesRawRequest(ctx, cfg, lg, userAddress.Hex())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user balances: %w", err)
+	}
+
+	withdrawals := make([]*tx_transfer_service.BackupWithdrawal, 0)
+	for _, withdrawal := range userAllData.Transfers {
+		// base64 decode
+		encodedEncryptedTransfer, err := base64.StdEncoding.DecodeString(withdrawal.EncryptedTransfer)
+		if err != nil {
+			lg.Warnf("failed to decode base64: %w", err)
+			continue
+		}
+
+		// json unmarshal
+		var withdrawal tx_transfer_service.BackupWithdrawal
+		err = json.Unmarshal(encodedEncryptedTransfer, &withdrawal)
+		if err != nil {
+			lg.Warnf("failed to unmarshal json: %w", err)
+			continue
+		}
+
+		withdrawals = append(withdrawals, &withdrawal)
+	}
+
+	return withdrawals, nil
 }

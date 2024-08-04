@@ -59,7 +59,13 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressHex, amount,
 		attribute.String(senderKey, userAddress.String()),
 	)
 
-	service.WithdrawalTransaction(spanCtx, u.cfg, u.log, u.sb, args, amount, recipientAddressHex, userEthPrivateKey)
+	// service.WithdrawalTransaction(spanCtx, u.cfg, u.log, u.sb, args, amount, recipientAddressHex, userEthPrivateKey)
+	service.ResumeWithdrawalRequest(
+		spanCtx,
+		u.cfg,
+		u.log,
+		recipientAddressHex,
+	)
 
 	return nil
 }

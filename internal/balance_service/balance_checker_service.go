@@ -248,7 +248,7 @@ func GetUserBalance(
 	userPrivateKey *intMaxAcc.PrivateKey,
 	tokenIndex uint32,
 ) (*big.Int, error) {
-	userAllData, err := getUserBalancesRawRequest(ctx, cfg, lg, userPrivateKey.ToAddress().String())
+	userAllData, err := GetUserBalancesRawRequest(ctx, cfg, lg, userPrivateKey.ToAddress().String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user balances: %w", err)
 	}
@@ -267,7 +267,7 @@ func GetUserBalance(
 	return balanceData.Amount, nil
 }
 
-func getUserBalancesRawRequest(
+func GetUserBalancesRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
 	lg logger.Logger,
