@@ -180,8 +180,6 @@ func hashNToMNoPad(
 		for j := 0; j < NROUNDSF; j++ {
 			if i+j < len(inputs) {
 				perm[j] = &inputs[i+j]
-			} else {
-				perm[j] = zero()
 			}
 		}
 		perm = Permute(perm)
