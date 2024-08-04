@@ -1,12 +1,13 @@
 package models
 
 const (
-	DepositsAnalyzedEvent = "DepositsAnalyzed"
-	DepositsRelayedEvent  = "DepositsRelayed"
-	SentMessageEvent      = "SentMessageEvent"
+	DepositsAnalyzedEvent  = "DepositsAnalyzed"
+	DepositsRelayedEvent   = "DepositsRelayed"
+	SentMessageEvent       = "SentMessage"
+	WithdrawalsQueuedEvent = "WithdrawalsQueued"
 )
 
 type EventBlockNumber struct {
 	EventName                string
-	LastProcessedBlockNumber int64
+	LastProcessedBlockNumber uint64
 }

@@ -1,11 +1,11 @@
-package deposit_service
+package messenger_withdrawal_relayer_mock
 
 import (
 	"context"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 )
 
-//go:generate mockgen -destination=mock_db_app_test.go -package=deposit_service_test -source=db_app.go
+//go:generate mockgen -destination=mock_db_app_test.go -package=messenger_withdrawal_relayer_mock_test -source=db_app.go
 
 type SQLDriverApp interface {
 	GenericCommandsApp
@@ -19,5 +19,4 @@ type GenericCommandsApp interface {
 type EventBlockNumbers interface {
 	UpsertEventBlockNumber(eventName string, blockNumber uint64) (*mDBApp.EventBlockNumber, error)
 	EventBlockNumberByEventName(eventName string) (*mDBApp.EventBlockNumber, error)
-	EventBlockNumbersByEventNames(eventNames []string) ([]*mDBApp.EventBlockNumber, error)
 }

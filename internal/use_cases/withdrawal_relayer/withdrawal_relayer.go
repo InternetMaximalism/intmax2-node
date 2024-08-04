@@ -1,4 +1,4 @@
-package withdrawal_relayer
+package withdrawal_aggregator
 
 import "context"
 
