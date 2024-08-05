@@ -21,6 +21,7 @@ func NewClient(url string) (*ethclient.Client, error) {
 		log.Fatalf("error connecting to rpc service: %+v", err)
 		return nil, err
 	}
+	defer ethClient.Close()
 	return ethClient, nil
 }
 

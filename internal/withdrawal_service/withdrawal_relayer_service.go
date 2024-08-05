@@ -40,12 +40,12 @@ type WithdrawalRelayerService struct {
 }
 
 func newWithdrawalRelayerService(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, sb ServiceBlockchain) (*WithdrawalRelayerService, error) {
-	link, err := sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
+	scrollLink, err := sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Scroll network chain link: %w", err)
 	}
 
-	scrollClient, err := utils.NewClient(link)
+	scrollClient, err := utils.NewClient(scrollLink)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new scrollClient: %w", err)
 	}

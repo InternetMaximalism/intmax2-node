@@ -22,8 +22,8 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-const AMLRejectionThreshold = 70
-const NoDepositEventsFoundError = "No deposit events found"
+const amlRejectionThreshold = 70
+const noDepositEventsFoundError = "No deposit events found"
 
 type DepositAnalyzerService struct {
 	ctx       context.Context
@@ -126,7 +126,7 @@ func DepositAnalyzer(ctx context.Context, cfg *configs.Config, log logger.Logger
 	for _, event := range events {
 		contractAddress := tokenInfoMap[event.TokenIndex]
 		score := fetchAMLScore(event.Sender.Hex(), contractAddress.Hex())
-		if score > AMLRejectionThreshold {
+		if score > amlRejectionThreshold {
 			rejectDepositIndices = append(rejectDepositIndices, new(big.Int).SetUint64(uint64(event.TokenIndex)))
 		}
 	}
@@ -240,7 +240,7 @@ func (d *DepositAnalyzerService) shouldProcessDepositAnalyzer(events []*bindings
 	depositIds := []*big.Int{}
 	eventInfo, err := fetchDepositEvent(d.liquidity, lastBlockNumber, depositIds)
 	if err != nil {
-		if err.Error() == NoDepositEventsFoundError {
+		if err.Error() == noDepositEventsFoundError {
 			fmt.Println("No deposit events found, skipping process")
 			return false, nil
 		}
