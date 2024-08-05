@@ -7,6 +7,7 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/internal/bindings"
 	errorsB "intmax2-node/internal/blockchain/errors"
+	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
 	modelsMW "intmax2-node/internal/mnemonic_wallet/models"
 	"intmax2-node/internal/open_telemetry"
@@ -25,15 +26,18 @@ import (
 
 type blockBuilderRegistryService struct {
 	cfg *configs.Config
+	log logger.Logger
 	sb  ServiceBlockchain
 }
 
 func New(
 	cfg *configs.Config,
+	log logger.Logger,
 	sb ServiceBlockchain,
 ) BlockBuilderRegistryService {
 	return &blockBuilderRegistryService{
 		cfg: cfg,
+		log: log,
 		sb:  sb,
 	}
 }
@@ -104,6 +108,7 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 	ctx context.Context,
 	url string,
 ) error {
+	bbr.log.Debugf("Start UpdateBlockBuilder\n")
 	const (
 		hName      = "BlockBuilderRegistryService func:UpdateBlockBuilder"
 		urlKey     = "url"
@@ -169,8 +174,11 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 
 	// If the stake is more than 0.1 ETH and the URL has not changed, the update function is not executed.
 	if res.StakeAmount.Cmp(&bbr.cfg.Blockchain.ScrollNetworkStakeBalance) >= 0 && res.BlockBuilderUrl == url {
+		bbr.log.Debugf("Since the staking amount is sufficient and the URL has not changed, the registry was not updated.\n")
 		return nil
 	}
+
+	bbr.log.Debugf("Registry update is required.\n")
 
 	value = new(big.Int).Sub(&bbr.cfg.Blockchain.ScrollNetworkStakeBalance, res.StakeAmount)
 
@@ -193,6 +201,7 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 		}
 		transactOpts.Value = value
 
+		bbr.log.Debugf("transactOpts.Value: %s\n", value.String())
 		_, err = transactorBBR.UpdateBlockBuilder(transactOpts, url)
 		if err != nil {
 			switch {
@@ -216,6 +225,7 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 			return errors.Join(ErrProcessingFuncUpdateBlockBuilderOfBlockBuilderRegistryFail, err)
 		}
 		errorsB.InsufficientFunds = false
+		bbr.log.Debugf("Complete UpdateBlockBuilder: %s\n", value.String())
 
 		return nil
 	}
