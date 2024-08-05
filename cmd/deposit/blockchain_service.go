@@ -7,12 +7,7 @@ import (
 //go:generate mockgen -destination=mock_blockchain_service.go -package=deposit -source=blockchain_service.go
 
 type ServiceBlockchain interface {
-	GenericCommandsSB
 	ChainSB
-}
-
-type GenericCommandsSB interface {
-	CheckEthereumPrivateKey(ctx context.Context) (err error)
 }
 
 type ChainSB interface {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
+	"intmax2-node/pkg/utils"
 
 	"github.com/spf13/cobra"
 )
@@ -46,9 +47,9 @@ func analyzerCmd(d *Deposit) *cobra.Command {
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		l := d.Log.WithFields(logger.Fields{"module": use})
 
-		err := d.SB.CheckEthereumPrivateKey(d.Context)
+		err := utils.IsValidEthereumPrivateKey(d.Config.Blockchain.DepositAnalyzerPrivateKeyHex)
 		if err != nil {
-			const msg = "check private key error occurred: %v"
+			const msg = "check deposit analyzer private key error occurred: %v"
 			l.Fatalf(msg, err.Error())
 		}
 
@@ -79,9 +80,9 @@ func relayerCmd(d *Deposit) *cobra.Command {
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		l := d.Log.WithFields(logger.Fields{"module": use})
 
-		err := d.SB.CheckEthereumPrivateKey(d.Context)
+		err := utils.IsValidEthereumPrivateKey(d.Config.Blockchain.DepositRelayerPrivateKeyHex)
 		if err != nil {
-			const msg = "check private key error occurred: %v"
+			const msg = "check deposit relayer private key error occurred: %v"
 			l.Fatalf(msg, err.Error())
 		}
 
