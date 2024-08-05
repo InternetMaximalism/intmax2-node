@@ -28,6 +28,7 @@ func NewTransactionCmd(b *Transaction) *cobra.Command {
 	depositCmd.AddCommand(txTransferCmd(b))
 	depositCmd.AddCommand(txDepositCmd(b))
 	depositCmd.AddCommand(txWithdrawalCmd(b))
+	depositCmd.AddCommand(txClaimCmd(b))
 
 	return depositCmd
 }
@@ -163,6 +164,36 @@ func txWithdrawalCmd(b *Transaction) *cobra.Command {
 		err := newCommands().SendWithdrawalTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, recipientAddressStr, amount, removeZeroX(userEthPrivateKey), resume)
 		if err != nil {
 			const msg = "failed to get balance: %v"
+			l.Fatalf(msg, err.Error())
+		}
+	}
+
+	return &cmd
+}
+
+func txClaimCmd(b *Transaction) *cobra.Command {
+	const (
+		use                  = "claim"
+		short                = "Send claim transaction"
+		recipientKey         = "recipient"
+		emptyKey             = ""
+		recipientDescription = "specify recipient Ethereum address. use as --recipient \"0x0000000000000000000000000000000000000000\""
+	)
+
+	cmd := cobra.Command{
+		Use:   use,
+		Short: short,
+	}
+
+	var recipientEthAddress string
+	cmd.PersistentFlags().StringVar(&recipientEthAddress, recipientKey, emptyKey, recipientDescription)
+
+	cmd.Run = func(cmd *cobra.Command, args []string) {
+		l := b.Log.WithFields(logger.Fields{"module": use})
+
+		err := newCommands().SendClaimWithdrawals(b.Config, b.Log, b.SB).Do(b.Context, args, recipientEthAddress)
+		if err != nil {
+			const msg = "failed to claim withdrawals: %v"
 			l.Fatalf(msg, err.Error())
 		}
 	}
