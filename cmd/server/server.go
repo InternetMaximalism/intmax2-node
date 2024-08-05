@@ -90,10 +90,13 @@ func NewServerCmd(s *Server) *cobra.Command {
 				const myAddrIs = "My address is"
 				fmt.Println(myAddrIs, network_service.NodeExternalAddress.Address.Address())
 			}
+			s.Log.Infof("Start updBB")
 			updBB()
+			s.Log.Infof("Finish updBB")
 
 			if network_service.NodeExternalAddress.Address.Type() ==
 				network_service.NatDiscoverExternalAddressType {
+				s.Log.Infof("NodeExternalAddress.Address.Type() == NatDiscoverExternalAddressType")
 				go func() {
 					ticker := time.NewTicker(configs.NatDiscoverReCheck)
 					for {
@@ -127,7 +130,10 @@ func NewServerCmd(s *Server) *cobra.Command {
 										network_service.NatDiscoverExternalAddressType,
 										s.Config.Network.HTTPSUse || s.Config.HTTP.TLSUse,
 									)
+
+									s.Log.Infof("Start updBB (errNatDAddr != nil)")
 									updBB()
+									s.Log.Infof("End updBB (errNatDAddr != nil)")
 								}()
 								continue
 							}
@@ -135,7 +141,9 @@ func NewServerCmd(s *Server) *cobra.Command {
 								network_service.NodeExternalAddress.Lock()
 								defer network_service.NodeExternalAddress.Unlock()
 								network_service.NodeExternalAddress.Address = newNatDAddr
+								s.Log.Infof("Start updBB (errNatDAddr == nil)")
 								updBB()
+								s.Log.Infof("End updBB (errNatDAddr == nil)")
 							}()
 						}
 					}
