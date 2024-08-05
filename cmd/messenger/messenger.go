@@ -4,6 +4,7 @@ import (
 	"context"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
+	"intmax2-node/pkg/utils"
 
 	"github.com/spf13/cobra"
 )
@@ -47,10 +48,9 @@ func relayerMockCmd(m *Messenger) *cobra.Command {
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		l := m.Log.WithFields(logger.Fields{"module": use})
 
-		// TODO: Messenger Privet Key Check
-		err := m.SB.CheckEthereumPrivateKey(m.Context)
+		err := utils.IsValidEthereumPrivateKey(m.Config.Blockchain.MessengerMockPrivateKeyHex)
 		if err != nil {
-			const msg = "check private key error occurred: %v"
+			const msg = "check messenger private key error occurred: %v"
 			l.Fatalf(msg, err.Error())
 		}
 
@@ -64,7 +64,7 @@ func relayerMockCmd(m *Messenger) *cobra.Command {
 	return &cmd
 }
 
-func withdrawalRelayerCmd(w *Messenger) *cobra.Command {
+func withdrawalRelayerCmd(m *Messenger) *cobra.Command {
 	const (
 		use   = "withdrawal-relayer"
 		short = "Run messenger withdrawal relayer service"
@@ -76,15 +76,15 @@ func withdrawalRelayerCmd(w *Messenger) *cobra.Command {
 	}
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
-		l := w.Log.WithFields(logger.Fields{"module": use})
+		l := m.Log.WithFields(logger.Fields{"module": use})
 
-		err := w.SB.CheckEthereumPrivateKey(w.Context)
+		err := utils.IsValidEthereumPrivateKey(m.Config.Blockchain.MessengerMockPrivateKeyHex)
 		if err != nil {
-			const msg = "check private key error occurred: %v"
+			const msg = "check messenger private key error occurred: %v"
 			l.Fatalf(msg, err.Error())
 		}
 
-		err = newCommands().MessengerWithdrawalRelayer(w.Context, w.Config, l, w.SB).Do(w.Context)
+		err = newCommands().MessengerWithdrawalRelayer(m.Context, m.Config, l, m.SB).Do(m.Context)
 		if err != nil {
 			const msg = "failed to processing messenger withdrawal relayer: %v"
 			l.Fatalf(msg, err.Error())
@@ -94,7 +94,7 @@ func withdrawalRelayerCmd(w *Messenger) *cobra.Command {
 	return &cmd
 }
 
-func withdrawalRelayerMockCmd(w *Messenger) *cobra.Command {
+func withdrawalRelayerMockCmd(m *Messenger) *cobra.Command {
 	const (
 		use   = "withdrawal-relayer-mock"
 		short = "Run messenger withdrawal relayer mock service"
@@ -106,15 +106,15 @@ func withdrawalRelayerMockCmd(w *Messenger) *cobra.Command {
 	}
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
-		l := w.Log.WithFields(logger.Fields{"module": use})
+		l := m.Log.WithFields(logger.Fields{"module": use})
 
-		err := w.SB.CheckEthereumPrivateKey(w.Context)
+		err := utils.IsValidEthereumPrivateKey(m.Config.Blockchain.MessengerMockPrivateKeyHex)
 		if err != nil {
-			const msg = "check private key error occurred: %v"
+			const msg = "check messenger private key error occurred: %v"
 			l.Fatalf(msg, err.Error())
 		}
 
-		err = newCommands().MessengerWithdrawalRelayerMock(w.Context, w.Config, l, w.DbApp, w.SB).Do(w.Context)
+		err = newCommands().MessengerWithdrawalRelayerMock(m.Context, m.Config, l, m.DbApp, m.SB).Do(m.Context)
 		if err != nil {
 			const msg = "failed to processing messenger withdrawal relayer mock: %v"
 			l.Fatalf(msg, err.Error())

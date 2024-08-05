@@ -1,9 +1,9 @@
 package messenger
 
 const (
-	NotFound         = "not found"
+	notFound         = "not found"
 	defaultPage      = 1
-	BlocksToLookBack = 10000
+	blocksToLookBack = 10000
 )
 
 type ScrollMessengerResponse struct {

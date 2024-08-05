@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/big"
 	"strconv"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -52,4 +53,13 @@ func StringToBigInt(s string) (*big.Int, error) {
 		return nil, fmt.Errorf("failed to convert string to big.Int: %s", s)
 	}
 	return i, nil
+}
+
+func IsValidEthereumPrivateKey(key string) error {
+	key = strings.TrimPrefix(key, "0x")
+	_, err := crypto.HexToECDSA(key)
+	if err != nil {
+		return fmt.Errorf("invalid ethereum private key: %w", err)
+	}
+	return nil
 }
