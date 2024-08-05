@@ -263,14 +263,49 @@ Usage:
 Flags:
   -h, --help help for aggregator
 ```
-### ./intmax2-node withdrawal relayer --help
+### Command `./intmax2-node withdrawal relayer --help`
+```
+# ./intmax2-node withdrawal relayer --help
 Run withdrawal relayer service
 
 Usage:
   app withdrawal relayer [flags]
 
 Flags:
-  -h, --help   help for relayer
+  -h, --help help for relayer
+```
+### Command `./intmax2-node messenger relayer --help`
+```
+# ./intmax2-node messenger relayer --help
+Run messenger relayer service
+
+Usage:
+  app messenger relayer [flags]
+
+Flags:
+  -h, --help help for relayer
+```
+### Command `./intmax2-node messenger withdrawal-relayer --help`
+```
+# ./intmax2-node withdrawal withdrawal-relayer --help
+Run messenger withdrawal-relayer service
+
+Usage:
+  app messenger withdrawal-relayer [flags]
+
+Flags:
+  -h, --help help for withdrawal-relayer
+```
+### Command `./intmax2-node messenger withdrawal-relayer-mock --help`
+```
+# ./intmax2-node withdrawal withdrawal-relayer-mock --help
+Run messenger withdrawal-relayer-mock service
+
+Usage:
+  app messenger withdrawal-relayer-mock [flags]
+
+Flags:
+  -h, --help help for withdrawal-relayer-mock
 ```
 ### Command `./intmax2-node balance get --help`
 ```
@@ -290,7 +325,29 @@ Example1:
 Example2:
   ./intmax2-node balance get erc20 0x0000000000000000000000000000000000000001 --user-address 0x030644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd3
 ```
+### Command `./intmax2-node tx deposit --help`
+```
+# ./intmax2-node tx deposit --help
+Send deposit transaction
 
+Usage:
+  app tx deposit [flags]
+
+Flags:
+      --amount string         specify amount without decimals. use as --amount "10"
+  -h, --help                  help for deposit
+      --recipient string      specify recipient INTMAX address. use as --recipient "0x0000000000000000000000000000000000000000000000000000000000000000"
+      --user-private string   specify user's Ethereum address. use as --user-private "0x0000000000000000000000000000000000000000000000000000000000000000"
+
+Example1:
+  ./intmax2-node tx deposit eth --amount 10000 --recipient 0x06a7b64af8f414bcbeef455b1da5208c9b592b83ee6599824caa6d2ee9141a76 --user-private 0x0000000000000000000000000000000000000000000000000000000000000002
+
+Example2:
+  ./intmax2-node tx deposit erc20 0x0000000000000000000000000000000000000001 --amount 10000 --recipient 0x06a7b64af8f414bcbeef455b1da5208c9b592b83ee6599824caa6d2ee9141a76 --user-private 0x0000000000000000000000000000000000000000000000000000000000000002
+
+Example3:
+  ./intmax2-node tx deposit erc721 0x0000000000000000000000000000000000000001 7 --amount 10000 --recipient 0x06a7b64af8f414bcbeef455b1da5208c9b592b83ee6599824caa6d2ee9141a76 --user-private 0x0000000000000000000000000000000000000000000000000000000000000002
+```
 ### Command `./intmax2-node tx transfer --help`
 ```
 # ./intmax2-node tx transfer --help
@@ -310,6 +367,36 @@ Example1:
 
 Example2:
   ./intmax2-node tx transfer erc20 0x0000000000000000000000000000000000000001 --amount 10 --recipient 0x06a7b64af8f414bcbeef455b1da5208c9b592b83ee6599824caa6d2ee9141a76 --user-private 0x0000000000000000000000000000000000000000000000000000000000000002
+
+Example3:
+  ./intmax2-node tx transfer erc721 0x0000000000000000000000000000000000000001 7 --amount 10 --recipient 0x06a7b64af8f414bcbeef455b1da5208c9b592b83ee6599824caa6d2ee9141a76 --user-private 0x0000000000000000000000000000000000000000000000000000000000000002
+```
+### Command `./intmax2-node tx withdrawal --help`
+```
+# ./intmax2-node tx withdrawal --help
+Send withdraw transaction
+
+Usage:
+  app tx withdrawal [flags]
+
+Flags:
+      --amount string         specify amount without decimals. use as --amount "10"
+  -h, --help                  help for withdrawal
+      --recipient string      specify recipient Ethereum address. use as --recipient "0x0000000000000000000000000000000000000000"
+      --resume                resume withdrawal. use as --resume
+      --user-private string   specify user address. use as --user-private "0x0000000000000000000000000000000000000000000000000000000000000000"
+
+Example1:
+  ./intmax2-node tx withdrawal eth --amount 10 --recipient 0x32eD70FE0F69D6E915D27127fe6d0C016F20D2c2 --user-private 0x0000000000000000000000000000000000000000000000000000000000000002
+
+Example2:
+  ./intmax2-node tx withdrawal erc20 0x0000000000000000000000000000000000000001 --amount 10 --recipient 0x32eD70FE0F69D6E915D27127fe6d0C016F20D2c2 --user-private 0x0000000000000000000000000000000000000000000000000000000000000002
+
+Example3:
+  ./intmax2-node tx withdrawal erc721 0x0000000000000000000000000000000000000001 7 --amount 10 --recipient 0x32eD70FE0F69D6E915D27127fe6d0C016F20D2c2 --user-private 0x0000000000000000000000000000000000000000000000000000000000000002
+
+Example4: Resume withdrawal transaction with recipient address.
+  ./intmax2-node tx withdrawal --resume --recipient 0x32eD70FE0F69D6E915D27127fe6d0C016F20D2c2
 ```
 
 ## Network
@@ -352,8 +439,12 @@ When a node starts, it tries to find and remember its external address in this o
 |   | BLOCKCHAIN_ETHEREUM_DEPOSIT_ANALYZER_PRIVATE_KEY_HEX  |                                                                    | (pk) Ethereum deposit analyzer private key                                                                                                 |
 |   | BLOCKCHAIN_ETHEREUM_DEPOSIT_RELAYER_PRIVATE_KEY_HEX   |                                                                    | (pk) Ethereum deposit relayer private key                                                                                                  |
 |   | BLOCKCHAIN_ETHEREUM_WITHDRAWAL_PRIVATE_KEY_HEX        |                                                                    | (pk) Ethereum withdrawal private key                                                                                                       |
-|   | BLOCKCHAIN_ETHEREUM_MOCK_MESSAGING_PRIVATE_KEY_HEX    |                                                                    | (pk) Ethereum mock messaging private key                                                                                                   |
+|   | BLOCKCHAIN_ETHEREUM_MESSENEGER_MOCK_PRIVATE_KEY_HEX   |                                                                    | (pk) Ethereum messenger mock private key                                                                                                   |
 |   | BLOCKCHAIN_MAX_COUNTER_OF_TRANSACTION                 | 128                                                                | max number of transactions in the block                                                                                                    |
+|   | BLOCKCHAIN_DEPOSIT_ANALYZER_THRESHOLD                 | 10                                                                 | threshold for deposit analyzer                                                                                                             |
+|   | BLOCKCHAIN_DEPOSIT_ANALYZER_MINUTES_THRESHOLD         | 10                                                                 | minutes threshold for deposit analyzer                                                                                                     |
+|   | BLOCKCHAIN_DEPOSIT_RELAYER_THRESHOLD                  | 128                                                                | threshold for deposit relayer                                                                                                              |
+|   | BLOCKCHAIN_DEPOSIT_RELAYER_MINUTES_THRESHOLD          | 60                                                                 | minutes threshold for deposit relayer                                                                                                      |
 |   | **WALLET**                                            |                                                                    |                                                                                                                                            |
 |   | WALLET_PRIVATE_KEY_HEX                                |                                                                    | (pk) private key for wallet address recognizing                                                                                            |
 |   | WALLET_MNEMONIC_VALUE                                 |                                                                    | (mnemonic) mnemonic for recovery private key                                                                                               |

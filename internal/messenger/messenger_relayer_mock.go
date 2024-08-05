@@ -1,4 +1,3 @@
-//nolint:gocritic
 package messenger
 
 import (
@@ -19,7 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-type MessengerRelayerService struct {
+type MessengerRelayerMockService struct {
 	ctx               context.Context
 	cfg               *configs.Config
 	log               logger.Logger
@@ -30,7 +29,7 @@ type MessengerRelayerService struct {
 	l2ScrollMessenger *bindings.L2ScrollMessenger
 }
 
-func newMessengerRelayerService(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, sb ServiceBlockchain) (*MessengerRelayerService, error) {
+func newMessengerRelayerMockService(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, sb ServiceBlockchain) (*MessengerRelayerMockService, error) {
 	scrollLink, err := sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
@@ -56,7 +55,7 @@ func newMessengerRelayerService(ctx context.Context, cfg *configs.Config, log lo
 		return nil, fmt.Errorf("failed to instantiate L2ScrollMessenger contract: %w", err)
 	}
 
-	return &MessengerRelayerService{
+	return &MessengerRelayerMockService{
 		ctx:               ctx,
 		cfg:               cfg,
 		log:               log,
@@ -68,15 +67,15 @@ func newMessengerRelayerService(ctx context.Context, cfg *configs.Config, log lo
 	}, nil
 }
 
-func MessengerRelayer(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, sb ServiceBlockchain) {
-	messengerService, err := newMessengerRelayerService(ctx, cfg, log, db, sb)
+func MessengerRelayerMock(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, sb ServiceBlockchain) {
+	service, err := newMessengerRelayerMockService(ctx, cfg, log, db, sb)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to initialize MockMessengerService: %v", err.Error()))
+		panic(fmt.Sprintf("Failed to initialize MessengerRelayerMockService: %v", err.Error()))
 	}
 
 	event, err := db.EventBlockNumberByEventName(mDBApp.SentMessageEvent)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) || err.Error() == "not found" {
+		if errors.Is(err, pgx.ErrNoRows) || err.Error() == notFound {
 			event = &mDBApp.EventBlockNumber{
 				EventName:                mDBApp.SentMessageEvent,
 				LastProcessedBlockNumber: 0,
@@ -91,7 +90,7 @@ func MessengerRelayer(ctx context.Context, cfg *configs.Config, log logger.Logge
 		}
 	}
 
-	events, lastBlockNumber, err := messengerService.fetchNewSentMessages(uint64(event.LastProcessedBlockNumber))
+	events, lastBlockNumber, err := service.fetchNewSentMessages(event.LastProcessedBlockNumber)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to fetch new sent messages: %v", err.Error()))
 	}
@@ -101,15 +100,15 @@ func MessengerRelayer(ctx context.Context, cfg *configs.Config, log logger.Logge
 		return
 	}
 
-	messengerService.relayMessagesforEvents(events)
+	service.relayMessagesforEvents(events)
 
-	err = updateEventBlockNumber(db, log, mDBApp.SentMessageEvent, int64(lastBlockNumber))
+	_, err = db.UpsertEventBlockNumber(mDBApp.SentMessageEvent, lastBlockNumber)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to update event block number: %v", err.Error()))
+		panic(fmt.Sprintf("Error updating event block number: %v", err.Error()))
 	}
 }
 
-func (m *MessengerRelayerService) fetchNewSentMessages(lastProcessedBlockNumber uint64) (_ []*bindings.L1ScrollMessengerSentMessage, _ uint64, _ error) {
+func (m *MessengerRelayerMockService) fetchNewSentMessages(lastProcessedBlockNumber uint64) (_ []*bindings.L1ScrollMessengerSentMessage, _ uint64, _ error) {
 	var lastBlockNumber uint64
 
 	startBlock := lastProcessedBlockNumber + 1
@@ -140,18 +139,38 @@ func (m *MessengerRelayerService) fetchNewSentMessages(lastProcessedBlockNumber 
 	return events, lastBlockNumber, nil
 }
 
-func (m *MessengerRelayerService) relayMessages(event *bindings.L1ScrollMessengerSentMessage) (*types.Receipt, error) {
-	transactOpts, err := utils.CreateTransactor(m.cfg.Blockchain.MockMessagingPrivateKeyHex, m.cfg.Blockchain.ScrollNetworkChainID)
+func (m *MessengerRelayerMockService) relayMessages(event *bindings.L1ScrollMessengerSentMessage) (*types.Receipt, error) {
+	transactOpts, err := utils.CreateTransactor(m.cfg.Blockchain.MessengerMockPrivateKeyHex, m.cfg.Blockchain.ScrollNetworkChainID)
 	if err != nil {
 		return nil, err
 	}
 
-	fmt.Printf("Relaying message from %s to %s with value %d and nonce %d\n", event.Sender.String(), event.Target.String(), event.Value, event.MessageNonce)
-	if event.Sender == (common.Address{}) || event.Target == (common.Address{}) || event.Value == nil || event.MessageNonce == nil || event.Message == nil {
+	sender := event.Sender
+	target := event.Target
+	value := event.Value
+	nonce := event.MessageNonce
+	message := event.Message
+
+	m.log.Debugf("Relaying message from %s to %s with value %d and nonce %d\n", sender.String(), target.String(), value, nonce)
+	if sender == (common.Address{}) || target == (common.Address{}) || value == nil || nonce == nil || message == nil {
 		return nil, errors.New("event fields are not properly initialized")
 	}
 
-	tx, err := m.l2ScrollMessenger.RelayMessage(transactOpts, event.Sender, event.Target, event.Value, event.MessageNonce, event.Message)
+	err = utils.LogTransactionDebugInfo(
+		m.log,
+		m.cfg.Blockchain.MessengerMockPrivateKeyHex,
+		m.cfg.Blockchain.ScrollMessengerL2ContractAddress,
+		sender,
+		target,
+		value,
+		nonce,
+		message,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to log transaction debug info: %w", err)
+	}
+
+	tx, err := m.l2ScrollMessenger.RelayMessage(transactOpts, sender, target, value, nonce, message)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +196,7 @@ func (m *MessengerRelayerService) relayMessages(event *bindings.L1ScrollMessenge
 	return receipt, nil
 }
 
-func (m *MessengerRelayerService) relayMessagesforEvents(events []*bindings.L1ScrollMessengerSentMessage) {
+func (m *MessengerRelayerMockService) relayMessagesforEvents(events []*bindings.L1ScrollMessengerSentMessage) {
 	successfulMessages := 0
 	for _, event := range events {
 		_, err := m.relayMessages(event)
@@ -195,13 +214,4 @@ func (m *MessengerRelayerService) relayMessagesforEvents(events []*bindings.L1Sc
 		successfulMessages++
 	}
 	m.log.Infof("Successfully relayed %d messages", successfulMessages)
-}
-
-func updateEventBlockNumber(db SQLDriverApp, log logger.Logger, eventName string, blockNumber int64) error {
-	updatedEvent, err := db.UpsertEventBlockNumber(eventName, blockNumber)
-	if err != nil {
-		return err
-	}
-	log.Infof("Updated %s block number to %d", eventName, updatedEvent.LastProcessedBlockNumber)
-	return nil
 }

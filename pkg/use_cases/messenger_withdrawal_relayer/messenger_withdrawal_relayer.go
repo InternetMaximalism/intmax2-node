@@ -1,4 +1,4 @@
-package messenger_relayer
+package messenger_withdrawal_relayer
 
 import (
 	"context"
@@ -7,14 +7,13 @@ import (
 	"intmax2-node/internal/logger"
 	service "intmax2-node/internal/messenger"
 	"intmax2-node/internal/open_telemetry"
-	ucMessengerRelayer "intmax2-node/internal/use_cases/messenger_relayer"
+	ucWithdrawalRelayer "intmax2-node/internal/use_cases/messenger_withdrawal_relayer"
 )
 
 // uc describes use case
 type uc struct {
 	cfg *configs.Config
 	log logger.Logger
-	db  SQLDriverApp
 	sb  ServiceBlockchain
 }
 
@@ -22,38 +21,36 @@ func New(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
-	db SQLDriverApp,
 	sb ServiceBlockchain,
-) ucMessengerRelayer.UseCaseMessengerRelayer {
+) ucWithdrawalRelayer.UseCaseMessengerWithdrawalRelayer {
 	return &uc{
 		cfg: cfg,
 		log: log,
-		db:  db,
 		sb:  sb,
 	}
 }
 
 func (u *uc) Do(ctx context.Context) (err error) {
 	const (
-		hName = "UseCase MessengerRelayer"
+		hName = "UseCase MessengerWithdrawalRelayer"
 	)
 
-	u.log.Infof("Starting MessengerRelayer")
+	u.log.Infof("Starting MessengerWithdrawalRelayer")
 
 	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
 	defer span.End()
 
 	defer func() {
 		if r := recover(); r != nil {
-			const msg = "exec of messenger relayer error occurred: %w"
+			const msg = "exec of messenger withdrawal relayer error occurred: %w"
 			err = fmt.Errorf(msg, fmt.Errorf("%+v", r))
 			open_telemetry.MarkSpanError(spanCtx, err)
 		} else {
-			u.log.Infof("Completed MessengerRelayer")
+			u.log.Infof("Completed MessengerWithdrawalRelayer")
 		}
 	}()
 
-	service.MessengerRelayer(spanCtx, u.cfg, u.log, u.db, u.sb)
+	service.MessengerWithdrawalRelayer(spanCtx, u.cfg, u.log, u.sb)
 
 	return err
 }

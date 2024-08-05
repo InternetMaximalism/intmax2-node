@@ -25,6 +25,7 @@ type Commands interface {
 		ctx context.Context,
 		cfg *configs.Config,
 		log logger.Logger,
+		db SQLDriverApp,
 		sb ServiceBlockchain,
 	) withdrawalRelayer.UseCaseWithdrawalRelayer
 }
@@ -49,7 +50,8 @@ func (c *commands) WithdrawalRelayer(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
+	db SQLDriverApp,
 	sb ServiceBlockchain,
 ) withdrawalRelayer.UseCaseWithdrawalRelayer {
-	return ucWithdrawalRelayer.New(ctx, cfg, log, sb)
+	return ucWithdrawalRelayer.New(ctx, cfg, log, db, sb)
 }

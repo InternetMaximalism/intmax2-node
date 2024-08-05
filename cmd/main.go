@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
+	"intmax2-node/cmd/balance_checker"
 	"intmax2-node/cmd/ethereum_private_key_wallet"
 	"intmax2-node/cmd/generate_account"
 	"intmax2-node/cmd/intmax_private_key_wallet"
 	"intmax2-node/cmd/mnemonic_account"
-	"intmax2-node/cmd/sync_balance"
 	"intmax2-node/cmd/transaction"
 	"intmax2-node/configs"
 	"intmax2-node/internal/blockchain"
@@ -60,7 +60,7 @@ func main() {
 		mnemonic_account.NewCmd(log),
 		ethereum_private_key_wallet.NewCmd(log),
 		intmax_private_key_wallet.NewCmd(log),
-		sync_balance.NewBalanceCmd(&sync_balance.Balance{
+		balance_checker.NewBalanceCmd(&balance_checker.Balance{
 			Context: ctx,
 			Config:  cfg,
 			Log:     log,

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/bindings"
+	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
@@ -20,14 +21,15 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 const (
-	WithdrawalThreshold = 8
-	WaitDuration        = 15 * time.Minute
+	withdrawalThreshold = 8
+	waitDuration        = 15 * time.Minute
 
 	int10Key = 10
 	int32Key = 32
@@ -38,7 +40,7 @@ type WithdrawalAggregatorService struct {
 	cfg                *configs.Config
 	log                logger.Logger
 	db                 SQLDriverApp
-	client             *ethclient.Client
+	scrollClient       *ethclient.Client
 	withdrawalContract *bindings.Withdrawal
 }
 
@@ -49,17 +51,17 @@ func newWithdrawalAggregatorService(
 	db SQLDriverApp,
 	sb ServiceBlockchain,
 ) (*WithdrawalAggregatorService, error) {
-	link, err := sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
+	scrollLink, err := sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
+		return nil, fmt.Errorf("failed to get Scroll network chain link: %w", err)
 	}
 
-	client, err := utils.NewClient(link)
+	scrollClient, err := utils.NewClient(scrollLink)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new client: %w", err)
+		return nil, fmt.Errorf("failed to create new scrollClient: %w", err)
 	}
 
-	withdrawalContract, err := bindings.NewWithdrawal(common.HexToAddress(cfg.Blockchain.WithdrawalContractAddress), client)
+	withdrawalContract, err := bindings.NewWithdrawal(common.HexToAddress(cfg.Blockchain.WithdrawalContractAddress), scrollClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to instantiate ScrollMessenger contract: %w", err)
 	}
@@ -69,7 +71,7 @@ func newWithdrawalAggregatorService(
 		cfg:                cfg,
 		log:                log,
 		db:                 db,
-		client:             client,
+		scrollClient:       scrollClient,
 		withdrawalContract: withdrawalContract,
 	}, nil
 }
@@ -149,7 +151,7 @@ func WithdrawalAggregator(ctx context.Context, cfg *configs.Config, log logger.L
 }
 
 func (w *WithdrawalAggregatorService) fetchPendingWithdrawals() (*[]mDBApp.Withdrawal, error) {
-	limit := int(WithdrawalThreshold)
+	limit := int(withdrawalThreshold)
 	withdrawals, err := w.db.WithdrawalsByStatus(mDBApp.WS_PENDING, &limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find pending withdrawals: %w", err)
@@ -168,15 +170,15 @@ func (w *WithdrawalAggregatorService) shouldProcessWithdrawals(pendingWithdrawal
 		}
 	}
 
-	if time.Since(minCreatedAt) >= WaitDuration {
-		w.log.Infof("Pending withdrawals are older than %s, processing", WaitDuration)
+	if time.Since(minCreatedAt) >= waitDuration {
+		w.log.Infof("Pending withdrawals are older than %s, processing", waitDuration)
 		return true
 	}
 
 	withdrawalCount := len(pendingWithdrawals)
-	log.Printf("Number of pending withdrawals: %d (Threshold: %d)", withdrawalCount, WithdrawalThreshold)
+	log.Printf("Number of pending withdrawals: %d (Threshold: %d)", withdrawalCount, withdrawalThreshold)
 
-	return withdrawalCount >= WithdrawalThreshold
+	return withdrawalCount >= withdrawalThreshold
 }
 
 func HashWithdrawalPis(pis bindings.WithdrawalProofPublicInputsLibWithdrawalProofPublicInputs) (common.Hash, error) {
@@ -327,11 +329,43 @@ func (w *WithdrawalAggregatorService) buildMockSubmitWithdrawalProofData(pending
 			return nil, fmt.Errorf("failed to set amount")
 		}
 
+		var recipientBytes []byte
+		recipientBytes, err = hexutil.Decode(withdrawal.TransferData.Recipient)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode recipient address: %w", err)
+		}
+		var recipient *intMaxTypes.GenericAddress
+		recipient, err = intMaxTypes.NewEthereumAddress(recipientBytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert recipient address: %w", err)
+		}
+
+		var saltBytes []byte
+		saltBytes, err = hexutil.Decode(withdrawal.TransferData.Salt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode salt: %w", err)
+		}
+
+		salt := new(goldenposeidon.PoseidonHashOut)
+		err = salt.Unmarshal(saltBytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal salt: %w", err)
+		}
+
+		withdrawalTransfer := intMaxTypes.Transfer{
+			Recipient:  recipient,
+			TokenIndex: uint32(withdrawal.TransferData.TokenIndex),
+			Amount:     amount,
+			Salt:       salt,
+		}
+
+		nullifier := [int32Key]byte{}
+		copy(nullifier[:], withdrawalTransfer.GetWithdrawalNullifier().Marshal())
 		singleWithdrawal := bindings.ChainedWithdrawalLibChainedWithdrawal{
 			Recipient:   common.HexToAddress(withdrawal.TransferData.Recipient),
 			TokenIndex:  uint32(withdrawal.TransferData.TokenIndex),
 			Amount:      amount,
-			Nullifier:   common.HexToHash(withdrawal.TransferData.Salt),
+			Nullifier:   nullifier,
 			BlockHash:   common.HexToHash(withdrawal.BlockHash),
 			BlockNumber: uint32(withdrawal.BlockNumber),
 		}
@@ -356,12 +390,24 @@ func (w *WithdrawalAggregatorService) submitWithdrawalProof(
 		return nil, err
 	}
 
+	err = utils.LogTransactionDebugInfo(
+		w.log,
+		w.cfg.Blockchain.WithdrawalPrivateKeyHex,
+		w.cfg.Blockchain.WithdrawalContractAddress,
+		withdrawals,
+		publicInputs,
+		proof,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to log transaction debug info: %w", err)
+	}
+
 	tx, err := w.withdrawalContract.SubmitWithdrawalProof(transactOpts, withdrawals, publicInputs, proof)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send submit withdrawal proof transaction: %w", err)
 	}
 
-	receipt, err := bind.WaitMined(w.ctx, w.client, tx)
+	receipt, err := bind.WaitMined(w.ctx, w.scrollClient, tx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to wait for transaction to be mined: %w", err)
 	}

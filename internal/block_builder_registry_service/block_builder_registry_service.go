@@ -2,11 +2,13 @@ package block_builder_registry_service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/bindings"
 	errorsB "intmax2-node/internal/blockchain/errors"
+	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
 	modelsMW "intmax2-node/internal/mnemonic_wallet/models"
 	"intmax2-node/internal/open_telemetry"
@@ -17,6 +19,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"go.opentelemetry.io/otel/attribute"
@@ -25,15 +28,18 @@ import (
 
 type blockBuilderRegistryService struct {
 	cfg *configs.Config
+	log logger.Logger
 	sb  ServiceBlockchain
 }
 
 func New(
 	cfg *configs.Config,
+	log logger.Logger,
 	sb ServiceBlockchain,
 ) BlockBuilderRegistryService {
 	return &blockBuilderRegistryService{
 		cfg: cfg,
+		log: log,
 		sb:  sb,
 	}
 }
@@ -104,6 +110,7 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 	ctx context.Context,
 	url string,
 ) error {
+	bbr.log.Debugf("Start UpdateBlockBuilder\n")
 	const (
 		hName      = "BlockBuilderRegistryService func:UpdateBlockBuilder"
 		urlKey     = "url"
@@ -134,6 +141,7 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 	if err != nil {
 		return errors.Join(ErrScrollNetworkChainLinkEvmJSONRPCFail, err)
 	}
+	bbr.log.Debugf("Scroll RPC URL: %s\n", link)
 
 	var client *ethclient.Client
 	client, err = ethclient.Dial(link)
@@ -146,7 +154,8 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 	}()
 
 	// Check to see if you have already done a 0.1 ETH stake.
-	callerBBR, err := bindings.NewBlockBuilderRegistry(
+	bbr.log.Debugf("Block Builder Registry address: %s\n", bbr.cfg.Blockchain.BlockBuilderRegistryContractAddress)
+	transactorBBR, err := bindings.NewBlockBuilderRegistry(
 		common.HexToAddress(bbr.cfg.Blockchain.BlockBuilderRegistryContractAddress),
 		client,
 	)
@@ -161,7 +170,8 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 		return errors.Join(ErrLoadPrivateKeyFail, err)
 	}
 	builderAddress := crypto.PubkeyToAddress(privateKey.PublicKey)
-	res, err := callerBBR.BlockBuilders(&bind.CallOpts{Context: spanCtx}, builderAddress)
+	bbr.log.Debugf("Block Builder address: %s\n", builderAddress.String())
+	res, err := transactorBBR.BlockBuilders(&bind.CallOpts{Context: spanCtx}, builderAddress)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
 		return errors.Join(ErrGetBlockBuilderInfoFail, err)
@@ -169,19 +179,15 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 
 	// If the stake is more than 0.1 ETH and the URL has not changed, the update function is not executed.
 	if res.StakeAmount.Cmp(&bbr.cfg.Blockchain.ScrollNetworkStakeBalance) >= 0 && res.BlockBuilderUrl == url {
+		bbr.log.Debugf("Since the staking amount is sufficient and the URL has not changed, the registry was not updated.\n")
 		return nil
 	}
 
-	value = new(big.Int).Sub(&bbr.cfg.Blockchain.ScrollNetworkStakeBalance, res.StakeAmount)
+	bbr.log.Debugf("Registry update is required.\n")
 
-	var transactorBBR *bindings.BlockBuilderRegistryTransactor
-	transactorBBR, err = bindings.NewBlockBuilderRegistryTransactor(
-		common.HexToAddress(bbr.cfg.Blockchain.BlockBuilderRegistryContractAddress),
-		client,
-	)
-	if err != nil {
-		open_telemetry.MarkSpanError(spanCtx, err)
-		return errors.Join(ErrNewBlockBuilderRegistryTransactorFail, err)
+	value = new(big.Int).Sub(&bbr.cfg.Blockchain.ScrollNetworkStakeBalance, res.StakeAmount)
+	if value.Cmp(big.NewInt(0)) < 0 {
+		value = big.NewInt(0)
 	}
 
 	for {
@@ -193,7 +199,9 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 		}
 		transactOpts.Value = value
 
-		_, err = transactorBBR.UpdateBlockBuilder(transactOpts, url)
+		bbr.log.Debugf("transactOpts.Value: %s\n", value.String())
+		var tx *types.Transaction
+		tx, err = transactorBBR.UpdateBlockBuilder(transactOpts, url)
 		if err != nil {
 			switch {
 			case
@@ -215,7 +223,26 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 			open_telemetry.MarkSpanError(spanCtx, err)
 			return errors.Join(ErrProcessingFuncUpdateBlockBuilderOfBlockBuilderRegistryFail, err)
 		}
+
+		bbr.log.Debugf("The tx hash of UpdateBlockBuilder: %s\n", tx.Hash().String())
+		var receipt *types.Receipt
+		receipt, err = bind.WaitMined(ctx, client, tx)
+		if err != nil {
+			bbr.log.Debugf("WaitMined Error: %s\n", fmt.Errorf("failed to wait for transaction to be mined: %w", err))
+			return fmt.Errorf("failed to wait for transaction to be mined: %w", err)
+		}
+		bbr.log.Debugf("WaitMined success\n")
+
+		var receiptJSON []byte
+		receiptJSON, err = json.Marshal(receipt)
+		if err != nil {
+			bbr.log.Debugf("json.Marshal Error: %s\n", fmt.Errorf("failed to marshal JSON: %w", err))
+			return fmt.Errorf("failed to marshal JSON: %w", err)
+		}
+		bbr.log.Debugf("The receipt of UpdateBlockBuilder: %s\n", string(receiptJSON))
+
 		errorsB.InsufficientFunds = false
+		bbr.log.Debugf("Complete UpdateBlockBuilder\n")
 
 		return nil
 	}

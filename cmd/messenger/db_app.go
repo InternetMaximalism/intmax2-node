@@ -17,6 +17,6 @@ type GenericCommandsApp interface {
 }
 
 type EventBlockNumbers interface {
-	UpsertEventBlockNumber(eventName string, blockNumber int64) (*mDBApp.EventBlockNumber, error)
+	UpsertEventBlockNumber(eventName string, blockNumber uint64) (*mDBApp.EventBlockNumber, error)
 	EventBlockNumberByEventName(eventName string) (*mDBApp.EventBlockNumber, error)
 }

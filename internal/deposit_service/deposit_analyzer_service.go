@@ -22,7 +22,8 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-const AMLRejectionThreshold = 70
+const amlRejectionThreshold = 70
+const noDepositEventsFoundError = "No deposit events found"
 
 type DepositAnalyzerService struct {
 	ctx       context.Context
@@ -86,7 +87,7 @@ func DepositAnalyzer(ctx context.Context, cfg *configs.Config, log logger.Logger
 		}
 	}
 
-	lastEventInfo, err := depositAnalyzerService.fetchLastDepositAnalyzedEvent(uint64(event.LastProcessedBlockNumber))
+	lastEventInfo, err := depositAnalyzerService.fetchLastDepositAnalyzedEvent(event.LastProcessedBlockNumber)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to get last deposit analyzed block number: %v", err.Error()))
 	}
@@ -99,8 +100,20 @@ func DepositAnalyzer(ctx context.Context, cfg *configs.Config, log logger.Logger
 		panic(fmt.Sprintf("Failed to fetch new deposits: %v", err.Error()))
 	}
 
-	if len(events) == 0 {
-		log.Infof("No new Deposited Events")
+	shouldSubmit, err := depositAnalyzerService.shouldProcessDepositAnalyzer(
+		events,
+		*lastEventInfo.BlockNumber,
+	)
+	if err != nil {
+		panic(fmt.Sprintf("Error in threshold and time diff check: %v", err.Error()))
+	}
+
+	if !shouldSubmit {
+		log.Infof(
+			"Deposit analyzer will not be processed at this time. Unprocessed deposit count: %d, Last deposit block number: %d",
+			len(events),
+			*lastEventInfo.BlockNumber,
+		)
 		return
 	}
 
@@ -113,7 +126,7 @@ func DepositAnalyzer(ctx context.Context, cfg *configs.Config, log logger.Logger
 	for _, event := range events {
 		contractAddress := tokenInfoMap[event.TokenIndex]
 		score := fetchAMLScore(event.Sender.Hex(), contractAddress.Hex())
-		if score > AMLRejectionThreshold {
+		if score > amlRejectionThreshold {
 			rejectDepositIndices = append(rejectDepositIndices, new(big.Int).SetUint64(uint64(event.TokenIndex)))
 		}
 	}
@@ -136,9 +149,9 @@ func DepositAnalyzer(ctx context.Context, cfg *configs.Config, log logger.Logger
 		panic(fmt.Sprintf("Unexpected transaction status: %d. Transaction Hash: %v", receipt.Status, receipt.TxHash.Hex()))
 	}
 
-	err = updateEventBlockNumber(db, log, mDBApp.DepositsAnalyzedEvent, int64(*lastEventInfo.BlockNumber))
+	_, err = db.UpsertEventBlockNumber(mDBApp.DepositsAnalyzedEvent, *lastEventInfo.BlockNumber)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to update event block number: %v", err.Error()))
+		panic(fmt.Sprintf("Error updating event block number: %v", err.Error()))
 	}
 }
 
@@ -214,6 +227,43 @@ func (d *DepositAnalyzerService) fetchNewDeposits(startBlock uint64) (_ []*bindi
 	return events, maxDepositIndex, tokenIndexMap, nil
 }
 
+func (d *DepositAnalyzerService) shouldProcessDepositAnalyzer(events []*bindings.LiquidityDeposited, lastBlockNumber uint64) (bool, error) {
+	eventCount := len(events)
+	if eventCount <= 0 {
+		return false, nil
+	}
+	if eventCount >= int(d.cfg.Blockchain.DepositAnalyzerThreshold) {
+		d.log.Infof("Deposit analyzer threshold is reached: %d", eventCount)
+		return true, nil
+	}
+
+	depositIds := []*big.Int{}
+	eventInfo, err := fetchDepositEvent(d.liquidity, lastBlockNumber, depositIds)
+	if err != nil {
+		if err.Error() == noDepositEventsFoundError {
+			fmt.Println("No deposit events found, skipping process")
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to get last block number: %w", err)
+	}
+
+	if *eventInfo.BlockNumber == 0 {
+		return false, nil
+	}
+
+	isExceeded, err := isBlockTimeExceeded(d.client, *eventInfo.BlockNumber, int(d.cfg.Blockchain.DepositAnalyzerMinutesThreshold))
+	if err != nil {
+		return false, fmt.Errorf("error occurred while checking time difference: %w", err)
+	}
+
+	if !isExceeded {
+		return false, nil
+	}
+
+	fmt.Println("Block time difference exceeded the specified duration")
+	return true, nil
+}
+
 func (d *DepositAnalyzerService) getTokenInfoMap(tokenIndexMap map[uint32]bool) (map[uint32]common.Address, error) {
 	var tokenIndices []uint32
 	for tokenIndex := range tokenIndexMap {
@@ -257,6 +307,17 @@ func (d *DepositAnalyzerService) analyzeDeposits(upToDepositId *big.Int, rejectD
 	transactOpts, err := utils.CreateTransactor(d.cfg.Blockchain.DepositAnalyzerPrivateKeyHex, d.cfg.Blockchain.EthereumNetworkChainID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transactor: %w", err)
+	}
+
+	err = utils.LogTransactionDebugInfo(
+		d.log,
+		d.cfg.Blockchain.DepositAnalyzerPrivateKeyHex,
+		d.cfg.Blockchain.LiquidityContractAddress,
+		upToDepositId,
+		rejectDepositIndices,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to log transaction debug info: %w", err)
 	}
 
 	tx, err := d.liquidity.AnalyzeDeposits(transactOpts, upToDepositId, rejectDepositIndices)

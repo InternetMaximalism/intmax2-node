@@ -37,11 +37,6 @@ func (s *Server) Transaction(
 		PowNonce:      req.PowNonce,
 		Expiration:    req.Expiration.AsTime(),
 		Signature:     req.Signature,
-		BackupTx: &transaction.BackupTransactionData{
-			EncodedEncryptedTx: req.BackupTransaction.EncryptedTx,
-			Signature:          req.BackupTransaction.Signature,
-		},
-		BackupTransfers: make([]*transaction.BackupTransferInput, len(req.BackupTransfers)),
 	}
 
 	for key := range req.TransferData {
@@ -57,14 +52,6 @@ func (s *Server) Transaction(
 			}
 		}
 		input.TransferData = append(input.TransferData, &data)
-	}
-
-	for key := range req.BackupTransfers {
-		data := transaction.BackupTransferInput{
-			Recipient:                req.BackupTransfers[key].Recipient,
-			EncodedEncryptedTransfer: req.BackupTransfers[key].EncryptedTransfer,
-		}
-		input.BackupTransfers[key] = &data
 	}
 
 	err := input.Valid(s.config, s.pow)

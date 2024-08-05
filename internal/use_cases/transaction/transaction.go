@@ -53,8 +53,6 @@ type UCTransactionInput struct {
 	DecodeTransferData []*intMaxTypes.Transfer    `json:"-"`
 	Expiration         time.Time                  `json:"expiration"`
 	Signature          string                     `json:"signature"`
-	BackupTx           *BackupTransactionData     `json:"backupTx"`
-	BackupTransfers    []*BackupTransferInput     `json:"backupTransfers"`
 }
 
 // UseCaseTransaction describes Transaction contract.

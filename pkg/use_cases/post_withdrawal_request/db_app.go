@@ -11,6 +11,7 @@ import (
 type SQLDriverApp interface {
 	GenericCommandsApp
 	Withdrawals
+	EventBlockNumbers
 }
 
 type GenericCommandsApp interface {
@@ -23,4 +24,9 @@ type Withdrawals interface {
 	WithdrawalByID(id string) (*mDBApp.Withdrawal, error)
 	WithdrawalsByHashes(transferHashes []string) (*[]mDBApp.Withdrawal, error)
 	WithdrawalsByStatus(status mDBApp.WithdrawalStatus, limit *int) (*[]mDBApp.Withdrawal, error)
+}
+
+type EventBlockNumbers interface {
+	UpsertEventBlockNumber(eventName string, blockNumber uint64) (*mDBApp.EventBlockNumber, error)
+	EventBlockNumberByEventName(eventName string) (*mDBApp.EventBlockNumber, error)
 }

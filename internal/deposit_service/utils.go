@@ -1,13 +1,15 @@
 package deposit_service
 
 import (
+	"context"
 	"fmt"
 	"intmax2-node/internal/bindings"
-	"intmax2-node/internal/logger"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 type DepositEventInfo struct {
@@ -125,11 +127,18 @@ func fetchDepositEvent(liquidity *bindings.Liquidity, startBlockNumber uint64, d
 	return event, nil
 }
 
-func updateEventBlockNumber(db SQLDriverApp, log logger.Logger, eventName string, blockNumber int64) error {
-	updatedEvent, err := db.UpsertEventBlockNumber(eventName, blockNumber)
+func isBlockTimeExceeded(client *ethclient.Client, blockNumber uint64, minutes int) (bool, error) {
+	block, err := client.BlockByNumber(context.Background(), big.NewInt(int64(blockNumber)))
 	if err != nil {
-		return err
+		return false, fmt.Errorf("failed to get block by number: %w", err)
 	}
-	log.Infof("Updated %s block number to %d", eventName, updatedEvent.LastProcessedBlockNumber)
-	return nil
+
+	timestamp := block.Time()
+	currentTime := time.Now()
+
+	blockTime := time.Unix(int64(timestamp), 0)
+	diff := currentTime.Sub(blockTime)
+	duration := time.Duration(minutes) * time.Minute
+
+	return diff > duration, nil
 }

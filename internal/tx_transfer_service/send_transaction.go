@@ -18,15 +18,15 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
-func SendTransactionRequest(
+func SendTransferTransaction(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
 	senderAccount *intMaxAcc.PrivateKey,
 	transfersHash intMaxTypes.PoseidonHashOut,
 	nonce uint64,
-	encodedEncryptedTx *transaction.BackupTransactionData,
-	encodedEncryptedTransfers []*transaction.BackupTransferInput,
+	// encodedEncryptedTx *transaction.BackupTransactionData,
+	// encodedEncryptedTransfers []*transaction.BackupTransferInput,
 ) error {
 	const duration = 300 * time.Minute
 	expiration := time.Now().Add(duration)
@@ -73,7 +73,7 @@ func SendTransactionRequest(
 
 	return SendTransactionWithRawRequest(
 		ctx, cfg, log, senderAccount, transfersHash, nonce, expiration, powNonceStr, signatureInput,
-		encodedEncryptedTx, encodedEncryptedTransfers,
+		// encodedEncryptedTx, encodedEncryptedTransfers,
 	)
 }
 
@@ -87,8 +87,8 @@ func SendTransactionWithRawRequest(
 	expiration time.Time,
 	powNonce string,
 	signature *bn254.G2Affine,
-	encodedEncryptedTx *transaction.BackupTransactionData,
-	encodedEncryptedTransfers []*transaction.BackupTransferInput,
+	// encodedEncryptedTx *transaction.BackupTransactionData,
+	// encodedEncryptedTransfers []*transaction.BackupTransferInput,
 ) error {
 	return sendTransactionRawRequest(
 		ctx,
@@ -100,8 +100,8 @@ func SendTransactionWithRawRequest(
 		expiration,
 		powNonce,
 		hexutil.Encode(signature.Marshal()),
-		encodedEncryptedTx,
-		encodedEncryptedTransfers,
+		// encodedEncryptedTx,
+		// encodedEncryptedTransfers,
 	)
 }
 
@@ -113,18 +113,18 @@ func sendTransactionRawRequest(
 	nonce uint64,
 	expiration time.Time,
 	powNonce, signature string,
-	backupTx *transaction.BackupTransactionData,
-	backupTransfers []*transaction.BackupTransferInput,
+	// backupTx *transaction.BackupTransactionData,
+	// backupTransfers []*transaction.BackupTransferInput,
 ) error {
 	ucInput := transaction.UCTransactionInput{
-		Sender:          senderAddress,
-		TransfersHash:   transfersHash,
-		Nonce:           nonce,
-		PowNonce:        powNonce,
-		Expiration:      expiration,
-		Signature:       signature,
-		BackupTx:        backupTx,
-		BackupTransfers: backupTransfers,
+		Sender:        senderAddress,
+		TransfersHash: transfersHash,
+		Nonce:         nonce,
+		PowNonce:      powNonce,
+		Expiration:    expiration,
+		Signature:     signature,
+		// BackupTx:        backupTx,
+		// BackupTransfers: backupTransfers,
 	}
 
 	bd, err := json.Marshal(ucInput)

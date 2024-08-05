@@ -7,7 +7,10 @@ import (
 	backupDeposit "intmax2-node/internal/use_cases/backup_deposit"
 	backupTransaction "intmax2-node/internal/use_cases/backup_transaction"
 	backupTransfer "intmax2-node/internal/use_cases/backup_transfer"
+	verifyDepositConfirmation "intmax2-node/internal/use_cases/verify_deposit_confirmation"
 	ucBalances "intmax2-node/pkg/use_cases/get_balances"
+
+	ucVerifyDepositConfirmation "intmax2-node/pkg/use_cases/get_verify_deposit_confirmation"
 	ucBackupDeposit "intmax2-node/pkg/use_cases/post_backup_deposit"
 	ucBackupTransaction "intmax2-node/pkg/use_cases/post_backup_transaction"
 	ucBackupTransfer "intmax2-node/pkg/use_cases/post_backup_transfer"
@@ -20,6 +23,7 @@ type Commands interface {
 	PostBackupTransaction(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupTransaction.UseCasePostBackupTransaction
 	PostBackupDeposit(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupDeposit.UseCasePostBackupDeposit
 	GetBalances(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupBalance.UseCaseGetBalances
+	GetVerifyDepositConfirmation(cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) verifyDepositConfirmation.UseCaseGetVerifyDepositConfirmation
 }
 
 type commands struct{}
@@ -42,4 +46,8 @@ func (c *commands) PostBackupDeposit(cfg *configs.Config, log logger.Logger, db 
 
 func (c *commands) GetBalances(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupBalance.UseCaseGetBalances {
 	return ucBalances.New(cfg, log, db)
+}
+
+func (c *commands) GetVerifyDepositConfirmation(cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) verifyDepositConfirmation.UseCaseGetVerifyDepositConfirmation {
+	return ucVerifyDepositConfirmation.New(cfg, log, sb)
 }

@@ -23,11 +23,14 @@ var ErrBlockContentPublicKeyInvalid = errors.New("invalid public key")
 // ErrBlockContentAccIDForPubKeyInvalid error: account ID must be zero for PUBLIC_KEY sender type.
 var ErrBlockContentAccIDForPubKeyInvalid = errors.New("account ID must be zero for PUBLIC_KEY sender type")
 
+// ErrBlockContentAccIDForAccIDInvalid error: account ID must be greater than one for ACCOUNT_ID sender type.
+var ErrBlockContentAccIDForAccIDInvalid = errors.New("account ID must be greater than one for ACCOUNT_ID sender type")
+
 // ErrBlockContentAccIDForAccIDEmpty error: account ID must be non-zero for ACCOUNT_ID sender type.
 var ErrBlockContentAccIDForAccIDEmpty = errors.New("account ID must be non-zero for ACCOUNT_ID sender type")
 
-// ErrBlockContentAccIDForDefAccNotEmpty error: account ID must be zero for default sender.
-var ErrBlockContentAccIDForDefAccNotEmpty = errors.New("account ID must be zero for default sender")
+// ErrBlockContentAccIDForDefAccNotEmpty error: account ID must be one for default sender.
+var ErrBlockContentAccIDForDefAccNotEmpty = errors.New("account ID must be one for default sender")
 
 // ErrBlockContentAggPubKeyEmpty error: no aggregated public key.
 var ErrBlockContentAggPubKeyEmpty = errors.New("no aggregated public key")

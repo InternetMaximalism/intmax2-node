@@ -6,6 +6,7 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
+
 	ucWithdrawalRelayer "intmax2-node/internal/use_cases/withdrawal_relayer"
 	service "intmax2-node/internal/withdrawal_service"
 )
@@ -14,6 +15,7 @@ import (
 type uc struct {
 	cfg *configs.Config
 	log logger.Logger
+	db  SQLDriverApp
 	sb  ServiceBlockchain
 }
 
@@ -21,11 +23,13 @@ func New(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
+	db SQLDriverApp,
 	sb ServiceBlockchain,
 ) ucWithdrawalRelayer.UseCaseWithdrawalRelayer {
 	return &uc{
 		cfg: cfg,
 		log: log,
+		db:  db,
 		sb:  sb,
 	}
 }
@@ -50,7 +54,7 @@ func (u *uc) Do(ctx context.Context) (err error) {
 		}
 	}()
 
-	service.WithdrawalRelayer(spanCtx, u.cfg, u.log, u.sb)
+	service.WithdrawalRelayer(spanCtx, u.cfg, u.log, u.db, u.sb)
 
 	return err
 }

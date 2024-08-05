@@ -8,7 +8,7 @@ import (
 	"intmax2-node/internal/mnemonic_wallet"
 	"intmax2-node/internal/open_telemetry"
 	service "intmax2-node/internal/tx_withdrawal_service"
-	txTransfer "intmax2-node/internal/use_cases/tx_transfer"
+	txWithdrawal "intmax2-node/internal/use_cases/tx_withdrawal"
 
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -24,7 +24,7 @@ func New(
 	cfg *configs.Config,
 	log logger.Logger,
 	sb ServiceBlockchain,
-) txTransfer.UseCaseTxTransfer {
+) txWithdrawal.UseCaseTxWithdrawal {
 	return &uc{
 		cfg: cfg,
 		log: log,
@@ -32,7 +32,7 @@ func New(
 	}
 }
 
-func (u *uc) Do(ctx context.Context, args []string, recipientAddressHex, amount, userEthPrivateKey string) (err error) {
+func (u *uc) Do(ctx context.Context, args []string, recipientAddressHex, amount, userEthPrivateKey string, resumeIncompleteWithdrawals bool) (err error) {
 	const (
 		hName     = "UseCase TxTransfer"
 		senderKey = "sender"
@@ -40,6 +40,13 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressHex, amount,
 
 	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
 	defer span.End()
+
+	service.ResumeWithdrawalRequest(spanCtx, u.cfg, u.log, recipientAddressHex, resumeIncompleteWithdrawals)
+
+	if resumeIncompleteWithdrawals {
+		u.log.Infof("Complete the withdrawal request")
+		return nil
+	}
 
 	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
 	if err != nil {
@@ -59,7 +66,7 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressHex, amount,
 		attribute.String(senderKey, userAddress.String()),
 	)
 
-	service.SendWithdrawalTransaction(spanCtx, u.cfg, u.log, u.sb, args, amount, recipientAddressHex, userEthPrivateKey)
+	service.WithdrawalTransaction(spanCtx, u.cfg, u.log, u.sb, args, amount, recipientAddressHex, userEthPrivateKey)
 
 	return nil
 }
