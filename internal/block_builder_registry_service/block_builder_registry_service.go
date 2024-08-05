@@ -2,6 +2,7 @@ package block_builder_registry_service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
@@ -140,6 +141,7 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 	if err != nil {
 		return errors.Join(ErrScrollNetworkChainLinkEvmJSONRPCFail, err)
 	}
+	bbr.log.Debugf("Scroll RPC URL: %s\n", link)
 
 	var client *ethclient.Client
 	client, err = ethclient.Dial(link)
@@ -152,7 +154,8 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 	}()
 
 	// Check to see if you have already done a 0.1 ETH stake.
-	callerBBR, err := bindings.NewBlockBuilderRegistry(
+	bbr.log.Debugf("Block Builder Registry address: %s\n", bbr.cfg.Blockchain.BlockBuilderRegistryContractAddress)
+	transactorBBR, err := bindings.NewBlockBuilderRegistry(
 		common.HexToAddress(bbr.cfg.Blockchain.BlockBuilderRegistryContractAddress),
 		client,
 	)
@@ -167,7 +170,8 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 		return errors.Join(ErrLoadPrivateKeyFail, err)
 	}
 	builderAddress := crypto.PubkeyToAddress(privateKey.PublicKey)
-	res, err := callerBBR.BlockBuilders(&bind.CallOpts{Context: spanCtx}, builderAddress)
+	bbr.log.Debugf("Block Builder address: %s\n", builderAddress.String())
+	res, err := transactorBBR.BlockBuilders(&bind.CallOpts{Context: spanCtx}, builderAddress)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
 		return errors.Join(ErrGetBlockBuilderInfoFail, err)
@@ -182,16 +186,6 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 	bbr.log.Debugf("Registry update is required.\n")
 
 	value = new(big.Int).Sub(&bbr.cfg.Blockchain.ScrollNetworkStakeBalance, res.StakeAmount)
-
-	var transactorBBR *bindings.BlockBuilderRegistryTransactor
-	transactorBBR, err = bindings.NewBlockBuilderRegistryTransactor(
-		common.HexToAddress(bbr.cfg.Blockchain.BlockBuilderRegistryContractAddress),
-		client,
-	)
-	if err != nil {
-		open_telemetry.MarkSpanError(spanCtx, err)
-		return errors.Join(ErrNewBlockBuilderRegistryTransactorFail, err)
-	}
 
 	for {
 		var transactOpts *bind.TransactOpts
@@ -228,13 +222,21 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 		}
 
 		bbr.log.Debugf("The tx hash of UpdateBlockBuilder: %s\n", tx.Hash().String())
-		_, err = bind.WaitMined(spanCtx, client, tx)
+		var recipient *types.Receipt
+		recipient, err = bind.WaitMined(spanCtx, client, tx)
 		if err != nil {
 			return fmt.Errorf("failed to wait for transaction to be mined: %w", err)
 		}
 
+		var recipientJSON []byte
+		recipientJSON, err = json.Marshal(recipient)
+		if err != nil {
+			return fmt.Errorf("failed to marshal JSON: %w", err)
+		}
+		bbr.log.Debugf("The recipient of UpdateBlockBuilder: %s\n", string(recipientJSON))
+
 		errorsB.InsufficientFunds = false
-		bbr.log.Debugf("Complete UpdateBlockBuilder with stake amount: %s\n", value.String())
+		bbr.log.Debugf("Complete UpdateBlockBuilder\n")
 
 		return nil
 	}
