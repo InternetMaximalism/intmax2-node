@@ -112,7 +112,8 @@ func fetchRecipientClaimableWithdrawals(
 			endBlock := startBlock + searchBlocksLimitAtOnce
 			opts.End = &endBlock
 		}
-		events, err := withdrawalContract.FilterClaimableWithdrawalQueued(&opts)
+		var events *bindings.WithdrawalClaimableWithdrawalQueuedIterator
+		events, err = withdrawalContract.FilterClaimableWithdrawalQueued(&opts)
 		if err != nil {
 			open_telemetry.MarkSpanError(spanCtx, err)
 			return nil, err
@@ -184,12 +185,14 @@ func claimWithdrawals(
 	receipts := make([]*types.Receipt, 0)
 	count := 0
 	for i := range withdrawals {
-		withdrawalJSON, err := json.Marshal(&withdrawals[i])
+		var withdrawalJSON []byte
+		withdrawalJSON, err = json.Marshal(&withdrawals[i])
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal withdrawal: %w", err)
 		}
-		fmt.Printf("Claiming withdrawal[%d]: %s\n", i, withdrawalJSON)
-		tx, err := liquidityContract.ClaimWithdrawals(transactOpts, []bindings.WithdrawalLibWithdrawal{withdrawals[i]})
+		log.Debugf("Claiming withdrawal[%d]: %s\n", i, withdrawalJSON)
+		var tx *types.Transaction
+		tx, err = liquidityContract.ClaimWithdrawals(transactOpts, []bindings.WithdrawalLibWithdrawal{withdrawals[i]})
 		if err != nil {
 			// TODO: Continue only if WithdrawalNotFound error was occurred.
 			// return nil, fmt.Errorf("failed to claim withdrawals: %w", err)
