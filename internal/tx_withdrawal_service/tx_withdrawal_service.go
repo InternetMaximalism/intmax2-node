@@ -313,13 +313,14 @@ func SendWithdrawalRequest(
 	log logger.Logger,
 	withdrawal *tx_transfer_service.BackupWithdrawal,
 ) error {
-	// TODO: Get the block number and block hash
 	// Specify the block number containing the transaction.
-	rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(cfg, "https://sepolia-rpc.scroll.io")
-	blockNumber, err := intMaxTypes.FetchLatestIntMaxBlockNumber(rollupCfg, ctx)
+	blockStatus, err := tx_transfer_service.GetBlockStatus(ctx, cfg, log, withdrawal.TransferTreeRoot)
 	if err != nil {
-		return fmt.Errorf("failed to fetch latest intmax block: %w", err)
+		return fmt.Errorf("failed to get block status: %w", err)
 	}
+	blockNumber := blockStatus.BlockNumber
+
+	rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(cfg, "https://sepolia-rpc.scroll.io")
 	blockHash, err := intMaxTypes.FetchBlockHash(rollupCfg, ctx, blockNumber)
 	if err != nil {
 		return fmt.Errorf("failed to fetch block hash: %w", err)
