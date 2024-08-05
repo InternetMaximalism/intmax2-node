@@ -237,13 +237,21 @@ func ResumeWithdrawalRequest(
 		log.Fatalf("failed to get backup withdrawal: %v", err)
 	}
 
-	transferHashes := make([]string, len(backupWithdrawals))
-	for i, backupWithdrawal := range backupWithdrawals {
-		transferHashes[i] = hexutil.Encode(backupWithdrawal.Transfer.Hash().Marshal())
-	}
-	withdrawalInfo, err := FindWithdrawalsByTransferHashes(ctx, cfg, log, transferHashes)
-	if err != nil {
-		log.Fatalf("failed to find withdrawals: %v", err)
+	var withdrawalInfo []*WithdrawalResponseData
+	if len(backupWithdrawals) != 0 {
+		const searchLimit = 10
+		for i := 0; i < len(backupWithdrawals)/searchLimit; i += searchLimit {
+			end := min(searchLimit*(i+1), len(backupWithdrawals))
+
+			transferHashes := make([]string, end-searchLimit*i)
+			for i, backupWithdrawal := range backupWithdrawals[searchLimit*i : end] {
+				transferHashes[i] = hexutil.Encode(backupWithdrawal.Transfer.Hash().Marshal())
+			}
+			withdrawalInfo, err = FindWithdrawalsByTransferHashes(ctx, cfg, log, transferHashes)
+			if err != nil {
+				log.Fatalf("failed to find withdrawals: %v", err)
+			}
+		}
 	}
 
 	shouldProcess := func(withdrawal *tx_transfer_service.BackupWithdrawal) bool {
@@ -270,7 +278,8 @@ func ResumeWithdrawalRequest(
 	}
 
 	if !resumeIncompleteWithdrawals {
-		log.Fatalf("The withdrawal request has been found. Please use --resume flag to resume the withdrawal.")
+		log.Warnf("The withdrawal request has been found. Please use --resume flag to resume the withdrawal.")
+		return
 	}
 
 	for _, backupWithdrawal := range incompleteBackupWithdrawals {
