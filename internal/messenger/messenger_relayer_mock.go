@@ -75,7 +75,7 @@ func MessengerRelayerMock(ctx context.Context, cfg *configs.Config, log logger.L
 
 	event, err := db.EventBlockNumberByEventName(mDBApp.SentMessageEvent)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) || err.Error() == NotFound {
+		if errors.Is(err, pgx.ErrNoRows) || err.Error() == notFound {
 			event = &mDBApp.EventBlockNumber{
 				EventName:                mDBApp.SentMessageEvent,
 				LastProcessedBlockNumber: 0,
@@ -140,7 +140,7 @@ func (m *MessengerRelayerMockService) fetchNewSentMessages(lastProcessedBlockNum
 }
 
 func (m *MessengerRelayerMockService) relayMessages(event *bindings.L1ScrollMessengerSentMessage) (*types.Receipt, error) {
-	transactOpts, err := utils.CreateTransactor(m.cfg.Blockchain.MockMessagingPrivateKeyHex, m.cfg.Blockchain.ScrollNetworkChainID)
+	transactOpts, err := utils.CreateTransactor(m.cfg.Blockchain.MessengerMockPrivateKeyHex, m.cfg.Blockchain.ScrollNetworkChainID)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +181,6 @@ func (m *MessengerRelayerMockService) relayMessagesforEvents(events []*bindings.
 	for _, event := range events {
 		_, err := m.relayMessages(event)
 		if err != nil {
-			fmt.Println("err", err)
 			if err.Error() == "execution reverted: Message was already successfully executed" {
 				m.log.Infof("Message was already successfully executed")
 				continue

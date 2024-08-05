@@ -18,6 +18,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"go.opentelemetry.io/otel/attribute"
@@ -202,7 +203,8 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 		transactOpts.Value = value
 
 		bbr.log.Debugf("transactOpts.Value: %s\n", value.String())
-		_, err = transactorBBR.UpdateBlockBuilder(transactOpts, url)
+		var tx *types.Transaction
+		tx, err = transactorBBR.UpdateBlockBuilder(transactOpts, url)
 		if err != nil {
 			switch {
 			case
@@ -224,8 +226,15 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 			open_telemetry.MarkSpanError(spanCtx, err)
 			return errors.Join(ErrProcessingFuncUpdateBlockBuilderOfBlockBuilderRegistryFail, err)
 		}
+
+		bbr.log.Debugf("The tx hash of UpdateBlockBuilder: %s\n", tx.Hash().String())
+		_, err = bind.WaitMined(spanCtx, client, tx)
+		if err != nil {
+			return fmt.Errorf("failed to wait for transaction to be mined: %w", err)
+		}
+
 		errorsB.InsufficientFunds = false
-		bbr.log.Debugf("Complete UpdateBlockBuilder: %s\n", value.String())
+		bbr.log.Debugf("Complete UpdateBlockBuilder with stake amount: %s\n", value.String())
 
 		return nil
 	}

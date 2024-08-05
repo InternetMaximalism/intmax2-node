@@ -4,6 +4,7 @@ import (
 	"context"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
+	"intmax2-node/pkg/utils"
 
 	"github.com/spf13/cobra"
 )
@@ -46,9 +47,9 @@ func aggregatorCmd(w *Withdrawal) *cobra.Command {
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		l := w.Log.WithFields(logger.Fields{"module": use})
 
-		err := w.SB.CheckEthereumPrivateKey(w.Context)
+		err := utils.IsValidEthereumPrivateKey(w.Config.Blockchain.WithdrawalPrivateKeyHex)
 		if err != nil {
-			const msg = "check private key error occurred: %v"
+			const msg = "check withdrawal private key error occurred: %v"
 			l.Fatalf(msg, err.Error())
 		}
 		err = w.DbApp.Exec(w.Context, nil, func(db interface{}, _ interface{}) (err error) {
@@ -78,9 +79,9 @@ func relayerCmd(w *Withdrawal) *cobra.Command {
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		l := w.Log.WithFields(logger.Fields{"module": use})
 
-		err := w.SB.CheckEthereumPrivateKey(w.Context)
+		err := utils.IsValidEthereumPrivateKey(w.Config.Blockchain.WithdrawalPrivateKeyHex)
 		if err != nil {
-			const msg = "check private key error occurred: %v"
+			const msg = "check withdrawal private key error occurred: %v"
 			l.Fatalf(msg, err.Error())
 		}
 		err = w.DbApp.Exec(w.Context, nil, func(db interface{}, _ interface{}) (err error) {
