@@ -38,6 +38,7 @@ type Commands interface {
 	BlockStatus(
 		cfg *configs.Config,
 		log logger.Logger,
+		db SQLDriverApp,
 	) blockStatus.UseCaseBlockStatus
 }
 
@@ -78,6 +79,7 @@ func (c *commands) BlockSignature(
 func (c *commands) BlockStatus(
 	cfg *configs.Config,
 	log logger.Logger,
+	db SQLDriverApp,
 ) blockStatus.UseCaseBlockStatus {
-	return ucBlockStatus.New(cfg, log)
+	return ucBlockStatus.New(cfg, log, db)
 }

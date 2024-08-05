@@ -1,4 +1,4 @@
-package block_signature
+package block_status
 
 import (
 	"context"
@@ -14,15 +14,18 @@ import (
 type uc struct {
 	cfg *configs.Config
 	log logger.Logger
+	db  SQLDriverApp
 }
 
 func New(
 	cfg *configs.Config,
 	log logger.Logger,
+	db SQLDriverApp,
 ) ucBlockStatus.UseCaseBlockStatus {
 	return &uc{
 		cfg: cfg,
 		log: log,
+		db:  db,
 	}
 }
 
@@ -40,9 +43,21 @@ func (u *uc) Do(
 		))
 	defer span.End()
 
+	block, err := u.db.BlockByTxRoot(input.TxTreeRoot)
+	if err != nil {
+		return nil, err
+	}
+
+	isPosted := false
+	var blockNumber uint32 = 0
+	if *block.Status == 1 && block.BlockNumber != nil {
+		isPosted = true
+		blockNumber = uint32(*block.BlockNumber)
+	}
+
 	status = &ucBlockStatus.UCBlockStatus{
-		IsPosted:    true,
-		BlockNumber: 1,
+		IsPosted:    isPosted,
+		BlockNumber: blockNumber,
 	}
 
 	return status, nil

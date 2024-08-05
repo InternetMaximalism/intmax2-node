@@ -1,11 +1,11 @@
-package block_validity_prover
+package block_status
 
 import (
 	"context"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 )
 
-//go:generate mockgen -destination=mock_db_app_test.go -package=block_validity_prover_test -source=db_app.go
+//go:generate mockgen -destination=mock_db_app_test.go -package=block_status_test -source=db_app.go
 
 type SQLDriverApp interface {
 	GenericCommandsApp
@@ -17,7 +17,5 @@ type GenericCommandsApp interface {
 }
 
 type Blocks interface {
-	UpdateBlockStatus(proposalBlockID string, blockHash string, blockNumber uint32) error
-
-	GetUnprocessedBlocks() ([]*mDBApp.Block, error)
+	BlockByTxRoot(txRoot string) (*mDBApp.Block, error)
 }

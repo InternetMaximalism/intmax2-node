@@ -48,7 +48,8 @@ type Blocks interface {
 		options []byte,
 	) (*models.Block, error)
 	Block(proposalBlockID string) (*models.Block, error)
-	UpdateBlockStatus(proposalBlockID string, status int64) error
+	BlockByTxRoot(txRoot string) (*models.Block, error)
+	UpdateBlockStatus(proposalBlockID string, blockHash string, blockNumber uint32) error
 	GetUnprocessedBlocks() ([]*models.Block, error)
 }
 

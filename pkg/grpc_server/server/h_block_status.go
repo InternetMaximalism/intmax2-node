@@ -32,10 +32,10 @@ func (s *Server) BlockStatusByTxTreeRoot(
 		TxTreeRoot: req.TxTreeRoot,
 	}
 
-	blockStatus, err := s.commands.BlockStatus(s.config, s.log).Do(spanCtx, &input)
+	blockStatus, err := s.commands.BlockStatus(s.config, s.log, s.dbApp).Do(spanCtx, &input)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
-		const msg = "failed to get block signature: %v"
+		const msg = "failed to get block status: %v"
 		return &resp, utils.Internal(spanCtx, s.log, msg, err)
 	}
 

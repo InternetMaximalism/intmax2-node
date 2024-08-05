@@ -35,6 +35,7 @@ type Blocks interface {
 		options []byte,
 	) (*mDBApp.Block, error)
 	Block(proposalBlockID string) (*mDBApp.Block, error)
+	BlockByTxRoot(txRoot string) (*mDBApp.Block, error)
 }
 
 type Signatures interface {

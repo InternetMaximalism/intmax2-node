@@ -389,11 +389,11 @@ func (pb *PostedBlock) Marshal() []byte {
 	data := make([]byte, 0)
 
 	data = append(data, pb.PrevBlockHash.Bytes()...)
+	data = append(data, pb.DepositRoot.Bytes()...)
+	data = append(data, pb.SignatureHash.Bytes()...)
 	blockNumberBytes := [int4Key]byte{}
 	binary.BigEndian.PutUint32(blockNumberBytes[:], pb.BlockNumber)
 	data = append(data, blockNumberBytes[:]...)
-	data = append(data, pb.DepositRoot.Bytes()...)
-	data = append(data, pb.SignatureHash.Bytes()...)
 
 	return data
 }

@@ -7,16 +7,23 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
 	intMaxTypes "intmax2-node/internal/types"
+	"intmax2-node/pkg/utils"
 	"math/big"
 	"time"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
 )
+
+const BlockPostedEventSignatureID = "0xe27163b76905dc373b4ad854ddc9403bbac659c5f1c5191c39e5a7c44574040a"
 
 var ErrStatCurrentFileFail = errors.New("stat current file fail")
 
@@ -186,9 +193,55 @@ func (w *blockValidityProver) Start(
 					return txErr
 				}
 
-				fmt.Printf("Transaction sent: %s\n", tx.Hash().Hex())
+				w.log.Infof("Transaction sent: %s\n", tx.Hash().Hex())
 
-				err = w.dbApp.UpdateBlockStatus(unprocessedBlock.ProposalBlockID, 1)
+				scrollClient, err := utils.NewClient(rollupCfg.NetworkRpcUrl)
+				if err != nil {
+					return fmt.Errorf("failed to create new client: %w", err)
+				}
+				defer scrollClient.Close()
+
+				rollup, err := bindings.NewRollup(common.HexToAddress(rollupCfg.RollupContractAddressHex), scrollClient)
+				if err != nil {
+					return fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
+				}
+
+				receipt, err := bind.WaitMined(ctx, scrollClient, tx)
+				if err != nil {
+					return err
+				}
+
+				var eventLog *types.Log
+				ok := false
+				for i := 0; i < len(receipt.Logs); i++ {
+					if receipt.Logs[i].Topics[0].Hex() == BlockPostedEventSignatureID {
+						eventLog = receipt.Logs[i]
+						ok = true
+						break
+					}
+				}
+
+				if !ok {
+					return errors.New("BlockPosted event not found")
+				}
+
+				eventData, err := rollup.ParseBlockPosted(*eventLog)
+				if err != nil {
+					return err
+				}
+				blockNumber := uint32(eventData.BlockNumber.Uint64())
+
+				postedBlock := intMaxTypes.NewPostedBlock(
+					eventData.PrevBlockHash,
+					eventData.DepositTreeRoot,
+					blockNumber,
+					eventData.SignatureHash,
+				)
+
+				blockHash := postedBlock.Hash()
+				w.log.Infof("INTMAX Block hash: %s\n", blockHash.Hex())
+
+				err = w.dbApp.UpdateBlockStatus(unprocessedBlock.ProposalBlockID, blockHash.Hex(), blockNumber)
 				if err != nil {
 					return err
 				}
