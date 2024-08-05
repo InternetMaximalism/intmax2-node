@@ -310,6 +310,8 @@ func (d *DepositAnalyzerService) analyzeDeposits(upToDepositId *big.Int, rejectD
 		return nil, fmt.Errorf("failed to create transactor: %w", err)
 	}
 
+	d.logTransactionDebugInfo(upToDepositId, rejectDepositIndices)
+
 	tx, err := d.liquidity.AnalyzeDeposits(transactOpts, upToDepositId, rejectDepositIndices)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send AnalyzeDeposits transaction: %w", err)
@@ -321,6 +323,16 @@ func (d *DepositAnalyzerService) analyzeDeposits(upToDepositId *big.Int, rejectD
 	}
 
 	return receipt, nil
+}
+
+func (d *DepositAnalyzerService) logTransactionDebugInfo(upToDepositId *big.Int, rejectDepositIndices []*big.Int) {
+	address, err := utils.PrivateKeyToAddress(d.cfg.Blockchain.DepositAnalyzerPrivateKeyHex)
+	if err != nil {
+		fmt.Println("Failed to get address from private key: ", err)
+	}
+	d.log.Debugf("Liquidity contract address: %s", d.cfg.Blockchain.LiquidityContractAddress)
+	d.log.Debugf("Transaction sender address: %s", address.Hex())
+	d.log.Debugf("Transaction args details: upToDepositId: %d rejectDepositIndices: %v", upToDepositId, rejectDepositIndices)
 }
 
 func fetchAMLScore(sender string, contractAddress string) uint32 { // nolint:gocritic
