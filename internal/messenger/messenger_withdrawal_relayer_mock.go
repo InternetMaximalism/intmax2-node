@@ -172,6 +172,12 @@ func (w *MessengerWithdrawalRelayerMockService) relayMessageWithProofByEvent(eve
 		return nil, err
 	}
 
+	from := common.HexToAddress(event.Sender.Hex())
+	to := common.HexToAddress(event.Target.Hex())
+	value := event.Value
+	nonce := event.MessageNonce
+	message := event.Message
+
 	batchIndex := big.NewInt(0)
 	merkleProof := []byte{}
 	proof := bindings.IL1ScrollMessengerL2MessageProof{
@@ -179,13 +185,28 @@ func (w *MessengerWithdrawalRelayerMockService) relayMessageWithProofByEvent(eve
 		MerkleProof: merkleProof,
 	}
 
+	err = utils.LogTransactionDebugInfo(
+		w.log,
+		w.cfg.Blockchain.MessengerMockPrivateKeyHex,
+		w.cfg.Blockchain.ScrollMessengerL1ContractAddress,
+		from,
+		to,
+		value,
+		nonce,
+		message,
+		proof,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to log transaction debug info: %w", err)
+	}
+
 	tx, err := w.l1ScrollMessenger.RelayMessageWithProof(
 		transactOpts,
-		common.HexToAddress(event.Sender.Hex()),
-		common.HexToAddress(event.Target.Hex()),
-		event.Value,
-		event.MessageNonce,
-		event.Message,
+		from,
+		to,
+		value,
+		nonce,
+		message,
 		proof,
 	)
 	if err != nil {

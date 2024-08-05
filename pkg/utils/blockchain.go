@@ -79,15 +79,15 @@ func PrivateKeyToAddress(pkHex string) (*common.Address, error) {
 	return wallet.WalletAddress, nil
 }
 
-func LogTransactionDebugInfo(log logger.Logger, privateKeyHex, contractAddres string, args ...interface{}) error {
+func LogTransactionDebugInfo(_log logger.Logger, privateKeyHex, contractAddres string, args ...interface{}) error {
 	address, err := PrivateKeyToAddress(privateKeyHex)
 	if err != nil {
 		return fmt.Errorf("failed to get address from private key: %w", err)
 	}
-	log.Debugf("Contract address: %s", contractAddres)
-	log.Debugf("Transaction sender address: %s", address.Hex())
+	_log.Debugf("Contract address: %s", contractAddres)
+	_log.Debugf("Transaction sender address: %s", address.Hex())
 	for i, arg := range args {
-		log.Debugf("Transaction Argument %d: %v (Type: %T)", i, arg, arg)
+		_log.Debugf("Transaction Argument %d: %v (Type: %T)", i, arg, arg)
 	}
 	return nil
 }

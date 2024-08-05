@@ -246,7 +246,6 @@ func (d *DepositAnalyzerService) shouldProcessDepositAnalyzer(events []*bindings
 		}
 		return false, fmt.Errorf("failed to get last block number: %w", err)
 	}
-	fmt.Println("eventInfo ", eventInfo)
 
 	if *eventInfo.BlockNumber == 0 {
 		return false, nil
