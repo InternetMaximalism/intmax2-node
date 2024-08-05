@@ -225,12 +225,14 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 		var recipient *types.Receipt
 		recipient, err = bind.WaitMined(spanCtx, client, tx)
 		if err != nil {
+			bbr.log.Debugf("WaitMined Error: %s\n", fmt.Errorf("failed to wait for transaction to be mined: %w", err))
 			return fmt.Errorf("failed to wait for transaction to be mined: %w", err)
 		}
 
 		var recipientJSON []byte
 		recipientJSON, err = json.Marshal(recipient)
 		if err != nil {
+			bbr.log.Debugf("json.Marshal Error: %s\n", fmt.Errorf("failed to marshal JSON: %w", err))
 			return fmt.Errorf("failed to marshal JSON: %w", err)
 		}
 		bbr.log.Debugf("The recipient of UpdateBlockBuilder: %s\n", string(recipientJSON))
