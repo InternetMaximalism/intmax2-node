@@ -98,13 +98,9 @@ func MakeRegistrationBlock(
 		}
 	}
 
-	defaultPublicKey := intMaxAcc.NewDummyPublicKey()
+	defaultSender := intMaxTypes.NewDummySender()
 	for i := len(senderPublicKeys); i < len(senders); i++ {
-		senders[i] = intMaxTypes.Sender{
-			PublicKey: defaultPublicKey,
-			AccountID: 0,
-			IsSigned:  false,
-		}
+		senders[i] = defaultSender
 	}
 
 	const numPublicKeyBytes = intMaxTypes.NumPublicKeyBytes
@@ -208,7 +204,7 @@ func MakeNonRegistrationBlock(
 	for i := len(senderPublicKeys); i < len(senders); i++ {
 		senders[i] = intMaxTypes.Sender{
 			PublicKey: defaultPublicKey,
-			AccountID: 0,
+			AccountID: 1,
 			IsSigned:  false,
 		}
 	}

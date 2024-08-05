@@ -31,14 +31,18 @@ const (
 	NumAccountIDBytes   = 5
 	AccountIDSenderType = "ACCOUNT_ID"
 
-	NumOfSenders    = 128
-	numFlagBytes    = 16
-	numG2PointLimbs = 4
-	int8Key         = 8
-	int32Key        = 32
-	int10Key        = 10
-	int64Key        = 64
-	int128Key       = 128
+	NumOfSenders                  = 128
+	numFlagBytes                  = 16
+	numBaseFieldOrderBytes        = 32
+	numG1PointLimbs               = 2
+	numG2PointLimbs               = 4
+	defaultAccountID       uint64 = 0
+	dummyAccountID         uint64 = 1
+	int8Key                       = 8
+	int32Key                      = 32
+	int10Key                      = 10
+	int64Key                      = 64
+	int128Key                     = 128
 )
 
 type PoseidonHashOut = goldenposeidon.PoseidonHashOut
@@ -49,6 +53,15 @@ type Sender struct {
 	PublicKey *accounts.PublicKey `json:"publicKey"`
 	AccountID uint64              `json:"accountId"`
 	IsSigned  bool                `json:"isSigned"`
+}
+
+// NewDummySender creates a dummy Sender instance.
+func NewDummySender() Sender {
+	return Sender{
+		PublicKey: accounts.NewDummyPublicKey(),
+		AccountID: 1,
+		IsSigned:  false,
+	}
 }
 
 type ColumnSender struct {
@@ -160,25 +173,34 @@ func (bc *BlockContent) IsValid() error {
 					return ErrValueInvalid
 				}
 
+				dummyPublicKey := accounts.NewDummyPublicKey()
+
 				switch bc.SenderType {
 				case PublicKeySenderType:
 					if v.PublicKey == nil {
 						return ErrBlockContentPublicKeyInvalid
 					}
 
-					if v.AccountID != int0Key {
+					// Check if the account ID is valid for the sender type
+					if v.AccountID != defaultAccountID && !v.PublicKey.Equal(dummyPublicKey) {
 						return ErrBlockContentAccIDForPubKeyInvalid
+					}
+					if v.AccountID != dummyAccountID && v.PublicKey.Equal(dummyPublicKey) {
+						return ErrBlockContentAccIDForDefAccNotEmpty
 					}
 				case AccountIDSenderType:
 					if v.PublicKey == nil {
 						return ErrBlockContentPublicKeyInvalid
 					}
 
-					if v.AccountID == int0Key && v.PublicKey.Pk.X.Cmp(new(fp.Element).SetOne()) != int0Key {
+					if v.AccountID == defaultAccountID {
 						return ErrBlockContentAccIDForAccIDEmpty
 					}
-					if v.AccountID != int0Key && v.PublicKey.Pk.X.Cmp(new(fp.Element).SetOne()) == int0Key {
+					if v.AccountID == dummyAccountID && !v.PublicKey.Equal(dummyPublicKey) {
 						return ErrBlockContentAccIDForDefAccNotEmpty
+					}
+					if v.AccountID > dummyAccountID && v.PublicKey.Equal(dummyPublicKey) {
+						return ErrBlockContentAccIDForAccIDInvalid
 					}
 				}
 
@@ -192,20 +214,22 @@ func (bc *BlockContent) IsValid() error {
 					return ErrBlockContentAggPubKeyEmpty
 				}
 
-				defaultPublicKey := accounts.NewDummyPublicKey()
+				dummyPublicKey := accounts.NewDummyPublicKey()
 
-				const numOfSenders = 128
-				senderPublicKeysBytes := make([]byte, numOfSenders*NumPublicKeyBytes)
-				for key := range bc.Senders {
-					senderPublicKey := bc.Senders[key].PublicKey.Pk.X.Bytes() // Only x coordinate is used
+				senderPublicKeysBytes := make([]byte, NumOfSenders*NumPublicKeyBytes)
+				for i := range bc.Senders {
+					senderPublicKey := bc.Senders[i].PublicKey.Pk.X.Bytes() // Only x coordinate is used
 					copy(
-						senderPublicKeysBytes[NumPublicKeyBytes*key:NumPublicKeyBytes*(key+int1Key)],
+						senderPublicKeysBytes[NumPublicKeyBytes*i:NumPublicKeyBytes*(i+1)],
 						senderPublicKey[:],
 					)
 				}
-				for i := len(bc.Senders); i < numOfSenders; i++ {
-					senderPublicKey := defaultPublicKey.Pk.X.Bytes() // Only x coordinate is used
-					copy(senderPublicKeysBytes[NumPublicKeyBytes*i:NumPublicKeyBytes*(i+1)], senderPublicKey[:])
+				for i := len(bc.Senders); i < NumOfSenders; i++ {
+					senderPublicKey := dummyPublicKey.Pk.X.Bytes() // Only x coordinate is used
+					copy(
+						senderPublicKeysBytes[NumPublicKeyBytes*i:NumPublicKeyBytes*(i+1)],
+						senderPublicKey[:],
+					)
 				}
 
 				publicKeysHash := crypto.Keccak256(senderPublicKeysBytes)
@@ -363,6 +387,50 @@ func (bc *BlockContent) Hash() common.Hash {
 	return crypto.Keccak256Hash(bc.Marshal())
 }
 
+func BaseFieldToUint32Array(v fp.Element) [int8Key]uint32 {
+	n := v.BigInt(new(big.Int))
+
+	a := BigIntToBytes32BeArray(n)
+
+	b := Bytes32{}
+	b.FromBytes(a[:])
+
+	return b
+}
+
+func BaseFieldToUint32Slice(v fp.Element) []uint32 {
+	b := BaseFieldToUint32Array(v)
+	return b[:]
+}
+
+func G1AffineToUint32Slice(p *bn254.G1Affine) []uint32 {
+	var buf []uint32
+	buf = append(buf, BaseFieldToUint32Slice(p.X)...)
+	buf = append(buf, BaseFieldToUint32Slice(p.Y)...)
+
+	return buf
+}
+
+func G2AffineToUint32Slice(p *bn254.G2Affine) []uint32 {
+	var buf []uint32
+	buf = append(buf, BaseFieldToUint32Slice(p.X.A1)...)
+	buf = append(buf, BaseFieldToUint32Slice(p.X.A0)...)
+	buf = append(buf, BaseFieldToUint32Slice(p.Y.A1)...)
+	buf = append(buf, BaseFieldToUint32Slice(p.Y.A0)...)
+
+	return buf
+}
+
+func (bc *BlockContent) Uint32Slice() []uint32 {
+	var buf []uint32
+	buf = append(buf, bc.TxTreeRoot.Uint32Slice()...)
+	buf = append(buf, G2AffineToUint32Slice(bc.AggregatedSignature)...)
+	buf = append(buf, G2AffineToUint32Slice(bc.MessagePoint)...)
+	buf = append(buf, G1AffineToUint32Slice(bc.AggregatedPublicKey.Pk)...)
+
+	return buf
+}
+
 type PostedBlock struct {
 	// The previous block hash.
 	PrevBlockHash common.Hash
@@ -389,17 +457,34 @@ func (pb *PostedBlock) Marshal() []byte {
 	data := make([]byte, 0)
 
 	data = append(data, pb.PrevBlockHash.Bytes()...)
+	data = append(data, pb.DepositRoot.Bytes()...)
+	data = append(data, pb.SignatureHash.Bytes()...)
 	blockNumberBytes := [int4Key]byte{}
 	binary.BigEndian.PutUint32(blockNumberBytes[:], pb.BlockNumber)
 	data = append(data, blockNumberBytes[:]...)
-	data = append(data, pb.DepositRoot.Bytes()...)
-	data = append(data, pb.SignatureHash.Bytes()...)
 
 	return data
 }
 
+func CommonHashToUint32Slice(h common.Hash) []uint32 {
+	b := Bytes32{}
+	b.FromBytes(h[:])
+
+	return b[:]
+}
+
+func (pb *PostedBlock) Uint32Slice() []uint32 {
+	var buf []uint32
+	buf = append(buf, CommonHashToUint32Slice(pb.PrevBlockHash)...)
+	buf = append(buf, CommonHashToUint32Slice(pb.DepositRoot)...)
+	buf = append(buf, CommonHashToUint32Slice(pb.SignatureHash)...)
+	buf = append(buf, pb.BlockNumber)
+
+	return buf
+}
+
 func (pb *PostedBlock) Hash() common.Hash {
-	return crypto.Keccak256Hash(pb.Marshal())
+	return crypto.Keccak256Hash(Uint32SliceToBytes(pb.Uint32Slice()))
 }
 
 type PostRegistrationBlockInput struct {
@@ -439,8 +524,6 @@ func MakePostRegistrationBlockInput(blockContent *BlockContent) (*PostRegistrati
 		return nil, errors.New("invalid number of senders")
 	}
 
-	const int3Key = 3
-
 	txTreeRoot := [numHashBytes]byte{}
 	copy(txTreeRoot[:], blockContent.TxTreeRoot.Marshal())
 
@@ -455,21 +538,24 @@ func MakePostRegistrationBlockInput(blockContent *BlockContent) (*PostRegistrati
 	}
 
 	// Follow the ordering of the coordinates in the smart contract.
-	aggregatedPublicKey := [2][int32Key]byte{}
-	aggregatedPublicKey[0] = blockContent.AggregatedPublicKey.Pk.X.Bytes()
-	aggregatedPublicKey[1] = blockContent.AggregatedPublicKey.Pk.Y.Bytes()
+	aggregatedPublicKey := [numG1PointLimbs][numBaseFieldOrderBytes]byte{
+		blockContent.AggregatedPublicKey.Pk.X.Bytes(),
+		blockContent.AggregatedPublicKey.Pk.Y.Bytes(),
+	}
 
-	aggregatedSignature := [numG2PointLimbs][int32Key]byte{}
-	aggregatedSignature[0] = blockContent.AggregatedSignature.X.A1.Bytes()
-	aggregatedSignature[1] = blockContent.AggregatedSignature.X.A0.Bytes()
-	aggregatedSignature[2] = blockContent.AggregatedSignature.Y.A1.Bytes()
-	aggregatedSignature[int3Key] = blockContent.AggregatedSignature.Y.A0.Bytes()
+	aggregatedSignature := [numG2PointLimbs][numBaseFieldOrderBytes]byte{
+		blockContent.AggregatedSignature.X.A1.Bytes(),
+		blockContent.AggregatedSignature.X.A0.Bytes(),
+		blockContent.AggregatedSignature.Y.A1.Bytes(),
+		blockContent.AggregatedSignature.Y.A0.Bytes(),
+	}
 
-	messagePoint := [numG2PointLimbs][int32Key]byte{}
-	messagePoint[0] = blockContent.MessagePoint.X.A1.Bytes()
-	messagePoint[1] = blockContent.MessagePoint.X.A0.Bytes()
-	messagePoint[2] = blockContent.MessagePoint.Y.A1.Bytes()
-	messagePoint[int3Key] = blockContent.MessagePoint.Y.A0.Bytes()
+	messagePoint := [numG2PointLimbs][numBaseFieldOrderBytes]byte{
+		blockContent.MessagePoint.X.A1.Bytes(),
+		blockContent.MessagePoint.X.A0.Bytes(),
+		blockContent.MessagePoint.Y.A1.Bytes(),
+		blockContent.MessagePoint.Y.A0.Bytes(),
+	}
 
 	return &PostRegistrationBlockInput{
 		TxTreeRoot:          txTreeRoot,
