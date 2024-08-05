@@ -28,7 +28,7 @@ func New(
 	}
 }
 
-func (u *uc) Do(ctx context.Context, args []string, recipientEthAddress string) (err error) {
+func (u *uc) Do(ctx context.Context, args []string, recipientEthPrivateKey string) (err error) {
 	const (
 		hName     = "UseCase TxTransfer"
 		senderKey = "sender"
@@ -37,7 +37,7 @@ func (u *uc) Do(ctx context.Context, args []string, recipientEthAddress string) 
 	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
 	defer span.End()
 
-	service.ClaimWithdrawals(spanCtx, u.cfg, u.log, u.sb, recipientEthAddress)
+	service.ClaimWithdrawals(spanCtx, u.cfg, u.log, u.sb, recipientEthPrivateKey)
 
 	return nil
 }

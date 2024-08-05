@@ -173,11 +173,11 @@ func txWithdrawalCmd(b *Transaction) *cobra.Command {
 
 func txClaimCmd(b *Transaction) *cobra.Command {
 	const (
-		use                  = "claim"
-		short                = "Send claim transaction"
-		recipientKey         = "recipient"
-		emptyKey             = ""
-		recipientDescription = "specify recipient Ethereum address. use as --recipient \"0x0000000000000000000000000000000000000000\""
+		use                    = "claim"
+		short                  = "Send claim transaction"
+		userEthPrivateKeyKey   = "user-private"
+		emptyKey               = ""
+		userPrivateDescription = "specify user's Ethereum address. use as --user-private \"0x0000000000000000000000000000000000000000000000000000000000000000\""
 	)
 
 	cmd := cobra.Command{
@@ -185,13 +185,13 @@ func txClaimCmd(b *Transaction) *cobra.Command {
 		Short: short,
 	}
 
-	var recipientEthAddress string
-	cmd.PersistentFlags().StringVar(&recipientEthAddress, recipientKey, emptyKey, recipientDescription)
+	var userEthPrivateKey string
+	cmd.PersistentFlags().StringVar(&userEthPrivateKey, userEthPrivateKeyKey, emptyKey, userPrivateDescription)
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		l := b.Log.WithFields(logger.Fields{"module": use})
 
-		err := newCommands().SendClaimWithdrawals(b.Config, b.Log, b.SB).Do(b.Context, args, recipientEthAddress)
+		err := newCommands().SendClaimWithdrawals(b.Config, b.Log, b.SB).Do(b.Context, args, userEthPrivateKey)
 		if err != nil {
 			const msg = "failed to claim withdrawals: %v"
 			l.Fatalf(msg, err.Error())
