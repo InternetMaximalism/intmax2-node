@@ -238,7 +238,6 @@ func ResumeWithdrawalRequest(
 	}
 
 	var withdrawalInfo []*WithdrawalResponseData
-	fmt.Printf("backupWithdrawals: %v\n", backupWithdrawals)
 	if len(backupWithdrawals) != 0 {
 		const searchLimit = 10
 		for i := 0; i < len(backupWithdrawals)/searchLimit; i += searchLimit {
