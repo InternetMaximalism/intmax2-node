@@ -18,6 +18,7 @@ func NewClient(url string) (*ethclient.Client, error) {
 		log.Fatalf("error connecting to rpc service: %+v", err)
 		return nil, err
 	}
+	defer ethClient.Close()
 	return ethClient, nil
 }
 
@@ -26,7 +27,6 @@ func CreateTransactor(ethereumPrivateKeyHex, networkChainID string) (*bind.Trans
 	if err != nil {
 		return nil, fmt.Errorf("failed to load private key: %w", err)
 	}
-
 	const (
 		int10Key = 10
 		int64Key = 64

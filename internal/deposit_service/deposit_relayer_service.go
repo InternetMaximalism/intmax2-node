@@ -17,7 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-const FixedDepositValueInWei = 1e17 // 0.1 ETH in Wei
+const fixedDepositValueInWei = 1e17 // 0.1 ETH in Wei
 
 type DepositIndices struct {
 	LastDepositAnalyzedEventInfo *DepositEventInfo
@@ -43,7 +43,6 @@ func newDepositRelayerService(ctx context.Context, cfg *configs.Config, log logg
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new client: %w", err)
 	}
-	defer client.Close()
 
 	liquidity, err := bindings.NewLiquidity(common.HexToAddress(cfg.Blockchain.LiquidityContractAddress), client)
 	if err != nil {
@@ -228,7 +227,7 @@ func (d *DepositRelayerService) relayDeposits(maxLastSeenDepositIndex, numDeposi
 		return nil, err
 	}
 
-	transactOpts.Value = big.NewInt(FixedDepositValueInWei)
+	transactOpts.Value = big.NewInt(fixedDepositValueInWei)
 	gasLimit := calculateRelayDepositsGasLimit(numDepositsToRelay)
 
 	tx, err := d.liquidity.RelayDeposits(transactOpts, new(big.Int).SetUint64(maxLastSeenDepositIndex), new(big.Int).SetUint64(gasLimit))
