@@ -18,6 +18,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"go.opentelemetry.io/otel/attribute"
@@ -202,7 +203,8 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 		transactOpts.Value = value
 
 		bbr.log.Debugf("transactOpts.Value: %s\n", value.String())
-		tx, err := transactorBBR.UpdateBlockBuilder(transactOpts, url)
+		var tx *types.Transaction
+		tx, err = transactorBBR.UpdateBlockBuilder(transactOpts, url)
 		if err != nil {
 			switch {
 			case
