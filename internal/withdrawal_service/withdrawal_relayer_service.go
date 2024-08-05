@@ -18,7 +18,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-const BlocksToLookBack = 10000
+const blocksToLookBack = 10000
 
 type WithdrawalsQueuedEventInfo struct {
 	MaxDirectWithdrawalId    *uint64
@@ -204,7 +204,7 @@ func (w *WithdrawalRelayerService) fetchLastWithdrawalsQueuedEvent(currentBlockN
 
 func (w *WithdrawalRelayerService) calculateStartBlockNumber(currentBlockNumber, lastProcessedBlockNumber uint64) uint64 {
 	if lastProcessedBlockNumber == 0 {
-		return max(currentBlockNumber-BlocksToLookBack, 0)
+		return max(currentBlockNumber-blocksToLookBack, 0)
 	}
 	return lastProcessedBlockNumber + 1
 }
