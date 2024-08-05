@@ -52,6 +52,8 @@ func NewServerCmd(s *Server) *cobra.Command {
 		Use:   use,
 		Short: short,
 		Run: func(cmd *cobra.Command, args []string) {
+			s.Log.Debugf("Run Block Builder command\n")
+
 			err := s.Worker.Init()
 			if err != nil {
 				const msg = "init the worker error occurred: %v"
