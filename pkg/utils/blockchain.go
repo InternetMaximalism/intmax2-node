@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
 	"log"
 	"math/big"
@@ -68,15 +69,25 @@ func PrivateKeyToAddress(pkHex string) (*common.Address, error) {
 	if pkHex == "" {
 		return nil, fmt.Errorf("private key cannot be empty")
 	}
-
 	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(pkHex)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create wallet from private key: %w", err)
 	}
-
 	if wallet.WalletAddress == nil {
 		return nil, fmt.Errorf("wallet address is nil")
 	}
-
 	return wallet.WalletAddress, nil
+}
+
+func LogTransactionDebugInfo(log logger.Logger, privateKeyHex, contractAddres string, args ...interface{}) error {
+	address, err := PrivateKeyToAddress(privateKeyHex)
+	if err != nil {
+		return fmt.Errorf("failed to get address from private key: %w", err)
+	}
+	log.Debugf("Contract address: %s", contractAddres)
+	log.Debugf("Transaction sender address: %s", address.Hex())
+	for i, arg := range args {
+		log.Debugf("Transaction Argument %d: %v (Type: %T)", i, arg, arg)
+	}
+	return nil
 }

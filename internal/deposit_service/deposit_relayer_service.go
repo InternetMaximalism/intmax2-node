@@ -229,9 +229,21 @@ func (d *DepositRelayerService) relayDeposits(maxLastSeenDepositIndex, numDeposi
 	}
 
 	transactOpts.Value = big.NewInt(FixedDepositValueInWei)
-	gasLimit := calculateRelayDepositsGasLimit(numDepositsToRelay)
+	upToDepositId := new(big.Int).SetUint64(maxLastSeenDepositIndex)
+	gasLimit := new(big.Int).SetUint64(calculateRelayDepositsGasLimit(numDepositsToRelay))
 
-	tx, err := d.liquidity.RelayDeposits(transactOpts, new(big.Int).SetUint64(maxLastSeenDepositIndex), new(big.Int).SetUint64(gasLimit))
+	err = utils.LogTransactionDebugInfo(
+		d.log,
+		d.cfg.Blockchain.DepositRelayerPrivateKeyHex,
+		d.cfg.Blockchain.LiquidityContractAddress,
+		upToDepositId,
+		gasLimit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to log transaction debug info: %w", err)
+	}
+
+	tx, err := d.liquidity.RelayDeposits(transactOpts, upToDepositId, gasLimit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send RelayDeposits transaction: %w", err)
 	}
