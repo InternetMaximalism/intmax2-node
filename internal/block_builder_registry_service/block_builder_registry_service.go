@@ -186,6 +186,9 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 	bbr.log.Debugf("Registry update is required.\n")
 
 	value = new(big.Int).Sub(&bbr.cfg.Blockchain.ScrollNetworkStakeBalance, res.StakeAmount)
+	if value.Cmp(big.NewInt(0)) < 0 {
+		value = big.NewInt(0)
+	}
 
 	for {
 		var transactOpts *bind.TransactOpts
