@@ -390,6 +390,18 @@ func (w *WithdrawalAggregatorService) submitWithdrawalProof(
 		return nil, err
 	}
 
+	err = utils.LogTransactionDebugInfo(
+		w.log,
+		w.cfg.Blockchain.WithdrawalPrivateKeyHex,
+		w.cfg.Blockchain.WithdrawalContractAddress,
+		withdrawals,
+		publicInputs,
+		proof,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to log transaction debug info: %w", err)
+	}
+
 	tx, err := w.withdrawalContract.SubmitWithdrawalProof(transactOpts, withdrawals, publicInputs, proof)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send submit withdrawal proof transaction: %w", err)

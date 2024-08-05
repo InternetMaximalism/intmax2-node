@@ -246,7 +246,6 @@ func (d *DepositAnalyzerService) shouldProcessDepositAnalyzer(events []*bindings
 		}
 		return false, fmt.Errorf("failed to get last block number: %w", err)
 	}
-	fmt.Println("eventInfo ", eventInfo)
 
 	if *eventInfo.BlockNumber == 0 {
 		return false, nil
@@ -308,6 +307,17 @@ func (d *DepositAnalyzerService) analyzeDeposits(upToDepositId *big.Int, rejectD
 	transactOpts, err := utils.CreateTransactor(d.cfg.Blockchain.DepositAnalyzerPrivateKeyHex, d.cfg.Blockchain.EthereumNetworkChainID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transactor: %w", err)
+	}
+
+	err = utils.LogTransactionDebugInfo(
+		d.log,
+		d.cfg.Blockchain.DepositAnalyzerPrivateKeyHex,
+		d.cfg.Blockchain.LiquidityContractAddress,
+		upToDepositId,
+		rejectDepositIndices,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to log transaction debug info: %w", err)
 	}
 
 	tx, err := d.liquidity.AnalyzeDeposits(transactOpts, upToDepositId, rejectDepositIndices)
