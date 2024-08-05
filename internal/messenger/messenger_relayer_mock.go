@@ -145,12 +145,32 @@ func (m *MessengerRelayerMockService) relayMessages(event *bindings.L1ScrollMess
 		return nil, err
 	}
 
-	fmt.Printf("Relaying message from %s to %s with value %d and nonce %d\n", event.Sender.String(), event.Target.String(), event.Value, event.MessageNonce)
-	if event.Sender == (common.Address{}) || event.Target == (common.Address{}) || event.Value == nil || event.MessageNonce == nil || event.Message == nil {
+	sender := event.Sender
+	target := event.Target
+	value := event.Value
+	nonce := event.MessageNonce
+	message := event.Message
+
+	m.log.Debugf("Relaying message from %s to %s with value %d and nonce %d\n", sender.String(), target.String(), value, nonce)
+	if sender == (common.Address{}) || target == (common.Address{}) || value == nil || nonce == nil || message == nil {
 		return nil, errors.New("event fields are not properly initialized")
 	}
 
-	tx, err := m.l2ScrollMessenger.RelayMessage(transactOpts, event.Sender, event.Target, event.Value, event.MessageNonce, event.Message)
+	err = utils.LogTransactionDebugInfo(
+		m.log,
+		m.cfg.Blockchain.MessengerMockPrivateKeyHex,
+		m.cfg.Blockchain.ScrollMessengerL2ContractAddress,
+		sender,
+		target,
+		value,
+		nonce,
+		message,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to log transaction debug info: %w", err)
+	}
+
+	tx, err := m.l2ScrollMessenger.RelayMessage(transactOpts, sender, target, value, nonce, message)
 	if err != nil {
 		return nil, err
 	}

@@ -133,6 +133,8 @@ func (w *MessengerWithdrawalRelayerService) relayMessageWithProof(result *Scroll
 		return nil, err
 	}
 
+	from := common.HexToAddress(result.ClaimInfo.From)
+	to := common.HexToAddress(result.ClaimInfo.To)
 	message := []byte(result.ClaimInfo.Message)
 	merkleProof := []byte(result.ClaimInfo.Proof.MerkleProof)
 	proof := bindings.IL1ScrollMessengerL2MessageProof{
@@ -140,10 +142,25 @@ func (w *MessengerWithdrawalRelayerService) relayMessageWithProof(result *Scroll
 		MerkleProof: merkleProof,
 	}
 
+	err = utils.LogTransactionDebugInfo(
+		w.log,
+		w.cfg.Blockchain.WithdrawalPrivateKeyHex,
+		w.cfg.Blockchain.ScrollMessengerL1ContractAddress,
+		from,
+		to,
+		value,
+		nonce,
+		message,
+		proof,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to log transaction debug info: %w", err)
+	}
+
 	tx, err := w.l1ScrollMessenger.RelayMessageWithProof(
 		transactOpts,
-		common.HexToAddress(result.ClaimInfo.From),
-		common.HexToAddress(result.ClaimInfo.To),
+		from,
+		to,
 		value,
 		nonce,
 		message,
