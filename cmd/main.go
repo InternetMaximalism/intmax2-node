@@ -82,7 +82,7 @@ func main() {
 	bc := blockchain.New(ctx, cfg)
 	ns := network_service.New(cfg)
 	hc := health.NewHandler()
-	bbr := block_builder_registry_service.New(cfg, bc)
+	bbr := block_builder_registry_service.New(cfg, log, bc)
 
 	pw := pow.New(cfg.PoW.Difficulty)
 	pWorker := pow.NewWorker(cfg.PoW.Workers, pw)
