@@ -75,13 +75,19 @@ func MessengerWithdrawalRelayerMock(ctx context.Context, cfg *configs.Config, lo
 
 	event, err := db.EventBlockNumberByEventName(mDBApp.SentMessageEvent)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) || err.Error() == NotFound {
-			event = createDefaultEvent()
+		if errors.Is(err, pgx.ErrNoRows) || err.Error() == notFound {
+			event = &mDBApp.EventBlockNumber{
+				EventName:                mDBApp.SentMessageEvent,
+				LastProcessedBlockNumber: 0,
+			}
 		} else {
 			panic(fmt.Sprintf("Error fetching event block number: %v", err.Error()))
 		}
 	} else if event == nil {
-		event = createDefaultEvent()
+		event = &mDBApp.EventBlockNumber{
+			EventName:                mDBApp.SentMessageEvent,
+			LastProcessedBlockNumber: 0,
+		}
 	}
 
 	currentBlockNumber, err := service.scrollClient.BlockNumber(service.ctx)
@@ -196,14 +202,7 @@ func (w *MessengerWithdrawalRelayerMockService) relayMessageWithProofByEvent(eve
 
 func (w *MessengerWithdrawalRelayerMockService) calculateStartBlockNumber(currentBlockNumber, lastProcessedBlockNumber uint64) uint64 {
 	if lastProcessedBlockNumber == 0 {
-		return max(currentBlockNumber-BlocksToLookBack, 0)
+		return max(currentBlockNumber-blocksToLookBack, 0)
 	}
 	return lastProcessedBlockNumber + 1
-}
-
-func createDefaultEvent() *mDBApp.EventBlockNumber {
-	return &mDBApp.EventBlockNumber{
-		EventName:                mDBApp.SentMessageEvent,
-		LastProcessedBlockNumber: 0,
-	}
 }
