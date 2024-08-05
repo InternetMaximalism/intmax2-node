@@ -140,7 +140,7 @@ func (m *MessengerRelayerMockService) fetchNewSentMessages(lastProcessedBlockNum
 }
 
 func (m *MessengerRelayerMockService) relayMessages(event *bindings.L1ScrollMessengerSentMessage) (*types.Receipt, error) {
-	transactOpts, err := utils.CreateTransactor(m.cfg.Blockchain.MockMessagingPrivateKeyHex, m.cfg.Blockchain.ScrollNetworkChainID)
+	transactOpts, err := utils.CreateTransactor(m.cfg.Blockchain.MessengerMockPrivateKeyHex, m.cfg.Blockchain.ScrollNetworkChainID)
 	if err != nil {
 		return nil, err
 	}

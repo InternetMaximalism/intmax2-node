@@ -161,7 +161,7 @@ func (w *MessengerWithdrawalRelayerMockService) fetchSentMessageEvents(currentBl
 }
 
 func (w *MessengerWithdrawalRelayerMockService) relayMessageWithProofByEvent(event *bindings.L2ScrollMessengerSentMessage) (*types.Receipt, error) {
-	transactOpts, err := utils.CreateTransactor(w.cfg.Blockchain.MockMessagingPrivateKeyHex, w.cfg.Blockchain.EthereumNetworkChainID)
+	transactOpts, err := utils.CreateTransactor(w.cfg.Blockchain.MessengerMockPrivateKeyHex, w.cfg.Blockchain.EthereumNetworkChainID)
 	if err != nil {
 		return nil, err
 	}
