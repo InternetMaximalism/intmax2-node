@@ -241,10 +241,9 @@ func ResumeWithdrawalRequest(
 	fmt.Printf("backupWithdrawals: %v\n", backupWithdrawals)
 	if len(backupWithdrawals) != 0 {
 		const searchLimit = 10
-		for i := 0; i < len(backupWithdrawals)/10; i += 10 {
+		for i := 0; i < len(backupWithdrawals)/searchLimit; i += searchLimit {
 			end := min(searchLimit*(i+1), len(backupWithdrawals))
 
-			// withdrawalInfo, err = FindWithdrawalsByTransferHashes(ctx, cfg, log, )
 			transferHashes := make([]string, end-searchLimit*i)
 			for i, backupWithdrawal := range backupWithdrawals[searchLimit*i : end] {
 				transferHashes[i] = hexutil.Encode(backupWithdrawal.Transfer.Hash().Marshal())
