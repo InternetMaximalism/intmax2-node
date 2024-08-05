@@ -186,6 +186,9 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 	bbr.log.Debugf("Registry update is required.\n")
 
 	value = new(big.Int).Sub(&bbr.cfg.Blockchain.ScrollNetworkStakeBalance, res.StakeAmount)
+	if value.Cmp(big.NewInt(0)) < 0 {
+		value = big.NewInt(0)
+	}
 
 	for {
 		var transactOpts *bind.TransactOpts
@@ -222,20 +225,21 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 		}
 
 		bbr.log.Debugf("The tx hash of UpdateBlockBuilder: %s\n", tx.Hash().String())
-		var recipient *types.Receipt
-		recipient, err = bind.WaitMined(spanCtx, client, tx)
+		var receipt *types.Receipt
+		receipt, err = bind.WaitMined(ctx, client, tx)
 		if err != nil {
 			bbr.log.Debugf("WaitMined Error: %s\n", fmt.Errorf("failed to wait for transaction to be mined: %w", err))
 			return fmt.Errorf("failed to wait for transaction to be mined: %w", err)
 		}
+		bbr.log.Debugf("WaitMined success\n")
 
-		var recipientJSON []byte
-		recipientJSON, err = json.Marshal(recipient)
+		var receiptJSON []byte
+		receiptJSON, err = json.Marshal(receipt)
 		if err != nil {
 			bbr.log.Debugf("json.Marshal Error: %s\n", fmt.Errorf("failed to marshal JSON: %w", err))
 			return fmt.Errorf("failed to marshal JSON: %w", err)
 		}
-		bbr.log.Debugf("The recipient of UpdateBlockBuilder: %s\n", string(recipientJSON))
+		bbr.log.Debugf("The receipt of UpdateBlockBuilder: %s\n", string(receiptJSON))
 
 		errorsB.InsufficientFunds = false
 		bbr.log.Debugf("Complete UpdateBlockBuilder\n")

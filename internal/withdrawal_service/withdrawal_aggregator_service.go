@@ -51,12 +51,12 @@ func newWithdrawalAggregatorService(
 	db SQLDriverApp,
 	sb ServiceBlockchain,
 ) (*WithdrawalAggregatorService, error) {
-	link, err := sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
+	scrollLink, err := sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Scroll network chain link: %w", err)
 	}
 
-	scrollClient, err := utils.NewClient(link)
+	scrollClient, err := utils.NewClient(scrollLink)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new scrollClient: %w", err)
 	}
@@ -388,6 +388,18 @@ func (w *WithdrawalAggregatorService) submitWithdrawalProof(
 	transactOpts, err := utils.CreateTransactor(w.cfg.Blockchain.WithdrawalPrivateKeyHex, w.cfg.Blockchain.ScrollNetworkChainID)
 	if err != nil {
 		return nil, err
+	}
+
+	err = utils.LogTransactionDebugInfo(
+		w.log,
+		w.cfg.Blockchain.WithdrawalPrivateKeyHex,
+		w.cfg.Blockchain.WithdrawalContractAddress,
+		withdrawals,
+		publicInputs,
+		proof,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to log transaction debug info: %w", err)
 	}
 
 	tx, err := w.withdrawalContract.SubmitWithdrawalProof(transactOpts, withdrawals, publicInputs, proof)

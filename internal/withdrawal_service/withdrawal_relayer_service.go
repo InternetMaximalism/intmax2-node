@@ -40,12 +40,12 @@ type WithdrawalRelayerService struct {
 }
 
 func newWithdrawalRelayerService(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, sb ServiceBlockchain) (*WithdrawalRelayerService, error) {
-	link, err := sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
+	scrollLink, err := sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Scroll network chain link: %w", err)
 	}
 
-	scrollClient, err := utils.NewClient(link)
+	scrollClient, err := utils.NewClient(scrollLink)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new scrollClient: %w", err)
 	}
@@ -153,7 +153,21 @@ func (w *WithdrawalRelayerService) relayWithdrawals(maxDirectWithdrawalId, maxCl
 		return nil, err
 	}
 
-	tx, err := w.withdrawalContract.RelayWithdrawals(transactOpts, big.NewInt(int64(maxDirectWithdrawalId)), big.NewInt(int64(maxClaimableWithdrawalId)))
+	upToDirectWithdrawalId := big.NewInt(int64(maxDirectWithdrawalId))
+	upToClamableWithdrawalId := big.NewInt(int64(maxClaimableWithdrawalId))
+
+	err = utils.LogTransactionDebugInfo(
+		w.log,
+		w.cfg.Blockchain.WithdrawalPrivateKeyHex,
+		w.cfg.Blockchain.WithdrawalContractAddress,
+		upToDirectWithdrawalId,
+		upToClamableWithdrawalId,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to log transaction debug info: %w", err)
+	}
+
+	tx, err := w.withdrawalContract.RelayWithdrawals(transactOpts, upToDirectWithdrawalId, upToClamableWithdrawalId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send relay withdrawals transaction: %w", err)
 	}

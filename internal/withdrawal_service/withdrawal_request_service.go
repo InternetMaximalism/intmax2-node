@@ -8,12 +8,11 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/logger"
-	"intmax2-node/internal/open_telemetry"
 	postWithdrwalRequest "intmax2-node/internal/use_cases/post_withdrawal_request"
+	"intmax2-node/pkg/utils"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/google/uuid"
 )
 
@@ -35,27 +34,15 @@ type WithdrawalRequestService struct {
 }
 
 func newWithdrawalRequestService(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, sb ServiceBlockchain) (*WithdrawalRequestService, error) {
-	const (
-		hName = "BlockBuilderRegistryService func:StopBlockBuilder"
-	)
-
-	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
-	defer span.End()
-
-	link, err := sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
+	scrollLink, err := sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
 	if err != nil {
-		return nil, errors.Join(ErrScrollNetworkChainLinkEvmJSONRPCFail, err)
+		return nil, fmt.Errorf("failed to get Scroll network chain link: %w", err)
 	}
 
-	var scrollClient *ethclient.Client
-	scrollClient, err = ethclient.Dial(link)
+	scrollClient, err := utils.NewClient(scrollLink)
 	if err != nil {
-		open_telemetry.MarkSpanError(spanCtx, err)
-		return nil, errors.Join(ErrCreateNewClientOfRPCEthFail, err)
+		return nil, fmt.Errorf("failed to create new scrollClient: %w", err)
 	}
-	defer func() {
-		scrollClient.Close()
-	}()
 
 	rollup, err := bindings.NewRollup(common.HexToAddress(cfg.Blockchain.RollupContractAddress), scrollClient)
 	if err != nil {
