@@ -32,6 +32,7 @@ func ClaimWithdrawals(
 
 	// アドレスを取得
 	recipientEthAddress := crypto.PubkeyToAddress(privateKey.PublicKey)
+	log.Infof("recipientEthAddress: %v\n", recipientEthAddress)
 
 	withdrawals, err := fetchRecipientClaimableWithdrawals(ctx, cfg, sb, recipientEthAddress)
 	if err != nil {
@@ -169,7 +170,7 @@ func claimWithdrawals(
 	}()
 
 	liquidityContract, err := bindings.NewLiquidity(
-		common.HexToAddress(cfg.Blockchain.WithdrawalContractAddress),
+		common.HexToAddress(cfg.Blockchain.LiquidityContractAddress),
 		client,
 	)
 	if err != nil {
@@ -191,18 +192,31 @@ func claimWithdrawals(
 			return nil, fmt.Errorf("failed to marshal withdrawal: %w", err)
 		}
 		log.Debugf("Claiming withdrawal[%d]: %s\n", i, withdrawalJSON)
+
+		var tokenInfo bindings.ITokenDataTokenInfo
+		tokenInfo, err = liquidityContract.GetTokenInfo(&bind.CallOpts{
+			Pending: false,
+			Context: ctx,
+		}, withdrawals[i].TokenIndex)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get token info: %w", err)
+		}
+		log.Debugf("tokenAddress: %v\n", tokenInfo.TokenAddress)
+		log.Debugf("tokenId: %v\n", tokenInfo.TokenId)
+		log.Debugf("tokenType: %v\n", tokenInfo.TokenType)
+
 		var tx *types.Transaction
 		tx, err = liquidityContract.ClaimWithdrawals(transactOpts, []bindings.WithdrawalLibWithdrawal{withdrawals[i]})
 		if err != nil {
 			// TODO: Continue only if WithdrawalNotFound error was occurred.
-			// return nil, fmt.Errorf("failed to claim withdrawals: %w", err)
 			log.Warnf("Failed to claim withdrawals[%d]: %v", i, err)
 			continue
 		}
 
 		log.Infof("ClaimWithdrawals tx sent: %s", tx.Hash().Hex())
 
-		receipt, err := bind.WaitMined(ctx, client, tx)
+		var receipt *types.Receipt
+		receipt, err = bind.WaitMined(ctx, client, tx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to wait for transaction to be mined: %w", err)
 		}

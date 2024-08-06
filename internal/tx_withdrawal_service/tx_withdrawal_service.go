@@ -1,4 +1,4 @@
-package tx_transfer_service
+package tx_withdrawal_service
 
 import (
 	"context"
@@ -253,11 +253,12 @@ func ResumeWithdrawalRequest(
 			}
 		}
 	}
+	fmt.Printf("withdrawalInfo: %v\n", withdrawalInfo)
 
 	shouldProcess := func(withdrawal *tx_transfer_service.BackupWithdrawal) bool {
 		transferHash := hexutil.Encode(withdrawal.Transfer.Hash().Marshal())
-		for _, withdrawalInfo := range withdrawalInfo {
-			if transferHash == withdrawalInfo.TransferHash {
+		for _, wi := range withdrawalInfo {
+			if transferHash == wi.TransferHash {
 				return false
 			}
 		}
