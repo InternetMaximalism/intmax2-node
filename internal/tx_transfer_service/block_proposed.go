@@ -194,7 +194,10 @@ func getBlockProposedRawRequest(
 	if resp.StatusCode() != http.StatusOK {
 		respStr := resp.String()
 		respJSON := ErrorResponse{}
-		json.Unmarshal([]byte(respStr), &respJSON)
+		err = json.Unmarshal([]byte(respStr), &respJSON)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+		}
 		if respJSON.Message != "" {
 			return nil, errors.New(respJSON.Message)
 		}
