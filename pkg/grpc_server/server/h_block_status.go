@@ -12,6 +12,11 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+const (
+	base10        = 10
+	numUint64Bits = 64
+)
+
 func (s *Server) BlockStatusByTxTreeRoot(
 	ctx context.Context,
 	req *node.BlockStatusByTxTreeRootRequest,
@@ -45,7 +50,7 @@ func (s *Server) BlockStatusByTxTreeRoot(
 	}
 
 	resp.IsPosted = blockStatus.IsPosted
-	resp.BlockNumber, err = strconv.ParseUint(blockStatus.BlockNumber, 10, 64)
+	resp.BlockNumber, err = strconv.ParseUint(blockStatus.BlockNumber, base10, numUint64Bits)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
 	}

@@ -93,7 +93,8 @@ func (w *depositSynchronizer) Start(
 				return true, nil
 			}
 
-			ok, err := shouldProcess()
+			var ok bool
+			ok, err = shouldProcess()
 			if err != nil {
 				return err
 			}
@@ -139,7 +140,8 @@ func (w *depositSynchronizer) Start(
 				senders[i] = defaultSender
 			}
 
-			txRoot, err := new(intMaxTypes.PoseidonHashOut).SetRandom()
+			var txRoot *intMaxTypes.PoseidonHashOut
+			txRoot, err = new(intMaxTypes.PoseidonHashOut).SetRandom()
 			if err != nil {
 				return err
 			}

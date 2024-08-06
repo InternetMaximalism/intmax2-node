@@ -12,6 +12,7 @@ import (
 	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
 	intMaxTypes "intmax2-node/internal/types"
+	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"intmax2-node/pkg/utils"
 	"math/big"
 	"time"
@@ -52,6 +53,14 @@ func (w *blockValidityProver) Start(
 	ctx context.Context,
 	tickerEventWatcher *time.Ticker,
 ) error {
+	rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(w.cfg, "https://sepolia-rpc.scroll.io")
+
+	scrollClient, err := utils.NewClient(rollupCfg.NetworkRpcUrl)
+	if err != nil {
+		return fmt.Errorf("failed to create new client: %w", err)
+	}
+	defer scrollClient.Close()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -106,22 +115,15 @@ func (w *blockValidityProver) Start(
 				// w.lastSeenScrollBlockNumber = lastSeenBlockNumber
 			*/
 
-			rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(w.cfg, "https://sepolia-rpc.scroll.io")
-
 			// Post unprocessed block
-			unprocessedBlocks, err := w.dbApp.GetUnprocessedBlocks()
+			var unprocessedBlocks []*mDBApp.Block
+			unprocessedBlocks, err = w.dbApp.GetUnprocessedBlocks()
 			if err != nil {
 				return err
 			}
 			if len(unprocessedBlocks) == 0 {
 				continue
 			}
-
-			scrollClient, err := utils.NewClient(rollupCfg.NetworkRpcUrl)
-			if err != nil {
-				return fmt.Errorf("failed to create new client: %w", err)
-			}
-			defer scrollClient.Close()
 
 			w.log.Infof("Unprocessed blocks: %d\n", len(unprocessedBlocks))
 			for _, unprocessedBlock := range unprocessedBlocks {
@@ -212,12 +214,14 @@ func (w *blockValidityProver) Start(
 					return errors.New("BlockPosted event not found")
 				}
 
-				rollup, err := bindings.NewRollup(common.HexToAddress(rollupCfg.RollupContractAddressHex), scrollClient)
+				var rollup *bindings.Rollup
+				rollup, err = bindings.NewRollup(common.HexToAddress(rollupCfg.RollupContractAddressHex), scrollClient)
 				if err != nil {
 					return fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
 				}
 
-				eventData, err := rollup.ParseBlockPosted(*eventLog)
+				var eventData *bindings.RollupBlockPosted
+				eventData, err = rollup.ParseBlockPosted(*eventLog)
 				if err != nil {
 					return err
 				}

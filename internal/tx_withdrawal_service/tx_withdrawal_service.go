@@ -25,6 +25,11 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
+const (
+	base10        = 10
+	numUint32Bits = 32
+)
+
 func WithdrawalTransaction(
 	ctx context.Context,
 	cfg *configs.Config,
@@ -338,7 +343,7 @@ func SendWithdrawalRequest(
 	}
 
 	rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(cfg, "https://sepolia-rpc.scroll.io")
-	blockNumber, err := strconv.ParseUint(blockStatus.BlockNumber, 10, 32)
+	blockNumber, err := strconv.ParseUint(blockStatus.BlockNumber, base10, numUint32Bits)
 	if err != nil {
 		return fmt.Errorf("failed to parse block number: %w", err)
 	}
