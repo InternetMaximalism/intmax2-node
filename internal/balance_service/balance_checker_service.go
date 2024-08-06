@@ -9,7 +9,6 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/bindings"
-	"intmax2-node/internal/deposit_service"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
 	intMaxTypes "intmax2-node/internal/types"
@@ -131,12 +130,6 @@ func GetBalance(
 	args []string,
 	userEthPrivateKey string,
 ) error {
-	tokenInfo := parseTokenInfo(args)
-	tokenIndex, err := GetTokenIndexFromLiquidityContract(ctx, cfg, sb, tokenInfo)
-	if err != nil {
-		return fmt.Errorf("%s: %w", ErrTokenNotFound, err)
-	}
-
 	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(utils.RemoveZeroX(userEthPrivateKey))
 	if err != nil {
 		return fmt.Errorf("fail to create wallet from private key: %w", err)
@@ -149,20 +142,29 @@ func GetBalance(
 
 	fmt.Printf("INTMAX address: %s\n", userPk.ToAddress().String())
 
+	tokenInfo := parseTokenInfo(args)
+	tokenIndex, err := GetTokenIndexFromLiquidityContract(ctx, cfg, sb, tokenInfo)
+	if err != nil {
+		if err.Error() == ErrTokenNotFound {
+			fmt.Println("INTMAX Balance: 0")
+			return nil
+		}
+		return fmt.Errorf("fail to get token index: %w", err)
+	}
+
 	balance, err := GetUserBalance(ctx, cfg, lg, userPk, tokenIndex)
 	if err != nil {
 		return fmt.Errorf("%s: %w", ErrFailedToGetBalance, err)
 	}
 
 	fmt.Printf("INTMAX Balance: %s\n", balance)
-
 	return nil
 }
 
 func GetTokenIndexFromLiquidityContract(
 	ctx context.Context,
 	cfg *configs.Config,
-	sb deposit_service.ServiceBlockchain,
+	sb ServiceBlockchain,
 	tokenInfo intMaxTypes.TokenInfo,
 ) (uint32, error) {
 	client, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
