@@ -1,6 +1,7 @@
 package ethereum_private_key_wallet
 
 import (
+	"fmt"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
 	"intmax2-node/internal/mnemonic_wallet/models"
@@ -11,7 +12,7 @@ import (
 func NewCmd(log logger.Logger) *cobra.Command {
 	const (
 		use   = "ethereum_private_key_wallet"
-		short = "Generate Ethereum and IntMax wallets from Ethereum private key"
+		short = "Generate Ethereum and INTMAX wallets from Ethereum private key"
 	)
 
 	cmd := cobra.Command{
@@ -23,10 +24,14 @@ func NewCmd(log logger.Logger) *cobra.Command {
 		emptyKey                   = ""
 		privateKeyInHexKey         = "private_key"
 		privateKeyInHexDescription = "private_key flag. use as --private_key \"__PRIVATE_KEY_IN_HEX_WITHOUT_0x__\""
+		developerModeKey           = "developer"
+		developerModeDescription   = "Enable developer mode to output all information in JSON format."
 	)
 
 	var privateKeyInHex string
+	var developerMode bool
 	cmd.PersistentFlags().StringVar(&privateKeyInHex, privateKeyInHexKey, emptyKey, privateKeyInHexDescription)
+	cmd.PersistentFlags().BoolVar(&developerMode, developerModeKey, false, developerModeDescription)
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		l := log.WithFields(logger.Fields{"module": use})
@@ -55,7 +60,13 @@ func NewCmd(log logger.Logger) *cobra.Command {
 			l.Fatalf(msg, err)
 		}
 
-		print(string(wb))
+		if developerMode {
+			print(string(wb))
+			return
+		}
+
+		fmt.Println("Ethereum address:", w.WalletAddress)
+		fmt.Println("INTMAX address:", w.IntMaxWalletAddress)
 	}
 
 	return &cmd
