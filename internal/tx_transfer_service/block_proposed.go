@@ -104,7 +104,7 @@ func retryRequest(
 			const ErrTxTreeNotBuild = "txHash: the tx tree not build."
 			if err.Error() == ErrTxTreeNotBuild {
 				if firstTime {
-					log.Infof("Block Builder is not ready to get tx tree. Retrying...")
+					log.Infof("The Block Builder is currently processing the tx tree...")
 					firstTime = false
 				}
 				continue
