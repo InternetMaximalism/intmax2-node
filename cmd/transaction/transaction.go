@@ -4,6 +4,7 @@ import (
 	"context"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
+	"intmax2-node/pkg/utils"
 
 	"github.com/spf13/cobra"
 )
@@ -69,7 +70,7 @@ func txTransferCmd(b *Transaction) *cobra.Command {
 			l.Fatalf(msg, err.Error())
 		}
 
-		err = newCommands().SendTransferTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, amount, recipientAddressStr, removeZeroX(userEthPrivateKey))
+		err = newCommands().SendTransferTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, amount, recipientAddressStr, utils.RemoveZeroX(userEthPrivateKey))
 		if err != nil {
 			const msg = "failed to transfer transaction: %v"
 			l.Fatalf(msg, err.Error())
@@ -115,7 +116,7 @@ func txDepositCmd(b *Transaction) *cobra.Command {
 			l.Fatalf(msg, err.Error())
 		}
 
-		err = newCommands().SendDepositTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, recipientAddressStr, amount, removeZeroX(userEthPrivateKey))
+		err = newCommands().SendDepositTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, recipientAddressStr, amount, utils.RemoveZeroX(userEthPrivateKey))
 		if err != nil {
 			const msg = "failed to deposit transaction: %v"
 			l.Fatalf(msg, err.Error())
@@ -161,7 +162,7 @@ func txWithdrawalCmd(b *Transaction) *cobra.Command {
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		l := b.Log.WithFields(logger.Fields{"module": use})
 
-		err := newCommands().SendWithdrawalTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, recipientAddressStr, amount, removeZeroX(userEthPrivateKey), resume)
+		err := newCommands().SendWithdrawalTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, recipientAddressStr, amount, utils.RemoveZeroX(userEthPrivateKey), resume)
 		if err != nil {
 			const msg = "failed to get balance: %v"
 			l.Fatalf(msg, err.Error())

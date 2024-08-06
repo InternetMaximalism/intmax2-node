@@ -135,7 +135,7 @@ func TransferTransaction(
 		log.Fatalf("failed to send transaction: %v", err)
 	}
 
-	log.Infof("The proposed block has been successfully received. Please wait for the server's response.")
+	log.Infof("The proposed block has been successfully received.")
 
 	tx, err := intMaxTypes.NewTx(
 		&transfersHash,

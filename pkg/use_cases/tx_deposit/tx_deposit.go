@@ -6,13 +6,15 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
-	"intmax2-node/internal/balance_service"
+	balanceService "intmax2-node/internal/balance_service"
+	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
-	service "intmax2-node/internal/tx_deposit_service"
+	txDepositService "intmax2-node/internal/tx_deposit_service"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/tx_deposit"
 	"math/big"
+	"strings"
 
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -22,13 +24,18 @@ const (
 	int10Key = 10
 )
 
-var ErrBackupDeposit = errors.New("failed to backup deposit")
+var (
+	ErrBackupDeposit    = errors.New("failed to backup deposit")
+	ErrInvalidArguments = errors.New("invalid arguments")
+	ErrUnsupportedToken = errors.New("unsupported token type")
+)
 
 // uc describes use case
 type uc struct {
 	cfg *configs.Config
 	log logger.Logger
 	sb  ServiceBlockchain
+	ds  *txDepositService.TxDepositService
 }
 
 func New(
@@ -45,7 +52,7 @@ func New(
 
 func (u *uc) Do(ctx context.Context, args []string, recipientAddressStr, amount, userEthPrivateKeyHex string) (err error) {
 	const (
-		hName     = "UseCase TxTransfer"
+		hName     = "UseCase TxDepoxit"
 		senderKey = "sender"
 	)
 
@@ -71,7 +78,7 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressStr, amount,
 	}
 
 	if len(args) > int3Key {
-		return errors.New("too many arguments")
+		return ErrInvalidArguments
 	}
 
 	tokenInfo, err := new(intMaxTypes.TokenInfo).ParseFromStrings(args)
@@ -89,85 +96,71 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressStr, amount,
 	// 	return err
 	// }
 
-	d, err := service.NewDepositAnalyzerService(
+	u.ds, err = txDepositService.NewTxDepositService(
 		ctx, u.cfg, u.log, u.sb,
 	)
 	if err != nil {
 		return err
 	}
 
+	amountInt, ok := new(big.Int).SetString(amount, int10Key)
+	if !ok {
+		return fmt.Errorf("failed to convert amount to int: %s", amount)
+	}
+
+	return u.processDeposit(ctx, tokenInfo, userEthPrivateKeyHex, recipientAddress, amount, amountInt)
+}
+
+func (u *uc) processDeposit(ctx context.Context, tokenInfo *intMaxTypes.TokenInfo, privateKey string, recipient intMaxAcc.Address, amountStr string, amountInt *big.Int) error {
 	const (
 		ethTokenTypeEnum = iota
 		erc20TokenTypeEnum
 		erc721TokenTypeEnum
 		erc1155TokenTypeEnum
 	)
+	var (
+		depositID uint64
+		salt      *goldenposeidon.PoseidonHashOut
+		err       error
+		tokenType string
+	)
 
-	amountInt, ok := new(big.Int).SetString(amount, int10Key)
-	if !ok {
-		return fmt.Errorf("failed to convert amount to int: %s", amount)
+	switch tokenInfo.TokenType {
+	case ethTokenTypeEnum:
+		depositID, salt, err = u.ds.DepositETHWithRandomSalt(privateKey, recipient, amountStr)
+		tokenType = "ETH"
+	case erc20TokenTypeEnum:
+		depositID, salt, err = u.ds.DepositERC20WithRandomSalt(privateKey, recipient, tokenInfo.TokenAddress, amountStr)
+		tokenType = "ERC20"
+	case erc721TokenTypeEnum:
+		depositID, salt, err = u.ds.DepositERC721WithRandomSalt(privateKey, recipient, tokenInfo.TokenAddress, tokenInfo.TokenID)
+		amountInt = big.NewInt(1) // ERC721 always has an amount of 1
+		tokenType = "ERC721"
+	case erc1155TokenTypeEnum:
+		return errors.New("ERC1155 is not supported yet")
+	default:
+		return ErrUnsupportedToken
 	}
 
-	var tokenIndex uint32
-	if tokenInfo.TokenType == ethTokenTypeEnum {
-		// ETH
-		depositID, salt, innerErr := d.DepositETHWithRandomSalt(userEthPrivateKeyHex, recipientAddress, amount)
-		if innerErr != nil {
-			return innerErr
+	if err != nil {
+		if strings.Contains(err.Error(), "failed to send ERC20.Approve transaction:") {
+			return fmt.Errorf("the specified ERC20 is not owned by the account or insufficient balance")
 		}
-
-		u.log.Infof("ETH deposit is successful")
-
-		tokenIndex, err = balance_service.GetTokenIndexFromLiquidityContract(ctx, u.cfg, u.sb, *tokenInfo)
-		if err != nil {
-			return err
+		if strings.Contains(err.Error(), "failed to send ERC721.Approve transaction:") {
+			return fmt.Errorf("the specified ERC721 is not owned by the account")
 		}
+		return fmt.Errorf("%s deposit is failed: %w", tokenType, err)
+	}
 
-		err = d.BackupDeposit(recipientAddress, tokenIndex, amountInt, salt, depositID)
-		if err != nil {
-			return errors.Join(ErrBackupDeposit, err)
-		}
-	} else if tokenInfo.TokenType == erc20TokenTypeEnum {
-		// ERC20
-		depositID, salt, innerErr := d.DepositERC20WithRandomSalt(userEthPrivateKeyHex, recipientAddress, tokenInfo.TokenAddress, amount)
-		if innerErr != nil {
-			return innerErr
-		}
+	u.log.Infof("%s deposit is successful", tokenType)
 
-		u.log.Infof("ERC20 deposit is successful")
+	tokenIndex, err := balanceService.GetTokenIndexFromLiquidityContract(ctx, u.cfg, u.sb, *tokenInfo)
+	if err != nil {
+		return err
+	}
 
-		tokenIndex, err = balance_service.GetTokenIndexFromLiquidityContract(ctx, u.cfg, u.sb, *tokenInfo)
-		if err != nil {
-			return err
-		}
-
-		err = d.BackupDeposit(recipientAddress, tokenIndex, amountInt, salt, depositID)
-		if err != nil {
-			return errors.Join(ErrBackupDeposit, err)
-		}
-	} else if tokenInfo.TokenType == erc721TokenTypeEnum {
-		// ERC721
-		depositID, salt, innerErr := d.DepositERC721WithRandomSalt(userEthPrivateKeyHex, recipientAddress, tokenInfo.TokenAddress, tokenInfo.TokenID)
-		if innerErr != nil {
-			return innerErr
-		}
-
-		u.log.Infof("ERC721 deposit is successful")
-
-		tokenIndex, err = balance_service.GetTokenIndexFromLiquidityContract(ctx, u.cfg, u.sb, *tokenInfo)
-		if err != nil {
-			return err
-		}
-
-		err = d.BackupDeposit(recipientAddress, tokenIndex, big.NewInt(1), salt, depositID)
-		if err != nil {
-			return errors.Join(ErrBackupDeposit, err)
-		}
-	} else if tokenInfo.TokenType == erc1155TokenTypeEnum {
-		// ERC1155
-		return errors.New("ERC1155 is not supported yet")
-	} else {
-		return errors.New("token type is not supported")
+	if err = u.ds.BackupDeposit(recipient, tokenIndex, amountInt, salt, depositID); err != nil {
+		return errors.Join(ErrBackupDeposit, err)
 	}
 
 	return nil
