@@ -698,7 +698,7 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 			}
 
 			var mw *modelsMW.Wallet
-			mw, err = mnemonic_wallet.New().WalletFromPrivateKeyHex(w.cfg.Wallet.PrivateKeyHex)
+			mw, err = mnemonic_wallet.New().WalletFromPrivateKeyHex(w.cfg.Blockchain.BuilderPrivateKeyHex)
 			if err != nil {
 				return errors.Join(errorsB.ErrWalletAddressNotRecognized, err)
 			}
