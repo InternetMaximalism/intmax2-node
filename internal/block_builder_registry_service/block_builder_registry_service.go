@@ -80,7 +80,7 @@ func (bbr *blockBuilderRegistryService) GetBlockBuilder(
 	}
 
 	var w *modelsMW.Wallet
-	w, err = mnemonic_wallet.New().WalletFromPrivateKeyHex(bbr.cfg.Wallet.PrivateKeyHex)
+	w, err = mnemonic_wallet.New().WalletFromPrivateKeyHex(bbr.cfg.Blockchain.EthereumPrivateKeyHex)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
 		return nil, errors.Join(errorsB.ErrWalletAddressNotRecognized, err)
@@ -164,7 +164,7 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 		return errors.Join(ErrNewBlockBuilderRegistryCallerFail, err)
 	}
 
-	privateKey, err := crypto.HexToECDSA(bbr.cfg.Wallet.PrivateKeyHex)
+	privateKey, err := crypto.HexToECDSA(bbr.cfg.Blockchain.EthereumPrivateKeyHex)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
 		return errors.Join(ErrLoadPrivateKeyFail, err)
@@ -382,7 +382,7 @@ func (bbr *blockBuilderRegistryService) UnStakeBlockBuilder(
 }
 
 func createTransactor(cfg *configs.Config) (*bind.TransactOpts, error) {
-	privateKey, err := crypto.HexToECDSA(cfg.Wallet.PrivateKeyHex)
+	privateKey, err := crypto.HexToECDSA(cfg.Blockchain.EthereumPrivateKeyHex)
 	if err != nil {
 		return nil, errors.Join(ErrLoadPrivateKeyFail, err)
 	}
