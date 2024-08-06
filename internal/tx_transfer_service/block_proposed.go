@@ -3,6 +3,7 @@ package tx_transfer_service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
@@ -55,7 +56,7 @@ func GetBlockProposed(
 		ctx, cfg, log, senderAccount.ToAddress(), *txHash, expiration, signature,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get proposed block: %w", err)
+		return nil, fmt.Errorf("failed to get proposed block (retry): %w", err)
 	}
 
 	return res, nil
@@ -80,6 +81,7 @@ func retryRequest(
 	gbpCtx, cancel := context.WithTimeout(ctx, timeoutInterval)
 	defer cancel()
 
+	firstTime := true
 	for {
 		select {
 		case <-gbpCtx.Done():
@@ -99,8 +101,17 @@ func retryRequest(
 				return response, nil
 			}
 
-			const msg = "Cannot get successful response. Retry in %f second(s)"
-			log.WithError(err).Errorf(msg, retryInterval.Seconds())
+			const ErrTxTreeNotBuild = "txHash: the tx tree not build."
+			if err.Error() == ErrTxTreeNotBuild {
+				if firstTime {
+					log.Infof("The Block Builder is currently processing the tx tree...")
+					firstTime = false
+				}
+				continue
+			}
+
+			var ErrFailedResponse = errors.New("cannot get successful response")
+			return nil, errors.Join(ErrFailedResponse, err)
 		}
 	}
 }
@@ -114,6 +125,12 @@ type BlockProposedResponseData struct {
 type BlockProposedResponse struct {
 	Success bool                           `json:"success"`
 	Data    block_proposed.UCBlockProposed `json:"data"`
+}
+
+type ErrorResponse struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Details []any  `json:"details"`
 }
 
 func GetBlockProposedRawRequest(
@@ -175,12 +192,17 @@ func getBlockProposedRawRequest(
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		err = fmt.Errorf("failed to get response")
-		log.WithFields(logger.Fields{
-			"status_code": resp.StatusCode(),
-			"response":    resp.String(),
-		}).WithError(err).Errorf("Unexpected status code")
-		return nil, err
+		respStr := resp.String()
+		respJSON := ErrorResponse{}
+		err = json.Unmarshal([]byte(respStr), &respJSON)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+		}
+		if respJSON.Message != "" {
+			return nil, errors.New(respJSON.Message)
+		}
+
+		return nil, fmt.Errorf("failed to get response")
 	}
 
 	defer func() {
