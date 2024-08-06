@@ -50,13 +50,7 @@ func getBalanceCmd(b *Balance) *cobra.Command {
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		l := b.Log.WithFields(logger.Fields{"module": use})
 
-		err := b.SB.CheckEthereumPrivateKey(b.Context)
-		if err != nil {
-			const msg = "check private key error occurred: %v"
-			l.Fatalf(msg, err.Error())
-		}
-
-		err = newCommands().GetBalance(b.Config, b.Log, b.SB).Do(b.Context, args, userEthPrivateKey)
+		err := newCommands().GetBalance(b.Config, b.Log, b.SB).Do(b.Context, args, userEthPrivateKey)
 		if err != nil {
 			const msg = "failed to get balance: %v"
 			l.Fatalf(msg, err.Error())

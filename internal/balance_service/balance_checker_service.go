@@ -9,7 +9,6 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/bindings"
-	"intmax2-node/internal/deposit_service"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
 	intMaxTypes "intmax2-node/internal/types"
@@ -24,7 +23,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/go-resty/resty/v2"
 )
 
@@ -131,95 +129,47 @@ func GetBalance(
 	sb ServiceBlockchain,
 	args []string,
 	userEthPrivateKey string,
-) {
-	tokenInfo := parseTokenInfo(args)
-
-	tokenIndex, err := GetTokenIndex(ctx, cfg, sb, tokenInfo)
+) error {
+	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(utils.RemoveZeroX(userEthPrivateKey))
 	if err != nil {
-		fmt.Println(ErrTokenNotFound, err)
-		os.Exit(1)
-	}
-
-	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(removeZeroX(userEthPrivateKey))
-	if err != nil {
-		fmt.Printf("fail to parse user address: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("fail to create wallet from private key: %w", err)
 	}
 
 	userPk, err := intMaxAcc.NewPrivateKeyFromString(wallet.IntMaxPrivateKey)
 	if err != nil {
-		fmt.Printf("fail to parse user address: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("fail to create INTMAX private key: %w", err)
 	}
-	fmt.Printf("User address: %s\n", userPk.ToAddress().String())
+
+	fmt.Printf("INTMAX address: %s\n", userPk.ToAddress().String())
+
+	tokenInfo := parseTokenInfo(args)
+	tokenIndex, err := GetTokenIndexFromLiquidityContract(ctx, cfg, sb, tokenInfo)
+	if err != nil {
+		if err.Error() == ErrTokenNotFound {
+			fmt.Println("INTMAX Balance: 0")
+			return nil
+		}
+		return fmt.Errorf("fail to get token index: %w", err)
+	}
 
 	balance, err := GetUserBalance(ctx, cfg, lg, userPk, tokenIndex)
 	if err != nil {
-		fmt.Printf(ErrFailedToGetBalance+": %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("%s: %w", ErrFailedToGetBalance, err)
 	}
 
-	fmt.Printf("Balance: %s\n", balance)
+	fmt.Printf("INTMAX Balance: %s\n", balance)
+	return nil
 }
 
-func GetTokenIndex(
-	ctx context.Context,
-	cfg *configs.Config,
-	sb deposit_service.ServiceBlockchain,
-	tokenInfo intMaxTypes.TokenInfo,
-) (uint32, error) {
-	// Check local DB for token index
-	// localTokenIndex, err := getLocalTokenIndex(db, tokenInfo)
-	// if err == nil {
-	// 	return localTokenIndex, nil
-	// }
-
-	// Check liquidity contract for token index
-	return GetTokenIndexFromLiquidityContract(ctx, cfg, sb, tokenInfo)
-}
-
-/*
-func getLocalTokenIndex(db SQLDriverApp, tokenInfo intMaxTypes.TokenInfo) (uint32, error) {
-	tokenAddressStr := tokenInfo.TokenAddress.String()
-	tokenIDStr := fmt.Sprintf("%d", tokenInfo.TokenID)
-
-	token, err := db.TokenByTokenInfo(tokenAddressStr, tokenIDStr)
-	if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
-		panic(fmt.Sprintf(ErrFetchTokenByTokenAddressAndTokenIDWithDBApp, err.Error()))
-	}
-	if errors.Is(err, errorsDB.ErrNotFound) {
-		return 0, errors.Join(errors.New(ErrTokenNotFound), err)
-	}
-
-	const (
-		int10Key = 10
-		int32Key = 32
-	)
-	tokenIndex, err := strconv.ParseUint(token.TokenIndex, int10Key, int32Key)
-	if err != nil {
-		return 0, fmt.Errorf("failed to convert token index to int: %v", err)
-	}
-
-	return uint32(tokenIndex), err
-}
-*/
-
-// Get token index from liquidity contract
 func GetTokenIndexFromLiquidityContract(
 	ctx context.Context,
 	cfg *configs.Config,
-	sb deposit_service.ServiceBlockchain,
+	sb ServiceBlockchain,
 	tokenInfo intMaxTypes.TokenInfo,
 ) (uint32, error) {
-	link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
+	client, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
 	if err != nil {
-		log.Fatalf(err.Error())
-	}
-
-	var client *ethclient.Client
-	client, err = utils.NewClient(link)
-	if err != nil {
-		log.Fatalf(err.Error())
+		return 0, fmt.Errorf("failed to create new client: %w", err)
 	}
 
 	liquidity, err := bindings.NewLiquidity(common.HexToAddress(cfg.Blockchain.LiquidityContractAddress), client)
@@ -311,48 +261,6 @@ func GetUserBalancesRawRequest(
 	}
 
 	return response, nil
-}
-
-type GetBalancesResponse struct {
-	// The list of deposits
-	Deposits []*BackupDeposit `json:"deposits,omitempty"`
-	// The list of transfers
-	Transfers []*BackupTransfer `json:"transfers,omitempty"`
-	// The list of transactions
-	Transactions []*BackupTransaction `json:"transactions,omitempty"`
-}
-
-type BackupDeposit struct {
-	Recipient        string `json:"recipient,omitempty"`
-	EncryptedDeposit string `json:"encryptedDeposit,omitempty"`
-	BlockNumber      string `json:"blockNumber,omitempty"`
-	CreatedAt        string `json:"createdAt,omitempty"`
-}
-
-type BackupTransfer struct {
-	EncryptedTransfer string `json:"encryptedTransfer,omitempty"`
-	Recipient         string `json:"recipient,omitempty"`
-	BlockNumber       string `json:"blockNumber,omitempty"`
-	CreatedAt         string `json:"createdAt,omitempty"`
-}
-
-type BackupTransaction struct {
-	Sender      string `json:"sender,omitempty"`
-	EncryptedTx string `json:"encryptedTx,omitempty"`
-	BlockNumber string `json:"blockNumber,omitempty"`
-	CreatedAt   string `json:"createdAt,omitempty"`
-}
-
-type GetVerifyDepositConfirmationResponse struct {
-	// Indicates if the verify deposit confirmation was successful
-	Success bool ` json:"success,omitempty"`
-	// Additional data related to the response
-	Data *GetVerifyDepositConfirmationResponse_Data `json:"data,omitempty"`
-}
-
-type GetVerifyDepositConfirmationResponse_Data struct {
-	// Indicates whether the deposit is confirmed
-	Confirmed bool `json:"confirmed,omitempty"`
 }
 
 func GetDepositValidityRawRequest(
@@ -506,11 +414,4 @@ func CalculateBalance(
 		TokenIndex: tokenIndex,
 		Amount:     balance,
 	}, nil
-}
-
-func removeZeroX(s string) string {
-	if len(s) >= 2 && s[:2] == "0x" {
-		return s[2:]
-	}
-	return s
 }
