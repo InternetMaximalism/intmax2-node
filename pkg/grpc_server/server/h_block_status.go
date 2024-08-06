@@ -13,12 +13,12 @@ import (
 
 func (s *Server) BlockStatusByTxTreeRoot(
 	ctx context.Context,
-	req *node.BlockStatusRequest,
-) (*node.BlockStatusResponse, error) {
-	resp := node.BlockStatusResponse{}
+	req *node.BlockStatusByTxTreeRootRequest,
+) (*node.BlockStatusByTxTreeRootResponse, error) {
+	resp := node.BlockStatusByTxTreeRootResponse{}
 
 	const (
-		hName      = "Handler BlockSignature"
+		hName      = "Handler BlockStatusByTxTreeRoot"
 		requestKey = "request"
 	)
 
@@ -32,8 +32,12 @@ func (s *Server) BlockStatusByTxTreeRoot(
 		TxTreeRoot: req.TxTreeRoot,
 	}
 
-	blockStatus, err := s.commands.BlockStatus(s.config, s.log, s.dbApp).Do(spanCtx, &input)
+	blockStatus, err := s.commands.BlockStatusByTxTreeRoot(s.config, s.log, s.dbApp, s.worker).Do(spanCtx, &input)
 	if err != nil {
+		if err.Error() == "not found" || err.Error() == "tx tree root not found" {
+			return &resp, utils.NotFound(spanCtx, err)
+		}
+
 		open_telemetry.MarkSpanError(spanCtx, err)
 		const msg = "failed to get block status: %v"
 		return &resp, utils.Internal(spanCtx, s.log, msg, err)

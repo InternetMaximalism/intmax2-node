@@ -22,4 +22,5 @@ type Worker interface {
 		txHash *intMaxTree.PoseidonHashOut,
 		leafIndex uint64,
 	) error
+	ExistsTxTreeRoot(txTreeRoot string) error
 }

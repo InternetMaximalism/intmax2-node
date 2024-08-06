@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -118,6 +117,12 @@ func (w *blockValidityProver) Start(
 				continue
 			}
 
+			scrollClient, err := utils.NewClient(rollupCfg.NetworkRpcUrl)
+			if err != nil {
+				return fmt.Errorf("failed to create new client: %w", err)
+			}
+			defer scrollClient.Close()
+
 			w.log.Infof("Unprocessed blocks: %d\n", len(unprocessedBlocks))
 			for _, unprocessedBlock := range unprocessedBlocks {
 				var senderType string
@@ -188,27 +193,9 @@ func (w *blockValidityProver) Start(
 					return err
 				}
 
-				tx, txErr := intMaxTypes.PostRegistrationBlock(rollupCfg, blockContent)
+				receipt, txErr := intMaxTypes.PostRegistrationBlock(rollupCfg, ctx, w.log, scrollClient, blockContent)
 				if txErr != nil {
 					return txErr
-				}
-
-				w.log.Infof("Transaction sent: %s\n", tx.Hash().Hex())
-
-				scrollClient, err := utils.NewClient(rollupCfg.NetworkRpcUrl)
-				if err != nil {
-					return fmt.Errorf("failed to create new client: %w", err)
-				}
-				defer scrollClient.Close()
-
-				rollup, err := bindings.NewRollup(common.HexToAddress(rollupCfg.RollupContractAddressHex), scrollClient)
-				if err != nil {
-					return fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
-				}
-
-				receipt, err := bind.WaitMined(ctx, scrollClient, tx)
-				if err != nil {
-					return err
 				}
 
 				var eventLog *types.Log
@@ -223,6 +210,11 @@ func (w *blockValidityProver) Start(
 
 				if !ok {
 					return errors.New("BlockPosted event not found")
+				}
+
+				rollup, err := bindings.NewRollup(common.HexToAddress(rollupCfg.RollupContractAddressHex), scrollClient)
+				if err != nil {
+					return fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
 				}
 
 				eventData, err := rollup.ParseBlockPosted(*eventLog)
@@ -246,7 +238,7 @@ func (w *blockValidityProver) Start(
 					return err
 				}
 
-				fmt.Println("UpdateBlockStatus")
+				w.log.Infof("Posted registration block. The block number is %d.\n", blockNumber)
 			}
 		}
 	}

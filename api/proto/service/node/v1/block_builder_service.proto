@@ -62,7 +62,7 @@ service BlockBuilderService {
       body: "*"
     };
   }
-  rpc BlockStatusByTxTreeRoot(BlockStatusRequest) returns (BlockStatusResponse) {
+  rpc BlockStatusByTxTreeRoot(BlockStatusByTxTreeRootRequest) returns (BlockStatusByTxTreeRootResponse) {
     option (google.api.http) = {
       get: "/v1/block/status/{tx_tree_root}"
     };
@@ -233,13 +233,13 @@ message BlockSignatureResponse {
 
 
 // BlockStatusRequest describes request about retrieves the status of a block by its tx tree root
-message BlockStatusRequest {
+message BlockStatusByTxTreeRootRequest {
   // the transaction tree root hash
   string tx_tree_root = 10 [json_name="txTreeRoot", (tagger.tags)="json:\"txTreeRoot,omitempty\""];
 }
 
 // BlockStatusResponse describes response about retrieves the status of a block by its tx tree root
-message BlockStatusResponse {
+message BlockStatusByTxTreeRootResponse {
   // the status of the block
   bool is_posted = 10 [json_name="isPosted", (tagger.tags)="json:\"isPosted,omitempty\""];
 

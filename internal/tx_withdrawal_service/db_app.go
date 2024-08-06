@@ -1,4 +1,4 @@
-package tx_transfer_service
+package tx_withdrawal_service
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"github.com/holiman/uint256"
 )
 
-//go:generate mockgen -destination=mock_db_app_test.go -package=tx_transfer_service_test -source=db_app.go
+//go:generate mockgen -destination=mock_db_app_test.go -package=tx_withdrawal_service_test -source=db_app.go
 
 type SQLDriverApp interface {
 	GenericCommandsApp

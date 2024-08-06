@@ -35,10 +35,11 @@ type Commands interface {
 		log logger.Logger,
 		worker Worker,
 	) blockSignature.UseCaseBlockSignature
-	BlockStatus(
+	BlockStatusByTxTreeRoot(
 		cfg *configs.Config,
 		log logger.Logger,
 		db SQLDriverApp,
+		worker Worker,
 	) blockStatus.UseCaseBlockStatus
 }
 
@@ -76,10 +77,11 @@ func (c *commands) BlockSignature(
 	return ucBlockSignature.New(cfg, log, worker)
 }
 
-func (c *commands) BlockStatus(
+func (c *commands) BlockStatusByTxTreeRoot(
 	cfg *configs.Config,
 	log logger.Logger,
 	db SQLDriverApp,
+	worker Worker,
 ) blockStatus.UseCaseBlockStatus {
-	return ucBlockStatus.New(cfg, log, db)
+	return ucBlockStatus.New(cfg, log, db, worker)
 }

@@ -317,7 +317,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1BlockStatusResponse"
+              "$ref": "#/definitions/v1BlockStatusByTxTreeRootResponse"
             }
           },
           "400": {
@@ -917,7 +917,7 @@
       },
       "title": "BlockSignatureResponse describes response about sends the signature to approve the proposed block by signing the tx tree root"
     },
-    "v1BlockStatusResponse": {
+    "v1BlockStatusByTxTreeRootResponse": {
       "type": "object",
       "properties": {
         "isPosted": {

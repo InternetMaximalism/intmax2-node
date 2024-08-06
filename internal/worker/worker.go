@@ -361,6 +361,31 @@ func (w *worker) TxTreeByAvailableFile(sf *TransactionHashesWithSenderAndFile) (
 	return txTreeRoot, err
 }
 
+func (w *worker) ExistsTxTreeRoot(
+	txTreeRoot string,
+) error {
+	for key := range w.files.FilesList {
+		fmt.Printf("key: %v\n", key)
+
+		if w.files.FilesList[key].LeafsTree == nil {
+			continue
+		}
+		if w.files.FilesList[key].LeafsTree.TxRoot == nil {
+			continue
+		}
+
+		actualTxTreeRoot, _, _ := w.files.FilesList[key].LeafsTree.TxTree.GetCurrentRootCountAndSiblings()
+		fmt.Printf("actualTxTreeRoot: %v\n", actualTxTreeRoot.String())
+		if actualTxTreeRoot.String() == txTreeRoot {
+			return nil
+		}
+	}
+
+	var ErrTxTreeRootNotFound = errors.New("tx tree root not found")
+
+	return ErrTxTreeRootNotFound
+}
+
 func (w *worker) Start(
 	ctx context.Context,
 	tickerCurrentFile, tickerSignaturesAvailableFiles *time.Ticker,

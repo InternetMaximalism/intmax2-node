@@ -1,4 +1,4 @@
-package tx_transfer_service
+package tx_withdrawal_service
 
 import (
 	"context"
@@ -256,8 +256,8 @@ func ResumeWithdrawalRequest(
 
 	shouldProcess := func(withdrawal *tx_transfer_service.BackupWithdrawal) bool {
 		transferHash := hexutil.Encode(withdrawal.Transfer.Hash().Marshal())
-		for _, withdrawalInfo := range withdrawalInfo {
-			if transferHash == withdrawalInfo.TransferHash {
+		for _, wi := range withdrawalInfo {
+			if transferHash == wi.TransferHash {
 				return false
 			}
 		}
@@ -286,6 +286,11 @@ func ResumeWithdrawalRequest(
 		// Send withdrawal request
 		err = SendWithdrawalRequest(ctx, cfg, log, backupWithdrawal)
 		if err != nil {
+			if err.Error() == "failed to get block status: failed to get block status: block not found" {
+				log.Warnf("The block containing the transaction is not posted yet.")
+				continue
+			}
+
 			log.Fatalf("failed to request withdrawal: %v", err)
 		}
 
@@ -325,6 +330,9 @@ func SendWithdrawalRequest(
 	// Specify the block number containing the transaction.
 	blockStatus, err := tx_transfer_service.GetBlockStatus(ctx, cfg, log, withdrawal.TransferTreeRoot)
 	if err != nil {
+		if errors.Is(err, ErrBlockNotFound) {
+			return ErrBlockNotFound
+		}
 		return fmt.Errorf("failed to get block status: %w", err)
 	}
 	blockNumber := blockStatus.BlockNumber

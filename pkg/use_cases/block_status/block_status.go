@@ -2,6 +2,7 @@ package block_status
 
 import (
 	"context"
+	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
@@ -12,20 +13,23 @@ import (
 )
 
 type uc struct {
-	cfg *configs.Config
-	log logger.Logger
-	db  SQLDriverApp
+	cfg    *configs.Config
+	log    logger.Logger
+	db     SQLDriverApp
+	worker Worker
 }
 
 func New(
 	cfg *configs.Config,
 	log logger.Logger,
 	db SQLDriverApp,
+	worker Worker,
 ) ucBlockStatus.UseCaseBlockStatus {
 	return &uc{
-		cfg: cfg,
-		log: log,
-		db:  db,
+		cfg:    cfg,
+		log:    log,
+		db:     db,
+		worker: worker,
 	}
 }
 
@@ -45,8 +49,24 @@ func (u *uc) Do(
 
 	block, err := u.db.BlockByTxRoot(input.TxTreeRoot)
 	if err != nil {
+		fmt.Printf("BlockByTxRoot error\n")
+		if err.Error() == "not found" {
+			err = u.worker.ExistsTxTreeRoot(input.TxTreeRoot)
+			if err != nil {
+				return nil, err
+			}
+
+			status = &ucBlockStatus.UCBlockStatus{
+				IsPosted:    false,
+				BlockNumber: 0,
+			}
+
+			return status, nil
+		}
+
 		return nil, err
 	}
+	fmt.Printf("block: %v\n", block)
 
 	isPosted := false
 	var blockNumber uint32 = 0

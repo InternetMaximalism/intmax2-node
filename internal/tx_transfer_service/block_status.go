@@ -3,6 +3,7 @@ package tx_transfer_service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/hash/goldenposeidon"
@@ -17,7 +18,7 @@ import (
 
 const (
 	retryBlockStatusInterval   = 10 * time.Second
-	timeoutBlockStatusInterval = 2 * time.Minute
+	timeoutBlockStatusInterval = 3 * time.Minute
 )
 
 func GetBlockStatus(
@@ -47,12 +48,10 @@ func retryBlockStatusRequest(
 	gbpCtx, cancel := context.WithTimeout(ctx, timeoutBlockStatusInterval)
 	defer cancel()
 
-	var latestError error
 	for {
 		select {
 		case <-gbpCtx.Done():
-			const msg = "failed to get block status"
-			return nil, fmt.Errorf(msg)
+			return nil, fmt.Errorf("failed to get block status")
 		case <-ticker.C:
 			response, err := GetBlockStatusRawRequest(
 				ctx,
@@ -61,15 +60,25 @@ func retryBlockStatusRequest(
 				txTreeRoot,
 			)
 			if err == nil {
+				if !response.IsPosted {
+					log.Infof("The Block containing your tx is not posted yet. Retry in %f second(s). The searching tx hash is 0x%x.", retryBlockStatusInterval.Seconds(), txTreeRoot.Marshal())
+					continue
+				}
+
 				return response, nil
 			}
 
-			const msg = "Cannot get successful response. Retry in %f second(s)"
-			log.WithError(err).Errorf(msg, retryInterval.Seconds())
+			fmt.Printf("err: %v\n", err.Error())
+			if err.Error() == "block not found" {
+				log.Infof("The Block containing your tx is not found. Retry in %f second(s). The searching tx hash is 0x%x.", retryBlockStatusInterval.Seconds(), txTreeRoot.Marshal())
+				continue
+			}
+
+			log.WithError(err).Errorf("Cannot get successful response. The searching tx hash is 0x%x.\n", txTreeRoot.Marshal())
+
+			return nil, err
 		}
 	}
-
-	return nil, 
 }
 
 func GetBlockStatusRawRequest(
@@ -89,14 +98,14 @@ func getBlockStatusRawRequest(
 	log logger.Logger,
 	txTreeRoot string,
 ) (*block_status.UCBlockStatus, error) {
-	ucInput := block_status.UCBlockStatusInput{
-		TxTreeRoot: txTreeRoot,
-	}
+	// ucInput := block_status.UCBlockStatusInput{
+	// 	TxTreeRoot: txTreeRoot,
+	// }
 
-	bd, err := json.Marshal(ucInput)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
-	}
+	// bd, err := json.Marshal(ucInput)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to marshal JSON: %w", err)
+	// }
 
 	const (
 		httpKey     = "http"
@@ -105,13 +114,12 @@ func getBlockStatusRawRequest(
 		appJSON     = "application/json"
 	)
 
-	apiUrl := fmt.Sprintf("%s/v1/block/status", cfg.API.BlockBuilderUrl)
+	apiUrl := fmt.Sprintf("%s/v1/block/status/%s", cfg.API.BlockBuilderUrl, txTreeRoot)
 
 	r := resty.New().R()
-	var resp *resty.Response
-	resp, err = r.SetContext(ctx).SetHeaders(map[string]string{
+	resp, err := r.SetContext(ctx).SetHeaders(map[string]string{
 		contentType: appJSON,
-	}).SetBody(bd).Post(apiUrl)
+	}).Get(apiUrl)
 	if err != nil {
 		const msg = "failed to send ot the block proposed request: %w"
 		return nil, fmt.Errorf(msg, err)
@@ -122,13 +130,23 @@ func getBlockStatusRawRequest(
 		return nil, fmt.Errorf(msg)
 	}
 
+	if resp.StatusCode() == http.StatusNotFound {
+		return nil, ErrBlockNotFound
+	}
+
 	if resp.StatusCode() != http.StatusOK {
-		err = fmt.Errorf("failed to get response")
-		log.WithFields(logger.Fields{
-			"status_code": resp.StatusCode(),
-			"response":    resp.String(),
-		}).WithError(err).Errorf("Unexpected status code")
-		return nil, err
+		respStr := resp.String()
+		respJSON := ErrorResponse{}
+		err = json.Unmarshal([]byte(respStr), &respJSON)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+		}
+
+		if respJSON.Message != "" {
+			return nil, errors.New(respJSON.Message)
+		}
+
+		return nil, fmt.Errorf("failed to get response")
 	}
 
 	defer func() {
@@ -145,6 +163,8 @@ func getBlockStatusRawRequest(
 		err = fmt.Errorf("failed to unmarshal response: %w", err)
 		return nil, err
 	}
+
+	fmt.Printf("res: %v\n", res)
 
 	return &res, nil
 }

@@ -10,6 +10,7 @@ import (
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/hash/goldenposeidon"
+	"intmax2-node/internal/logger"
 	"intmax2-node/pkg/utils"
 	"math/big"
 	"strconv"
@@ -21,6 +22,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/prodadidb/go-validation"
 )
 
@@ -680,13 +682,7 @@ func NewRollupContractConfigFromEnv(cfg *configs.Config, networkRpcUrl string) *
 
 // PostRegistrationBlock posts a registration block on the Rollup contract.
 // It returns the transaction hash if the block is successfully posted.
-func PostRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockContent) (*types.Transaction, error) {
-	client, err := utils.NewClient(cfg.NetworkRpcUrl)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create new client: %w", err)
-	}
-	defer client.Close()
-
+func PostRegistrationBlock(cfg *RollupContractConfig, ctx context.Context, log logger.Logger, client *ethclient.Client, blockContent *BlockContent) (*types.Receipt, error) {
 	rollup, err := bindings.NewRollup(common.HexToAddress(cfg.RollupContractAddressHex), client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
@@ -721,7 +717,7 @@ func PostRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockContent
 		return nil, fmt.Errorf("block content is invalid: %w", err)
 	}
 
-	return rollup.PostRegistrationBlock(
+	tx, err := rollup.PostRegistrationBlock(
 		transactOpts,
 		input.TxTreeRoot,
 		input.SenderFlags,
@@ -730,6 +726,18 @@ func PostRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockContent
 		input.MessagePoint,
 		input.SenderPublicKeys,
 	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to post registration block: %w", err)
+	}
+
+	log.Infof("The tx hash of PostRegistrationBlock is %s\n", tx.Hash().Hex())
+
+	receipt, err := bind.WaitMined(ctx, client, tx)
+	if err != nil {
+		return nil, err
+	}
+
+	return receipt, nil
 }
 
 type BlockSignature struct {

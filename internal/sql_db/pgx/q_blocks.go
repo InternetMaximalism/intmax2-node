@@ -129,7 +129,7 @@ func (p *pgx) BlockByTxRoot(txRoot string) (*mDBApp.Block, error) {
 }
 
 // UpdateBlockStatus updates the status of the block with the given proposalBlockID.
-func (p *pgx) UpdateBlockStatus(proposalBlockID string, blockHash string, blockNumber uint32) error {
+func (p *pgx) UpdateBlockStatus(proposalBlockID, blockHash string, blockNumber uint32) error {
 	const (
 		q      = `UPDATE blocks SET status = $1, block_hash = $2, block_number = $3 WHERE proposal_block_id = $4`
 		status = 1
