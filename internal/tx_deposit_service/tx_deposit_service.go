@@ -34,7 +34,7 @@ var ErrRecipientPublicKey = errors.New("failed to get recipient public key")
 var ErrCreateTransactor = errors.New("failed to create transactor")
 var ErrWaitForTransaction = errors.New("failed to wait for transaction to be mined")
 
-type DepositRequestService struct {
+type TxDepositService struct {
 	ctx       context.Context
 	cfg       *configs.Config
 	log       logger.Logger
@@ -42,23 +42,18 @@ type DepositRequestService struct {
 	liquidity *bindings.Liquidity
 }
 
-func NewDepositAnalyzerService(ctx context.Context, cfg *configs.Config, log logger.Logger, sc ServiceBlockchain) (*DepositRequestService, error) {
-	return newDepositAnalyzerService(ctx, cfg, log, sc)
-}
-
-func newDepositAnalyzerService(ctx context.Context, cfg *configs.Config, log logger.Logger, _ ServiceBlockchain) (*DepositRequestService, error) {
+func NewTxDepositService(ctx context.Context, cfg *configs.Config, log logger.Logger, _ ServiceBlockchain) (*TxDepositService, error) {
 	client, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new client: %w", err)
 	}
-	defer client.Close()
 
 	liquidity, err := bindings.NewLiquidity(common.HexToAddress(cfg.Blockchain.LiquidityContractAddress), client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
 	}
 
-	return &DepositRequestService{
+	return &TxDepositService{
 		ctx:       ctx,
 		cfg:       cfg,
 		log:       log,
@@ -67,7 +62,7 @@ func newDepositAnalyzerService(ctx context.Context, cfg *configs.Config, log log
 	}, nil
 }
 
-func (d *DepositRequestService) DepositETHWithRandomSalt(
+func (d *TxDepositService) DepositETHWithRandomSalt(
 	userEthPrivateKeyHex string,
 	recipient intMaxAcc.Address,
 	amountStr string,
@@ -107,7 +102,7 @@ func (d *DepositRequestService) DepositETHWithRandomSalt(
 	return depositID, salt, nil
 }
 
-func (d *DepositRequestService) DepositERC20WithRandomSalt(
+func (d *TxDepositService) DepositERC20WithRandomSalt(
 	userEthPrivateKeyHex string,
 	recipient intMaxAcc.Address,
 	tokenAddress common.Address,
@@ -148,7 +143,7 @@ func (d *DepositRequestService) DepositERC20WithRandomSalt(
 	return depositID, salt, nil
 }
 
-func (d *DepositRequestService) DepositERC721WithRandomSalt(
+func (d *TxDepositService) DepositERC721WithRandomSalt(
 	userEthPrivateKeyHex string,
 	recipient intMaxAcc.Address,
 	tokenAddress common.Address,
@@ -184,7 +179,7 @@ func (d *DepositRequestService) DepositERC721WithRandomSalt(
 	return depositID, salt, nil
 }
 
-func (d *DepositRequestService) DepositERC1155WithRandomSalt(
+func (d *TxDepositService) DepositERC1155WithRandomSalt(
 	userEthPrivateKeyHex string,
 	recipient intMaxAcc.Address,
 	tokenAddress common.Address,
@@ -230,7 +225,7 @@ func (d *DepositRequestService) DepositERC1155WithRandomSalt(
 	return depositID, salt, nil
 }
 
-func (d *DepositRequestService) depositEth(
+func (d *TxDepositService) depositEth(
 	userEthPrivateKeyHex string,
 	recipient intMaxAcc.Address,
 	amount *big.Int,
@@ -261,7 +256,7 @@ func (d *DepositRequestService) depositEth(
 	return receipt, nil
 }
 
-func (d *DepositRequestService) depositErc20(
+func (d *TxDepositService) depositErc20(
 	userEthPrivateKeyHex string,
 	tokenAddress common.Address,
 	recipient intMaxAcc.Address,
@@ -313,7 +308,7 @@ func (d *DepositRequestService) depositErc20(
 	return receipt, nil
 }
 
-func (d *DepositRequestService) depositErc721(
+func (d *TxDepositService) depositErc721(
 	userEthPrivateKeyHex string,
 	tokenAddress common.Address,
 	recipient intMaxAcc.Address,
@@ -365,7 +360,7 @@ func (d *DepositRequestService) depositErc721(
 	return receipt, nil
 }
 
-func (d *DepositRequestService) depositErc1155(
+func (d *TxDepositService) depositErc1155(
 	userEthPrivateKeyHex string,
 	tokenAddress common.Address,
 	recipient intMaxAcc.Address,
@@ -400,7 +395,7 @@ func (d *DepositRequestService) depositErc1155(
 	return receipt, nil
 }
 
-func (d *DepositRequestService) BackupDeposit(
+func (d *TxDepositService) BackupDeposit(
 	recipient intMaxAcc.Address,
 	tokenIndex uint32,
 	amount *big.Int,

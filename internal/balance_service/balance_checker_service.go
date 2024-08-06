@@ -9,7 +9,6 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/bindings"
-	"intmax2-node/internal/deposit_service"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
 	intMaxTypes "intmax2-node/internal/types"
@@ -24,7 +23,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/go-resty/resty/v2"
 )
 
@@ -131,95 +129,47 @@ func GetBalance(
 	sb ServiceBlockchain,
 	args []string,
 	userEthPrivateKey string,
-) {
-	tokenInfo := parseTokenInfo(args)
-
-	tokenIndex, err := GetTokenIndex(ctx, cfg, sb, tokenInfo)
+) error {
+	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(utils.RemoveZeroX(userEthPrivateKey))
 	if err != nil {
-		fmt.Println(ErrTokenNotFound, err)
-		os.Exit(1)
-	}
-
-	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(removeZeroX(userEthPrivateKey))
-	if err != nil {
-		fmt.Printf("fail to parse user address: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("fail to create wallet from private key: %w", err)
 	}
 
 	userPk, err := intMaxAcc.NewPrivateKeyFromString(wallet.IntMaxPrivateKey)
 	if err != nil {
-		fmt.Printf("fail to parse user address: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("fail to create INTMAX private key: %w", err)
 	}
-	fmt.Printf("User address: %s\n", userPk.ToAddress().String())
+
+	fmt.Printf("INTMAX address: %s\n", userPk.ToAddress().String())
+
+	tokenInfo := parseTokenInfo(args)
+	tokenIndex, err := GetTokenIndexFromLiquidityContract(ctx, cfg, sb, tokenInfo)
+	if err != nil {
+		if err.Error() == ErrTokenNotFound {
+			fmt.Println("INTMAX Balance: 0")
+			return nil
+		}
+		return fmt.Errorf("fail to get token index: %w", err)
+	}
 
 	balance, err := GetUserBalance(ctx, cfg, lg, userPk, tokenIndex)
 	if err != nil {
-		fmt.Printf(ErrFailedToGetBalance+": %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("%s: %w", ErrFailedToGetBalance, err)
 	}
 
-	fmt.Printf("Balance: %s\n", balance)
+	fmt.Printf("INTMAX Balance: %s\n", balance)
+	return nil
 }
 
-func GetTokenIndex(
-	ctx context.Context,
-	cfg *configs.Config,
-	sb deposit_service.ServiceBlockchain,
-	tokenInfo intMaxTypes.TokenInfo,
-) (uint32, error) {
-	// Check local DB for token index
-	// localTokenIndex, err := getLocalTokenIndex(db, tokenInfo)
-	// if err == nil {
-	// 	return localTokenIndex, nil
-	// }
-
-	// Check liquidity contract for token index
-	return GetTokenIndexFromLiquidityContract(ctx, cfg, sb, tokenInfo)
-}
-
-/*
-func getLocalTokenIndex(db SQLDriverApp, tokenInfo intMaxTypes.TokenInfo) (uint32, error) {
-	tokenAddressStr := tokenInfo.TokenAddress.String()
-	tokenIDStr := fmt.Sprintf("%d", tokenInfo.TokenID)
-
-	token, err := db.TokenByTokenInfo(tokenAddressStr, tokenIDStr)
-	if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
-		panic(fmt.Sprintf(ErrFetchTokenByTokenAddressAndTokenIDWithDBApp, err.Error()))
-	}
-	if errors.Is(err, errorsDB.ErrNotFound) {
-		return 0, errors.Join(errors.New(ErrTokenNotFound), err)
-	}
-
-	const (
-		int10Key = 10
-		int32Key = 32
-	)
-	tokenIndex, err := strconv.ParseUint(token.TokenIndex, int10Key, int32Key)
-	if err != nil {
-		return 0, fmt.Errorf("failed to convert token index to int: %v", err)
-	}
-
-	return uint32(tokenIndex), err
-}
-*/
-
-// Get token index from liquidity contract
 func GetTokenIndexFromLiquidityContract(
 	ctx context.Context,
 	cfg *configs.Config,
-	sb deposit_service.ServiceBlockchain,
+	sb ServiceBlockchain,
 	tokenInfo intMaxTypes.TokenInfo,
 ) (uint32, error) {
-	link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
+	client, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
 	if err != nil {
-		log.Fatalf(err.Error())
-	}
-
-	var client *ethclient.Client
-	client, err = utils.NewClient(link)
-	if err != nil {
-		log.Fatalf(err.Error())
+		return 0, fmt.Errorf("failed to create new client: %w", err)
 	}
 
 	liquidity, err := bindings.NewLiquidity(common.HexToAddress(cfg.Blockchain.LiquidityContractAddress), client)
@@ -252,7 +202,7 @@ func GetUserBalance(
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user balances: %w", err)
 	}
-	balanceData, err := CalculateBalance(userAllData, tokenIndex, *userPrivateKey)
+	balanceData, err := CalculateBalance(ctx, cfg, lg, userAllData, tokenIndex, *userPrivateKey)
 	if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
 		return nil, ErrFetchBalanceByUserAddressAndTokenInfoWithDBApp
 	}
@@ -313,37 +263,65 @@ func GetUserBalancesRawRequest(
 	return response, nil
 }
 
-type GetBalancesResponse struct {
-	// The list of deposits
-	Deposits []*BackupDeposit `json:"deposits,omitempty"`
-	// The list of transfers
-	Transfers []*BackupTransfer `json:"transfers,omitempty"`
-	// The list of transactions
-	Transactions []*BackupTransaction `json:"transactions,omitempty"`
+func GetDepositValidityRawRequest(
+	ctx context.Context,
+	cfg *configs.Config,
+	lg logger.Logger,
+	depositID string,
+) (bool, error) {
+	const (
+		httpKey     = "http"
+		httpsKey    = "https"
+		contentType = "Content-Type"
+		appJSON     = "application/json"
+	)
+
+	// GetVerifyDepositConfirmation
+	apiUrl := fmt.Sprintf("%s/v1/deposits/%s/verify-confirmation", cfg.API.DataStoreVaultUrl, depositID)
+
+	r := resty.New().R()
+	resp, err := r.SetContext(ctx).SetHeaders(map[string]string{
+		contentType: appJSON,
+	}).Get(apiUrl)
+	if err != nil {
+		const msg = "failed to send of the transaction request: %w"
+		return false, fmt.Errorf(msg, err)
+	}
+
+	if resp == nil {
+		const msg = "send request error occurred"
+		return false, fmt.Errorf(msg)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		err = fmt.Errorf("failed to get response")
+		lg.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return false, err
+	}
+
+	response := new(GetVerifyDepositConfirmationResponse)
+	if err = json.Unmarshal(resp.Body(), response); err != nil {
+		return false, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if !response.Success {
+		return false, fmt.Errorf("failed to get verify deposit confirmation response: %v", response)
+	}
+
+	return response.Data.Confirmed, nil
 }
 
-type BackupDeposit struct {
-	Recipient        string `json:"recipient,omitempty"`
-	EncryptedDeposit string `json:"encryptedDeposit,omitempty"`
-	BlockNumber      string `json:"blockNumber,omitempty"`
-	CreatedAt        string `json:"createdAt,omitempty"`
-}
-
-type BackupTransfer struct {
-	EncryptedTransfer string `json:"encryptedTransfer,omitempty"`
-	Recipient         string `json:"recipient,omitempty"`
-	BlockNumber       string `json:"blockNumber,omitempty"`
-	CreatedAt         string `json:"createdAt,omitempty"`
-}
-
-type BackupTransaction struct {
-	Sender      string `json:"sender,omitempty"`
-	EncryptedTx string `json:"encryptedTx,omitempty"`
-	BlockNumber string `json:"blockNumber,omitempty"`
-	CreatedAt   string `json:"createdAt,omitempty"`
-}
-
-func CalculateBalance(userAllData *GetBalancesResponse, tokenIndex uint32, userPrivateKey intMaxAcc.PrivateKey) (*intMaxTypes.Balance, error) {
+func CalculateBalance(
+	ctx context.Context,
+	cfg *configs.Config,
+	lg logger.Logger,
+	userAllData *GetBalancesResponse,
+	tokenIndex uint32,
+	userPrivateKey intMaxAcc.PrivateKey,
+) (*intMaxTypes.Balance, error) {
 	balance := big.NewInt(0)
 	for _, deposit := range userAllData.Deposits {
 		encryptedDepositBytes, err := base64.StdEncoding.DecodeString(deposit.EncryptedDeposit)
@@ -364,6 +342,23 @@ func CalculateBalance(userAllData *GetBalancesResponse, tokenIndex uint32, userP
 			log.Printf("failed to unmarshal deposit: %v", err)
 			continue
 		}
+
+		// Request data store vault if deposit is valid
+		depositID := deposit.BlockNumber
+		ok, err := GetDepositValidityRawRequest(
+			ctx,
+			cfg,
+			lg,
+			depositID,
+		)
+		if err != nil {
+			var ErrDepositValidity = errors.New("failed to get deposit validity")
+			return nil, errors.Join(ErrDepositValidity, err)
+		}
+		if !ok {
+			continue
+		}
+
 		if decodedDeposit.TokenIndex == tokenIndex {
 			balance = new(big.Int).Add(balance, decodedDeposit.Amount)
 		}
@@ -419,11 +414,4 @@ func CalculateBalance(userAllData *GetBalancesResponse, tokenIndex uint32, userP
 		TokenIndex: tokenIndex,
 		Amount:     balance,
 	}, nil
-}
-
-func removeZeroX(s string) string {
-	if len(s) >= 2 && s[:2] == "0x" {
-		return s[2:]
-	}
-	return s
 }

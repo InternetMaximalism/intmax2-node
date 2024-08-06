@@ -134,10 +134,10 @@ func (sb *serviceBlockchain) recognizingScrollPrivateKey(
 		sb.cfg.Wallet.MnemonicDerivationPath,
 	)
 	if err == nil {
-		sb.cfg.Wallet.PrivateKeyHex = w.PrivateKey
+		sb.cfg.Blockchain.BuilderPrivateKeyHex = w.PrivateKey
 	} else {
 		_, err = mnemonic_wallet.New().WalletFromPrivateKeyHex(
-			sb.cfg.Wallet.PrivateKeyHex,
+			sb.cfg.Blockchain.BuilderPrivateKeyHex,
 		)
 		if err != nil {
 			const enterMSG = "Enter private key:"
@@ -159,12 +159,12 @@ func (sb *serviceBlockchain) recognizingScrollPrivateKey(
 				open_telemetry.MarkSpanError(spanCtx, err)
 				return emptyKey, errors.Join(errorsB.ErrWalletAddressNotRecognized, err)
 			}
-			sb.cfg.Wallet.PrivateKeyHex = text
+			sb.cfg.Blockchain.BuilderPrivateKeyHex = text
 			fmt.Println(emptyKey)
 		}
 	}
 
-	return sb.cfg.Wallet.PrivateKeyHex, nil
+	return sb.cfg.Blockchain.BuilderPrivateKeyHex, nil
 }
 
 func (sb *serviceBlockchain) recognizingEthereumPrivateKey(
@@ -179,7 +179,7 @@ func (sb *serviceBlockchain) recognizingEthereumPrivateKey(
 	defer span.End()
 
 	_, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(
-		sb.cfg.Blockchain.EthereumPrivateKeyHex,
+		sb.cfg.Blockchain.BuilderPrivateKeyHex,
 	)
 	if err != nil {
 		const enterMSG = "Enter private key:"
@@ -201,11 +201,11 @@ func (sb *serviceBlockchain) recognizingEthereumPrivateKey(
 			open_telemetry.MarkSpanError(spanCtx, err)
 			return emptyKey, errors.Join(errorsB.ErrWalletAddressNotRecognized, err)
 		}
-		sb.cfg.Blockchain.EthereumPrivateKeyHex = text
+		sb.cfg.Blockchain.BuilderPrivateKeyHex = text
 		fmt.Println(emptyKey)
 	}
 
-	return sb.cfg.Blockchain.EthereumPrivateKeyHex, nil
+	return sb.cfg.Blockchain.BuilderPrivateKeyHex, nil
 }
 
 func (sb *serviceBlockchain) ethClient(
