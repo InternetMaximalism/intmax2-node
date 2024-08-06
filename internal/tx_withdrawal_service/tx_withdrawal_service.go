@@ -18,6 +18,7 @@ import (
 	"intmax2-node/internal/use_cases/transaction"
 	"math/big"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -328,17 +329,20 @@ func SendWithdrawalRequest(
 	withdrawal *tx_transfer_service.BackupWithdrawal,
 ) error {
 	// Specify the block number containing the transaction.
-	blockStatus, err := tx_transfer_service.GetBlockStatus(ctx, cfg, log, withdrawal.TransferTreeRoot)
+	blockStatus, err := tx_transfer_service.GetBlockStatus(ctx, cfg, log, withdrawal.TxTreeRoot)
 	if err != nil {
 		if errors.Is(err, ErrBlockNotFound) {
 			return ErrBlockNotFound
 		}
 		return fmt.Errorf("failed to get block status: %w", err)
 	}
-	blockNumber := blockStatus.BlockNumber
 
 	rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(cfg, "https://sepolia-rpc.scroll.io")
-	blockHash, err := intMaxTypes.FetchBlockHash(rollupCfg, ctx, blockNumber)
+	blockNumber, err := strconv.ParseUint(blockStatus.BlockNumber, 10, 32)
+	if err != nil {
+		return fmt.Errorf("failed to parse block number: %w", err)
+	}
+	blockHash, err := intMaxTypes.FetchBlockHash(rollupCfg, ctx, uint32(blockNumber))
 	if err != nil {
 		return fmt.Errorf("failed to fetch block hash: %w", err)
 	}
@@ -352,7 +356,7 @@ func SendWithdrawalRequest(
 		withdrawal.TransferIndex,
 		withdrawal.TxTreeMerkleProof,
 		withdrawal.TxIndex,
-		blockNumber,
+		uint32(blockNumber),
 		blockHash,
 	)
 	if err != nil {

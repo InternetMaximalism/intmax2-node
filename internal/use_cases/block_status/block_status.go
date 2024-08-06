@@ -12,7 +12,7 @@ type UCBlockStatusInput struct {
 
 type UCBlockStatus struct {
 	IsPosted    bool   `json:"isPosted"`
-	BlockNumber uint32 `json:"blockNumber"`
+	BlockNumber string `json:"blockNumber"`
 }
 
 // UseCaseBlockSignature describes BlockSignature contract.

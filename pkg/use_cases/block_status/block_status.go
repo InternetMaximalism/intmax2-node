@@ -2,11 +2,14 @@ package block_status
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
 	ucBlockStatus "intmax2-node/internal/use_cases/block_status"
+	"intmax2-node/internal/worker"
+	"strconv"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -49,30 +52,14 @@ func (u *uc) Do(
 
 	block, err := u.db.BlockByTxRoot(input.TxTreeRoot)
 	if err != nil {
-		fmt.Printf("BlockByTxRoot error\n")
-		if err.Error() == "not found" {
-			err = u.worker.ExistsTxTreeRoot(input.TxTreeRoot)
-			if err != nil {
-				return nil, err
-			}
-
-			status = &ucBlockStatus.UCBlockStatus{
-				IsPosted:    false,
-				BlockNumber: 0,
-			}
-
-			return status, nil
-		}
-
 		return nil, err
 	}
-	fmt.Printf("block: %v\n", block)
 
 	isPosted := false
-	var blockNumber uint32 = 0
+	var blockNumber string = "0"
 	if *block.Status == 1 && block.BlockNumber != nil {
 		isPosted = true
-		blockNumber = uint32(*block.BlockNumber)
+		blockNumber = strconv.FormatInt(*block.BlockNumber, 10)
 	}
 
 	status = &ucBlockStatus.UCBlockStatus{
@@ -81,4 +68,34 @@ func (u *uc) Do(
 	}
 
 	return status, nil
+}
+
+var ErrTransactionHashNotFound = errors.New("transaction hash not found")
+var ErrTxTreeNotBuild = errors.New("tx tree not build")
+var ErrTxTreeSignatureCollectionComplete = errors.New("tx tree signature collection complete")
+var ErrValueInvalid = errors.New("value invalid")
+
+func ExistsTxHash(w Worker, txHash string) (txTree *worker.TxTree, err error) {
+	info, err := w.TrHash(txHash)
+	if err != nil && errors.Is(err, worker.ErrTransactionHashNotFound) {
+		return nil, ErrTransactionHashNotFound
+	}
+	fmt.Printf("ExistsTxHash txHash: %s", txHash)
+	info.TxHash = txHash
+
+	txTree, err = w.TxTreeByAvailableFile(info)
+	if err != nil {
+		switch {
+		case errors.Is(err, worker.ErrTxTreeByAvailableFileFail):
+			return nil, ErrTransactionHashNotFound
+		case errors.Is(err, worker.ErrTxTreeNotFound):
+			return nil, ErrTxTreeNotBuild
+		case errors.Is(err, worker.ErrTxTreeSignatureCollectionComplete):
+			return nil, ErrTxTreeSignatureCollectionComplete
+		default:
+			return nil, ErrValueInvalid
+		}
+	}
+
+	return txTree, nil
 }

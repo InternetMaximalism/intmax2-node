@@ -25,10 +25,10 @@ func GetBlockStatus(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
-	txTreeRoot goldenposeidon.PoseidonHashOut,
+	txHash goldenposeidon.PoseidonHashOut,
 ) (*block_status.UCBlockStatus, error) {
 	res, err := retryBlockStatusRequest(
-		ctx, cfg, log, txTreeRoot,
+		ctx, cfg, log, txHash,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get block status: %w", err)
@@ -41,13 +41,14 @@ func retryBlockStatusRequest(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
-	txTreeRoot goldenposeidon.PoseidonHashOut,
+	txHash goldenposeidon.PoseidonHashOut,
 ) (*block_status.UCBlockStatus, error) {
 	ticker := time.NewTicker(retryBlockStatusInterval)
 
 	gbpCtx, cancel := context.WithTimeout(ctx, timeoutBlockStatusInterval)
 	defer cancel()
 
+	log.Infof("Waiting the block containing your tx...")
 	for {
 		select {
 		case <-gbpCtx.Done():
@@ -57,24 +58,23 @@ func retryBlockStatusRequest(
 				ctx,
 				cfg,
 				log,
-				txTreeRoot,
+				txHash,
 			)
 			if err == nil {
 				if !response.IsPosted {
-					log.Infof("The Block containing your tx is not posted yet. Retry in %f second(s). The searching tx hash is 0x%x.", retryBlockStatusInterval.Seconds(), txTreeRoot.Marshal())
+					// The Block containing your tx is not posted yet
 					continue
 				}
 
 				return response, nil
 			}
 
-			fmt.Printf("err: %v\n", err.Error())
 			if err.Error() == "block not found" {
-				log.Infof("The Block containing your tx is not found. Retry in %f second(s). The searching tx hash is 0x%x.", retryBlockStatusInterval.Seconds(), txTreeRoot.Marshal())
+				// The Block containing your tx is not found
 				continue
 			}
 
-			log.WithError(err).Errorf("Cannot get successful response. The searching tx hash is 0x%x.\n", txTreeRoot.Marshal())
+			log.WithError(err).Errorf("Cannot get successful response. The searching tx tree root is 0x%x.\n", txHash.Marshal())
 
 			return nil, err
 		}
@@ -98,15 +98,6 @@ func getBlockStatusRawRequest(
 	log logger.Logger,
 	txTreeRoot string,
 ) (*block_status.UCBlockStatus, error) {
-	// ucInput := block_status.UCBlockStatusInput{
-	// 	TxTreeRoot: txTreeRoot,
-	// }
-
-	// bd, err := json.Marshal(ucInput)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to marshal JSON: %w", err)
-	// }
-
 	const (
 		httpKey     = "http"
 		httpsKey    = "https"
@@ -163,8 +154,6 @@ func getBlockStatusRawRequest(
 		err = fmt.Errorf("failed to unmarshal response: %w", err)
 		return nil, err
 	}
-
-	fmt.Printf("res: %v\n", res)
 
 	return &res, nil
 }

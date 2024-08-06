@@ -6,6 +6,7 @@ import (
 	"intmax2-node/internal/sql_db/pgx/models"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
+	intMaxUtils "intmax2-node/pkg/utils"
 	"strings"
 	"time"
 
@@ -100,11 +101,13 @@ func (p *pgx) BlockByTxRoot(txRoot string) (*mDBApp.Block, error) {
              proposal_block_id ,builder_public_key ,tx_root
              ,block_hash ,block_number ,aggregated_signature ,aggregated_public_key ,status
              ,created_at ,posted_at ,sender_type ,options
-             FROM blocks WHERE tx_root = $1`
+             FROM blocks WHERE tx_root = $1 AND block_number IS NOT NULL`
 	)
 
+	txRootWithoutPrefix := strings.ToUpper(intMaxUtils.RemoveZeroX(txRoot))
+
 	var tmp models.Block
-	err := errPgx.Err(p.queryRow(p.ctx, q, txRoot).
+	err := errPgx.Err(p.queryRow(p.ctx, q, txRootWithoutPrefix).
 		Scan(
 			&tmp.ProposalBlockID,
 			&tmp.BuilderPublicKey,

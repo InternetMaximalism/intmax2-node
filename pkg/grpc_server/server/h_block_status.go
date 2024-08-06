@@ -6,6 +6,7 @@ import (
 	"intmax2-node/internal/pb/gen/service/node"
 	"intmax2-node/internal/use_cases/block_status"
 	"intmax2-node/pkg/grpc_server/utils"
+	"strconv"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -34,7 +35,7 @@ func (s *Server) BlockStatusByTxTreeRoot(
 
 	blockStatus, err := s.commands.BlockStatusByTxTreeRoot(s.config, s.log, s.dbApp, s.worker).Do(spanCtx, &input)
 	if err != nil {
-		if err.Error() == "not found" || err.Error() == "tx tree root not found" {
+		if err.Error() == "not found" || err.Error() == "tx tree root not found" || err.Error() == "transaction hash not found" {
 			return &resp, utils.NotFound(spanCtx, err)
 		}
 
@@ -44,7 +45,10 @@ func (s *Server) BlockStatusByTxTreeRoot(
 	}
 
 	resp.IsPosted = blockStatus.IsPosted
-	resp.BlockNumber = uint64(blockStatus.BlockNumber)
+	resp.BlockNumber, err = strconv.ParseUint(blockStatus.BlockNumber, 10, 64)
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+	}
 
 	return &resp, utils.OK(spanCtx)
 }
