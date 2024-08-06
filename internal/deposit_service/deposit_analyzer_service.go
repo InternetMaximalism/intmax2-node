@@ -47,7 +47,6 @@ func newDepositAnalyzerService(ctx context.Context, cfg *configs.Config, log log
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new client: %w", err)
 	}
-	defer client.Close()
 
 	liquidity, err := bindings.NewLiquidity(common.HexToAddress(cfg.Blockchain.LiquidityContractAddress), client)
 	if err != nil {

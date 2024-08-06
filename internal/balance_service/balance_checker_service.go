@@ -24,7 +24,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/go-resty/resty/v2"
 )
 
@@ -131,53 +130,44 @@ func GetBalance(
 	sb ServiceBlockchain,
 	args []string,
 	userEthPrivateKey string,
-) {
+) error {
 	tokenInfo := parseTokenInfo(args)
-
 	tokenIndex, err := GetTokenIndexFromLiquidityContract(ctx, cfg, sb, tokenInfo)
 	if err != nil {
-		fmt.Println(ErrTokenNotFound, err)
-		os.Exit(1)
+		return fmt.Errorf("%s: %w", ErrTokenNotFound, err)
 	}
 
 	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(utils.RemoveZeroX(userEthPrivateKey))
 	if err != nil {
-		fmt.Printf("fail to parse user address: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("fail to create wallet from private key: %w", err)
 	}
 
 	userPk, err := intMaxAcc.NewPrivateKeyFromString(wallet.IntMaxPrivateKey)
 	if err != nil {
-		fmt.Printf("fail to parse user address: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("fail to create INTMAX private key: %w", err)
 	}
-	fmt.Printf("User address: %s\n", userPk.ToAddress().String())
+
+	fmt.Printf("INTMAX address: %s\n", userPk.ToAddress().String())
 
 	balance, err := GetUserBalance(ctx, cfg, lg, userPk, tokenIndex)
 	if err != nil {
-		fmt.Printf(ErrFailedToGetBalance+": %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("%s: %w", ErrFailedToGetBalance, err)
 	}
 
-	fmt.Printf("Balance: %s\n", balance)
+	fmt.Printf("INTMAX Balance: %s\n", balance)
+
+	return nil
 }
 
-// Get token index from liquidity contract
 func GetTokenIndexFromLiquidityContract(
 	ctx context.Context,
 	cfg *configs.Config,
 	sb deposit_service.ServiceBlockchain,
 	tokenInfo intMaxTypes.TokenInfo,
 ) (uint32, error) {
-	link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
+	client, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
 	if err != nil {
-		log.Fatalf(err.Error())
-	}
-
-	var client *ethclient.Client
-	client, err = utils.NewClient(link)
-	if err != nil {
-		log.Fatalf(err.Error())
+		return 0, fmt.Errorf("failed to create new client: %w", err)
 	}
 
 	liquidity, err := bindings.NewLiquidity(common.HexToAddress(cfg.Blockchain.LiquidityContractAddress), client)
