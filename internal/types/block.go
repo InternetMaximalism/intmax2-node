@@ -672,7 +672,7 @@ func NewRollupContractConfigFromEnv(cfg *configs.Config, networkRpcUrl string) *
 	return &RollupContractConfig{
 		NetworkRpcUrl:                     networkRpcUrl,
 		RollupContractAddressHex:          cfg.Blockchain.RollupContractAddress,
-		EthereumPrivateKeyHex:             cfg.Blockchain.EthereumPrivateKeyHex,
+		EthereumPrivateKeyHex:             cfg.Blockchain.BuilderPrivateKeyHex,
 		NetworkChainID:                    cfg.Blockchain.ScrollNetworkChainID,
 		RollupContractDeployedBlockNumber: cfg.Blockchain.RollupContractDeployedBlockNumber,
 	}
