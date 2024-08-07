@@ -6,7 +6,6 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
-	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/transaction"
 	"intmax2-node/internal/worker"
 
@@ -54,6 +53,8 @@ func (u *uc) Do(ctx context.Context, input *transaction.UCTransactionInput) (err
 
 	// TODO: check 0.1 ETH with Rollup contract
 
+	/**
+	// NOTE: `TransferData` does not need to be sent in the request
 	transferData := make([]*intMaxTypes.Transfer, len(input.TransferData))
 	for key := range input.TransferData {
 		transferData[key] = &intMaxTypes.Transfer{
@@ -63,6 +64,7 @@ func (u *uc) Do(ctx context.Context, input *transaction.UCTransactionInput) (err
 			Salt:       input.TransferData[key].DecodeSalt,
 		}
 	}
+	*/
 
 	err = u.w.Receiver(&worker.ReceiverWorker{
 		Sender:        input.DecodeSender.ToAddress().String(),

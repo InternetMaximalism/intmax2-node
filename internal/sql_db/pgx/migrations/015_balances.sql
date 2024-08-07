@@ -1,5 +1,7 @@
 -- +migrate Up
 
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 CREATE TABLE balances (
     id           uuid not null default uuid_generate_v4(),
     user_address varchar(255) not null,

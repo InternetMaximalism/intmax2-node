@@ -36,7 +36,7 @@ type StoreVaultServer struct {
 func NewServerCmd(s *StoreVaultServer) *cobra.Command {
 	const (
 		use   = "store-vault-server run"
-		short = "run store valut server command"
+		short = "run store vault server command"
 	)
 	return &cobra.Command{
 		Use:   use,

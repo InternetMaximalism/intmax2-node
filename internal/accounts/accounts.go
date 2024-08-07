@@ -39,6 +39,27 @@ func (pk *PublicKey) String() string {
 	return hex.EncodeToString(pk.Pk.Marshal())
 }
 
+// HexToPublicKey creates a new PublicKey instance with a validated public key.
+// If the resulting public key is invalid, it returns an error.
+func HexToPublicKey(hexPublicKey string) (*PublicKey, error) {
+	if !isUtils.IsHexadecimal(hexPublicKey) {
+		return nil, ErrHEXPublicKeyInvalid
+	}
+
+	decKey, err := hex.DecodeString(hexPublicKey)
+	if err != nil {
+		return nil, errors.Join(ErrDecodePublicKeyFail, err)
+	}
+
+	var pk PublicKey
+	err = pk.Unmarshal(decKey)
+	if err != nil {
+		return nil, errors.Join(ErrUnmarshalPublicKeyFail, err)
+	}
+
+	return &pk, nil
+}
+
 // NewDummyPublicKey returns the point which the x coordinate is 1.
 //
 // NOTE: If the x coordinate is 0, there is no corresponding y value.

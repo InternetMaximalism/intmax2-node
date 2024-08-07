@@ -6,6 +6,7 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
 	"intmax2-node/docs/swagger"
+	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/network_service"
@@ -195,6 +196,27 @@ func NewServerCmd(s *Server) *cobra.Command {
 				}()
 				if err = s.BlockValidityProver.Start(s.Context, tickerEventWatcher); err != nil {
 					const msg = "failed to start Block Validity Prover: %+v"
+					s.Log.Fatalf(msg, err.Error())
+				}
+			}()
+
+			// TODO: Occur error: Block range is too large
+			wg.Add(1)
+			s.WG.Add(1)
+			go func() {
+				defer func() {
+					wg.Done()
+					s.WG.Done()
+				}()
+				tickerEventWatcher := time.NewTicker(s.Config.BlockPostService.TimeoutForEventWatcher)
+				defer func() {
+					if tickerEventWatcher != nil {
+						tickerEventWatcher.Stop()
+					}
+				}()
+				err = block_post_service.StartBlocksFetcher(s.Context, s.Config, s.Log, s.DbApp, tickerEventWatcher)
+				if err != nil {
+					const msg = "failed to start Block Post Service: %+v"
 					s.Log.Fatalf(msg, err.Error())
 				}
 			}()

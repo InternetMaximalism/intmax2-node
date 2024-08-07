@@ -75,7 +75,7 @@ func TestHandlerBlockProposed(t *testing.T) {
 		derivation = "m/44'/60'/0'/0/0"
 
 		txHashKey        = "0x3098f91cabb2463569a5158ffd0d7cd2420dece6556d41b4eda120a5a937892e"
-		intMaxAddressKey = "0x1c6f2045ddc7fde4f0ff37ac47b2726ed2e6e9fe8ea3d3d6971403cece12306d"
+		intMaxAddressKey = "0x2a0a9871a59d52c3d52f57d0ab4324662f39ce14bd2e7a9e2f4c01212b6bea84"
 	)
 
 	w, err := mnemonic_wallet.New().WalletFromMnemonic(mnemonic, mnPassword, derivation)

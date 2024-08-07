@@ -4,7 +4,6 @@ import (
 	"context"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/bindings"
-	intMaxTypes "intmax2-node/internal/types"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -17,10 +16,16 @@ type BlockPostService interface {
 	BackupTransaction(
 		sender intMaxAcc.Address,
 		encodedEncryptedTx string,
+		signature string,
 		blockNumber uint64,
 	) error
 	BackupTransfer(
-		recipient intMaxTypes.GenericAddress,
+		recipient intMaxAcc.Address,
+		encodedEncryptedTransfer string,
+		blockNumber uint64,
+	) error
+	BackupWithdrawal(
+		recipient common.Address,
 		encodedEncryptedTransfer string,
 		blockNumber uint64,
 	) error

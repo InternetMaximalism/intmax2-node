@@ -1,30 +1,32 @@
 -- +migrate Up
 
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 CREATE TABLE backup_transfers (
-    id uuid not null default uuid_generate_v4(),
-    recipient varchar(255) not null,
+    id                 uuid not null default uuid_generate_v4(),
+    recipient          varchar(255) not null,
     encrypted_transfer text not null,
-    block_number int not null,
-    created_at timestamptz not null default now(),
+    block_number       int not null,
+    created_at         timestamptz not null default now(),
     PRIMARY KEY (id)
 );
 
 CREATE TABLE backup_transactions (
-    id uuid not null default uuid_generate_v4(),
-    sender varchar(255) not null,
+    id           uuid not null default uuid_generate_v4(),
+    sender       varchar(255) not null,
     encrypted_tx text not null,
     block_number int not null,
-    signature text not null,
-    created_at timestamptz not null default now(),
+    signature    text not null,
+    created_at   timestamptz not null default now(),
     PRIMARY KEY (id)
 );
 
 CREATE TABLE backup_deposits (
-    id uuid not null default uuid_generate_v4(),
-    recipient varchar(255) not null,
+    id                uuid not null default uuid_generate_v4(),
+    recipient         varchar(255) not null,
     encrypted_deposit text not null,
-    block_number int not null,
-    created_at timestamptz not null default now(),
+    block_number      int not null,
+    created_at        timestamptz not null default now(),
     PRIMARY KEY (id)
 );
 
