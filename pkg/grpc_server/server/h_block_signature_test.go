@@ -191,9 +191,11 @@ func makeSampleData(t *testing.T) *block_signature.UCBlockSignatureInput {
 
 	publicKeysHash := crypto.Keccak256(senderPublicKeysBytes)
 
-	res, err := tx_transfer_service.MakePostBlockSignatureRawRequest(
+	var res *block_signature.UCBlockSignatureInput
+	res, err = tx_transfer_service.MakePostBlockSignatureRawRequest(
 		senderAccount, txTreeRoot, publicKeysHash,
 	)
+	require.NoError(t, err)
 
 	return res
 }

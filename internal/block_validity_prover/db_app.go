@@ -24,7 +24,7 @@ type GenericCommandsApp interface {
 }
 
 type Blocks interface {
-	UpdateBlockStatus(proposalBlockID string, status int64) error
+	UpdateBlockStatus(proposalBlockID string, blockHash string, blockNumber uint32) error
 	GetUnprocessedBlocks() ([]*mDBApp.Block, error)
 }
 

@@ -384,6 +384,31 @@ func (w *worker) TxTreeByAvailableFile(sf *TransactionHashesWithSenderAndFile) (
 	return txTreeRoot, err
 }
 
+// func (w *worker) ExistsTxTreeRoot(
+// 	txTreeRoot string,
+// ) error {
+// 	for key := range w.files.FilesList {
+// 		fmt.Printf("key: %v\n", key)
+
+// 		if w.files.FilesList[key].LeafsTree == nil {
+// 			continue
+// 		}
+// 		if w.files.FilesList[key].LeafsTree.TxRoot == nil {
+// 			continue
+// 		}
+
+// 		actualTxTreeRoot, _, _ := w.files.FilesList[key].LeafsTree.TxTree.GetCurrentRootCountAndSiblings()
+// 		fmt.Printf("actualTxTreeRoot: %v\n", actualTxTreeRoot.String())
+// 		if actualTxTreeRoot.String() == txTreeRoot {
+// 			return nil
+// 		}
+// 	}
+
+// 	var ErrTxTreeRootNotFound = errors.New("tx tree root not found")
+
+// 	return ErrTxTreeRootNotFound
+// }
+
 func (w *worker) Start(
 	ctx context.Context,
 	tickerCurrentFile, tickerSignaturesAvailableFiles *time.Ticker,
@@ -771,6 +796,66 @@ func (w *worker) leafsProcessing(f *os.File) (err error) {
 	return nil
 }
 
+func funcLFT(q SQLDriverApp, block *mDBApp.Block, lft *LeafsTree) (err error) {
+	for index := range lft.SignaturesByLeafIndex {
+		var sign *mDBApp.Signature
+		if lft.SignaturesByLeafIndex[index].Signature != "" {
+			sign, err = q.CreateSignature(
+				lft.SignaturesByLeafIndex[index].Signature,
+				block.ProposalBlockID,
+			)
+			if err != nil {
+				return errors.Join(ErrCreateSignatureFail, err)
+			}
+		}
+
+		var publicKey *intMaxAcc.PublicKey
+		publicKey, err = intMaxAcc.NewPublicKeyFromAddressHex(
+			lft.SignaturesByLeafIndex[index].Sender,
+		)
+		if err != nil {
+			err = errors.Join(ErrNewPublicKeyFromAddressHexFail, err)
+			return err
+		}
+
+		var txTreeIndex uint256.Int
+		_ = txTreeIndex.SetUint64(lft.SignaturesByLeafIndex[index].LeafIndex)
+
+		var cmp ComputeMerkleProof
+		cmp.Siblings, cmp.Root, err = lft.TxTree.ComputeMerkleProof(
+			lft.SignaturesByLeafIndex[index].LeafIndex,
+		)
+		if err != nil {
+			return errors.Join(ErrTxTreeComputeMerkleProofFail, err)
+		}
+
+		var bCMP []byte
+		bCMP, err = json.Marshal(&cmp)
+		if err != nil {
+			return errors.Join(ErrMarshalFail, err)
+		}
+
+		var signatureID string
+		if sign != nil {
+			signatureID = sign.SignatureID
+		}
+		_, err = q.CreateTxMerkleProofs(
+			publicKey.String(),
+			lft.SignaturesByLeafIndex[index].TxHash,
+			signatureID,
+			&txTreeIndex,
+			bCMP,
+			lft.TxRoot.String(),
+			block.ProposalBlockID,
+		)
+		if err != nil {
+			return errors.Join(ErrCreateTxMerkleProofsFail, err)
+		}
+	}
+
+	return nil
+}
+
 func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 	defer atomic.AddInt32(&w.numWorkers, -1)
 
@@ -814,66 +899,6 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 
 	err = w.dbApp.Exec(ctx, nil, func(d interface{}, _ interface{}) (err error) {
 		q := d.(SQLDriverApp)
-
-		funcLFT := func(block *mDBApp.Block, lft *LeafsTree) error {
-			for index := range lft.SignaturesByLeafIndex {
-				var sign *mDBApp.Signature
-				if lft.SignaturesByLeafIndex[index].Signature != "" {
-					sign, err = q.CreateSignature(
-						lft.SignaturesByLeafIndex[index].Signature,
-						block.ProposalBlockID,
-					)
-					if err != nil {
-						return errors.Join(ErrCreateSignatureFail, err)
-					}
-				}
-
-				var publicKey *intMaxAcc.PublicKey
-				publicKey, err = intMaxAcc.NewPublicKeyFromAddressHex(
-					lft.SignaturesByLeafIndex[index].Sender,
-				)
-				if err != nil {
-					err = errors.Join(ErrNewPublicKeyFromAddressHexFail, err)
-					return err
-				}
-
-				var txTreeIndex uint256.Int
-				_ = txTreeIndex.SetUint64(lft.SignaturesByLeafIndex[index].LeafIndex)
-
-				var cmp ComputeMerkleProof
-				cmp.Siblings, cmp.Root, err = lft.TxTree.ComputeMerkleProof(
-					lft.SignaturesByLeafIndex[index].LeafIndex,
-				)
-				if err != nil {
-					return errors.Join(ErrTxTreeComputeMerkleProofFail, err)
-				}
-
-				var bCMP []byte
-				bCMP, err = json.Marshal(&cmp)
-				if err != nil {
-					return errors.Join(ErrMarshalFail, err)
-				}
-
-				var signatureID string
-				if sign != nil {
-					signatureID = sign.SignatureID
-				}
-				_, err = q.CreateTxMerkleProofs(
-					publicKey.String(),
-					lft.SignaturesByLeafIndex[index].TxHash,
-					signatureID,
-					&txTreeIndex,
-					bCMP,
-					lft.TxRoot.String(),
-					block.ProposalBlockID,
-				)
-				if err != nil {
-					return errors.Join(ErrCreateTxMerkleProofsFail, err)
-				}
-			}
-
-			return nil
-		}
 
 		var lft *LeafsTree
 		if w.files.FilesList[f].LeafsTreePublicKeys != nil &&
@@ -924,7 +949,7 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 				return errors.Join(ErrCreateBlockFail, err)
 			}
 
-			return funcLFT(block, lft)
+			return funcLFT(q, block, lft)
 		}
 
 		if w.files.FilesList[f].LeafsTreeAccounts != nil &&
@@ -981,7 +1006,7 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 				return errors.Join(ErrCreateBlockFail, err)
 			}
 
-			return funcLFT(block, lft)
+			return funcLFT(q, block, lft)
 		}
 
 		return nil

@@ -58,6 +58,12 @@ func (w *depositSynchronizer) Start(
 ) error {
 	rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(w.cfg, "https://sepolia-rpc.scroll.io")
 
+	scrollClient, err := utils.NewClient(rollupCfg.NetworkRpcUrl)
+	if err != nil {
+		return fmt.Errorf("failed to create new client: %w", err)
+	}
+	defer scrollClient.Close()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -87,7 +93,8 @@ func (w *depositSynchronizer) Start(
 				return true, nil
 			}
 
-			ok, err := shouldProcess()
+			var ok bool
+			ok, err = shouldProcess()
 			if err != nil {
 				return err
 			}
@@ -133,7 +140,8 @@ func (w *depositSynchronizer) Start(
 				senders[i] = defaultSender
 			}
 
-			txRoot, err := new(intMaxTypes.PoseidonHashOut).SetRandom()
+			var txRoot *intMaxTypes.PoseidonHashOut
+			txRoot, err = new(intMaxTypes.PoseidonHashOut).SetRandom()
 			if err != nil {
 				return err
 			}
@@ -185,12 +193,10 @@ func (w *depositSynchronizer) Start(
 				return err
 			}
 
-			tx, err := intMaxTypes.PostRegistrationBlock(rollupCfg, blockContent)
+			_, err = intMaxTypes.PostRegistrationBlock(rollupCfg, ctx, w.log, scrollClient, blockContent)
 			if err != nil {
 				return err
 			}
-
-			fmt.Printf("Transaction sent: %s\n", tx.Hash().Hex())
 		}
 	}
 }

@@ -310,6 +310,43 @@
         ]
       }
     },
+    "/v1/block/status/{txTreeRoot}": {
+      "get": {
+        "operationId": "BlockBuilderService_BlockStatusByTxTreeRoot",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BlockStatusByTxTreeRootResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "txTreeRoot",
+            "description": "the transaction tree root hash",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "BlockBuilderService"
+        ]
+      }
+    },
     "/v1/deposits/{depositId}/verify-confirmation": {
       "get": {
         "summary": "GetVerifyDepositConfirmation verifies the confirmation of a deposit",
@@ -879,6 +916,21 @@
         }
       },
       "title": "BlockSignatureResponse describes response about sends the signature to approve the proposed block by signing the tx tree root"
+    },
+    "v1BlockStatusByTxTreeRootResponse": {
+      "type": "object",
+      "properties": {
+        "isPosted": {
+          "type": "boolean",
+          "title": "the status of the block"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64",
+          "title": "the block number"
+        }
+      },
+      "title": "BlockStatusResponse describes response about retrieves the status of a block by its tx tree root"
     },
     "v1DataBlockProposedResponse": {
       "type": "object",

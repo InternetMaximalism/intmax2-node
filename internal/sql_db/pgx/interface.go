@@ -52,7 +52,8 @@ type Blocks interface {
 		options []byte,
 	) (*mDBApp.Block, error)
 	Block(proposalBlockID string) (*mDBApp.Block, error)
-	UpdateBlockStatus(proposalBlockID string, status int64) error
+	BlockByTxRoot(txRoot string) (*mDBApp.Block, error)
+	UpdateBlockStatus(proposalBlockID string, blockHash string, blockNumber uint32) error
 	GetUnprocessedBlocks() ([]*mDBApp.Block, error)
 }
 

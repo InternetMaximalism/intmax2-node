@@ -18,10 +18,16 @@ import (
 	"intmax2-node/internal/use_cases/transaction"
 	"math/big"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+)
+
+const (
+	base10        = 10
+	numUint32Bits = 32
 )
 
 func WithdrawalTransaction(
@@ -287,6 +293,11 @@ func ResumeWithdrawalRequest(
 		// Send withdrawal request
 		err = SendWithdrawalRequest(ctx, cfg, log, backupWithdrawal)
 		if err != nil {
+			if err.Error() == "failed to get block status: failed to get block status: block not found" {
+				log.Warnf("The block containing the transaction is not posted yet.")
+				continue
+			}
+
 			log.Fatalf("failed to request withdrawal: %v", err)
 		}
 
@@ -323,14 +334,21 @@ func SendWithdrawalRequest(
 	log logger.Logger,
 	withdrawal *tx_transfer_service.BackupWithdrawal,
 ) error {
-	// TODO: Get the block number and block hash
 	// Specify the block number containing the transaction.
-	rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(cfg, "https://sepolia-rpc.scroll.io")
-	blockNumber, err := intMaxTypes.FetchLatestIntMaxBlockNumber(rollupCfg, ctx)
+	blockStatus, err := tx_transfer_service.GetBlockStatus(ctx, cfg, log, withdrawal.TxTreeRoot)
 	if err != nil {
-		return fmt.Errorf("failed to fetch latest intmax block: %w", err)
+		if errors.Is(err, ErrBlockNotFound) {
+			return ErrBlockNotFound
+		}
+		return fmt.Errorf("failed to get block status: %w", err)
 	}
-	blockHash, err := intMaxTypes.FetchBlockHash(rollupCfg, ctx, blockNumber)
+
+	rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(cfg, "https://sepolia-rpc.scroll.io")
+	blockNumber, err := strconv.ParseUint(blockStatus.BlockNumber, base10, numUint32Bits)
+	if err != nil {
+		return fmt.Errorf("failed to parse block number: %w", err)
+	}
+	blockHash, err := intMaxTypes.FetchBlockHash(rollupCfg, ctx, uint32(blockNumber))
 	if err != nil {
 		return fmt.Errorf("failed to fetch block hash: %w", err)
 	}
@@ -344,7 +362,7 @@ func SendWithdrawalRequest(
 		withdrawal.TransferIndex,
 		withdrawal.TxTreeMerkleProof,
 		withdrawal.TxIndex,
-		blockNumber,
+		uint32(blockNumber),
 		blockHash,
 	)
 	if err != nil {

@@ -145,7 +145,7 @@ func sendWithdrawalRawRequest(
 	transferHash := hexutil.Encode(transfer.Hash().Marshal())
 
 	ethAddress := hexutil.Encode(transfer.Recipient.Address)
-	fmt.Printf("blockNumber: %v\n", blockNumber)
+	log.Infof("INTMAX block number: %v\n", blockNumber)
 	ucInput := withdrawal_request.UCWithdrawalInput{
 		TransferData: &withdrawal_request.TransferDataTransaction{
 			Recipient:  ethAddress,
