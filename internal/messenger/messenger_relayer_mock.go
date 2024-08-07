@@ -73,11 +73,11 @@ func MessengerRelayerMock(ctx context.Context, cfg *configs.Config, log logger.L
 		panic(fmt.Sprintf("Failed to initialize MessengerRelayerMockService: %v", err.Error()))
 	}
 
-	event, err := db.EventBlockNumberByEventName(mDBApp.SentMessageEvent)
+	event, err := db.EventBlockNumberByEventName(mDBApp.WithdrawalSentMessageEvent)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) || err.Error() == notFound {
 			event = &mDBApp.EventBlockNumber{
-				EventName:                mDBApp.SentMessageEvent,
+				EventName:                mDBApp.WithdrawalSentMessageEvent,
 				LastProcessedBlockNumber: 0,
 			}
 		} else {
@@ -85,7 +85,7 @@ func MessengerRelayerMock(ctx context.Context, cfg *configs.Config, log logger.L
 		}
 	} else if event == nil {
 		event = &mDBApp.EventBlockNumber{
-			EventName:                mDBApp.SentMessageEvent,
+			EventName:                mDBApp.WithdrawalSentMessageEvent,
 			LastProcessedBlockNumber: 0,
 		}
 	}
@@ -102,7 +102,7 @@ func MessengerRelayerMock(ctx context.Context, cfg *configs.Config, log logger.L
 
 	service.relayMessagesforEvents(events)
 
-	_, err = db.UpsertEventBlockNumber(mDBApp.SentMessageEvent, lastBlockNumber)
+	_, err = db.UpsertEventBlockNumber(mDBApp.WithdrawalSentMessageEvent, lastBlockNumber)
 	if err != nil {
 		panic(fmt.Sprintf("Error updating event block number: %v", err.Error()))
 	}
