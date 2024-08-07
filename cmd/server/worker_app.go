@@ -20,5 +20,5 @@ type Worker interface {
 		sf *worker.TransactionHashesWithSenderAndFile,
 		leafIndex uint64,
 	) error
-	ExistsTxTreeRoot(txTreeRoot string) error
+	// ExistsTxTreeRoot(txTreeRoot string) error
 }

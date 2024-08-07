@@ -696,7 +696,8 @@ func PostRegistrationBlock(cfg *RollupContractConfig, ctx context.Context, log l
 	if err != nil {
 		fmt.Println("PostRegistrationBlock: block content is invalid")
 	} else {
-		blockContentJSON, err := json.Marshal(blockContent)
+		var blockContentJSON []byte
+		blockContentJSON, err = json.Marshal(blockContent)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal block content: %w", err)
 		}

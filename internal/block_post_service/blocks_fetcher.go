@@ -22,7 +22,9 @@ type errStartBlocksFetcher struct {
 	UpdErr      error
 }
 
-var ErrChanStartBlocksFetcher = make(chan errStartBlocksFetcher, 1024)
+const fetcherChannelLen = 1024
+
+var ErrChanStartBlocksFetcher = make(chan errStartBlocksFetcher, fetcherChannelLen)
 
 func StartBlocksFetcher(
 	ctx context.Context,

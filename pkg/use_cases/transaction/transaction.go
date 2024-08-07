@@ -54,17 +54,17 @@ func (u *uc) Do(ctx context.Context, input *transaction.UCTransactionInput) (err
 	// TODO: check 0.1 ETH with Rollup contract
 
 	/**
-	// NOTE: `TransferData` does not need to be sent in the request
-	transferData := make([]*intMaxTypes.Transfer, len(input.TransferData))
-	for key := range input.TransferData {
-		transferData[key] = &intMaxTypes.Transfer{
-			Recipient:  input.TransferData[key].DecodeRecipient,
-			TokenIndex: uint32(input.TransferData[key].DecodeTokenIndex.Uint64()),
-			Amount:     input.TransferData[key].DecodeAmount,
-			Salt:       input.TransferData[key].DecodeSalt,
-		}
-	}
-	*/
+	 * // NOTE: `TransferData` does not need to be sent in the request
+	 * transferData := make([]*intMaxTypes.Transfer, len(input.TransferData))
+	 * for key := range input.TransferData {
+	 * 	transferData[key] = &intMaxTypes.Transfer{
+	 *		Recipient:  input.TransferData[key].DecodeRecipient,
+	 *		TokenIndex: uint32(input.TransferData[key].DecodeTokenIndex.Uint64()),
+	 *		Amount:     input.TransferData[key].DecodeAmount,
+	 *		Salt:       input.TransferData[key].DecodeSalt,
+	 *	}
+	 * }
+	 */
 
 	err = u.w.Receiver(&worker.ReceiverWorker{
 		Sender:        input.DecodeSender.ToAddress().String(),
