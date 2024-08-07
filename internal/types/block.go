@@ -3,7 +3,6 @@ package types
 import (
 	"context"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
@@ -692,16 +691,10 @@ func PostRegistrationBlock(cfg *RollupContractConfig, ctx context.Context, log l
 		return nil, fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
 	}
 
+	// Check recover block content
 	err = blockContent.IsValid()
 	if err != nil {
-		fmt.Println("PostRegistrationBlock: block content is invalid")
-	} else {
-		var blockContentJSON []byte
-		blockContentJSON, err = json.Marshal(blockContent)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal block content: %w", err)
-		}
-		fmt.Printf("PostRegistrationBlock: block content is valid: %s", blockContentJSON)
+		return nil, fmt.Errorf("block content is invalid: %w", err)
 	}
 
 	input, err := MakePostRegistrationBlockInput(blockContent)
@@ -725,12 +718,6 @@ func PostRegistrationBlock(cfg *RollupContractConfig, ctx context.Context, log l
 	transactOpts, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(chainID))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transactor: %w", err)
-	}
-
-	// Check recover block content
-	err = blockContent.IsValid()
-	if err != nil {
-		return nil, fmt.Errorf("block content is invalid: %w", err)
 	}
 
 	tx, err := rollup.PostRegistrationBlock(

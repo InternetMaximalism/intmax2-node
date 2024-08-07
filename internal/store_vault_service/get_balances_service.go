@@ -19,19 +19,16 @@ func GetBalances(
 	if err != nil {
 		return nil, fmt.Errorf("failed to create get backup depsits from db: %w", err)
 	}
-	fmt.Printf("deposits: %+v\n", deposits)
 
 	transactions, err := db.GetBackupTransactions("sender", input.Address)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create get backup transactions from db: %w", err)
 	}
-	fmt.Printf("transactions: %+v\n", transactions)
 
 	transfers, err := db.GetBackupTransfers("recipient", input.Address)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create get backup transfers from db: %w", err)
 	}
-	fmt.Printf("transfers: %+v\n", transfers)
 
 	resDeposits := make([]*backupBalance.BackupDeposit, len(deposits))
 	for i, deposit := range deposits {

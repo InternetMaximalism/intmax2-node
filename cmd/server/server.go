@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
 	"intmax2-node/docs/swagger"
@@ -88,8 +87,8 @@ func NewServerCmd(s *Server) *cobra.Command {
 					}
 					s.Log.Fatalf(msg, errURL.Error())
 				}
-				const myAddrIs = "My address is"
-				fmt.Println(myAddrIs, network_service.NodeExternalAddress.Address.Address())
+				const myAddrIs = "My address is %s"
+				s.Log.Infof(myAddrIs, network_service.NodeExternalAddress.Address.Address())
 			}
 			s.Log.Infof("Start updBB")
 			updBB()
