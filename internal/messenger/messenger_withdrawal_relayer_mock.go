@@ -73,11 +73,11 @@ func MessengerWithdrawalRelayerMock(ctx context.Context, cfg *configs.Config, lo
 		panic(fmt.Sprintf("Failed to initialize WithdrawalRelayerMockService: %v", err.Error()))
 	}
 
-	event, err := db.EventBlockNumberByEventName(mDBApp.SentMessageEvent)
+	event, err := db.EventBlockNumberByEventName(mDBApp.MessengerSentMessageEvent)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) || err.Error() == notFound {
 			event = &mDBApp.EventBlockNumber{
-				EventName:                mDBApp.SentMessageEvent,
+				EventName:                mDBApp.MessengerSentMessageEvent,
 				LastProcessedBlockNumber: 0,
 			}
 		} else {
@@ -85,7 +85,7 @@ func MessengerWithdrawalRelayerMock(ctx context.Context, cfg *configs.Config, lo
 		}
 	} else if event == nil {
 		event = &mDBApp.EventBlockNumber{
-			EventName:                mDBApp.SentMessageEvent,
+			EventName:                mDBApp.MessengerSentMessageEvent,
 			LastProcessedBlockNumber: 0,
 		}
 	}
@@ -132,7 +132,7 @@ func MessengerWithdrawalRelayerMock(ctx context.Context, cfg *configs.Config, lo
 
 	log.Infof("Successfully submitted relay message with proof by event for %d out of %d events", len(events), successfulEvents)
 
-	_, err = db.UpsertEventBlockNumber(mDBApp.SentMessageEvent, currentBlockNumber)
+	_, err = db.UpsertEventBlockNumber(mDBApp.MessengerSentMessageEvent, currentBlockNumber)
 	if err != nil {
 		panic(fmt.Sprintf("Error updating event block number: %v", err.Error()))
 	}
