@@ -112,3 +112,9 @@ var ErrDelAllAccountsFail = errors.New("failed to delete all accounts")
 
 // ErrResetSequenceByAccountsFail error: failed to reset sequence by accounts.
 var ErrResetSequenceByAccountsFail = errors.New("failed to reset sequence by accounts")
+
+// ErrInvalidRegistrationBlockContent error: invalid registration block content.
+var ErrInvalidRegistrationBlockContent = errors.New("invalid registration block content")
+
+// ErrInvalidNonRegistrationBlockContent error: invalid non-registration block content.
+var ErrInvalidNonRegistrationBlockContent = errors.New("invalid non-registration block content")

@@ -3,7 +3,6 @@ package block_signature
 import (
 	"context"
 	"errors"
-	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_post_service"
@@ -87,7 +86,6 @@ func (u *uc) Do(
 	// Backup transaction and transfer
 	blockNumber := uint64(1) // dummy
 	sender, err := intMaxAcc.NewPublicKeyFromAddressHex(input.Sender)
-	fmt.Printf("input.EncodedEncryptedTx: %v", input.BackupTx)
 	if innerErr := b.BackupTransaction(
 		sender.ToAddress(),
 		input.BackupTx.EncodedEncryptedTx,

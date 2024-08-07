@@ -161,7 +161,6 @@ func ProcessingPostedBlocks(
 	}
 
 	if len(events) == 0 {
-		lg.Debugf("No new PostedBlocks Events")
 		return nil
 	}
 

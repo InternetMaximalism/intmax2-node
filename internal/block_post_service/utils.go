@@ -19,6 +19,11 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
+const (
+	defaultAccountID = 0
+	dummyAccountID   = 1
+)
+
 // FetchIntMaxBlockContentByCalldata fetches the block content by transaction hash.
 // accountInfo is mutable and will be updated with new account information.
 //
@@ -143,6 +148,10 @@ func MakeRegistrationBlock(
 		txRoot,
 		aggregatedSignature,
 	)
+	err := blockContent.IsValid()
+	if err != nil {
+		return nil, errors.Join(ErrInvalidRegistrationBlockContent, err)
+	}
 
 	return blockContent, nil
 }
@@ -244,11 +253,15 @@ func MakeNonRegistrationBlock(
 	}
 
 	blockContent := intMaxTypes.NewBlockContent(
-		intMaxTypes.PublicKeySenderType,
+		intMaxTypes.AccountIDSenderType,
 		senders,
 		txRoot,
 		aggregatedSignature,
 	)
+	err := blockContent.IsValid()
+	if err != nil {
+		return nil, errors.Join(ErrInvalidNonRegistrationBlockContent, err)
+	}
 
 	return blockContent, nil
 }
@@ -454,11 +467,16 @@ func recoverRegistrationBlockContent(
 		}
 	}
 
+	dummyPublicKey := intMaxAcc.NewDummyPublicKey()
 	senders := make([]intMaxTypes.Sender, numOfSenders)
 	for i, sender := range senderPublicKeys {
+		var accountID uint64 = defaultAccountID
+		if sender.Equal(dummyPublicKey) {
+			accountID = dummyAccountID
+		}
 		senders[i] = intMaxTypes.Sender{
 			PublicKey: sender,
-			AccountID: int0Key,
+			AccountID: accountID,
 			IsSigned:  senderFlags[i],
 		}
 	}
@@ -540,7 +558,7 @@ func recoverNonRegistrationBlockContent(
 	for i, sender := range senderPublicKeys {
 		senders[i] = intMaxTypes.Sender{
 			PublicKey: sender,
-			AccountID: int0Key,
+			AccountID: senderAccountIds[i],
 			IsSigned:  senderFlags[i],
 		}
 	}
