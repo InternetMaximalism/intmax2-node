@@ -32,7 +32,7 @@ type blockValidityProver struct {
 	log                       logger.Logger
 	dbApp                     SQLDriverApp
 	lastSeenScrollBlockNumber uint64
-	accountInfoMap            block_post_service.AccountInfoMap
+	accountInfoMap            block_post_service.AccountInfo
 }
 
 func New(cfg *configs.Config, log logger.Logger, dbApp SQLDriverApp) BlockValidityProver {
@@ -41,7 +41,7 @@ func New(cfg *configs.Config, log logger.Logger, dbApp SQLDriverApp) BlockValidi
 		log:                       log,
 		dbApp:                     dbApp,
 		lastSeenScrollBlockNumber: cfg.Blockchain.RollupContractDeployedBlockNumber,
-		accountInfoMap:            block_post_service.NewAccountInfoMap(),
+		accountInfoMap:            block_post_service.NewAccountInfo(dbApp),
 	}
 }
 

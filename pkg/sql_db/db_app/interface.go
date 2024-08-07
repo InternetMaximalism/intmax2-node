@@ -27,6 +27,10 @@ type SQLDb interface {
 	BackupTransfers
 	BackupTransactions
 	BackupDeposits
+	CtrlEventBlockNumbersJobs
+	EventBlockNumbersErrors
+	Senders
+	Accounts
 }
 
 type GenericCommands interface {
@@ -117,4 +121,39 @@ type BackupDeposits interface {
 	CreateBackupDeposit(input *backupDeposit.UCPostBackupDepositInput) (*models.BackupDeposit, error)
 	GetBackupDeposit(condition string, value string) (*models.BackupDeposit, error)
 	GetBackupDeposits(condition string, value interface{}) ([]*models.BackupDeposit, error)
+}
+
+type CtrlEventBlockNumbersJobs interface {
+	CreateCtrlEventBlockNumbersJobs(eventName string) error
+	CtrlEventBlockNumbersJobs(eventName string) (*models.CtrlEventBlockNumbersJobs, error)
+}
+
+type EventBlockNumbersErrors interface {
+	UpsertEventBlockNumbersErrors(
+		eventName string,
+		blockNumber *uint256.Int,
+		options []byte,
+		updErr error,
+	) error
+	EventBlockNumbersErrors(
+		eventName string,
+		blockNumber *uint256.Int,
+	) (*models.EventBlockNumbersErrors, error)
+}
+
+type Senders interface {
+	CreateSenders(
+		address, publicKey string,
+	) (*models.Sender, error)
+	SenderByID(id string) (*models.Sender, error)
+	SenderByAddress(address string) (*models.Sender, error)
+	SenderByPublicKey(publicKey string) (*models.Sender, error)
+}
+
+type Accounts interface {
+	CreateAccount(senderID string) (*models.Account, error)
+	AccountBySenderID(senderID string) (*models.Account, error)
+	AccountByAccountID(accountID *uint256.Int) (*models.Account, error)
+	ResetSequenceByAccounts() error
+	DelAllAccounts() error
 }

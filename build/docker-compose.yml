@@ -23,9 +23,35 @@ services:
     depends_on:
       - intmax2-node-ot-collector
       - intmax2-node-postgres
+      - intmax2-node-store-vault
     ports:
       - '8780:80'
       - '8781:10000'
+
+  intmax2-node-store-vault:
+    container_name: intmax2-node-store-vault
+    image: 'intmax2-node-service:dev'
+    working_dir: /app
+    command: sh -c "./intmax2-node migrate --action up && ./intmax2-node store-valut-server run"
+    env_file:
+      - env.docker.node
+    restart: always
+    build:
+      context: ../
+      dockerfile: ./build/Dockerfile
+      args:
+        SWAGGER_HOST_URL: ${SWAGGER_HOST_URL}
+        SWAGGER_BASE_PATH: ${SWAGGER_BASE_PATH}
+    volumes:
+      - ../scripts/x509:/app/x509
+    networks:
+      - intmax2-node
+    depends_on:
+      - intmax2-node-ot-collector
+      - intmax2-node-postgres
+    ports:
+      - '8782:80'
+      - '8783:10000'
 
   intmax2-node-postgres:
     container_name: intmax2-node-postgres

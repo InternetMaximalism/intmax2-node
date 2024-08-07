@@ -13,6 +13,7 @@ import (
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/transaction"
 	"intmax2-node/internal/worker"
+	"intmax2-node/pkg/logger"
 	ucTransaction "intmax2-node/pkg/use_cases/transaction"
 	"math/big"
 	"testing"
@@ -32,9 +33,10 @@ func TestUseCaseTransaction(t *testing.T) {
 	defer ctrl.Finish()
 
 	cfg := configs.New()
+	log := logger.New(cfg.LOG.Level, cfg.LOG.TimeFormat, cfg.LOG.JSON, cfg.LOG.IsLogLine)
 	w := NewMockWorker(ctrl)
 
-	uc := ucTransaction.New(cfg, nil, w)
+	uc := ucTransaction.New(cfg, log, w)
 
 	cases := []struct {
 		desc    string

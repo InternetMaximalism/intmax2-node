@@ -18,6 +18,11 @@ type SQLDriverApp interface {
 	Blocks
 	Signatures
 	TxMerkleProofs
+	EventBlockNumbers
+	CtrlEventBlockNumbersJobs
+	EventBlockNumbersErrors
+	Senders
+	Accounts
 }
 
 type GenericCommandsApp interface {
@@ -53,4 +58,45 @@ type TxMerkleProofs interface {
 	) (*mDBApp.TxMerkleProofs, error)
 	TxMerkleProofsByID(id string) (*mDBApp.TxMerkleProofs, error)
 	TxMerkleProofsByTxHash(txHash string) (*mDBApp.TxMerkleProofs, error)
+}
+
+type EventBlockNumbers interface {
+	UpsertEventBlockNumber(eventName string, blockNumber uint64) (*mDBApp.EventBlockNumber, error)
+	EventBlockNumberByEventName(eventName string) (*mDBApp.EventBlockNumber, error)
+	EventBlockNumbersByEventNames(eventNames []string) ([]*mDBApp.EventBlockNumber, error)
+}
+
+type CtrlEventBlockNumbersJobs interface {
+	CreateCtrlEventBlockNumbersJobs(eventName string) error
+	CtrlEventBlockNumbersJobs(eventName string) (*mDBApp.CtrlEventBlockNumbersJobs, error)
+}
+
+type EventBlockNumbersErrors interface {
+	UpsertEventBlockNumbersErrors(
+		eventName string,
+		blockNumber *uint256.Int,
+		options []byte,
+		updErr error,
+	) error
+	EventBlockNumbersErrors(
+		eventName string,
+		blockNumber *uint256.Int,
+	) (*mDBApp.EventBlockNumbersErrors, error)
+}
+
+type Senders interface {
+	CreateSenders(
+		address, publicKey string,
+	) (*mDBApp.Sender, error)
+	SenderByID(id string) (*mDBApp.Sender, error)
+	SenderByAddress(address string) (*mDBApp.Sender, error)
+	SenderByPublicKey(publicKey string) (*mDBApp.Sender, error)
+}
+
+type Accounts interface {
+	CreateAccount(senderID string) (*mDBApp.Account, error)
+	AccountBySenderID(senderID string) (*mDBApp.Account, error)
+	AccountByAccountID(accountID *uint256.Int) (*mDBApp.Account, error)
+	ResetSequenceByAccounts() error
+	DelAllAccounts() error
 }

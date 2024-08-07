@@ -23,16 +23,17 @@ const (
 	postRegistrationBlockMethod    = "postRegistrationBlock"
 	postNonRegistrationBlockMethod = "postNonRegistrationBlock"
 
-	int0Key  = 0
-	int1Key  = 1
-	int2Key  = 2
-	int3Key  = 3
-	int4Key  = 4
-	int5Key  = 5
-	int6Key  = 6
-	int8Key  = 8
-	int16Key = 16
-	int32Key = 32
+	int0Key   = 0
+	int1Key   = 1
+	int2Key   = 2
+	int3Key   = 3
+	int4Key   = 4
+	int5Key   = 5
+	int6Key   = 6
+	int8Key   = 8
+	int16Key  = 16
+	int32Key  = 32
+	minus1Key = -1
 )
 
 type blockPostService struct {
@@ -45,8 +46,7 @@ type blockPostService struct {
 	rollup       *bindings.Rollup
 }
 
-// func NewBlockPostService(ctx context.Context, cfg *configs.Config, log logger.Logger) (BlockPostService, error) {
-func NewBlockPostService(ctx context.Context, cfg *configs.Config, log logger.Logger) (*blockPostService, error) {
+func NewBlockPostService(ctx context.Context, cfg *configs.Config, log logger.Logger) (BlockPostService, error) {
 	ethClient, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
 	if err != nil {
 		return nil, errors.Join(ErrNewEthereumClientFail, err)
@@ -100,6 +100,7 @@ func (d *blockPostService) FetchLatestBlockNumber(ctx context.Context) (uint64, 
 
 func (d *blockPostService) FetchNewPostedBlocks(startBlock uint64) ([]*bindings.RollupBlockPosted, *big.Int, error) {
 	nextBlock := startBlock + int1Key
+
 	iterator, err := d.rollup.FilterBlockPosted(&bind.FilterOpts{
 		Start:   nextBlock,
 		End:     nil,
@@ -114,13 +115,14 @@ func (d *blockPostService) FetchNewPostedBlocks(startBlock uint64) ([]*bindings.
 	}()
 
 	var events []*bindings.RollupBlockPosted
-	maxBlockNumber := new(big.Int)
+	maxBlockNumber := new(big.Int).SetUint64(startBlock)
 
 	for iterator.Next() {
 		event := iterator.Event
 		events = append(events, event)
-		if event.BlockNumber.Cmp(maxBlockNumber) > int0Key {
-			maxBlockNumber.Set(event.BlockNumber)
+		currBN := new(big.Int).SetUint64(event.Raw.BlockNumber)
+		if maxBlockNumber.Cmp(currBN) == minus1Key {
+			maxBlockNumber.Set(currBN)
 		}
 	}
 

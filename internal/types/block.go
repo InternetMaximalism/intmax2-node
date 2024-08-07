@@ -3,6 +3,7 @@ package types
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
@@ -112,13 +113,16 @@ func NewBlockContent(
 
 	defaultPublicKey := accounts.NewDummyPublicKey()
 
-	const numOfSenders = NumOfSenders
-	senderPublicKeys := make([]byte, numOfSenders*NumPublicKeyBytes)
+	if len(bc.Senders) > NumOfSenders {
+		panic("too many senders")
+	}
+
+	senderPublicKeys := make([]byte, NumOfSenders*NumPublicKeyBytes)
 	for i, sender := range bc.Senders {
 		senderPublicKey := sender.PublicKey.Pk.X.Bytes() // Only x coordinate is used
 		copy(senderPublicKeys[NumPublicKeyBytes*i:NumPublicKeyBytes*(i+1)], senderPublicKey[:])
 	}
-	for i := len(bc.Senders); i < numOfSenders; i++ {
+	for i := len(bc.Senders); i < NumOfSenders; i++ {
 		senderPublicKey := defaultPublicKey.Pk.X.Bytes() // Only x coordinate is used
 		copy(senderPublicKeys[NumPublicKeyBytes*i:NumPublicKeyBytes*(i+1)], senderPublicKey[:])
 	}
@@ -686,6 +690,17 @@ func PostRegistrationBlock(cfg *RollupContractConfig, ctx context.Context, log l
 	rollup, err := bindings.NewRollup(common.HexToAddress(cfg.RollupContractAddressHex), client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
+	}
+
+	err = blockContent.IsValid()
+	if err != nil {
+		fmt.Println("PostRegistrationBlock: block content is invalid")
+	} else {
+		blockContentJSON, err := json.Marshal(blockContent)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal block content: %w", err)
+		}
+		fmt.Printf("PostRegistrationBlock: block content is valid: %s", blockContentJSON)
 	}
 
 	input, err := MakePostRegistrationBlockInput(blockContent)

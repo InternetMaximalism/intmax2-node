@@ -178,6 +178,7 @@ func sendWithdrawalRawRequest(
 	if err != nil {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
+	fmt.Printf("bd: %s\n", string(bd))
 
 	const (
 		httpKey     = "http"

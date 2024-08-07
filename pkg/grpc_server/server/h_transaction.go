@@ -39,6 +39,8 @@ func (s *Server) Transaction(
 		Signature:     req.Signature,
 	}
 
+	/**
+	// NOTE: `TransferData` does not need to be sent in the request
 	for key := range req.TransferData {
 		data := transaction.TransferDataTransaction{
 			TokenIndex: req.TransferData[key].TokenIndex,
@@ -53,6 +55,8 @@ func (s *Server) Transaction(
 		}
 		input.TransferData = append(input.TransferData, &data)
 	}
+
+	*/
 
 	err := input.Valid(s.config, s.pow)
 	if err != nil {

@@ -259,6 +259,7 @@ func ResumeWithdrawalRequest(
 			}
 		}
 	}
+	fmt.Printf("withdrawalInfo: %v\n", withdrawalInfo)
 
 	shouldProcess := func(withdrawal *tx_transfer_service.BackupWithdrawal) bool {
 		transferHash := hexutil.Encode(withdrawal.Transfer.Hash().Marshal())

@@ -18,6 +18,15 @@ import (
 // ErrValueInvalid error: value must be valid.
 var ErrValueInvalid = errors.New("must be a valid value")
 
+// ErrFailToUnmarshalTransfersHash error: failed to unmarshal transfers hash.
+var ErrFailToUnmarshalTransfersHash = errors.New("failed to unmarshal transfers hash")
+
+// ErrFailToDecodeTransfersHash error: failed to decode transfers hash.
+var ErrFailToDecodeTransfersHash = errors.New("failed to decode transfers hash")
+
+// ErrFailToVerifyPoWNonce error: failed to verify PoW nonce.
+var ErrFailToVerifyPoWNonce = errors.New("failed to verify PoW nonce")
+
 // ErrMoreThenZero error: must be more then 0.
 var ErrMoreThenZero = errors.New("must be more then 0")
 
@@ -153,14 +162,12 @@ func (input *UCTransactionInput) isPoW(pow PoWNonce) validation.Rule {
 
 		transfersHashBytes, err := hexutil.Decode(input.TransfersHash)
 		if err != nil {
-			ErrFailToDecodeTransfersHash := errors.New("failed to decode transfers hash")
 			return ErrFailToDecodeTransfersHash
 		}
 
 		transfersHash := new(intMaxTypes.PoseidonHashOut)
 		err = transfersHash.Unmarshal(transfersHashBytes)
 		if err != nil {
-			ErrFailToUnmarshalTransfersHash := errors.New("failed to unmarshal transfers hash")
 			return ErrFailToUnmarshalTransfersHash
 		}
 
@@ -177,7 +184,6 @@ func (input *UCTransactionInput) isPoW(pow PoWNonce) validation.Rule {
 		messageForPow := txHash.Marshal()
 		err = pow.Verify(v, messageForPow)
 		if err != nil {
-			ErrFailToVerifyPoWNonce := errors.New("failed to verify PoW nonce")
 			return ErrFailToVerifyPoWNonce
 		}
 

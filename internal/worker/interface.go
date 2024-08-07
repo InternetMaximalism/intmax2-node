@@ -70,7 +70,6 @@ type Worker interface {
 	SignTxTreeByAvailableFile(
 		signature string,
 		sf *TransactionHashesWithSenderAndFile,
-		txHash *intMaxTree.PoseidonHashOut,
 		leafIndex uint64,
 	) error
 	ExistsTxTreeRoot(txTreeRoot string) error

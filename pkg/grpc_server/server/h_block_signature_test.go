@@ -10,6 +10,7 @@ import (
 	"intmax2-node/internal/tx_transfer_service"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/block_signature"
+	"intmax2-node/internal/worker"
 	"intmax2-node/pkg/logger"
 	"io"
 	"math/big"
@@ -65,7 +66,7 @@ func TestHandlerBlockSignature(t *testing.T) {
 	cfg.APP.PEMPathClientCert = dir + cfg.APP.PEMPathClientCert
 	cfg.APP.PEMPathClientKey = dir + cfg.APP.PEMPathClientKey
 
-	sampleData := makeSampleData()
+	sampleData := makeSampleData(t)
 	sampleDataJson, err := json.Marshal(sampleData)
 	if err != nil {
 		require.NoError(t, err)
@@ -114,11 +115,19 @@ func TestHandlerBlockSignature(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			desc:       "Success",
-			prepare:    func() {},
+			desc: "Success",
+			prepare: func() {
+				wrk.EXPECT().TrHash(gomock.Any()).Return(&worker.TransactionHashesWithSenderAndFile{
+					Sender: sampleData.Sender,
+					TxHash: sampleData.TxHash,
+					File:   &os.File{},
+				}, nil)
+				wrk.EXPECT().TxTreeByAvailableFile(gomock.Any()).Return(sampleData.TxTree, nil)
+				fmt.Println("------------ sampleData.TxTree", sampleData.TxTree)
+			},
 			body:       string(sampleDataJson),
-			message:    "",
-			wantStatus: http.StatusBadRequest,
+			message:    block_signature.SuccessMsg,
+			wantStatus: http.StatusOK,
 		},
 		// validation - finish
 	}
@@ -151,30 +160,22 @@ func TestHandlerBlockSignature(t *testing.T) {
 	}
 }
 
-func makeSampleData() *block_signature.UCBlockSignatureInput {
+func makeSampleData(t *testing.T) *block_signature.UCBlockSignatureInput {
 	senderAccount, err := intMaxAcc.NewPrivateKeyWithReCalcPubKeyIfPkNegates(big.NewInt(2))
-	if err != nil {
-		panic(err)
-	}
+	assert.NoError(t, err)
 
 	transferTreeRoot, err := tx_transfer_service.MakeSampleTransferTree()
-	if err != nil {
-		panic(err)
-	}
+	assert.NoError(t, err)
 
 	txTreeRoot, err := tx_transfer_service.MakeSampleTxTree(&transferTreeRoot, 1)
-	if err != nil {
-		panic(err)
-	}
+	assert.NoError(t, err)
 
 	senderPublicKeys := []*intMaxAcc.PublicKey{}
 	for i := 0; i < 4; i++ {
-		senderAccount, err := intMaxAcc.NewPrivateKeyWithReCalcPubKeyIfPkNegates(big.NewInt(int64(i) + 2))
-		if err != nil {
-			panic(err)
-		}
+		sa, err := intMaxAcc.NewPrivateKeyWithReCalcPubKeyIfPkNegates(big.NewInt(int64(i) + 2))
+		assert.NoError(t, err)
 
-		senderPublicKeys = append(senderPublicKeys, senderAccount.Public())
+		senderPublicKeys = append(senderPublicKeys, sa.Public())
 	}
 
 	senderPublicKeysBytes := make([]byte, intMaxTypes.NumOfSenders*intMaxTypes.NumPublicKeyBytes)
@@ -193,9 +194,6 @@ func makeSampleData() *block_signature.UCBlockSignatureInput {
 	res, err := tx_transfer_service.MakePostBlockSignatureRawRequest(
 		senderAccount, txTreeRoot, publicKeysHash,
 	)
-	if err != nil {
-		panic(err)
-	}
 
 	return res
 }
