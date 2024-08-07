@@ -2,6 +2,7 @@ package tx_transfer
 
 import (
 	"context"
+	"errors"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/logger"
@@ -11,6 +12,12 @@ import (
 	txTransfer "intmax2-node/internal/use_cases/tx_transfer"
 
 	"go.opentelemetry.io/otel/attribute"
+)
+
+var (
+	ErrEmptyUserPrivateKey   = errors.New("user private key is empty")
+	ErrEmptyRecipientAddress = errors.New("recipient address is empty")
+	ErrEmptyAmount           = errors.New("amount is empty")
 )
 
 // uc describes use case
@@ -41,6 +48,10 @@ func (u *uc) Do(ctx context.Context, args []string, amount, recipientAddressStr,
 	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
 	defer span.End()
 
+	if userEthPrivateKey == "" {
+		return ErrEmptyUserPrivateKey
+	}
+
 	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
 	if err != nil {
 		u.log.Errorf("fail to parse user private key: %v", err)
@@ -59,6 +70,14 @@ func (u *uc) Do(ctx context.Context, args []string, amount, recipientAddressStr,
 	span.SetAttributes(
 		attribute.String(senderKey, userAddress.String()),
 	)
+
+	if recipientAddressStr == "" {
+		return ErrEmptyRecipientAddress
+	}
+
+	if amount == "" {
+		return ErrEmptyAmount
+	}
 
 	service.TransferTransaction(spanCtx, u.cfg, u.log, u.sb, args, amount, recipientAddressStr, userEthPrivateKey)
 

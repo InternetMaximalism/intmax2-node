@@ -25,9 +25,12 @@ const (
 )
 
 var (
-	ErrBackupDeposit    = errors.New("failed to backup deposit")
-	ErrInvalidArguments = errors.New("invalid arguments")
-	ErrUnsupportedToken = errors.New("unsupported token type")
+	ErrBackupDeposit         = errors.New("failed to backup deposit")
+	ErrInvalidArguments      = errors.New("invalid arguments")
+	ErrUnsupportedToken      = errors.New("unsupported token type")
+	ErrEmptyUserPrivateKey   = errors.New("user private key is empty")
+	ErrEmptyRecipientAddress = errors.New("recipient address is empty")
+	ErrEmptyAmount           = errors.New("amount is empty")
 )
 
 // uc describes use case
@@ -59,6 +62,10 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressStr, amount,
 	_, span := open_telemetry.Tracer().Start(ctx, hName)
 	defer span.End()
 
+	if userEthPrivateKeyHex == "" {
+		return ErrEmptyUserPrivateKey
+	}
+
 	// The userPrivateKey is acceptable in either format:
 	// it may include the '0x' prefix at the beginning,
 	// or it can be provided without this prefix.
@@ -71,6 +78,14 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressStr, amount,
 	span.SetAttributes(
 		attribute.String(senderKey, userAddress.String()),
 	)
+
+	if recipientAddressStr == "" {
+		return ErrEmptyRecipientAddress
+	}
+
+	if amount == "" {
+		return ErrEmptyAmount
+	}
 
 	recipientAddress, err := intMaxAcc.NewAddressFromHex(recipientAddressStr)
 	if err != nil {
@@ -85,16 +100,6 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressStr, amount,
 	if err != nil {
 		return err
 	}
-
-	// tokenIndex, err := balance_service.GetTokenIndexFromLiquidityContract(ctx, u.cfg, u.sb, *tokenInfo)
-	// if err != nil {
-	// 	if err.Error() != "token not found on INTMAX network" {
-	// 		return err
-	// 	}
-
-	// 	fmt.Println("AAA: Token not found on INTMAX network")
-	// 	return err
-	// }
 
 	u.ds, err = txDepositService.NewTxDepositService(
 		ctx, u.cfg, u.log, u.sb,
