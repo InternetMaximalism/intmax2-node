@@ -1,4 +1,4 @@
-package tx_transfer_service
+package tx_withdrawal_service
 
 import "errors"
 

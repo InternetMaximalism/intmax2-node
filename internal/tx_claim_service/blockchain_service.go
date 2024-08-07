@@ -1,10 +1,10 @@
-package transaction
+package tx_claim_service
 
 import (
 	"context"
 )
 
-//go:generate mockgen -destination=mock_blockchain_service.go -package=transaction -source=blockchain_service.go
+//go:generate mockgen -destination=mock_blockchain_service_test.go -package=tx_claim_service_test -source=blockchain_service.go
 
 type ServiceBlockchain interface {
 	GenericCommandsSB

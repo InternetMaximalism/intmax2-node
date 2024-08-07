@@ -1,4 +1,4 @@
-package tx_withdrawal_service
+package tx_claim
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"github.com/holiman/uint256"
 )
 
-//go:generate mockgen -destination=mock_db_app_test.go -package=tx_withdrawal_service_test -source=db_app.go
+//go:generate mockgen -destination=mock_db_app_test.go -package=tx_claim_test -source=db_app.go
 
 type SQLDriverApp interface {
 	GenericCommandsApp
@@ -31,6 +31,6 @@ type TokensApp interface {
 type BalanceApp interface {
 	CreateBalance(userAddress, tokenAddress, balance string) (*mDBApp.Balance, error)
 	UpdateBalanceByID(balanceID, balance string) (*mDBApp.Balance, error)
-	BalanceByUserAndTokenInfo(userAddress, tokenAddress, tokenID string) (*mDBApp.Balance, error)
 	BalanceByUserAndTokenIndex(userAddress, tokenIndex string) (*mDBApp.Balance, error)
+	BalanceByUserAndTokenInfo(userAddress, tokenAddress, tokenID string) (*mDBApp.Balance, error)
 }
