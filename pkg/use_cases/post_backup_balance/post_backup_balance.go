@@ -3,6 +3,8 @@ package post_backup_balance
 import (
 	"context"
 	"encoding/binary"
+	"intmax2-node/configs"
+	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/backup_balance"
@@ -12,10 +14,18 @@ import (
 )
 
 // uc describes use case
-type uc struct{}
+type uc struct {
+	cfg *configs.Config
+	log logger.Logger
+	db  SQLDriverApp
+}
 
-func New() backup_balance.UseCasePostBackupBalance {
-	return &uc{}
+func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backup_balance.UseCasePostBackupBalance {
+	return &uc{
+		cfg: cfg,
+		log: log,
+		db:  db,
+	}
 }
 
 func (u *uc) Do(

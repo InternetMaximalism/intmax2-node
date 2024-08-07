@@ -15,6 +15,7 @@ func GetBalances(
 	db SQLDriverApp,
 	input *backupBalance.UCGetBalancesInput,
 ) (*backupBalance.UCGetBalances, error) {
+	// TODO: get these data concurrently
 	deposits, err := db.GetBackupDeposits("recipient", input.Address)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create get backup depsits from db: %w", err)
