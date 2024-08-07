@@ -18,3 +18,9 @@ func (input *UCGetBalancesInput) Valid() error {
 		validation.Field(&input.Address, validation.Required),
 	)
 }
+
+func (input *UCGetBackupBalanceInput) Valid() error {
+	return validation.ValidateStruct(input,
+		validation.Field(&input.Sender, validation.Required),
+	)
+}

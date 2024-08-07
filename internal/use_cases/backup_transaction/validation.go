@@ -21,3 +21,8 @@ func (input *UCPostBackupTransactionInput) Valid() error {
 		validation.Field(&input.Signature, validation.Required),
 	)
 }
+func (input *UCGetBackupTransactionInput) Valid() error {
+	return validation.ValidateStruct(input,
+		validation.Field(&input.Sender, validation.Required),
+	)
+}

@@ -20,6 +20,12 @@ service StoreVaultService {
     };
   }
 
+  rpc GetBackupTransfer(GetBackupTransferRequest) returns (GetBackupTransferResponse) {
+    option (google.api.http) = {
+      get: "/v1/backups/transfer"
+    };
+  }
+
   // BackupTransaction processes a request for data backup transaction
   //
   // ## This method handles the transaction of backup data.
@@ -30,6 +36,12 @@ service StoreVaultService {
     };
   }
 
+  rpc GetBackupTransaction(GetBackupTransactionRequest) returns (GetBackupTransactionResponse) {
+    option (google.api.http) = {
+      get: "/v1/backups/transaction"
+    };
+  }
+
   // BackupDeposit processes a request for data backup deposit
   //
   // ## This method handles the deposit of backup data.
@@ -37,6 +49,25 @@ service StoreVaultService {
     option (google.api.http) = {
       post: "/v1/backups/deposit"
       body: "*"
+    };
+  }
+
+  rpc GetBackupDeposit(GetBackupDepositRequest) returns (GetBackupDepositResponse) {
+    option (google.api.http) = {
+      get: "/v1/backups/deposit"
+    };
+  }
+
+  rpc BackupBalance(BackupBalanceRequest) returns (BackupBalanceResponse) {
+    option (google.api.http) = {
+      post: "/v1/backups/balance"
+      body: "*"
+    };
+  }
+
+  rpc GetBackupBalance(GetBackupBalanceRequest) returns (GetBackupBalanceResponse) {
+    option (google.api.http) = {
+      get: "/v1/backups/balance"
     };
   }
 
@@ -82,6 +113,39 @@ message BackupTransferResponse {
   }
 }
 
+message GetBackupTransferRequest {
+  string sender = 1;
+  uint64 startBlockNumber = 2;
+  uint64 limit = 3;
+}
+
+message GetBackupTransferResponse {
+  bool success = 1;
+  Data data = 2;
+
+  message Data {
+    repeated Transaction transactions = 1;
+    Meta meta = 2;
+  }
+
+  message Transaction {
+    string encryptedTx = 1;
+    int32 blockNumber = 2;
+  }
+
+  message Meta {
+    int32 startBlockNumber = 1;
+    int32 endBlockNumber = 2;
+  }
+
+  StoreVaultError error = 3;
+}
+
+message StoreVaultError {
+  string code = 1;
+  string message = 2;
+}
+
 // BackupTransactionRequest is the request message for BackupTransaction method.
 message BackupTransactionRequest {
   // The encrypted transaction data
@@ -107,6 +171,34 @@ message BackupTransactionResponse {
   }
 }
 
+message GetBackupTransactionRequest {
+  string sender = 1;
+  uint64 startBlockNumber = 2;
+  uint64 limit = 3;
+}
+
+message GetBackupTransactionResponse {
+  bool success = 1;
+  Data data = 2;
+
+  message Data {
+    repeated Transaction transactions = 1;
+    Meta meta = 2;
+  }
+
+  message Transaction {
+    string encryptedTx = 1;
+    int32 blockNumber = 2;
+  }
+
+  message Meta {
+    int32 startBlockNumber = 1;
+    int32 endBlockNumber = 2;
+  }
+
+  StoreVaultError error = 3;
+}
+
 // BackupDepositRequest is the request message for BackupDeposit method.
 message BackupDepositRequest {
   // The recipient address
@@ -128,6 +220,34 @@ message BackupDepositResponse {
     // A message indicating the result of the backup transfer
     string message = 1;
   }
+}
+
+message GetBackupDepositRequest {
+  string sender = 1;
+  uint64 startBlockNumber = 2;
+  uint64 limit = 3;
+}
+
+message GetBackupDepositResponse {
+  bool success = 1;
+  Data data = 2;
+
+  message Data {
+    repeated Transaction transactions = 1;
+    Meta meta = 2;
+  }
+
+  message Transaction {
+    string encryptedTx = 1;
+    int32 blockNumber = 2;
+  }
+
+  message Meta {
+    int32 startBlockNumber = 1;
+    int32 endBlockNumber = 2;
+  }
+
+  StoreVaultError error = 3;
 }
 
 // GetBalanceRequest is the request message for GetBalances method.
@@ -157,6 +277,27 @@ message BackupTransaction {
 	string created_at = 4;
 }
 
+message BackupBalanceRequest {
+  // The recipient address
+  string recipient = 1;
+  // The encrypted deposit data
+  string encrypted_deposit = 2;
+  // The block number associated with the deposit
+  uint64 block_number = 3;
+}
+
+message BackupBalanceResponse {
+  // Indicates if the backup transfer was successful
+  bool success = 1;
+  // Additional data related to the response
+  Data data = 2;
+  // Data is the nested message containing detailed response information
+  message Data {
+    // A message indicating the result of the backup transfer
+    string message = 1;
+  }
+}
+
 // The response message containing a list of token balances.
 message GetBalancesResponse {
   // The list of deposits
@@ -165,6 +306,34 @@ message GetBalancesResponse {
   repeated BackupTransfer transfers = 2;
   // The list of transactions
   repeated BackupTransaction transactions = 3;
+}
+
+message GetBackupBalanceRequest {
+  string sender = 1;
+  uint64 startBlockNumber = 2;
+  uint64 limit = 3;
+}
+
+message GetBackupBalanceResponse {
+  bool success = 1;
+  Data data = 2;
+
+  message Data {
+    repeated Transaction transactions = 1;
+    Meta meta = 2;
+  }
+
+  message Transaction {
+    string encryptedTx = 1;
+    int32 blockNumber = 2;
+  }
+
+  message Meta {
+    int32 startBlockNumber = 1;
+    int32 endBlockNumber = 2;
+  }
+
+  StoreVaultError error = 3;
 }
 
 // The request message for verifying deposit confirmation

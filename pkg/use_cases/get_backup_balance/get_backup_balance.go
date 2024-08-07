@@ -2,22 +2,32 @@ package get_backup_balance
 
 import (
 	"context"
+	"intmax2-node/configs"
+	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
+	"intmax2-node/internal/pb/gen/service/node"
+	service "intmax2-node/internal/store_vault_service"
 	"intmax2-node/internal/use_cases/backup_balance"
-
-	"go.opentelemetry.io/otel/attribute"
 )
 
 // uc describes use case
-type uc struct{}
+type uc struct {
+	cfg *configs.Config
+	log logger.Logger
+	db  SQLDriverApp
+}
 
-func New() backup_balance.UseCaseGetBackupBalance {
-	return &uc{}
+func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backup_balance.UseCaseGetBackupBalance {
+	return &uc{
+		cfg: cfg,
+		log: log,
+		db:  db,
+	}
 }
 
 func (u *uc) Do(
 	ctx context.Context, input *backup_balance.UCGetBackupBalanceInput,
-) (*backup_balance.UCGetBackupBalance, error) {
+) (*node.GetBackupBalanceResponse_Data, error) {
 	const (
 		hName          = "UseCase GetBackupBalance"
 		userKey        = "user"
@@ -33,24 +43,29 @@ func (u *uc) Do(
 	}
 
 	span.SetAttributes(
-		attribute.String(userKey, input.DecodeUser.ToAddress().String()),
-		attribute.Int64(blockNumberKey, int64(input.BlockNumber)),
+	// attribute.String(userKey, input.DecodeUser.ToAddress().String()),
+	// attribute.Int64(blockNumberKey, int64(input.BlockNumber)),
 	)
 
 	// TODO: Implement backup balance get logic here.
-	encryptedBalanceProof := ""
-	encryptedBalanceData := ""
-	encryptedTxs := []string{}
-	encryptedTransfers := []string{}
-	encryptedDeposits := []string{}
+	service.GetBackupBalance(ctx, u.cfg, u.log, u.db, input)
 
-	resp := backup_balance.UCGetBackupBalance{
-		EncryptedBalanceProof: encryptedBalanceProof,
-		EncryptedBalanceData:  encryptedBalanceData,
-		EncryptedTxs:          encryptedTxs,
-		EncryptedTransfers:    encryptedTransfers,
-		EncryptedDeposits:     encryptedDeposits,
+	data := node.GetBackupBalanceResponse_Data{
+		Transactions: genTransaction(),
+		Meta: &node.GetBackupBalanceResponse_Meta{
+			StartBlockNumber: 0,
+			EndBlockNumber:   0,
+		},
 	}
 
-	return &resp, nil
+	return &data, nil
+}
+
+func genTransaction() []*node.GetBackupBalanceResponse_Transaction {
+	result := make([]*node.GetBackupBalanceResponse_Transaction, 1)
+	result[0] = &node.GetBackupBalanceResponse_Transaction{
+		EncryptedTx: "0x123",
+		BlockNumber: 1000,
+	}
+	return result
 }
