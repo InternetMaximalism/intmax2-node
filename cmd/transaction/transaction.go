@@ -22,16 +22,16 @@ func NewTransactionCmd(b *Transaction) *cobra.Command {
 		short = "Manage transaction"
 	)
 
-	depositCmd := &cobra.Command{
+	transactionCmd := &cobra.Command{
 		Use:   use,
 		Short: short,
 	}
-	depositCmd.AddCommand(txTransferCmd(b))
-	depositCmd.AddCommand(txDepositCmd(b))
-	depositCmd.AddCommand(txWithdrawalCmd(b))
-	depositCmd.AddCommand(txClaimCmd(b))
+	transactionCmd.AddCommand(txTransferCmd(b))
+	transactionCmd.AddCommand(txDepositCmd(b))
+	transactionCmd.AddCommand(txWithdrawalCmd(b))
+	transactionCmd.AddCommand(txClaimCmd(b))
 
-	return depositCmd
+	return transactionCmd
 }
 
 func txTransferCmd(b *Transaction) *cobra.Command {
@@ -64,13 +64,7 @@ func txTransferCmd(b *Transaction) *cobra.Command {
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		l := b.Log.WithFields(logger.Fields{"module": use})
 
-		err := b.SB.CheckEthereumPrivateKey(b.Context)
-		if err != nil {
-			const msg = "check private key error occurred: %v"
-			l.Fatalf(msg, err.Error())
-		}
-
-		err = newCommands().SendTransferTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, amount, recipientAddressStr, utils.RemoveZeroX(userEthPrivateKey))
+		err := newCommands().SendTransferTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, amount, recipientAddressStr, utils.RemoveZeroX(userEthPrivateKey))
 		if err != nil {
 			const msg = "failed to transfer transaction: %v"
 			l.Fatalf(msg, err.Error())
@@ -110,13 +104,7 @@ func txDepositCmd(b *Transaction) *cobra.Command {
 	cmd.Run = func(cmd *cobra.Command, args []string) {
 		l := b.Log.WithFields(logger.Fields{"module": use})
 
-		err := b.SB.CheckEthereumPrivateKey(b.Context)
-		if err != nil {
-			const msg = "check private key error occurred: %v"
-			l.Fatalf(msg, err.Error())
-		}
-
-		err = newCommands().SendDepositTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, recipientAddressStr, amount, utils.RemoveZeroX(userEthPrivateKey))
+		err := newCommands().SendDepositTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, recipientAddressStr, amount, utils.RemoveZeroX(userEthPrivateKey))
 		if err != nil {
 			const msg = "failed to deposit transaction: %v"
 			l.Fatalf(msg, err.Error())

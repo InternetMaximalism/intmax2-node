@@ -2,6 +2,7 @@ package tx_withdrawal
 
 import (
 	"context"
+	"errors"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/logger"
@@ -11,6 +12,12 @@ import (
 	txWithdrawal "intmax2-node/internal/use_cases/tx_withdrawal"
 
 	"go.opentelemetry.io/otel/attribute"
+)
+
+var (
+	ErrEmptyUserPrivateKey   = errors.New("user private key is empty")
+	ErrEmptyRecipientAddress = errors.New("recipient address is empty")
+	ErrEmptyAmount           = errors.New("amount is empty")
 )
 
 // uc describes use case
@@ -41,11 +48,19 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressHex, amount,
 	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
 	defer span.End()
 
+	if recipientAddressHex == "" {
+		return ErrEmptyRecipientAddress
+	}
+
 	service.ResumeWithdrawalRequest(spanCtx, u.cfg, u.log, recipientAddressHex, resumeIncompleteWithdrawals)
 
 	if resumeIncompleteWithdrawals {
 		u.log.Infof("Complete the withdrawal request")
 		return nil
+	}
+
+	if userEthPrivateKey == "" {
+		return ErrEmptyUserPrivateKey
 	}
 
 	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
@@ -65,6 +80,10 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressHex, amount,
 	span.SetAttributes(
 		attribute.String(senderKey, userAddress.String()),
 	)
+
+	if amount == "" {
+		return ErrEmptyAmount
+	}
 
 	service.WithdrawalTransaction(spanCtx, u.cfg, u.log, u.sb, args, amount, recipientAddressHex, userEthPrivateKey)
 
