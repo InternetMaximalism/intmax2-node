@@ -6,6 +6,7 @@ import (
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/finite_field"
+	"intmax2-node/internal/logger"
 	intMaxTypes "intmax2-node/internal/types"
 	"io"
 	"math/big"
@@ -18,35 +19,27 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-type AccountInfoMap struct {
-	LastAccountID uint64
-	AccountMap    map[uint64]*intMaxAcc.PublicKey
-	PublicKeyMap  map[string]uint64
-}
-
-func NewAccountInfoMap() AccountInfoMap {
-	return AccountInfoMap{
-		AccountMap:    make(map[uint64]*intMaxAcc.PublicKey),
-		PublicKeyMap:  make(map[string]uint64),
-		LastAccountID: int0Key,
-	}
-}
+const (
+	defaultAccountID = 0
+	dummyAccountID   = 1
+)
 
 // FetchIntMaxBlockContentByCalldata fetches the block content by transaction hash.
-// accountInfoMap is mutable and will be updated with new account information.
+// accountInfo is mutable and will be updated with new account information.
 //
 // Example:
 //
-//	ctx := context.Background()
-//	cfg := configs.Config{}
-//	var startScrollBlockNumber uint64 = 0
-//	d, err := block_post_service.NewBlockPostService(ctx, &cfg)
-//	events, lastIntMaxBlockNumber, err := d.FetchNewPostedBlocks(startScrollBlockNumber)
-//	calldata, err := d.FetchScrollCalldataByHash(events[0].Raw.TxHash)
-//	blockContent, err := FetchIntMaxBlockContentByCalldata(calldata)
+//		ctx := context.Background()
+//		cfg := configs.Config{}
+//		var startScrollBlockNumber uint64 = 0
+//		d, err := block_post_service.NewBlockPostService(ctx, &cfg)
+//		events, lastIntMaxBlockNumber, err := d.FetchNewPostedBlocks(startScrollBlockNumber)
+//		calldata, err := d.FetchScrollCalldataByHash(events[0].Raw.TxHash)
+//	 ai := NewAccountInfo(dbApp)
+//		blockContent, err := FetchIntMaxBlockContentByCalldata(calldata, ai)
 func FetchIntMaxBlockContentByCalldata(
 	calldata []byte,
-	accountInfoMap AccountInfoMap,
+	ai AccountInfo,
 ) (*intMaxTypes.BlockContent, error) {
 	// Parse calldata
 	rollupABI := io.Reader(strings.NewReader(bindings.RollupMetaData.ABI))
@@ -59,7 +52,7 @@ func FetchIntMaxBlockContentByCalldata(
 		return nil, fmt.Errorf("failed to parse calldata: %w", err)
 	}
 
-	blockContent, err := recoverBlockContent(method, calldata, accountInfoMap)
+	blockContent, err := recoverBlockContent(method, calldata, ai)
 	if err != nil {
 		return nil, errors.Join(ErrDecodeCallDataFail, err)
 	}
@@ -155,6 +148,10 @@ func MakeRegistrationBlock(
 		txRoot,
 		aggregatedSignature,
 	)
+	err := blockContent.IsValid()
+	if err != nil {
+		return nil, errors.Join(ErrInvalidRegistrationBlockContent, err)
+	}
 
 	return blockContent, nil
 }
@@ -256,11 +253,15 @@ func MakeNonRegistrationBlock(
 	}
 
 	blockContent := intMaxTypes.NewBlockContent(
-		intMaxTypes.PublicKeySenderType,
+		intMaxTypes.AccountIDSenderType,
 		senders,
 		txRoot,
 		aggregatedSignature,
 	)
+	err := blockContent.IsValid()
+	if err != nil {
+		return nil, errors.Join(ErrInvalidNonRegistrationBlockContent, err)
+	}
 
 	return blockContent, nil
 }
@@ -313,7 +314,7 @@ func VerifyTxTreeSignature(signatureBytes []byte, sender *intMaxAcc.PublicKey, t
 func recoverBlockContent(
 	method *abi.Method,
 	calldata []byte,
-	accountInfoMap AccountInfoMap,
+	ai AccountInfo,
 ) (*intMaxTypes.BlockContent, error) {
 	switch method.Name {
 	case postRegistrationBlockMethod:
@@ -333,17 +334,13 @@ func recoverBlockContent(
 			return nil, fmt.Errorf("failed to validate block content: %w", err)
 		}
 
-		dummyAddress := intMaxAcc.NewDummyPublicKey().ToAddress().String()
-		for _, sender := range blockContent.Senders {
-			if accountInfoMap.PublicKeyMap[sender.PublicKey.ToAddress().String()] == int0Key {
-				accountInfoMap.LastAccountID += int1Key
-				accountInfoMap.AccountMap[accountInfoMap.LastAccountID] = sender.PublicKey
-				accountInfoMap.PublicKeyMap[sender.PublicKey.ToAddress().String()] = accountInfoMap.LastAccountID
-			} else {
-				// TODO: error handling
-				address := sender.PublicKey.ToAddress().String()
-				if address != dummyAddress {
-					fmt.Printf("Account already exists %v\n", address)
+		defaultAddress := intMaxAcc.NewDummyPublicKey().ToAddress().String()
+		for index := range blockContent.Senders {
+			address := blockContent.Senders[index].PublicKey.ToAddress().String()
+			if !strings.EqualFold(address, defaultAddress) {
+				err = ai.RegisterPublicKey(blockContent.Senders[index].PublicKey)
+				if err != nil {
+					return nil, errors.Join(ErrRegisterPublicKeyFail, err)
 				}
 			}
 		}
@@ -356,7 +353,7 @@ func recoverBlockContent(
 		}
 
 		var blockContent *intMaxTypes.BlockContent
-		blockContent, err = recoverNonRegistrationBlockContent(decodedInput, accountInfoMap)
+		blockContent, err = recoverNonRegistrationBlockContent(decodedInput, ai)
 		if err != nil {
 			return nil, errors.Join(ErrDecodeCallDataFail, err)
 		}
@@ -367,18 +364,13 @@ func recoverBlockContent(
 		}
 
 		defaultAddress := intMaxAcc.NewDummyPublicKey().ToAddress().String()
-		for _, sender := range blockContent.Senders {
-			address := sender.PublicKey.ToAddress().String()
-			if address != defaultAddress {
-				if accountInfoMap.PublicKeyMap[address] == 0 {
-					accountInfoMap.LastAccountID += 1
-					accountInfoMap.AccountMap[accountInfoMap.LastAccountID] = sender.PublicKey
-					accountInfoMap.PublicKeyMap[address] = accountInfoMap.LastAccountID
-				} else {
-					fmt.Printf("Account already exists %v\n", address)
+		for index := range blockContent.Senders {
+			address := blockContent.Senders[index].PublicKey.ToAddress().String()
+			if !strings.EqualFold(address, defaultAddress) {
+				err = ai.RegisterPublicKey(blockContent.Senders[index].PublicKey)
+				if err != nil {
+					return nil, errors.Join(ErrRegisterPublicKeyFail, err)
 				}
-			} else {
-				fmt.Printf("Account is default %v\n", address)
 			}
 		}
 
@@ -475,11 +467,16 @@ func recoverRegistrationBlockContent(
 		}
 	}
 
+	dummyPublicKey := intMaxAcc.NewDummyPublicKey()
 	senders := make([]intMaxTypes.Sender, numOfSenders)
 	for i, sender := range senderPublicKeys {
+		var accountID uint64 = defaultAccountID
+		if sender.Equal(dummyPublicKey) {
+			accountID = dummyAccountID
+		}
 		senders[i] = intMaxTypes.Sender{
 			PublicKey: sender,
-			AccountID: int0Key,
+			AccountID: accountID,
 			IsSigned:  senderFlags[i],
 		}
 	}
@@ -508,7 +505,7 @@ func recoverRegistrationBlockContent(
 
 func recoverNonRegistrationBlockContent(
 	decodedInput *intMaxTypes.PostNonRegistrationBlockInput,
-	accountInfoMap AccountInfoMap,
+	ai AccountInfo,
 ) (*intMaxTypes.BlockContent, error) {
 	senderAccountIds, err := intMaxTypes.UnmarshalAccountIds(decodedInput.SenderAccountIds)
 	if err != nil {
@@ -522,12 +519,13 @@ func recoverNonRegistrationBlockContent(
 			continue
 		}
 
-		key, ok := accountInfoMap.AccountMap[accountId]
-		if !ok {
+		var pk *intMaxAcc.PublicKey
+		pk, err = ai.PublicKeyByAccountID(accountId)
+		if err != nil {
 			return nil, errors.Join(ErrUnknownAccountID, fmt.Errorf("%d", accountId))
 		}
 
-		senderPublicKeys[i] = key
+		senderPublicKeys[i] = pk
 	}
 	for i := len(senderAccountIds); i < numOfSenders; i++ {
 		senderPublicKeys[i] = intMaxAcc.NewDummyPublicKey()
@@ -560,7 +558,7 @@ func recoverNonRegistrationBlockContent(
 	for i, sender := range senderPublicKeys {
 		senders[i] = intMaxTypes.Sender{
 			PublicKey: sender,
-			AccountID: int0Key,
+			AccountID: senderAccountIds[i],
 			IsSigned:  senderFlags[i],
 		}
 	}
@@ -585,4 +583,13 @@ func recoverNonRegistrationBlockContent(
 	)
 
 	return blockContent, nil
+}
+
+func updateEventBlockNumber(db SQLDriverApp, log logger.Logger, eventName string, blockNumber uint64) error {
+	updatedEvent, err := db.UpsertEventBlockNumber(eventName, blockNumber)
+	if err != nil {
+		return err
+	}
+	log.Infof("Updated %s block number to %d", eventName, updatedEvent.LastProcessedBlockNumber)
+	return nil
 }

@@ -1,10 +1,12 @@
 package models
 
 const (
-	DepositsAnalyzedEvent  = "DepositsAnalyzed"
-	DepositsRelayedEvent   = "DepositsRelayed"
-	SentMessageEvent       = "SentMessage"
-	WithdrawalsQueuedEvent = "WithdrawalsQueued"
+	DepositsAnalyzedEvent      = "DepositsAnalyzed"
+	DepositsRelayedEvent       = "DepositsRelayed"
+	WithdrawalSentMessageEvent = "WithdrawalSentMessage"
+	MessengerSentMessageEvent  = "MessengerSentMessage"
+	WithdrawalsQueuedEvent     = "WithdrawalsQueued"
+	BlockPostedEvent           = "BlockPosted"
 )
 
 type EventBlockNumber struct {

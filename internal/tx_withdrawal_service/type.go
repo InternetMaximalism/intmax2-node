@@ -1,4 +1,4 @@
-package tx_transfer_service
+package tx_withdrawal_service
 
 type SimpleResponseData struct {
 	Message string `json:"message"`

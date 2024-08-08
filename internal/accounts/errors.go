@@ -28,6 +28,17 @@ var ErrPrivateKeyWithPublicKeyInvalid = errors.New(
 // ErrValidPublicKeyFail error: failed to valid public key.
 var ErrValidPublicKeyFail = errors.New("failed to valid public key")
 
+// ErrAddressInvalid error: invalid address.
 var ErrAddressInvalid = errors.New("invalid address")
 
+// ErrDecodeAddressFail error: failed to decode address.
 var ErrDecodeAddressFail = errors.New("failed to decode address")
+
+// ErrHEXPublicKeyInvalid error: the HEX public key must be valid.
+var ErrHEXPublicKeyInvalid = errors.New("the HEX public key must be valid")
+
+// ErrDecodePublicKeyFail error: failed to decode public key.
+var ErrDecodePublicKeyFail = errors.New("failed to decode public key")
+
+// ErrUnmarshalPublicKeyFail error: failed to unmarshal public key.
+var ErrUnmarshalPublicKeyFail = errors.New("failed to unmarshal public key")

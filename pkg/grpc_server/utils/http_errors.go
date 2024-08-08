@@ -20,6 +20,7 @@ import (
 
 const (
 	badRequest          = "Bad request"
+	notFound            = "Not found"
 	forbidden           = "Forbidden"
 	unauthorized        = "Unauthorized"
 	internalServerError = "Internal server error"
@@ -130,6 +131,22 @@ func BadRequest(ctx context.Context, err error) error {
 	span.SetAttributes(attribute.Key(errAttribute).Bool(true))
 
 	return Custom(spanCtx, codes.InvalidArgument, http.StatusBadRequest, badRequest, err)
+}
+
+// BadRequest sets http-header with status code equal 404.
+func NotFound(ctx context.Context, err error) error {
+	spanCtx, span := open_telemetry.Tracer().Start(ctx, name,
+		trace.WithAttributes(
+			attribute.String(httpCode, strconv.Itoa(http.StatusBadRequest)),
+		))
+	defer span.End()
+
+	pc, fn, line, _ := runtime.Caller(callerNumber)
+	span.SetAttributes(attribute.Key(errDescription).
+		String(fmt.Sprintf(maskErrMessage, runtime.FuncForPC(pc).Name(), fn, line, err)))
+	span.SetAttributes(attribute.Key(errAttribute).Bool(true))
+
+	return Custom(spanCtx, codes.NotFound, http.StatusNotFound, notFound, err)
 }
 
 // Custom code.

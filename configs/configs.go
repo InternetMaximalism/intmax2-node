@@ -26,6 +26,7 @@ type Config struct {
 	PoW                 PoW
 	Worker              Worker
 	DepositSynchronizer DepositSynchronizer
+	BlockPostService    BlockPostService
 	BlockValidityProver BlockValidityProver
 	Blockchain          Blockchain
 	Network             Network

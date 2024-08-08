@@ -62,6 +62,11 @@ service BlockBuilderService {
       body: "*"
     };
   }
+  rpc BlockStatusByTxTreeRoot(BlockStatusByTxTreeRootRequest) returns (BlockStatusByTxTreeRootResponse) {
+    option (google.api.http) = {
+      get: "/v1/block/status/{tx_tree_root}"
+    };
+  }
   // Info returns the info about retrieves the block builder's Scroll address, transaction fee, and difficulty
   //
   // ## Info returns the info about retrieves the block builder's Scroll address, transaction fee, and difficulty
@@ -89,6 +94,7 @@ message RecipientTransferDataTransactionRequest {
   string      address = 20 [json_name="address", (tagger.tags)="json:\"address,omitempty\""];
 }
 
+// DEPRECATED
 // TransferDataTransactionRequest describes the data of transaction
 message TransferDataTransactionRequest {
   // the recipient info
@@ -111,6 +117,7 @@ message TransactionRequest {
   uint64 nonce = 30 [json_name="nonce", (tagger.tags)="json:\"nonce,omitempty\""];
   // the PoW nonce
   string pow_nonce = 40 [json_name="powNonce", (tagger.tags)="json:\"powNonce,omitempty\""];
+  // DEPRECATED
   // the transfer data of the transaction
   repeated TransferDataTransactionRequest transfer_data = 50 [json_name="transferData", (tagger.tags)="json:\"transferData,omitempty\""];
   // the expiration of request
@@ -224,6 +231,22 @@ message BlockSignatureResponse {
   bool success = 1 [json_name="success", (tagger.tags)="json:\"success,omitempty\""];
   // the info about the request's result
   DataBlockSignatureResponse data = 10 [json_name="data", (tagger.tags)="json:\"data,omitempty\""];
+}
+
+
+// BlockStatusRequest describes request about retrieves the status of a block by its tx tree root
+message BlockStatusByTxTreeRootRequest {
+  // the transaction tree root hash
+  string tx_tree_root = 10 [json_name="txTreeRoot", (tagger.tags)="json:\"txTreeRoot,omitempty\""];
+}
+
+// BlockStatusResponse describes response about retrieves the status of a block by its tx tree root
+message BlockStatusByTxTreeRootResponse {
+  // the status of the block
+  bool is_posted = 10 [json_name="isPosted", (tagger.tags)="json:\"isPosted,omitempty\""];
+
+  // the block number
+  uint64 block_number = 20 [json_name="blockNumber", (tagger.tags)="json:\"blockNumber,omitempty\""];
 }
 
 

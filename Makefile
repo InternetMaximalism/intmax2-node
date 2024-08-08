@@ -74,7 +74,8 @@ tools:
 
 .PHONY: run
 run: gen ## starting application and dependency services
-# translate `SWAGGER_USE=true GIT_USE=true CMD_RUN="run" make run` => ./intmax2-node run
+# translate `SWAGGER_USE=true GIT_USE=true HTTP_PORT=8080 GRPC_PORT=10000 CMD_RUN="run" make run` => ./intmax2-node run
+# translate `SWAGGER_USE=true GIT_USE=true HTTP_PORT=8081 GRPC_PORT=10001 CMD_RUN="store-vault-server run" make run` => ./intmax2-node store-vault-server run
 	go run $(GOFLAGS) ./cmd ${CMD_RUN}
 
 .PHONY: up
@@ -85,6 +86,7 @@ up: ## starting application and dependency services
 .PHONY: build-up
 build-up: down ## rebuilding containers and starting application and dependency services
 	cp -f build/env.docker.node.example build/env.docker.node
+	cp -f build/env.docker.store-vault-server.example build/env.docker.store-vault-server
 	docker compose -f build/docker-compose.yml build $(re_build_arg)
 	docker compose -f build/docker-compose.yml up
 
@@ -93,7 +95,6 @@ start-build-up: down ## rebuilding containers and starting application and depen
 	cp -f build/env.docker.node.example build/env.docker.node
 	docker compose -f build/docker-compose.yml up -d intmax2-node-postgres
 	docker compose -f build/docker-compose.yml up -d intmax2-node-ot-collector
-
 
 .PHONY: down
 down:
@@ -104,6 +105,7 @@ down:
 .PHONY: clean-all
 clean-all: down
 	rm -f build/env.docker.node
+	rm -f build/env.docker.store-vault-server
 	rm -rf build/sql_dbs/intmax2-node-postgres
 
 .PHONY: lint

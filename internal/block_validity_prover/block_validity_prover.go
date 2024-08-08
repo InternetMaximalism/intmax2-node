@@ -7,16 +7,23 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
 	intMaxTypes "intmax2-node/internal/types"
+	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
+	"intmax2-node/pkg/utils"
 	"math/big"
 	"time"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
 )
+
+const BlockPostedEventSignatureID = "0xe27163b76905dc373b4ad854ddc9403bbac659c5f1c5191c39e5a7c44574040a"
 
 var ErrStatCurrentFileFail = errors.New("stat current file fail")
 
@@ -25,7 +32,7 @@ type blockValidityProver struct {
 	log                       logger.Logger
 	dbApp                     SQLDriverApp
 	lastSeenScrollBlockNumber uint64
-	accountInfoMap            block_post_service.AccountInfoMap
+	accountInfoMap            block_post_service.AccountInfo
 }
 
 func New(cfg *configs.Config, log logger.Logger, dbApp SQLDriverApp) BlockValidityProver {
@@ -34,7 +41,7 @@ func New(cfg *configs.Config, log logger.Logger, dbApp SQLDriverApp) BlockValidi
 		log:                       log,
 		dbApp:                     dbApp,
 		lastSeenScrollBlockNumber: cfg.Blockchain.RollupContractDeployedBlockNumber,
-		accountInfoMap:            block_post_service.NewAccountInfoMap(),
+		accountInfoMap:            block_post_service.NewAccountInfo(dbApp),
 	}
 }
 
@@ -46,6 +53,14 @@ func (w *blockValidityProver) Start(
 	ctx context.Context,
 	tickerEventWatcher *time.Ticker,
 ) error {
+	rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(w.cfg, "https://sepolia-rpc.scroll.io")
+
+	scrollClient, err := utils.NewClient(rollupCfg.NetworkRpcUrl)
+	if err != nil {
+		return fmt.Errorf("failed to create new client: %w", err)
+	}
+	defer scrollClient.Close()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -100,10 +115,9 @@ func (w *blockValidityProver) Start(
 				// w.lastSeenScrollBlockNumber = lastSeenBlockNumber
 			*/
 
-			rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(w.cfg, "https://sepolia-rpc.scroll.io")
-
 			// Post unprocessed block
-			unprocessedBlocks, err := w.dbApp.GetUnprocessedBlocks()
+			var unprocessedBlocks []*mDBApp.Block
+			unprocessedBlocks, err = w.dbApp.GetUnprocessedBlocks()
 			if err != nil {
 				return err
 			}
@@ -181,19 +195,54 @@ func (w *blockValidityProver) Start(
 					return err
 				}
 
-				tx, txErr := intMaxTypes.PostRegistrationBlock(rollupCfg, blockContent)
+				receipt, txErr := intMaxTypes.PostRegistrationBlock(rollupCfg, ctx, w.log, scrollClient, blockContent)
 				if txErr != nil {
 					return txErr
 				}
 
-				fmt.Printf("Transaction sent: %s\n", tx.Hash().Hex())
+				var eventLog *types.Log
+				ok := false
+				for i := 0; i < len(receipt.Logs); i++ {
+					if receipt.Logs[i].Topics[0].Hex() == BlockPostedEventSignatureID {
+						eventLog = receipt.Logs[i]
+						ok = true
+						break
+					}
+				}
 
-				err = w.dbApp.UpdateBlockStatus(unprocessedBlock.ProposalBlockID, 1)
+				if !ok {
+					return errors.New("BlockPosted event not found")
+				}
+
+				var rollup *bindings.Rollup
+				rollup, err = bindings.NewRollup(common.HexToAddress(rollupCfg.RollupContractAddressHex), scrollClient)
+				if err != nil {
+					return fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
+				}
+
+				var eventData *bindings.RollupBlockPosted
+				eventData, err = rollup.ParseBlockPosted(*eventLog)
+				if err != nil {
+					return err
+				}
+				blockNumber := uint32(eventData.BlockNumber.Uint64())
+
+				postedBlock := intMaxTypes.NewPostedBlock(
+					eventData.PrevBlockHash,
+					eventData.DepositTreeRoot,
+					blockNumber,
+					eventData.SignatureHash,
+				)
+
+				blockHash := postedBlock.Hash()
+				w.log.Infof("INTMAX Block hash: %s\n", blockHash.Hex())
+
+				err = w.dbApp.UpdateBlockStatus(unprocessedBlock.ProposalBlockID, blockHash.Hex(), blockNumber)
 				if err != nil {
 					return err
 				}
 
-				fmt.Println("UpdateBlockStatus")
+				w.log.Infof("Posted registration block. The block number is %d.\n", blockNumber)
 			}
 		}
 	}

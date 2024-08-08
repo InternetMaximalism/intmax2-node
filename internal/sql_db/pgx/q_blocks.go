@@ -6,6 +6,7 @@ import (
 	"intmax2-node/internal/sql_db/pgx/models"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
+	intMaxUtils "intmax2-node/pkg/utils"
 	"strings"
 	"time"
 
@@ -94,13 +95,50 @@ func (p *pgx) Block(proposalBlockID string) (*mDBApp.Block, error) {
 	return bDBApp, nil
 }
 
-// UpdateBlockStatus updates the status of the block with the given proposalBlockID.
-func (p *pgx) UpdateBlockStatus(proposalBlockID string, status int64) error {
+func (p *pgx) BlockByTxRoot(txRoot string) (*mDBApp.Block, error) {
 	const (
-		q = `UPDATE blocks SET status = $1 WHERE proposal_block_id = $2`
+		q = `SELECT
+             proposal_block_id ,builder_public_key ,tx_root
+             ,block_hash ,block_number ,aggregated_signature ,aggregated_public_key ,status
+             ,created_at ,posted_at ,sender_type ,options
+             FROM blocks WHERE tx_root = $1 AND block_number IS NOT NULL`
 	)
 
-	_, err := p.exec(p.ctx, q, status, proposalBlockID)
+	txRootWithoutPrefix := strings.ToUpper(intMaxUtils.RemoveZeroX(txRoot))
+
+	var tmp models.Block
+	err := errPgx.Err(p.queryRow(p.ctx, q, txRootWithoutPrefix).
+		Scan(
+			&tmp.ProposalBlockID,
+			&tmp.BuilderPublicKey,
+			&tmp.TxRoot,
+			&tmp.BlockHash,
+			&tmp.BlockNumber,
+			&tmp.AggregatedSignature,
+			&tmp.AggregatedPublicKey,
+			&tmp.Status,
+			&tmp.CreatedAt,
+			&tmp.PostedAt,
+			&tmp.SenderType,
+			&tmp.Options,
+		))
+	if err != nil {
+		return nil, err
+	}
+
+	bDBApp := p.blockToDBApp(&tmp)
+
+	return bDBApp, nil
+}
+
+// UpdateBlockStatus updates the status of the block with the given proposalBlockID.
+func (p *pgx) UpdateBlockStatus(proposalBlockID, blockHash string, blockNumber uint32) error {
+	const (
+		q      = `UPDATE blocks SET status = $1, block_hash = $2, block_number = $3 WHERE proposal_block_id = $4`
+		status = 1
+	)
+
+	_, err := p.exec(p.ctx, q, status, blockHash, blockNumber, proposalBlockID)
 	if err != nil {
 		return errPgx.Err(err)
 	}
@@ -112,7 +150,7 @@ func (p *pgx) GetUnprocessedBlocks() ([]*mDBApp.Block, error) {
 	const (
 		q = `SELECT
 			 proposal_block_id ,builder_public_key ,tx_root
-			 ,block_hash ,aggregated_signature ,aggregated_public_key ,status ,senders
+			 ,block_hash ,block_number ,aggregated_signature ,aggregated_public_key ,status ,senders
 			 ,created_at ,posted_at ,sender_type ,options
 			 FROM blocks WHERE status IS NULL`
 	)
@@ -131,6 +169,7 @@ func (p *pgx) GetUnprocessedBlocks() ([]*mDBApp.Block, error) {
 			&tmp.BuilderPublicKey,
 			&tmp.TxRoot,
 			&tmp.BlockHash,
+			&tmp.BlockNumber,
 			&tmp.AggregatedSignature,
 			&tmp.AggregatedPublicKey,
 			&tmp.Status,
@@ -173,6 +212,10 @@ func (p *pgx) blockToDBApp(tmp *models.Block) *mDBApp.Block {
 
 	if tmp.PostedAt.Valid {
 		m.PostedAt = &tmp.PostedAt.Time
+	}
+
+	if tmp.BlockNumber.Valid {
+		m.BlockNumber = &tmp.BlockNumber.Int64
 	}
 
 	return &m

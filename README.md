@@ -55,6 +55,7 @@ Usage:
   app [command]
 
 Available Commands:
+  balance                     Manage balance
   block_builder               Manage block builder
   completion                  Generate the autocompletion script for the specified shell
   deposit                     Manage deposit
@@ -62,9 +63,14 @@ Available Commands:
   generate_account            Generate new Ethereum and IntMax accounts
   help                        Help about any command
   intmax_private_key_wallet   Generate IntMax wallet from IntMax private key
+  messenger                   Manage messenger
   migrate                     Execute migration
   mnemonic_account            Generate Ethereum and IntMax accounts from mnemonic
   run                         run command
+  store-vault-server          run store valut server command
+  tx                          Manage transaction
+  withdrawal                  Manage withdrawal
+  withdrawal-server           run withdrawal server command
 
 Flags:
   -h, --help   help for app

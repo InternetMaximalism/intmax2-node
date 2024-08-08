@@ -27,6 +27,10 @@ type PGX interface {
 	BackupTransfers
 	BackupTransactions
 	BackupDeposits
+	CtrlEventBlockNumbersJobs
+	EventBlockNumbersErrors
+	Senders
+	Accounts
 }
 
 type GenericCommands interface {
@@ -48,7 +52,8 @@ type Blocks interface {
 		options []byte,
 	) (*mDBApp.Block, error)
 	Block(proposalBlockID string) (*mDBApp.Block, error)
-	UpdateBlockStatus(proposalBlockID string, status int64) error
+	BlockByTxRoot(txRoot string) (*mDBApp.Block, error)
+	UpdateBlockStatus(proposalBlockID string, blockHash string, blockNumber uint32) error
 	GetUnprocessedBlocks() ([]*mDBApp.Block, error)
 }
 
@@ -116,4 +121,39 @@ type BackupDeposits interface {
 	CreateBackupDeposit(input *backupDeposit.UCPostBackupDepositInput) (*mDBApp.BackupDeposit, error)
 	GetBackupDeposit(condition string, value string) (*mDBApp.BackupDeposit, error)
 	GetBackupDeposits(condition string, value interface{}) ([]*mDBApp.BackupDeposit, error)
+}
+
+type CtrlEventBlockNumbersJobs interface {
+	CreateCtrlEventBlockNumbersJobs(eventName string) error
+	CtrlEventBlockNumbersJobs(eventName string) (*mDBApp.CtrlEventBlockNumbersJobs, error)
+}
+
+type EventBlockNumbersErrors interface {
+	UpsertEventBlockNumbersErrors(
+		eventName string,
+		blockNumber *uint256.Int,
+		options []byte,
+		updErr error,
+	) error
+	EventBlockNumbersErrors(
+		eventName string,
+		blockNumber *uint256.Int,
+	) (*mDBApp.EventBlockNumbersErrors, error)
+}
+
+type Senders interface {
+	CreateSenders(
+		address, publicKey string,
+	) (*mDBApp.Sender, error)
+	SenderByID(id string) (*mDBApp.Sender, error)
+	SenderByAddress(address string) (*mDBApp.Sender, error)
+	SenderByPublicKey(publicKey string) (*mDBApp.Sender, error)
+}
+
+type Accounts interface {
+	CreateAccount(senderID string) (*mDBApp.Account, error)
+	AccountBySenderID(senderID string) (*mDBApp.Account, error)
+	AccountByAccountID(accountID *uint256.Int) (*mDBApp.Account, error)
+	ResetSequenceByAccounts() error
+	DelAllAccounts() error
 }

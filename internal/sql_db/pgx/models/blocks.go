@@ -10,6 +10,7 @@ type Block struct {
 	BuilderPublicKey    string
 	TxRoot              string
 	BlockHash           sql.NullString
+	BlockNumber         sql.NullInt64
 	AggregatedSignature string
 	AggregatedPublicKey string
 	Senders             []byte
