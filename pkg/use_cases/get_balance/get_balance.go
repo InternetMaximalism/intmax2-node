@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	service "intmax2-node/internal/balance_service"
+	"intmax2-node/internal/blockchain"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
 	balanceChecker "intmax2-node/internal/use_cases/balance_checker"
@@ -45,7 +46,12 @@ func (u *uc) Do(ctx context.Context, args []string, userEthPrivateKey string) (e
 		}
 	}()
 
-	err = service.GetBalance(spanCtx, u.cfg, u.log, u.sb, args, userEthPrivateKey)
+	wallet, err := blockchain.InquireUserPrivateKey(userEthPrivateKey)
+	if err != nil {
+		return err
+	}
+
+	err = service.GetBalance(spanCtx, u.cfg, u.log, u.sb, args, wallet.PrivateKey)
 	if err != nil {
 		return fmt.Errorf("failed to get balance: %w", err)
 	}

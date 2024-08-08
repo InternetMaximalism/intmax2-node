@@ -5,8 +5,8 @@ import (
 	"errors"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/blockchain"
 	"intmax2-node/internal/logger"
-	"intmax2-node/internal/mnemonic_wallet"
 	"intmax2-node/internal/open_telemetry"
 	service "intmax2-node/internal/tx_withdrawal_service"
 	txWithdrawal "intmax2-node/internal/use_cases/tx_withdrawal"
@@ -59,13 +59,9 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressHex, amount,
 		return nil
 	}
 
-	if userEthPrivateKey == "" {
-		return ErrEmptyUserPrivateKey
-	}
-
-	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
+	wallet, err := blockchain.InquireUserPrivateKey(userEthPrivateKey)
 	if err != nil {
-		u.log.Errorf("fail to parse user private key: %v", err)
+		return err
 	}
 
 	// The userPrivateKey is acceptable in either format:
@@ -85,7 +81,7 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressHex, amount,
 		return ErrEmptyAmount
 	}
 
-	service.WithdrawalTransaction(spanCtx, u.cfg, u.log, u.sb, args, amount, recipientAddressHex, userEthPrivateKey)
+	service.WithdrawalTransaction(spanCtx, u.cfg, u.log, u.sb, args, amount, recipientAddressHex, wallet.PrivateKey)
 
 	return nil
 }

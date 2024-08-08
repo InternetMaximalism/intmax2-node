@@ -10,6 +10,8 @@ import (
 	modelsMW "intmax2-node/internal/mnemonic_wallet/models"
 	"intmax2-node/internal/open_telemetry"
 	"math/big"
+	"os"
+	"os/signal"
 	"syscall"
 
 	"github.com/dimiro1/health"
@@ -141,7 +143,7 @@ func (sb *serviceBlockchain) recognizingScrollPrivateKey(
 		)
 		if err != nil {
 			const enterMSG = "Enter private key:"
-			fmt.Printf(enterMSG)
+			fmt.Print(enterMSG)
 			var (
 				text   string
 				bytePK []byte
@@ -183,7 +185,7 @@ func (sb *serviceBlockchain) recognizingEthereumPrivateKey(
 	)
 	if err != nil {
 		const enterMSG = "Enter private key:"
-		fmt.Printf(enterMSG)
+		fmt.Print(enterMSG)
 		var (
 			text   string
 			bytePK []byte
@@ -246,4 +248,52 @@ func (sb *serviceBlockchain) ethClient(
 	}
 
 	return c, cancel, nil
+}
+
+func checkValidUserPrivateKey(userEthPrivateKeyHex string) (*modelsMW.Wallet, error) {
+	if userEthPrivateKeyHex == "" {
+		return nil, errorsB.ErrEmptyUserPrivateKey
+	}
+	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKeyHex)
+	if err != nil {
+		return nil, errors.Join(errorsB.ErrInvalidPrivateKey, err)
+	}
+
+	return wallet, nil
+}
+
+func InquireUserPrivateKey(userEthPrivateKeyHex string) (*modelsMW.Wallet, error) {
+	const retryTimes = 3
+	for count := 0; count < retryTimes; count++ {
+		wallet, err := checkValidUserPrivateKey(userEthPrivateKeyHex)
+		if err == nil {
+			return wallet, nil
+		}
+
+		fmt.Printf("Invalid private key: %s\n", err.Error())
+		const enterMSG = "Enter private key:"
+		fmt.Print(enterMSG)
+
+		sigs := make(chan os.Signal, 1)
+		signal.Notify(sigs, syscall.SIGINT)
+
+		go func() {
+			<-sigs
+			fmt.Println("\nExiting...")
+			os.Exit(0)
+		}()
+
+		var bytePK []byte
+		bytePK, err = term.ReadPassword(syscall.Stdin)
+		if err != nil {
+			return nil, errors.Join(errorsB.ErrStdinProcessingFail, err)
+		}
+
+		userEthPrivateKeyHex = string(bytePK)
+
+		fmt.Println("")
+	}
+
+	fmt.Printf("Enter invalid private key %d times. Exiting...\n", retryTimes)
+	return nil, errorsB.ErrEnterInvalidPrivateKeyManyTimes
 }

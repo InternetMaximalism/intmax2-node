@@ -5,8 +5,8 @@ import (
 	"errors"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/blockchain"
 	"intmax2-node/internal/logger"
-	"intmax2-node/internal/mnemonic_wallet"
 	"intmax2-node/internal/open_telemetry"
 	service "intmax2-node/internal/tx_transfer_service"
 	txTransfer "intmax2-node/internal/use_cases/tx_transfer"
@@ -48,13 +48,9 @@ func (u *uc) Do(ctx context.Context, args []string, amount, recipientAddressStr,
 	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
 	defer span.End()
 
-	if userEthPrivateKey == "" {
-		return ErrEmptyUserPrivateKey
-	}
-
-	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
+	wallet, err := blockchain.InquireUserPrivateKey(userEthPrivateKey)
 	if err != nil {
-		u.log.Errorf("fail to parse user private key: %v", err)
+		return err
 	}
 
 	// The userPrivateKey is acceptable in either format:
@@ -79,7 +75,7 @@ func (u *uc) Do(ctx context.Context, args []string, amount, recipientAddressStr,
 		return ErrEmptyAmount
 	}
 
-	service.TransferTransaction(spanCtx, u.cfg, u.log, u.sb, args, amount, recipientAddressStr, userEthPrivateKey)
+	service.TransferTransaction(spanCtx, u.cfg, u.log, u.sb, args, amount, recipientAddressStr, wallet.PrivateKey)
 
 	return nil
 }

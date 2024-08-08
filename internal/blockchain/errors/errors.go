@@ -82,3 +82,9 @@ var ErrScrollNetworkChainLinkEvmJSONRPCFail = errors.New(
 
 // ErrMostBlockNumberFail error: failed to get block number.
 var ErrMostBlockNumberFail = errors.New("failed to get most block number")
+
+var ErrEmptyUserPrivateKey = errors.New("user private key is empty")
+
+var ErrEnterInvalidPrivateKeyManyTimes = errors.New("enter invalid private key many times")
+
+var ErrInvalidPrivateKey = errors.New("invalid private key")

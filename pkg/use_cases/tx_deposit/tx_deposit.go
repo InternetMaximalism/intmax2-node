@@ -7,6 +7,7 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	balanceService "intmax2-node/internal/balance_service"
+	"intmax2-node/internal/blockchain"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
@@ -28,7 +29,6 @@ var (
 	ErrBackupDeposit         = errors.New("failed to backup deposit")
 	ErrInvalidArguments      = errors.New("invalid arguments")
 	ErrUnsupportedToken      = errors.New("unsupported token type")
-	ErrEmptyUserPrivateKey   = errors.New("user private key is empty")
 	ErrEmptyRecipientAddress = errors.New("recipient address is empty")
 	ErrEmptyAmount           = errors.New("amount is empty")
 )
@@ -53,7 +53,7 @@ func New(
 	}
 }
 
-func (u *uc) Do(ctx context.Context, args []string, recipientAddressStr, amount, userEthPrivateKeyHex string) (err error) {
+func (u *uc) Do(ctx context.Context, args []string, recipientAddressStr, amount, userEthPrivateKey string) (err error) {
 	const (
 		hName     = "UseCase TxDepoxit"
 		senderKey = "sender"
@@ -62,14 +62,12 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressStr, amount,
 	_, span := open_telemetry.Tracer().Start(ctx, hName)
 	defer span.End()
 
-	if userEthPrivateKeyHex == "" {
-		return ErrEmptyUserPrivateKey
+	wallet, err := blockchain.InquireUserPrivateKey(userEthPrivateKey)
+	if err != nil {
+		return err
 	}
 
-	// The userPrivateKey is acceptable in either format:
-	// it may include the '0x' prefix at the beginning,
-	// or it can be provided without this prefix.
-	userAccount, err := intMaxAcc.NewPrivateKeyFromString(userEthPrivateKeyHex)
+	userAccount, err := intMaxAcc.NewPrivateKeyFromString(wallet.IntMaxPrivateKey)
 	if err != nil {
 		return err
 	}
@@ -113,7 +111,7 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressStr, amount,
 		return fmt.Errorf("failed to convert amount to int: %s", amount)
 	}
 
-	return u.processDeposit(ctx, tokenInfo, userEthPrivateKeyHex, recipientAddress, amount, amountInt)
+	return u.processDeposit(ctx, tokenInfo, wallet.PrivateKey, recipientAddress, amount, amountInt)
 }
 
 func (u *uc) processDeposit(ctx context.Context, tokenInfo *intMaxTypes.TokenInfo, privateKey string, recipient intMaxAcc.Address, amountStr string, amountInt *big.Int) error {
