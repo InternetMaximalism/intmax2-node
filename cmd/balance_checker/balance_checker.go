@@ -21,13 +21,13 @@ func NewBalanceCmd(b *Balance) *cobra.Command {
 		short = "Manage balance"
 	)
 
-	depositCmd := &cobra.Command{
+	balanceCmd := &cobra.Command{
 		Use:   use,
 		Short: short,
 	}
-	depositCmd.AddCommand(getBalanceCmd(b))
+	balanceCmd.AddCommand(getBalanceCmd(b))
 
-	return depositCmd
+	return balanceCmd
 }
 
 func getBalanceCmd(b *Balance) *cobra.Command {
