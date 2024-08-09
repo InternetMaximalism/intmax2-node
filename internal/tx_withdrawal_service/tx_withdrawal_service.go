@@ -16,6 +16,7 @@ import (
 	"intmax2-node/internal/tx_transfer_service"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/transaction"
+	withdrawalService "intmax2-node/internal/withdrawal_service"
 	"math/big"
 	"slices"
 	"strconv"
@@ -246,7 +247,8 @@ func ResumeWithdrawalRequest(
 	var withdrawalInfo []*WithdrawalResponseData
 	if len(backupWithdrawals) != 0 {
 		const searchLimit = 10
-		for i := 0; i < len(backupWithdrawals)/searchLimit; i += searchLimit {
+		numChunks := (len(backupWithdrawals) + searchLimit - 1) / searchLimit
+		for i := 0; i < numChunks; i += searchLimit {
 			end := min(searchLimit*(i+1), len(backupWithdrawals))
 
 			transferHashes := make([]string, end-searchLimit*i)
@@ -259,7 +261,6 @@ func ResumeWithdrawalRequest(
 			}
 		}
 	}
-	fmt.Printf("withdrawalInfo: %v\n", withdrawalInfo)
 
 	shouldProcess := func(withdrawal *tx_transfer_service.BackupWithdrawal) bool {
 		transferHash := hexutil.Encode(withdrawal.Transfer.Hash().Marshal())
@@ -285,7 +286,7 @@ func ResumeWithdrawalRequest(
 	}
 
 	if !resumeIncompleteWithdrawals {
-		log.Warnf("The withdrawal request has been found. Please use --resume flag to resume the withdrawal.")
+		log.Fatalf("The withdrawal request has been found. Please use --resume flag to resume the withdrawal.")
 		return
 	}
 
@@ -293,7 +294,12 @@ func ResumeWithdrawalRequest(
 		// Send withdrawal request
 		err = SendWithdrawalRequest(ctx, cfg, log, backupWithdrawal)
 		if err != nil {
-			if err.Error() == "failed to get block status: failed to get block status: block not found" {
+			if errors.Is(err, withdrawalService.ErrWithdrawalRequestAlreadyExists) {
+				log.Warnf("The withdrawal request already exists.")
+				continue
+			}
+
+			if errors.Is(err, tx_transfer_service.ErrBlockNotFound) {
 				log.Warnf("The block containing the transaction is not posted yet.")
 				continue
 			}
@@ -366,6 +372,10 @@ func SendWithdrawalRequest(
 		blockHash,
 	)
 	if err != nil {
+		if errors.Is(err, withdrawalService.ErrWithdrawalRequestAlreadyExists) {
+			return withdrawalService.ErrWithdrawalRequestAlreadyExists
+		}
+
 		return fmt.Errorf("failed to request withdrawal: %w", err)
 	}
 

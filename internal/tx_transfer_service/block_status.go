@@ -8,6 +8,7 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
+	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/block_status"
 	"net/http"
 	"time"
@@ -69,7 +70,8 @@ func retryBlockStatusRequest(
 				return response, nil
 			}
 
-			if err.Error() == "block not found" {
+			fmt.Printf("Error retryBlockStatusRequest: %v\n", err.Error())
+			if errors.Is(err, ErrBlockNotFound) {
 				// The Block containing your tx is not found
 				continue
 			}
@@ -126,9 +128,8 @@ func getBlockStatusRawRequest(
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		respStr := resp.String()
-		respJSON := ErrorResponse{}
-		err = json.Unmarshal([]byte(respStr), &respJSON)
+		respJSON := intMaxTypes.ErrorResponse{}
+		err = json.Unmarshal([]byte(resp.String()), &respJSON)
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 		}

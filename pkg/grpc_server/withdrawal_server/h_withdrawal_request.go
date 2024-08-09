@@ -2,11 +2,13 @@ package withdrawal_server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"intmax2-node/internal/blockchain"
 	"intmax2-node/internal/open_telemetry"
 	"intmax2-node/internal/pb/gen/service/node"
 	postWithdrwalRequest "intmax2-node/internal/use_cases/post_withdrawal_request"
+	withdrawalService "intmax2-node/internal/withdrawal_service"
 	"intmax2-node/pkg/grpc_server/utils"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 
@@ -77,6 +79,10 @@ func (s *WithdrawalServer) WithdrawalRequest(ctx context.Context, req *node.With
 		return nil
 	})
 	if err != nil {
+		if errors.Is(err, withdrawalService.ErrWithdrawalRequestAlreadyExists) {
+			return &resp, utils.BadRequest(spanCtx, withdrawalService.ErrWithdrawalRequestAlreadyExists)
+		}
+
 		const msg = "failed to post withdrawal request with DB App: %+v"
 		return &resp, utils.Internal(spanCtx, s.log, msg, err)
 	}
