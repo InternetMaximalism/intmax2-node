@@ -34,9 +34,9 @@ func getBalanceCmd(b *Balance) *cobra.Command {
 	const (
 		use                    = "get"
 		short                  = "Get balance of specified INTMAX account"
-		userPrivateKeyKey      = "user-private"
+		userPrivateKeyKey      = "private-key"
 		emptyKey               = ""
-		userAddressDescription = "specify user address. use as --user-private \"0x0000000000000000000000000000000000000000000000000000000000000000\""
+		userAddressDescription = "specify user address. use as --private-key \"0x0000000000000000000000000000000000000000000000000000000000000000\""
 	)
 
 	cmd := cobra.Command{
