@@ -14,7 +14,6 @@ import (
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/tx_deposit"
 	"math/big"
-	"strings"
 
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -148,11 +147,17 @@ func (u *uc) processDeposit(ctx context.Context, tokenInfo *intMaxTypes.TokenInf
 	}
 
 	if err != nil {
-		if strings.Contains(err.Error(), "failed to send ERC20.Approve transaction:") {
-			return fmt.Errorf("the specified ERC20 is not owned by the account or insufficient balance")
+		if errors.Is(err, txDepositService.ErrFailedToApproveERC20Transaction) {
+			return txDepositService.ErrFailedToApproveERC20Transaction
 		}
-		if strings.Contains(err.Error(), "failed to send ERC721.Approve transaction:") {
-			return fmt.Errorf("the specified ERC721 is not owned by the account")
+		if errors.Is(err, txDepositService.ErrFailedToApproveERC721Transaction) {
+			return txDepositService.ErrFailedToApproveERC721Transaction
+		}
+		if errors.Is(err, txDepositService.ErrInsufficientERC20Balance) {
+			return txDepositService.ErrInsufficientERC20Balance
+		}
+		if errors.Is(err, txDepositService.ErrInsufficientERC721Balance) {
+			return txDepositService.ErrInsufficientERC721Balance
 		}
 		return fmt.Errorf("%s deposit is failed: %w", tokenType, err)
 	}

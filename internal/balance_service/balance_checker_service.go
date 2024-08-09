@@ -17,21 +17,13 @@ import (
 	"log"
 	"math/big"
 	"net/http"
-	"os"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/go-resty/resty/v2"
 )
 
 const (
-	tokenTypeKey     = "token-type"
-	ethTokenType     = "eth"
-	erc20TokenType   = "erc20"
-	erc721TokenType  = "erc721"
-	erc1155TokenType = "erc1155"
 	//nolint:gosec
 	tokenTypeDescription    = "token type flag. input one of the following four values: \"ETH\", \"ERC20\", \"ERC721\" or \"ERC1155\". The default value is ETH. use as --token \"ETH\""
 	tokenAddressKey         = "token-address"
@@ -43,85 +35,6 @@ const (
 	erc1155TokenTypeEnum    = 3
 )
 
-func parseTokenInfo(args []string) intMaxTypes.TokenInfo {
-	if len(args) < 1 {
-		fmt.Println(ErrTokenTypeRequired)
-		os.Exit(1)
-	}
-
-	tokenTypeStr := strings.ToLower(args[0])
-	var (
-		ok           bool
-		tokenType    uint8
-		tokenAddress = common.Address{}
-		tokenID      = big.NewInt(0)
-	)
-
-	const (
-		int2Key  = 2
-		int3Key  = 3
-		int10Key = 10
-	)
-
-	switch tokenTypeStr {
-	case ethTokenType:
-		if len(args) != 1 {
-			fmt.Println(ErrETHBalanceCheckArgs)
-			os.Exit(1)
-		}
-		tokenType = ethTokenTypeEnum
-	case erc20TokenType:
-		if len(args) != int2Key {
-			fmt.Println(ErrERC20BalanceCheckArgs)
-			os.Exit(1)
-		}
-		tokenType = erc20TokenTypeEnum
-		tokenAddressBytes, err := hexutil.Decode(args[1])
-		if err != nil {
-			fmt.Println(ErrERC721BalanceCheckArgs)
-		}
-		tokenAddress = common.Address(tokenAddressBytes)
-	case erc721TokenType:
-		if len(args) != int3Key {
-			fmt.Println(ErrERC721BalanceCheckArgs)
-			os.Exit(1)
-		}
-		tokenType = erc721TokenTypeEnum
-		tokenAddressBytes, err := hexutil.Decode(args[1])
-		if err != nil {
-			fmt.Println(ErrERC721BalanceCheckArgs)
-		}
-		tokenAddress = common.Address(tokenAddressBytes)
-		tokenIDStr := args[2]
-		tokenID, ok = new(big.Int).SetString(tokenIDStr, int10Key)
-		if !ok {
-			fmt.Println(ErrERC721BalanceCheckArgs)
-			os.Exit(1)
-		}
-	case erc1155TokenType:
-		if len(args) != int3Key {
-			fmt.Println(ErrERC1155BalanceCheckArgs)
-			os.Exit(1)
-		}
-		tokenType = erc1155TokenTypeEnum
-		tokenAddressBytes, err := hexutil.Decode(args[1])
-		if err != nil {
-			fmt.Println(ErrERC721BalanceCheckArgs)
-		}
-		tokenAddress = common.Address(tokenAddressBytes)
-		tokenIDStr := args[2]
-		tokenID, ok = new(big.Int).SetString(tokenIDStr, int10Key)
-		if !ok {
-			fmt.Println(ErrERC721BalanceCheckArgs)
-			os.Exit(1)
-		}
-	default:
-		fmt.Println(ErrInvalidTokenType)
-	}
-
-	return intMaxTypes.TokenInfo{TokenType: tokenType, TokenAddress: tokenAddress, TokenID: tokenID}
-}
-
 func GetBalance(
 	ctx context.Context,
 	cfg *configs.Config,
@@ -132,33 +45,154 @@ func GetBalance(
 ) error {
 	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(utils.RemoveZeroX(userEthPrivateKey))
 	if err != nil {
-		return fmt.Errorf("fail to create wallet from private key: %w", err)
+		return errors.Join(ErrInvalidPrivateKey, err)
 	}
 
 	userPk, err := intMaxAcc.NewPrivateKeyFromString(wallet.IntMaxPrivateKey)
 	if err != nil {
-		return fmt.Errorf("fail to create INTMAX private key: %w", err)
+		return errors.Join(ErrRecoverWalletFromPrivateKey, err)
 	}
 
+	fmt.Printf("Ethereum address: %s\n", wallet.WalletAddress.Hex())
 	fmt.Printf("INTMAX address: %s\n", userPk.ToAddress().String())
 
-	tokenInfo := parseTokenInfo(args)
-	tokenIndex, err := GetTokenIndexFromLiquidityContract(ctx, cfg, sb, tokenInfo)
+	tokenInfo, err := new(intMaxTypes.TokenInfo).ParseFromStrings(args)
 	if err != nil {
-		if err.Error() == ErrTokenNotFound {
-			fmt.Println("INTMAX Balance: 0")
+		fmt.Println(ErrInvalidTokenType)
+		return nil
+	}
+
+	l1Balance, err := GetTokenBalance(ctx, cfg, lg, *wallet.WalletAddress, *tokenInfo)
+	if err != nil {
+		fmt.Printf(ErrFailedToGetBalance, "Ethereum")
+		return nil
+	}
+
+	switch tokenInfo.TokenType {
+	case ethTokenTypeEnum:
+		fmt.Println("ETH Balance")
+	case erc20TokenTypeEnum:
+		fmt.Printf("Token Balance (Address: %s)\n", tokenInfo.TokenAddress.String())
+	case erc721TokenTypeEnum:
+		fmt.Printf("Token Balance (Address: %s, ID: %s)\n", tokenInfo.TokenAddress.String(), tokenInfo.TokenID)
+	case erc1155TokenTypeEnum:
+		fmt.Printf("Token Balance (Address: %s, ID: %s)\n", tokenInfo.TokenAddress.String(), tokenInfo.TokenID)
+	default:
+		return ErrInvalidTokenType
+	}
+
+	switch tokenInfo.TokenType {
+	case erc721TokenTypeEnum:
+		if l1Balance.Cmp(big.NewInt(0)) == 0 {
+			fmt.Println("You don't own this token on Ethereum")
+		} else {
+			fmt.Println("You own this token on Ethereum")
+		}
+	default:
+		fmt.Printf("Balance on Ethereum: %s\n", l1Balance)
+	}
+
+	tokenIndex, err := GetTokenIndexFromLiquidityContract(ctx, cfg, sb, *tokenInfo)
+	if err != nil {
+		if errors.Is(err, ErrTokenNotFound) {
+			fmt.Println("Specified token is not found in INTMAX network")
 			return nil
 		}
-		return fmt.Errorf("fail to get token index: %w", err)
+
+		return errors.Join(ErrFailedToGetTokenIndex, err)
 	}
 
-	balance, err := GetUserBalance(ctx, cfg, lg, userPk, tokenIndex)
+	l2Balance, err := GetUserBalance(ctx, cfg, lg, userPk, tokenIndex)
 	if err != nil {
-		return fmt.Errorf("%s: %w", ErrFailedToGetBalance, err)
+		fmt.Printf(ErrFailedToGetBalance, "INTMAX")
+		return nil
 	}
 
-	fmt.Printf("INTMAX Balance: %s\n", balance)
+	switch tokenInfo.TokenType {
+	case erc721TokenTypeEnum:
+		if l2Balance.Cmp(big.NewInt(0)) == 0 {
+			fmt.Println("You don't own this token on INTMAX network")
+		} else {
+			fmt.Println("You own this token on INTMAX network")
+		}
+	default:
+		fmt.Printf("Balance on INTMAX network: %s\n", l2Balance)
+	}
+
 	return nil
+}
+
+func GetTokenBalance(
+	ctx context.Context,
+	cfg *configs.Config,
+	lg logger.Logger,
+	owner common.Address,
+	tokenInfo intMaxTypes.TokenInfo,
+) (balance *big.Int, err error) {
+	client, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new client: %w", err)
+	}
+
+	switch tokenInfo.TokenType {
+	case ethTokenTypeEnum:
+		balance, err = client.BalanceAt(ctx, owner, nil)
+		if err != nil {
+			return nil, errors.Join(ErrFailedToGetETHBalance, err)
+		}
+	case erc20TokenTypeEnum:
+		var erc20Contract *bindings.Erc20
+		erc20Contract, err = bindings.NewErc20(tokenInfo.TokenAddress, client)
+		if err != nil {
+			log.Fatalf("Failed to instantiate a Liquidity contract: %v", err.Error())
+		}
+
+		balance, err = erc20Contract.BalanceOf(&bind.CallOpts{
+			Pending: false,
+			Context: ctx,
+		}, owner)
+		if err != nil {
+			return nil, errors.Join(ErrFailedToGetERC20Balance, err)
+		}
+	case erc721TokenTypeEnum:
+		var erc721Contract *bindings.Erc721
+		erc721Contract, err = bindings.NewErc721(tokenInfo.TokenAddress, client)
+		if err != nil {
+			log.Fatalf("Failed to instantiate a Liquidity contract: %v", err.Error())
+		}
+
+		var actualOwner common.Address
+		actualOwner, err = erc721Contract.OwnerOf(&bind.CallOpts{
+			Pending: false,
+			Context: ctx,
+		}, tokenInfo.TokenID)
+		if err != nil {
+			return nil, errors.Join(ErrFailedToGetERC721Owner, err)
+		}
+		if actualOwner == owner {
+			balance = big.NewInt(1)
+		} else {
+			balance = big.NewInt(0)
+		}
+	case erc1155TokenTypeEnum:
+		var erc1155Contract *bindings.Erc1155
+		erc1155Contract, err = bindings.NewErc1155(common.HexToAddress(cfg.Blockchain.LiquidityContractAddress), client)
+		if err != nil {
+			log.Fatalf("Failed to instantiate a Liquidity contract: %v", err.Error())
+		}
+
+		balance, err = erc1155Contract.BalanceOf(&bind.CallOpts{
+			Pending: false,
+			Context: ctx,
+		}, owner, tokenInfo.TokenID)
+		if err != nil {
+			return nil, errors.Join(ErrFailedToGetERC1155Balance, err)
+		}
+	default:
+		return nil, ErrInvalidTokenType
+	}
+
+	return balance, nil
 }
 
 func GetTokenIndexFromLiquidityContract(
@@ -174,7 +208,8 @@ func GetTokenIndexFromLiquidityContract(
 
 	liquidity, err := bindings.NewLiquidity(common.HexToAddress(cfg.Blockchain.LiquidityContractAddress), client)
 	if err != nil {
-		log.Fatalf("Failed to instantiate a Liquidity contract: %v", err.Error())
+		const msg = "failed to instantiate a Liquidity contract"
+		log.Fatalf("%s: %v", msg, err.Error())
 	}
 
 	ok, tokenIndex, err := liquidity.GetTokenIndex(&bind.CallOpts{
@@ -185,7 +220,7 @@ func GetTokenIndexFromLiquidityContract(
 		return 0, fmt.Errorf("failed to get token index from liquidity contract: %v", err)
 	}
 	if !ok {
-		return 0, errors.New(ErrTokenNotFound)
+		return 0, ErrTokenNotFound
 	}
 
 	return tokenIndex, nil
@@ -352,7 +387,6 @@ func CalculateBalance(
 			depositID,
 		)
 		if err != nil {
-			var ErrDepositValidity = errors.New("failed to get deposit validity")
 			return nil, errors.Join(ErrDepositValidity, err)
 		}
 		if !ok {
