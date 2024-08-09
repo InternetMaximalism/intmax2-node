@@ -10,7 +10,6 @@ import (
 	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/hash/goldenposeidon"
-	"intmax2-node/internal/logger"
 	"intmax2-node/internal/pb/gen/service/node"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
@@ -124,7 +123,6 @@ func MakePostBlockSignatureRawRequest(
 func SendSignedProposedBlock(
 	ctx context.Context,
 	cfg *configs.Config,
-	log logger.Logger,
 	senderAccount *intMaxAcc.PrivateKey,
 	txTreeRoot goldenposeidon.PoseidonHashOut,
 	txHash goldenposeidon.PoseidonHashOut,
@@ -179,7 +177,7 @@ func SendSignedProposedBlock(
 	}
 
 	return PostBlockSignatureRawRequest(
-		ctx, cfg, log,
+		ctx, cfg,
 		senderAccount.ToAddress(), txHash, signature,
 		backupTx, backupTransfers,
 		prevBalanceProof, transferStepProof,
@@ -189,7 +187,6 @@ func SendSignedProposedBlock(
 func PostBlockSignatureRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
-	log logger.Logger,
 	senderAddress intMaxAcc.Address,
 	txHash goldenposeidon.PoseidonHashOut,
 	signature *bn254.G2Affine,
@@ -199,7 +196,7 @@ func PostBlockSignatureRawRequest(
 	transferStepProof block_signature.Plonky2Proof,
 ) error {
 	return postBlockSignatureRawRequest(
-		ctx, cfg, log,
+		ctx, cfg,
 		senderAddress.String(),
 		hexutil.Encode(txHash.Marshal()),
 		hexutil.Encode(signature.Marshal()),
@@ -213,7 +210,6 @@ func PostBlockSignatureRawRequest(
 func postBlockSignatureRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
-	log logger.Logger,
 	senderAddress, txHash, signature string,
 	backupTx *transaction.BackupTransactionData,
 	backupTransfers []*transaction.BackupTransferInput,
@@ -262,12 +258,7 @@ func postBlockSignatureRawRequest(
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		err = fmt.Errorf("failed to get response")
-		log.WithFields(logger.Fields{
-			"status_code": resp.StatusCode(),
-			"response":    resp.String(),
-		}).WithError(err).Errorf("Unexpected status code")
-		return err
+		return fmt.Errorf("failed to get response")
 	}
 
 	var res BlockSignatureResponse

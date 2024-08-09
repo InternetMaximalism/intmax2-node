@@ -8,7 +8,6 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/hash/goldenposeidon"
-	"intmax2-node/internal/logger"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/block_proposed"
 	"net/http"
@@ -25,7 +24,6 @@ const signTimeout = 60 * time.Minute
 func GetBlockProposed(
 	ctx context.Context,
 	cfg *configs.Config,
-	log logger.Logger,
 	senderAccount *intMaxAcc.PrivateKey,
 	transfersHash goldenposeidon.PoseidonHashOut,
 	nonce uint64,
@@ -53,7 +51,7 @@ func GetBlockProposed(
 	}
 
 	res, err := retryRequest(
-		ctx, cfg, log, senderAccount.ToAddress(), *txHash, expiration, signature,
+		ctx, cfg, senderAccount.ToAddress(), *txHash, expiration, signature,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get proposed block (retry): %w", err)
@@ -70,7 +68,6 @@ const (
 func retryRequest(
 	ctx context.Context,
 	cfg *configs.Config,
-	log logger.Logger,
 	senderAddress intMaxAcc.Address,
 	txHash goldenposeidon.PoseidonHashOut,
 	expiration time.Time,
@@ -91,7 +88,6 @@ func retryRequest(
 			response, err := GetBlockProposedRawRequest(
 				ctx,
 				cfg,
-				log,
 				senderAddress,
 				txHash,
 				expiration,
@@ -104,7 +100,7 @@ func retryRequest(
 			const ErrTxTreeNotBuild = "txHash: the tx tree not build."
 			if err.Error() == ErrTxTreeNotBuild {
 				if firstTime {
-					log.Infof("The Block Builder is currently processing the tx tree...")
+					fmt.Println("The Block Builder is currently processing the tx tree...")
 					firstTime = false
 				}
 				continue
@@ -130,21 +126,19 @@ type BlockProposedResponse struct {
 func GetBlockProposedRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
-	log logger.Logger,
 	senderAddress intMaxAcc.Address,
 	txHash goldenposeidon.PoseidonHashOut,
 	expiration time.Time,
 	signature *bn254.G2Affine,
 ) (*BlockProposedResponseData, error) {
 	return getBlockProposedRawRequest(
-		ctx, cfg, log, senderAddress.String(), hexutil.Encode(txHash.Marshal()), expiration, hexutil.Encode(signature.Marshal()),
+		ctx, cfg, senderAddress.String(), hexutil.Encode(txHash.Marshal()), expiration, hexutil.Encode(signature.Marshal()),
 	)
 }
 
 func getBlockProposedRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
-	log logger.Logger,
 	senderAddress, txHash string,
 	expiration time.Time,
 	signature string,
@@ -200,10 +194,7 @@ func getBlockProposedRawRequest(
 
 	defer func() {
 		if err != nil {
-			log.WithFields(logger.Fields{
-				"status_code": resp.StatusCode(),
-				"response":    resp.String(),
-			}).WithError(err).Errorf("Processing ended error occurred")
+			fmt.Println("Processing ended error occurred")
 		}
 	}()
 

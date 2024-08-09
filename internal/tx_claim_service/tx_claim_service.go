@@ -2,12 +2,10 @@ package tx_claim_service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/bindings"
-	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
 	"intmax2-node/pkg/utils"
 
@@ -21,32 +19,33 @@ import (
 func ClaimWithdrawals(
 	ctx context.Context,
 	cfg *configs.Config,
-	log logger.Logger,
 	sb ServiceBlockchain,
 	userEthPrivateKey string,
-) {
+) error {
 	privateKey, err := crypto.HexToECDSA(userEthPrivateKey)
 	if err != nil {
-		log.Fatalf("Failed to convert hex to ECDSA: %v", err)
+		return fmt.Errorf("failed to convert hex to ECDSA: %v", err)
 	}
 
 	// アドレスを取得
 	recipientEthAddress := crypto.PubkeyToAddress(privateKey.PublicKey)
-	log.Infof("recipientEthAddress: %v\n", recipientEthAddress)
+	fmt.Printf("recipientEthAddress: %v\n", recipientEthAddress)
 
 	withdrawals, err := fetchRecipientClaimableWithdrawals(ctx, cfg, sb, recipientEthAddress)
 	if err != nil {
-		log.Errorf("Failed to fetch recipient claimable withdrawals: %v", err)
+		return fmt.Errorf("failed to fetch recipient claimable withdrawals: %v", err)
 	}
 
-	receipts, err := claimWithdrawals(ctx, cfg, log, sb, withdrawals, userEthPrivateKey)
+	receipts, err := claimWithdrawals(ctx, cfg, sb, withdrawals, userEthPrivateKey)
 	if err != nil {
-		log.Errorf("Failed to claim withdrawals: %v", err)
+		return fmt.Errorf("failed to claim withdrawals: %v", err)
 	}
 
 	if len(receipts) != 0 {
-		log.Infof("The claiming withdrawals has been successfully sent.")
+		fmt.Println("The claiming withdrawals has been successfully sent.")
 	}
+
+	return nil
 }
 
 var ErrScrollNetworkChainLinkEvmJSONRPCFail = errors.New("failed to get Scroll network chain link")
@@ -142,7 +141,6 @@ func fetchRecipientClaimableWithdrawals(
 func claimWithdrawals(
 	ctx context.Context,
 	cfg *configs.Config,
-	log logger.Logger,
 	sb ServiceBlockchain,
 	withdrawals []bindings.WithdrawalLibWithdrawal,
 	userEthPrivateKey string,
@@ -186,34 +184,37 @@ func claimWithdrawals(
 	receipts := make([]*types.Receipt, 0)
 	count := 0
 	for i := range withdrawals {
-		var withdrawalJSON []byte
-		withdrawalJSON, err = json.Marshal(&withdrawals[i])
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal withdrawal: %w", err)
-		}
-		log.Debugf("Claiming withdrawal[%d]: %s\n", i, withdrawalJSON)
+		/*
+			// var withdrawalJSON []byte
+			// withdrawalJSON, err = json.Marshal(&withdrawals[i])
+			// if err != nil {
+			// 	return nil, fmt.Errorf("failed to marshal withdrawal: %w", err)
+			// }
 
-		var tokenInfo bindings.ITokenDataTokenInfo
-		tokenInfo, err = liquidityContract.GetTokenInfo(&bind.CallOpts{
-			Pending: false,
-			Context: ctx,
-		}, withdrawals[i].TokenIndex)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get token info: %w", err)
-		}
-		log.Debugf("tokenAddress: %v\n", tokenInfo.TokenAddress)
-		log.Debugf("tokenId: %v\n", tokenInfo.TokenId)
-		log.Debugf("tokenType: %v\n", tokenInfo.TokenType)
+			// var tokenInfo bindings.ITokenDataTokenInfo
+			// tokenInfo, err = liquidityContract.GetTokenInfo(&bind.CallOpts{
+			// 	Pending: false,
+			// 	Context: ctx,
+			// }, withdrawals[i].TokenIndex)
+			// if err != nil {
+			// 	return nil, fmt.Errorf("failed to get token info: %w", err)
+			// }
+			// fmt.Printf("tokenAddress: %v\n", tokenInfo.TokenAddress)
+			// fmt.Printf("tokenId: %v\n", tokenInfo.TokenId)
+			// fmt.Printf("tokenType: %v\n", tokenInfo.TokenType)
+		*/
+
+		fmt.Printf("Claim withdrawal (%d/%d). Processing...\n", i+1, len(withdrawals))
 
 		var tx *types.Transaction
 		tx, err = liquidityContract.ClaimWithdrawals(transactOpts, []bindings.WithdrawalLibWithdrawal{withdrawals[i]})
 		if err != nil {
 			// TODO: Continue only if WithdrawalNotFound error was occurred.
-			log.Warnf("Failed to claim withdrawals[%d]: %v", i, err)
+			fmt.Printf("Warning: Failed to claim withdrawals (%d/%d): %v\n", i+1, len(withdrawals), err)
 			continue
 		}
 
-		log.Infof("ClaimWithdrawals tx sent: %s", tx.Hash().Hex())
+		fmt.Printf("ClaimWithdrawals tx sent: %s\n", tx.Hash().Hex())
 
 		var receipt *types.Receipt
 		receipt, err = bind.WaitMined(ctx, client, tx)
@@ -225,7 +226,7 @@ func claimWithdrawals(
 		count += 1
 	}
 
-	log.Infof("Claimed %d withdrawals", count)
+	fmt.Printf("Claimed %d withdrawals\n", count)
 
 	return receipts, nil
 }

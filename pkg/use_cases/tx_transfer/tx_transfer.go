@@ -3,6 +3,7 @@ package tx_transfer
 import (
 	"context"
 	"errors"
+	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/logger"
@@ -54,7 +55,7 @@ func (u *uc) Do(ctx context.Context, args []string, amount, recipientAddressStr,
 
 	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
 	if err != nil {
-		u.log.Errorf("fail to parse user private key: %v", err)
+		return fmt.Errorf("fail to parse user private key: %v", err)
 	}
 
 	// The userPrivateKey is acceptable in either format:
@@ -79,7 +80,5 @@ func (u *uc) Do(ctx context.Context, args []string, amount, recipientAddressStr,
 		return ErrEmptyAmount
 	}
 
-	service.TransferTransaction(spanCtx, u.cfg, u.log, u.sb, args, amount, recipientAddressStr, userEthPrivateKey)
-
-	return nil
+	return service.TransferTransaction(spanCtx, u.cfg, u.sb, args, amount, recipientAddressStr, userEthPrivateKey)
 }

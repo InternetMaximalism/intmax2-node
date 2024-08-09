@@ -2,9 +2,11 @@ package transaction
 
 import (
 	"context"
+	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 	"intmax2-node/pkg/utils"
+	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -62,12 +64,11 @@ func txTransferCmd(b *Transaction) *cobra.Command {
 	cmd.PersistentFlags().StringVar(&userEthPrivateKey, userPrivateKeyKey, emptyKey, userPrivateDescription)
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
-		l := b.Log.WithFields(logger.Fields{"module": use})
-
 		err := newCommands().SendTransferTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, amount, recipientAddressStr, utils.RemoveZeroX(userEthPrivateKey))
 		if err != nil {
-			const msg = "failed to transfer transaction: %v"
-			l.Fatalf(msg, err.Error())
+			const msg = "Fatal: %v\n"
+			fmt.Fprintf(os.Stderr, msg, err)
+			os.Exit(1)
 		}
 	}
 
@@ -102,12 +103,11 @@ func txDepositCmd(b *Transaction) *cobra.Command {
 	cmd.PersistentFlags().StringVar(&userEthPrivateKey, userPrivateKeyKey, emptyKey, userPrivateDescription)
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
-		l := b.Log.WithFields(logger.Fields{"module": use})
-
 		err := newCommands().SendDepositTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, recipientAddressStr, amount, utils.RemoveZeroX(userEthPrivateKey))
 		if err != nil {
-			const msg = "failed to deposit transaction: %v"
-			l.Fatalf(msg, err.Error())
+			const msg = "Fatal: %v\n"
+			fmt.Fprintf(os.Stderr, msg, err)
+			os.Exit(1)
 		}
 	}
 
@@ -148,12 +148,11 @@ func txWithdrawalCmd(b *Transaction) *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&resume, resumeKey, defaultResume, resumeDescription)
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
-		l := b.Log.WithFields(logger.Fields{"module": use})
-
 		err := newCommands().SendWithdrawalTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, recipientAddressStr, amount, utils.RemoveZeroX(userEthPrivateKey), resume)
 		if err != nil {
-			const msg = "failed to get balance: %v"
-			l.Fatalf(msg, err.Error())
+			const msg = "Fatal: %v\n"
+			fmt.Fprintf(os.Stderr, msg, err)
+			os.Exit(1)
 		}
 	}
 
@@ -178,12 +177,11 @@ func txClaimCmd(b *Transaction) *cobra.Command {
 	cmd.PersistentFlags().StringVar(&userEthPrivateKey, userEthPrivateKeyKey, emptyKey, userPrivateDescription)
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
-		l := b.Log.WithFields(logger.Fields{"module": use})
-
 		err := newCommands().SendClaimWithdrawals(b.Config, b.Log, b.SB).Do(b.Context, args, userEthPrivateKey)
 		if err != nil {
-			const msg = "failed to claim withdrawals: %v"
-			l.Fatalf(msg, err.Error())
+			const msg = "Fatal: %v\n"
+			fmt.Fprintf(os.Stderr, msg, err)
+			os.Exit(1)
 		}
 	}
 
