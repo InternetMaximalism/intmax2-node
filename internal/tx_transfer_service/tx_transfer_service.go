@@ -13,7 +13,6 @@ import (
 	intMaxAccTypes "intmax2-node/internal/accounts/types"
 	"intmax2-node/internal/balance_service"
 	"intmax2-node/internal/hash/goldenposeidon"
-	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
@@ -35,61 +34,63 @@ const (
 func TransferTransaction(
 	ctx context.Context,
 	cfg *configs.Config,
-	log logger.Logger,
+	// log logger.Logger,
 	sb ServiceBlockchain,
 	args []string,
 	amountStr string,
 	recipientAddressStr string,
 	userEthPrivateKey string,
-) {
+) error {
 	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
 	if err != nil {
-		log.Fatalf("fail to parse user private key: %v", err)
+		return fmt.Errorf("fail to parse user private key: %v", err)
 	}
 
 	userAccount, err := intMaxAcc.NewPrivateKeyFromString(wallet.IntMaxPrivateKey)
 	if err != nil {
-		log.Fatalf("fail to parse user private key: %v", err)
+		return fmt.Errorf("fail to parse user private key: %v", err)
 	}
 
 	tokenInfo, err := new(intMaxTypes.TokenInfo).ParseFromStrings(args)
 	if err != nil {
-		log.Fatalf("%s", err)
+		return fmt.Errorf("%s", err)
 	}
 
 	tokenIndex, err := balance_service.GetTokenIndexFromLiquidityContract(ctx, cfg, sb, *tokenInfo)
 	if err != nil {
-		log.Fatalf("%s", errors.Join(ErrTokenNotFound, err))
+		return err
 	}
 
-	balance, err := balance_service.GetUserBalance(ctx, cfg, log, userAccount, tokenIndex)
+	fmt.Printf("User's INTMAX Address: %s\n", userAccount.ToAddress().String())
+	fmt.Println("Fetching balances...")
+	balance, err := balance_service.GetUserBalance(ctx, cfg, userAccount, tokenIndex)
 	if err != nil {
-		log.Fatalf(ErrFailedToGetBalance+": %v", err)
+		return fmt.Errorf(ErrFailedToGetBalance.Error()+": %v", err)
 	}
 
 	if strings.TrimSpace(amountStr) == "" {
-		log.Fatalf("Amount is required")
+		return fmt.Errorf("amount is required")
 	}
 
 	const int10Key = 10
 	amount, ok := new(big.Int).SetString(amountStr, int10Key)
 	if !ok {
-		log.Fatalf("failed to convert amount to int: %v", amountStr)
+		return fmt.Errorf("failed to convert amount to int: %v", amountStr)
 	}
 
 	if balance.Cmp(amount) < 0 {
-		log.Fatalf("Insufficient balance: %s", balance)
+		return fmt.Errorf("insufficient balance: %s", balance)
 	}
 
 	// Send transfer transaction
 	recipient, err := intMaxAcc.NewPublicKeyFromAddressHex(recipientAddressStr)
 	if err != nil {
-		log.Fatalf("failed to parse recipient address: %v", err)
+		return fmt.Errorf("failed to parse recipient address: %v", err)
 	}
 
 	recipientAddress, err := intMaxTypes.NewINTMAXAddress(recipient.ToAddress().Bytes())
 	if err != nil {
-		log.Fatalf("failed to create recipient address: %v", err)
+		return fmt.Errorf("failed to create recipient address: %v", err)
 	}
 
 	transfer := intMaxTypes.NewTransferWithRandomSalt(
@@ -104,7 +105,7 @@ func TransferTransaction(
 
 	transferTree, err := intMaxTree.NewTransferTree(intMaxTree.TRANSFER_TREE_HEIGHT, initialLeaves, zeroTransfer.Hash())
 	if err != nil {
-		log.Fatalf("failed to create transfer tree: %v", err)
+		return fmt.Errorf("failed to create transfer tree: %v", err)
 	}
 
 	transfersHash, _, _ := transferTree.GetCurrentRootCountAndSiblings()
@@ -114,7 +115,7 @@ func TransferTransaction(
 	err = SendTransferTransaction(
 		ctx,
 		cfg,
-		log,
+		// log,
 		userAccount,
 		transfersHash,
 		nonce,
@@ -122,27 +123,27 @@ func TransferTransaction(
 		// backupTransfers,
 	)
 	if err != nil {
-		log.Fatalf("failed to send transaction: %v", err)
+		return fmt.Errorf("failed to send transaction: %v", err)
 	}
 
-	log.Printf("The transaction request has been successfully sent. Please wait for the server's response.")
+	fmt.Println("The transaction request has been successfully sent. Please wait for the server's response.")
 
 	// Get proposed block
 	proposedBlock, err := GetBlockProposed(
-		ctx, cfg, log, userAccount, transfersHash, nonce,
+		ctx, cfg, userAccount, transfersHash, nonce,
 	)
 	if err != nil {
-		log.Fatalf("failed to send transaction: %v", err)
+		return fmt.Errorf("failed to send transaction: %v", err)
 	}
 
-	log.Infof("The proposed block has been successfully received.")
+	fmt.Println("The proposed block has been successfully received.")
 
 	tx, err := intMaxTypes.NewTx(
 		&transfersHash,
 		nonce,
 	)
 	if err != nil {
-		log.Fatalf("failed to create new tx: %w", err)
+		return fmt.Errorf("failed to create new tx: %w", err)
 	}
 
 	txHash := tx.Hash()
@@ -162,8 +163,7 @@ func TransferTransaction(
 		encodedTx,
 	)
 	if err != nil {
-		log.Errorf("failed to encrypt deposit: %w", err)
-		return
+		return fmt.Errorf("failed to encrypt deposit: %w", err)
 	}
 
 	encodedEncryptedTx := base64.StdEncoding.EncodeToString(encryptedTx)
@@ -176,20 +176,22 @@ func TransferTransaction(
 	for i := range initialLeaves {
 		backupTransfers[i], err = MakeTransferBackupData(initialLeaves[i])
 		if err != nil {
-			log.Fatalf("failed to make backup data: %v", err)
+			return fmt.Errorf("failed to make backup data: %v", err)
 		}
 	}
 
 	// Accept proposed block
 	err = SendSignedProposedBlock(
-		ctx, cfg, log, userAccount, proposedBlock.TxTreeRoot, *txHash, proposedBlock.PublicKeys,
+		ctx, cfg, userAccount, proposedBlock.TxTreeRoot, *txHash, proposedBlock.PublicKeys,
 		&backupTx, backupTransfers,
 	)
 	if err != nil {
-		log.Fatalf("failed to send transaction: %v", err)
+		return fmt.Errorf("failed to send transaction: %v", err)
 	}
 
-	log.Printf("The transaction has been successfully sent.")
+	fmt.Println("The transaction has been successfully sent.")
+
+	return nil
 }
 
 var ErrFailedToCreateRecipientAddress = errors.New("failed to create recipient address")

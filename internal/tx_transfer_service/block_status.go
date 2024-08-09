@@ -49,7 +49,7 @@ func retryBlockStatusRequest(
 	gbpCtx, cancel := context.WithTimeout(ctx, timeoutBlockStatusInterval)
 	defer cancel()
 
-	log.Infof("Waiting the block containing your tx...")
+	fmt.Println("Waiting the block containing your tx...")
 	for {
 		select {
 		case <-gbpCtx.Done():

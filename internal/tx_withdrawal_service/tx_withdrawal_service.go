@@ -40,56 +40,57 @@ func WithdrawalTransaction(
 	amountStr string,
 	recipientAddressHex string,
 	userEthPrivateKey string,
-) {
+) error {
 	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
 	if err != nil {
-		log.Fatalf("fail to parse user private key: %v", err)
+		return fmt.Errorf("fail to parse user private key: %v", err)
 	}
 
 	userAccount, err := intMaxAcc.NewPrivateKeyFromString(wallet.IntMaxPrivateKey)
 	if err != nil {
-		log.Fatalf("fail to parse user private key: %v", err)
+		return fmt.Errorf("fail to parse user private key: %v", err)
 	}
 
 	tokenInfo, err := new(intMaxTypes.TokenInfo).ParseFromStrings(args)
 	if err != nil {
-		log.Fatalf("%s", err)
+		return fmt.Errorf("%s", err)
 	}
 
 	tokenIndex, err := balance_service.GetTokenIndexFromLiquidityContract(ctx, cfg, sb, *tokenInfo)
 	if err != nil {
-		log.Fatalf("%s", errors.Join(ErrTokenNotFound, err))
+		return fmt.Errorf("%s", errors.Join(ErrTokenNotFound, err))
 	}
 
-	log.Infof("User's INTMAX Address: %s\n", userAccount.ToAddress().String())
-	balance, err := balance_service.GetUserBalance(ctx, cfg, log, userAccount, tokenIndex)
+	fmt.Printf("User's INTMAX Address: %s\n", userAccount.ToAddress().String())
+	fmt.Println("Fetching balances...")
+	balance, err := balance_service.GetUserBalance(ctx, cfg, userAccount, tokenIndex)
 	if err != nil {
-		log.Fatalf(ErrFailedToGetBalance+": %v", err)
+		return fmt.Errorf(ErrFailedToGetBalance.Error()+": %v", err)
 	}
 
 	if strings.TrimSpace(amountStr) == "" {
-		log.Fatalf("Amount is required")
+		return fmt.Errorf("amount is required")
 	}
 
 	const int10Key = 10
 	amount, ok := new(big.Int).SetString(amountStr, int10Key)
 	if !ok {
-		log.Fatalf("failed to convert amount to int: %v", amountStr)
+		return fmt.Errorf("failed to convert amount to int: %v", amountStr)
 	}
 
 	if balance.Cmp(amount) < 0 {
-		log.Fatalf("Insufficient balance: %s", balance)
+		return fmt.Errorf("insufficient balance: %s", balance)
 	}
 
 	// Send transfer transaction
 	recipientBytes, err := hexutil.Decode(recipientAddressHex)
 	if err != nil {
-		log.Fatalf("failed to parse recipient address: %v", err)
+		return fmt.Errorf("failed to parse recipient address: %v", err)
 	}
 
 	recipientAddress, err := intMaxTypes.NewEthereumAddress(recipientBytes)
 	if err != nil {
-		log.Fatalf("failed to create recipient address: %v", err)
+		return fmt.Errorf("failed to create recipient address: %v", err)
 	}
 
 	transfer := intMaxTypes.NewTransferWithRandomSalt(
@@ -105,12 +106,12 @@ func WithdrawalTransaction(
 
 	transferTree, err := intMaxTree.NewTransferTree(intMaxTree.TRANSFER_TREE_HEIGHT, initialLeaves, zeroTransfer.Hash())
 	if err != nil {
-		log.Fatalf("failed to create transfer tree: %v", err)
+		return fmt.Errorf("failed to create transfer tree: %v", err)
 	}
 
 	transferMerkleProof, transfersHash, err := transferTree.ComputeMerkleProof(0)
 	if err != nil {
-		log.Fatalf("failed to compute merkle proof: %v", err)
+		return fmt.Errorf("failed to compute merkle proof: %v", err)
 	}
 
 	var nonce uint64 = 1 // TODO: Incremented with each transaction
@@ -130,8 +131,7 @@ func WithdrawalTransaction(
 		encodedTx,
 	)
 	if err != nil {
-		log.Errorf("failed to encrypt deposit: %w", err)
-		return
+		return fmt.Errorf("failed to encrypt deposit: %w", err)
 	}
 
 	err = SendWithdrawalTransaction(
@@ -143,27 +143,27 @@ func WithdrawalTransaction(
 		nonce,
 	)
 	if err != nil {
-		log.Fatalf("failed to send transaction: %v", err)
+		return fmt.Errorf("failed to send transaction: %v", err)
 	}
 
-	log.Printf("The transaction request has been successfully sent. Please wait for the server's response.")
+	fmt.Println("The transaction request has been successfully sent. Please wait for the server's response.")
 
 	// Get proposed block
 	proposedBlock, err := tx_transfer_service.GetBlockProposed(
-		ctx, cfg, log, userAccount, transfersHash, nonce,
+		ctx, cfg, userAccount, transfersHash, nonce,
 	)
 	if err != nil {
-		log.Fatalf("failed to send transaction: %v", err)
+		return fmt.Errorf("failed to send transaction: %v", err)
 	}
 
-	log.Infof("The proposed block has been successfully received.")
+	fmt.Println("The proposed block has been successfully received.")
 
 	tx, err := intMaxTypes.NewTx(
 		&transfersHash,
 		nonce,
 	)
 	if err != nil {
-		log.Fatalf("failed to create new tx: %w", err)
+		return fmt.Errorf("failed to create new tx: %w", err)
 	}
 
 	txHash := tx.Hash()
@@ -175,7 +175,7 @@ func WithdrawalTransaction(
 
 	txIndex := slices.Index(publicKeysStr, userAccount.ToAddress().String())
 	if txIndex == -1 {
-		log.Fatalf("failed to find user's public key in the proposed block")
+		return fmt.Errorf("failed to find user's public key in the proposed block")
 	}
 
 	encodedEncryptedTx := base64.StdEncoding.EncodeToString(encryptedTx)
@@ -198,20 +198,20 @@ func WithdrawalTransaction(
 			int32(txIndex),
 		)
 		if err != nil {
-			log.Fatalf("failed to make backup data: %v", err)
+			return fmt.Errorf("failed to make backup data: %v", err)
 		}
 	}
 
 	// Accept proposed block
 	err = tx_transfer_service.SendSignedProposedBlock(
-		ctx, cfg, log, userAccount, proposedBlock.TxTreeRoot, *txHash, proposedBlock.PublicKeys,
+		ctx, cfg, userAccount, proposedBlock.TxTreeRoot, *txHash, proposedBlock.PublicKeys,
 		&backupTx, backupTransfers,
 	)
 	if err != nil {
-		log.Fatalf("failed to send transaction: %v", err)
+		return fmt.Errorf("failed to send transaction: %v", err)
 	}
 
-	log.Infof("The transaction has been successfully sent.")
+	fmt.Println("The transaction has been successfully sent.")
 
 	// Send withdrawal request
 	err = SendWithdrawalRequest(ctx, cfg, log, &tx_transfer_service.BackupWithdrawal{
@@ -226,10 +226,12 @@ func WithdrawalTransaction(
 		TxTreeRoot:          proposedBlock.TxTreeRoot,
 	})
 	if err != nil {
-		log.Fatalf("failed to request withdrawal: %v", err)
+		return fmt.Errorf("failed to request withdrawal: %v", err)
 	}
 
-	log.Infof("The withdrawal request has been successfully sent.")
+	fmt.Println("The withdrawal request has been successfully sent.")
+
+	return nil
 }
 
 func ResumeWithdrawalRequest(
@@ -239,7 +241,7 @@ func ResumeWithdrawalRequest(
 	recipientAddressHex string,
 	resumeIncompleteWithdrawals bool,
 ) {
-	backupWithdrawals, err := GetBackupWithdrawal(ctx, cfg, log, common.HexToAddress(recipientAddressHex))
+	backupWithdrawals, err := GetBackupWithdrawal(ctx, cfg, common.HexToAddress(recipientAddressHex))
 	if err != nil {
 		log.Fatalf("failed to get backup withdrawal: %v", err)
 	}
@@ -281,7 +283,7 @@ func ResumeWithdrawalRequest(
 	}
 
 	if len(incompleteBackupWithdrawals) == 0 {
-		log.Infof("No incomplete withdrawal request found.")
+		log.Debugf("No incomplete withdrawal request found.")
 		return
 	}
 
@@ -307,7 +309,7 @@ func ResumeWithdrawalRequest(
 			log.Fatalf("failed to request withdrawal: %v", err)
 		}
 
-		log.Infof("The withdrawal request has been successfully sent.")
+		fmt.Println("The withdrawal request has been successfully sent.")
 	}
 }
 
@@ -385,10 +387,9 @@ func SendWithdrawalRequest(
 func GetBackupWithdrawal(
 	ctx context.Context,
 	cfg *configs.Config,
-	lg logger.Logger,
 	userAddress common.Address,
 ) ([]*tx_transfer_service.BackupWithdrawal, error) {
-	userAllData, err := balance_service.GetUserBalancesRawRequest(ctx, cfg, lg, userAddress.Hex())
+	userAllData, err := balance_service.GetUserBalancesRawRequest(ctx, cfg, userAddress.Hex())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user balances: %w", err)
 	}
@@ -399,7 +400,7 @@ func GetBackupWithdrawal(
 		var encodedEncryptedTransfer []byte
 		encodedEncryptedTransfer, err = base64.StdEncoding.DecodeString(withdrawal.EncryptedTransfer)
 		if err != nil {
-			lg.Warnf("failed to decode base64: %w", err)
+			fmt.Printf("Warning: failed to decode base64: %v", err)
 			continue
 		}
 
@@ -407,7 +408,7 @@ func GetBackupWithdrawal(
 		var withdrawal tx_transfer_service.BackupWithdrawal
 		err = json.Unmarshal(encodedEncryptedTransfer, &withdrawal)
 		if err != nil {
-			lg.Warnf("failed to unmarshal json: %w", err)
+			fmt.Printf("Warning: failed to unmarshal json: %v", err)
 			continue
 		}
 

@@ -85,7 +85,5 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressHex, amount,
 		return ErrEmptyAmount
 	}
 
-	service.WithdrawalTransaction(spanCtx, u.cfg, u.log, u.sb, args, amount, recipientAddressHex, userEthPrivateKey)
-
-	return nil
+	return service.WithdrawalTransaction(spanCtx, u.cfg, u.log, u.sb, args, amount, recipientAddressHex, userEthPrivateKey)
 }

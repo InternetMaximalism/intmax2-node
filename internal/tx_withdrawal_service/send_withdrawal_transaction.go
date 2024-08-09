@@ -49,7 +49,6 @@ func SendWithdrawalTransaction(
 	}
 
 	txHash := tx.Hash()
-	log.Printf("transferTreeRoot: %v", transfersHash.String())
 	messageForPow := txHash.Marshal()
 	powNonceStr, err := pwNonce.Nonce(ctx, messageForPow)
 	if err != nil {
@@ -78,7 +77,7 @@ func SendWithdrawalTransaction(
 	}
 
 	err = tx_transfer_service.SendTransactionWithRawRequest(
-		ctx, cfg, log, senderAccount, transfersHash, nonce, expiration, powNonceStr, signatureInput,
+		ctx, cfg, senderAccount, transfersHash, nonce, expiration, powNonceStr, signatureInput,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to send transaction: %w", err)
@@ -146,7 +145,7 @@ func sendWithdrawalRawRequest(
 	transferHash := hexutil.Encode(transfer.Hash().Marshal())
 
 	ethAddress := hexutil.Encode(transfer.Recipient.Address)
-	log.Infof("INTMAX block number: %v\n", blockNumber)
+	log.Debugf("INTMAX block number: %v\n", blockNumber)
 	ucInput := withdrawal_request.UCWithdrawalInput{
 		TransferData: &withdrawal_request.TransferDataTransaction{
 			Recipient:  ethAddress,
