@@ -27,7 +27,6 @@ func ClaimWithdrawals(
 		return fmt.Errorf("failed to convert hex to ECDSA: %v", err)
 	}
 
-	// アドレスを取得
 	recipientEthAddress := crypto.PubkeyToAddress(privateKey.PublicKey)
 	fmt.Printf("recipientEthAddress: %v\n", recipientEthAddress)
 
