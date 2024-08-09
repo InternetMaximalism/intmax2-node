@@ -127,12 +127,6 @@ type BlockProposedResponse struct {
 	Data    block_proposed.UCBlockProposed `json:"data"`
 }
 
-type ErrorResponse struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-	Details []any  `json:"details"`
-}
-
 func GetBlockProposedRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
@@ -192,9 +186,8 @@ func getBlockProposedRawRequest(
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		respStr := resp.String()
-		respJSON := ErrorResponse{}
-		err = json.Unmarshal([]byte(respStr), &respJSON)
+		respJSON := intMaxTypes.ErrorResponse{}
+		err = json.Unmarshal([]byte(resp.String()), &respJSON)
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 		}

@@ -2,6 +2,7 @@ package post_withdrawal_request
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
@@ -50,6 +51,10 @@ func (u *uc) Do(ctx context.Context, input *postWithdrwalRequest.UCPostWithdrawa
 
 	err := service.PostWithdrawalRequest(ctx, u.cfg, u.log, u.db, u.sb, input)
 	if err != nil {
+		if errors.Is(err, service.ErrWithdrawalRequestAlreadyExists) {
+			return service.ErrWithdrawalRequestAlreadyExists
+		}
+
 		return fmt.Errorf("failed to post withdrawal request: %w", err)
 	}
 	return nil

@@ -9,6 +9,7 @@ import (
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/logger"
 	postWithdrwalRequest "intmax2-node/internal/use_cases/post_withdrawal_request"
+	dbErrors "intmax2-node/pkg/sql_db/errors"
 	"intmax2-node/pkg/utils"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -23,6 +24,8 @@ var ErrScrollNetworkChainLinkEvmJSONRPCFail = errors.New(
 var ErrCreateNewClientOfRPCEthFail = errors.New(
 	"failed to create new RPC Eth client",
 )
+
+var ErrWithdrawalRequestAlreadyExists = errors.New("withdrawal request already exists")
 
 type WithdrawalRequestService struct {
 	ctx    context.Context
@@ -91,6 +94,9 @@ func PostWithdrawalRequest(
 
 	_, err = db.CreateWithdrawal(id, input)
 	if err != nil {
+		if errors.Is(err, dbErrors.ErrNotUnique) {
+			return ErrWithdrawalRequestAlreadyExists
+		}
 		return fmt.Errorf("failed to save withdrawal request to db: %w", err)
 	}
 
