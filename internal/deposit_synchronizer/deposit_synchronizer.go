@@ -73,7 +73,6 @@ func (w *depositSynchronizer) Start(
 				/*
 					// latestBlock, err := intMaxTypes.FetchLatestIntMaxBlock(rollupCfg, ctx)
 					// if err != nil {
-					// 	// "no posted blocks found"のときはエラーを返さない
 					// 	if err.Error() != "no posted blocks found" {
 					// 		return false, err
 					// 	}
