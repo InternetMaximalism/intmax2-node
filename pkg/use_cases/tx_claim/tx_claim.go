@@ -37,7 +37,5 @@ func (u *uc) Do(ctx context.Context, args []string, recipientEthPrivateKey strin
 	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
 	defer span.End()
 
-	service.ClaimWithdrawals(spanCtx, u.cfg, u.log, u.sb, recipientEthPrivateKey)
-
-	return nil
+	return service.ClaimWithdrawals(spanCtx, u.cfg, u.sb, recipientEthPrivateKey)
 }

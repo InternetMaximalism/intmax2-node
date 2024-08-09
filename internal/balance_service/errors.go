@@ -8,7 +8,7 @@ const (
 )
 
 var ErrInvalidTokenType = errors.New("invalid token type. Use 'eth', 'erc20', 'erc721', or 'erc1155'")
-var ErrTokenNotFound = errors.New("token not found on INTMAX network")
+var ErrTokenNotFoundOnIntMax = errors.New("token not found on INTMAX network")
 var ErrFetchBalanceByUserAddressAndTokenInfoWithDBApp = errors.New("failed to fetch balance by user address and token info with DBApp")
 var ErrInvalidPrivateKey = errors.New("invalid private key")
 var ErrRecoverWalletFromPrivateKey = errors.New("fail to recover INTMAX private key")

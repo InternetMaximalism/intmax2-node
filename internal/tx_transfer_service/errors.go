@@ -2,9 +2,7 @@ package tx_transfer_service
 
 import "errors"
 
-const (
-	ErrFailedToGetBalance = "failed to get balance"
-)
+var ErrFailedToGetBalance = errors.New("failed to get balance")
 
 // ErrTokenNotFound error: token not found.
 var ErrTokenNotFound = errors.New("token not found")

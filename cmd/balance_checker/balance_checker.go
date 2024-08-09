@@ -2,8 +2,10 @@ package balance_checker
 
 import (
 	"context"
+	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
+	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -48,12 +50,10 @@ func getBalanceCmd(b *Balance) *cobra.Command {
 	cmd.PersistentFlags().StringVar(&userEthPrivateKey, userPrivateKeyKey, emptyKey, userAddressDescription)
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
-		l := b.Log.WithFields(logger.Fields{"module": use})
-
 		err := newCommands().GetBalance(b.Config, b.Log, b.SB).Do(b.Context, args, userEthPrivateKey)
 		if err != nil {
-			const msg = "failed to get balance: %v"
-			l.Fatalf(msg, err.Error())
+			fmt.Fprintf(os.Stderr, "Fatal: %v\n", err)
+			os.Exit(1)
 		}
 	}
 

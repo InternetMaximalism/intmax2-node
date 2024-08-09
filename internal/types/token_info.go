@@ -61,9 +61,9 @@ func (ti *TokenInfo) ParseFromStrings(args []string) (*TokenInfo, error) {
 		tokenType = erc20TokenTypeEnum
 		tokenAddressBytes, err := hexutil.Decode(args[1])
 		if err != nil {
-			return nil, ErrERC721BalanceCheckArgs
+			return nil, ErrERC20BalanceCheckArgs
 		}
-		tokenAddress = common.Address(tokenAddressBytes)
+		tokenAddress = common.BytesToAddress(tokenAddressBytes)
 	case erc721TokenType:
 		if len(args) != int3Key {
 			return nil, ErrERC721BalanceCheckArgs
@@ -73,7 +73,7 @@ func (ti *TokenInfo) ParseFromStrings(args []string) (*TokenInfo, error) {
 		if err != nil {
 			return nil, ErrERC721BalanceCheckArgs
 		}
-		tokenAddress = common.Address(tokenAddressBytes)
+		tokenAddress = common.BytesToAddress(tokenAddressBytes)
 		tokenIDStr := args[2]
 		tokenID, ok = new(big.Int).SetString(tokenIDStr, int10Key)
 		if !ok {
@@ -86,13 +86,13 @@ func (ti *TokenInfo) ParseFromStrings(args []string) (*TokenInfo, error) {
 		tokenType = erc1155TokenTypeEnum
 		tokenAddressBytes, err := hexutil.Decode(args[1])
 		if err != nil {
-			return nil, ErrERC721BalanceCheckArgs
+			return nil, ErrERC1155BalanceCheckArgs
 		}
-		tokenAddress = common.Address(tokenAddressBytes)
+		tokenAddress = common.BytesToAddress(tokenAddressBytes)
 		tokenIDStr := args[2]
 		tokenID, ok = new(big.Int).SetString(tokenIDStr, int10Key)
 		if !ok {
-			return nil, ErrERC721BalanceCheckArgs
+			return nil, ErrERC1155BalanceCheckArgs
 		}
 	default:
 		return nil, ErrInvalidTokenType
