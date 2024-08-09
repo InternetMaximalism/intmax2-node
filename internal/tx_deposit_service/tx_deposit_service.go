@@ -33,6 +33,10 @@ const DepositEventSignatureID = "0x1e88950eef3c1bd8dd83d765aec1f21f34ca153104f0a
 var ErrRecipientPublicKey = errors.New("failed to get recipient public key")
 var ErrCreateTransactor = errors.New("failed to create transactor")
 var ErrWaitForTransaction = errors.New("failed to wait for transaction to be mined")
+var ErrInsufficientERC20Balance = errors.New("the specified ERC20 is not owned by the account or insufficient balance")
+var ErrInsufficientERC721Balance = errors.New("the specified ERC721 is not owned by the account")
+var ErrFailedToApproveERC20Transaction = errors.New("failed to send ERC20.Approve transaction")
+var ErrFailedToApproveERC721Transaction = errors.New("failed to send ERC721.Approve transaction")
 
 type TxDepositService struct {
 	ctx       context.Context
@@ -285,9 +289,20 @@ func (d *TxDepositService) depositErc20(
 		return nil, fmt.Errorf("failed to instantiate a ERC20 contract: %w", err)
 	}
 
+	balance, err := erc20.BalanceOf(&bind.CallOpts{
+		Pending: false,
+		Context: d.ctx,
+	}, transactOpts.From)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ERC20 token balance: %w", err)
+	}
+	if balance.Cmp(amount) < 0 {
+		return nil, ErrInsufficientERC20Balance
+	}
+
 	tx, err := erc20.Approve(transactOpts, common.HexToAddress(d.cfg.Blockchain.LiquidityContractAddress), amount)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send ERC20.Approve transaction: %w", err)
+		return nil, errors.Join(ErrFailedToApproveERC20Transaction, err)
 	}
 
 	_, err = bind.WaitMined(d.ctx, d.client, tx)
@@ -332,14 +347,25 @@ func (d *TxDepositService) depositErc721(
 	}
 	defer client.Close()
 
-	erc20, err := bindings.NewErc721(tokenAddress, client)
+	erc721, err := bindings.NewErc721(tokenAddress, client)
 	if err != nil {
-		return nil, fmt.Errorf("failed to instantiate a ERC20 contract: %w", err)
+		return nil, fmt.Errorf("failed to instantiate a ERC721 contract: %w", err)
 	}
 
-	tx, err := erc20.Approve(transactOpts, common.HexToAddress(d.cfg.Blockchain.LiquidityContractAddress), tokenId)
+	owner, err := erc721.OwnerOf(&bind.CallOpts{
+		Pending: false,
+		Context: d.ctx,
+	}, tokenId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send ERC721.Approve transaction: %w", err)
+		return nil, fmt.Errorf("failed to get ERC721 token balance: %w", err)
+	}
+	if owner != transactOpts.From {
+		return nil, ErrInsufficientERC721Balance
+	}
+
+	tx, err := erc721.Approve(transactOpts, common.HexToAddress(d.cfg.Blockchain.LiquidityContractAddress), tokenId)
+	if err != nil {
+		return nil, errors.Join(ErrFailedToApproveERC721Transaction, err)
 	}
 
 	_, err = bind.WaitMined(d.ctx, d.client, tx)
