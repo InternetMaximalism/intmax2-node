@@ -31,4 +31,7 @@ type Blockchain struct {
 	DepositAnalyzerMinutesThreshold uint64 `env:"BLOCKCHAIN_DEPOSIT_ANALYZER_MINUTES_THRESHOLD" envDefault:"10"`
 	DepositRelayerThreshold         uint64 `env:"BLOCKCHAIN_DEPOSIT_RELAYER_THRESHOLD" envDefault:"128"`
 	DepositRelayerMinutesThreshold  uint64 `env:"BLOCKCHAIN_DEPOSIT_RELAYER_MINUTES_THRESHOLD" envDefault:"60"`
+
+	WithdrawalAggregatorThreshold        uint64 `env:"BLOCKCHAIN_WITHDRAWAL_AGGREGATOR_THRESHOLD" envDefault:"8"`
+	WithdrawalAggregatorMinutesThreshold uint64 `env:"BLOCKCHAIN_WITHDRAWAL_AGGREGATOR_MINUTES_THRESHOLD" envDefault:"15"`
 }

@@ -28,9 +28,6 @@ import (
 )
 
 const (
-	withdrawalThreshold = 8
-	waitDuration        = 15 * time.Minute
-
 	int10Key = 10
 	int32Key = 32
 )
@@ -151,7 +148,7 @@ func WithdrawalAggregator(ctx context.Context, cfg *configs.Config, log logger.L
 }
 
 func (w *WithdrawalAggregatorService) fetchPendingWithdrawals() (*[]mDBApp.Withdrawal, error) {
-	limit := int(withdrawalThreshold)
+	limit := int(w.cfg.Blockchain.WithdrawalAggregatorThreshold)
 	withdrawals, err := w.db.WithdrawalsByStatus(mDBApp.WS_PENDING, &limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find pending withdrawals: %w", err)
@@ -170,15 +167,16 @@ func (w *WithdrawalAggregatorService) shouldProcessWithdrawals(pendingWithdrawal
 		}
 	}
 
+	waitDuration := time.Duration(w.cfg.Blockchain.WithdrawalAggregatorMinutesThreshold) * time.Minute
 	if time.Since(minCreatedAt) >= waitDuration {
 		w.log.Infof("Pending withdrawals are older than %s, processing", waitDuration)
 		return true
 	}
 
 	withdrawalCount := len(pendingWithdrawals)
-	log.Printf("Number of pending withdrawals: %d (Threshold: %d)", withdrawalCount, withdrawalThreshold)
+	log.Printf("Number of pending withdrawals: %d (Threshold: %d)", withdrawalCount, w.cfg.Blockchain.WithdrawalAggregatorThreshold)
 
-	return withdrawalCount >= withdrawalThreshold
+	return withdrawalCount >= int(w.cfg.Blockchain.WithdrawalAggregatorThreshold)
 }
 
 func HashWithdrawalPis(pis bindings.WithdrawalProofPublicInputsLibWithdrawalProofPublicInputs) (common.Hash, error) {
