@@ -22,8 +22,8 @@ func NewCmd(log logger.Logger) *cobra.Command {
 
 	const (
 		emptyKey                   = ""
-		privateKeyInHexKey         = "private_key"
-		privateKeyInHexDescription = "private_key flag. use as --private_key \"__PRIVATE_KEY_IN_HEX_WITHOUT_0x__\""
+		privateKeyInHexKey         = "private-key"
+		privateKeyInHexDescription = "user's private key. use as --private-key \"__PRIVATE_KEY_IN_HEX_WITHOUT_0x__\""
 		developerModeKey           = "developer"
 		developerModeDescription   = "Enable developer mode to output all information in JSON format."
 	)

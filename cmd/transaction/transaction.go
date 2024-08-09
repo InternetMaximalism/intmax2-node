@@ -42,9 +42,9 @@ func txTransferCmd(b *Transaction) *cobra.Command {
 		emptyKey               = ""
 		amountDescription      = "specify amount without decimals. use as --amount \"10\""
 		recipientKey           = "recipient"
-		recipientDescription   = "specify recipient address. use as --recipient \"0x0000000000000000000000000000000000000000000000000000000000000000\""
-		userPrivateKeyKey      = "user-private"
-		userPrivateDescription = "specify user Ethereum address. use as --user-private \"0x0000000000000000000000000000000000000000000000000000000000000000\""
+		recipientDescription   = "specify recipient INTMAX address. use as --recipient \"0x0000000000000000000000000000000000000000000000000000000000000000\""
+		userPrivateKeyKey      = "private-key"
+		userPrivateDescription = "specify user's Ethereum private key. use as --private-key \"0x0000000000000000000000000000000000000000000000000000000000000000\""
 	)
 
 	cmd := cobra.Command{
@@ -83,8 +83,8 @@ func txDepositCmd(b *Transaction) *cobra.Command {
 		amountDescription      = "specify amount without decimals. use as --amount \"10\""
 		recipientKey           = "recipient"
 		recipientDescription   = "specify recipient INTMAX address. use as --recipient \"0x0000000000000000000000000000000000000000000000000000000000000000\""
-		userPrivateKeyKey      = "user-private"
-		userPrivateDescription = "specify user's Ethereum address. use as --user-private \"0x0000000000000000000000000000000000000000000000000000000000000000\""
+		userPrivateKeyKey      = "private-key"
+		userPrivateDescription = "specify user's Ethereum private key. use as --private-key \"0x0000000000000000000000000000000000000000000000000000000000000000\""
 	)
 
 	cmd := cobra.Command{
@@ -117,14 +117,14 @@ func txDepositCmd(b *Transaction) *cobra.Command {
 func txWithdrawalCmd(b *Transaction) *cobra.Command {
 	const (
 		use                    = "withdrawal"
-		short                  = "Send withdraw transaction"
+		short                  = "Send withdrawal transaction"
 		amountKey              = "amount"
 		emptyKey               = ""
 		amountDescription      = "specify amount without decimals. use as --amount \"10\""
 		recipientKey           = "recipient"
 		recipientDescription   = "specify recipient Ethereum address. use as --recipient \"0x0000000000000000000000000000000000000000\""
-		userPrivateKeyKey      = "user-private"
-		userPrivateDescription = "specify user address. use as --user-private \"0x0000000000000000000000000000000000000000000000000000000000000000\""
+		userPrivateKeyKey      = "private-key"
+		userPrivateDescription = "specify user's private key. use as --private-key \"0x0000000000000000000000000000000000000000000000000000000000000000\""
 		resumeKey              = "resume"
 		defaultResume          = false
 		resumeDescription      = "resume withdrawal. use as --resume"
@@ -164,9 +164,9 @@ func txClaimCmd(b *Transaction) *cobra.Command {
 	const (
 		use                    = "claim"
 		short                  = "Send claim transaction"
-		userEthPrivateKeyKey   = "user-private"
+		userEthPrivateKeyKey   = "private-key"
 		emptyKey               = ""
-		userPrivateDescription = "specify user's Ethereum address. use as --user-private \"0x0000000000000000000000000000000000000000000000000000000000000000\""
+		userPrivateDescription = "specify user's Ethereum private key. use as --private-key \"0x0000000000000000000000000000000000000000000000000000000000000000\""
 	)
 
 	cmd := cobra.Command{
