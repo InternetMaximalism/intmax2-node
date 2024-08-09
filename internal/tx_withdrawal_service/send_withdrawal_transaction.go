@@ -15,6 +15,7 @@ import (
 	"intmax2-node/internal/use_cases/transaction"
 	"intmax2-node/internal/use_cases/withdrawal_request"
 	"intmax2-node/internal/use_cases/withdrawals_by_hashes"
+	withdrawalService "intmax2-node/internal/withdrawal_service"
 	"net/http"
 	"strconv"
 	"time"
@@ -178,7 +179,6 @@ func sendWithdrawalRawRequest(
 	if err != nil {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
-	fmt.Printf("bd: %s\n", string(bd))
 
 	const (
 		httpKey     = "http"
@@ -202,6 +202,20 @@ func sendWithdrawalRawRequest(
 	if resp == nil {
 		const msg = "send request error occurred"
 		return fmt.Errorf(msg)
+	}
+
+	if resp.StatusCode() == http.StatusBadRequest {
+		respJSON := intMaxTypes.ErrorResponse{}
+		err = json.Unmarshal([]byte(resp.String()), &respJSON)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal response: %w", err)
+		}
+
+		if respJSON.Message == withdrawalService.ErrWithdrawalRequestAlreadyExists.Error() {
+			return withdrawalService.ErrWithdrawalRequestAlreadyExists
+		}
+
+		return fmt.Errorf("failed to get response")
 	}
 
 	if resp.StatusCode() != http.StatusOK {
