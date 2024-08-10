@@ -988,9 +988,10 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 				senderAccountIDs[indexSA] = lft.SenderAccountIDs[indexSA].Uint64()
 			}
 
+			actualTxTreeRoot, _, _ := lft.TxTree.GetCurrentRootCountAndSiblings()
 			var bc *intMaxTypes.BlockContent
 			bc, err = block_post_service.MakeNonRegistrationBlock(
-				*lft.TxRoot,
+				actualTxTreeRoot,
 				senderAccountIDs,
 				lft.SenderPublicKeys,
 				signatures,
