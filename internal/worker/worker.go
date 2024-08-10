@@ -796,7 +796,7 @@ func (w *worker) leafsProcessing(f *os.File) (err error) {
 
 		w.files.FilesList[f].Lock()
 		w.files.FilesList[f].LeafsTreeAccounts = &LeafsTree{
-			TxTree:                 txTreePublicKeys,
+			TxTree:                 txTreeAccountIDs,
 			TxRoot:                 &txRoot,
 			Count:                  count,
 			Siblings:               sb,
