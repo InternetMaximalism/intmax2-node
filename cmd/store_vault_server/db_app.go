@@ -42,6 +42,6 @@ type BackupTransactions interface {
 
 type BackupDeposits interface {
 	CreateBackupDeposit(input *backupDeposit.UCPostBackupDepositInput) (*mDBApp.BackupDeposit, error)
-	GetBackupDeposit(condition string, value string) (*mDBApp.BackupDeposit, error)
+	GetBackupDeposit(conditions []string, values []interface{}) (*mDBApp.BackupDeposit, error)
 	GetBackupDeposits(condition string, value interface{}) ([]*mDBApp.BackupDeposit, error)
 }

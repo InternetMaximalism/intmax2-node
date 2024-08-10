@@ -12,8 +12,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-func (s *StoreVaultServer) GetBackupDeposit(ctx context.Context, req *node.GetBackupDepositRequest) (*node.GetBackupDepositResponse, error) {
-	resp := node.GetBackupDepositResponse{}
+func (s *StoreVaultServer) GetBackupDeposits(ctx context.Context, req *node.GetBackupDepositsRequest) (*node.GetBackupDepositsResponse, error) {
+	resp := node.GetBackupDepositsResponse{}
 
 	const (
 		hName      = "Handler GetBackupDeposit"
@@ -26,7 +26,7 @@ func (s *StoreVaultServer) GetBackupDeposit(ctx context.Context, req *node.GetBa
 		))
 	defer span.End()
 
-	input := backupDeposit.UCGetBackupDepositInput{
+	input := backupDeposit.UCGetBackupDepositsInput{
 		Sender:           req.Sender,
 		StartBlockNumber: req.StartBlockNumber,
 		Limit:            req.Limit,
@@ -41,7 +41,7 @@ func (s *StoreVaultServer) GetBackupDeposit(ctx context.Context, req *node.GetBa
 	err = s.dbApp.Exec(spanCtx, nil, func(d interface{}, _ interface{}) (err error) {
 		q, _ := d.(SQLDriverApp)
 
-		results, err := s.commands.GetBackupDeposit(s.config, s.log, q).Do(spanCtx, &input)
+		results, err := s.commands.GetBackupDeposits(s.config, s.log, q).Do(spanCtx, &input)
 		if err != nil {
 			open_telemetry.MarkSpanError(spanCtx, err)
 			const msg = "failed to get backup deposit: %w"

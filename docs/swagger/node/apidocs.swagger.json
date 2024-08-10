@@ -148,14 +148,14 @@
         ]
       }
     },
-    "/v1/backups/deposit": {
+    "/v1/backups/deposits": {
       "get": {
-        "operationId": "StoreVaultService_GetBackupDeposit",
+        "operationId": "StoreVaultService_GetBackupDeposits",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1GetBackupDepositResponse"
+              "$ref": "#/definitions/v1GetBackupDepositsResponse"
             }
           },
           "400": {
@@ -798,6 +798,27 @@
     }
   },
   "definitions": {
+    "GetBackupDepositsResponseDeposit": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "recipient": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "encryptedDeposit": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      }
+    },
     "nodev1Transaction": {
       "type": "object",
       "properties": {
@@ -1343,57 +1364,45 @@
         }
       }
     },
-    "v1GetBackupDepositResponse": {
+    "v1GetBackupDepositsResponse": {
       "type": "object",
       "properties": {
         "success": {
           "type": "boolean"
         },
         "data": {
-          "$ref": "#/definitions/v1GetBackupDepositResponseData"
+          "$ref": "#/definitions/v1GetBackupDepositsResponseData"
         },
         "error": {
           "$ref": "#/definitions/v1StoreVaultError"
         }
       }
     },
-    "v1GetBackupDepositResponseData": {
+    "v1GetBackupDepositsResponseData": {
       "type": "object",
       "properties": {
-        "transactions": {
+        "deposits": {
           "type": "array",
           "items": {
             "type": "object",
-            "$ref": "#/definitions/v1GetBackupDepositResponseTransaction"
+            "$ref": "#/definitions/GetBackupDepositsResponseDeposit"
           }
         },
         "meta": {
-          "$ref": "#/definitions/v1GetBackupDepositResponseMeta"
+          "$ref": "#/definitions/v1GetBackupDepositsResponseMeta"
         }
       }
     },
-    "v1GetBackupDepositResponseMeta": {
+    "v1GetBackupDepositsResponseMeta": {
       "type": "object",
       "properties": {
         "startBlockNumber": {
-          "type": "integer",
-          "format": "int32"
+          "type": "string",
+          "format": "uint64"
         },
         "endBlockNumber": {
-          "type": "integer",
-          "format": "int32"
-        }
-      }
-    },
-    "v1GetBackupDepositResponseTransaction": {
-      "type": "object",
-      "properties": {
-        "encryptedTx": {
-          "type": "string"
-        },
-        "blockNumber": {
-          "type": "integer",
-          "format": "int32"
+          "type": "string",
+          "format": "uint64"
         }
       }
     },

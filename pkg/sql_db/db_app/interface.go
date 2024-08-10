@@ -119,7 +119,7 @@ type BackupTransactions interface {
 
 type BackupDeposits interface {
 	CreateBackupDeposit(input *backupDeposit.UCPostBackupDepositInput) (*models.BackupDeposit, error)
-	GetBackupDeposit(condition string, value string) (*models.BackupDeposit, error)
+	GetBackupDeposit(conditions []string, values []interface{}) (*models.BackupDeposit, error)
 	GetBackupDeposits(condition string, value interface{}) ([]*models.BackupDeposit, error)
 }
 

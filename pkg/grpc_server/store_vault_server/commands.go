@@ -9,7 +9,7 @@ import (
 	backupTransfer "intmax2-node/internal/use_cases/backup_transfer"
 	verifyDepositConfirmation "intmax2-node/internal/use_cases/verify_deposit_confirmation"
 	ucGetBackupBalance "intmax2-node/pkg/use_cases/get_backup_balance"
-	ucGetBackupDeposit "intmax2-node/pkg/use_cases/get_backup_deposit"
+	ucGetBackupDeposits "intmax2-node/pkg/use_cases/get_backup_deposits"
 	ucGetBackupTransaction "intmax2-node/pkg/use_cases/get_backup_transaction"
 	ucGetBackupTransfer "intmax2-node/pkg/use_cases/get_backup_transfer"
 	ucGetBalances "intmax2-node/pkg/use_cases/get_balances"
@@ -29,7 +29,7 @@ type Commands interface {
 	PostBackupBalance(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupBalance.UseCasePostBackupBalance
 	GetBackupTransfer(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupTransfer.UseCaseGetBackupTransfer
 	GetBackupTransaction(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupTransaction.UseCaseGetBackupTransaction
-	GetBackupDeposit(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupDeposit.UseCaseGetBackupDeposit
+	GetBackupDeposits(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupDeposit.UseCaseGetBackupDeposits
 	GetBackupBalance(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupBalance.UseCaseGetBackupBalance
 	GetBalances(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupBalance.UseCaseGetBalances
 	GetVerifyDepositConfirmation(cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) verifyDepositConfirmation.UseCaseGetVerifyDepositConfirmation
@@ -69,8 +69,8 @@ func (c *commands) GetBackupTransaction(cfg *configs.Config, log logger.Logger, 
 	return ucGetBackupTransaction.New(cfg, log, db)
 }
 
-func (c *commands) GetBackupDeposit(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupDeposit.UseCaseGetBackupDeposit {
-	return ucGetBackupDeposit.New(cfg, log, db)
+func (c *commands) GetBackupDeposits(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupDeposit.UseCaseGetBackupDeposits {
+	return ucGetBackupDeposits.New(cfg, log, db)
 }
 
 func (c *commands) GetBackupBalance(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupBalance.UseCaseGetBackupBalance {

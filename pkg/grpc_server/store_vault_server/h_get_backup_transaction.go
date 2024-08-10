@@ -60,6 +60,3 @@ func (s *StoreVaultServer) GetBackupTransaction(ctx context.Context, req *node.G
 
 	return &resp, utils.OK(spanCtx)
 }
-
-// Meta: &node.GetBackupTransactionResponse_Meta{
-//

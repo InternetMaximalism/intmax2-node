@@ -1,4 +1,4 @@
-package get_backup_deposit
+package get_backup_deposits
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 )
 
-//go:generate mockgen -destination=mock_db_app_test.go -package=get_backup_deposit_test -source=db_app.go
+//go:generate mockgen -destination=mock_db_app_test.go -package=get_backup_deposits_test -source=db_app.go
 
 type SQLDriverApp interface {
 	GenericCommandsApp
@@ -35,6 +35,6 @@ type BackupTransactions interface {
 
 type BackupDeposits interface {
 	CreateBackupDeposit(input *backupDeposit.UCPostBackupDepositInput) (*mDBApp.BackupDeposit, error)
-	GetBackupDeposit(condition string, value string) (*mDBApp.BackupDeposit, error)
+	GetBackupDeposit(conditions []string, values []interface{}) (*mDBApp.BackupDeposit, error)
 	GetBackupDeposits(condition string, value interface{}) ([]*mDBApp.BackupDeposit, error)
 }

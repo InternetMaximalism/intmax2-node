@@ -47,14 +47,14 @@ service StoreVaultService {
   // ## This method handles the deposit of backup data.
   rpc BackupDeposit(BackupDepositRequest) returns (BackupDepositResponse) {
     option (google.api.http) = {
-      post: "/v1/backups/deposit"
+      post: "/v1/backups/deposits"
       body: "*"
     };
   }
 
-  rpc GetBackupDeposit(GetBackupDepositRequest) returns (GetBackupDepositResponse) {
+  rpc GetBackupDeposits(GetBackupDepositsRequest) returns (GetBackupDepositsResponse) {
     option (google.api.http) = {
-      get: "/v1/backups/deposit"
+      get: "/v1/backups/deposits"
     };
   }
 
@@ -222,29 +222,32 @@ message BackupDepositResponse {
   }
 }
 
-message GetBackupDepositRequest {
+message GetBackupDepositsRequest {
   string sender = 1;
   uint64 startBlockNumber = 2;
   uint64 limit = 3;
 }
 
-message GetBackupDepositResponse {
+message GetBackupDepositsResponse {
   bool success = 1;
   Data data = 2;
 
   message Data {
-    repeated Transaction transactions = 1;
+    repeated Deposit deposits = 1;
     Meta meta = 2;
   }
 
-  message Transaction {
-    string encryptedTx = 1;
-    int32 blockNumber = 2;
+  message Deposit {
+    string id = 1;
+    string recipient = 2;
+    uint64 blockNumber = 3;
+    string encryptedDeposit = 4;
+    string createdAt = 5;
   }
 
   message Meta {
-    int32 startBlockNumber = 1;
-    int32 endBlockNumber = 2;
+    uint64 startBlockNumber = 1;
+    uint64 endBlockNumber = 2;
   }
 
   StoreVaultError error = 3;

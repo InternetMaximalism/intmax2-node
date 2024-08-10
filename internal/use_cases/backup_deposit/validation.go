@@ -21,7 +21,7 @@ func (input *UCPostBackupDepositInput) Valid() error {
 	)
 }
 
-func (input *UCGetBackupDepositInput) Valid() error {
+func (input *UCGetBackupDepositsInput) Valid() error {
 	return validation.ValidateStruct(input,
 		validation.Field(&input.Sender, validation.Required),
 	)
