@@ -614,7 +614,11 @@ func (w *worker) leafsProcessing(f *os.File) (err error) {
 	spKeysByAccIDs := make(map[string]*intMaxAcc.PublicKey)
 	accIDsByAccIDs := make(map[string]*uint256.Int)
 
-	var numberPublicKeys, numberAccountIDs int
+	var (
+		numberPublicKeys, numberAccountIDs int
+
+		lfhPubKey, lfhAccIDs []*signaturesByLeafIndex
+	)
 	err = w.files.FilesList[f].KvDB.View(func(tx *bolt.Tx) (err error) {
 		b := tx.Bucket([]byte(bucket))
 		if b == nil {
@@ -687,6 +691,12 @@ func (w *worker) leafsProcessing(f *os.File) (err error) {
 						spKeysByAccIDs[info.TxsList[key].Sender] = publicKey
 						accIDsByAccIDs[info.TxsList[key].Sender] = lfh.AccountID
 					}
+
+					lfhAccIDs = append(lfhAccIDs, &signaturesByLeafIndex{
+						Sender:    info.TxsList[key].Sender,
+						TxHash:    info.TxsList[key].TxHash.Hash().String(),
+						LeafIndex: lfh.Index,
+					})
 				} else {
 					lfh.Index = uint64(numberPublicKeys)
 					_, err = txTreePublicKeys.AddLeaf(lfh.Index, info.TxsList[key].TxHash)
@@ -702,6 +712,12 @@ func (w *worker) leafsProcessing(f *os.File) (err error) {
 						}
 						spKeys[info.TxsList[key].Sender] = publicKey
 					}
+
+					lfhPubKey = append(lfhPubKey, &signaturesByLeafIndex{
+						Sender:    info.TxsList[key].Sender,
+						TxHash:    info.TxsList[key].TxHash.Hash().String(),
+						LeafIndex: lfh.Index,
+					})
 				}
 
 				w.files.Lock()
@@ -751,7 +767,7 @@ func (w *worker) leafsProcessing(f *os.File) (err error) {
 			SenderPublicKeys:       senderPublicKeys,
 			KeysOfSenderPublicKeys: keysOfSenderPublicKeys,
 			Signatures:             make([]*signaturesByLeafIndex, len(senderPublicKeys)),
-			SignaturesByLeafIndex:  make([]*signaturesByLeafIndex, numberPublicKeys),
+			SignaturesByLeafIndex:  lfhPubKey,
 		}
 		w.files.FilesList[f].Unlock()
 	}
@@ -788,7 +804,7 @@ func (w *worker) leafsProcessing(f *os.File) (err error) {
 			KeysOfSenderPublicKeys: keysOfSenderPublicKeys,
 			SenderAccountIDs:       senderAccountIDs,
 			Signatures:             make([]*signaturesByLeafIndex, len(senderPublicKeys)),
-			SignaturesByLeafIndex:  make([]*signaturesByLeafIndex, numberAccountIDs),
+			SignaturesByLeafIndex:  lfhAccIDs,
 		}
 		w.files.FilesList[f].Unlock()
 	}
@@ -1089,13 +1105,8 @@ func (w *worker) SignTxTreeByAvailableFile(
 				LeafIndex: leafIndex,
 				CreatedAt: tm,
 			}
-			w.files.FilesList[sf.File].LeafsTreeAccounts.SignaturesByLeafIndex[leafIndex] = &signaturesByLeafIndex{
-				Sender:    sf.Sender,
-				TxHash:    sf.TxHash,
-				Signature: signature,
-				LeafIndex: leafIndex,
-				CreatedAt: tm,
-			}
+			w.files.FilesList[sf.File].LeafsTreeAccounts.SignaturesByLeafIndex[leafIndex].Signature = signature
+			w.files.FilesList[sf.File].LeafsTreeAccounts.SignaturesByLeafIndex[leafIndex].CreatedAt = tm
 			w.files.FilesList[sf.File].LeafsTreeAccounts.SignaturesCounter++
 		}
 	}
@@ -1110,13 +1121,8 @@ func (w *worker) SignTxTreeByAvailableFile(
 				LeafIndex: leafIndex,
 				CreatedAt: tm,
 			}
-			w.files.FilesList[sf.File].LeafsTreePublicKeys.SignaturesByLeafIndex[leafIndex] = &signaturesByLeafIndex{
-				Sender:    sf.Sender,
-				TxHash:    sf.TxHash,
-				Signature: signature,
-				LeafIndex: leafIndex,
-				CreatedAt: tm,
-			}
+			w.files.FilesList[sf.File].LeafsTreePublicKeys.SignaturesByLeafIndex[leafIndex].Signature = signature
+			w.files.FilesList[sf.File].LeafsTreePublicKeys.SignaturesByLeafIndex[leafIndex].CreatedAt = tm
 			w.files.FilesList[sf.File].LeafsTreePublicKeys.SignaturesCounter++
 		}
 	}
