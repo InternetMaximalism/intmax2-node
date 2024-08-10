@@ -1,4 +1,4 @@
-package get_backup_balance
+package get_backup_balances
 
 import (
 	"context"
@@ -17,7 +17,7 @@ type uc struct {
 	db  SQLDriverApp
 }
 
-func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backup_balance.UseCaseGetBackupBalance {
+func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backup_balance.UseCaseGetBackupBalances {
 	return &uc{
 		cfg: cfg,
 		log: log,
@@ -26,8 +26,8 @@ func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backup_balance
 }
 
 func (u *uc) Do(
-	ctx context.Context, input *backup_balance.UCGetBackupBalanceInput,
-) (*node.GetBackupBalanceResponse_Data, error) {
+	ctx context.Context, input *backup_balance.UCGetBackupBalancesInput,
+) (*node.GetBackupBalancesResponse_Data, error) {
 	const (
 		hName          = "UseCase GetBackupBalance"
 		userKey        = "user"
@@ -38,8 +38,8 @@ func (u *uc) Do(
 	defer span.End()
 
 	if input == nil {
-		open_telemetry.MarkSpanError(spanCtx, ErrUCGetBackupBalanceInputEmpty)
-		return nil, ErrUCGetBackupBalanceInputEmpty
+		open_telemetry.MarkSpanError(spanCtx, ErrUCGetBackupBalancesInputEmpty)
+		return nil, ErrUCGetBackupBalancesInputEmpty
 	}
 
 	span.SetAttributes(
@@ -50,9 +50,9 @@ func (u *uc) Do(
 	// TODO: Implement backup balance get logic here.
 	service.GetBackupBalance(ctx, u.cfg, u.log, u.db, input)
 
-	data := node.GetBackupBalanceResponse_Data{
+	data := node.GetBackupBalancesResponse_Data{
 		Transactions: genTransaction(),
-		Meta: &node.GetBackupBalanceResponse_Meta{
+		Meta: &node.GetBackupBalancesResponse_Meta{
 			StartBlockNumber: 0,
 			EndBlockNumber:   0,
 		},
@@ -61,9 +61,9 @@ func (u *uc) Do(
 	return &data, nil
 }
 
-func genTransaction() []*node.GetBackupBalanceResponse_Transaction {
-	result := make([]*node.GetBackupBalanceResponse_Transaction, 1)
-	result[0] = &node.GetBackupBalanceResponse_Transaction{
+func genTransaction() []*node.GetBackupBalancesResponse_Transaction {
+	result := make([]*node.GetBackupBalancesResponse_Transaction, 1)
+	result[0] = &node.GetBackupBalancesResponse_Transaction{
 		EncryptedTx: "0x123",
 		BlockNumber: 1000,
 	}

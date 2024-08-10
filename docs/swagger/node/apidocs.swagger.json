@@ -62,14 +62,14 @@
         ]
       }
     },
-    "/v1/backups/balance": {
+    "/v1/backups/balances": {
       "get": {
-        "operationId": "StoreVaultService_GetBackupBalance",
+        "operationId": "StoreVaultService_GetBackupBalances",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1GetBackupBalanceResponse"
+              "$ref": "#/definitions/v1GetBackupBalancesResponse"
             }
           },
           "400": {
@@ -237,14 +237,14 @@
         ]
       }
     },
-    "/v1/backups/transaction": {
+    "/v1/backups/transactions": {
       "get": {
-        "operationId": "StoreVaultService_GetBackupTransaction",
+        "operationId": "StoreVaultService_GetBackupTransactions",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1GetBackupTransactionResponse"
+              "$ref": "#/definitions/v1GetBackupTransactionsResponse"
             }
           },
           "400": {
@@ -326,14 +326,14 @@
         ]
       }
     },
-    "/v1/backups/transfer": {
+    "/v1/backups/transfers": {
       "get": {
-        "operationId": "StoreVaultService_GetBackupTransfer",
+        "operationId": "StoreVaultService_GetBackupTransfers",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1GetBackupTransferResponse"
+              "$ref": "#/definitions/v1GetBackupTransfersResponse"
             }
           },
           "400": {
@@ -812,6 +812,27 @@
           "format": "uint64"
         },
         "encryptedDeposit": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      }
+    },
+    "GetBackupTransfersResponseTransfer": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "recipient": {
+          "type": "string"
+        },
+        "encryptedTransfer": {
           "type": "string"
         },
         "createdAt": {
@@ -1310,36 +1331,36 @@
       },
       "title": "EnoughBalanceProof contains the proof for enough balance"
     },
-    "v1GetBackupBalanceResponse": {
+    "v1GetBackupBalancesResponse": {
       "type": "object",
       "properties": {
         "success": {
           "type": "boolean"
         },
         "data": {
-          "$ref": "#/definitions/v1GetBackupBalanceResponseData"
+          "$ref": "#/definitions/v1GetBackupBalancesResponseData"
         },
         "error": {
           "$ref": "#/definitions/v1StoreVaultError"
         }
       }
     },
-    "v1GetBackupBalanceResponseData": {
+    "v1GetBackupBalancesResponseData": {
       "type": "object",
       "properties": {
         "transactions": {
           "type": "array",
           "items": {
             "type": "object",
-            "$ref": "#/definitions/v1GetBackupBalanceResponseTransaction"
+            "$ref": "#/definitions/v1GetBackupBalancesResponseTransaction"
           }
         },
         "meta": {
-          "$ref": "#/definitions/v1GetBackupBalanceResponseMeta"
+          "$ref": "#/definitions/v1GetBackupBalancesResponseMeta"
         }
       }
     },
-    "v1GetBackupBalanceResponseMeta": {
+    "v1GetBackupBalancesResponseMeta": {
       "type": "object",
       "properties": {
         "startBlockNumber": {
@@ -1352,7 +1373,7 @@
         }
       }
     },
-    "v1GetBackupBalanceResponseTransaction": {
+    "v1GetBackupBalancesResponseTransaction": {
       "type": "object",
       "properties": {
         "encryptedTx": {
@@ -1406,111 +1427,111 @@
         }
       }
     },
-    "v1GetBackupTransactionResponse": {
+    "v1GetBackupTransactionsResponse": {
       "type": "object",
       "properties": {
         "success": {
           "type": "boolean"
         },
         "data": {
-          "$ref": "#/definitions/v1GetBackupTransactionResponseData"
+          "$ref": "#/definitions/v1GetBackupTransactionsResponseData"
         },
         "error": {
           "$ref": "#/definitions/v1StoreVaultError"
         }
       }
     },
-    "v1GetBackupTransactionResponseData": {
+    "v1GetBackupTransactionsResponseData": {
       "type": "object",
       "properties": {
         "transactions": {
           "type": "array",
           "items": {
             "type": "object",
-            "$ref": "#/definitions/v1GetBackupTransactionResponseTransaction"
+            "$ref": "#/definitions/v1GetBackupTransactionsResponseTransaction"
           }
         },
         "meta": {
-          "$ref": "#/definitions/v1GetBackupTransactionResponseMeta"
+          "$ref": "#/definitions/v1GetBackupTransactionsResponseMeta"
         }
       }
     },
-    "v1GetBackupTransactionResponseMeta": {
+    "v1GetBackupTransactionsResponseMeta": {
       "type": "object",
       "properties": {
         "startBlockNumber": {
-          "type": "integer",
-          "format": "int32"
+          "type": "string",
+          "format": "uint64"
         },
         "endBlockNumber": {
-          "type": "integer",
-          "format": "int32"
+          "type": "string",
+          "format": "uint64"
         }
       }
     },
-    "v1GetBackupTransactionResponseTransaction": {
+    "v1GetBackupTransactionsResponseTransaction": {
       "type": "object",
       "properties": {
-        "encryptedTx": {
+        "id": {
+          "type": "string"
+        },
+        "sender": {
+          "type": "string"
+        },
+        "signature": {
           "type": "string"
         },
         "blockNumber": {
-          "type": "integer",
-          "format": "int32"
+          "type": "string",
+          "format": "uint64"
+        },
+        "encryptedTx": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
         }
       }
     },
-    "v1GetBackupTransferResponse": {
+    "v1GetBackupTransfersResponse": {
       "type": "object",
       "properties": {
         "success": {
           "type": "boolean"
         },
         "data": {
-          "$ref": "#/definitions/v1GetBackupTransferResponseData"
+          "$ref": "#/definitions/v1GetBackupTransfersResponseData"
         },
         "error": {
           "$ref": "#/definitions/v1StoreVaultError"
         }
       }
     },
-    "v1GetBackupTransferResponseData": {
+    "v1GetBackupTransfersResponseData": {
       "type": "object",
       "properties": {
-        "transactions": {
+        "transfers": {
           "type": "array",
           "items": {
             "type": "object",
-            "$ref": "#/definitions/v1GetBackupTransferResponseTransaction"
+            "$ref": "#/definitions/GetBackupTransfersResponseTransfer"
           }
         },
         "meta": {
-          "$ref": "#/definitions/v1GetBackupTransferResponseMeta"
+          "$ref": "#/definitions/v1GetBackupTransfersResponseMeta"
         }
       }
     },
-    "v1GetBackupTransferResponseMeta": {
+    "v1GetBackupTransfersResponseMeta": {
       "type": "object",
       "properties": {
         "startBlockNumber": {
-          "type": "integer",
-          "format": "int32"
+          "type": "string",
+          "format": "uint64"
         },
         "endBlockNumber": {
-          "type": "integer",
-          "format": "int32"
-        }
-      }
-    },
-    "v1GetBackupTransferResponseTransaction": {
-      "type": "object",
-      "properties": {
-        "encryptedTx": {
-          "type": "string"
-        },
-        "blockNumber": {
-          "type": "integer",
-          "format": "int32"
+          "type": "string",
+          "format": "uint64"
         }
       }
     },

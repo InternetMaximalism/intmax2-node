@@ -12,11 +12,11 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-func (s *StoreVaultServer) GetBackupTransfer(ctx context.Context, req *node.GetBackupTransferRequest) (*node.GetBackupTransferResponse, error) {
-	resp := node.GetBackupTransferResponse{}
+func (s *StoreVaultServer) GetBackupTransfers(ctx context.Context, req *node.GetBackupTransfersRequest) (*node.GetBackupTransfersResponse, error) {
+	resp := node.GetBackupTransfersResponse{}
 
 	const (
-		hName      = "Handler GetBackupTransfer"
+		hName      = "Handler GetBackupTransfers"
 		requestKey = "request"
 	)
 
@@ -41,10 +41,10 @@ func (s *StoreVaultServer) GetBackupTransfer(ctx context.Context, req *node.GetB
 	err = s.dbApp.Exec(spanCtx, nil, func(d interface{}, _ interface{}) (err error) {
 		q, _ := d.(SQLDriverApp)
 
-		results, err := s.commands.GetBackupTransfer(s.config, s.log, q).Do(spanCtx, &input)
+		results, err := s.commands.GetBackupTransfers(s.config, s.log, q).Do(spanCtx, &input)
 		if err != nil {
 			open_telemetry.MarkSpanError(spanCtx, err)
-			const msg = "failed to get backup transfer: %w"
+			const msg = "failed to get backup transfers: %w"
 			return fmt.Errorf(msg, err)
 		}
 		resp.Data = results
@@ -52,7 +52,7 @@ func (s *StoreVaultServer) GetBackupTransfer(ctx context.Context, req *node.GetB
 		return nil
 	})
 	if err != nil {
-		const msg = "failed to get backup transfer with DB App: %+v"
+		const msg = "failed to get backup transfers with DB App: %+v"
 		return &resp, utils.Internal(spanCtx, s.log, msg, err)
 	}
 

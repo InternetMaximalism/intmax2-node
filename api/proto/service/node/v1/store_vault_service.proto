@@ -15,14 +15,14 @@ service StoreVaultService {
   // ## This method handles the transfer of backup data.
   rpc BackupTransfer(BackupTransferRequest) returns (BackupTransferResponse) {
     option (google.api.http) = {
-      post: "/v1/backups/transfer"
+      post: "/v1/backups/transfers"
       body: "*"
     };
   }
 
-  rpc GetBackupTransfer(GetBackupTransferRequest) returns (GetBackupTransferResponse) {
+  rpc GetBackupTransfers(GetBackupTransfersRequest) returns (GetBackupTransfersResponse) {
     option (google.api.http) = {
-      get: "/v1/backups/transfer"
+      get: "/v1/backups/transfers"
     };
   }
 
@@ -31,14 +31,14 @@ service StoreVaultService {
   // ## This method handles the transaction of backup data.
   rpc BackupTransaction(BackupTransactionRequest) returns (BackupTransactionResponse) {
     option (google.api.http) = {
-      post: "/v1/backups/transaction"
+      post: "/v1/backups/transactions"
       body: "*"
     };
   }
 
-  rpc GetBackupTransaction(GetBackupTransactionRequest) returns (GetBackupTransactionResponse) {
+  rpc GetBackupTransactions(GetBackupTransactionsRequest) returns (GetBackupTransactionsResponse) {
     option (google.api.http) = {
-      get: "/v1/backups/transaction"
+      get: "/v1/backups/transactions"
     };
   }
 
@@ -60,14 +60,14 @@ service StoreVaultService {
 
   rpc BackupBalance(BackupBalanceRequest) returns (BackupBalanceResponse) {
     option (google.api.http) = {
-      post: "/v1/backups/balance"
+      post: "/v1/backups/balances"
       body: "*"
     };
   }
 
-  rpc GetBackupBalance(GetBackupBalanceRequest) returns (GetBackupBalanceResponse) {
+  rpc GetBackupBalances(GetBackupBalancesRequest) returns (GetBackupBalancesResponse) {
     option (google.api.http) = {
-      get: "/v1/backups/balance"
+      get: "/v1/backups/balances"
     };
   }
 
@@ -113,29 +113,32 @@ message BackupTransferResponse {
   }
 }
 
-message GetBackupTransferRequest {
+message GetBackupTransfersRequest {
   string sender = 1;
   uint64 startBlockNumber = 2;
   uint64 limit = 3;
 }
 
-message GetBackupTransferResponse {
+message GetBackupTransfersResponse {
   bool success = 1;
   Data data = 2;
 
   message Data {
-    repeated Transaction transactions = 1;
+    repeated Transfer transfers = 1;
     Meta meta = 2;
   }
 
-  message Transaction {
-    string encryptedTx = 1;
-    int32 blockNumber = 2;
+  message Transfer {
+    string id = 1;
+    uint64 blockNumber = 2;
+    string recipient = 3;
+    string encryptedTransfer = 4;
+    string createdAt = 5;
   }
 
   message Meta {
-    int32 startBlockNumber = 1;
-    int32 endBlockNumber = 2;
+    uint64 startBlockNumber = 1;
+    uint64 endBlockNumber = 2;
   }
 
   StoreVaultError error = 3;
@@ -171,13 +174,13 @@ message BackupTransactionResponse {
   }
 }
 
-message GetBackupTransactionRequest {
+message GetBackupTransactionsRequest {
   string sender = 1;
   uint64 startBlockNumber = 2;
   uint64 limit = 3;
 }
 
-message GetBackupTransactionResponse {
+message GetBackupTransactionsResponse {
   bool success = 1;
   Data data = 2;
 
@@ -187,13 +190,17 @@ message GetBackupTransactionResponse {
   }
 
   message Transaction {
-    string encryptedTx = 1;
-    int32 blockNumber = 2;
+    string id = 1;
+    string sender = 2;
+    string signature = 3;
+    uint64 blockNumber = 4;
+    string encryptedTx = 5;
+    string createdAt = 6;
   }
 
   message Meta {
-    int32 startBlockNumber = 1;
-    int32 endBlockNumber = 2;
+    uint64 startBlockNumber = 1;
+    uint64 endBlockNumber = 2;
   }
 
   StoreVaultError error = 3;
@@ -311,13 +318,13 @@ message GetBalancesResponse {
   repeated BackupTransaction transactions = 3;
 }
 
-message GetBackupBalanceRequest {
+message GetBackupBalancesRequest {
   string sender = 1;
   uint64 startBlockNumber = 2;
   uint64 limit = 3;
 }
 
-message GetBackupBalanceResponse {
+message GetBackupBalancesResponse {
   bool success = 1;
   Data data = 2;
 

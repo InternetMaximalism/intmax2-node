@@ -13,7 +13,7 @@ func GetBackupBalance(
 	cfg *configs.Config,
 	log logger.Logger,
 	db SQLDriverApp,
-	input *backupBalance.UCGetBackupBalanceInput,
+	input *backupBalance.UCGetBackupBalancesInput,
 ) error {
 	fmt.Println("GetBackupBalance: ", input)
 	return nil

@@ -19,7 +19,7 @@ func (input *UCGetBalancesInput) Valid() error {
 	)
 }
 
-func (input *UCGetBackupBalanceInput) Valid() error {
+func (input *UCGetBackupBalancesInput) Valid() error {
 	return validation.ValidateStruct(input,
 		validation.Field(&input.Sender, validation.Required),
 	)

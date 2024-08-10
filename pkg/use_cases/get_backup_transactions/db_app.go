@@ -1,4 +1,4 @@
-package get_backup_transaction
+package get_backup_transactions
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 )
 
-//go:generate mockgen -destination=mock_db_app_test.go -package=get_backup_transaction_test -source=db_app.go
+//go:generate mockgen -destination=mock_db_app_test.go -package=get_backup_transactions_test -source=db_app.go
 
 type SQLDriverApp interface {
 	GenericCommandsApp

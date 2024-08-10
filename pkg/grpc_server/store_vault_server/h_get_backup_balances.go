@@ -12,11 +12,11 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-func (s *StoreVaultServer) GetBackupBalance(ctx context.Context, req *node.GetBackupBalanceRequest) (*node.GetBackupBalanceResponse, error) {
-	resp := node.GetBackupBalanceResponse{}
+func (s *StoreVaultServer) GetBackupBalances(ctx context.Context, req *node.GetBackupBalancesRequest) (*node.GetBackupBalancesResponse, error) {
+	resp := node.GetBackupBalancesResponse{}
 
 	const (
-		hName      = "Handler GetBackupBalanceRequest"
+		hName      = "Handler GetBackupBalances"
 		requestKey = "request"
 	)
 
@@ -26,7 +26,7 @@ func (s *StoreVaultServer) GetBackupBalance(ctx context.Context, req *node.GetBa
 		))
 	defer span.End()
 
-	input := backupBalance.UCGetBackupBalanceInput{
+	input := backupBalance.UCGetBackupBalancesInput{
 		Sender:           req.Sender,
 		StartBlockNumber: req.StartBlockNumber,
 		Limit:            req.Limit,
@@ -41,10 +41,10 @@ func (s *StoreVaultServer) GetBackupBalance(ctx context.Context, req *node.GetBa
 	err = s.dbApp.Exec(spanCtx, nil, func(d interface{}, _ interface{}) (err error) {
 		q, _ := d.(SQLDriverApp)
 
-		results, err := s.commands.GetBackupBalance(s.config, s.log, q).Do(spanCtx, &input)
+		results, err := s.commands.GetBackupBalances(s.config, s.log, q).Do(spanCtx, &input)
 		if err != nil {
 			open_telemetry.MarkSpanError(spanCtx, err)
-			const msg = "failed to get backup balance: %w"
+			const msg = "failed to get backup balances: %w"
 			return fmt.Errorf(msg, err)
 		}
 		resp.Data = results
@@ -52,7 +52,7 @@ func (s *StoreVaultServer) GetBackupBalance(ctx context.Context, req *node.GetBa
 		return nil
 	})
 	if err != nil {
-		const msg = "failed to get backup balance with DB App: %+v"
+		const msg = "failed to get backup balances with DB App: %+v"
 		return &resp, utils.Internal(spanCtx, s.log, msg, err)
 	}
 

@@ -8,10 +8,10 @@ import (
 	backupTransaction "intmax2-node/internal/use_cases/backup_transaction"
 	backupTransfer "intmax2-node/internal/use_cases/backup_transfer"
 	verifyDepositConfirmation "intmax2-node/internal/use_cases/verify_deposit_confirmation"
-	ucGetBackupBalance "intmax2-node/pkg/use_cases/get_backup_balance"
+	ucGetBackupBalances "intmax2-node/pkg/use_cases/get_backup_balances"
 	ucGetBackupDeposits "intmax2-node/pkg/use_cases/get_backup_deposits"
-	ucGetBackupTransaction "intmax2-node/pkg/use_cases/get_backup_transaction"
-	ucGetBackupTransfer "intmax2-node/pkg/use_cases/get_backup_transfer"
+	ucGetBackupTransactions "intmax2-node/pkg/use_cases/get_backup_transactions"
+	ucGetBackupTransfers "intmax2-node/pkg/use_cases/get_backup_transfers"
 	ucGetBalances "intmax2-node/pkg/use_cases/get_balances"
 	ucVerifyDepositConfirmation "intmax2-node/pkg/use_cases/get_verify_deposit_confirmation"
 	ucPostBackupBalance "intmax2-node/pkg/use_cases/post_backup_balance"
@@ -27,10 +27,10 @@ type Commands interface {
 	PostBackupTransaction(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupTransaction.UseCasePostBackupTransaction
 	PostBackupDeposit(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupDeposit.UseCasePostBackupDeposit
 	PostBackupBalance(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupBalance.UseCasePostBackupBalance
-	GetBackupTransfer(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupTransfer.UseCaseGetBackupTransfer
-	GetBackupTransaction(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupTransaction.UseCaseGetBackupTransaction
+	GetBackupTransfers(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupTransfer.UseCaseGetBackupTransfers
+	GetBackupTransactions(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupTransaction.UseCaseGetBackupTransactions
 	GetBackupDeposits(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupDeposit.UseCaseGetBackupDeposits
-	GetBackupBalance(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupBalance.UseCaseGetBackupBalance
+	GetBackupBalances(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupBalance.UseCaseGetBackupBalances
 	GetBalances(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupBalance.UseCaseGetBalances
 	GetVerifyDepositConfirmation(cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) verifyDepositConfirmation.UseCaseGetVerifyDepositConfirmation
 }
@@ -57,24 +57,24 @@ func (c *commands) PostBackupBalance(cfg *configs.Config, log logger.Logger, db 
 	return ucPostBackupBalance.New(cfg, log, db)
 }
 
-func (c *commands) GetBalances(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupBalance.UseCaseGetBalances {
-	return ucGetBalances.New(cfg, log, db)
+func (c *commands) GetBackupTransfers(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupTransfer.UseCaseGetBackupTransfers {
+	return ucGetBackupTransfers.New(cfg, log, db)
 }
 
-func (c *commands) GetBackupTransfer(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupTransfer.UseCaseGetBackupTransfer {
-	return ucGetBackupTransfer.New(cfg, log, db)
-}
-
-func (c *commands) GetBackupTransaction(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupTransaction.UseCaseGetBackupTransaction {
-	return ucGetBackupTransaction.New(cfg, log, db)
+func (c *commands) GetBackupTransactions(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupTransaction.UseCaseGetBackupTransactions {
+	return ucGetBackupTransactions.New(cfg, log, db)
 }
 
 func (c *commands) GetBackupDeposits(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupDeposit.UseCaseGetBackupDeposits {
 	return ucGetBackupDeposits.New(cfg, log, db)
 }
 
-func (c *commands) GetBackupBalance(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupBalance.UseCaseGetBackupBalance {
-	return ucGetBackupBalance.New(cfg, log, db)
+func (c *commands) GetBackupBalances(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupBalance.UseCaseGetBackupBalances {
+	return ucGetBackupBalances.New(cfg, log, db)
+}
+
+func (c *commands) GetBalances(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupBalance.UseCaseGetBalances {
+	return ucGetBalances.New(cfg, log, db)
 }
 
 func (c *commands) GetVerifyDepositConfirmation(cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) verifyDepositConfirmation.UseCaseGetVerifyDepositConfirmation {

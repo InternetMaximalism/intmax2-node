@@ -18,7 +18,7 @@ func GetBackupDeposits(
 ) ([]*mDBApp.BackupDeposit, error) {
 	deposits, err := db.GetBackupDeposits("recipient", input.Sender)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get backup deposit from db: %w", err)
+		return nil, fmt.Errorf("failed to get backup deposits from db: %w", err)
 	}
 	return deposits, nil
 }
