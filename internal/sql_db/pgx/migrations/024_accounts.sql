@@ -3,6 +3,7 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE SEQUENCE IF NOT EXISTS accounts_account_id_seq;
+ALTER SEQUENCE accounts_account_id_seq RESTART WITH 2;
 
 CREATE TABLE accounts (
     id         uuid not null default uuid_generate_v4(),
