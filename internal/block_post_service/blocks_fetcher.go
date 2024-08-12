@@ -177,25 +177,26 @@ func ProcessingPostedBlocks(
 			return errors.Join(ErrFetchScrollCalldataByHashFail, err)
 		}
 
+		intMaxBlockNumber := events[key].BlockNumber
 		_, err = FetchIntMaxBlockContentByCalldata(cd, ai)
 		if err != nil {
 			err = errors.Join(ErrFetchIntMaxBlockContentByCalldataFail, err)
 			switch {
 			case errors.Is(err, ErrUnknownAccountID):
 				const msg = "block %q is ErrUnknownAccountID"
-				lg.WithError(err).Errorf(msg, blN.String())
+				lg.WithError(err).Errorf(msg, intMaxBlockNumber.String())
 			case errors.Is(err, ErrCannotDecodeAddress):
 				const msg = "block %q is ErrCannotDecodeAddress"
-				lg.WithError(err).Errorf(msg, blN.String())
+				lg.WithError(err).Errorf(msg, intMaxBlockNumber.String())
 			default:
 				const msg = "block %q processing error occurred"
-				lg.WithError(err).Errorf(msg, blN.String())
+				lg.WithError(err).Errorf(msg, intMaxBlockNumber.String())
 			}
 
 			bytesEvent, errEvent := json.Marshal(events[key])
 			if errEvent != nil {
 				const msg = "block %q is ErrMarshalContent: %w"
-				return fmt.Errorf(msg, blN.String(), errEvent)
+				return fmt.Errorf(msg, intMaxBlockNumber.String(), errEvent)
 			}
 
 			ErrChanStartBlocksFetcher <- errStartBlocksFetcher{
@@ -205,13 +206,13 @@ func ProcessingPostedBlocks(
 			}
 
 			const msg = "processing of block %q error occurred"
-			lg.Debugf(msg, blN.String())
+			lg.Debugf(msg, intMaxBlockNumber.String())
 
 			continue
 		}
 
-		const msg = "block %q is valid"
-		lg.Debugf(msg, blN.String())
+		const msg = "block %q is valid (Scroll block number: %s)"
+		lg.Debugf(msg, intMaxBlockNumber.String(), blN.String())
 	}
 
 	err = updateEventBlockNumber(dbApp, lg, mDBApp.BlockPostedEvent, nextBN.Uint64())
@@ -220,7 +221,7 @@ func ProcessingPostedBlocks(
 		return fmt.Errorf(msg, err.Error())
 	}
 
-	const msg = "next block number %q"
+	const msg = "next Scroll block number %q"
 	lg.Debugf(msg, nextBN.String())
 
 	return nil
