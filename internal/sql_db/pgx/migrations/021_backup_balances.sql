@@ -8,6 +8,7 @@ CREATE TABLE backup_balances (
     encrypted_txs json NOT NULL,
     encrypted_transfers json NOT NULL,
     encrypted_deposits json NOT NULL,
+    block_number int not null,
     signature TEXT NOT NULL,
     created_at timestamptz not null default now()
 );

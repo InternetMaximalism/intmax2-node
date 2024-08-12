@@ -798,6 +798,51 @@
     }
   },
   "definitions": {
+    "GetBackupBalancesResponseBalance": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "userAddress": {
+          "type": "string"
+        },
+        "encryptedBalanceProof": {
+          "type": "string"
+        },
+        "encryptedBalanceData": {
+          "type": "string"
+        },
+        "encryptedTxs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "encryptedTransfers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "encryptedDeposits": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "signature": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      }
+    },
     "GetBackupDepositsResponseDeposit": {
       "type": "object",
       "properties": {
@@ -1365,11 +1410,11 @@
     "v1GetBackupBalancesResponseData": {
       "type": "object",
       "properties": {
-        "transactions": {
+        "balances": {
           "type": "array",
           "items": {
             "type": "object",
-            "$ref": "#/definitions/v1GetBackupBalancesResponseTransaction"
+            "$ref": "#/definitions/GetBackupBalancesResponseBalance"
           }
         },
         "meta": {
@@ -1385,18 +1430,6 @@
           "format": "int32"
         },
         "endBlockNumber": {
-          "type": "integer",
-          "format": "int32"
-        }
-      }
-    },
-    "v1GetBackupBalancesResponseTransaction": {
-      "type": "object",
-      "properties": {
-        "encryptedTx": {
-          "type": "string"
-        },
-        "blockNumber": {
           "type": "integer",
           "format": "int32"
         }

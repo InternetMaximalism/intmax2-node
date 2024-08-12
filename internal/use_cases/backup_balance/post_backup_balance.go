@@ -126,7 +126,7 @@ type UCPostBackupBalanceInput struct {
 	EncryptedDeposits     []string `json:"encrypted_deposits"`
 	Signature             string   `json:"signature"`
 	// DecodeUser            *intMaxAcc.PublicKey  `json:"-"`
-	// BlockNumber           uint32                `json:"blockNumber"`
+	BlockNumber uint32 `json:"blockNumber"`
 }
 
 // UseCasePostBackupBalance describes PostBackupBalance contract.

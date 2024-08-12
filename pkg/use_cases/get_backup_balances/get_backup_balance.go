@@ -8,6 +8,8 @@ import (
 	"intmax2-node/internal/pb/gen/service/node"
 	service "intmax2-node/internal/store_vault_service"
 	"intmax2-node/internal/use_cases/backup_balance"
+	"intmax2-node/pkg/sql_db/db_app/models"
+	"time"
 )
 
 // uc describes use case
@@ -29,7 +31,7 @@ func (u *uc) Do(
 	ctx context.Context, input *backup_balance.UCGetBackupBalancesInput,
 ) (*node.GetBackupBalancesResponse_Data, error) {
 	const (
-		hName          = "UseCase GetBackupBalance"
+		hName          = "UseCase GetBackupBalances"
 		userKey        = "user"
 		blockNumberKey = "block_number"
 	)
@@ -42,16 +44,13 @@ func (u *uc) Do(
 		return nil, ErrUCGetBackupBalancesInputEmpty
 	}
 
-	span.SetAttributes(
-	// attribute.String(userKey, input.DecodeUser.ToAddress().String()),
-	// attribute.Int64(blockNumberKey, int64(input.BlockNumber)),
-	)
-
-	// TODO: Implement backup balance get logic here.
-	service.GetBackupBalance(ctx, u.cfg, u.log, u.db, input)
+	balances, err := service.GetBackupBalances(ctx, u.cfg, u.log, u.db, input)
+	if err != nil {
+		return nil, err
+	}
 
 	data := node.GetBackupBalancesResponse_Data{
-		Transactions: genTransaction(),
+		Balances: generateBackupBalances(balances),
 		Meta: &node.GetBackupBalancesResponse_Meta{
 			StartBlockNumber: 0,
 			EndBlockNumber:   0,
@@ -61,11 +60,22 @@ func (u *uc) Do(
 	return &data, nil
 }
 
-func genTransaction() []*node.GetBackupBalancesResponse_Transaction {
-	result := make([]*node.GetBackupBalancesResponse_Transaction, 1)
-	result[0] = &node.GetBackupBalancesResponse_Transaction{
-		EncryptedTx: "0x123",
-		BlockNumber: 1000,
+func generateBackupBalances(balances []*models.BackupBalance) []*node.GetBackupBalancesResponse_Balance {
+	results := make([]*node.GetBackupBalancesResponse_Balance, 0, len(balances))
+	for _, balance := range balances {
+		backupBalance := &node.GetBackupBalancesResponse_Balance{
+			Id:                    balance.ID,
+			UserAddress:           balance.UserAddress,
+			EncryptedBalanceProof: balance.EncryptedBalanceProof,
+			EncryptedBalanceData:  balance.EncryptedBalanceData,
+			EncryptedTxs:          balance.EncryptedTxs,
+			EncryptedTransfers:    balance.EncryptedTransfers,
+			EncryptedDeposits:     balance.EncryptedDeposits,
+			BlockNumber:           uint64(balance.BlockNumber),
+			Signature:             balance.Signature,
+			CreatedAt:             balance.CreatedAt.Format(time.RFC3339),
+		}
+		results = append(results, backupBalance)
 	}
-	return result
+	return results
 }

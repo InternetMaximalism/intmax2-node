@@ -11,5 +11,6 @@ type BackupBalance struct {
 	EncryptedTransfers    []string  `json:"encrypted_transfers"`
 	EncryptedDeposits     []string  `json:"encrypted_deposits"`
 	Signature             string    `json:"signature"`
+	BlockNumber           uint64    `json:"block_number"`
 	CreatedAt             time.Time `json:"created_at"`
 }

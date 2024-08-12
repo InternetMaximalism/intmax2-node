@@ -17,8 +17,8 @@ import (
 func (p *pgx) CreateBackupBalance(input *backupBalance.UCPostBackupBalanceInput) (*mDBApp.BackupBalance, error) {
 	const query = `
 	    INSERT INTO backup_balances
-        (id, user_address, encrypted_balance_proof, encrypted_balance_data, encrypted_txs, encrypted_transfers, encrypted_deposits, signature, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        (id, user_address, encrypted_balance_proof, encrypted_balance_data, encrypted_txs, encrypted_transfers, encrypted_deposits, signature, block_number, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`
 	id := uuid.New().String()
 	createdAt := time.Now().UTC()
@@ -45,6 +45,7 @@ func (p *pgx) CreateBackupBalance(input *backupBalance.UCPostBackupBalanceInput)
 		encryptedTransfers,
 		encryptedDeposits,
 		input.Signature,
+		input.BlockNumber,
 		createdAt,
 	)
 	if err != nil {
@@ -56,7 +57,7 @@ func (p *pgx) CreateBackupBalance(input *backupBalance.UCPostBackupBalanceInput)
 
 func (p *pgx) GetBackupBalance(conditions []string, values []interface{}) (*mDBApp.BackupBalance, error) {
 	const baseQuery = `
-        SELECT id, user_address, encrypted_balance_proof, encrypted_balance_data, encrypted_txs, encrypted_transfers, encrypted_deposits, signature, created_at
+        SELECT id, user_address, encrypted_balance_proof, encrypted_balance_data, encrypted_txs, encrypted_transfers, encrypted_deposits, signature, block_number, created_at
         FROM backup_balances 
         WHERE %s`
 
@@ -78,6 +79,7 @@ func (p *pgx) GetBackupBalance(conditions []string, values []interface{}) (*mDBA
 			&encryptedTransfers,
 			&encryptedDeposits,
 			&b.Signature,
+			&b.BlockNumber,
 			&b.CreatedAt,
 		))
 	if err != nil {
@@ -94,7 +96,7 @@ func (p *pgx) GetBackupBalance(conditions []string, values []interface{}) (*mDBA
 
 func (p *pgx) GetBackupBalances(condition string, value interface{}) ([]*mDBApp.BackupBalance, error) {
 	const baseQuery = `
-        SELECT id, user_address, encrypted_balance_proof, encrypted_balance_data, encrypted_txs, encrypted_transfers, encrypted_deposits, signature, created_at
+        SELECT id, user_address, encrypted_balance_proof, encrypted_balance_data, encrypted_txs, encrypted_transfers, encrypted_deposits, signature, block_number, created_at
         FROM backup_balances
         WHERE %s = $1
     `
@@ -102,10 +104,27 @@ func (p *pgx) GetBackupBalances(condition string, value interface{}) ([]*mDBApp.
 	var balances []*mDBApp.BackupBalance
 	err := p.getBackupEntries(query, value, func(rows *sql.Rows) error {
 		var b models.BackupBalance
-		err := rows.Scan(&b.ID, &b.UserAddress, &b.EncryptedBalanceProof, &b.EncryptedBalanceData, &b.EncryptedTxs, &b.EncryptedTransfers, &b.EncryptedDeposits, &b.Signature, &b.CreatedAt)
+		var encryptedTxs, encryptedTransfers, encryptedDeposits []byte
+		err := rows.Scan(
+			&b.ID,
+			&b.UserAddress,
+			&b.EncryptedBalanceProof,
+			&b.EncryptedBalanceData,
+			&encryptedTxs,
+			&encryptedTransfers,
+			&encryptedDeposits,
+			&b.Signature,
+			&b.BlockNumber,
+			&b.CreatedAt,
+		)
 		if err != nil {
 			return err
 		}
+		err = unmarshalBackupBalanceData(&b, encryptedTxs, encryptedTransfers, encryptedDeposits)
+		if err != nil {
+			return err
+		}
+
 		balance := p.backupBalanceToDBApp(&b)
 		balances = append(balances, &balance)
 		return nil
@@ -125,6 +144,7 @@ func (p *pgx) backupBalanceToDBApp(b *models.BackupBalance) mDBApp.BackupBalance
 		EncryptedTxs:          b.EncryptedTxs,
 		EncryptedTransfers:    b.EncryptedTransfers,
 		EncryptedDeposits:     b.EncryptedDeposits,
+		BlockNumber:           b.BlockNumber,
 		CreatedAt:             b.CreatedAt,
 	}
 }
