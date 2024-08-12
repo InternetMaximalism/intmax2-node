@@ -348,8 +348,8 @@ message GetBackupBalancesResponse {
   }
 
   message Meta {
-    int32 startBlockNumber = 1;
-    int32 endBlockNumber = 2;
+    uint64 startBlockNumber = 1;
+    uint64 endBlockNumber = 2;
   }
 
   StoreVaultError error = 3;

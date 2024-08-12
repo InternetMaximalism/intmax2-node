@@ -52,7 +52,7 @@ func (u *uc) Do(
 	data := node.GetBackupBalancesResponse_Data{
 		Balances: generateBackupBalances(balances),
 		Meta: &node.GetBackupBalancesResponse_Meta{
-			StartBlockNumber: 0,
+			StartBlockNumber: uint64(input.StartBlockNumber),
 			EndBlockNumber:   0,
 		},
 	}

@@ -1426,12 +1426,12 @@
       "type": "object",
       "properties": {
         "startBlockNumber": {
-          "type": "integer",
-          "format": "int32"
+          "type": "string",
+          "format": "uint64"
         },
         "endBlockNumber": {
-          "type": "integer",
-          "format": "int32"
+          "type": "string",
+          "format": "uint64"
         }
       }
     },

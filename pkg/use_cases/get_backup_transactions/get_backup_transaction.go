@@ -60,7 +60,7 @@ func (u *uc) Do(
 	data := node.GetBackupTransactionsResponse_Data{
 		Transactions: generateBackupTransaction(transactions),
 		Meta: &node.GetBackupTransactionsResponse_Meta{
-			StartBlockNumber: 0,
+			StartBlockNumber: uint64(input.StartBlockNumber),
 			EndBlockNumber:   0,
 		},
 	}

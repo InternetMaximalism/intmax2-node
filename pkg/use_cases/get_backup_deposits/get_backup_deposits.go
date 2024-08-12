@@ -59,7 +59,7 @@ func (u *uc) Do(
 	data := node.GetBackupDepositsResponse_Data{
 		Deposits: generateBackupDeposits(deposits),
 		Meta: &node.GetBackupDepositsResponse_Meta{
-			StartBlockNumber: 0,
+			StartBlockNumber: uint64(input.StartBlockNumber),
 			EndBlockNumber:   0,
 		},
 	}
