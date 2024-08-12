@@ -908,18 +908,35 @@
     "v1BackupBalanceRequest": {
       "type": "object",
       "properties": {
-        "recipient": {
-          "type": "string",
-          "title": "The recipient address"
+        "user": {
+          "type": "string"
         },
-        "encryptedDeposit": {
-          "type": "string",
-          "title": "The encrypted deposit data"
+        "encryptedBalanceProof": {
+          "type": "string"
         },
-        "blockNumber": {
-          "type": "string",
-          "format": "uint64",
-          "title": "The block number associated with the deposit"
+        "encryptedBalanceData": {
+          "type": "string"
+        },
+        "encryptedTxs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "encryptedTransfers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "encryptedDeposits": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "signature": {
+          "type": "string"
         }
       }
     },

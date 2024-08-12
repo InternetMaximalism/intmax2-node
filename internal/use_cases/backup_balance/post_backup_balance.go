@@ -17,6 +17,10 @@ type UCPostBackupBalance struct {
 	Message string `json:"message"`
 }
 
+const (
+	SuccessMsg = "Backup balance accepted."
+)
+
 const NUM_TRANSFERS_IN_TX uint = 64
 const INSUFFICIENT_FLAGS_LEN uint = NUM_TRANSFERS_IN_TX / 32
 
@@ -114,20 +118,20 @@ type EncryptedPlonky2Proof struct {
 }
 
 type UCPostBackupBalanceInput struct {
-	User                  string                `json:"user"`
-	DecodeUser            *intMaxAcc.PublicKey  `json:"-"`
-	BlockNumber           uint32                `json:"blockNumber"`
-	EncryptedBalanceProof EncryptedPlonky2Proof `json:"encryptedBalanceProof"`
-	EncryptedBalanceData  string                `json:"encryptedBalanceData"`
-	EncryptedTxs          []string              `json:"encryptedTxs"`
-	EncryptedTransfers    []string              `json:"encryptedTransfers"`
-	EncryptedDeposits     []string              `json:"encryptedDeposits"`
-	Signature             string                `json:"signature"`
+	User                  string   `json:"user"`
+	EncryptedBalanceProof string   `json:"encrypted_balance_proof"`
+	EncryptedBalanceData  string   `json:"encrypted_balance_data"`
+	EncryptedTxs          []string `json:"encrypted_txs"`
+	EncryptedTransfers    []string `json:"encrypted_transfers"`
+	EncryptedDeposits     []string `json:"encrypted_deposits"`
+	Signature             string   `json:"signature"`
+	// DecodeUser            *intMaxAcc.PublicKey  `json:"-"`
+	// BlockNumber           uint32                `json:"blockNumber"`
 }
 
 // UseCasePostBackupBalance describes PostBackupBalance contract.
 type UseCasePostBackupBalance interface {
-	Do(ctx context.Context, input *UCPostBackupBalanceInput) (*UCPostBackupBalance, error)
+	Do(ctx context.Context, input *UCPostBackupBalanceInput) error
 }
 
 func MakeMessage(

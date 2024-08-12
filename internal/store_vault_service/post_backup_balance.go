@@ -15,6 +15,9 @@ func PostBackupBalance(
 	db SQLDriverApp,
 	input *backupBalance.UCPostBackupBalanceInput,
 ) error {
-	fmt.Println("PostBackupBalance: ", input)
+	_, err := db.CreateBackupBalance(input)
+	if err != nil {
+		return fmt.Errorf("failed to create backup balance to db: %w", err)
+	}
 	return nil
 }

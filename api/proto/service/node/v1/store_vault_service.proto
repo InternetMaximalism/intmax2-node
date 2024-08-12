@@ -288,12 +288,13 @@ message BackupTransaction {
 }
 
 message BackupBalanceRequest {
-  // The recipient address
-  string recipient = 1;
-  // The encrypted deposit data
-  string encrypted_deposit = 2;
-  // The block number associated with the deposit
-  uint64 block_number = 3;
+  string user = 1;
+  string encrypted_balance_proof = 2;
+  string encrypted_balance_data = 3;
+  repeated string encrypted_txs = 4;
+  repeated string encrypted_transfers = 5;
+  repeated string encrypted_deposits = 6;
+  string signature = 7;
 }
 
 message BackupBalanceResponse {

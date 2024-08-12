@@ -3,11 +3,14 @@ package post_backup_balance
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
+	service "intmax2-node/internal/store_vault_service"
 	intMaxTypes "intmax2-node/internal/types"
-	"intmax2-node/internal/use_cases/backup_balance"
+	backupBalance "intmax2-node/internal/use_cases/backup_balance"
+
 	"io"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -20,7 +23,7 @@ type uc struct {
 	db  SQLDriverApp
 }
 
-func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backup_balance.UseCasePostBackupBalance {
+func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupBalance.UseCasePostBackupBalance {
 	return &uc{
 		cfg: cfg,
 		log: log,
@@ -29,8 +32,8 @@ func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backup_balance
 }
 
 func (u *uc) Do(
-	ctx context.Context, input *backup_balance.UCPostBackupBalanceInput,
-) (*backup_balance.UCPostBackupBalance, error) {
+	ctx context.Context, input *backupBalance.UCPostBackupBalanceInput,
+) error {
 	const (
 		hName                    = "UseCase PostBackupBalance"
 		userKey                  = "user"
@@ -47,27 +50,26 @@ func (u *uc) Do(
 
 	if input == nil {
 		open_telemetry.MarkSpanError(spanCtx, ErrUCPostBackupBalanceInputEmpty)
-		return nil, ErrUCPostBackupBalanceInputEmpty
+		return ErrUCPostBackupBalanceInputEmpty
 	}
 
 	span.SetAttributes(
-		attribute.String(userKey, input.DecodeUser.ToAddress().String()),
-		attribute.Int64(blockNumberKey, int64(input.BlockNumber)),
-		attribute.String(encryptedBalanceProofKey, input.EncryptedBalanceProof.Proof),
-		attribute.String(encryptedBalanceProofKey, input.EncryptedBalanceProof.EncryptedPublicInputs),
+		// attribute.String(userKey, input.DecodeUser.ToAddress().String()),
+		// attribute.Int64(blockNumberKey, int64(input.BlockNumber)),
+		// attribute.String(encryptedBalanceProofKey, input.EncryptedBalanceProof.Proof),
+		// attribute.String(encryptedBalanceProofKey, input.EncryptedBalanceProof.EncryptedPublicInputs),
 		attribute.String(encryptedBalanceDataKey, input.EncryptedBalanceData),
 		attribute.StringSlice(encryptedTxsKey, input.EncryptedTxs),
 		attribute.StringSlice(encryptedTransfersKey, input.EncryptedTransfers),
 		attribute.StringSlice(encryptedDepositsKey, input.EncryptedDeposits),
 	)
 
-	// TODO: Implement backup balance post logic here.
-
-	resp := backup_balance.UCPostBackupBalance{
-		Message: "Balance data backup successful.",
+	err := service.PostBackupBalance(ctx, u.cfg, u.log, u.db, input)
+	if err != nil {
+		return fmt.Errorf("failed to post backup balance: %w", err)
 	}
 
-	return &resp, nil
+	return nil
 }
 
 func WriteBalance(buf io.Writer, balance *intMaxTypes.Balance) error {

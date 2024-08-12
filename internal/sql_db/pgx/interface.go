@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	intMaxTypes "intmax2-node/internal/types"
+	backupBalance "intmax2-node/internal/use_cases/backup_balance"
 	backupDeposit "intmax2-node/internal/use_cases/backup_deposit"
 	backupTransaction "intmax2-node/internal/use_cases/backup_transaction"
 	backupTransfer "intmax2-node/internal/use_cases/backup_transfer"
@@ -31,6 +32,7 @@ type PGX interface {
 	EventBlockNumbersErrors
 	Senders
 	Accounts
+	BackupBalances
 }
 
 type GenericCommands interface {
@@ -156,4 +158,10 @@ type Accounts interface {
 	AccountByAccountID(accountID *uint256.Int) (*mDBApp.Account, error)
 	ResetSequenceByAccounts() error
 	DelAllAccounts() error
+}
+
+type BackupBalances interface {
+	CreateBackupBalance(input *backupBalance.UCPostBackupBalanceInput) (*mDBApp.BackupBalance, error)
+	GetBackupBalance(conditions []string, values []interface{}) (*mDBApp.BackupBalance, error)
+	GetBackupBalances(condition string, value interface{}) ([]*mDBApp.BackupBalance, error)
 }

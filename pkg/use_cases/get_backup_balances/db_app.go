@@ -2,6 +2,7 @@ package get_backup_balances
 
 import (
 	"context"
+	backupBalance "intmax2-node/internal/use_cases/backup_balance"
 	backupDeposit "intmax2-node/internal/use_cases/backup_deposit"
 	backupTransaction "intmax2-node/internal/use_cases/backup_transaction"
 	backupTransfer "intmax2-node/internal/use_cases/backup_transfer"
@@ -15,6 +16,7 @@ type SQLDriverApp interface {
 	BackupTransfers
 	BackupTransactions
 	BackupDeposits
+	BackupBalances
 }
 
 type GenericCommandsApp interface {
@@ -37,4 +39,10 @@ type BackupDeposits interface {
 	CreateBackupDeposit(input *backupDeposit.UCPostBackupDepositInput) (*mDBApp.BackupDeposit, error)
 	GetBackupDeposit(conditions []string, values []interface{}) (*mDBApp.BackupDeposit, error)
 	GetBackupDeposits(condition string, value interface{}) ([]*mDBApp.BackupDeposit, error)
+}
+
+type BackupBalances interface {
+	CreateBackupBalance(input *backupBalance.UCPostBackupBalanceInput) (*mDBApp.BackupBalance, error)
+	GetBackupBalance(conditions []string, values []interface{}) (*mDBApp.BackupBalance, error)
+	GetBackupBalances(condition string, value interface{}) ([]*mDBApp.BackupBalance, error)
 }
