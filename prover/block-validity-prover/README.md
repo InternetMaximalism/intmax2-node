@@ -27,7 +27,7 @@ curl "http://localhost:8091/proofs?blockHashes[]=1&blockHashes[]=2" | jq
 
 # generate proof
 curl -X POST -d '{"blockHash":"0x01", "validityWitness":'$(cat data/validity_witness_1.json)', "prevValidityProof":null }' -H "Content-Type: application/json" http://localhost:8091/proof | jq
-curl -X POST -d '{"blockHash":"0x01", "validityWitness":'$(cat data/validity_witness_2.json)', "prevValidityProof":"'$(base64 --input prev_validity_proof_2.bin)'" }' -H "Content-Type: application/json" http://localhost:8091/proof | jq
+curl -X POST -d '{"blockHash":"0x02", "validityWitness":'$(cat data/validity_witness_2.json)', "prevValidityProof":"'$(base64 --input data/prev_validity_proof_2.bin)'" }' -H "Content-Type: application/json" http://localhost:8091/proof | jq
 ```
 
 
