@@ -77,7 +77,7 @@ func (p *pgx) AccountByAccountID(accountID *uint256.Int) (*mDBApp.Account, error
 
 func (p *pgx) ResetSequenceByAccounts() error {
 	const (
-		q = ` ALTER SEQUENCE accounts_account_id_seq RESTART `
+		q = ` ALTER SEQUENCE accounts_account_id_seq RESTART WITH 2 `
 	)
 
 	_, err := p.exec(p.ctx, q)
