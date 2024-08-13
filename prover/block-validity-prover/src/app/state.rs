@@ -21,6 +21,14 @@ impl AppState {
     }
 }
 
+impl Clone for AppState {
+    fn clone(&self) -> Self {
+        Self {
+            validity_processor: Arc::clone(&self.validity_processor)
+        }
+    }
+}
+
 async fn build_circuits(validity_processor_state: Arc<OnceLock<ValidityProcessor<F, C, D>>>) {
     let validity_processor = ValidityProcessor::new();
     println!("The validity circuit build has been completed.");

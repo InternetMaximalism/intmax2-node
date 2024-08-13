@@ -32,13 +32,13 @@ async fn main() -> Result<(), std::io::Error> {
         }
     };
 
+    let state = AppState::new();
+
     println!("Listening to requests at {}...", listen_address);
     HttpServer::new(move || {
-        let state = AppState::new();
-
         App::new()
             .app_data(web::Data::new(redis.clone()))
-            .app_data(web::Data::new(state))
+            .app_data(web::Data::new(state.clone()))
             .app_data(PathConfig::default().error_handler(handle_error))
             .app_data(QueryConfig::default().error_handler(handle_error))
             .app_data(JsonConfig::default().error_handler(handle_error))
