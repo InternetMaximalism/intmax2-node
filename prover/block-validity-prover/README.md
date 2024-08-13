@@ -23,7 +23,7 @@ curl http://localhost:8091/health | jq
 curl http://localhost:8091/proof/0x01 | jq
 
 # get proofs
-curl "http://localhost:8091/proofs?blockHashes[]=1&blockHashes[]=2" | jq
+curl "http://localhost:8091/proofs?blockHashes[]=0x01&blockHashes[]=0x02" | jq
 
 # generate proof
 curl -X POST -d '{"blockHash":"0x01", "validityWitness":'$(cat data/validity_witness_1.json)', "prevValidityProof":null }' -H "Content-Type: application/json" http://localhost:8091/proof | jq

@@ -7,7 +7,6 @@ type C = PoseidonGoldilocksConfig;
 const D: usize = 2;
 type F = GoldilocksField;
 
-#[derive(Debug)]
 pub struct AppState {
     pub validity_processor: Arc<OnceLock<ValidityProcessor<F, C, D>>>,
 }

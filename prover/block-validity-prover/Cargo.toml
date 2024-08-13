@@ -19,10 +19,6 @@ base64 = "0.22.1"
 intmax2-zkp = { git = "https://github.com/InternetMaximalism/intmax2-zkp", branch = "dev" }
 plonky2 = { git = "https://github.com/InternetMaximalism/polygon-plonky2.git", branch = "intmax2-dev" }
 tokio = "1.39.2"
-tokio-util = "0.7.11"
-chrono = "0.4.38"
-apalis = { version = "0.5.3", features=["redis"] }
-futures = "0.3.30"
 hex = "0.4.3"
 anyhow = "1.0.86"
 log = "0.4.22"

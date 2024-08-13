@@ -6,14 +6,12 @@ use crate::{
     proof::generate_proof_job,
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
-use apalis::prelude::*;
 use base64::prelude::*;
 use intmax2_zkp::common::witness::validity_witness::ValidityWitness;
 use plonky2::{
     field::goldilocks_field::GoldilocksField,
     plonk::{config::PoseidonGoldilocksConfig, proof::CompressedProofWithPublicInputs},
 };
-use serde::{Deserialize, Serialize};
 
 #[get("/proof/{id}")]
 async fn get_proof(
@@ -25,7 +23,7 @@ async fn get_proof(
         .await
         .map_err(actix_web::error::ErrorInternalServerError)?;
 
-    let proof = redis::Cmd::get(&*id)
+    let proof = redis::Cmd::get(&get_request_id(&id))
         .query_async::<_, Option<String>>(&mut conn)
         .await
         .map_err(error::ErrorInternalServerError)?;
@@ -65,14 +63,17 @@ async fn get_proofs(
 
     let mut proofs: Vec<ProofValue> = Vec::new();
     for block_hash in &block_hashes {
-        let proof: String = redis::Cmd::get(block_hash.to_string())
-            .query_async(&mut conn)
+        let request_id = get_request_id(&block_hash);
+        let some_proof: Option<String> = redis::Cmd::get(&request_id)
+            .query_async::<_, Option<String>>(&mut conn)
             .await
             .map_err(actix_web::error::ErrorInternalServerError)?;
-        proofs.push(ProofValue {
-            block_hash: (*block_hash).to_string(),
-            proof,
-        });
+        if let Some(proof) = some_proof {
+            proofs.push(ProofValue {
+                block_hash: (*block_hash).to_string(),
+                proof,
+            });
+        }
     }
 
     let response = ProofsResponse {
@@ -100,7 +101,7 @@ async fn generate_proof(
         .await
         .map_err(error::ErrorInternalServerError)?;
 
-    let old_proof = redis::Cmd::get(req.block_hash.to_string())
+    let old_proof = redis::Cmd::get(&get_request_id(&req.block_hash))
         .query_async::<_, Option<String>>(&mut redis_conn)
         .await
         .map_err(actix_web::error::ErrorInternalServerError)?;
@@ -160,13 +161,14 @@ async fn generate_proof(
     };
 
     let validity_witness = ValidityWitness::decompress(&req.validity_witness);
+    let request_id = get_request_id(&block_hash);
 
     // TODO: Validation check of validity_witness
 
     // Spawn a new task to generate the proof
     actix_web::rt::spawn(async move {
         let response = generate_proof_job(
-            block_hash,
+            request_id,
             prev_validity_proof,
             validity_witness,
             state
@@ -200,12 +202,6 @@ async fn generate_proof(
     Ok(HttpResponse::Ok().json(response))
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct ProofGeneration {
-    block_hash: String,
-    prev_validity_proof: String,
-}
-
-impl Job for ProofGeneration {
-    const NAME: &'static str = "apalis::ProofGeneration";
+fn get_request_id(block_hash: &str) -> String {
+    format!("block-validity/{}", block_hash)
 }
