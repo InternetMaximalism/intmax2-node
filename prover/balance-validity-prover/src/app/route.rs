@@ -7,5 +7,8 @@ pub fn setup_routes(cfg: &mut web::ServiceConfig) {
         prover::deposit::get_proof,
         prover::deposit::get_proofs,
         prover::deposit::generate_proof,
+        prover::update::get_proof,
+        prover::update::get_proofs,
+        prover::update::generate_proof,
     ));
 }

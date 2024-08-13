@@ -1,16 +1,20 @@
 use crate::{
     app::{
         interface::{
-            DepositIndexQuery, ProofDepositRequest, ProofDepositValue, ProofResponse,
-            ProofsDepositResponse,
+            ProofResponse, ProofUpdateRequest, ProofUpdateValue, ProofsUpdateResponse,
+            UpdateIdQuery,
         },
         state::AppState,
     },
-    proof::generate_receive_deposit_proof_job,
+    proof::generate_balance_update_proof_job,
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
 use base64::prelude::*;
-use intmax2_zkp::ethereum_types::{u256::U256, u32limb_trait::U32LimbTrait};
+use intmax2_zkp::{
+    circuits::validity::validity_pis::ValidityPublicInputs,
+    common::witness::update_witness::UpdateWitness,
+    ethereum_types::{u256::U256, u32limb_trait::U32LimbTrait},
+};
 use plonky2::{
     field::goldilocks_field::GoldilocksField,
     plonk::{config::PoseidonGoldilocksConfig, proof::CompressedProofWithPublicInputs},
@@ -20,7 +24,7 @@ type C = PoseidonGoldilocksConfig;
 const D: usize = 2;
 type F = GoldilocksField;
 
-#[get("/proof/{public_key}/deposit/{deposit_index}")]
+#[get("/proof/{public_key}/update/{deposit_index}")]
 async fn get_proof(
     query_params: web::Path<(String, String)>,
     redis: web::Data<redis::Client>,
@@ -32,13 +36,10 @@ async fn get_proof(
 
     let public_key = U256::from_hex(&query_params.0).expect("failed to parse public key");
 
-    let deposit_index = query_params
-        .1
-        .parse::<usize>()
-        .map_err(error::ErrorInternalServerError)?;
-    let proof = redis::Cmd::get(&get_receive_deposit_request_id(
+    let block_hash = &query_params.1;
+    let proof = redis::Cmd::get(&get_balance_update_request_id(
         &public_key.to_hex(),
-        deposit_index,
+        block_hash,
     ))
     .query_async::<_, Option<String>>(&mut conn)
     .await
@@ -53,7 +54,7 @@ async fn get_proof(
     Ok(HttpResponse::Ok().json(response))
 }
 
-#[get("/proofs/{public_key}/deposit")]
+#[get("/proofs/{public_key}/update")]
 async fn get_proofs(
     query_params: web::Path<String>,
     req: HttpRequest,
@@ -67,12 +68,12 @@ async fn get_proofs(
     let public_key = U256::from_hex(&query_params).expect("failed to parse public key");
 
     let query_string = req.query_string();
-    let ids_query = serde_qs::from_str::<DepositIndexQuery>(query_string);
-    let deposit_indices: Vec<String>;
+    let ids_query = serde_qs::from_str::<UpdateIdQuery>(query_string);
+    let ids: Vec<String>;
 
     match ids_query {
         Ok(query) => {
-            deposit_indices = query.deposit_indices;
+            ids = query.block_hashes;
         }
         Err(e) => {
             eprintln!("Failed to deserialize query: {:?}", e);
@@ -80,23 +81,22 @@ async fn get_proofs(
         }
     }
 
-    let mut proofs: Vec<ProofDepositValue> = Vec::new();
-    for deposit_index in &deposit_indices {
-        let deposit_index_usize = deposit_index.parse::<usize>().unwrap();
-        let request_id = get_receive_deposit_request_id(&public_key.to_hex(), deposit_index_usize);
+    let mut proofs: Vec<ProofUpdateValue> = Vec::new();
+    for block_hash in &ids {
+        let request_id = get_balance_update_request_id(&public_key.to_hex(), block_hash);
         let some_proof = redis::Cmd::get(&request_id)
             .query_async::<_, Option<String>>(&mut conn)
             .await
             .map_err(actix_web::error::ErrorInternalServerError)?;
         if let Some(proof) = some_proof {
-            proofs.push(ProofDepositValue {
-                deposit_index: (*deposit_index).to_string(),
+            proofs.push(ProofUpdateValue {
+                block_hash: (*block_hash).to_string(),
                 proof,
             });
         }
     }
 
-    let response = ProofsDepositResponse {
+    let response = ProofsUpdateResponse {
         success: true,
         proofs,
         error_message: None,
@@ -105,10 +105,10 @@ async fn get_proofs(
     Ok(HttpResponse::Ok().json(response))
 }
 
-#[post("/proof/{public_key}/deposit")]
+#[post("/proof/{public_key}/update")]
 async fn generate_proof(
     query_params: web::Path<String>,
-    req: web::Json<ProofDepositRequest>,
+    req: web::Json<ProofUpdateRequest>,
     redis: web::Data<redis::Client>,
     state: web::Data<AppState>,
 ) -> Result<impl Responder> {
@@ -120,9 +120,34 @@ async fn generate_proof(
 
     let public_key = U256::from_hex(&query_params).expect("failed to parse public key");
 
-    let deposit_index = req.receive_deposit_witness.deposit_witness.deposit_index;
-    println!("deposit_index: {:?}", deposit_index);
-    let request_id = get_receive_deposit_request_id(&public_key.to_hex(), deposit_index);
+    let validity_circuit_data = state
+        .validity_circuit
+        .get()
+        .ok_or_else(|| error::ErrorInternalServerError("validity circuit not initialized"))?
+        .data
+        .verifier_data();
+    let encoded_validity_proof = req.balance_update_witness.validity_proof.clone();
+    let decoded_validity_proof = BASE64_STANDARD
+        .decode(&encoded_validity_proof)
+        .map_err(error::ErrorInternalServerError)?;
+    let compressed_validity_proof = CompressedProofWithPublicInputs::<F, C, D>::from_bytes(
+        decoded_validity_proof,
+        &validity_circuit_data.common,
+    )
+    .map_err(error::ErrorInternalServerError)?;
+    let validity_proof = compressed_validity_proof
+        .decompress(
+            &validity_circuit_data.verifier_only.circuit_digest,
+            &validity_circuit_data.common,
+        )
+        .map_err(error::ErrorInternalServerError)?;
+    validity_circuit_data
+        .verify(validity_proof.clone())
+        .map_err(error::ErrorInternalServerError)?;
+    let validity_public_inputs = ValidityPublicInputs::from_pis(&validity_proof.public_inputs);
+
+    let block_hash = validity_public_inputs.public_state.block_hash;
+    let request_id = get_balance_update_request_id(&public_key.to_hex(), &block_hash.to_hex());
     let old_proof = redis::Cmd::get(&request_id)
         .query_async::<_, Option<String>>(&mut redis_conn)
         .await
@@ -149,7 +174,7 @@ async fn generate_proof(
         let decoded_prev_validity_proof = BASE64_STANDARD
             .decode(&req_prev_balance_proof)
             .map_err(error::ErrorInternalServerError)?;
-        println!("validity proof size: {}", decoded_prev_validity_proof.len());
+        println!("balance proof size: {}", decoded_prev_validity_proof.len());
 
         let compressed_prev_validity_proof =
             CompressedProofWithPublicInputs::<F, C, D>::from_bytes(
@@ -172,22 +197,43 @@ async fn generate_proof(
         None
     };
 
-    let receive_deposit_witness = req.receive_deposit_witness.clone();
+    let encoded_validity_proof = BASE64_STANDARD
+        .decode(&req.balance_update_witness.validity_proof)
+        .map_err(error::ErrorInternalServerError)?;
+    let compressed_validity_proof = CompressedProofWithPublicInputs::from_bytes(
+        encoded_validity_proof,
+        &validity_circuit_data.common,
+    )
+    .map_err(error::ErrorInternalServerError)?;
+    let validity_proof = compressed_validity_proof
+        .decompress(
+            &validity_circuit_data.verifier_only.circuit_digest,
+            &validity_circuit_data.common,
+        )
+        .map_err(error::ErrorInternalServerError)?;
+    let balance_update_witness = UpdateWitness {
+        validity_proof,
+        block_merkle_proof: req.balance_update_witness.block_merkle_proof.clone(),
+        account_membership_proof: req.balance_update_witness.account_membership_proof.clone(),
+    };
 
     // TODO: Validation check of balance_witness
 
     // Spawn a new task to generate the proof
     actix_web::rt::spawn(async move {
-        let response = generate_receive_deposit_proof_job(
+        let response = generate_balance_update_proof_job(
             request_id,
             public_key,
             prev_balance_proof,
-            &receive_deposit_witness,
+            &balance_update_witness,
             state
                 .balance_processor
                 .get()
-                .ok_or_else(|| error::ErrorInternalServerError("balance processor not initialized"))
-                .expect("Failed to get balance processor"),
+                .expect("balance processor not initialized"),
+            state
+                .validity_circuit
+                .get()
+                .expect("validity circuit not initialized"),
             &mut redis_conn,
         )
         .await;
@@ -208,14 +254,14 @@ async fn generate_proof(
         success: true,
         proof: None,
         error_message: Some(format!(
-            "balance proof (deposit_index: {}) is generating",
-            deposit_index
+            "balance proof (block_hash: {}) is generating",
+            block_hash
         )),
     };
 
     Ok(HttpResponse::Ok().json(response))
 }
 
-fn get_receive_deposit_request_id(public_key: &str, deposit_index: usize) -> String {
-    format!("balance-validity/{}/deposit/{}", public_key, deposit_index)
+fn get_balance_update_request_id(public_key: &str, block_hash: &str) -> String {
+    format!("balance-validity/{}/update/{}", public_key, block_hash)
 }
