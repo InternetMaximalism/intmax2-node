@@ -5,7 +5,6 @@ use intmax2_zkp::{
     common::witness::validity_witness::ValidityWitness,
 };
 use plonky2::plonk::{
-    circuit_data::VerifierCircuitData,
     config::{GenericConfig, PoseidonGoldilocksConfig},
     proof::ProofWithPublicInputs,
 };
@@ -21,10 +20,14 @@ pub async fn generate_proof_job(
     key: String,
     prev_validity_proof: Option<ProofWithPublicInputs<F, C, D>>,
     validity_witness: ValidityWitness,
-    validity_circuit: VerifierCircuitData<F, C, D>,
     validity_processor: &ValidityProcessor<F, C, D>,
     conn: &mut redis::aio::Connection,
 ) -> anyhow::Result<()> {
+    let validity_circuit = validity_processor
+        .validity_circuit
+        .data
+        .verifier_data();
+
     println!("Proving...");
     let validity_proof = validity_processor
         .prove(&prev_validity_proof, &validity_witness)

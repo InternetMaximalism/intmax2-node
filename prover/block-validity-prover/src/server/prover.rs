@@ -169,7 +169,6 @@ async fn generate_proof(
             block_hash,
             prev_validity_proof,
             validity_witness,
-            validity_circuit,
             state
                 .validity_processor
                 .get()
