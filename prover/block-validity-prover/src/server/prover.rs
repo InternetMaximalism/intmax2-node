@@ -3,7 +3,7 @@ use crate::{
         interface::{BlockHashQuery, ProofRequest, ProofResponse, ProofValue, ProofsResponse},
         state::AppState,
     },
-    proof::generate_proof_job,
+    proof::generate_block_validity_proof_job,
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
 use base64::prelude::*;
@@ -124,7 +124,7 @@ async fn generate_proof(
     }
     println!("block_hash: {:?}", block_hash);
 
-    let validity_circuit = state
+    let validity_circuit_data = state
         .validity_processor
         .get()
         .ok_or_else(|| error::ErrorInternalServerError("validity processor not initialized"))?
@@ -142,16 +142,16 @@ async fn generate_proof(
         let compressed_prev_validity_proof =
             CompressedProofWithPublicInputs::<F, C, D>::from_bytes(
                 decoded_prev_validity_proof,
-                &validity_circuit.common,
+                &validity_circuit_data.common,
             )
             .map_err(error::ErrorInternalServerError)?;
         let prev_validity_proof = compressed_prev_validity_proof
             .decompress(
-                &validity_circuit.verifier_only.circuit_digest,
-                &validity_circuit.common,
+                &validity_circuit_data.verifier_only.circuit_digest,
+                &validity_circuit_data.common,
             )
             .map_err(error::ErrorInternalServerError)?;
-        validity_circuit
+        validity_circuit_data
             .verify(prev_validity_proof.clone())
             .map_err(error::ErrorInternalServerError)?;
 
@@ -167,7 +167,7 @@ async fn generate_proof(
 
     // Spawn a new task to generate the proof
     actix_web::rt::spawn(async move {
-        let response = generate_proof_job(
+        let response = generate_block_validity_proof_job(
             request_id,
             prev_validity_proof,
             validity_witness,

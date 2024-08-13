@@ -16,7 +16,7 @@ const D: usize = 2;
 type C = PoseidonGoldilocksConfig;
 type F = <C as GenericConfig<D>>::F;
 
-pub async fn generate_proof_job(
+pub async fn generate_block_validity_proof_job(
     request_id: String,
     prev_validity_proof: Option<ProofWithPublicInputs<F, C, D>>,
     validity_witness: ValidityWitness,
