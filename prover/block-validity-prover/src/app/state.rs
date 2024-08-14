@@ -31,7 +31,7 @@ impl Clone for AppState {
 
 async fn build_circuits(validity_processor_state: Arc<OnceLock<ValidityProcessor<F, C, D>>>) {
     let validity_processor = ValidityProcessor::new();
-    println!("The validity circuit build has been completed.");
+    log::info!("The validity circuit build has been completed.");
 
     let _ = validity_processor_state.get_or_init(|| validity_processor);
 }

@@ -1,17 +1,13 @@
 use crate::{
     app::{
+        encode::decode_plonky2_proof,
         interface::{BlockHashQuery, ProofRequest, ProofResponse, ProofValue, ProofsResponse},
         state::AppState,
     },
     proof::generate_block_validity_proof_job,
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
-use base64::prelude::*;
 use intmax2_zkp::common::witness::validity_witness::ValidityWitness;
-use plonky2::{
-    field::goldilocks_field::GoldilocksField,
-    plonk::{config::PoseidonGoldilocksConfig, proof::CompressedProofWithPublicInputs},
-};
 
 #[get("/proof/{id}")]
 async fn get_proof(
@@ -56,7 +52,7 @@ async fn get_proofs(
             block_hashes = query.block_hashes;
         }
         Err(e) => {
-            eprintln!("Failed to deserialize query: {:?}", e);
+            log::warn!("Failed to deserialize query: {:?}", e);
             return Ok(HttpResponse::BadRequest().body("Invalid query parameters"));
         }
     }
@@ -85,17 +81,12 @@ async fn get_proofs(
     Ok(HttpResponse::Ok().json(response))
 }
 
-type C = PoseidonGoldilocksConfig;
-const D: usize = 2;
-type F = GoldilocksField;
-
 #[post("/proof")]
 async fn generate_proof(
     req: web::Json<ProofRequest>,
     redis: web::Data<redis::Client>,
     state: web::Data<AppState>,
 ) -> Result<impl Responder> {
-    println!("POST /proof");
     let mut redis_conn = redis
         .get_async_connection()
         .await
@@ -119,10 +110,10 @@ async fn generate_proof(
     let s = block_hash.strip_prefix("0x").unwrap_or(&block_hash);
     let ok = s.chars().all(|c| c.is_digit(16));
     if !ok {
-        println!("Invalid block hash: {block_hash}");
+        log::warn!("Invalid block hash: {block_hash}");
         return Err(error::ErrorInternalServerError("Invalid block hash"));
     }
-    println!("block_hash: {:?}", block_hash);
+    log::debug!("block_hash: {:?}", block_hash);
 
     let validity_circuit_data = state
         .validity_processor
@@ -133,24 +124,10 @@ async fn generate_proof(
         .verifier_data();
 
     let prev_validity_proof = if let Some(req_prev_validity_proof) = &req.prev_validity_proof {
-        println!("requested proof size: {}", req_prev_validity_proof.len());
-        let decoded_prev_validity_proof = BASE64_STANDARD
-            .decode(&req_prev_validity_proof)
-            .map_err(error::ErrorInternalServerError)?;
-        println!("validity proof size: {}", decoded_prev_validity_proof.len());
-
-        let compressed_prev_validity_proof =
-            CompressedProofWithPublicInputs::<F, C, D>::from_bytes(
-                decoded_prev_validity_proof,
-                &validity_circuit_data.common,
-            )
-            .map_err(error::ErrorInternalServerError)?;
-        let prev_validity_proof = compressed_prev_validity_proof
-            .decompress(
-                &validity_circuit_data.verifier_only.circuit_digest,
-                &validity_circuit_data.common,
-            )
-            .map_err(error::ErrorInternalServerError)?;
+        log::debug!("requested proof size: {}", req_prev_validity_proof.len());
+        let prev_validity_proof =
+            decode_plonky2_proof(req_prev_validity_proof, &validity_circuit_data)
+                .map_err(error::ErrorInternalServerError)?;
         validity_circuit_data
             .verify(prev_validity_proof.clone())
             .map_err(error::ErrorInternalServerError)?;
@@ -179,15 +156,16 @@ async fn generate_proof(
                 })
                 .expect("Failed to get validity processor"),
             &mut redis_conn,
-        ).await;
+        )
+        .await;
 
         match response {
             Ok(v) => {
-                println!("Proof generation completed");
+                log::error!("Proof generation completed");
                 Ok(v)
             }
             Err(e) => {
-                eprintln!("Failed to generate proof: {:?}", e);
+                log::error!("Failed to generate proof: {:?}", e);
                 Err(e)
             }
         }

@@ -1,5 +1,4 @@
 use anyhow::Context as _;
-use base64::prelude::*;
 use intmax2_zkp::{
     circuits::validity::validity_processor::ValidityProcessor,
     common::witness::validity_witness::ValidityWitness,
@@ -10,7 +9,7 @@ use plonky2::plonk::{
 };
 use redis::{ExistenceCheck, SetExpiry, SetOptions};
 
-use crate::app::config;
+use crate::app::{config, encode::encode_plonky2_proof};
 
 const D: usize = 2;
 type C = PoseidonGoldilocksConfig;
@@ -23,26 +22,17 @@ pub async fn generate_block_validity_proof_job(
     validity_processor: &ValidityProcessor<F, C, D>,
     conn: &mut redis::aio::Connection,
 ) -> anyhow::Result<()> {
-    let validity_circuit = validity_processor
+    let validity_circuit_data = validity_processor
         .validity_circuit
         .data
         .verifier_data();
 
-    println!("Proving...");
+    log::info!("Proving...");
     let validity_proof = validity_processor
         .prove(&prev_validity_proof, &validity_witness)
         .with_context(|| "Failed to prove block validity")?;
 
-    let compressed_validity_proof = validity_proof
-        .clone()
-        .compress(
-            &validity_circuit.verifier_only.circuit_digest,
-            &validity_circuit.common,
-        )
-        .with_context(|| "Failed to compress proof")?;
-
-    let encoded_compressed_validity_proof =
-        BASE64_STANDARD.encode(&compressed_validity_proof.to_bytes());
+    let encoded_compressed_validity_proof = encode_plonky2_proof(validity_proof, &validity_circuit_data);
 
     let opts = SetOptions::default()
         .conditional_set(ExistenceCheck::NX)

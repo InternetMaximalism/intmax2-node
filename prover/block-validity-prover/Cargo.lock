@@ -592,6 +592,7 @@ dependencies = [
  "base64 0.22.1",
  "config",
  "dotenv",
+ "env_logger",
  "hex",
  "intmax2-zkp",
  "log",
