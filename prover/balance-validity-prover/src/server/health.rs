@@ -1,9 +1,15 @@
-use crate::app::interface::{ErrorResponse, HealthCheckResponse};
+use crate::app::{
+    interface::{ErrorResponse, HealthCheckResponse},
+    state::AppState,
+};
 use actix_web::{get, web, HttpResponse, Responder, Result};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[get("/health")]
-async fn health_check(redis: web::Data<redis::Client>) -> Result<impl Responder> {
+async fn health_check(
+    redis: web::Data<redis::Client>,
+    state: web::Data<AppState>,
+) -> Result<impl Responder> {
     let start_time = SystemTime::now();
 
     let mut conn = redis
@@ -12,9 +18,19 @@ async fn health_check(redis: web::Data<redis::Client>) -> Result<impl Responder>
         .map_err(actix_web::error::ErrorInternalServerError)?;
 
     let pong: redis::RedisResult<String> = redis::cmd("PING").query_async(&mut conn).await;
+    let is_balance_circuit_built = state.balance_processor.get().is_some();
+    let is_validity_circuit_built = state.validity_circuit.get().is_some();
 
     match pong {
         Ok(response) if response == "PONG" => {
+            if !is_balance_circuit_built || !is_validity_circuit_built {
+                return Ok(HttpResponse::InternalServerError().json(ErrorResponse {
+                    success: false,
+                    code: 500,
+                    message: "Circuits are not built".to_string(),
+                }));
+            }
+
             let message = "OK";
             let timestamp = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
