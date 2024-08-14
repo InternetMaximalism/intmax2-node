@@ -28,7 +28,8 @@ pub async fn generate_withdrawal_proof_job(
         .prove(withdrawal_witness, &prev_withdrawal_proof)
         .with_context(|| "Failed to prove withdrawal")?;
 
-    let encoded_compressed_withdrawal_proof = encode_plonky2_proof(withdrawal_proof, &balance_circuit_data);
+    let encoded_compressed_withdrawal_proof =
+        encode_plonky2_proof(withdrawal_proof, &balance_circuit_data);
 
     let opts = SetOptions::default()
         .conditional_set(ExistenceCheck::NX)

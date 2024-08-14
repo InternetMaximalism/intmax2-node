@@ -16,9 +16,12 @@ pub mod server;
 
 #[actix_rt::main]
 async fn main() -> Result<(), std::io::Error> {
+    let hostname: String = app::config::get("hostname");
+
+    let log_level = env::var("RUST_LOG").unwrap_or("info".to_string());
+    std::env::set_var("RUST_LOG", log_level);
     env_logger::init();
 
-    let hostname: String = app::config::get("hostname");
     let port = env::var("PORT").unwrap_or_else(|_| "8080".to_string());
     let redis_url = env::var("REDIS_URL").expect("REDIS_URL must be set");
     let listen_address = format!("{}:{}", hostname, port);
@@ -27,12 +30,15 @@ async fn main() -> Result<(), std::io::Error> {
         Ok(client) => client,
         Err(e) => {
             log::error!("Failed to create Redis client: {}", e);
-            return Err(std::io::Error::new(std::io::ErrorKind::Other, "Failed to create Redis client"));
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Failed to create Redis client",
+            ));
         }
     };
 
     let state = AppState::new();
-    
+
     log::info!("Listening to requests at {}...", listen_address);
     HttpServer::new(move || {
         App::new()
