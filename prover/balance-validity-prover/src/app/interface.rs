@@ -94,13 +94,13 @@ pub struct ProofTransferRequest {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TransferIdQuery {
-    pub block_hashes: Vec<String>,
+    pub private_commitments: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProofTransferValue {
-    pub block_hash: String,
+    pub private_commitment: String,
     pub proof: String,
 }
 

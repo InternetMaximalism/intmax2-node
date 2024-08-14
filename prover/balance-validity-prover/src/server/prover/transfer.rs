@@ -1,10 +1,10 @@
 use crate::{
     app::{
-        interface::{
-            ProofResponse, ProofTransferRequest, ProofTransferValue,
-            ProofsTransferResponse, TransferIdQuery,
-        },
         encode::decode_plonky2_proof,
+        interface::{
+            ProofResponse, ProofTransferRequest, ProofTransferValue, ProofsTransferResponse,
+            TransferIdQuery,
+        },
         state::AppState,
     },
     proof::generate_balance_transfer_proof_job,
@@ -15,7 +15,7 @@ use intmax2_zkp::{
     ethereum_types::{u256::U256, u32limb_trait::U32LimbTrait},
 };
 
-#[get("/proof/{public_key}/transfer/{block_hash}")]
+#[get("/proof/{public_key}/transfer/{private_commitment}")]
 async fn get_proof(
     query_params: web::Path<(String, String)>,
     redis: web::Data<redis::Client>,
@@ -27,10 +27,10 @@ async fn get_proof(
 
     let public_key = U256::from_hex(&query_params.0).expect("failed to parse public key");
 
-    let block_hash = &query_params.1;
+    let private_commitment = &query_params.1;
     let proof = redis::Cmd::get(&get_balance_transfer_request_id(
         &public_key.to_hex(),
-        block_hash,
+        &private_commitment,
     ))
     .query_async::<_, Option<String>>(&mut conn)
     .await
@@ -60,11 +60,11 @@ async fn get_proofs(
 
     let query_string = req.query_string();
     let ids_query = serde_qs::from_str::<TransferIdQuery>(query_string);
-    let block_hashes: Vec<String>;
+    let private_commitments: Vec<String>;
 
     match ids_query {
         Ok(query) => {
-            block_hashes = query.block_hashes;
+            private_commitments = query.private_commitments;
         }
         Err(e) => {
             eprintln!("Failed to deserialize query: {:?}", e);
@@ -73,15 +73,15 @@ async fn get_proofs(
     }
 
     let mut proofs: Vec<ProofTransferValue> = Vec::new();
-    for block_hash in &block_hashes {
-        let request_id = get_balance_transfer_request_id(&public_key.to_hex(), block_hash);
+    for private_commitment in &private_commitments {
+        let request_id = get_balance_transfer_request_id(&public_key.to_hex(), private_commitment);
         let some_proof = redis::Cmd::get(&request_id)
             .query_async::<_, Option<String>>(&mut conn)
             .await
             .map_err(actix_web::error::ErrorInternalServerError)?;
         if let Some(proof) = some_proof {
             proofs.push(ProofTransferValue {
-                block_hash: (*block_hash).to_string(),
+                private_commitment: (*private_commitment).to_string(),
                 proof,
             });
         }
@@ -129,8 +129,10 @@ async fn generate_proof(
     let balance_public_inputs =
         BalancePublicInputs::from_pis(&receive_transfer_witness.balance_proof.public_inputs);
 
-    let block_hash = balance_public_inputs.public_state.block_hash;
-    let request_id = get_balance_transfer_request_id(&public_key.to_hex(), &block_hash.to_hex());
+    // let block_hash = balance_public_inputs.public_state.block_hash;
+    let private_commitment = balance_public_inputs.private_commitment;
+    let request_id =
+        get_balance_transfer_request_id(&public_key.to_hex(), &private_commitment.to_string());
     let old_proof = redis::Cmd::get(&request_id)
         .query_async::<_, Option<String>>(&mut redis_conn)
         .await
@@ -192,14 +194,17 @@ async fn generate_proof(
         success: true,
         proof: None,
         error_message: Some(format!(
-            "balance proof (block_hash: {}) is generating",
-            block_hash
+            "balance proof (private_commitment: {}) is generating",
+            private_commitment
         )),
     };
 
     Ok(HttpResponse::Ok().json(response))
 }
 
-fn get_balance_transfer_request_id(public_key: &str, block_hash: &str) -> String {
-    format!("balance-validity/{}/transfer/{}", public_key, block_hash)
+fn get_balance_transfer_request_id(public_key: &str, private_commitment: &str) -> String {
+    format!(
+        "balance-validity/{}/transfer/{}",
+        public_key, private_commitment
+    )
 }

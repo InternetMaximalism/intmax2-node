@@ -1,5 +1,6 @@
 use crate::{
     app::{
+        encode::decode_plonky2_proof,
         interface::{
             DepositIndexQuery, ProofDepositRequest, ProofDepositValue, ProofResponse,
             ProofsDepositResponse,
@@ -9,16 +10,7 @@ use crate::{
     proof::generate_receive_deposit_proof_job,
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
-use base64::prelude::*;
 use intmax2_zkp::ethereum_types::{u256::U256, u32limb_trait::U32LimbTrait};
-use plonky2::{
-    field::goldilocks_field::GoldilocksField,
-    plonk::{config::PoseidonGoldilocksConfig, proof::CompressedProofWithPublicInputs},
-};
-
-type C = PoseidonGoldilocksConfig;
-const D: usize = 2;
-type F = GoldilocksField;
 
 #[get("/proof/{public_key}/deposit/{deposit_index}")]
 async fn get_proof(
@@ -146,23 +138,9 @@ async fn generate_proof(
         .verifier_data();
     let prev_balance_proof = if let Some(req_prev_balance_proof) = &req.prev_balance_proof {
         println!("requested proof size: {}", req_prev_balance_proof.len());
-        let decoded_prev_validity_proof = BASE64_STANDARD
-            .decode(&req_prev_balance_proof)
-            .map_err(error::ErrorInternalServerError)?;
-        println!("validity proof size: {}", decoded_prev_validity_proof.len());
-
-        let compressed_prev_validity_proof =
-            CompressedProofWithPublicInputs::<F, C, D>::from_bytes(
-                decoded_prev_validity_proof,
-                &balance_circuit_data.common,
-            )
-            .map_err(error::ErrorInternalServerError)?;
-        let prev_validity_proof = compressed_prev_validity_proof
-            .decompress(
-                &balance_circuit_data.verifier_only.circuit_digest,
-                &balance_circuit_data.common,
-            )
-            .map_err(error::ErrorInternalServerError)?;
+        let prev_validity_proof =
+            decode_plonky2_proof(req_prev_balance_proof, &balance_circuit_data)
+                .map_err(error::ErrorInternalServerError)?;
         balance_circuit_data
             .verify(prev_validity_proof.clone())
             .map_err(error::ErrorInternalServerError)?;
