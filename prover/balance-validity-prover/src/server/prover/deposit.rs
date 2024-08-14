@@ -67,7 +67,7 @@ async fn get_proofs(
             deposit_indices = query.deposit_indices;
         }
         Err(e) => {
-            eprintln!("Failed to deserialize query: {:?}", e);
+            log::warn!("Failed to deserialize query: {:?}", e);
             return Ok(HttpResponse::BadRequest().body("Invalid query parameters"));
         }
     }
@@ -104,7 +104,6 @@ async fn generate_proof(
     redis: web::Data<redis::Client>,
     state: web::Data<AppState>,
 ) -> Result<impl Responder> {
-    println!("POST /proof");
     let mut redis_conn = redis
         .get_async_connection()
         .await
@@ -113,8 +112,8 @@ async fn generate_proof(
     let public_key = U256::from_hex(&query_params).expect("failed to parse public key");
 
     let deposit_index = req.receive_deposit_witness.deposit_witness.deposit_index;
-    println!("deposit_index: {:?}", deposit_index);
     let request_id = get_receive_deposit_request_id(&public_key.to_hex(), deposit_index);
+    log::debug!("request ID: {:?}", request_id);
     let old_proof = redis::Cmd::get(&request_id)
         .query_async::<_, Option<String>>(&mut redis_conn)
         .await
@@ -137,7 +136,7 @@ async fn generate_proof(
         .data
         .verifier_data();
     let prev_balance_proof = if let Some(req_prev_balance_proof) = &req.prev_balance_proof {
-        println!("requested proof size: {}", req_prev_balance_proof.len());
+        log::debug!("requested proof size: {}", req_prev_balance_proof.len());
         let prev_validity_proof =
             decode_plonky2_proof(req_prev_balance_proof, &balance_circuit_data)
                 .map_err(error::ErrorInternalServerError)?;
@@ -172,11 +171,11 @@ async fn generate_proof(
 
         match response {
             Ok(v) => {
-                println!("Proof generation completed");
+                log::info!("Proof generation completed");
                 Ok(v)
             }
             Err(e) => {
-                eprintln!("Failed to generate proof: {:?}", e);
+                log::error!("Failed to generate proof: {:?}", e);
                 Err(e)
             }
         }

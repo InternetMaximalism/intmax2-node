@@ -46,7 +46,7 @@ async fn build_circuits(
 ) {
     let validity_processor = ValidityProcessor::new();
     let balance_processor = BalanceProcessor::new(&validity_processor.validity_circuit);
-    println!("The balance validity circuit build has been completed.");
+    log::info!("The balance validity circuit build has been completed.");
 
     let _ = balance_processor_state.get_or_init(|| balance_processor);
     let _ = validity_circuit_state.get_or_init(|| validity_processor.validity_circuit);

@@ -67,7 +67,7 @@ async fn get_proofs(
             block_hashes = query.block_hashes;
         }
         Err(e) => {
-            eprintln!("Failed to deserialize query: {:?}", e);
+            log::warn!("Failed to deserialize query: {:?}", e);
             return Ok(HttpResponse::BadRequest().body("Invalid query parameters"));
         }
     }
@@ -103,7 +103,6 @@ async fn generate_proof(
     redis: web::Data<redis::Client>,
     state: web::Data<AppState>,
 ) -> Result<impl Responder> {
-    println!("POST /proof");
     let mut redis_conn = redis
         .get_async_connection()
         .await
@@ -132,6 +131,7 @@ async fn generate_proof(
 
     let block_hash = validity_public_inputs.public_state.block_hash;
     let request_id = get_balance_send_request_id(&public_key.to_hex(), &block_hash.to_hex());
+    log::debug!("request ID: {:?}", request_id);
     let old_proof = redis::Cmd::get(&request_id)
         .query_async::<_, Option<String>>(&mut redis_conn)
         .await
@@ -154,7 +154,7 @@ async fn generate_proof(
         .data
         .verifier_data();
     let prev_balance_proof = if let Some(req_prev_balance_proof) = &req.prev_balance_proof {
-        println!("requested proof size: {}", req_prev_balance_proof.len());
+        log::debug!("requested proof size: {}", req_prev_balance_proof.len());
         let prev_balance_proof =
             decode_plonky2_proof(&req_prev_balance_proof, &balance_circuit_data)
                 .map_err(error::ErrorInternalServerError)?;
@@ -191,11 +191,11 @@ async fn generate_proof(
 
         match response {
             Ok(v) => {
-                println!("Proof generation completed");
+                log::info!("Proof generation completed");
                 Ok(v)
             }
             Err(e) => {
-                eprintln!("Failed to generate proof: {:?}", e);
+                log::error!("Failed to generate proof: {:?}", e);
                 Err(e)
             }
         }

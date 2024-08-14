@@ -5,7 +5,9 @@ use intmax2_zkp::{
         balance::balance_processor::BalanceProcessor, validity::validity_circuit::ValidityCircuit,
     },
     common::witness::{
-        receive_deposit_witness::ReceiveDepositWitness, receive_transfer_witness::ReceiveTransferWitness, send_witness::SendWitness, update_witness::UpdateWitness
+        receive_deposit_witness::ReceiveDepositWitness,
+        receive_transfer_witness::ReceiveTransferWitness, send_witness::SendWitness,
+        update_witness::UpdateWitness,
     },
     ethereum_types::u256::U256,
 };
@@ -31,7 +33,7 @@ pub async fn generate_receive_deposit_proof_job(
 ) -> anyhow::Result<()> {
     let balance_circuit_data = balance_processor.balance_circuit.data.verifier_data();
 
-    println!("Proving...");
+    log::debug!("Proving...");
     let balance_proof = balance_processor.prove_receive_deposit(
         public_key,
         &receive_deposit_witness,
@@ -74,7 +76,7 @@ pub async fn generate_balance_update_proof_job(
     let balance_circuit_data = balance_processor.balance_circuit.data.verifier_data();
     // let validity_circuit_data = validity_circuit_data.verifier_data();
 
-    println!("Proving...");
+    log::debug!("Proving...");
     let balance_proof = balance_processor.prove_update(
         &validity_circuit,
         public_key,
@@ -117,7 +119,7 @@ pub async fn generate_balance_transfer_proof_job(
     let balance_circuit_data = balance_processor.balance_circuit.data.verifier_data();
     // let validity_circuit_data = validity_circuit_data.verifier_data();
 
-    println!("Proving...");
+    log::debug!("Proving...");
     let balance_proof = balance_processor.prove_receive_transfer(
         public_key,
         receive_transfer_witness,
@@ -161,7 +163,7 @@ pub async fn generate_balance_send_proof_job(
     let balance_circuit_data = balance_processor.balance_circuit.data.verifier_data();
     // let validity_circuit_data = validity_circuit_data.verifier_data();
 
-    println!("Proving...");
+    log::debug!("Proving...");
     let balance_proof = balance_processor.prove_send(
         &validity_circuit,
         public_key,
@@ -170,7 +172,8 @@ pub async fn generate_balance_send_proof_job(
         &prev_balance_proof,
     );
 
-    let encoded_compressed_balance_proof = encode_plonky2_proof(balance_proof, &balance_circuit_data);
+    let encoded_compressed_balance_proof =
+        encode_plonky2_proof(balance_proof, &balance_circuit_data);
 
     let opts = SetOptions::default()
         .conditional_set(ExistenceCheck::NX)

@@ -23,6 +23,7 @@ tokio = "1.39.2"
 hex = "0.4.3"
 anyhow = "1.0.86"
 log = "0.4.22"
+env_logger = "0.11.5"
 
 [dependencies.validator]
 version = "0.16.1"
