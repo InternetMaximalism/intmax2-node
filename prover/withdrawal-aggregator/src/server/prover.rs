@@ -1,7 +1,7 @@
 use crate::{
     app::{
         encode::decode_plonky2_proof,
-        interface::{IdQuery, ProofRequest, ProofResponse, ProofValue, ProofsResponse},
+        interface::{GenerateProofResponse, IdQuery, ProofRequest, ProofResponse, ProofValue, ProofsResponse},
         state::AppState,
     },
     proof::generate_withdrawal_proof_job,
@@ -18,7 +18,8 @@ async fn get_proof(
         .await
         .map_err(actix_web::error::ErrorInternalServerError)?;
 
-    let proof = redis::Cmd::get(&*id)
+    let request_id = get_withdrawal_request_id(&id);
+    let proof = redis::Cmd::get(&request_id)
         .query_async::<_, Option<String>>(&mut conn)
         .await
         .map_err(error::ErrorInternalServerError)?;
@@ -36,7 +37,7 @@ async fn get_proof(
 async fn get_proofs(
     req: HttpRequest,
     redis: web::Data<redis::Client>,
-) -> Result<impl Responder, actix_web::Error> {
+) -> Result<impl Responder> {
     let mut conn = redis
         .get_async_connection()
         .await
@@ -44,22 +45,22 @@ async fn get_proofs(
 
     let query_string = req.query_string();
     let ids_query: Result<IdQuery, _> = serde_qs::from_str(query_string);
-    let ids: Vec<i32>;
+    let ids: Vec<String>;
 
     match ids_query {
         Ok(query) => {
             ids = query.ids;
         }
         Err(e) => {
-            log::error!("Failed to deserialize query: {:?}", e);
+            log::warn!("Failed to deserialize query: {:?}", e);
             return Ok(HttpResponse::BadRequest().body("Invalid query parameters"));
         }
     }
 
     let mut proofs: Vec<ProofValue> = Vec::new();
     for id in &ids {
-        let request_id = get_withdrawal_request_id(&id.to_string());
-        let some_proof = redis::Cmd::get(request_id)
+        let request_id = get_withdrawal_request_id(&id);
+        let some_proof = redis::Cmd::get(&request_id)
             .query_async::<_, Option<String>>(&mut conn)
             .await
             .map_err(actix_web::error::ErrorInternalServerError)?;
@@ -167,13 +168,10 @@ async fn generate_proof(
         }
     });
 
-    let response = ProofResponse {
+    Ok(HttpResponse::Ok().json(GenerateProofResponse {
         success: true,
-        proof: None,
-        error_message: Some("withdrawal proof is generating".to_string()),
-    };
-
-    Ok(HttpResponse::Ok().json(response))
+        message: "withdrawal proof is generating".to_string(),
+    }))
 }
 
 fn get_withdrawal_request_id(id: &str) -> String {

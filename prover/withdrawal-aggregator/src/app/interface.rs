@@ -26,7 +26,7 @@ pub struct ProofRequest {
 
 #[derive(Deserialize)]
 pub struct IdQuery {
-    pub ids: Vec<i32>,
+    pub ids: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -47,4 +47,10 @@ pub struct ProofsResponse {
     pub success: bool,
     pub proofs: Vec<ProofValue>,
     pub error_message: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct GenerateProofResponse {
+    pub success: bool,
+    pub message: String,
 }
