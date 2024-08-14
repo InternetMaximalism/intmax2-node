@@ -26,16 +26,19 @@ curl http://localhost:8092/health | jq
 
 ```sh
 # generate proof
-curl -X POST -d '{ "balanceUpdateWitness":'$(cat data/balance_update_witness_0xb6958ba9425ec53e527c15d99420ec4e1af764aabed764a9435db4681e41b742.json)', "prevBalanceProof":null }' -H "Content-Type: application/json" http://localhost:8092/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/update | jq
+curl -X POST -d '{ "balanceUpdateWitness":'$(cat data/balance_update_witness_0xb0f9cbdf7b1f89cad6d6657520505a117ac69b834d502ca9b1ecfb3f1bfa5556.json)', "prevBalanceProof":null }' -H "Content-Type: application/json" http://localhost:8092/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/update | jq
 
 # generate proof
-curl -X POST -d '{ "balanceUpdateWitness":'$(cat data/balance_update_witness_0x5fdba28c55ab46d2acc036311e8835da80ae227c56c05aee645f5f2f1dda2443.json)', "prevBalanceProof":"'$(base64 --input data/prev_balance_update_proof_0x5fdba28c55ab46d2acc036311e8835da80ae227c56c05aee645f5f2f1dda2443.bin)'" }' -H "Content-Type: application/json" http://localhost:8092/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/update | jq
+curl -X POST -d '{ "balanceUpdateWitness":'$(cat data/balance_update_witness_0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.json)', "prevBalanceProof":"'$(base64 --input data/prev_balance_update_proof_0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.bin)'" }' -H "Content-Type: application/json" http://localhost:8092/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/update | jq
 
-# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and block hash 0x5fdba28c55ab46d2acc036311e8835da80ae227c56c05aee645f5f2f1dda2443.
-curl http://localhost:8092/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/update/0x5fdba28c55ab46d2acc036311e8835da80ae227c56c05aee645f5f2f1dda2443 | jq
+# generate proof (XXX: invalid)
+curl -X POST -d '{ "balanceUpdateWitness":'$(cat data/balance_update_witness_0x2fc9d0cc9b9a135ea38a2fa0260406dcd4d9e65678c102d7c439e2a50401d217.json)', "prevBalanceProof":"'$(base64 --input data/prev_balance_update_proof_0x2fc9d0cc9b9a135ea38a2fa0260406dcd4d9e65678c102d7c439e2a50401d217.bin)'" }' -H "Content-Type: application/json" http://localhost:8092/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/update | jq
 
-# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and block hash 0xb6958ba9425ec53e527c15d99420ec4e1af764aabed764a9435db4681e41b742 or 0x5fdba28c55ab46d2acc036311e8835da80ae227c56c05aee645f5f2f1dda2443.
-curl "http://localhost:8092/proofs/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/update?blockHashes[]=0xb6958ba9425ec53e527c15d99420ec4e1af764aabed764a9435db4681e41b742&blockHashes[]=0x5fdba28c55ab46d2acc036311e8835da80ae227c56c05aee645f5f2f1dda2443" | jq
+# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and block hash 0xb0f9cbdf7b1f89cad6d6657520505a117ac69b834d502ca9b1ecfb3f1bfa5556.
+curl http://localhost:8092/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/update/0xb0f9cbdf7b1f89cad6d6657520505a117ac69b834d502ca9b1ecfb3f1bfa5556 | jq
+
+# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and block hash 0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c or 0xb0f9cbdf7b1f89cad6d6657520505a117ac69b834d502ca9b1ecfb3f1bfa5556.
+curl "http://localhost:8092/proofs/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/update?blockHashes[]=0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c&blockHashes[]=0xb0f9cbdf7b1f89cad6d6657520505a117ac69b834d502ca9b1ecfb3f1bfa5556" | jq
 ```
 
 ### Receive Deposit
@@ -55,29 +58,29 @@ curl "http://localhost:8092/proofs/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de
 
 ```sh
 # generate proof
-curl -X POST -d '{ "sendWitness":'$(cat data/send_witness_0x0913da753df6b870a294d2d277acc6e66ef5865db8a9dff6b27e32d9380144f4.json)', "balanceUpdateWitness":'$(cat data/balance_update_for_send_witness_0x0913da753df6b870a294d2d277acc6e66ef5865db8a9dff6b27e32d9380144f4.json)', "prevBalanceProof":"'$(base64 --input data/prev_balance_update_for_send_proof_0x0913da753df6b870a294d2d277acc6e66ef5865db8a9dff6b27e32d9380144f4.bin)'" }' -H "Content-Type: application/json" http://localhost:8092/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/send | jq
+curl -X POST -d '{ "sendWitness":'$(cat data/send_witness_0x2fc9d0cc9b9a135ea38a2fa0260406dcd4d9e65678c102d7c439e2a50401d217.json)', "balanceUpdateWitness":'$(cat data/balance_update_for_send_witness_0x2fc9d0cc9b9a135ea38a2fa0260406dcd4d9e65678c102d7c439e2a50401d217.json)', "prevBalanceProof":"'$(base64 --input data/prev_balance_update_for_send_proof_0x2fc9d0cc9b9a135ea38a2fa0260406dcd4d9e65678c102d7c439e2a50401d217.bin)'" }' -H "Content-Type: application/json" http://localhost:8092/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/send | jq
 
 # generate proof
-curl -X POST -d '{ "sendWitness":'$(cat data/send_witness_0xe7d10c397020d2e484e57225943a64c24e88206f613a9f3e1956bebd61684080.json)', "balanceUpdateWitness":'$(cat data/balance_update_for_send_witness_0xe7d10c397020d2e484e57225943a64c24e88206f613a9f3e1956bebd61684080.json)', "prevBalanceProof":"'$(base64 --input data/prev_balance_update_for_send_proof_0xe7d10c397020d2e484e57225943a64c24e88206f613a9f3e1956bebd61684080.bin)'" }' -H "Content-Type: application/json" http://localhost:8092/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/send | jq
+curl -X POST -d '{ "sendWitness":'$(cat data/send_witness_0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.json)', "balanceUpdateWitness":'$(cat data/balance_update_for_send_witness_0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.json)', "prevBalanceProof":"'$(base64 --input data/prev_balance_update_for_send_proof_0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.bin)'" }' -H "Content-Type: application/json" http://localhost:8092/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/send | jq
 
-# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and block hash 0x6a04aacaa6f4492a806bf9cbf93bb3ac79975f06d5b92349ebef67f6f40c0cb9.
-curl http://localhost:8092/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/send/0xe7d10c397020d2e484e57225943a64c24e88206f613a9f3e1956bebd61684080 | jq
+# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and block hash 0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.
+curl http://localhost:8092/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/send/0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c | jq
 
-# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and block hash 0x6a04aacaa6f4492a806bf9cbf93bb3ac79975f06d5b92349ebef67f6f40c0cb9 or 0xc9be81313526e0b29fe953f9b4feba4b05e2446d55fac9da92bda944c799333b.
-curl "http://localhost:8092/proofs/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/send?blockHashes[]=0x0913da753df6b870a294d2d277acc6e66ef5865db8a9dff6b27e32d9380144f4&blockHashes[]=0xe7d10c397020d2e484e57225943a64c24e88206f613a9f3e1956bebd61684080" | jq
+# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and block hash 0x2fc9d0cc9b9a135ea38a2fa0260406dcd4d9e65678c102d7c439e2a50401d217 or 0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.
+curl "http://localhost:8092/proofs/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/send?blockHashes[]=0x2fc9d0cc9b9a135ea38a2fa0260406dcd4d9e65678c102d7c439e2a50401d217&blockHashes[]=0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c" | jq
 ```
 
 ### Receive Transfer (Synchronize Block)
 
 ```sh
 # generate proof
-curl -X POST -d '{ "receiveTransferWitness":'$(cat data/receive_transfer_witness_0x955146e44abdb771b50684e9c5af0746180ffbf62109df99310cba47ee41e72e.json)', "prevBalanceProof":"'$(base64 --input data/prev_receive_transfer_proof_0x955146e44abdb771b50684e9c5af0746180ffbf62109df99310cba47ee41e72e.bin)'" }' -H "Content-Type: application/json" http://localhost:8092/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/transfer | jq
+curl -X POST -d '{ "receiveTransferWitness":'$(cat data/receive_transfer_witness_0x7a00b7dbf1994ff9fb05a5897b7dc459dd9167ee7a4ad049b9850cbaf286bbee.json)', "prevBalanceProof":"'$(base64 --input data/prev_receive_transfer_proof_0x7a00b7dbf1994ff9fb05a5897b7dc459dd9167ee7a4ad049b9850cbaf286bbee.bin)'" }' -H "Content-Type: application/json" http://localhost:8092/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/transfer | jq
 
-# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and block hash 0x955146e44abdb771b50684e9c5af0746180ffbf62109df99310cba47ee41e72e.
-curl http://localhost:8092/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/transfer/0x955146e44abdb771b50684e9c5af0746180ffbf62109df99310cba47ee41e72e | jq
+# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and block hash 0x7a00b7dbf1994ff9fb05a5897b7dc459dd9167ee7a4ad049b9850cbaf286bbee.
+curl http://localhost:8092/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/transfer/0x7a00b7dbf1994ff9fb05a5897b7dc459dd9167ee7a4ad049b9850cbaf286bbee | jq
 
-# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and block hash 0x955146e44abdb771b50684e9c5af0746180ffbf62109df99310cba47ee41e72e or 0xc9be81313526e0b29fe953f9b4feba4b05e2446d55fac9da92bda944c799333b.
-curl "http://localhost:8092/proofs/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/transfer?privateCommitments[]=0x955146e44abdb771b50684e9c5af0746180ffbf62109df99310cba47ee41e72e&privateCommitments[]=0xc9be81313526e0b29fe953f9b4feba4b05e2446d55fac9da92bda944c799333b" | jq
+# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and block hash 0x7a00b7dbf1994ff9fb05a5897b7dc459dd9167ee7a4ad049b9850cbaf286bbee or 0xc9be81313526e0b29fe953f9b4feba4b05e2446d55fac9da92bda944c799333b.
+curl "http://localhost:8092/proofs/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/transfer?privateCommitments[]=0x7a00b7dbf1994ff9fb05a5897b7dc459dd9167ee7a4ad049b9850cbaf286bbee&privateCommitments[]=0xc9be81313526e0b29fe953f9b4feba4b05e2446d55fac9da92bda944c799333b" | jq
 ```
 
 ## Docker
