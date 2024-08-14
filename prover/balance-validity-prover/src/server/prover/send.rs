@@ -2,12 +2,11 @@ use crate::{
     app::{
         encode::decode_plonky2_proof,
         interface::{
-            ProofResponse, ProofUpdateRequest, ProofUpdateValue, ProofsUpdateResponse,
-            UpdateIdQuery,
+            ProofResponse, ProofSendRequest, ProofSendValue, ProofsSendResponse, SendIdQuery,
         },
         state::AppState,
     },
-    proof::generate_balance_update_proof_job,
+    proof::generate_balance_send_proof_job,
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
 use intmax2_zkp::{
@@ -16,7 +15,7 @@ use intmax2_zkp::{
     ethereum_types::{u256::U256, u32limb_trait::U32LimbTrait},
 };
 
-#[get("/proof/{public_key}/update/{block_hash}")]
+#[get("/proof/{public_key}/send/{block_hash}")]
 async fn get_proof(
     query_params: web::Path<(String, String)>,
     redis: web::Data<redis::Client>,
@@ -29,7 +28,7 @@ async fn get_proof(
     let public_key = U256::from_hex(&query_params.0).expect("failed to parse public key");
 
     let block_hash = &query_params.1;
-    let proof = redis::Cmd::get(&get_balance_update_request_id(
+    let proof = redis::Cmd::get(&get_balance_send_request_id(
         &public_key.to_hex(),
         block_hash,
     ))
@@ -46,7 +45,7 @@ async fn get_proof(
     Ok(HttpResponse::Ok().json(response))
 }
 
-#[get("/proofs/{public_key}/update")]
+#[get("/proofs/{public_key}/send")]
 async fn get_proofs(
     query_params: web::Path<String>,
     req: HttpRequest,
@@ -60,7 +59,7 @@ async fn get_proofs(
     let public_key = U256::from_hex(&query_params).expect("failed to parse public key");
 
     let query_string = req.query_string();
-    let ids_query = serde_qs::from_str::<UpdateIdQuery>(query_string);
+    let ids_query = serde_qs::from_str::<SendIdQuery>(query_string);
     let block_hashes: Vec<String>;
 
     match ids_query {
@@ -73,22 +72,22 @@ async fn get_proofs(
         }
     }
 
-    let mut proofs: Vec<ProofUpdateValue> = Vec::new();
+    let mut proofs: Vec<ProofSendValue> = Vec::new();
     for block_hash in &block_hashes {
-        let request_id = get_balance_update_request_id(&public_key.to_hex(), block_hash);
+        let request_id = get_balance_send_request_id(&public_key.to_hex(), block_hash);
         let some_proof = redis::Cmd::get(&request_id)
             .query_async::<_, Option<String>>(&mut conn)
             .await
             .map_err(actix_web::error::ErrorInternalServerError)?;
         if let Some(proof) = some_proof {
-            proofs.push(ProofUpdateValue {
+            proofs.push(ProofSendValue {
                 block_hash: (*block_hash).to_string(),
                 proof,
             });
         }
     }
 
-    let response = ProofsUpdateResponse {
+    let response = ProofsSendResponse {
         success: true,
         proofs,
         error_message: None,
@@ -97,10 +96,10 @@ async fn get_proofs(
     Ok(HttpResponse::Ok().json(response))
 }
 
-#[post("/proof/{public_key}/update")]
+#[post("/proof/{public_key}/send")]
 async fn generate_proof(
     query_params: web::Path<String>,
-    req: web::Json<ProofUpdateRequest>,
+    req: web::Json<ProofSendRequest>,
     redis: web::Data<redis::Client>,
     state: web::Data<AppState>,
 ) -> Result<impl Responder> {
@@ -132,7 +131,7 @@ async fn generate_proof(
     };
 
     let block_hash = validity_public_inputs.public_state.block_hash;
-    let request_id = get_balance_update_request_id(&public_key.to_hex(), &block_hash.to_hex());
+    let request_id = get_balance_send_request_id(&public_key.to_hex(), &block_hash.to_hex());
     let old_proof = redis::Cmd::get(&request_id)
         .query_async::<_, Option<String>>(&mut redis_conn)
         .await
@@ -172,10 +171,11 @@ async fn generate_proof(
 
     // Spawn a new task to generate the proof
     actix_web::rt::spawn(async move {
-        let response = generate_balance_update_proof_job(
+        let response = generate_balance_send_proof_job(
             request_id,
             public_key,
             prev_balance_proof,
+            &req.send_witness,
             &balance_update_witness,
             state
                 .balance_processor
@@ -213,6 +213,6 @@ async fn generate_proof(
     Ok(HttpResponse::Ok().json(response))
 }
 
-fn get_balance_update_request_id(public_key: &str, block_hash: &str) -> String {
-    format!("balance-validity/{}/update/{}", public_key, block_hash)
+fn get_balance_send_request_id(public_key: &str, block_hash: &str) -> String {
+    format!("balance-validity/{}/send/{}", public_key, block_hash)
 }

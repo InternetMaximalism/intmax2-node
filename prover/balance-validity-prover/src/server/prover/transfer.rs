@@ -4,7 +4,7 @@ use crate::{
             ProofResponse, ProofTransferRequest, ProofTransferValue,
             ProofsTransferResponse, TransferIdQuery,
         },
-        encode::decode_balance_proof,
+        encode::decode_plonky2_proof,
         state::AppState,
     },
     proof::generate_balance_transfer_proof_job,
@@ -60,11 +60,11 @@ async fn get_proofs(
 
     let query_string = req.query_string();
     let ids_query = serde_qs::from_str::<TransferIdQuery>(query_string);
-    let ids: Vec<String>;
+    let block_hashes: Vec<String>;
 
     match ids_query {
         Ok(query) => {
-            ids = query.block_hashes;
+            block_hashes = query.block_hashes;
         }
         Err(e) => {
             eprintln!("Failed to deserialize query: {:?}", e);
@@ -73,7 +73,7 @@ async fn get_proofs(
     }
 
     let mut proofs: Vec<ProofTransferValue> = Vec::new();
-    for block_hash in &ids {
+    for block_hash in &block_hashes {
         let request_id = get_balance_transfer_request_id(&public_key.to_hex(), block_hash);
         let some_proof = redis::Cmd::get(&request_id)
             .query_async::<_, Option<String>>(&mut conn)
@@ -148,7 +148,7 @@ async fn generate_proof(
     let prev_balance_proof = if let Some(req_prev_balance_proof) = &req.prev_balance_proof {
         println!("requested proof size: {}", req_prev_balance_proof.len());
         let prev_balance_proof =
-            decode_balance_proof(req_prev_balance_proof, &balance_circuit_data)
+            decode_plonky2_proof(req_prev_balance_proof, &balance_circuit_data)
                 .map_err(error::ErrorInternalServerError)?;
         balance_circuit_data
             .verify(prev_balance_proof.clone())
