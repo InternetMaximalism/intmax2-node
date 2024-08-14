@@ -18,14 +18,27 @@ pub struct ErrorResponse {
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ProofRequest {
+pub struct WithdrawalProofRequest {
     pub id: String,
     pub prev_withdrawal_proof: Option<String>,
     pub withdrawal_witness: SerializableWithdrawalWitness,
 }
 
 #[derive(Deserialize)]
-pub struct IdQuery {
+pub struct WithdrawalIdQuery {
+    pub ids: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WithdrawalWrapperProofRequest {
+    pub id: String,
+    pub withdrawal_proof: String,
+    pub withdrawal_aggregator: String,
+}
+
+#[derive(Deserialize)]
+pub struct WithdrawalWrapperIdQuery {
     pub ids: Vec<String>,
 }
 

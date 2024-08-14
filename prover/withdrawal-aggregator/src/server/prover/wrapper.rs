@@ -1,14 +1,18 @@
 use crate::{
     app::{
         encode::decode_plonky2_proof,
-        interface::{GenerateProofResponse, IdQuery, ProofRequest, ProofResponse, ProofValue, ProofsResponse},
+        interface::{
+            GenerateProofResponse, ProofResponse, ProofValue, ProofsResponse,
+            WithdrawalWrapperIdQuery, WithdrawalWrapperProofRequest,
+        },
         state::AppState,
     },
-    proof::generate_withdrawal_proof_job,
+    proof::generate_withdrawal_wrapper_proof_job,
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
+use intmax2_zkp::ethereum_types::{address::Address, u32limb_trait::U32LimbTrait};
 
-#[get("/proof/{id}")]
+#[get("/proof/wrapper/{id}")]
 async fn get_proof(
     id: web::Path<String>,
     redis: web::Data<redis::Client>,
@@ -18,7 +22,7 @@ async fn get_proof(
         .await
         .map_err(actix_web::error::ErrorInternalServerError)?;
 
-    let request_id = get_withdrawal_request_id(&id);
+    let request_id = get_withdrawal_wrapper_request_id(&id);
     let proof = redis::Cmd::get(&request_id)
         .query_async::<_, Option<String>>(&mut conn)
         .await
@@ -33,18 +37,15 @@ async fn get_proof(
     Ok(HttpResponse::Ok().json(response))
 }
 
-#[get("/proofs")]
-async fn get_proofs(
-    req: HttpRequest,
-    redis: web::Data<redis::Client>,
-) -> Result<impl Responder> {
+#[get("/proofs/wrapper")]
+async fn get_proofs(req: HttpRequest, redis: web::Data<redis::Client>) -> Result<impl Responder> {
     let mut conn = redis
         .get_async_connection()
         .await
         .map_err(actix_web::error::ErrorInternalServerError)?;
 
     let query_string = req.query_string();
-    let ids_query: Result<IdQuery, _> = serde_qs::from_str(query_string);
+    let ids_query: Result<WithdrawalWrapperIdQuery, _> = serde_qs::from_str(query_string);
     let ids: Vec<String>;
 
     match ids_query {
@@ -59,7 +60,7 @@ async fn get_proofs(
 
     let mut proofs: Vec<ProofValue> = Vec::new();
     for id in &ids {
-        let request_id = get_withdrawal_request_id(&id);
+        let request_id = get_withdrawal_wrapper_request_id(&id);
         let some_proof = redis::Cmd::get(&request_id)
             .query_async::<_, Option<String>>(&mut conn)
             .await
@@ -81,9 +82,9 @@ async fn get_proofs(
     Ok(HttpResponse::Ok().json(response))
 }
 
-#[post("/proof")]
+#[post("/proof/wrapper")]
 async fn generate_proof(
-    req: web::Json<ProofRequest>,
+    req: web::Json<WithdrawalWrapperProofRequest>,
     redis: web::Data<redis::Client>,
     state: web::Data<AppState>,
 ) -> Result<impl Responder> {
@@ -92,7 +93,7 @@ async fn generate_proof(
         .await
         .map_err(error::ErrorInternalServerError)?;
 
-    let request_id = get_withdrawal_request_id(&req.id);
+    let request_id = get_withdrawal_wrapper_request_id(&req.id);
     let old_proof = redis::Cmd::get(&request_id)
         .query_async::<_, Option<String>>(&mut redis_conn)
         .await
@@ -101,7 +102,7 @@ async fn generate_proof(
         let response = ProofResponse {
             success: true,
             proof: None,
-            error_message: Some("withdrawal proof already exists".to_string()),
+            error_message: Some("withdrawal wrapper proof already exists".to_string()),
         };
 
         return Ok(HttpResponse::Ok().json(response));
@@ -110,48 +111,33 @@ async fn generate_proof(
     let withdrawal_circuit_data = state
         .withdrawal_processor
         .get()
-        .ok_or_else(|| error::ErrorInternalServerError("withdrawal processor not initialized"))?
+        .ok_or_else(|| error::ErrorInternalServerError("withdrawal circuit is not initialized"))?
         .withdrawal_circuit
         .data
         .verifier_data();
-    let prev_withdrawal_proof = if let Some(req_prev_withdrawal_proof) = &req.prev_withdrawal_proof
-    {
-        log::debug!("requested proof size: {}", req_prev_withdrawal_proof.len());
-        let prev_withdrawal_proof =
-            decode_plonky2_proof(req_prev_withdrawal_proof, &withdrawal_circuit_data)
-                .map_err(error::ErrorInternalServerError)?;
-        withdrawal_circuit_data
-            .verify(prev_withdrawal_proof.clone())
-            .map_err(error::ErrorInternalServerError)?;
 
-        Some(prev_withdrawal_proof)
-    } else {
-        None
-    };
-
-    let balance_circuit_data = state
-        .balance_circuit
-        .get()
-        .ok_or_else(|| error::ErrorInternalServerError("withdrawal processor not initialized"))?
-        .data
-        .verifier_data();
-    let withdrawal_witness = req
-        .withdrawal_witness
-        .decode(&balance_circuit_data)
+    log::debug!("requested proof size: {}", req.withdrawal_proof.len());
+    let withdrawal_proof = decode_plonky2_proof(&req.withdrawal_proof, &withdrawal_circuit_data)
         .map_err(error::ErrorInternalServerError)?;
+    withdrawal_circuit_data
+        .verify(withdrawal_proof.clone())
+        .map_err(error::ErrorInternalServerError)?;
+
+    let withdrawal_aggregator =
+        Address::from_hex(&req.withdrawal_aggregator).map_err(error::ErrorInternalServerError)?;
 
     // TODO: Validation check of withdrawal_witness
 
     // Spawn a new task to generate the proof
     actix_web::rt::spawn(async move {
-        let response = generate_withdrawal_proof_job(
+        let response = generate_withdrawal_wrapper_proof_job(
             request_id,
-            prev_withdrawal_proof,
-            &withdrawal_witness,
+            withdrawal_proof,
+            withdrawal_aggregator,
             state
-                .withdrawal_processor
+                .withdrawal_wrapper_processor
                 .get()
-                .expect("withdrawal processor not initialized"),
+                .expect("withdrawal wrapper circuit is not initialized"),
             &mut redis_conn,
         )
         .await;
@@ -170,10 +156,10 @@ async fn generate_proof(
 
     Ok(HttpResponse::Ok().json(GenerateProofResponse {
         success: true,
-        message: "withdrawal proof is generating".to_string(),
+        message: "withdrawal wrapper proof is generating".to_string(),
     }))
 }
 
-fn get_withdrawal_request_id(id: &str) -> String {
-    format!("withdrawal/{}", id)
+fn get_withdrawal_wrapper_request_id(id: &str) -> String {
+    format!("withdrawal-wrapper/{}", id)
 }
