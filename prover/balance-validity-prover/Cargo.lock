@@ -1241,7 +1241,6 @@ dependencies = [
  "ark-ec",
  "ark-ff",
  "ark-std",
- "base64 0.22.1",
  "ff",
  "hashbrown 0.14.5",
  "hex",
