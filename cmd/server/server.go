@@ -5,7 +5,7 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
 	"intmax2-node/docs/swagger"
-	"intmax2-node/internal/block_post_service"
+	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/network_service"
@@ -40,7 +40,7 @@ type Server struct {
 	PoW                 PoWNonce
 	Worker              Worker
 	DepositSynchronizer DepositSynchronizer
-	BlockValidityProver BlockValidityProver
+	BlockPostService    BlockPostService
 }
 
 func NewServerCmd(s *Server) *cobra.Command {
@@ -60,7 +60,7 @@ func NewServerCmd(s *Server) *cobra.Command {
 				s.Log.Fatalf(msg, err.Error())
 			}
 
-			err = s.BlockValidityProver.Init()
+			err = s.BlockPostService.Init()
 			if err != nil {
 				const msg = "init the Block Validity Prover error occurred: %v"
 				s.Log.Fatalf(msg, err.Error())
@@ -193,7 +193,7 @@ func NewServerCmd(s *Server) *cobra.Command {
 						tickerEventWatcher.Stop()
 					}
 				}()
-				if err = s.BlockValidityProver.Start(s.Context, tickerEventWatcher); err != nil {
+				if err = s.BlockPostService.Start(s.Context, tickerEventWatcher); err != nil {
 					const msg = "failed to start Block Validity Prover: %+v"
 					s.Log.Fatalf(msg, err.Error())
 				}
@@ -213,7 +213,7 @@ func NewServerCmd(s *Server) *cobra.Command {
 						tickerEventWatcher.Stop()
 					}
 				}()
-				err = block_post_service.StartBlocksFetcher(s.Context, s.Config, s.Log, s.DbApp, tickerEventWatcher)
+				err = block_synchronizer.StartBlocksFetcher(s.Context, s.Config, s.Log, s.DbApp, tickerEventWatcher)
 				if err != nil {
 					const msg = "failed to start Block Post Service: %+v"
 					s.Log.Fatalf(msg, err.Error())

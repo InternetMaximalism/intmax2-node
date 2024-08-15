@@ -5,7 +5,7 @@ import (
 	"errors"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
-	"intmax2-node/internal/block_post_service"
+	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
 	intMaxTypes "intmax2-node/internal/types"
@@ -77,7 +77,7 @@ func (u *uc) Do(
 			File:   nil,
 		}
 	*/
-	b, err := block_post_service.NewBlockPostService(ctx, u.cfg, u.log)
+	b, err := block_synchronizer.NewBlockSynchronizer(ctx, u.cfg, u.log)
 	if err != nil {
 		var ErrNewBlockPostServiceFail = errors.New("new block post service fail")
 		return errors.Join(ErrNewBlockPostServiceFail, err)

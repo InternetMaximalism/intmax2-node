@@ -1,4 +1,4 @@
-package block_post_service_test
+package block_synchronizer_test
 
 import (
 	"context"
@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/block_post_service"
+	"intmax2-node/internal/block_synchronizer"
+	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/pkg/logger"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"os"
@@ -58,9 +60,11 @@ func TestAccountInfoMap(t *testing.T) {
 		SenderID:  uuid.New().String(),
 		CreatedAt: time.Now().UTC(),
 	}, nil).AnyTimes()
+	dbApp.EXPECT().UpdateBlockStatus(gomock.Any().String(), gomock.Any().String(), uint32(1)).Return(nil).AnyTimes()
+	dbApp.EXPECT().GetUnprocessedBlocks().Return(nil, nil).AnyTimes()
 
 	lg := logger.New(cfg.LOG.Level, cfg.LOG.TimeFormat, cfg.LOG.JSON, cfg.LOG.IsLogLine)
-	assert.NoError(t, block_post_service.ProcessingPostedBlocks(ctx, cfg, lg, dbApp))
+	assert.NoError(t, block_synchronizer.ProcessingPostedBlocks(ctx, cfg, lg, dbApp))
 }
 
 func TestFetchNewPostedBlocks(t *testing.T) {
@@ -98,13 +102,13 @@ func TestFetchNewPostedBlocks(t *testing.T) {
 
 	accountInfoMap := block_post_service.NewAccountInfo(dbApp)
 	for i, calldata := range calldataJson {
-		_, err = block_post_service.FetchIntMaxBlockContentByCalldata(calldata, accountInfoMap)
+		_, err = block_validity_prover.FetchIntMaxBlockContentByCalldata(calldata, accountInfoMap)
 		if err != nil {
-			if errors.Is(err, block_post_service.ErrUnknownAccountID) {
+			if errors.Is(err, block_validity_prover.ErrUnknownAccountID) {
 				fmt.Printf("block %d is ErrUnknownAccountID\n", i)
 				continue
 			}
-			if errors.Is(err, block_post_service.ErrCannotDecodeAddress) {
+			if errors.Is(err, block_validity_prover.ErrCannotDecodeAddress) {
 				fmt.Printf("block %d is ErrCannotDecodeAddress\n", i)
 				continue
 			}

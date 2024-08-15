@@ -16,6 +16,7 @@ type SQLDriverApp interface {
 	EventBlockNumbersErrors
 	Senders
 	Accounts
+	Blocks
 }
 
 type GenericCommandsApp interface {
@@ -61,4 +62,9 @@ type Accounts interface {
 	AccountByAccountID(accountID *uint256.Int) (*mDBApp.Account, error)
 	ResetSequenceByAccounts() error
 	DelAllAccounts() error
+}
+
+type Blocks interface {
+	UpdateBlockStatus(proposalBlockID string, blockHash string, blockNumber uint32) error
+	GetUnprocessedBlocks() ([]*mDBApp.Block, error)
 }
