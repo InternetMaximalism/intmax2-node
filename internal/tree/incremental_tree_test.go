@@ -13,7 +13,7 @@ import (
 func TestPoseidonMerkleTreeWithoutInitialLeaves(t *testing.T) {
 	zero := intMaxGP.NewPoseidonHashOut()
 	initialLeaves := make([]*intMaxTree.PoseidonHashOut, 0)
-	mt, err := intMaxTree.NewPoseidonMerkleTree(3, initialLeaves, zero)
+	mt, err := intMaxTree.NewPoseidonIncrementalMerkleTree(3, initialLeaves, zero)
 	if err != nil {
 		t.Errorf(fmt.Errorf("fail to create merkle tree: %w", err).Error())
 	}
@@ -69,7 +69,7 @@ func TestPoseidonMerkleTreeWithInitialLeaves(t *testing.T) {
 		leaves[i], _ = new(intMaxTree.PoseidonHashOut).SetRandom()
 		initialLeaves[i] = leaves[i]
 	}
-	mt, err := intMaxTree.NewPoseidonMerkleTree(3, initialLeaves, zero)
+	mt, err := intMaxTree.NewPoseidonIncrementalMerkleTree(3, initialLeaves, zero)
 	if err != nil {
 		t.Errorf(fmt.Errorf("fail to create merkle tree: %w", err).Error())
 	}
@@ -122,7 +122,7 @@ func TestPoseidonMerkleTreeWithInitialLeaves(t *testing.T) {
 func TestComputeMerkleProof(t *testing.T) {
 	zero := intMaxGP.NewPoseidonHashOut()
 	initialLeaves := make([]*intMaxTree.PoseidonHashOut, 0)
-	mt, err := intMaxTree.NewPoseidonMerkleTree(5, initialLeaves, zero)
+	mt, err := intMaxTree.NewPoseidonIncrementalMerkleTree(5, initialLeaves, zero)
 	require.NoError(t, err)
 	leaves := []*intMaxTree.PoseidonHashOut{
 		intMaxGP.HexToHash("0x83fc198de31e1b2b1a8212d2430fbb7766c13d9ad305637dea3759065606475d"),

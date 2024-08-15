@@ -16,6 +16,33 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestTxInitialTree(t *testing.T) {
+	h := new(intMaxGP.PoseidonHashOut)
+	h.Elements[0] = *new(ffg.Element).SetUint64(16287362478122056927)
+	h.Elements[1] = *new(ffg.Element).SetUint64(5099413951077219137)
+	h.Elements[2] = *new(ffg.Element).SetUint64(12122182423932535009)
+	h.Elements[3] = *new(ffg.Element).SetUint64(10019235883779858703)
+	fmt.Printf("h: %s\n", h.String())
+
+	var transferTreeRoot = new(intMaxGP.PoseidonHashOut)
+	a := hexutil.MustDecode("0xb60a943edb7397d36692928bafcc97ea52d3f8b6419898fc55db773096631b98")
+	err := transferTreeRoot.Unmarshal(a)
+	require.Nil(t, err)
+	zeroTx, err := intMaxTypes.NewTx(
+		new(intMaxGP.PoseidonHashOut),
+		0,
+	)
+	require.Nil(t, err)
+	zeroTxHash := zeroTx.Hash()
+	initialLeaves := make([]*intMaxTypes.Tx, 0)
+	// initialLeaves[0] = tx
+	mt, err := intMaxTree.NewTxTree(6, initialLeaves, zeroTxHash)
+	require.Nil(t, err)
+
+	root, _, _ := mt.GetCurrentRootCountAndSiblings()
+	fmt.Printf("tx tree root: %x\n", root.Marshal())
+}
+
 func TestTxTree(t *testing.T) {
 	zeroTransfer := new(intMaxTypes.Transfer).SetZero()
 	transferTree, err := intMaxTree.NewTransferTree(7, nil, zeroTransfer.Hash())
