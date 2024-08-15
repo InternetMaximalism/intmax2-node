@@ -8,7 +8,7 @@ import (
 
 type TxTree struct {
 	Leaves []*types.Tx
-	inner  *PoseidonMerkleTree
+	inner  *PoseidonIncrementalMerkleTree
 }
 
 const TX_TREE_HEIGHT = 7
@@ -19,7 +19,7 @@ func NewTxTree(height uint8, initialLeaves []*types.Tx, zeroHash *PoseidonHashOu
 		initialLeafHashes[i] = leaf.Hash()
 	}
 
-	t, err := NewPoseidonMerkleTree(height, initialLeafHashes, zeroHash)
+	t, err := NewPoseidonIncrementalMerkleTree(height, initialLeafHashes, zeroHash)
 	if err != nil {
 		return nil, err
 	}

@@ -8,7 +8,7 @@ import (
 
 type TransferTree struct {
 	Leaves []*types.Transfer
-	inner  *PoseidonMerkleTree
+	inner  *PoseidonIncrementalMerkleTree
 }
 
 const TRANSFER_TREE_HEIGHT = 6
@@ -23,7 +23,7 @@ func NewTransferTree(
 		initialLeafHashes[key] = initialLeaves[key].Hash()
 	}
 
-	t, err := NewPoseidonMerkleTree(height, initialLeafHashes, zeroHash)
+	t, err := NewPoseidonIncrementalMerkleTree(height, initialLeafHashes, zeroHash)
 	if err != nil {
 		return nil, errors.Join(ErrNewPoseidonMerkleTreeFail, err)
 	}
