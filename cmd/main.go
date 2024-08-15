@@ -18,7 +18,7 @@ import (
 	"intmax2-node/cmd/withdrawal_server"
 	"intmax2-node/configs"
 	"intmax2-node/internal/block_builder_registry_service"
-	"intmax2-node/internal/block_validity_prover"
+	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/blockchain"
 	"intmax2-node/internal/cli"
 	"intmax2-node/internal/deposit_synchronizer"
@@ -80,7 +80,7 @@ func main() {
 	w := worker.New(cfg, log, dbApp)
 	bc := blockchain.New(ctx, cfg)
 	depositSynchronizer := deposit_synchronizer.New(cfg, log, dbApp, bc)
-	blockValidityProver := block_validity_prover.New(cfg, log, dbApp, bc)
+	blockPostService := block_post_service.New(cfg, log, dbApp, bc)
 	ns := network_service.New(cfg)
 	hc := health.NewHandler()
 	bbr := block_builder_registry_service.New(cfg, log, bc)
@@ -108,8 +108,8 @@ func main() {
 			PoW:                 pwNonce,
 			Worker:              w,
 			DepositSynchronizer: depositSynchronizer,
-			BlockValidityProver: blockValidityProver,
 			GPOStorage:          storeGPO,
+			BlockPostService:    blockPostService,
 		}),
 		migrator.NewMigratorCmd(ctx, log, dbApp),
 		deposit.NewDepositCmd(&deposit.Deposit{

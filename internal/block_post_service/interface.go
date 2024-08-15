@@ -1,4 +1,4 @@
-package block_validity_prover
+package block_post_service
 
 import (
 	"context"
@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-type BlockValidityProver interface {
-	Init(ctx context.Context) error
+type BlockPostService interface {
+	Init(ctx context.Context) (err error)
 	Start(
 		ctx context.Context,
 		tickerEventWatcher *time.Ticker,

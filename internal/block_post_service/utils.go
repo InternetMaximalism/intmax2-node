@@ -1,63 +1,98 @@
 package block_post_service
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
-	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/logger"
+	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
-	"io"
-	"math/big"
 	"sort"
-	"strings"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
-	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-const (
-	defaultAccountID = 0
-	dummyAccountID   = 1
-)
+const numOfSenders = intMaxTypes.NumOfSenders
 
-// FetchIntMaxBlockContentByCalldata fetches the block content by transaction hash.
-// accountInfo is mutable and will be updated with new account information.
-//
-// Example:
-//
-//		ctx := context.Background()
-//		cfg := configs.Config{}
-//		var startScrollBlockNumber uint64 = 0
-//		d, err := block_post_service.NewBlockPostService(ctx, &cfg)
-//		events, lastIntMaxBlockNumber, err := d.FetchNewPostedBlocks(startScrollBlockNumber)
-//		calldata, err := d.FetchScrollCalldataByHash(events[0].Raw.TxHash)
-//	 ai := NewAccountInfo(dbApp)
-//		blockContent, err := FetchIntMaxBlockContentByCalldata(calldata, ai)
-func FetchIntMaxBlockContentByCalldata(
-	calldata []byte,
-	ai AccountInfo,
-) (*intMaxTypes.BlockContent, error) {
-	// Parse calldata
-	rollupABI := io.Reader(strings.NewReader(bindings.RollupMetaData.ABI))
-	parsedABI, err := abi.JSON(rollupABI)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse ABI: %w", err)
+type PostedBlock struct {
+	// The previous block hash.
+	PrevBlockHash common.Hash `json:"prevBlockHash"`
+	// The block number, which is the latest block number in the Rollup contract plus 1.
+	BlockNumber uint32 `json:"blockNumber"`
+	// The deposit root at the time of block posting (written in the Rollup contract).
+	DepositRoot common.Hash `json:"depositTreeRoot"`
+	// The hash value that the Block Builder must provide to the Rollup contract when posting a new block.
+	SignatureHash common.Hash `json:"signatureHash"`
+}
+
+func NewPostedBlock(prevBlockHash, depositRoot common.Hash, blockNumber uint32, signatureHash common.Hash) *PostedBlock {
+	return &PostedBlock{
+		PrevBlockHash: prevBlockHash,
+		BlockNumber:   blockNumber,
+		DepositRoot:   depositRoot,
+		SignatureHash: signatureHash,
 	}
-	method, err := parsedABI.MethodById(calldata[:4])
+}
+
+func (pb *PostedBlock) Set(other *PostedBlock) *PostedBlock {
+	copy(pb.PrevBlockHash[:], other.PrevBlockHash[:])
+	copy(pb.DepositRoot[:], other.DepositRoot[:])
+	copy(pb.SignatureHash[:], other.SignatureHash[:])
+	pb.BlockNumber = other.BlockNumber
+
+	return pb
+}
+
+func (pb *PostedBlock) Equals(other *PostedBlock) bool {
+	return pb.PrevBlockHash == other.PrevBlockHash &&
+		pb.DepositRoot == other.DepositRoot &&
+		pb.SignatureHash == other.SignatureHash &&
+		pb.BlockNumber == other.BlockNumber
+}
+
+func (pb *PostedBlock) Genesis() *PostedBlock {
+	depositTree, err := intMaxTree.NewDepositTree(intMaxTree.DEPOSIT_TREE_HEIGHT)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse calldata: %w", err)
+		panic(err)
 	}
 
-	blockContent, err := recoverBlockContent(method, calldata, ai)
-	if err != nil {
-		return nil, errors.Join(ErrDecodeCallDataFail, err)
-	}
+	depositTreeRoot, _, _ := depositTree.GetCurrentRootCountAndSiblings()
 
-	return blockContent, nil
+	return NewPostedBlock(common.Hash{}, depositTreeRoot, 0, common.Hash{})
+}
+
+func (pb *PostedBlock) Marshal() []byte {
+	const int4Key = 4
+
+	data := make([]byte, 0)
+
+	data = append(data, pb.PrevBlockHash.Bytes()...)
+	data = append(data, pb.DepositRoot.Bytes()...)
+	data = append(data, pb.SignatureHash.Bytes()...)
+	blockNumberBytes := [int4Key]byte{}
+	binary.BigEndian.PutUint32(blockNumberBytes[:], pb.BlockNumber)
+	data = append(data, blockNumberBytes[:]...)
+
+	return data
+}
+
+func (pb *PostedBlock) Uint32Slice() []uint32 {
+	var buf []uint32
+	buf = append(buf, intMaxTypes.CommonHashToUint32Slice(pb.PrevBlockHash)...)
+	buf = append(buf, intMaxTypes.CommonHashToUint32Slice(pb.DepositRoot)...)
+	buf = append(buf, intMaxTypes.CommonHashToUint32Slice(pb.SignatureHash)...)
+	buf = append(buf, pb.BlockNumber)
+
+	return buf
+}
+
+func (pb *PostedBlock) Hash() common.Hash {
+	return crypto.Keccak256Hash(intMaxTypes.Uint32SliceToBytes(pb.Uint32Slice()))
 }
 
 // MakeRegistrationBlock creates a block content for registration block.
@@ -311,281 +346,7 @@ func VerifyTxTreeSignature(signatureBytes []byte, sender *intMaxAcc.PublicKey, t
 	return nil
 }
 
-func recoverBlockContent(
-	method *abi.Method,
-	calldata []byte,
-	ai AccountInfo,
-) (*intMaxTypes.BlockContent, error) {
-	switch method.Name {
-	case postRegistrationBlockMethod:
-		decodedInput, err := decodePostRegistrationBlockCalldata(method, calldata)
-		if err != nil {
-			return nil, errors.Join(ErrDecodeCallDataFail, err)
-		}
-
-		var blockContent *intMaxTypes.BlockContent
-		blockContent, err = recoverRegistrationBlockContent(decodedInput)
-		if err != nil {
-			return nil, errors.Join(ErrDecodeCallDataFail, err)
-		}
-
-		err = blockContent.IsValid()
-		if err != nil {
-			return nil, fmt.Errorf("failed to validate block content: %w", err)
-		}
-
-		defaultAddress := intMaxAcc.NewDummyPublicKey().ToAddress().String()
-		for index := range blockContent.Senders {
-			address := blockContent.Senders[index].PublicKey.ToAddress().String()
-			if !strings.EqualFold(address, defaultAddress) {
-				err = ai.RegisterPublicKey(blockContent.Senders[index].PublicKey)
-				if err != nil {
-					return nil, errors.Join(ErrRegisterPublicKeyFail, err)
-				}
-			}
-		}
-
-		return blockContent, nil
-	case postNonRegistrationBlockMethod:
-		decodedInput, err := decodePostNonRegistrationBlockCalldata(method, calldata)
-		if err != nil {
-			return nil, errors.Join(ErrDecodeCallDataFail, err)
-		}
-
-		var blockContent *intMaxTypes.BlockContent
-		blockContent, err = recoverNonRegistrationBlockContent(decodedInput, ai)
-		if err != nil {
-			return nil, errors.Join(ErrDecodeCallDataFail, err)
-		}
-
-		err = blockContent.IsValid()
-		if err != nil {
-			return nil, fmt.Errorf("failed to validate block content: %w", err)
-		}
-
-		defaultAddress := intMaxAcc.NewDummyPublicKey().ToAddress().String()
-		for index := range blockContent.Senders {
-			address := blockContent.Senders[index].PublicKey.ToAddress().String()
-			if !strings.EqualFold(address, defaultAddress) {
-				err = ai.RegisterPublicKey(blockContent.Senders[index].PublicKey)
-				if err != nil {
-					return nil, errors.Join(ErrRegisterPublicKeyFail, err)
-				}
-			}
-		}
-
-		return blockContent, nil
-	default:
-		return nil, fmt.Errorf(ErrMethodNameInvalidStr, method.Name)
-	}
-}
-
-func decodePostRegistrationBlockCalldata(
-	method *abi.Method,
-	calldata []byte,
-) (*intMaxTypes.PostRegistrationBlockInput, error) {
-	if method.Name != postRegistrationBlockMethod {
-		return nil, fmt.Errorf(ErrMethodNameInvalidStr, method.Name)
-	}
-
-	args, err := method.Inputs.Unpack(calldata[int4Key:])
-	if err != nil {
-		return nil, errors.Join(ErrUnpackCalldataFail, err)
-	}
-
-	decodedInput := intMaxTypes.PostRegistrationBlockInput{
-		TxTreeRoot:          args[int0Key].([int32Key]byte),
-		SenderFlags:         args[int1Key].([int16Key]byte),
-		AggregatedPublicKey: args[int2Key].([int2Key][int32Key]byte),
-		AggregatedSignature: args[int3Key].([int4Key][int32Key]byte),
-		MessagePoint:        args[int4Key].([int4Key][int32Key]byte),
-		SenderPublicKeys:    args[int5Key].([]*big.Int),
-	}
-
-	return &decodedInput, nil
-}
-
-func decodePostNonRegistrationBlockCalldata(
-	method *abi.Method, calldata []byte,
-) (*intMaxTypes.PostNonRegistrationBlockInput, error) {
-	if method.Name != postNonRegistrationBlockMethod {
-		return nil, fmt.Errorf(ErrMethodNameInvalidStr, method.Name)
-	}
-
-	args, err := method.Inputs.Unpack(calldata[int4Key:])
-	if err != nil {
-		return nil, errors.Join(ErrUnpackCalldataFail, err)
-	}
-
-	decodedInput := intMaxTypes.PostNonRegistrationBlockInput{
-		TxTreeRoot:          args[int0Key].([int32Key]byte),
-		SenderFlags:         args[int1Key].([int16Key]byte),
-		AggregatedPublicKey: args[int2Key].([int2Key][int32Key]byte),
-		AggregatedSignature: args[int3Key].([int4Key][int32Key]byte),
-		MessagePoint:        args[int4Key].([int4Key][int32Key]byte),
-		PublicKeysHash:      args[int5Key].([int32Key]byte),
-		SenderAccountIds:    args[int6Key].([]byte),
-	}
-
-	return &decodedInput, nil
-}
-
-func recoverRegistrationBlockContent(
-	decodedInput *intMaxTypes.PostRegistrationBlockInput,
-) (_ *intMaxTypes.BlockContent, err error) {
-	senderPublicKeys := make([]*intMaxAcc.PublicKey, numOfSenders)
-	for i, key := range decodedInput.SenderPublicKeys {
-		senderPublicKeys[i], err = intMaxAcc.NewPublicKeyFromAddressInt(key)
-		if err != nil {
-			return nil, errors.Join(ErrCannotDecodeAddress, err)
-		}
-	}
-	for i := len(decodedInput.SenderPublicKeys); i < numOfSenders; i++ {
-		senderPublicKeys[i] = intMaxAcc.NewDummyPublicKey()
-	}
-
-	senderFlags := make([]bool, numOfSenders)
-	for i := int0Key; i < numOfSenders; i++ {
-		byteIndex := i / int8Key
-		bitIndex := i % int8Key
-		senderFlags[i] = (decodedInput.SenderFlags[byteIndex] & (int1Key << bitIndex)) != int0Key
-	}
-
-	senderPublicKeysBytes := make([]byte, intMaxTypes.NumOfSenders*intMaxTypes.NumPublicKeyBytes)
-	for i, sender := range senderPublicKeys {
-		if senderFlags[i] {
-			senderPublicKey := sender.Pk.X.Bytes() // Only x coordinate is used
-			copy(senderPublicKeysBytes[int32Key*i:int32Key*(i+int1Key)], senderPublicKey[:])
-		}
-	}
-
-	publicKeysHash := crypto.Keccak256(senderPublicKeysBytes)
-	aggregatedPublicKey := new(intMaxAcc.PublicKey)
-	for i, isSigned := range senderFlags {
-		if isSigned {
-			aggregatedPublicKey.Add(aggregatedPublicKey, senderPublicKeys[i].WeightByHash(publicKeysHash))
-		}
-	}
-
-	dummyPublicKey := intMaxAcc.NewDummyPublicKey()
-	senders := make([]intMaxTypes.Sender, numOfSenders)
-	for i, sender := range senderPublicKeys {
-		var accountID uint64 = defaultAccountID
-		if sender.Equal(dummyPublicKey) {
-			accountID = dummyAccountID
-		}
-		senders[i] = intMaxTypes.Sender{
-			PublicKey: sender,
-			AccountID: accountID,
-			IsSigned:  senderFlags[i],
-		}
-	}
-
-	txTreeRoot := new(intMaxTypes.PoseidonHashOut)
-	if err = txTreeRoot.Unmarshal(decodedInput.TxTreeRoot[:]); err != nil {
-		return nil, errors.Join(ErrSetTxRootFail, err)
-	}
-
-	// Recover aggregatedSignature from decodedInput.AggregatedSignature
-	aggregatedSignature := new(bn254.G2Affine)
-	aggregatedSignature.X.A1.SetBytes(decodedInput.AggregatedSignature[int0Key][:])
-	aggregatedSignature.X.A0.SetBytes(decodedInput.AggregatedSignature[int1Key][:])
-	aggregatedSignature.Y.A1.SetBytes(decodedInput.AggregatedSignature[int2Key][:])
-	aggregatedSignature.Y.A0.SetBytes(decodedInput.AggregatedSignature[int3Key][:])
-
-	blockContent := intMaxTypes.NewBlockContent(
-		intMaxTypes.PublicKeySenderType,
-		senders,
-		*txTreeRoot,
-		aggregatedSignature,
-	)
-
-	return blockContent, nil
-}
-
-func recoverNonRegistrationBlockContent(
-	decodedInput *intMaxTypes.PostNonRegistrationBlockInput,
-	ai AccountInfo,
-) (*intMaxTypes.BlockContent, error) {
-	senderAccountIds, err := intMaxTypes.UnmarshalAccountIds(decodedInput.SenderAccountIds)
-	if err != nil {
-		return nil, errors.Join(ErrRecoverAccountIDsFromBytesFail, err)
-	}
-
-	senderPublicKeys := make([]*intMaxAcc.PublicKey, numOfSenders)
-	for i, accountId := range senderAccountIds {
-		if accountId == int0Key {
-			senderPublicKeys[i] = intMaxAcc.NewDummyPublicKey()
-			continue
-		}
-
-		var pk *intMaxAcc.PublicKey
-		pk, err = ai.PublicKeyByAccountID(accountId)
-		if err != nil {
-			return nil, errors.Join(ErrUnknownAccountID, fmt.Errorf("%d", accountId))
-		}
-
-		senderPublicKeys[i] = pk
-	}
-	for i := len(senderAccountIds); i < numOfSenders; i++ {
-		senderPublicKeys[i] = intMaxAcc.NewDummyPublicKey()
-	}
-
-	senderFlags := make([]bool, numOfSenders)
-	for i := int0Key; i < numOfSenders; i++ {
-		byteIndex := i / int8Key
-		bitIndex := i % int8Key
-		senderFlags[i] = (decodedInput.SenderFlags[byteIndex] & (int1Key << bitIndex)) != int0Key
-	}
-
-	senderPublicKeysBytes := make([]byte, intMaxTypes.NumOfSenders*intMaxTypes.NumPublicKeyBytes)
-	for i, sender := range senderPublicKeys {
-		if senderFlags[i] {
-			senderPublicKey := sender.Pk.X.Bytes() // Only x coordinate is used
-			copy(senderPublicKeysBytes[int32Key*i:int32Key*(i+int1Key)], senderPublicKey[:])
-		}
-	}
-
-	publicKeysHash := crypto.Keccak256(senderPublicKeysBytes)
-	aggregatedPublicKey := new(intMaxAcc.PublicKey)
-	for i, isSigned := range senderFlags {
-		if isSigned {
-			aggregatedPublicKey.Add(aggregatedPublicKey, senderPublicKeys[i].WeightByHash(publicKeysHash))
-		}
-	}
-
-	senders := make([]intMaxTypes.Sender, numOfSenders)
-	for i, sender := range senderPublicKeys {
-		senders[i] = intMaxTypes.Sender{
-			PublicKey: sender,
-			AccountID: senderAccountIds[i],
-			IsSigned:  senderFlags[i],
-		}
-	}
-
-	txTreeRoot := new(intMaxTypes.PoseidonHashOut)
-	if err = txTreeRoot.Unmarshal(decodedInput.TxTreeRoot[:]); err != nil {
-		return nil, errors.Join(ErrSetTxRootFail, err)
-	}
-
-	// Recover aggregatedSignature from decodedInput.AggregatedSignature
-	aggregatedSignature := new(bn254.G2Affine)
-	aggregatedSignature.X.A1.SetBytes(decodedInput.AggregatedSignature[int0Key][:])
-	aggregatedSignature.X.A0.SetBytes(decodedInput.AggregatedSignature[int1Key][:])
-	aggregatedSignature.Y.A1.SetBytes(decodedInput.AggregatedSignature[int2Key][:])
-	aggregatedSignature.Y.A0.SetBytes(decodedInput.AggregatedSignature[int3Key][:])
-
-	blockContent := intMaxTypes.NewBlockContent(
-		intMaxTypes.AccountIDSenderType,
-		senders,
-		*txTreeRoot,
-		aggregatedSignature,
-	)
-
-	return blockContent, nil
-}
-
-func updateEventBlockNumber(db SQLDriverApp, log logger.Logger, eventName string, blockNumber uint64) error {
+func UpdateEventBlockNumber(db SQLDriverApp, log logger.Logger, eventName string, blockNumber uint64) error {
 	updatedEvent, err := db.UpsertEventBlockNumber(eventName, blockNumber)
 	if err != nil {
 		return err

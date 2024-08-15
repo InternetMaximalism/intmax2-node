@@ -1,4 +1,4 @@
-package block_post_service
+package block_synchronizer
 
 import (
 	"context"
@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/bindings"
+	"intmax2-node/internal/block_post_service"
+	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/logger"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	errorsDB "intmax2-node/pkg/sql_db/errors"
@@ -108,8 +110,8 @@ func ProcessingPostedBlocks(
 	lg logger.Logger,
 	dbApp SQLDriverApp,
 ) (err error) {
-	var bps BlockPostService
-	bps, err = NewBlockPostService(ctx, cfg, lg)
+	var bps BlockSynchronizer
+	bps, err = NewBlockSynchronizer(ctx, cfg, lg)
 	if err != nil {
 		return errors.Join(ErrNewBlockPostServiceFail, err)
 	}
@@ -166,7 +168,7 @@ func ProcessingPostedBlocks(
 		return nil
 	}
 
-	ai := NewAccountInfo(dbApp)
+	ai := block_post_service.NewAccountInfo(dbApp)
 	for key := range events {
 		var blN uint256.Int
 		_ = blN.SetFromBig(new(big.Int).SetUint64(events[key].Raw.BlockNumber))
@@ -178,7 +180,7 @@ func ProcessingPostedBlocks(
 		}
 
 		intMaxBlockNumber := events[key].BlockNumber
-		_, err = FetchIntMaxBlockContentByCalldata(cd, ai)
+		_, err = block_validity_prover.FetchIntMaxBlockContentByCalldata(cd, ai)
 		if err != nil {
 			err = errors.Join(ErrFetchIntMaxBlockContentByCalldataFail, err)
 			switch {
@@ -215,7 +217,7 @@ func ProcessingPostedBlocks(
 		lg.Debugf(msg, intMaxBlockNumber.String(), blN.String())
 	}
 
-	err = updateEventBlockNumber(dbApp, lg, mDBApp.BlockPostedEvent, nextBN.Uint64())
+	err = block_post_service.UpdateEventBlockNumber(dbApp, lg, mDBApp.BlockPostedEvent, nextBN.Uint64())
 	if err != nil {
 		const msg = "failed to update event block number: %v"
 		return fmt.Errorf(msg, err.Error())

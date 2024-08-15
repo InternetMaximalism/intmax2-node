@@ -1,4 +1,4 @@
-package block_post_service
+package block_synchronizer
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
-func (d *blockPostService) BackupTransaction(
+func (d *blockSynchronizer) BackupTransaction(
 	sender intMaxAcc.Address,
 	txHash, encodedEncryptedTx string,
 	signature string,
@@ -107,7 +107,7 @@ func backupTransactionRawRequest(
 	return nil
 }
 
-func (d *blockPostService) BackupTransfer(
+func (d *blockSynchronizer) BackupTransfer(
 	recipient intMaxAcc.Address,
 	encodedEncryptedTransferHash, encodedEncryptedTransfer string,
 	blockNumber uint64,
@@ -194,7 +194,7 @@ func backupTransferRawRequest(
 	return nil
 }
 
-func (d *blockPostService) BackupWithdrawal(
+func (d *blockSynchronizer) BackupWithdrawal(
 	recipient common.Address,
 	encodedEncryptedTransferHash, encodedEncryptedTransfer string,
 	blockNumber uint64,
