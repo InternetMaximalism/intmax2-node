@@ -2,106 +2,25 @@ package block_validity_prover
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/block_post_service"
 	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
-type PostedBlock struct {
-	// The previous block hash.
-	PrevBlockHash common.Hash
-	// The block number, which is the latest block number in the Rollup contract plus 1.
-	BlockNumber uint32
-	// The deposit root at the time of block posting (written in the Rollup contract).
-	DepositRoot common.Hash
-	// The hash value that the Block Builder must provide to the Rollup contract when posting a new block.
-	SignatureHash common.Hash
-}
-
-func NewPostedBlock(prevBlockHash, depositRoot common.Hash, blockNumber uint32, signatureHash common.Hash) *PostedBlock {
-	return &PostedBlock{
-		PrevBlockHash: prevBlockHash,
-		BlockNumber:   blockNumber,
-		DepositRoot:   depositRoot,
-		SignatureHash: signatureHash,
-	}
-}
-
-func (pb *PostedBlock) Set(other *PostedBlock) *PostedBlock {
-	copy(pb.PrevBlockHash[:], other.PrevBlockHash[:])
-	copy(pb.DepositRoot[:], other.DepositRoot[:])
-	copy(pb.SignatureHash[:], other.SignatureHash[:])
-	pb.BlockNumber = other.BlockNumber
-
-	return pb
-}
-
-func (pb *PostedBlock) Equals(other *PostedBlock) bool {
-	return pb.PrevBlockHash == other.PrevBlockHash &&
-		pb.DepositRoot == other.DepositRoot &&
-		pb.SignatureHash == other.SignatureHash &&
-		pb.BlockNumber == other.BlockNumber
-}
-
-func (pb *PostedBlock) Genesis() *PostedBlock {
-	depositTree, err := intMaxTree.NewDepositTree(intMaxTree.DEPOSIT_TREE_HEIGHT, nil)
-	if err != nil {
-		panic(err)
-	}
-
-	depositTreeRoot, _, _ := depositTree.GetCurrentRootCountAndSiblings()
-
-	return NewPostedBlock(common.Hash{}, depositTreeRoot, 0, common.Hash{})
-}
-
-func (pb *PostedBlock) Marshal() []byte {
-	const int4Key = 4
-
-	data := make([]byte, 0)
-
-	data = append(data, pb.PrevBlockHash.Bytes()...)
-	data = append(data, pb.DepositRoot.Bytes()...)
-	data = append(data, pb.SignatureHash.Bytes()...)
-	blockNumberBytes := [int4Key]byte{}
-	binary.BigEndian.PutUint32(blockNumberBytes[:], pb.BlockNumber)
-	data = append(data, blockNumberBytes[:]...)
-
-	return data
-}
-
-func CommonHashToUint32Slice(h common.Hash) []uint32 {
-	b := intMaxTypes.Bytes32{}
-	b.FromBytes(h[:])
-
-	return b[:]
-}
-
-func (pb *PostedBlock) Uint32Slice() []uint32 {
-	var buf []uint32
-	buf = append(buf, CommonHashToUint32Slice(pb.PrevBlockHash)...)
-	buf = append(buf, CommonHashToUint32Slice(pb.DepositRoot)...)
-	buf = append(buf, CommonHashToUint32Slice(pb.SignatureHash)...)
-	buf = append(buf, pb.BlockNumber)
-
-	return buf
-}
-
-func (pb *PostedBlock) Hash() common.Hash {
-	return crypto.Keccak256Hash(intMaxTypes.Uint32SliceToBytes(pb.Uint32Slice()))
-}
-
 type PublicState struct {
-	BlockTreeRoot       intMaxGP.PoseidonHashOut
-	PrevAccountTreeRoot intMaxGP.PoseidonHashOut
-	AccountTreeRoot     intMaxGP.PoseidonHashOut
-	DepositTreeRoot     common.Hash
-	BlockHash           common.Hash
-	BlockNumber         uint32
+	BlockTreeRoot       intMaxGP.PoseidonHashOut `json:"blockTreeRoot"`
+	PrevAccountTreeRoot intMaxGP.PoseidonHashOut `json:"prevAccountTreeRoot"`
+	AccountTreeRoot     intMaxGP.PoseidonHashOut `json:"accountTreeRoot"`
+	DepositTreeRoot     common.Hash              `json:"depositTreeRoot"`
+	BlockHash           common.Hash              `json:"blockHash"`
+	BlockNumber         uint32                   `json:"blockNumber"`
 }
 
 func (ps *PublicState) Genesis() *PublicState {
@@ -110,7 +29,7 @@ func (ps *PublicState) Genesis() *PublicState {
 		panic(err)
 	}
 
-	genesisBlockHash := new(PostedBlock).Genesis().Hash()
+	genesisBlockHash := new(block_post_service.PostedBlock).Genesis().Hash()
 	blockTreeRoot, err := blockTree.AddLeaf(0, intMaxTree.NewBlockHashLeaf(genesisBlockHash))
 	if err != nil {
 		panic(err)
@@ -138,6 +57,28 @@ func (ps *PublicState) Genesis() *PublicState {
 	}
 }
 
+func (pis *PublicState) Equal(other *PublicState) bool {
+	if !pis.BlockTreeRoot.Equal(&other.BlockTreeRoot) {
+		return false
+	}
+	if !pis.PrevAccountTreeRoot.Equal(&other.PrevAccountTreeRoot) {
+		return false
+	}
+	if !pis.AccountTreeRoot.Equal(&other.AccountTreeRoot) {
+		return false
+	}
+	if pis.DepositTreeRoot != other.DepositTreeRoot {
+		return false
+	}
+	if pis.BlockHash != other.BlockHash {
+		return false
+	}
+	if pis.BlockNumber != other.BlockNumber {
+		return false
+	}
+	return true
+}
+
 type ValidityPublicInputs struct {
 	PublicState    *PublicState
 	TxTreeRoot     intMaxTypes.Bytes32
@@ -159,25 +100,25 @@ func (vpi *ValidityPublicInputs) Genesis() *ValidityPublicInputs {
 }
 
 type SenderLeaf struct {
-	Sender  *big.Int
-	IsValid bool
+	Sender  *big.Int `json:"sender"`
+	IsValid bool     `json:"isValid"`
 }
 
 type AccountRegistrationProofs struct {
-	Proofs  []intMaxTree.IndexedInsertionProof
-	IsValid bool
+	Proofs  []intMaxTree.IndexedInsertionProof `json:"proofs"`
+	IsValid bool                               `json:"isValid"`
 }
 
 type AccountUpdateProofs struct {
-	Proofs  []intMaxTree.IndexedUpdateProof
-	IsValid bool
+	Proofs  []intMaxTree.IndexedUpdateProof `json:"proofs"`
+	IsValid bool                            `json:"isValid"`
 }
 
 type ValidityTransitionWitness struct {
-	SenderLeaves              []SenderLeaf
-	BlockMerkleProof          intMaxTree.MerkleProof
-	AccountRegistrationProofs AccountRegistrationProofs
-	AccountUpdateProofs       AccountUpdateProofs
+	SenderLeaves              []SenderLeaf              `json:"senderLeaves"`
+	BlockMerkleProof          intMaxTree.MerkleProof    `json:"blockMerkleProof"`
+	AccountRegistrationProofs AccountRegistrationProofs `json:"accountRegistrationProofs"`
+	AccountUpdateProofs       AccountUpdateProofs       `json:"accountUpdateProofs"`
 }
 
 func (vtw *ValidityTransitionWitness) Genesis() *ValidityTransitionWitness {
@@ -209,30 +150,78 @@ func (vtw *ValidityTransitionWitness) Genesis() *ValidityTransitionWitness {
 }
 
 type AccountMerkleProof struct {
-	MerkleProof intMaxTree.IndexedMerkleProof
-	Leaf        intMaxTree.IndexedMerkleLeaf
+	MerkleProof intMaxTree.IndexedMerkleProof `json:"merkleProof"`
+	Leaf        intMaxTree.IndexedMerkleLeaf  `json:"leaf"`
 }
 
 type IndexedMembershipProof struct {
-	IsIncluded bool
-	LeafProof  intMaxTree.IndexedMerkleProof
-	LeafIndex  uint
-	Leaf       intMaxTree.IndexedMerkleLeaf
+	IsIncluded bool                          `json:"isIncluded"`
+	LeafProof  intMaxTree.IndexedMerkleProof `json:"leafProof"`
+	LeafIndex  uint                          `json:"leafIndex"`
+	Leaf       intMaxTree.IndexedMerkleLeaf  `json:"leaf"`
 }
 
-const accountIdPackedLen = 160
+const (
+	numAccountIDBytes       = 5
+	numUint32Bytes          = 4
+	numAccountIDPackedBytes = numOfSenders * numAccountIDBytes / numUint32Bytes
+)
 
-type AccountIdPacked = [accountIdPackedLen]uint32
+type AccountIdPacked [numAccountIDPackedBytes]uint32
+
+func (b *AccountIdPacked) FromBytes(bytes []byte) {
+	for i := 0; i < numAccountIDPackedBytes/numUint32Bytes; i++ {
+		b[i] = binary.BigEndian.Uint32(bytes[i*numUint32Bytes : (i+1)*numUint32Bytes])
+	}
+}
+
+func (b *AccountIdPacked) Bytes() []byte {
+	bytes := make([]byte, int16Key)
+	for i := 0; i < numAccountIDPackedBytes/numUint32Bytes; i++ {
+		binary.BigEndian.PutUint32(bytes[i*numUint32Bytes:(i+1)*numUint32Bytes], b[i])
+	}
+
+	return bytes
+}
+
+func (b *AccountIdPacked) Hex() string {
+	return hexutil.Encode(b.Bytes())
+}
+
+func (b *AccountIdPacked) FromHex(s string) error {
+	bytes, err := hexutil.Decode(s)
+	if err != nil {
+		return err
+	}
+
+	b.FromBytes(bytes)
+	return nil
+}
+
+func (b *AccountIdPacked) MarshalJSON() ([]byte, error) {
+	return json.Marshal(b.Hex())
+}
+
+func (b *AccountIdPacked) UnmarshalJSON(data []byte) error {
+	var s string
+	err := json.Unmarshal(data, &s)
+	if err != nil {
+		return err
+	}
+
+	b.FromHex(s)
+	return nil
+}
 
 type SignatureContent struct {
-	IsRegistrationBlock bool
-	TxTreeRoot          intMaxTypes.Bytes32
-	SenderFlag          intMaxTypes.Bytes16
-	PublicKeyHash       intMaxTypes.Bytes32
-	AccountIDHash       intMaxTypes.Bytes32
-	AggPublicKey        intMaxTypes.FlatG1
-	AggSignature        intMaxTypes.FlatG2
-	MessagePoint        intMaxTypes.FlatG2
+	IsRegistrationBlock bool                `json:"isRegistrationBlock"`
+	TxTreeRoot          intMaxTypes.Bytes32 `json:"txTreeRoot"`
+	SenderFlag          intMaxTypes.Bytes16 `json:"senderFlag"`
+	PublicKeyHash       intMaxTypes.Bytes32 `json:"pubkeyHash"`
+	AccountIDHash       intMaxTypes.Bytes32 `json:"accountIdHash"`
+	AggPublicKey        intMaxTypes.FlatG1  `json:"aggPubkey"`
+	AggSignature        intMaxTypes.FlatG2  `json:"aggSignature"`
+	MessagePoint        intMaxTypes.FlatG2  `json:"messagePoint"`
 }
 
 func (sc *SignatureContent) Set(other SignatureContent) *SignatureContent {
@@ -249,14 +238,14 @@ func (sc *SignatureContent) Set(other SignatureContent) *SignatureContent {
 }
 
 type BlockWitness struct {
-	Block                   PostedBlock
-	Signature               SignatureContent
-	PublicKeys              []intMaxTypes.Uint256
-	PrevAccountTreeRoot     intMaxTree.PoseidonHashOut
-	PrevBlockTreeRoot       intMaxTree.PoseidonHashOut
-	AccountIdPacked         *AccountIdPacked          // in account id case
-	AccountMerkleProofs     *[]AccountMerkleProof     // in account id case
-	AccountMembershipProofs *[]IndexedMembershipProof // in pubkey case
+	Block                   block_post_service.PostedBlock `json:"block"`
+	Signature               SignatureContent               `json:"signature"`
+	PublicKeys              []intMaxTypes.Uint256          `json:"pubkeys"`
+	PrevAccountTreeRoot     intMaxTree.PoseidonHashOut     `json:"prevAccountTreeRoot"`
+	PrevBlockTreeRoot       intMaxTree.PoseidonHashOut     `json:"prevBlockTreeRoot"`
+	AccountIdPacked         *AccountIdPacked               `json:"accountIdPacked"`         // in account id case
+	AccountMerkleProofs     *[]AccountMerkleProof          `json:"accountMerkleProofs"`     // in account id case
+	AccountMembershipProofs *[]IndexedMembershipProof      `json:"accountMembershipProofs"` // in pubkey case
 }
 
 func (bw *BlockWitness) Genesis() *BlockWitness {
@@ -272,7 +261,7 @@ func (bw *BlockWitness) Genesis() *BlockWitness {
 	prevAccountTreeRoot := accountTree.GetRoot()
 
 	return &BlockWitness{
-		Block:                   *new(PostedBlock).Genesis(),
+		Block:                   *new(block_post_service.PostedBlock).Genesis(),
 		Signature:               SignatureContent{},
 		PublicKeys:              make([]intMaxTypes.Uint256, 0),
 		PrevAccountTreeRoot:     prevAccountTreeRoot,
@@ -365,10 +354,10 @@ func GetSenderTreeRoot(publicKeys *[]intMaxTypes.Uint256, senderFlag intMaxTypes
 }
 
 func (w *BlockWitness) ToMainValidationPublicInputs() *MainValidationPublicInputs {
-	if new(PostedBlock).Genesis().Equals(&w.Block) {
+	if new(block_post_service.PostedBlock).Genesis().Equals(&w.Block) {
 		validityPis := new(ValidityPublicInputs).Genesis()
 		return &MainValidationPublicInputs{
-			PrevBlockHash:       new(PostedBlock).Genesis().PrevBlockHash,
+			PrevBlockHash:       new(block_post_service.PostedBlock).Genesis().PrevBlockHash,
 			BlockHash:           validityPis.PublicState.BlockHash,
 			DepositTreeRoot:     validityPis.PublicState.DepositTreeRoot,
 			AccountTreeRoot:     validityPis.PublicState.AccountTreeRoot,
@@ -381,7 +370,7 @@ func (w *BlockWitness) ToMainValidationPublicInputs() *MainValidationPublicInput
 	}
 
 	result := true
-	block := new(PostedBlock).Set(&w.Block)
+	block := new(block_post_service.PostedBlock).Set(&w.Block)
 	signature := new(SignatureContent).Set(w.Signature)
 	publicKeys := make([]intMaxTypes.Uint256, len(w.PublicKeys))
 	copy(publicKeys, w.PublicKeys)
@@ -459,8 +448,8 @@ func (w *BlockWitness) ToMainValidationPublicInputs() *MainValidationPublicInput
 }
 
 type ValidityWitness struct {
-	BlockWitness              *BlockWitness
-	ValidityTransitionWitness *ValidityTransitionWitness
+	BlockWitness              *BlockWitness              `json:"blockWitness"`
+	ValidityTransitionWitness *ValidityTransitionWitness `json:"validityTransitionWitness"`
 }
 
 func (vw *ValidityWitness) Genesis() *ValidityWitness {
@@ -594,7 +583,7 @@ func NewMockBlockBuilder() *MockBlockBuilder {
 	}
 
 	blockHashes := make([][32]byte, 1)
-	blockHashes[0] = new(PostedBlock).Genesis().Hash()
+	blockHashes[0] = new(block_post_service.PostedBlock).Genesis().Hash()
 	blockTree, err := intMaxTree.NewBlockHashTree(intMaxTree.BLOCK_HASH_TREE_HEIGHT, blockHashes)
 	if err != nil {
 		panic(err)

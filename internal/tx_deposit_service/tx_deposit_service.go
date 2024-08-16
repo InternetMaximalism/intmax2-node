@@ -14,6 +14,7 @@ import (
 	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/mnemonic_wallet"
 	node "intmax2-node/internal/pb/gen/store_vault_service/node"
+	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	postBackupDeposit "intmax2-node/internal/use_cases/post_backup_deposit"
 	"intmax2-node/pkg/utils"
@@ -449,7 +450,7 @@ func (d *TxDepositService) BackupDeposit(
 
 	recipientSaltHash := intMaxAcc.GetPublicKeySaltHash(recipientPublicKey.Pk.X.BigInt(new(big.Int)), salt)
 
-	depositHash := new(intMaxTypes.DepositLeaf).Set(&intMaxTypes.DepositLeaf{
+	depositHash := new(intMaxTree.DepositLeaf).Set(&intMaxTree.DepositLeaf{
 		RecipientSaltHash: recipientSaltHash,
 		TokenIndex:        tokenIndex,
 		Amount:            amount,

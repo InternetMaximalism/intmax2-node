@@ -109,7 +109,7 @@ func (t *BlockHashTree) ComputeMerkleProof(index uint32, leaves []BlockHashLeaf)
 }
 
 func (t *BlockHashTree) Prove(index uint32) (proof MerkleProof, root PoseidonHashOut, err error) {
-	leafHashes := make([]*PoseidonHashOut, 1<<t.inner.height)
+	leafHashes := make([]*PoseidonHashOut, len(t.Leaves))
 	for i, leaf := range t.Leaves {
 		leafHashes[i] = leaf.Hash()
 	}
