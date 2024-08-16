@@ -37,3 +37,7 @@ func (t *AccountTree) GetLeaf(index uint64) *IndexedMerkleLeaf {
 func (t *AccountTree) Prove(index uint64) ([]*PoseidonHashOut, PoseidonHashOut, error) {
 	return t.inner.Prove(index)
 }
+
+func (t *AccountTree) ProveMembership(key *big.Int) (*IndexedMembershipProof, PoseidonHashOut, error) {
+	return t.inner.ProveMembership(key)
+}

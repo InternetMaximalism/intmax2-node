@@ -81,18 +81,11 @@ func (pb *PostedBlock) Marshal() []byte {
 	return data
 }
 
-func CommonHashToUint32Slice(h common.Hash) []uint32 {
-	b := intMaxTypes.Bytes32{}
-	b.FromBytes(h[:])
-
-	return b[:]
-}
-
 func (pb *PostedBlock) Uint32Slice() []uint32 {
 	var buf []uint32
-	buf = append(buf, CommonHashToUint32Slice(pb.PrevBlockHash)...)
-	buf = append(buf, CommonHashToUint32Slice(pb.DepositRoot)...)
-	buf = append(buf, CommonHashToUint32Slice(pb.SignatureHash)...)
+	buf = append(buf, intMaxTypes.CommonHashToUint32Slice(pb.PrevBlockHash)...)
+	buf = append(buf, intMaxTypes.CommonHashToUint32Slice(pb.DepositRoot)...)
+	buf = append(buf, intMaxTypes.CommonHashToUint32Slice(pb.SignatureHash)...)
 	buf = append(buf, pb.BlockNumber)
 
 	return buf

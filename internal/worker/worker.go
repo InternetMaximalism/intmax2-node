@@ -954,7 +954,7 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 			var block *mDBApp.Block
 			block, err = q.CreateBlock(
 				mw.IntMaxPublicKey,
-				hexutils.BytesToHex(bc.TxTreeRoot.Marshal()),
+				hexutils.BytesToHex(bc.TxTreeRoot[:]),
 				hexutils.BytesToHex(bc.AggregatedSignature.Marshal()),
 				hexutils.BytesToHex(bc.AggregatedPublicKey.Marshal()),
 				senders,
@@ -1012,7 +1012,7 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 			var block *mDBApp.Block
 			block, err = q.CreateBlock(
 				mw.IntMaxPublicKey,
-				hexutils.BytesToHex(bc.TxTreeRoot.Marshal()),
+				hexutils.BytesToHex(bc.TxTreeRoot[:]),
 				hexutils.BytesToHex(bc.AggregatedSignature.Marshal()),
 				hexutils.BytesToHex(bc.AggregatedPublicKey.Marshal()),
 				senders,

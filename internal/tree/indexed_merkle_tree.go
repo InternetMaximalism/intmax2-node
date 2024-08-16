@@ -207,6 +207,13 @@ type IndexedMerkleTree struct {
 	inner  *PoseidonMerkleTree
 }
 
+type IndexedMembershipProof struct {
+	IsIncluded bool               `json:"isIncluded"`
+	LeafProof  IndexedMerkleProof `json:"leafProof"`
+	LeafIndex  uint64             `json:"leafIndex"`
+	Leaf       IndexedMerkleLeaf  `json:"leaf"`
+}
+
 func NewIndexedMerkleTree(height uint8, zeroHash *goldenposeidon.PoseidonHashOut) (*IndexedMerkleTree, error) {
 	tree, err := NewPoseidonMerkleTree(height, nil, zeroHash)
 	if err != nil {
@@ -233,15 +240,35 @@ func (t *IndexedMerkleTree) GetLeaf(index uint64) *IndexedMerkleLeaf {
 	return t.Leaves[index]
 }
 
-func (t *IndexedMerkleTree) Prove(index uint64) ([]*PoseidonHashOut, PoseidonHashOut, error) {
-	siblings, err := t.inner.Prove(int(index))
+func (t *IndexedMerkleTree) Prove(index uint64) (siblings []*PoseidonHashOut, root PoseidonHashOut, err error) {
+	siblings, err = t.inner.Prove(int(index))
 	if err != nil {
 		return nil, goldenposeidon.PoseidonHashOut{}, err
 	}
 
-	root := t.GetRoot()
+	root = t.GetRoot()
 
 	return siblings, root, err
+}
+
+func (t *IndexedMerkleTree) ProveMembership(key *big.Int) (membership_proof *IndexedMembershipProof, root PoseidonHashOut, err error) {
+	index, err := t.GetLowIndex(key)
+	if err != nil {
+		return nil, goldenposeidon.PoseidonHashOut{}, err
+	}
+
+	leaf := t.GetLeaf(uint64(index))
+	isIncluded := leaf.Key == key
+	leafProof, root, err := t.Prove(uint64(index))
+
+	membership_proof = &IndexedMembershipProof{
+		IsIncluded: isIncluded,
+		LeafProof:  IndexedMerkleProof{Siblings: leafProof},
+		LeafIndex:  uint64(index),
+		Leaf:       *leaf,
+	}
+
+	return membership_proof, root, err
 }
 
 func (t *IndexedMerkleTree) GetLowIndex(key *big.Int) (int, error) {

@@ -10,6 +10,7 @@ import (
 	intMaxTypes "intmax2-node/internal/types"
 	"math/big"
 
+	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
@@ -154,13 +155,6 @@ type AccountMerkleProof struct {
 	Leaf        intMaxTree.IndexedMerkleLeaf  `json:"leaf"`
 }
 
-type IndexedMembershipProof struct {
-	IsIncluded bool                          `json:"isIncluded"`
-	LeafProof  intMaxTree.IndexedMerkleProof `json:"leafProof"`
-	LeafIndex  uint                          `json:"leafIndex"`
-	Leaf       intMaxTree.IndexedMerkleLeaf  `json:"leaf"`
-}
-
 const (
 	numAccountIDBytes       = 5
 	numUint32Bytes          = 4
@@ -238,14 +232,14 @@ func (sc *SignatureContent) Set(other SignatureContent) *SignatureContent {
 }
 
 type BlockWitness struct {
-	Block                   block_post_service.PostedBlock `json:"block"`
-	Signature               SignatureContent               `json:"signature"`
-	PublicKeys              []intMaxTypes.Uint256          `json:"pubkeys"`
-	PrevAccountTreeRoot     intMaxTree.PoseidonHashOut     `json:"prevAccountTreeRoot"`
-	PrevBlockTreeRoot       intMaxTree.PoseidonHashOut     `json:"prevBlockTreeRoot"`
-	AccountIdPacked         *AccountIdPacked               `json:"accountIdPacked"`         // in account id case
-	AccountMerkleProofs     *[]AccountMerkleProof          `json:"accountMerkleProofs"`     // in account id case
-	AccountMembershipProofs *[]IndexedMembershipProof      `json:"accountMembershipProofs"` // in pubkey case
+	Block                   *block_post_service.PostedBlock      `json:"block"`
+	Signature               SignatureContent                     `json:"signature"`
+	PublicKeys              []intMaxTypes.Uint256                `json:"pubkeys"`
+	PrevAccountTreeRoot     intMaxTree.PoseidonHashOut           `json:"prevAccountTreeRoot"`
+	PrevBlockTreeRoot       intMaxTree.PoseidonHashOut           `json:"prevBlockTreeRoot"`
+	AccountIdPacked         *AccountIdPacked                     `json:"accountIdPacked"`         // in account id case
+	AccountMerkleProofs     *[]AccountMerkleProof                `json:"accountMerkleProofs"`     // in account id case
+	AccountMembershipProofs *[]intMaxTree.IndexedMembershipProof `json:"accountMembershipProofs"` // in pubkey case
 }
 
 func (bw *BlockWitness) Genesis() *BlockWitness {
@@ -261,7 +255,7 @@ func (bw *BlockWitness) Genesis() *BlockWitness {
 	prevAccountTreeRoot := accountTree.GetRoot()
 
 	return &BlockWitness{
-		Block:                   *new(block_post_service.PostedBlock).Genesis(),
+		Block:                   new(block_post_service.PostedBlock).Genesis(),
 		Signature:               SignatureContent{},
 		PublicKeys:              make([]intMaxTypes.Uint256, 0),
 		PrevAccountTreeRoot:     prevAccountTreeRoot,
@@ -285,7 +279,11 @@ type MainValidationPublicInputs struct {
 }
 
 // TODO
-func GetPublicKeysHash(publicKeys *[]intMaxTypes.Uint256) intMaxTypes.Bytes32 {
+func GetPublicKeysHash(publicKeys []intMaxTypes.Uint256) intMaxTypes.Bytes32 {
+	return intMaxTypes.Bytes32{}
+}
+
+func GetAccountIDsHash(accountIDs []uint64) intMaxTypes.Bytes32 {
 	return intMaxTypes.Bytes32{}
 }
 
@@ -296,7 +294,7 @@ type AccountExclusionValue struct {
 // TODO
 func NewAccountExclusionValue(
 	accountTreeRoot intMaxTree.PoseidonHashOut,
-	accountMembershipProofs []IndexedMembershipProof,
+	accountMembershipProofs []intMaxTree.IndexedMembershipProof,
 	publicKeys []intMaxTypes.Uint256,
 ) *AccountExclusionValue {
 	return &AccountExclusionValue{
@@ -354,7 +352,7 @@ func GetSenderTreeRoot(publicKeys *[]intMaxTypes.Uint256, senderFlag intMaxTypes
 }
 
 func (w *BlockWitness) ToMainValidationPublicInputs() *MainValidationPublicInputs {
-	if new(block_post_service.PostedBlock).Genesis().Equals(&w.Block) {
+	if new(block_post_service.PostedBlock).Genesis().Equals(w.Block) {
 		validityPis := new(ValidityPublicInputs).Genesis()
 		return &MainValidationPublicInputs{
 			PrevBlockHash:       new(block_post_service.PostedBlock).Genesis().PrevBlockHash,
@@ -370,14 +368,14 @@ func (w *BlockWitness) ToMainValidationPublicInputs() *MainValidationPublicInput
 	}
 
 	result := true
-	block := new(block_post_service.PostedBlock).Set(&w.Block)
+	block := new(block_post_service.PostedBlock).Set(w.Block)
 	signature := new(SignatureContent).Set(w.Signature)
 	publicKeys := make([]intMaxTypes.Uint256, len(w.PublicKeys))
 	copy(publicKeys, w.PublicKeys)
 
 	accountTreeRoot := w.PrevAccountTreeRoot
 
-	publicKeysHash := GetPublicKeysHash(&publicKeys)
+	publicKeysHash := GetPublicKeysHash(publicKeys)
 	isRegistrationBlock := signature.IsRegistrationBlock
 	isPubkeyEq := signature.PublicKeyHash == publicKeysHash
 	if isRegistrationBlock {
@@ -570,10 +568,99 @@ type MockTxRequest struct {
 }
 
 func (b *MockBlockBuilder) generateBlock(
-	isRegistrationBlock bool,
-	txs []MockTxRequest,
+	blockContent *intMaxTypes.BlockContent,
+	postedBlock *block_post_service.PostedBlock,
 ) (*BlockWitness, *intMaxTree.TxTree) {
-	return nil, nil
+	isRegistrationBlock := blockContent.SenderType == intMaxTypes.PublicKeySenderType
+
+	publicKeys := make([]intMaxTypes.Uint256, len(blockContent.Senders))
+	accountIDs := make([]uint64, len(blockContent.Senders))
+	senderFlagBytes := [16]byte{}
+	for i, sender := range blockContent.Senders {
+		publicKey := new(intMaxTypes.Uint256).FromBigInt(sender.PublicKey.BigInt())
+		publicKeys = append(publicKeys, *publicKey)
+		accountIDs = append(accountIDs, sender.AccountID)
+		var flag uint8 = 0
+		if sender.IsSigned {
+			flag = 1
+		}
+		senderFlagBytes[i/int8Key] |= flag << (int8Key - 1 - i%int8Key)
+	}
+
+	signature := SignatureContent{
+		IsRegistrationBlock: isRegistrationBlock,
+		TxTreeRoot:          intMaxTypes.Bytes32{},
+		SenderFlag:          intMaxTypes.Bytes16{},
+		PublicKeyHash:       GetPublicKeysHash(publicKeys),
+		AccountIDHash:       GetAccountIDsHash(accountIDs),
+		AggPublicKey:        G1ToSolidityType(blockContent.AggregatedPublicKey.Pk),
+		AggSignature:        G2ToSolidityType(blockContent.AggregatedSignature),
+		MessagePoint:        G2ToSolidityType(blockContent.MessagePoint),
+	}
+	copy(signature.TxTreeRoot[:], intMaxTypes.CommonHashToUint32Slice(blockContent.TxTreeRoot))
+	signature.SenderFlag.FromBytes(senderFlagBytes[:])
+
+	prevAccountTreeRoot := b.AccountTree.GetRoot()
+	prevBlockTreeRoot := b.BlockTree.GetRoot()
+	accountMembershipProofs := make([]intMaxTree.IndexedMembershipProof, 0)
+	for _, sender := range blockContent.Senders {
+		accountMembershipProof, _, err := b.AccountTree.ProveMembership(sender.PublicKey.BigInt())
+		if err != nil {
+			panic(err)
+		}
+
+		accountMembershipProofs = append(accountMembershipProofs, *accountMembershipProof)
+	}
+
+	if isRegistrationBlock {
+		blockWitness := &BlockWitness{
+			Block:                   postedBlock,
+			Signature:               signature,
+			PublicKeys:              publicKeys,
+			PrevAccountTreeRoot:     prevAccountTreeRoot,
+			PrevBlockTreeRoot:       prevBlockTreeRoot,
+			AccountIdPacked:         nil,
+			AccountMerkleProofs:     nil,
+			AccountMembershipProofs: &accountMembershipProofs,
+		}
+
+		return blockWitness, nil
+	} else {
+		accountMerkleProofs := make([]AccountMerkleProof, 0)
+		accountIDPackedBytes := make([]byte, numAccountIDPackedBytes)
+		for i, sender := range blockContent.Senders {
+			accountIDByte := make([]byte, int8Key)
+			binary.BigEndian.PutUint64(accountIDByte, sender.AccountID)
+			copy(accountIDPackedBytes[i/int8Key:i/int8Key+int5Key], accountIDByte[int8Key-int5Key:])
+			accountMerkleProof, _, err := b.AccountTree.ProveMembership(sender.PublicKey.BigInt())
+			if err != nil {
+				panic(err)
+			}
+			if !accountMerkleProof.IsIncluded {
+				panic("account is not included")
+			}
+
+			accountMerkleProofs = append(accountMerkleProofs, AccountMerkleProof{
+				MerkleProof: accountMerkleProof.LeafProof,
+				Leaf:        accountMerkleProof.Leaf,
+			})
+		}
+
+		accountIDPacked := new(AccountIdPacked)
+		accountIDPacked.FromBytes(accountIDPackedBytes)
+		blockWitness := &BlockWitness{
+			Block:                   postedBlock,
+			Signature:               signature,
+			PublicKeys:              publicKeys,
+			PrevAccountTreeRoot:     prevAccountTreeRoot,
+			PrevBlockTreeRoot:       prevBlockTreeRoot,
+			AccountIdPacked:         accountIDPacked,
+			AccountMerkleProofs:     &accountMerkleProofs,
+			AccountMembershipProofs: nil,
+		}
+
+		return blockWitness, nil
+	}
 }
 
 func NewMockBlockBuilder() *MockBlockBuilder {
@@ -705,10 +792,10 @@ func (b *MockBlockBuilder) generateValidityWitness(blockWitness *BlockWitness) *
 }
 
 func (b *MockBlockBuilder) postBlock(
-	isRegistrationBlock bool,
-	txs []MockTxRequest,
+	blockContent *intMaxTypes.BlockContent,
+	postedBlock *block_post_service.PostedBlock,
 ) *ValidityWitness {
-	blockWitness, txTree := b.generateBlock(isRegistrationBlock, txs)
+	blockWitness, txTree := b.generateBlock(blockContent, postedBlock)
 	validityWitness := b.generateValidityWitness(blockWitness)
 	b.AuxInfo[blockWitness.Block.BlockNumber] =
 		AuxInfo{
@@ -735,7 +822,6 @@ func NewExternalValidityProcessor() *ExternalValidityProcessor {
 }
 
 func (p *ExternalValidityProcessor) Prove(prevValidityProof *intMaxTypes.Plonky2Proof, validityWitness *ValidityWitness) (*intMaxTypes.Plonky2Proof, error) {
-
 	return nil, nil
 }
 
@@ -785,4 +871,26 @@ type TransitionWrapperCircuit interface {
 		validity_witness *ValidityWitness,
 	) (*intMaxTypes.Plonky2Proof, error)
 	CircuitData() *CircuitData
+}
+
+func G1ToSolidityType(pk *bn254.G1Affine) [2]intMaxTypes.Uint256 {
+	x := intMaxTypes.Uint256{}
+	y := intMaxTypes.Uint256{}
+	x.FromBigInt(pk.X.BigInt(new(big.Int)))
+	y.FromBigInt(pk.Y.BigInt(new(big.Int)))
+
+	return [2]intMaxTypes.Uint256{x, y}
+}
+
+func G2ToSolidityType(sig *bn254.G2Affine) [4]intMaxTypes.Uint256 {
+	x_a0 := intMaxTypes.Uint256{}
+	x_a1 := intMaxTypes.Uint256{}
+	y_a0 := intMaxTypes.Uint256{}
+	y_a1 := intMaxTypes.Uint256{}
+	x_a0.FromBigInt(sig.X.A0.BigInt(new(big.Int)))
+	x_a1.FromBigInt(sig.X.A1.BigInt(new(big.Int)))
+	y_a0.FromBigInt(sig.Y.A0.BigInt(new(big.Int)))
+	y_a1.FromBigInt(sig.Y.A1.BigInt(new(big.Int)))
+
+	return [4]intMaxTypes.Uint256{x_a1, y_a1, y_a1, y_a0}
 }

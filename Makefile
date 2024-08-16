@@ -36,7 +36,7 @@ build:
 gen: format-proto
 	buf generate -v --debug --timeout=2m --template api/proto/service/buf.gen.yaml api/proto/service
 	buf generate -v --debug --timeout=2m --template api/proto/service/buf.gen.tagger.yaml api/proto/service
-	go generate -v ./...
+	go generate ./...
 	cp -rf docs/swagger/node third_party/OpenAPI
 ifneq (${SWAGGER_USE},)
 # generic values
