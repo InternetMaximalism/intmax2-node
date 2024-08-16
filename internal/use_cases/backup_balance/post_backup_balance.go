@@ -3,6 +3,7 @@ package backup_balance
 import (
 	"context"
 	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/use_cases/block_signature"
@@ -24,43 +25,12 @@ type InsufficientFlags struct {
 	Limbs [INSUFFICIENT_FLAGS_LEN]uint32
 }
 
-type PublicState struct {
-	BlockTreeRoot       goldenposeidon.PoseidonHashOut
-	PrevAccountTreeRoot goldenposeidon.PoseidonHashOut
-	AccountTreeRoot     goldenposeidon.PoseidonHashOut
-	DepositTreeRoot     [32]byte
-	BlockHash           [32]byte
-	BlockNumber         uint32
-}
-
-func (pis *PublicState) Equal(other *PublicState) bool {
-	if !pis.BlockTreeRoot.Equal(&other.BlockTreeRoot) {
-		return false
-	}
-	if !pis.PrevAccountTreeRoot.Equal(&other.PrevAccountTreeRoot) {
-		return false
-	}
-	if !pis.AccountTreeRoot.Equal(&other.AccountTreeRoot) {
-		return false
-	}
-	if pis.DepositTreeRoot != other.DepositTreeRoot {
-		return false
-	}
-	if pis.BlockHash != other.BlockHash {
-		return false
-	}
-	if pis.BlockNumber != other.BlockNumber {
-		return false
-	}
-	return true
-}
-
 type BalancePublicInputs struct {
-	PublicKey               *big.Int                       `json:"pubkey"`
-	PrivateCommitment       goldenposeidon.PoseidonHashOut `json:"private_commitment"`
-	LastTxHash              goldenposeidon.PoseidonHashOut `json:"last_tx_hash"`
-	LastTxInsufficientFlags InsufficientFlags              `json:"last_tx_insufficient_flags"`
-	PublicState             PublicState                    `json:"public_state"`
+	PublicKey               *big.Int                          `json:"pubkey"`
+	PrivateCommitment       goldenposeidon.PoseidonHashOut    `json:"privateCommitment"`
+	LastTxHash              goldenposeidon.PoseidonHashOut    `json:"lastTxHash"`
+	LastTxInsufficientFlags InsufficientFlags                 `json:"lastTxInsufficientFlags"`
+	PublicState             block_validity_prover.PublicState `json:"publicState"`
 }
 
 func (pis *BalancePublicInputs) Equal(other *BalancePublicInputs) bool {

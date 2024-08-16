@@ -27,5 +27,5 @@ func TestBlockTree(t *testing.T) {
 		Hash(Hash(blockHashes[0], blockHashes[1]), Hash(blockHashes[2], blockHashes[3])),
 		Hash(Hash(blockHashes[4], blockHashes[5]), Hash(blockHashes[6], blockHashes[7])),
 	)
-	assert.Equal(t, expectedRoot, ([32]byte)(blockHashTreeRoot))
+	assert.Equal(t, expectedRoot, blockHashTreeRoot)
 }

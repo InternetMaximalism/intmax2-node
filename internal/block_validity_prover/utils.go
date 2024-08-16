@@ -70,6 +70,19 @@ func FetchIntMaxBlockContentByCalldata(
 		return nil, errors.Join(ErrDecodeCallDataFail, err)
 	}
 
+	// TODO: Make block validity public inputs
+
+	defaultAddress := intMaxAcc.NewDummyPublicKey().ToAddress().String()
+	for index := range blockContent.Senders {
+		address := blockContent.Senders[index].PublicKey.ToAddress().String()
+		if !strings.EqualFold(address, defaultAddress) {
+			err = ai.RegisterPublicKey(blockContent.Senders[index].PublicKey)
+			if err != nil {
+				return nil, errors.Join(ErrRegisterPublicKeyFail, err)
+			}
+		}
+	}
+
 	return blockContent, nil
 }
 
@@ -96,17 +109,6 @@ func recoverBlockContent(
 			return nil, fmt.Errorf("failed to validate block content: %w", err)
 		}
 
-		defaultAddress := intMaxAcc.NewDummyPublicKey().ToAddress().String()
-		for index := range blockContent.Senders {
-			address := blockContent.Senders[index].PublicKey.ToAddress().String()
-			if !strings.EqualFold(address, defaultAddress) {
-				err = ai.RegisterPublicKey(blockContent.Senders[index].PublicKey)
-				if err != nil {
-					return nil, errors.Join(ErrRegisterPublicKeyFail, err)
-				}
-			}
-		}
-
 		return blockContent, nil
 	case postNonRegistrationBlockMethod:
 		decodedInput, err := decodePostNonRegistrationBlockCalldata(method, calldata)
@@ -123,17 +125,6 @@ func recoverBlockContent(
 		err = blockContent.IsValid()
 		if err != nil {
 			return nil, fmt.Errorf("failed to validate block content: %w", err)
-		}
-
-		defaultAddress := intMaxAcc.NewDummyPublicKey().ToAddress().String()
-		for index := range blockContent.Senders {
-			address := blockContent.Senders[index].PublicKey.ToAddress().String()
-			if !strings.EqualFold(address, defaultAddress) {
-				err = ai.RegisterPublicKey(blockContent.Senders[index].PublicKey)
-				if err != nil {
-					return nil, errors.Join(ErrRegisterPublicKeyFail, err)
-				}
-			}
 		}
 
 		return blockContent, nil

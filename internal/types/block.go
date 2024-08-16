@@ -436,6 +436,62 @@ func (bc *BlockContent) Uint32Slice() []uint32 {
 	return buf
 }
 
+type PostedBlock struct {
+	// The previous block hash.
+	PrevBlockHash common.Hash
+	// The block number, which is the latest block number in the Rollup contract plus 1.
+	BlockNumber uint32
+	// The deposit root at the time of block posting (written in the Rollup contract).
+	DepositRoot common.Hash
+	// The hash value that the Block Builder must provide to the Rollup contract when posting a new block.
+	SignatureHash common.Hash
+}
+
+func NewPostedBlock(prevBlockHash, depositRoot common.Hash, blockNumber uint32, signatureHash common.Hash) *PostedBlock {
+	return &PostedBlock{
+		PrevBlockHash: prevBlockHash,
+		BlockNumber:   blockNumber,
+		DepositRoot:   depositRoot,
+		SignatureHash: signatureHash,
+	}
+}
+
+func (pb *PostedBlock) Marshal() []byte {
+	const int4Key = 4
+
+	data := make([]byte, 0)
+
+	data = append(data, pb.PrevBlockHash.Bytes()...)
+	data = append(data, pb.DepositRoot.Bytes()...)
+	data = append(data, pb.SignatureHash.Bytes()...)
+	blockNumberBytes := [int4Key]byte{}
+	binary.BigEndian.PutUint32(blockNumberBytes[:], pb.BlockNumber)
+	data = append(data, blockNumberBytes[:]...)
+
+	return data
+}
+
+func CommonHashToUint32Slice(h common.Hash) []uint32 {
+	b := Bytes32{}
+	b.FromBytes(h[:])
+
+	return b[:]
+}
+
+func (pb *PostedBlock) Uint32Slice() []uint32 {
+	var buf []uint32
+	buf = append(buf, CommonHashToUint32Slice(pb.PrevBlockHash)...)
+	buf = append(buf, CommonHashToUint32Slice(pb.DepositRoot)...)
+	buf = append(buf, CommonHashToUint32Slice(pb.SignatureHash)...)
+	buf = append(buf, pb.BlockNumber)
+
+	return buf
+}
+
+func (pb *PostedBlock) Hash() common.Hash {
+	return crypto.Keccak256Hash(Uint32SliceToBytes(pb.Uint32Slice()))
+}
+
 type PostRegistrationBlockInput struct {
 	TxTreeRoot          [32]byte
 	SenderFlags         [16]byte

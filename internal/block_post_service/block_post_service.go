@@ -226,7 +226,7 @@ func (w *blockPostService) Start(
 				}
 				blockNumber := uint32(eventData.BlockNumber.Uint64())
 
-				postedBlock := intMaxTypes.NewPostedBlock(
+				postedBlock := NewPostedBlock(
 					eventData.PrevBlockHash,
 					eventData.DepositTreeRoot,
 					blockNumber,

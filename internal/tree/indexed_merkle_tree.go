@@ -11,10 +11,10 @@ import (
 )
 
 type IndexedMerkleLeaf struct {
-	NextIndex uint64
-	Key       *big.Int
-	NextKey   *big.Int
-	Value     uint64
+	NextIndex uint64   `json:"nextIndex"`
+	Key       *big.Int `json:"key"`
+	NextKey   *big.Int `json:"nextKey"`
+	Value     uint64   `json:"value"`
 }
 
 func (leaf *IndexedMerkleLeaf) SetDefault() *IndexedMerkleLeaf {
@@ -62,7 +62,7 @@ func (leaf *IndexedMerkleLeaf) Hash() *goldenposeidon.PoseidonHashOut {
 }
 
 type IndexedMerkleProof struct {
-	Siblings []*goldenposeidon.PoseidonHashOut
+	Siblings []*goldenposeidon.PoseidonHashOut `json:"siblings"`
 }
 
 // TODO: leaf is *BlockHashLeaf?

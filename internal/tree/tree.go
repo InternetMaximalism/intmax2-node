@@ -38,7 +38,10 @@ func (t *PoseidonMerkleTree) GetRoot() *PoseidonHashOut {
 func (t *PoseidonMerkleTree) GetNodeHash(
 	nodeIndex int,
 ) *PoseidonHashOut {
-	if bits.Len(uint(nodeIndex)) > int(t.height)+1 {
+	if nodeIndex < 1 {
+		panic("nodeIndex must be greater than 0")
+	}
+	if bits.Len(uint(nodeIndex))-1 > int(t.height) {
 		panic("must be path.len() <= self.height")
 	}
 
@@ -46,7 +49,7 @@ func (t *PoseidonMerkleTree) GetNodeHash(
 		return h
 	} else {
 		// return zero hash
-		return t.zeroHashes[bits.Len(uint(nodeIndex))]
+		return t.zeroHashes[bits.Len(uint(nodeIndex))-1]
 	}
 }
 

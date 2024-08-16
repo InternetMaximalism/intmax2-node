@@ -162,8 +162,8 @@ func (u *uc) Do(
 }
 
 type TransferStepPublicInputs struct {
-	PrevBalancePis backup_balance.BalancePublicInputs
-	NextBalancePis backup_balance.BalancePublicInputs
+	PrevBalancePis backup_balance.BalancePublicInputs `json:"prevBalancePis"`
+	NextBalancePis backup_balance.BalancePublicInputs `json:"nextBalancePis"`
 }
 
 func (pis *TransferStepPublicInputs) FromPublicInputs(publicInputs []ffg.Element) *TransferStepPublicInputs {

@@ -108,9 +108,9 @@ func (mt *PoseidonIncrementalMerkleTree) ComputeMerkleProof(index uint64, leaves
 		leaves = append(leaves, mt.zeroHashes[int0Key])
 	}
 	proofIndex := index
-	for h := uint8(int0Key); h < mt.height; h++ {
+	for height := uint8(int0Key); height < mt.height; height++ {
 		if len(leaves)%int2Key == int1Key {
-			leaves = append(leaves, mt.zeroHashes[h])
+			leaves = append(leaves, mt.zeroHashes[height])
 		}
 		if proofIndex%int2Key == int1Key {
 			// If it is odd
@@ -244,7 +244,7 @@ func (mt *PoseidonIncrementalMerkleTree) CurrentRoot() PoseidonHashOut {
 }
 
 type MerkleProof struct {
-	Siblings []*goldenposeidon.PoseidonHashOut
+	Siblings []*goldenposeidon.PoseidonHashOut `json:"siblings"`
 }
 
 func (proof *MerkleProof) GetRoot(leaf *goldenposeidon.PoseidonHashOut, index int) *goldenposeidon.PoseidonHashOut {

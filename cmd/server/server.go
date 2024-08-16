@@ -199,7 +199,6 @@ func NewServerCmd(s *Server) *cobra.Command {
 				}
 			}()
 
-			// TODO: Occur error: Block range is too large
 			wg.Add(1)
 			s.WG.Add(1)
 			go func() {

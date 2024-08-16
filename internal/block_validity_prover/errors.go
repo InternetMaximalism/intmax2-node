@@ -25,3 +25,13 @@ var ErrSetTxRootFail = errors.New("failed to set tx tree root")
 
 // ErrRegisterPublicKeyFail error: failed to register public key.
 var ErrRegisterPublicKeyFail = errors.New("failed to register public key")
+
+var ErrNewEthereumClientFail = errors.New("failed to create new Ethereum client")
+
+var ErrScrollNetwrokChainLink = errors.New("failed to get Scroll network chain link")
+
+var ErrNewScrollClientFail = errors.New("failed to create new Scroll client")
+
+var ErrInstantiateLiquidityContractFail = errors.New("failed to instantiate a Liquidity contract")
+
+var ErrInstantiateRollupContractFail = errors.New("failed to instantiate a Rollup contract")
