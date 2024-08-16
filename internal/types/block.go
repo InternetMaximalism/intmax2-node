@@ -82,7 +82,7 @@ type BlockContent struct {
 	Senders []Sender
 
 	// TxRoot is the root hash of the transactions in the block
-	TxTreeRoot PoseidonHashOut
+	TxTreeRoot common.Hash
 
 	// AggregatedSignature is the aggregated signature of the block
 	AggregatedSignature *bn254.G2Affine
@@ -107,7 +107,7 @@ func NewBlockContent(
 	bc.SenderType = senderType
 	bc.Senders = make([]Sender, len(senders))
 	copy(bc.Senders, senders)
-	bc.TxTreeRoot.Set(&txTreeRoot)
+	copy(bc.TxTreeRoot[:], txTreeRoot.Marshal())
 	bc.AggregatedSignature = new(bn254.G2Affine).Set(aggregatedSignature)
 
 	defaultPublicKey := accounts.NewDummyPublicKey()
@@ -136,7 +136,7 @@ func NewBlockContent(
 	}
 	bc.AggregatedPublicKey = new(accounts.PublicKey).Set(aggregatedPublicKey)
 
-	messagePoint := goldenposeidon.HashToG2(finite_field.BytesToFieldElementSlice(bc.TxTreeRoot.Marshal()))
+	messagePoint := goldenposeidon.HashToG2(finite_field.BytesToFieldElementSlice(bc.TxTreeRoot[:]))
 	bc.MessagePoint = &messagePoint
 
 	return &bc
@@ -263,7 +263,7 @@ func (bc *BlockContent) IsValid() error {
 					return ErrBlockContentAggSignEmpty
 				}
 
-				message := finite_field.BytesToFieldElementSlice(bc.TxTreeRoot.Marshal())
+				message := finite_field.BytesToFieldElementSlice(bc.TxTreeRoot[:])
 				err := accounts.VerifySignature(bc.AggregatedSignature, bc.AggregatedPublicKey, message)
 				if err != nil {
 					return err
@@ -287,7 +287,7 @@ func (bc *BlockContent) Marshal() []byte {
 	} else {
 		data = append(data, int1Key)
 	}
-	data = append(data, bc.TxTreeRoot.Marshal()...)
+	data = append(data, bc.TxTreeRoot[:]...)
 
 	// TODO: need check
 	for key := range bc.Senders {
@@ -334,7 +334,7 @@ func (bc *BlockContent) Rollup() []byte {
 	)
 
 	var data []byte
-	data = append(data, bc.TxTreeRoot.Marshal()...)
+	data = append(data, bc.TxTreeRoot[:]...)
 	data = append(data, bc.MessagePoint.Marshal()...)
 	data = append(data, bc.AggregatedSignature.Marshal()...)
 	data = append(data, bc.AggregatedPublicKey.Marshal()...)
@@ -426,51 +426,6 @@ func G2AffineToUint32Slice(p *bn254.G2Affine) []uint32 {
 	return buf
 }
 
-func (bc *BlockContent) Uint32Slice() []uint32 {
-	var buf []uint32
-	buf = append(buf, bc.TxTreeRoot.Uint32Slice()...)
-	buf = append(buf, G2AffineToUint32Slice(bc.AggregatedSignature)...)
-	buf = append(buf, G2AffineToUint32Slice(bc.MessagePoint)...)
-	buf = append(buf, G1AffineToUint32Slice(bc.AggregatedPublicKey.Pk)...)
-
-	return buf
-}
-
-type PostedBlock struct {
-	// The previous block hash.
-	PrevBlockHash common.Hash
-	// The block number, which is the latest block number in the Rollup contract plus 1.
-	BlockNumber uint32
-	// The deposit root at the time of block posting (written in the Rollup contract).
-	DepositRoot common.Hash
-	// The hash value that the Block Builder must provide to the Rollup contract when posting a new block.
-	SignatureHash common.Hash
-}
-
-func NewPostedBlock(prevBlockHash, depositRoot common.Hash, blockNumber uint32, signatureHash common.Hash) *PostedBlock {
-	return &PostedBlock{
-		PrevBlockHash: prevBlockHash,
-		BlockNumber:   blockNumber,
-		DepositRoot:   depositRoot,
-		SignatureHash: signatureHash,
-	}
-}
-
-func (pb *PostedBlock) Marshal() []byte {
-	const int4Key = 4
-
-	data := make([]byte, 0)
-
-	data = append(data, pb.PrevBlockHash.Bytes()...)
-	data = append(data, pb.DepositRoot.Bytes()...)
-	data = append(data, pb.SignatureHash.Bytes()...)
-	blockNumberBytes := [int4Key]byte{}
-	binary.BigEndian.PutUint32(blockNumberBytes[:], pb.BlockNumber)
-	data = append(data, blockNumberBytes[:]...)
-
-	return data
-}
-
 func CommonHashToUint32Slice(h common.Hash) []uint32 {
 	b := Bytes32{}
 	b.FromBytes(h[:])
@@ -478,18 +433,14 @@ func CommonHashToUint32Slice(h common.Hash) []uint32 {
 	return b[:]
 }
 
-func (pb *PostedBlock) Uint32Slice() []uint32 {
+func (bc *BlockContent) Uint32Slice() []uint32 {
 	var buf []uint32
-	buf = append(buf, CommonHashToUint32Slice(pb.PrevBlockHash)...)
-	buf = append(buf, CommonHashToUint32Slice(pb.DepositRoot)...)
-	buf = append(buf, CommonHashToUint32Slice(pb.SignatureHash)...)
-	buf = append(buf, pb.BlockNumber)
+	buf = append(buf, CommonHashToUint32Slice(bc.TxTreeRoot)...)
+	buf = append(buf, G2AffineToUint32Slice(bc.AggregatedSignature)...)
+	buf = append(buf, G2AffineToUint32Slice(bc.MessagePoint)...)
+	buf = append(buf, G1AffineToUint32Slice(bc.AggregatedPublicKey.Pk)...)
 
 	return buf
-}
-
-func (pb *PostedBlock) Hash() common.Hash {
-	return crypto.Keccak256Hash(Uint32SliceToBytes(pb.Uint32Slice()))
 }
 
 type PostRegistrationBlockInput struct {
@@ -530,7 +481,7 @@ func MakePostRegistrationBlockInput(blockContent *BlockContent) (*PostRegistrati
 	}
 
 	txTreeRoot := [numHashBytes]byte{}
-	copy(txTreeRoot[:], blockContent.TxTreeRoot.Marshal())
+	copy(txTreeRoot[:], blockContent.TxTreeRoot[:])
 
 	senderFlags := [numFlagBytes]byte{}
 	senderPublicKeys := make([]*big.Int, len(blockContent.Senders))
