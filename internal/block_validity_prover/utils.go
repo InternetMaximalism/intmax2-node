@@ -52,6 +52,7 @@ const (
 //		blockContent, err := FetchIntMaxBlockContentByCalldata(calldata, ai)
 func FetchIntMaxBlockContentByCalldata(
 	calldata []byte,
+	postedBlock *block_post_service.PostedBlock,
 	ai block_post_service.AccountInfo,
 ) (*intMaxTypes.BlockContent, error) {
 	// Parse calldata
@@ -76,7 +77,7 @@ func FetchIntMaxBlockContentByCalldata(
 	for index := range blockContent.Senders {
 		address := blockContent.Senders[index].PublicKey.ToAddress().String()
 		if !strings.EqualFold(address, defaultAddress) {
-			err = ai.RegisterPublicKey(blockContent.Senders[index].PublicKey)
+			_, err = ai.RegisterPublicKey(blockContent.Senders[index].PublicKey, postedBlock.BlockNumber)
 			if err != nil {
 				return nil, errors.Join(ErrRegisterPublicKeyFail, err)
 			}

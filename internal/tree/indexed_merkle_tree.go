@@ -10,11 +10,22 @@ import (
 	"github.com/iden3/go-iden3-crypto/ffg"
 )
 
+type LeafIndex = int
+
 type IndexedMerkleLeaf struct {
-	NextIndex uint64   `json:"nextIndex"`
-	Key       *big.Int `json:"key"`
-	NextKey   *big.Int `json:"nextKey"`
-	Value     uint64   `json:"value"`
+	Key       *big.Int  `json:"key"`
+	Value     uint64    `json:"value"`
+	NextIndex LeafIndex `json:"nextIndex"`
+	NextKey   *big.Int  `json:"nextKey"`
+}
+
+func (leaf *IndexedMerkleLeaf) Set(other *IndexedMerkleLeaf) *IndexedMerkleLeaf {
+	leaf.NextIndex = other.NextIndex
+	leaf.Key = new(big.Int).Set(other.Key)
+	leaf.NextKey = new(big.Int).Set(other.NextKey)
+	leaf.Value = other.Value
+
+	return leaf
 }
 
 func (leaf *IndexedMerkleLeaf) SetDefault() *IndexedMerkleLeaf {
@@ -37,7 +48,7 @@ func (leaf *IndexedMerkleLeaf) EmptyLeaf() *IndexedMerkleLeaf {
 
 func (leaf *IndexedMerkleLeaf) ToFieldElementSlice() []ffg.Element {
 	res := finite_field.NewBuffer(make([]ffg.Element, 0))
-	err := finite_field.WriteUint64(res, leaf.NextIndex)
+	err := finite_field.WriteUint64(res, uint64(leaf.NextIndex))
 	if err != nil {
 		panic(err)
 	}
@@ -66,7 +77,7 @@ type IndexedMerkleProof struct {
 }
 
 // TODO: leaf is *BlockHashLeaf?
-func (proof *IndexedMerkleProof) GetRoot(leaf *IndexedMerkleLeaf, index int) *goldenposeidon.PoseidonHashOut {
+func (proof *IndexedMerkleProof) GetRoot(leaf *IndexedMerkleLeaf, index LeafIndex) *goldenposeidon.PoseidonHashOut {
 	height := len(proof.Siblings)
 	if index >= 1<<height {
 		panic("index out of bounds")
@@ -91,7 +102,7 @@ func (proof *IndexedMerkleProof) GetRoot(leaf *IndexedMerkleLeaf, index int) *go
 }
 
 // TODO: leaf is *BlockHashLeaf?
-func (proof *IndexedMerkleProof) Verify(leaf *IndexedMerkleLeaf, index int, root *goldenposeidon.PoseidonHashOut) error {
+func (proof *IndexedMerkleProof) Verify(leaf *IndexedMerkleLeaf, index LeafIndex, root *goldenposeidon.PoseidonHashOut) error {
 	computedRoot := proof.GetRoot(leaf, index)
 	if !computedRoot.Equal(root) {
 		return errors.New("invalid root")
@@ -101,10 +112,10 @@ func (proof *IndexedMerkleProof) Verify(leaf *IndexedMerkleLeaf, index int, root
 }
 
 type IndexedInsertionProof struct {
-	Index        uint64
+	Index        LeafIndex
 	LowLeafProof IndexedMerkleProof
 	LeafProof    IndexedMerkleProof
-	LowLeafIndex uint64
+	LowLeafIndex LeafIndex
 	PrevLowLeaf  IndexedMerkleLeaf
 }
 
@@ -121,7 +132,7 @@ func (proof *IndexedInsertionProof) GetNewRoot(
 		return nil, errors.New("key is not upper-bounded")
 	}
 
-	err := proof.LowLeafProof.Verify(&proof.PrevLowLeaf, int(proof.LowLeafIndex), prevRoot)
+	err := proof.LowLeafProof.Verify(&proof.PrevLowLeaf, proof.LowLeafIndex, prevRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -132,10 +143,10 @@ func (proof *IndexedInsertionProof) GetNewRoot(
 		Key:       proof.PrevLowLeaf.Key,
 		Value:     proof.PrevLowLeaf.Value,
 	}
-	tempRoot := proof.LowLeafProof.GetRoot(&newLowLeaf, int(proof.LowLeafIndex))
+	tempRoot := proof.LowLeafProof.GetRoot(&newLowLeaf, proof.LowLeafIndex)
 	err = proof.LeafProof.Verify(
 		new(IndexedMerkleLeaf).EmptyLeaf(),
-		int(proof.Index),
+		proof.Index,
 		tempRoot,
 	)
 	if err != nil {
@@ -149,7 +160,7 @@ func (proof *IndexedInsertionProof) GetNewRoot(
 		Value:     value,
 	}
 
-	return proof.LeafProof.GetRoot(&leaf, int(proof.Index)), nil
+	return proof.LeafProof.GetRoot(&leaf, proof.Index), nil
 }
 
 func (proof *IndexedInsertionProof) ConditionalGetNewRoot(condition bool, key *big.Int, value uint64, prevRoot *PoseidonHashOut) (*PoseidonHashOut, error) {
@@ -162,7 +173,7 @@ func (proof *IndexedInsertionProof) ConditionalGetNewRoot(condition bool, key *b
 
 type IndexedUpdateProof struct {
 	LeafProof IndexedMerkleProof
-	LeafIndex uint64
+	LeafIndex LeafIndex
 	PrevLeaf  IndexedMerkleLeaf
 }
 
@@ -175,7 +186,7 @@ func (proof *IndexedUpdateProof) GetNewRoot(key *big.Int, prevValue, newValue ui
 		return nil, errors.New("key mismatch")
 	}
 
-	err := proof.LeafProof.Verify(&proof.PrevLeaf, int(proof.LeafIndex), prevRoot)
+	err := proof.LeafProof.Verify(&proof.PrevLeaf, proof.LeafIndex, prevRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +197,7 @@ func (proof *IndexedUpdateProof) GetNewRoot(key *big.Int, prevValue, newValue ui
 		Key:       proof.PrevLeaf.Key,
 		NextKey:   proof.PrevLeaf.NextKey,
 	}
-	return proof.LeafProof.GetRoot(&newLeaf, int(proof.LeafIndex)), nil
+	return proof.LeafProof.GetRoot(&newLeaf, proof.LeafIndex), nil
 }
 
 func (proof *IndexedUpdateProof) Verify(key *big.Int, prevValue, newValue uint64, prevRoot, newRoot *PoseidonHashOut) error {
@@ -210,7 +221,7 @@ type IndexedMerkleTree struct {
 type IndexedMembershipProof struct {
 	IsIncluded bool               `json:"isIncluded"`
 	LeafProof  IndexedMerkleProof `json:"leafProof"`
-	LeafIndex  uint64             `json:"leafIndex"`
+	LeafIndex  LeafIndex          `json:"leafIndex"`
 	Leaf       IndexedMerkleLeaf  `json:"leaf"`
 }
 
@@ -236,12 +247,12 @@ func (t *IndexedMerkleTree) GetRoot() PoseidonHashOut {
 	return *root
 }
 
-func (t *IndexedMerkleTree) GetLeaf(index uint64) *IndexedMerkleLeaf {
+func (t *IndexedMerkleTree) GetLeaf(index LeafIndex) *IndexedMerkleLeaf {
 	return t.Leaves[index]
 }
 
-func (t *IndexedMerkleTree) Prove(index uint64) (siblings []*PoseidonHashOut, root PoseidonHashOut, err error) {
-	siblings, err = t.inner.Prove(int(index))
+func (t *IndexedMerkleTree) Prove(index LeafIndex) (siblings []*PoseidonHashOut, root PoseidonHashOut, err error) {
+	siblings, err = t.inner.Prove(index)
 	if err != nil {
 		return nil, goldenposeidon.PoseidonHashOut{}, err
 	}
@@ -252,30 +263,28 @@ func (t *IndexedMerkleTree) Prove(index uint64) (siblings []*PoseidonHashOut, ro
 }
 
 func (t *IndexedMerkleTree) ProveMembership(key *big.Int) (membership_proof *IndexedMembershipProof, root PoseidonHashOut, err error) {
-	index, err := t.GetLowIndex(key)
+	lowIndex := t.GetLowIndex(key)
+	lowLeaf := t.GetLeaf(lowIndex)
+	leafProof, root, err := t.Prove(lowIndex)
 	if err != nil {
 		return nil, goldenposeidon.PoseidonHashOut{}, err
 	}
 
-	leaf := t.GetLeaf(uint64(index))
-	isIncluded := leaf.Key == key
-	leafProof, root, err := t.Prove(uint64(index))
-
 	membership_proof = &IndexedMembershipProof{
-		IsIncluded: isIncluded,
+		IsIncluded: lowLeaf.Key.Cmp(key) == 0,
 		LeafProof:  IndexedMerkleProof{Siblings: leafProof},
-		LeafIndex:  uint64(index),
-		Leaf:       *leaf,
+		LeafIndex:  lowIndex,
+		Leaf:       *lowLeaf,
 	}
 
-	return membership_proof, root, err
+	return membership_proof, root, nil
 }
 
-func (t *IndexedMerkleTree) GetLowIndex(key *big.Int) (int, error) {
-	validLeafCandidates := make([]int, 0)
+func (t *IndexedMerkleTree) GetLowIndex(key *big.Int) LeafIndex {
+	validLeafCandidates := make([]LeafIndex, 0)
 	for i, leaf := range t.Leaves {
-		// key > leaf.Key
-		isValidLowerLimit := key.Cmp(leaf.Key) == 1
+		// key >= leaf.Key
+		isValidLowerLimit := key.Cmp(leaf.Key) != -1
 		// key < leaf.NextKey || leaf.NextKey == 0
 		isValidUpperLimit := key.Cmp(leaf.NextKey) == -1 || leaf.NextKey.Cmp(big.NewInt(0)) == 0
 		if isValidLowerLimit && isValidUpperLimit {
@@ -284,89 +293,88 @@ func (t *IndexedMerkleTree) GetLowIndex(key *big.Int) (int, error) {
 	}
 
 	if len(validLeafCandidates) == 0 {
-		var ErrKeyAlreadyExists = errors.New("key already exists")
-		return -1, ErrKeyAlreadyExists
+		panic("validLeafCandidates should not be zero")
 	}
 	if len(validLeafCandidates) > 1 {
-		var ErrTooManyCandidates = errors.New("too many candidates")
-		panic(ErrTooManyCandidates)
-	}
-
-	return validLeafCandidates[0], nil
-}
-
-func (t *IndexedMerkleTree) index(key *big.Int) int {
-	validLeafCandidates := make([]int, 0)
-	for i, leaf := range t.Leaves {
-		if key.Cmp(leaf.Key) == 0 {
-			validLeafCandidates = append(validLeafCandidates, i)
-		}
-	}
-
-	if len(validLeafCandidates) == 0 {
-		return -1
-	}
-	if len(validLeafCandidates) > 1 {
-		var ErrTooManyCandidates = errors.New("too many candidates")
-		panic(ErrTooManyCandidates)
+		panic("too many candidates")
 	}
 
 	return validLeafCandidates[0]
 }
 
-func (t *IndexedMerkleTree) Update(key *big.Int, value uint64) (int, error) {
+func (t *IndexedMerkleTree) GetIndex(key *big.Int) (LeafIndex, bool) {
+	for i, leaf := range t.Leaves {
+		if key.Cmp(leaf.Key) == 0 {
+			return LeafIndex(i), true // nolint:unconvert
+		}
+	}
+
+	return 0, false
+}
+
+func (t *IndexedMerkleTree) Update(key *big.Int, value uint64) (*IndexedUpdateProof, error) {
 	if key.Cmp(big.NewInt(0)) == -1 {
-		return -1, errors.New("key is negative")
+		return nil, errors.New("key is negative")
 	}
 	const uint256Key uint = 256
 	if key.Cmp(new(big.Int).Lsh(big.NewInt(1), uint256Key)) == 1 {
-		return -1, errors.New("key is too large")
+		return nil, errors.New("key is too large")
 	}
 
-	index := t.index(key)
-	if index == -1 {
-		return -1, errors.New("key doesn't exist")
+	index, ok := t.GetIndex(key)
+	if !ok {
+		return nil, errors.New("key doesn't exist")
 	}
 
-	leaf := t.Leaves[index]
-	leaf.Value = value
-	t.Leaves[index] = leaf
-	t.inner.updateLeaf(index, leaf.Hash())
+	prevLeaf := new(IndexedMerkleLeaf).Set(t.GetLeaf(index))
 
-	return index, nil
+	t.Leaves[index].Value = value
+	t.inner.updateLeaf(index, t.Leaves[index].Hash())
+
+	leafProof, err := t.inner.Prove(index)
+	if err != nil {
+		return nil, err
+	}
+
+	return &IndexedUpdateProof{
+		LeafProof: IndexedMerkleProof{Siblings: leafProof},
+		LeafIndex: index,
+		PrevLeaf:  *prevLeaf,
+	}, nil
 }
 
 func (t *IndexedMerkleTree) Insert(key *big.Int, value uint64) (*IndexedInsertionProof, error) {
-	index := uint64(len(t.Leaves))
-	lowIndex, err := t.GetLowIndex(key)
-	if err != nil {
-		return nil, err
+	index := len(t.Leaves)
+	lowIndex := t.GetLowIndex(key)
+
+	prevLowLeaf := new(IndexedMerkleLeaf).Set(t.GetLeaf(lowIndex))
+	if prevLowLeaf.Key.Cmp(key) == 0 {
+		return nil, errors.New("key already exists")
 	}
 
-	prevLowLeaf := t.GetLeaf(uint64(lowIndex))
-	newLowLeaf := IndexedMerkleLeaf{
-		NextIndex: index,
-		NextKey:   key,
+	newLowLeaf := new(IndexedMerkleLeaf).Set(&IndexedMerkleLeaf{
 		Key:       prevLowLeaf.Key,
 		Value:     prevLowLeaf.Value,
-	}
+		NextIndex: index,
+		NextKey:   new(big.Int).Set(key),
+	})
 
-	t.Leaves[lowIndex] = &newLowLeaf
+	t.Leaves[lowIndex].Set(newLowLeaf)
 	t.inner.updateLeaf(lowIndex, newLowLeaf.Hash())
-	lowLeafProof, _, err := t.Prove(uint64(lowIndex))
+	lowLeafProof, _, err := t.Prove(lowIndex)
 	if err != nil {
 		return nil, err
 	}
 
-	leaf := IndexedMerkleLeaf{
+	leaf := new(IndexedMerkleLeaf).Set(&IndexedMerkleLeaf{
+		Key:       new(big.Int).Set(key),
+		Value:     value,
 		NextIndex: prevLowLeaf.NextIndex,
 		NextKey:   prevLowLeaf.NextKey,
-		Key:       key,
-		Value:     value,
-	}
+	})
 
-	t.Leaves = append(t.Leaves, &leaf)
-	t.inner.updateLeaf(int(index), leaf.Hash())
+	t.Leaves = append(t.Leaves, leaf)
+	t.inner.updateLeaf(index, leaf.Hash())
 
 	leafProof, _, err := t.Prove(index)
 	if err != nil {
@@ -377,7 +385,7 @@ func (t *IndexedMerkleTree) Insert(key *big.Int, value uint64) (*IndexedInsertio
 		Index:        index,
 		LowLeafProof: IndexedMerkleProof{Siblings: lowLeafProof},
 		LeafProof:    IndexedMerkleProof{Siblings: leafProof},
-		LowLeafIndex: uint64(lowIndex),
+		LowLeafIndex: lowIndex,
 		PrevLowLeaf:  *prevLowLeaf,
 	}, nil
 }

@@ -1,7 +1,6 @@
 package block_validity_prover
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"intmax2-node/internal/bindings"
@@ -29,19 +28,19 @@ type ProcessDepositsInput struct {
 }
 
 func (p *blockValidityProver) SyncDepositTree() error {
-	b := NewMockBlockBuilder(p.cfg)
+	b := p.blockBuilder
 
 	latestBlockNumber, err := p.scrollClient.BlockNumber(p.ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get latest block number: %v", err.Error())
 	}
 
-	for b.LastSeenEventBlockNumber < latestBlockNumber {
-		p.log.Infof("Syncing deposits from block %d\n", b.LastSeenEventBlockNumber)
-		endBlock := b.LastSeenEventBlockNumber + eventBlockRange
+	for b.LastSeenProcessDepositsEventBlockNumber < latestBlockNumber {
+		p.log.Infof("Syncing deposits from block %d\n", b.LastSeenProcessDepositsEventBlockNumber)
+		endBlock := b.LastSeenProcessDepositsEventBlockNumber + eventBlockRange
 
 		var depositsProcessedEvents []*bindings.RollupDepositsProcessed
-		depositsProcessedEvents, err = p.getDepositsProcessedEvent(b.LastSeenEventBlockNumber, &endBlock)
+		depositsProcessedEvents, err = p.getDepositsProcessedEvent(b.LastSeenProcessDepositsEventBlockNumber, &endBlock)
 		if err != nil {
 			return err
 		}
@@ -85,7 +84,7 @@ func (p *blockValidityProver) SyncDepositTree() error {
 			b.DepositTreeRoots = append(b.DepositTreeRoots, deposit.DepositTreeRoot)
 		}
 
-		b.LastSeenEventBlockNumber = endBlock
+		b.LastSeenProcessDepositsEventBlockNumber = endBlock
 
 		time.Sleep(1 * time.Second)
 	}
@@ -120,21 +119,6 @@ func (p *blockValidityProver) getDepositsProcessedEvent(
 	}
 
 	return events, nil
-}
-
-func (d *blockValidityProver) FetchScrollCalldataByHash(txHash common.Hash) ([]byte, error) {
-	tx, isPending, err := d.scrollClient.TransactionByHash(context.Background(), txHash)
-	if err != nil {
-		return nil, errors.Join(ErrTransactionByHashNotFound, err)
-	}
-
-	if isPending {
-		return nil, ErrTransactionIsStillPending
-	}
-
-	calldata := tx.Data()
-
-	return calldata, nil
 }
 
 func formatRelayMessageCalldata(calldata []byte) (*RelayMessageInput, error) {

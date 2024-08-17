@@ -26,6 +26,7 @@ type blockValidityProver struct {
 	scrollClient *ethclient.Client
 	liquidity    *bindings.Liquidity
 	rollup       *bindings.Rollup
+	blockBuilder *MockBlockBuilder
 }
 
 func NewBlockValidityProver(ctx context.Context, cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) (*blockValidityProver, error) {
@@ -64,6 +65,8 @@ func NewBlockValidityProver(ctx context.Context, cfg *configs.Config, log logger
 		return nil, errors.Join(ErrInstantiateRollupContractFail, err)
 	}
 
+	blockBuilder := NewMockBlockBuilder(cfg)
+
 	return &blockValidityProver{
 		ctx:          ctx,
 		cfg:          cfg,
@@ -72,5 +75,21 @@ func NewBlockValidityProver(ctx context.Context, cfg *configs.Config, log logger
 		scrollClient: scrollClient,
 		liquidity:    liquidity,
 		rollup:       rollup,
+		blockBuilder: blockBuilder,
 	}, nil
+}
+
+func (d *blockValidityProver) FetchScrollCalldataByHash(txHash common.Hash) ([]byte, error) {
+	tx, isPending, err := d.scrollClient.TransactionByHash(context.Background(), txHash)
+	if err != nil {
+		return nil, errors.Join(ErrTransactionByHashNotFound, err)
+	}
+
+	if isPending {
+		return nil, ErrTransactionIsStillPending
+	}
+
+	calldata := tx.Data()
+
+	return calldata, nil
 }

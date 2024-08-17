@@ -19,17 +19,17 @@ func NewAccountInfo(dbApp SQLDriverApp) AccountInfo {
 	}
 }
 
-func (ai *accountInfo) RegisterPublicKey(pk *intMaxAcc.PublicKey) (err error) {
+func (ai *accountInfo) RegisterPublicKey(pk *intMaxAcc.PublicKey, lastSeenBlockNumber uint32) (accID uint64, err error) {
 	var sender *mDBApp.Sender
 	sender, err = ai.dbApp.SenderByAddress(pk.ToAddress().String())
 	if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
-		return errors.Join(ErrSenderByAddressFail, err)
+		return 0, errors.Join(ErrSenderByAddressFail, err)
 	}
 	if errors.Is(err, errorsDB.ErrNotFound) {
 		var newSender *mDBApp.Sender
 		newSender, err = ai.dbApp.CreateSenders(pk.ToAddress().String(), pk.String())
 		if err != nil {
-			return errors.Join(ErrCreateSendersFail, err)
+			return 0, errors.Join(ErrCreateSendersFail, err)
 		}
 		sender = &mDBApp.Sender{
 			ID:        newSender.ID,
@@ -40,22 +40,22 @@ func (ai *accountInfo) RegisterPublicKey(pk *intMaxAcc.PublicKey) (err error) {
 
 		_, err = ai.dbApp.CreateAccount(sender.ID)
 		if err != nil {
-			return errors.Join(ErrCreateAccountFail, err)
+			return 0, errors.Join(ErrCreateAccountFail, err)
 		}
 	}
 
-	_, err = ai.dbApp.AccountBySenderID(sender.ID)
+	account, err := ai.dbApp.AccountBySenderID(sender.ID)
 	if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
-		return errors.Join(ErrAccountBySenderIDFail, err)
+		return 0, errors.Join(ErrAccountBySenderIDFail, err)
 	}
 	if errors.Is(err, errorsDB.ErrNotFound) {
 		_, err = ai.dbApp.CreateAccount(sender.ID)
 		if err != nil {
-			return errors.Join(ErrCreateAccountFail, err)
+			return 0, errors.Join(ErrCreateAccountFail, err)
 		}
 	}
 
-	return nil
+	return account.AccountID.Uint64(), nil
 }
 
 func (ai *accountInfo) PublicKeyByAccountID(accountID uint64) (pk *intMaxAcc.PublicKey, err error) {

@@ -135,10 +135,12 @@ func (v *Uint256) Equal(other *Uint256) bool {
 
 // FromBigInt converts a big.Int to a Uint256
 // the big.Int is split into 8 32-bit words (big-endian)
-func (v *Uint256) FromBigInt(a *big.Int) *Uint256 {
+func (v *Uint256) FromBigInt(value *big.Int) *Uint256 {
+	copied_value := new(big.Int).Set(value)
+
 	for i := 0; i < int8Key; i++ {
-		v.inner[int8Key-1-i] = uint32(a.Uint64())
-		a.Rsh(a, int32Key)
+		v.inner[int8Key-1-i] = uint32(copied_value.Uint64())
+		copied_value.Rsh(copied_value, int32Key)
 	}
 
 	return v

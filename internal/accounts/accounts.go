@@ -348,6 +348,15 @@ func (pk *PublicKey) BigInt() *big.Int {
 	return pk.Pk.X.BigInt(new(big.Int))
 }
 
+func (pk *PublicKey) SetBigInt(b *big.Int) (*PublicKey, error) {
+	a, err := new(Address).SetBigInt(b)
+	if err != nil {
+		return nil, err
+	}
+
+	return a.Public()
+}
+
 func (a *Address) BigInt() (*big.Int, error) {
 	pk, err := a.Public()
 	if err != nil {
@@ -355,6 +364,21 @@ func (a *Address) BigInt() (*big.Int, error) {
 	}
 
 	return pk.BigInt(), nil
+}
+
+func (a *Address) SetBigInt(bi *big.Int) (*Address, error) {
+	addressBytes := bigIntToBytes32BeArray(bi)
+
+	copy(a[:], addressBytes[:])
+
+	return a, nil
+}
+
+func bigIntToBytes32BeArray(bi *big.Int) [int32Key]byte {
+	biBytes := bi.Bytes()
+	var result [int32Key]byte
+	copy(result[int32Key-len(biBytes):], biBytes)
+	return result
 }
 
 // ToAddress converts the private key to an address.
@@ -458,27 +482,31 @@ func (a Address) Format(s fmt.State, c rune) {
 }
 
 func SplitBigIntTo32BitChunks(value *big.Int) []*big.Int {
+	copied_value := new(big.Int).Set(value)
+
 	const chunkSize = 32
 	mask := new(big.Int).Lsh(big.NewInt(1), chunkSize)
 	mask.Sub(mask, big.NewInt(1))
 	chunks := make([]*big.Int, 0)
-	for value.Cmp(big.NewInt(0)) > 0 {
-		chunk := new(big.Int).And(value, mask)
+	for copied_value.Cmp(big.NewInt(0)) > 0 {
+		chunk := new(big.Int).And(copied_value, mask)
 		chunks = append([]*big.Int{chunk}, chunks...)
-		value.Rsh(value, chunkSize)
+		copied_value.Rsh(copied_value, chunkSize)
 	}
 	return chunks
 }
 
 func SplitBigIntTo64BitChunks(value *big.Int) []*big.Int {
+	copied_value := new(big.Int).Set(value)
+
 	const chunkSize = 64
 	mask := new(big.Int).Lsh(big.NewInt(1), chunkSize)
 	mask.Sub(mask, big.NewInt(1))
 	chunks := make([]*big.Int, 0)
-	for value.Cmp(big.NewInt(0)) > 0 {
-		chunk := new(big.Int).And(value, mask)
+	for copied_value.Cmp(big.NewInt(0)) > 0 {
+		chunk := new(big.Int).And(copied_value, mask)
 		chunks = append([]*big.Int{chunk}, chunks...)
-		value.Rsh(value, chunkSize)
+		copied_value.Rsh(copied_value, chunkSize)
 	}
 	return chunks
 }
