@@ -262,7 +262,7 @@ func (proof *MerkleProof) GetRoot(leaf *goldenposeidon.PoseidonHashOut, index in
 		} else {
 			h = goldenposeidon.Compress(h, sibling)
 		}
-		nodeIndex = nodeIndex >> 1
+		nodeIndex >>= 1
 	}
 	if nodeIndex != 1 {
 		panic("invalid nodeIndex")

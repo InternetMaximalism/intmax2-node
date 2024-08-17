@@ -2,10 +2,12 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
 	"intmax2-node/docs/swagger"
 	"intmax2-node/internal/block_synchronizer"
+	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/gas_price_oracle"
 	"intmax2-node/internal/logger"
@@ -256,6 +258,29 @@ func NewServerCmd(s *Server) *cobra.Command {
 				err = block_synchronizer.StartBlocksFetcher(s.Context, s.Config, s.Log, s.DbApp, tickerEventWatcher)
 				if err != nil {
 					const msg = "failed to start Block Post Service: %+v"
+					s.Log.Fatalf(msg, err.Error())
+				}
+			}()
+
+			wg.Add(1)
+			s.WG.Add(1)
+			go func() {
+				defer func() {
+					wg.Done()
+					s.WG.Done()
+				}()
+
+				fmt.Println("Start Block Validity Prover")
+				var blockValidityProver block_validity_prover.BlockValidityProver
+				blockValidityProver, err = block_validity_prover.NewBlockValidityProver(s.Context, s.Config, s.Log, s.SB)
+				if err != nil {
+					const msg = "failed to start Block Validity Prover: %+v"
+					s.Log.Fatalf(msg, err.Error())
+				}
+
+				err = blockValidityProver.SyncDepositTree()
+				if err != nil {
+					const msg = "failed to sync deposit tree: %+v"
 					s.Log.Fatalf(msg, err.Error())
 				}
 			}()

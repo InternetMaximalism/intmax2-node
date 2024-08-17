@@ -3,6 +3,7 @@ package block_validity_prover
 import (
 	"encoding/binary"
 	"encoding/json"
+	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_post_service"
 	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
@@ -40,7 +41,7 @@ func (ps *PublicState) Genesis() *PublicState {
 	if err != nil {
 		panic(err)
 	}
-	depositTree, err := intMaxTree.NewDepositTree(intMaxTree.DEPOSIT_TREE_HEIGHT, nil)
+	depositTree, err := intMaxTree.NewDepositTree(intMaxTree.DEPOSIT_TREE_HEIGHT)
 	if err != nil {
 		panic(err)
 	}
@@ -203,8 +204,7 @@ func (b *AccountIdPacked) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	b.FromHex(s)
-	return nil
+	return b.FromHex(s)
 }
 
 type SignatureContent struct {
@@ -218,7 +218,7 @@ type SignatureContent struct {
 	MessagePoint        intMaxTypes.FlatG2  `json:"messagePoint"`
 }
 
-func (sc *SignatureContent) Set(other SignatureContent) *SignatureContent {
+func (sc *SignatureContent) Set(other *SignatureContent) *SignatureContent {
 	sc.IsRegistrationBlock = other.IsRegistrationBlock
 	sc.TxTreeRoot = other.TxTreeRoot
 	sc.SenderFlag = other.SenderFlag
@@ -278,7 +278,7 @@ type MainValidationPublicInputs struct {
 	IsValid             bool
 }
 
-// TODO
+// TODO: Implement this
 func GetPublicKeysHash(publicKeys []intMaxTypes.Uint256) intMaxTypes.Bytes32 {
 	return intMaxTypes.Bytes32{}
 }
@@ -291,7 +291,7 @@ type AccountExclusionValue struct {
 	IsValid bool
 }
 
-// TODO
+// TODO: Implement this
 func NewAccountExclusionValue(
 	accountTreeRoot intMaxTree.PoseidonHashOut,
 	accountMembershipProofs []intMaxTree.IndexedMembershipProof,
@@ -306,10 +306,10 @@ type AccountInclusionValue struct {
 	IsValid bool
 }
 
-// TODO
+// TODO: Implement this
 func NewAccountInclusionValue(
 	accountTreeRoot intMaxTree.PoseidonHashOut,
-	accountIdPacked AccountIdPacked,
+	accountIdPacked *AccountIdPacked,
 	accountMerkleProofs []AccountMerkleProof,
 	publicKeys []intMaxTypes.Uint256,
 ) *AccountInclusionValue {
@@ -322,7 +322,7 @@ type FormatValidationValue struct {
 	IsValid bool
 }
 
-// TODO
+// TODO: Implement this
 func NewFormatValidationValue(
 	publicKeys []intMaxTypes.Uint256,
 	signature *SignatureContent,
@@ -336,7 +336,7 @@ type AggregationValue struct {
 	IsValid bool
 }
 
-// TODO
+// TODO: Implement this
 func NewAggregationValue(
 	publicKeys []intMaxTypes.Uint256,
 	signature *SignatureContent,
@@ -346,7 +346,7 @@ func NewAggregationValue(
 	}
 }
 
-// TODO
+// TODO: Implement this
 func GetSenderTreeRoot(publicKeys *[]intMaxTypes.Uint256, senderFlag intMaxTypes.Bytes16) intMaxGP.PoseidonHashOut {
 	return intMaxGP.PoseidonHashOut{}
 }
@@ -369,7 +369,7 @@ func (w *BlockWitness) ToMainValidationPublicInputs() *MainValidationPublicInput
 
 	result := true
 	block := new(block_post_service.PostedBlock).Set(w.Block)
-	signature := new(SignatureContent).Set(w.Signature)
+	signature := new(SignatureContent).Set(&w.Signature)
 	publicKeys := make([]intMaxTypes.Uint256, len(w.PublicKeys))
 	copy(publicKeys, w.PublicKeys)
 
@@ -409,7 +409,7 @@ func (w *BlockWitness) ToMainValidationPublicInputs() *MainValidationPublicInput
 		// Account inclusion verification
 		accountInclusionValue := NewAccountInclusionValue(
 			accountTreeRoot,
-			*w.AccountIdPacked,
+			w.AccountIdPacked,
 			*w.AccountMerkleProofs,
 			publicKeys,
 		)
@@ -553,20 +553,72 @@ type AuxInfo struct {
 }
 
 type MockBlockBuilder struct {
-	LastBlockNumber     uint32
-	AccountTree         *intMaxTree.AccountTree   // current account tree
-	BlockTree           *intMaxTree.BlockHashTree // current block hash tree
-	DepositTree         *intMaxTree.DepositTree   // current deposit tree
-	LastValidityWitness *ValidityWitness
-	AuxInfo             map[uint32]AuxInfo
+	LastBlockNumber            uint32
+	AccountTree                *intMaxTree.AccountTree      // current account tree
+	BlockTree                  *intMaxTree.BlockHashTree    // current block hash tree
+	DepositTree                *intMaxTree.KeccakMerkleTree // current deposit tree
+	DepositLeaves              map[common.Hash]*DepositLeafWithId
+	DepositTreeRoots           []common.Hash
+	LastSeenEventBlockNumber   uint64
+	LastSeenProcessedDepositId uint64
+	LastValidityWitness        *ValidityWitness
+	AuxInfo                    map[uint32]AuxInfo
 }
 
-type MockTxRequest struct {
-	Tx                  intMaxTypes.Tx
-	Sender              intMaxAcc.PrivateKey
-	WillReturnSignature bool
+func NewMockBlockBuilder(cfg *configs.Config) *MockBlockBuilder {
+	accountTree, err := intMaxTree.NewAccountTree(intMaxTree.ACCOUNT_TREE_HEIGHT)
+	if err != nil {
+		panic(err)
+	}
+
+	blockHashes := make([][32]byte, 1)
+	blockHashes[0] = new(block_post_service.PostedBlock).Genesis().Hash()
+	blockTree, err := intMaxTree.NewBlockHashTree(intMaxTree.BLOCK_HASH_TREE_HEIGHT, blockHashes)
+	if err != nil {
+		panic(err)
+	}
+
+	zeroDepositHash := new(intMaxTree.DepositLeaf).SetZero().Hash()
+	depositTree, err := intMaxTree.NewKeccakMerkleTree(intMaxTree.DEPOSIT_TREE_HEIGHT, nil, zeroDepositHash)
+	if err != nil {
+		panic(err)
+	}
+	depositTreeRoot, _, _ := depositTree.GetCurrentRootCountAndSiblings()
+
+	validityWitness := new(ValidityWitness).Genesis()
+	zeroHash := new(intMaxGP.PoseidonHashOut).SetZero()
+	txTree, err := intMaxTree.NewTxTree(intMaxTree.TX_TREE_HEIGHT, nil, zeroHash)
+	if err != nil {
+		panic(err)
+	}
+
+	auxInfo := make(map[uint32]AuxInfo)
+	auxInfo[0] =
+		AuxInfo{
+			TxTree:          txTree,
+			ValidityWitness: validityWitness, // clone()
+			AccountTree:     accountTree,     // clone()
+			BlockTree:       blockTree,       // clone()
+		}
+	return &MockBlockBuilder{
+		LastBlockNumber:          0,
+		LastValidityWitness:      validityWitness,
+		AccountTree:              accountTree,
+		BlockTree:                blockTree,
+		DepositTree:              depositTree,
+		DepositLeaves:            make(map[common.Hash]*DepositLeafWithId),
+		DepositTreeRoots:         []common.Hash{depositTreeRoot},
+		LastSeenEventBlockNumber: cfg.Blockchain.RollupContractDeployedBlockNumber,
+		AuxInfo:                  auxInfo,
+	}
 }
 
+type DepositLeafWithId struct {
+	DepositLeaf *intMaxTree.DepositLeaf
+	DepositId   uint64
+}
+
+// TODO: Implement *intMaxTree.TxTree
 func (b *MockBlockBuilder) generateBlock(
 	blockContent *intMaxTypes.BlockContent,
 	postedBlock *block_post_service.PostedBlock,
@@ -575,7 +627,7 @@ func (b *MockBlockBuilder) generateBlock(
 
 	publicKeys := make([]intMaxTypes.Uint256, len(blockContent.Senders))
 	accountIDs := make([]uint64, len(blockContent.Senders))
-	senderFlagBytes := [16]byte{}
+	senderFlagBytes := [int16Key]byte{}
 	for i, sender := range blockContent.Senders {
 		publicKey := new(intMaxTypes.Uint256).FromBigInt(sender.PublicKey.BigInt())
 		publicKeys = append(publicKeys, *publicKey)
@@ -602,17 +654,18 @@ func (b *MockBlockBuilder) generateBlock(
 
 	prevAccountTreeRoot := b.AccountTree.GetRoot()
 	prevBlockTreeRoot := b.BlockTree.GetRoot()
-	accountMembershipProofs := make([]intMaxTree.IndexedMembershipProof, 0)
-	for _, sender := range blockContent.Senders {
-		accountMembershipProof, _, err := b.AccountTree.ProveMembership(sender.PublicKey.BigInt())
-		if err != nil {
-			panic(err)
-		}
-
-		accountMembershipProofs = append(accountMembershipProofs, *accountMembershipProof)
-	}
 
 	if isRegistrationBlock {
+		accountMembershipProofs := make([]intMaxTree.IndexedMembershipProof, 0)
+		for _, sender := range blockContent.Senders {
+			accountMembershipProof, _, err := b.AccountTree.ProveMembership(sender.PublicKey.BigInt())
+			if err != nil {
+				panic(err)
+			}
+
+			accountMembershipProofs = append(accountMembershipProofs, *accountMembershipProof)
+		}
+
 		blockWitness := &BlockWitness{
 			Block:                   postedBlock,
 			Signature:               signature,
@@ -625,85 +678,42 @@ func (b *MockBlockBuilder) generateBlock(
 		}
 
 		return blockWitness, nil
-	} else {
-		accountMerkleProofs := make([]AccountMerkleProof, 0)
-		accountIDPackedBytes := make([]byte, numAccountIDPackedBytes)
-		for i, sender := range blockContent.Senders {
-			accountIDByte := make([]byte, int8Key)
-			binary.BigEndian.PutUint64(accountIDByte, sender.AccountID)
-			copy(accountIDPackedBytes[i/int8Key:i/int8Key+int5Key], accountIDByte[int8Key-int5Key:])
-			accountMerkleProof, _, err := b.AccountTree.ProveMembership(sender.PublicKey.BigInt())
-			if err != nil {
-				panic(err)
-			}
-			if !accountMerkleProof.IsIncluded {
-				panic("account is not included")
-			}
+	}
 
-			accountMerkleProofs = append(accountMerkleProofs, AccountMerkleProof{
-				MerkleProof: accountMerkleProof.LeafProof,
-				Leaf:        accountMerkleProof.Leaf,
-			})
+	accountMerkleProofs := make([]AccountMerkleProof, 0)
+	accountIDPackedBytes := make([]byte, numAccountIDPackedBytes)
+	for i, sender := range blockContent.Senders {
+		accountIDByte := make([]byte, int8Key)
+		binary.BigEndian.PutUint64(accountIDByte, sender.AccountID)
+		copy(accountIDPackedBytes[i/int8Key:i/int8Key+int5Key], accountIDByte[int8Key-int5Key:])
+		accountMerkleProof, _, err := b.AccountTree.ProveMembership(sender.PublicKey.BigInt())
+		if err != nil {
+			panic(err)
+		}
+		if !accountMerkleProof.IsIncluded {
+			panic("account is not included")
 		}
 
-		accountIDPacked := new(AccountIdPacked)
-		accountIDPacked.FromBytes(accountIDPackedBytes)
-		blockWitness := &BlockWitness{
-			Block:                   postedBlock,
-			Signature:               signature,
-			PublicKeys:              publicKeys,
-			PrevAccountTreeRoot:     prevAccountTreeRoot,
-			PrevBlockTreeRoot:       prevBlockTreeRoot,
-			AccountIdPacked:         accountIDPacked,
-			AccountMerkleProofs:     &accountMerkleProofs,
-			AccountMembershipProofs: nil,
-		}
-
-		return blockWitness, nil
-	}
-}
-
-func NewMockBlockBuilder() *MockBlockBuilder {
-	accountTree, err := intMaxTree.NewAccountTree(intMaxTree.ACCOUNT_TREE_HEIGHT)
-	if err != nil {
-		panic(err)
+		accountMerkleProofs = append(accountMerkleProofs, AccountMerkleProof{
+			MerkleProof: accountMerkleProof.LeafProof,
+			Leaf:        accountMerkleProof.Leaf,
+		})
 	}
 
-	blockHashes := make([][32]byte, 1)
-	blockHashes[0] = new(block_post_service.PostedBlock).Genesis().Hash()
-	blockTree, err := intMaxTree.NewBlockHashTree(intMaxTree.BLOCK_HASH_TREE_HEIGHT, blockHashes)
-	if err != nil {
-		panic(err)
+	accountIDPacked := new(AccountIdPacked)
+	accountIDPacked.FromBytes(accountIDPackedBytes)
+	blockWitness := &BlockWitness{
+		Block:                   postedBlock,
+		Signature:               signature,
+		PublicKeys:              publicKeys,
+		PrevAccountTreeRoot:     prevAccountTreeRoot,
+		PrevBlockTreeRoot:       prevBlockTreeRoot,
+		AccountIdPacked:         accountIDPacked,
+		AccountMerkleProofs:     &accountMerkleProofs,
+		AccountMembershipProofs: nil,
 	}
 
-	depositTree, err := intMaxTree.NewDepositTree(intMaxTree.DEPOSIT_TREE_HEIGHT, nil)
-	if err != nil {
-		panic(err)
-	}
-
-	validityWitness := new(ValidityWitness).Genesis()
-	zeroHash := new(intMaxGP.PoseidonHashOut).SetZero()
-	txTree, err := intMaxTree.NewTxTree(intMaxTree.TX_TREE_HEIGHT, nil, zeroHash)
-	if err != nil {
-		panic(err)
-	}
-
-	auxInfo := make(map[uint32]AuxInfo)
-	auxInfo[0] =
-		AuxInfo{
-			TxTree:          txTree,
-			ValidityWitness: validityWitness, // clone()
-			AccountTree:     accountTree,     // clone()
-			BlockTree:       blockTree,       // clone()
-		}
-	return &MockBlockBuilder{
-		LastBlockNumber:     0,
-		LastValidityWitness: validityWitness,
-		AccountTree:         accountTree,
-		BlockTree:           blockTree,
-		DepositTree:         depositTree,
-		AuxInfo:             auxInfo,
-	}
+	return blockWitness, nil
 }
 
 func (b *MockBlockBuilder) generateValidityWitness(blockWitness *BlockWitness) *ValidityWitness {
@@ -718,7 +728,7 @@ func (b *MockBlockBuilder) generateValidityWitness(blockWitness *BlockWitness) *
 		panic("block tree root is not equal to the last block tree root")
 	}
 
-	// TODO
+	// TODO: Implement this
 
 	// let block_merkle_proof = self
 	// 	.block_tree
@@ -882,7 +892,7 @@ func G1ToSolidityType(pk *bn254.G1Affine) [2]intMaxTypes.Uint256 {
 	return [2]intMaxTypes.Uint256{x, y}
 }
 
-func G2ToSolidityType(sig *bn254.G2Affine) [4]intMaxTypes.Uint256 {
+func G2ToSolidityType(sig *bn254.G2Affine) [int4Key]intMaxTypes.Uint256 {
 	x_a0 := intMaxTypes.Uint256{}
 	x_a1 := intMaxTypes.Uint256{}
 	y_a0 := intMaxTypes.Uint256{}
@@ -892,5 +902,5 @@ func G2ToSolidityType(sig *bn254.G2Affine) [4]intMaxTypes.Uint256 {
 	y_a0.FromBigInt(sig.Y.A0.BigInt(new(big.Int)))
 	y_a1.FromBigInt(sig.Y.A1.BigInt(new(big.Int)))
 
-	return [4]intMaxTypes.Uint256{x_a1, y_a1, y_a1, y_a0}
+	return [int4Key]intMaxTypes.Uint256{x_a1, y_a1, y_a1, y_a0}
 }

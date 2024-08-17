@@ -1,8 +1,11 @@
 package tree
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
+	intMaxTypes "intmax2-node/internal/types"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -40,19 +43,26 @@ func (dd *DepositLeaf) Marshal() []byte {
 
 	tokenIndexBytes := make([]byte, int4Key)
 	binary.BigEndian.PutUint32(tokenIndexBytes, dd.TokenIndex)
-	amountBytes := make([]byte, int32Key)
-	for i, v := range dd.Amount.Bytes() {
-		amountBytes[int31Key-i] = v
-	}
+	amountBytes := intMaxTypes.BigIntToBytes32BeArray(dd.Amount)
 
-	return append(
-		append(dd.RecipientSaltHash[:], tokenIndexBytes...),
-		amountBytes...,
-	)
+	buf := bytes.NewBuffer(make([]byte, 0))
+	buf.Write(dd.RecipientSaltHash[:])
+	err := binary.Write(buf, binary.BigEndian, dd.TokenIndex)
+	if err != nil {
+		panic(err)
+	}
+	buf.Write(amountBytes[:])
+
+	return buf.Bytes()
 }
 
 func (dd *DepositLeaf) Hash() common.Hash {
-	return crypto.Keccak256Hash(dd.Marshal())
+	packed := dd.Marshal()
+	fmt.Printf("packed: %x\n", packed)
+
+	res := crypto.Keccak256Hash(dd.Marshal())
+	fmt.Printf("hash: %x\n", res)
+	return res
 }
 
 func (dd *DepositLeaf) Equal(other *DepositLeaf) bool {
@@ -71,13 +81,19 @@ type DepositTree struct {
 	inner  *KeccakMerkleTree
 }
 
-func NewDepositTree(height uint8, initialLeaves []*DepositLeaf) (*DepositTree, error) {
+func NewDepositTree(height uint8) (*DepositTree, error) {
+	return NewDepositTreeWithInitialLeaves(height, nil)
+}
+
+func NewDepositTreeWithInitialLeaves(height uint8, initialLeaves []*DepositLeaf) (*DepositTree, error) {
+	zeroHash := new(DepositLeaf).SetZero().Hash()
+
 	initialLeafHashes := make([][32]byte, len(initialLeaves))
 	for i, leaf := range initialLeaves {
 		initialLeafHashes[i] = leaf.Hash()
 	}
 
-	t, err := NewKeccakMerkleTree(height, initialLeafHashes)
+	t, err := NewKeccakMerkleTree(height, initialLeafHashes, zeroHash)
 	if err != nil {
 		return nil, err
 	}

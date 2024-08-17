@@ -62,8 +62,7 @@ func (b *Bytes16) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	b.FromHex(s)
-	return nil
+	return b.FromHex(s)
 }
 
 type Bytes32 [int32Key / numUint32Bytes]uint32
@@ -108,8 +107,7 @@ func (b *Bytes32) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	b.FromHex(s)
-	return nil
+	return b.FromHex(s)
 }
 
 func Uint32SliceToBytes(v []uint32) []byte {
@@ -186,7 +184,7 @@ func (v *Uint256) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	bi, ok := new(big.Int).SetString(s, 10)
+	bi, ok := new(big.Int).SetString(s, int10Key)
 	if !ok {
 		var ErrNotNumberString = errors.New("not a number string")
 		return ErrNotNumberString

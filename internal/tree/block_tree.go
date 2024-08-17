@@ -30,9 +30,12 @@ func (leaf *BlockHashLeaf) Marshal() []byte {
 }
 
 func (leaf *BlockHashLeaf) Hash() *PoseidonHashOut {
-	s := hexutil.Encode(leaf.leaf[:]) // TODO
+	s := hexutil.Encode(leaf.leaf[:]) // TODO: check if this is correct
 	h := new(PoseidonHashOut)
-	h.FromString(s)
+	err := h.FromString(s)
+	if err != nil {
+		panic(err)
+	}
 
 	return h
 }
