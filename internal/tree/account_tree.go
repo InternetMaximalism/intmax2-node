@@ -28,19 +28,31 @@ func NewAccountTree(height uint8) (*AccountTree, error) {
 }
 
 func (t *AccountTree) GetRoot() PoseidonHashOut {
-	root := t.inner.GetRoot()
-
-	return root
+	return t.inner.GetRoot()
 }
 
-func (t *AccountTree) GetLeaf(index uint64) *IndexedMerkleLeaf {
-	return t.inner.GetLeaf(index)
+func (t *AccountTree) GetLeaf(accountID uint64) *IndexedMerkleLeaf {
+	return t.inner.GetLeaf(LeafIndex(accountID))
 }
 
-func (t *AccountTree) Prove(index uint64) (siblings []*PoseidonHashOut, root PoseidonHashOut, err error) {
-	return t.inner.Prove(index)
+func (t *AccountTree) GetAccountID(publicKey *big.Int) (accountID uint64, ok bool) {
+	index, ok := t.inner.GetIndex(publicKey)
+
+	return uint64(index), ok
 }
 
-func (t *AccountTree) ProveMembership(key *big.Int) (proof *IndexedMembershipProof, root PoseidonHashOut, err error) {
-	return t.inner.ProveMembership(key)
+func (t *AccountTree) Prove(accountID int) (siblings []*PoseidonHashOut, root PoseidonHashOut, err error) {
+	return t.inner.Prove(LeafIndex(accountID)) // nolint:unconvert
+}
+
+func (t *AccountTree) ProveMembership(publicKey *big.Int) (proof *IndexedMembershipProof, root PoseidonHashOut, err error) {
+	return t.inner.ProveMembership(publicKey)
+}
+
+func (t *AccountTree) Insert(publicKey *big.Int, lastSentBlockNumber uint64) (*IndexedInsertionProof, error) {
+	return t.inner.Insert(publicKey, lastSentBlockNumber)
+}
+
+func (t *AccountTree) Update(publicKey *big.Int, lastSentBlockNumber uint64) (*IndexedUpdateProof, error) {
+	return t.inner.Update(publicKey, lastSentBlockNumber)
 }

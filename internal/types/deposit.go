@@ -35,14 +35,16 @@ func (d *Deposit) Equal(other *Deposit) bool {
 }
 
 func SplitBigIntTo32BitChunks(value *big.Int) []uint32 {
+	copied_value := new(big.Int).Set(value)
+
 	const chunkSize = 32
 	mask := new(big.Int).Lsh(big.NewInt(1), chunkSize)
 	mask.Sub(mask, big.NewInt(1))
 	chunks := make([]uint32, 0)
-	for value.Cmp(big.NewInt(0)) > 0 {
-		chunk := new(big.Int).And(value, mask)
+	for copied_value.Cmp(big.NewInt(0)) > 0 {
+		chunk := new(big.Int).And(copied_value, mask)
 		chunks = append([]uint32{uint32(chunk.Uint64())}, chunks...)
-		value.Rsh(value, chunkSize)
+		copied_value.Rsh(copied_value, chunkSize)
 	}
 	return chunks
 }

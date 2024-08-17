@@ -179,8 +179,15 @@ func ProcessingPostedBlocks(
 			return errors.Join(ErrFetchScrollCalldataByHashFail, err)
 		}
 
+		postedBlock := block_post_service.NewPostedBlock(
+			events[key].PrevBlockHash,
+			events[key].DepositTreeRoot,
+			uint32(events[key].BlockNumber.Uint64()),
+			events[key].SignatureHash,
+		)
+
 		intMaxBlockNumber := events[key].BlockNumber
-		_, err = block_validity_prover.FetchIntMaxBlockContentByCalldata(cd, ai)
+		_, err = block_validity_prover.FetchIntMaxBlockContentByCalldata(cd, postedBlock, ai)
 		if err != nil {
 			err = errors.Join(ErrFetchIntMaxBlockContentByCalldataFail, err)
 			switch {

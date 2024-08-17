@@ -553,16 +553,17 @@ type AuxInfo struct {
 }
 
 type MockBlockBuilder struct {
-	LastBlockNumber            uint32
-	AccountTree                *intMaxTree.AccountTree      // current account tree
-	BlockTree                  *intMaxTree.BlockHashTree    // current block hash tree
-	DepositTree                *intMaxTree.KeccakMerkleTree // current deposit tree
-	DepositLeaves              map[common.Hash]*DepositLeafWithId
-	DepositTreeRoots           []common.Hash
-	LastSeenEventBlockNumber   uint64
-	LastSeenProcessedDepositId uint64
-	LastValidityWitness        *ValidityWitness
-	AuxInfo                    map[uint32]AuxInfo
+	LastBlockNumber                         uint32
+	AccountTree                             *intMaxTree.AccountTree      // current account tree
+	BlockTree                               *intMaxTree.BlockHashTree    // current block hash tree
+	DepositTree                             *intMaxTree.KeccakMerkleTree // current deposit tree
+	DepositLeaves                           map[common.Hash]*DepositLeafWithId
+	DepositTreeRoots                        []common.Hash
+	LastSeenProcessDepositsEventBlockNumber uint64
+	LastSeenBlockPostedEventBlockNumber     uint64
+	LastSeenProcessedDepositId              uint64
+	LastValidityWitness                     *ValidityWitness
+	AuxInfo                                 map[uint32]AuxInfo
 }
 
 func NewMockBlockBuilder(cfg *configs.Config) *MockBlockBuilder {
@@ -601,15 +602,16 @@ func NewMockBlockBuilder(cfg *configs.Config) *MockBlockBuilder {
 			BlockTree:       blockTree,       // clone()
 		}
 	return &MockBlockBuilder{
-		LastBlockNumber:          0,
-		LastValidityWitness:      validityWitness,
-		AccountTree:              accountTree,
-		BlockTree:                blockTree,
-		DepositTree:              depositTree,
-		DepositLeaves:            make(map[common.Hash]*DepositLeafWithId),
-		DepositTreeRoots:         []common.Hash{depositTreeRoot},
-		LastSeenEventBlockNumber: cfg.Blockchain.RollupContractDeployedBlockNumber,
-		AuxInfo:                  auxInfo,
+		LastBlockNumber:                         0,
+		LastValidityWitness:                     validityWitness,
+		AccountTree:                             accountTree,
+		BlockTree:                               blockTree,
+		DepositTree:                             depositTree,
+		DepositLeaves:                           make(map[common.Hash]*DepositLeafWithId),
+		DepositTreeRoots:                        []common.Hash{depositTreeRoot},
+		LastSeenProcessDepositsEventBlockNumber: cfg.Blockchain.RollupContractDeployedBlockNumber,
+		LastSeenBlockPostedEventBlockNumber:     cfg.Blockchain.RollupContractDeployedBlockNumber,
+		AuxInfo:                                 auxInfo,
 	}
 }
 

@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/google/uuid"
 	"github.com/holiman/uint256"
@@ -100,9 +101,14 @@ func TestFetchNewPostedBlocks(t *testing.T) {
 		CreatedAt: time.Now().UTC(),
 	}, nil).AnyTimes()
 
+	prevBlockHash := common.Hash{}
+	depositRoot := common.Hash{}
+	signatureHash := common.Hash{}
+	postedBlock := block_post_service.NewPostedBlock(prevBlockHash, depositRoot, uint32(0), signatureHash)
+
 	accountInfoMap := block_post_service.NewAccountInfo(dbApp)
 	for i, calldata := range calldataJson {
-		_, err = block_validity_prover.FetchIntMaxBlockContentByCalldata(calldata, accountInfoMap)
+		_, err = block_validity_prover.FetchIntMaxBlockContentByCalldata(calldata, postedBlock, accountInfoMap)
 		if err != nil {
 			if errors.Is(err, block_validity_prover.ErrUnknownAccountID) {
 				fmt.Printf("block %d is ErrUnknownAccountID\n", i)
