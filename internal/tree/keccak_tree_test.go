@@ -11,7 +11,7 @@ import (
 func TestKeccakMerkleTreeWithoutInitialLeaves(t *testing.T) {
 	zero := common.Hash{}
 	initialLeaves := make([][32]byte, 0)
-	mt, err := NewKeccakMerkleTree(3, initialLeaves)
+	mt, err := NewKeccakMerkleTree(3, initialLeaves, common.Hash{})
 	if err != nil {
 		t.Errorf("fail to create merkle tree")
 	}

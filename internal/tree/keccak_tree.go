@@ -26,9 +26,9 @@ type KeccakMerkleTree struct {
 }
 
 // NewKeccakMerkleTree creates new KeccakMerkleTree.
-func NewKeccakMerkleTree(height uint8, initialLeaves [][numHashBytes]byte) (*KeccakMerkleTree, error) {
+func NewKeccakMerkleTree(height uint8, initialLeaves [][numHashBytes]byte, zeroHash common.Hash) (*KeccakMerkleTree, error) {
 	mt := &KeccakMerkleTree{
-		zeroHashes: generateKeccakZeroHashes(height),
+		zeroHashes: generateKeccakZeroHashes(height, zeroHash),
 		height:     height,
 		count:      uint32(len(initialLeaves)),
 	}
@@ -200,9 +200,9 @@ func Hash(data ...[numHashBytes]byte) [numHashBytes]byte {
 	return res
 }
 
-func generateKeccakZeroHashes(height uint8) [][numHashBytes]byte {
+func generateKeccakZeroHashes(height uint8, initialZeroHash common.Hash) [][numHashBytes]byte {
 	var zeroHashes = [][numHashBytes]byte{
-		common.Hash{},
+		initialZeroHash,
 	}
 	// This generates a leaf = HashZero in position 0. In the rest of the positions that are equivalent to the ascending levels,
 	// we set the hashes of the nodes. So all nodes from level i=5 will have the same value and same children nodes.

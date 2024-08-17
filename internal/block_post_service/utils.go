@@ -56,7 +56,7 @@ func (pb *PostedBlock) Equals(other *PostedBlock) bool {
 }
 
 func (pb *PostedBlock) Genesis() *PostedBlock {
-	depositTree, err := intMaxTree.NewDepositTree(intMaxTree.DEPOSIT_TREE_HEIGHT, nil)
+	depositTree, err := intMaxTree.NewDepositTree(intMaxTree.DEPOSIT_TREE_HEIGHT)
 	if err != nil {
 		panic(err)
 	}

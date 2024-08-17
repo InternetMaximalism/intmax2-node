@@ -47,10 +47,10 @@ func (t *PoseidonMerkleTree) GetNodeHash(
 
 	if h, ok := t.nodeHashes[nodeIndex]; ok {
 		return h
-	} else {
-		// return zero hash
-		return t.zeroHashes[bits.Len(uint(nodeIndex))-1]
 	}
+
+	// return zero hash
+	return t.zeroHashes[bits.Len(uint(nodeIndex))-1]
 }
 
 func (t *PoseidonMerkleTree) getSiblingHash(nodeIndex int) *PoseidonHashOut {
@@ -73,7 +73,7 @@ func (t *PoseidonMerkleTree) updateLeaf(
 		} else {
 			h = goldenposeidon.Compress(h, sibling)
 		}
-		nodeIndex = nodeIndex >> 1
+		nodeIndex >>= 1
 		t.nodeHashes[nodeIndex] = h
 	}
 }
@@ -89,7 +89,7 @@ func (t *PoseidonMerkleTree) Prove(index int) ([]*PoseidonHashOut, error) {
 	siblings := make([]*PoseidonHashOut, 0)
 	for nodeIndex > 1 {
 		siblings = append(siblings, t.getSiblingHash(nodeIndex))
-		nodeIndex = nodeIndex >> 1
+		nodeIndex >>= 1
 	}
 
 	return siblings, nil

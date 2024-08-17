@@ -12,6 +12,12 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
+const (
+	relayMessageMethod    = "relayMessage"    // "8ef1332e"
+	processDepositsMethod = "processDeposits" // "f03efa37"
+	eventBlockRange       = 100000
+)
+
 type blockValidityProver struct {
 	ctx          context.Context
 	cfg          *configs.Config

@@ -35,3 +35,9 @@ var ErrNewScrollClientFail = errors.New("failed to create new Scroll client")
 var ErrInstantiateLiquidityContractFail = errors.New("failed to instantiate a Liquidity contract")
 
 var ErrInstantiateRollupContractFail = errors.New("failed to instantiate a Rollup contract")
+
+// ErrTransactionByHashNotFound error: failed to get transaction by hash.
+var ErrTransactionByHashNotFound = errors.New("failed to get transaction by hash")
+
+// ErrTransactionIsStillPending error: transaction is still pending.
+var ErrTransactionIsStillPending = errors.New("transaction is still pending")
