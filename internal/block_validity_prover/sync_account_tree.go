@@ -77,62 +77,63 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer) (err error) {
 	}
 
 	for key := range events {
-		var blN uint256.Int
-		_ = blN.SetFromBig(new(big.Int).SetUint64(events[key].Raw.BlockNumber))
+		select {
+		case <-p.ctx.Done():
+			p.log.Warnf("Received cancel signal from context, stopping...")
+			return p.ctx.Err()
+		default:
+			var blN uint256.Int
+			_ = blN.SetFromBig(new(big.Int).SetUint64(events[key].Raw.BlockNumber))
 
-		time.Sleep(1 * time.Second)
+			time.Sleep(1 * time.Second)
 
-		var cd []byte
-		cd, err = bps.FetchScrollCalldataByHash(events[key].Raw.TxHash)
-		if err != nil {
-			return errors.Join(ErrFetchScrollCalldataByHashFail, err)
-		}
-
-		postedBlock := block_post_service.NewPostedBlock(
-			events[key].PrevBlockHash,
-			events[key].DepositTreeRoot,
-			uint32(events[key].BlockNumber.Uint64()),
-			events[key].SignatureHash,
-		)
-
-		intMaxBlockNumber := events[key].BlockNumber
-		_, err = FetchIntMaxBlockContentByCalldata(cd, postedBlock, p.blockBuilder)
-		if err != nil {
-			err = errors.Join(ErrFetchIntMaxBlockContentByCalldataFail, err)
-			switch {
-			case errors.Is(err, ErrUnknownAccountID):
-				const msg = "block %q is ErrUnknownAccountID"
-				p.log.WithError(err).Errorf(msg, intMaxBlockNumber.String())
-			case errors.Is(err, ErrCannotDecodeAddress):
-				const msg = "block %q is ErrCannotDecodeAddress"
-				p.log.WithError(err).Errorf(msg, intMaxBlockNumber.String())
-			default:
-				const msg = "block %q processing error occurred"
-				p.log.WithError(err).Errorf(msg, intMaxBlockNumber.String())
+			var cd []byte
+			cd, err = bps.FetchScrollCalldataByHash(events[key].Raw.TxHash)
+			if err != nil {
+				return errors.Join(ErrFetchScrollCalldataByHashFail, err)
 			}
 
-			/*
-				// bytesEvent, errEvent := json.Marshal(events[key])
-				// if errEvent != nil {
-				// 	const msg = "block %q is ErrMarshalContent: %w"
-				// 	return blockNumber, fmt.Errorf(msg, intMaxBlockNumber.String(), errEvent)
-				// }
+			postedBlock := block_post_service.NewPostedBlock(
+				events[key].PrevBlockHash,
+				events[key].DepositTreeRoot,
+				uint32(events[key].BlockNumber.Uint64()),
+				events[key].SignatureHash,
+			)
 
-				// ErrChanStartBlocksFetcher <- errStartBlocksFetcher{
-				// 	BlockNumber: &blN,
-				// 	Options:     bytesEvent,
-				// 	UpdErr:      err,
-				// }
-			*/
+			intMaxBlockNumber := events[key].BlockNumber
 
-			const msg = "processing of block %q error occurred"
-			p.log.Debugf(msg, intMaxBlockNumber.String())
+			blockHashLeaf := intMaxTree.NewBlockHashLeaf(postedBlock.Hash())
+			blockTreeRoot, err := p.blockBuilder.BlockTree.AddLeaf(uint32(intMaxBlockNumber.Uint64()), blockHashLeaf)
+			if err != nil {
+				var ErrAddLeafFail = errors.New("failed to add leaf")
+				return errors.Join(ErrAddLeafFail, err)
+			}
+			p.log.Debugf("Block tree root: %s\n", blockTreeRoot.String())
 
-			continue
+			_, err = FetchIntMaxBlockContentByCalldata(cd, postedBlock, p.blockBuilder)
+			if err != nil {
+				err = errors.Join(ErrFetchIntMaxBlockContentByCalldataFail, err)
+				switch {
+				case errors.Is(err, ErrUnknownAccountID):
+					const msg = "block %q is ErrUnknownAccountID"
+					p.log.WithError(err).Errorf(msg, intMaxBlockNumber.String())
+				case errors.Is(err, ErrCannotDecodeAddress):
+					const msg = "block %q is ErrCannotDecodeAddress"
+					p.log.WithError(err).Errorf(msg, intMaxBlockNumber.String())
+				default:
+					const msg = "block %q processing error occurred"
+					p.log.WithError(err).Errorf(msg, intMaxBlockNumber.String())
+				}
+
+				const msg = "processing of block %q error occurred"
+				p.log.Debugf(msg, intMaxBlockNumber.String())
+
+				continue
+			}
+
+			const msg = "block %q is valid (Scroll block number: %s)"
+			p.log.Debugf(msg, intMaxBlockNumber.String(), blN.String())
 		}
-
-		const msg = "block %q is valid (Scroll block number: %s)"
-		p.log.Debugf(msg, intMaxBlockNumber.String(), blN.String())
 	}
 
 	p.blockBuilder.LastSeenBlockPostedEventBlockNumber = nextBN.Uint64()
