@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	intMaxTypes "intmax2-node/internal/types"
 	"math/big"
 
@@ -57,12 +56,7 @@ func (dd *DepositLeaf) Marshal() []byte {
 }
 
 func (dd *DepositLeaf) Hash() common.Hash {
-	packed := dd.Marshal()
-	fmt.Printf("packed: %x\n", packed)
-
-	res := crypto.Keccak256Hash(dd.Marshal())
-	fmt.Printf("hash: %x\n", res)
-	return res
+	return crypto.Keccak256Hash(dd.Marshal())
 }
 
 func (dd *DepositLeaf) Equal(other *DepositLeaf) bool {

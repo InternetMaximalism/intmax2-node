@@ -47,41 +47,47 @@ func (p *blockValidityProver) SyncDepositTree() error {
 		p.log.Infof("Found %d deposits processed events\n", len(depositsProcessedEvents))
 
 		for _, deposit := range depositsProcessedEvents {
-			p.log.Infof("Processing deposits from block %d, depositId %d\n", deposit.Raw.BlockNumber, deposit.LastProcessedDepositId)
-			var calldata []byte
-			calldata, err = p.FetchScrollCalldataByHash(deposit.Raw.TxHash)
-			if err != nil {
-				return fmt.Errorf("failed to fetch calldata for tx %v: %v", deposit.Raw.TxHash, err.Error())
-			}
-
-			var relayMessageCalldata *RelayMessageInput
-			relayMessageCalldata, err = formatRelayMessageCalldata(calldata)
-			if err != nil {
-				return fmt.Errorf("failed to decode relay message calldata: %v", err.Error())
-			}
-
-			var processDepositsCalldata *ProcessDepositsInput
-			processDepositsCalldata, err = formatProcessDepositsCalldata(relayMessageCalldata.Message)
-			if err != nil {
-				return fmt.Errorf("failed to for relay message calldata: %v", err.Error())
-			}
-
-			lastDepositRoot := b.DepositTreeRoots[len(b.DepositTreeRoots)-1]
-			for i := range processDepositsCalldata.DepositHashes {
-				depositHash := processDepositsCalldata.DepositHashes[i]
-
-				_, count, _ := b.DepositTree.GetCurrentRootCountAndSiblings()
-				lastDepositRoot, err = b.DepositTree.AddLeaf(count, depositHash)
+			select {
+			case <-p.ctx.Done():
+				p.log.Warnf("Received cancel signal from context, stopping...")
+				return p.ctx.Err()
+			default:
+				p.log.Infof("Processing deposits from block %d, depositId %d\n", deposit.Raw.BlockNumber, deposit.LastProcessedDepositId)
+				var calldata []byte
+				calldata, err = p.FetchScrollCalldataByHash(deposit.Raw.TxHash)
 				if err != nil {
-					return fmt.Errorf("failed to add deposit leaf: %v", err.Error())
+					return fmt.Errorf("failed to fetch calldata for tx %v: %v", deposit.Raw.TxHash, err.Error())
 				}
-			}
 
-			if lastDepositRoot != common.Hash(deposit.DepositTreeRoot) {
-				return fmt.Errorf("DepositTreeRoot mismatch: expected %v, got %v", common.Hash(deposit.DepositTreeRoot), lastDepositRoot)
-			}
+				var relayMessageCalldata *RelayMessageInput
+				relayMessageCalldata, err = formatRelayMessageCalldata(calldata)
+				if err != nil {
+					return fmt.Errorf("failed to decode relay message calldata: %v", err.Error())
+				}
 
-			b.DepositTreeRoots = append(b.DepositTreeRoots, deposit.DepositTreeRoot)
+				var processDepositsCalldata *ProcessDepositsInput
+				processDepositsCalldata, err = formatProcessDepositsCalldata(relayMessageCalldata.Message)
+				if err != nil {
+					return fmt.Errorf("failed to for relay message calldata: %v", err.Error())
+				}
+
+				lastDepositRoot := b.DepositTreeRoots[len(b.DepositTreeRoots)-1]
+				for i := range processDepositsCalldata.DepositHashes {
+					depositHash := processDepositsCalldata.DepositHashes[i]
+
+					_, count, _ := b.DepositTree.GetCurrentRootCountAndSiblings()
+					lastDepositRoot, err = b.DepositTree.AddLeaf(count, depositHash)
+					if err != nil {
+						return fmt.Errorf("failed to add deposit leaf: %v", err.Error())
+					}
+				}
+
+				if lastDepositRoot != common.Hash(deposit.DepositTreeRoot) {
+					return fmt.Errorf("DepositTreeRoot mismatch: expected %v, got %v", common.Hash(deposit.DepositTreeRoot), lastDepositRoot)
+				}
+
+				b.DepositTreeRoots = append(b.DepositTreeRoots, deposit.DepositTreeRoot)
+			}
 		}
 
 		b.LastSeenProcessDepositsEventBlockNumber = endBlock

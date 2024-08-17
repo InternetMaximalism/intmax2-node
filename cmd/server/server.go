@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
 	"intmax2-node/docs/swagger"
@@ -270,7 +269,7 @@ func NewServerCmd(s *Server) *cobra.Command {
 					s.WG.Done()
 				}()
 
-				fmt.Println("Start Block Validity Prover")
+				s.Log.Infof("Start Block Validity Prover")
 				var blockValidityProver block_validity_prover.BlockValidityProver
 				blockValidityProver, err = block_validity_prover.NewBlockValidityProver(s.Context, s.Config, s.Log, s.SB)
 				if err != nil {
@@ -284,13 +283,14 @@ func NewServerCmd(s *Server) *cobra.Command {
 					const msg = "failed to start Block Synchronizer: %+v"
 					s.Log.Fatalf(msg, err.Error())
 				}
-				err = blockValidityProver.SyncBlockTree(blockSynchronizer)
+
+				err = blockValidityProver.SyncDepositTree()
 				if err != nil {
 					const msg = "failed to sync deposit tree: %+v"
 					s.Log.Fatalf(msg, err.Error())
 				}
 
-				err = blockValidityProver.SyncDepositTree()
+				err = blockValidityProver.SyncBlockTree(blockSynchronizer)
 				if err != nil {
 					const msg = "failed to sync deposit tree: %+v"
 					s.Log.Fatalf(msg, err.Error())
