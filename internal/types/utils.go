@@ -178,6 +178,18 @@ func (v *Uint256) ToFieldElementSlice() []ffg.Element {
 	return res.Inner()
 }
 
+func (v *Uint256) FromFieldElementSlice(value []ffg.Element) *Uint256 {
+	for i, x := range value {
+		y := x.ToUint64Regular()
+		if y >= uint64(1)<<int32Key {
+			panic("overflow")
+		}
+		v.inner[i] = uint32(y)
+	}
+
+	return v
+}
+
 func (v *Uint256) IsDummyPublicKey() bool {
 	one := new(Uint256).FromBigInt(big.NewInt(1))
 	return v.Equal(one)

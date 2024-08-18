@@ -17,18 +17,12 @@ type PoseidonMerkleTree struct {
 // NewPoseidonMerkleTree creates new PoseidonMerkleTree by giving leaf nodes.
 func NewPoseidonMerkleTree(
 	height uint8,
-	initialLeaves []*PoseidonHashOut,
 	zeroHash *PoseidonHashOut,
 ) (mt *PoseidonMerkleTree, err error) {
 	mt = &PoseidonMerkleTree{
 		height:     height,
 		zeroHashes: generateZeroHashes(height, zeroHash),
 		nodeHashes: make(map[int]*PoseidonHashOut),
-	}
-
-	// TODO: Use initialLeaves.
-	if len(initialLeaves) != 0 {
-		panic("not implemented")
 	}
 
 	return mt, nil

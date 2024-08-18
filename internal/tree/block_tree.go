@@ -2,8 +2,8 @@ package tree
 
 import (
 	"errors"
-
-	"github.com/ethereum/go-ethereum/common/hexutil"
+	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
+	intMaxTypes "intmax2-node/internal/types"
 )
 
 const BLOCK_HASH_TREE_HEIGHT = 32
@@ -30,14 +30,11 @@ func (leaf *BlockHashLeaf) Marshal() []byte {
 }
 
 func (leaf *BlockHashLeaf) Hash() *PoseidonHashOut {
-	s := hexutil.Encode(leaf.leaf[:]) // TODO: check if this is correct
-	h := new(PoseidonHashOut)
-	err := h.FromString(s)
-	if err != nil {
-		panic(err)
-	}
+	b := intMaxTypes.Bytes32{}
+	b.FromBytes(leaf.leaf[:])
+	inputs := b.ToFieldElementSlice()
 
-	return h
+	return intMaxGP.HashNoPad(inputs)
 }
 
 type BlockHashTree struct {
@@ -45,22 +42,20 @@ type BlockHashTree struct {
 	inner  *PoseidonIncrementalMerkleTree
 }
 
-func NewBlockHashTree(height uint8, initialLeaves [][numHashBytes]byte) (*BlockHashTree, error) {
+func NewBlockHashTreeWithInitialLeaves(height uint8, initialLeaves []*BlockHashLeaf) (*BlockHashTree, error) {
 	initialLeafHashes := make([]*PoseidonHashOut, len(initialLeaves))
 	for i, leaf := range initialLeaves {
-		initialLeafHashes[i] = NewBlockHashLeaf(leaf).Hash()
+		initialLeafHashes[i] = leaf.Hash()
 	}
 
-	zeroHash := new(PoseidonHashOut)
+	zeroHash := new(BlockHashLeaf).SetDefault().Hash()
 	t, err := NewPoseidonIncrementalMerkleTree(height, initialLeafHashes, zeroHash)
 	if err != nil {
 		return nil, err
 	}
 
 	leaves := make([]*BlockHashLeaf, len(initialLeaves))
-	for i, leaf := range initialLeaves {
-		leaves[i] = NewBlockHashLeaf(leaf)
-	}
+	copy(leaves, initialLeaves)
 
 	return &BlockHashTree{
 		Leaves: leaves,
@@ -95,9 +90,7 @@ func (t *BlockHashTree) AddLeaf(index uint32, leaf *BlockHashLeaf) (root *Poseid
 		return nil, errors.New("index is not equal to the length of leaves")
 	}
 
-	l := [numHashBytes]byte{}
-	copy(l[:], leaf.leaf[:])
-	t.Leaves = append(t.Leaves, NewBlockHashLeaf(l))
+	t.Leaves = append(t.Leaves, leaf)
 
 	return root, nil
 }

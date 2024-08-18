@@ -261,7 +261,7 @@ func (proof *IndexedMembershipProof) Verify(key *big.Int, root *PoseidonHashOut)
 }
 
 func NewIndexedMerkleTree(height uint8, zeroHash *goldenposeidon.PoseidonHashOut) (*IndexedMerkleTree, error) {
-	tree, err := NewPoseidonMerkleTree(height, nil, zeroHash)
+	tree, err := NewPoseidonMerkleTree(height, zeroHash)
 	if err != nil {
 		return nil, err
 	}
@@ -388,6 +388,8 @@ func (t *IndexedMerkleTree) Insert(key *big.Int, value uint64) (*IndexedInsertio
 		return nil, errors.New("key already exists")
 	}
 
+	prevRoot := t.GetRoot()
+
 	newLowLeaf := new(IndexedMerkleLeaf).Set(&IndexedMerkleLeaf{
 		Key:       prevLowLeaf.Key,
 		Value:     prevLowLeaf.Value,
@@ -412,8 +414,6 @@ func (t *IndexedMerkleTree) Insert(key *big.Int, value uint64) (*IndexedInsertio
 		fmt.Println("Fail to verify new low leaf")
 		panic(err)
 	}
-
-	prevRoot := t.GetRoot()
 	err = lowLeafProof.Verify(
 		prevLowLeaf,
 		lowIndex,
