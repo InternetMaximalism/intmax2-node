@@ -115,7 +115,7 @@ message BackupTransferResponse {
 
 message GetBackupTransfersRequest {
   string sender = 1;
-  uint64 startBlockNumber = 2;
+  uint64 start_block_number = 2;
   uint64 limit = 3;
 }
 
@@ -130,15 +130,15 @@ message GetBackupTransfersResponse {
 
   message Transfer {
     string id = 1;
-    uint64 blockNumber = 2;
+    uint64 block_number = 2;
     string recipient = 3;
-    string encryptedTransfer = 4;
-    string createdAt = 5;
+    string encrypted_transfer = 4;
+    string created_at = 5;
   }
 
   message Meta {
-    uint64 startBlockNumber = 1;
-    uint64 endBlockNumber = 2;
+    uint64 start_block_number = 1;
+    uint64 end_block_number = 2;
   }
 
   StoreVaultError error = 3;
@@ -176,7 +176,7 @@ message BackupTransactionResponse {
 
 message GetBackupTransactionsRequest {
   string sender = 1;
-  uint64 startBlockNumber = 2;
+  uint64 start_block_number = 2;
   uint64 limit = 3;
 }
 
@@ -193,14 +193,14 @@ message GetBackupTransactionsResponse {
     string id = 1;
     string sender = 2;
     string signature = 3;
-    uint64 blockNumber = 4;
-    string encryptedTx = 5;
-    string createdAt = 6;
+    uint64 block_number = 4;
+    string encrypted_tx = 5;
+    string created_at = 6;
   }
 
   message Meta {
-    uint64 startBlockNumber = 1;
-    uint64 endBlockNumber = 2;
+    uint64 start_block_number = 1;
+    uint64 end_block_number = 2;
   }
 
   StoreVaultError error = 3;
@@ -231,7 +231,7 @@ message BackupDepositResponse {
 
 message GetBackupDepositsRequest {
   string sender = 1;
-  uint64 startBlockNumber = 2;
+  uint64 start_block_number = 2;
   uint64 limit = 3;
 }
 
@@ -247,14 +247,14 @@ message GetBackupDepositsResponse {
   message Deposit {
     string id = 1;
     string recipient = 2;
-    uint64 blockNumber = 3;
-    string encryptedDeposit = 4;
-    string createdAt = 5;
+    uint64 block_number = 3;
+    string encrypted_deposit = 4;
+    string created_at = 5;
   }
 
   message Meta {
-    uint64 startBlockNumber = 1;
-    uint64 endBlockNumber = 2;
+    uint64 start_block_number = 1;
+    uint64 end_block_number = 2;
   }
 
   StoreVaultError error = 3;
@@ -322,7 +322,7 @@ message GetBalancesResponse {
 
 message GetBackupBalancesRequest {
   string sender = 1;
-  uint64 startBlockNumber = 2;
+  uint64 start_block_number = 2;
   uint64 limit = 3;
 }
 
@@ -337,20 +337,20 @@ message GetBackupBalancesResponse {
 
   message Balance {
     string id = 1;
-    string userAddress = 2;
-    string encryptedBalanceProof = 3;
-    string encryptedBalanceData = 4;
-    repeated string encryptedTxs = 5;
-    repeated string encryptedTransfers = 6;
-    repeated string encryptedDeposits = 7;
-    uint64 blockNumber = 8;
+    string user_address = 2;
+    string encrypted_balance_proof = 3;
+    string encrypted_balance_data = 4;
+    repeated string encrypted_txs = 5;
+    repeated string encrypted_transfers = 6;
+    repeated string encrypted_deposits = 7;
+    uint64 block_number = 8;
     string signature = 9;
-    string createdAt = 10;
+    string created_at = 10;
   }
 
   message Meta {
-    uint64 startBlockNumber = 1;
-    uint64 endBlockNumber = 2;
+    uint64 start_block_number = 1;
+    uint64 end_block_number = 2;
   }
 
   StoreVaultError error = 3;

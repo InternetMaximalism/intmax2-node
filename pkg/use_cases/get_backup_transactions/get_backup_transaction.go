@@ -60,7 +60,7 @@ func (u *uc) Do(
 	data := node.GetBackupTransactionsResponse_Data{
 		Transactions: generateBackupTransaction(transactions),
 		Meta: &node.GetBackupTransactionsResponse_Meta{
-			StartBlockNumber: uint64(input.StartBlockNumber),
+			StartBlockNumber: input.StartBlockNumber,
 			EndBlockNumber:   0,
 		},
 	}
@@ -75,7 +75,7 @@ func generateBackupTransaction(transactions []*models.BackupTransaction) []*node
 			Id:          transaction.ID,
 			Sender:      transaction.Sender,
 			Signature:   transaction.Signature,
-			BlockNumber: uint64(transaction.BlockNumber),
+			BlockNumber: transaction.BlockNumber,
 			EncryptedTx: transaction.EncryptedTx,
 			CreatedAt:   transaction.CreatedAt.Format(time.RFC3339),
 		}

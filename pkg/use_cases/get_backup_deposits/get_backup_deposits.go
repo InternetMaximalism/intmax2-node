@@ -59,7 +59,7 @@ func (u *uc) Do(
 	data := node.GetBackupDepositsResponse_Data{
 		Deposits: generateBackupDeposits(deposits),
 		Meta: &node.GetBackupDepositsResponse_Meta{
-			StartBlockNumber: uint64(input.StartBlockNumber),
+			StartBlockNumber: input.StartBlockNumber,
 			EndBlockNumber:   0,
 		},
 	}
@@ -73,7 +73,7 @@ func generateBackupDeposits(deposits []*models.BackupDeposit) []*node.GetBackupD
 		backupDeposit := &node.GetBackupDepositsResponse_Deposit{
 			Id:               deposit.ID,
 			Recipient:        deposit.Recipient,
-			BlockNumber:      uint64(deposit.BlockNumber),
+			BlockNumber:      deposit.BlockNumber,
 			EncryptedDeposit: deposit.EncryptedDeposit,
 			CreatedAt:        deposit.CreatedAt.Format(time.RFC3339),
 		}

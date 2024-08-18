@@ -59,7 +59,7 @@ func (u *uc) Do(
 	data := node.GetBackupTransfersResponse_Data{
 		Transfers: generateBackupTransfers(transfers),
 		Meta: &node.GetBackupTransfersResponse_Meta{
-			StartBlockNumber: uint64(input.StartBlockNumber),
+			StartBlockNumber: input.StartBlockNumber,
 			EndBlockNumber:   0,
 		},
 	}
@@ -73,7 +73,7 @@ func generateBackupTransfers(transfers []*models.BackupTransfer) []*node.GetBack
 		backupTransfer := &node.GetBackupTransfersResponse_Transfer{
 			Id:                transfer.ID,
 			Recipient:         transfer.Recipient,
-			BlockNumber:       uint64(transfer.BlockNumber),
+			BlockNumber:       transfer.BlockNumber,
 			EncryptedTransfer: transfer.EncryptedTransfer,
 			CreatedAt:         transfer.CreatedAt.Format(time.RFC3339),
 		}

@@ -52,7 +52,7 @@ func (u *uc) Do(
 	data := node.GetBackupBalancesResponse_Data{
 		Balances: generateBackupBalances(balances),
 		Meta: &node.GetBackupBalancesResponse_Meta{
-			StartBlockNumber: uint64(input.StartBlockNumber),
+			StartBlockNumber: input.StartBlockNumber,
 			EndBlockNumber:   0,
 		},
 	}
@@ -71,7 +71,7 @@ func generateBackupBalances(balances []*models.BackupBalance) []*node.GetBackupB
 			EncryptedTxs:          balance.EncryptedTxs,
 			EncryptedTransfers:    balance.EncryptedTransfers,
 			EncryptedDeposits:     balance.EncryptedDeposits,
-			BlockNumber:           uint64(balance.BlockNumber),
+			BlockNumber:           balance.BlockNumber,
 			Signature:             balance.Signature,
 			CreatedAt:             balance.CreatedAt.Format(time.RFC3339),
 		}
