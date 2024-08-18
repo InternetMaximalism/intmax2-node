@@ -7,6 +7,7 @@ import (
 	"intmax2-node/internal/sql_db/pgx/models"
 	backupDeposit "intmax2-node/internal/use_cases/backup_deposit"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -27,19 +28,24 @@ func (p *pgx) CreateBackupDeposit(input *backupDeposit.UCPostBackupDepositInput)
 		return nil, err
 	}
 
-	return p.GetBackupDeposit("id", id)
+	return p.GetBackupDeposit([]string{"id"}, []interface{}{id})
 }
 
-func (p *pgx) GetBackupDeposit(condition, value string) (*mDBApp.BackupDeposit, error) {
+func (p *pgx) GetBackupDeposit(conditions []string, values []interface{}) (*mDBApp.BackupDeposit, error) {
 	const baseQuery = `
-        SELECT id, recipient, encrypted_deposit, block_number, created_at
-        FROM backup_deposits
-        WHERE %s = $1
-    `
-	query := fmt.Sprintf(baseQuery, condition)
+        SELECT id, recipient, encrypted_deposit, block_number, created_at 
+        FROM backup_deposits 
+        WHERE %s`
+
+	whereClause := make([]string, len(conditions))
+	for i, condition := range conditions {
+		whereClause[i] = fmt.Sprintf("%s = $%d", condition, i+1)
+	}
+
+	query := fmt.Sprintf(baseQuery, strings.Join(whereClause, " AND "))
 
 	var b models.BackupDeposit
-	err := errPgx.Err(p.queryRow(p.ctx, query, value).
+	err := errPgx.Err(p.queryRow(p.ctx, query, values...).
 		Scan(
 			&b.ID,
 			&b.Recipient,
@@ -50,6 +56,7 @@ func (p *pgx) GetBackupDeposit(condition, value string) (*mDBApp.BackupDeposit, 
 	if err != nil {
 		return nil, err
 	}
+
 	deposit := p.backupDepositToDBApp(&b)
 	return &deposit, nil
 }

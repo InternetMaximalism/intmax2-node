@@ -20,3 +20,9 @@ func (input *UCPostBackupDepositInput) Valid() error {
 		validation.Field(&input.BlockNumber, validation.Required),
 	)
 }
+
+func (input *UCGetBackupDepositsInput) Valid() error {
+	return validation.ValidateStruct(input,
+		validation.Field(&input.Sender, validation.Required),
+	)
+}

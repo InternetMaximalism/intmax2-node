@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	intMaxTypes "intmax2-node/internal/types"
+	backupBalance "intmax2-node/internal/use_cases/backup_balance"
 	backupDeposit "intmax2-node/internal/use_cases/backup_deposit"
 	backupTransaction "intmax2-node/internal/use_cases/backup_transaction"
 	backupTransfer "intmax2-node/internal/use_cases/backup_transfer"
@@ -31,6 +32,7 @@ type SQLDb interface {
 	EventBlockNumbersErrors
 	Senders
 	Accounts
+	BackupBalances
 }
 
 type GenericCommands interface {
@@ -119,7 +121,7 @@ type BackupTransactions interface {
 
 type BackupDeposits interface {
 	CreateBackupDeposit(input *backupDeposit.UCPostBackupDepositInput) (*models.BackupDeposit, error)
-	GetBackupDeposit(condition string, value string) (*models.BackupDeposit, error)
+	GetBackupDeposit(conditions []string, values []interface{}) (*models.BackupDeposit, error)
 	GetBackupDeposits(condition string, value interface{}) ([]*models.BackupDeposit, error)
 }
 
@@ -156,4 +158,10 @@ type Accounts interface {
 	AccountByAccountID(accountID *uint256.Int) (*models.Account, error)
 	ResetSequenceByAccounts() error
 	DelAllAccounts() error
+}
+
+type BackupBalances interface {
+	CreateBackupBalance(input *backupBalance.UCPostBackupBalanceInput) (*models.BackupBalance, error)
+	GetBackupBalance(conditions []string, values []interface{}) (*models.BackupBalance, error)
+	GetBackupBalances(condition string, value interface{}) ([]*models.BackupBalance, error)
 }

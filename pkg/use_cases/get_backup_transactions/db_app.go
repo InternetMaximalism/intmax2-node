@@ -1,4 +1,4 @@
-package store_vault_server
+package get_backup_transactions
 
 import (
 	"context"
@@ -7,15 +7,12 @@ import (
 	backupTransaction "intmax2-node/internal/use_cases/backup_transaction"
 	backupTransfer "intmax2-node/internal/use_cases/backup_transfer"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
-
-	"github.com/dimiro1/health"
 )
 
-//go:generate mockgen -destination=mock_db_app.go -package=store_vault_server -source=db_app.go
+//go:generate mockgen -destination=mock_db_app_test.go -package=get_backup_transactions_test -source=db_app.go
 
 type SQLDriverApp interface {
 	GenericCommandsApp
-	ServiceCommands
 	BackupTransfers
 	BackupTransactions
 	BackupDeposits
@@ -24,10 +21,6 @@ type SQLDriverApp interface {
 
 type GenericCommandsApp interface {
 	Exec(ctx context.Context, input interface{}, executor func(d interface{}, input interface{}) error) (err error)
-}
-
-type ServiceCommands interface {
-	Check(ctx context.Context) health.Health
 }
 
 type BackupTransfers interface {
