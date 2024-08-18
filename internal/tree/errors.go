@@ -24,3 +24,7 @@ var ErrAddLeafFail = errors.New("failed to add")
 
 // ErrLeafInputIndexInvalid error: index is not equal to the length of leaves.
 var ErrLeafInputIndexInvalid = errors.New("index is not equal to the length of leaves")
+
+var ErrInvalidPrevRoot = errors.New("invalid prevRoot")
+
+var ErrInvalidRootAfterUpdatedPrevLeaf = errors.New("invalid root after updated previous leaf")

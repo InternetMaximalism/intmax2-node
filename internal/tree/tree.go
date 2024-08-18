@@ -27,6 +27,9 @@ func NewPoseidonMerkleTree(
 	}
 
 	// TODO: Use initialLeaves.
+	if len(initialLeaves) != 0 {
+		panic("not implemented")
+	}
 
 	return mt, nil
 }
@@ -49,8 +52,9 @@ func (t *PoseidonMerkleTree) GetNodeHash(
 		return h
 	}
 
-	// return zero hash
-	return t.zeroHashes[bits.Len(uint(nodeIndex))-1]
+	reversedIndex := len(t.zeroHashes) - bits.Len(uint(nodeIndex))
+
+	return t.zeroHashes[reversedIndex]
 }
 
 func (t *PoseidonMerkleTree) getSiblingHash(nodeIndex int) *PoseidonHashOut {

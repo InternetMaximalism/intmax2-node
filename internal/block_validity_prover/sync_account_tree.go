@@ -7,6 +7,7 @@ import (
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/block_post_service"
 	intMaxTree "intmax2-node/internal/tree"
+	intMaxTypes "intmax2-node/internal/types"
 	"math/big"
 	"time"
 
@@ -102,15 +103,9 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer) (err error) {
 
 			intMaxBlockNumber := events[key].BlockNumber
 
-			blockHashLeaf := intMaxTree.NewBlockHashLeaf(postedBlock.Hash())
-			blockTreeRoot, err := p.blockBuilder.BlockTree.AddLeaf(uint32(intMaxBlockNumber.Uint64()), blockHashLeaf)
-			if err != nil {
-				var ErrAddLeafFail = errors.New("failed to add leaf")
-				return errors.Join(ErrAddLeafFail, err)
-			}
-			p.log.Debugf("Block tree root: %s\n", blockTreeRoot.String())
-
-			_, err = FetchIntMaxBlockContentByCalldata(cd, postedBlock, p.blockBuilder)
+			// Update account tree
+			var blockContent *intMaxTypes.BlockContent
+			blockContent, err = FetchIntMaxBlockContentByCalldata(cd, postedBlock, p.blockBuilder)
 			if err != nil {
 				err = errors.Join(ErrFetchIntMaxBlockContentByCalldataFail, err)
 				switch {
@@ -127,12 +122,13 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer) (err error) {
 
 				const msg = "processing of block %q error occurred"
 				p.log.Debugf(msg, intMaxBlockNumber.String())
-
-				continue
+			} else {
+				const msg = "block %q is valid (Scroll block number: %s)"
+				p.log.Debugf(msg, intMaxBlockNumber.String(), blN.String())
 			}
 
-			const msg = "block %q is valid (Scroll block number: %s)"
-			p.log.Debugf(msg, intMaxBlockNumber.String(), blN.String())
+			// Update block hash tree
+			p.blockBuilder.postBlock(blockContent, postedBlock)
 		}
 	}
 

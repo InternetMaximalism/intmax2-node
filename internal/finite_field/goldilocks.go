@@ -29,6 +29,8 @@ func Write(buf *Buffer, data interface{}) error {
 		WritePoseidonHashOut(buf, &d)
 	case *goldenposeidon.PoseidonHashOut:
 		WritePoseidonHashOut(buf, d)
+	case uint32:
+		WriteUint32(buf, d)
 	case uint64:
 		return WriteUint64(buf, d)
 	case []byte:
@@ -51,6 +53,11 @@ func WritePoseidonHashOut(buf *Buffer, data *goldenposeidon.PoseidonHashOut) {
 	for i := 0; i < len(data.Elements); i++ {
 		WriteGoldilocksField(buf, &data.Elements[i])
 	}
+}
+
+func WriteUint32(buf *Buffer, data uint32) {
+	d := new(ffg.Element).SetUint64(uint64(data))
+	WriteGoldilocksField(buf, d)
 }
 
 func WriteUint64(buf *Buffer, data uint64) error {

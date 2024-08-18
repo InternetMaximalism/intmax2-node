@@ -53,3 +53,14 @@ func TestValidityWitness(t *testing.T) {
 	require.NoError(t, err)
 	fmt.Printf("validityWitness: %s\n", s)
 }
+
+func TestAccountIdPacked(t *testing.T) {
+	accountIDs := make([]uint64, 128)
+	for i := 0; i < 10; i++ {
+		accountIDs[i] = uint64(i) * 100
+	}
+
+	packed := new(block_validity_prover.AccountIdPacked).Pack(accountIDs)
+	unpacked := packed.Unpack()
+	require.Equal(t, accountIDs, unpacked)
+}
