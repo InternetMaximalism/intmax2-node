@@ -3,17 +3,21 @@ package block_validity_prover
 import (
 	"encoding/binary"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_post_service"
+	"intmax2-node/internal/finite_field"
 	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"math/big"
 
-	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/iden3/go-iden3-crypto/ffg"
 )
 
 type PublicState struct {
@@ -156,6 +160,24 @@ type AccountMerkleProof struct {
 	Leaf        intMaxTree.IndexedMerkleLeaf  `json:"leaf"`
 }
 
+func (proof *AccountMerkleProof) Verify(accountTreeRoot intMaxGP.PoseidonHashOut, accountID uint64, publicKey intMaxTypes.Uint256) error {
+	if publicKey.IsDummyPublicKey() {
+		return errors.New("public key is zero")
+	}
+
+	err := proof.MerkleProof.Verify(&proof.Leaf, int(accountID), &accountTreeRoot)
+	if err != nil {
+		var ErrMerkleProofInvalid = errors.New("given Merkle proof is invalid")
+		return errors.Join(ErrMerkleProofInvalid, err)
+	}
+
+	if publicKey.BigInt().Cmp(proof.Leaf.Key) != 0 {
+		return errors.New("public key does not match leaf key")
+	}
+
+	return nil
+}
+
 const (
 	numAccountIDBytes       = 5
 	numUint32Bytes          = 4
@@ -165,14 +187,22 @@ const (
 type AccountIdPacked [numAccountIDPackedBytes]uint32
 
 func (b *AccountIdPacked) FromBytes(bytes []byte) {
-	for i := 0; i < numAccountIDPackedBytes/numUint32Bytes; i++ {
+	if len(bytes) > numAccountIDPackedBytes*numUint32Bytes {
+		panic("invalid bytes length")
+	}
+
+	if len(bytes) < numAccountIDPackedBytes*numUint32Bytes {
+		panic("invalid bytes length")
+	}
+
+	for i := 0; i < numAccountIDPackedBytes; i++ {
 		b[i] = binary.BigEndian.Uint32(bytes[i*numUint32Bytes : (i+1)*numUint32Bytes])
 	}
 }
 
 func (b *AccountIdPacked) Bytes() []byte {
-	bytes := make([]byte, int16Key)
-	for i := 0; i < numAccountIDPackedBytes/numUint32Bytes; i++ {
+	bytes := make([]byte, numAccountIDPackedBytes*numUint32Bytes)
+	for i := 0; i < numOfSenders; i++ {
 		binary.BigEndian.PutUint32(bytes[i*numUint32Bytes:(i+1)*numUint32Bytes], b[i])
 	}
 
@@ -207,6 +237,41 @@ func (b *AccountIdPacked) UnmarshalJSON(data []byte) error {
 	return b.FromHex(s)
 }
 
+func (accountIDsPacked *AccountIdPacked) Pack(accountIDs []uint64) *AccountIdPacked {
+	accountIDsBytes := make([]byte, numAccountIDBytes*len(accountIDs))
+	for i, accountID := range accountIDs {
+		chunkBytes := make([]byte, int8Key)
+		binary.BigEndian.PutUint64(chunkBytes, accountID)
+		copy(accountIDsBytes[i*numAccountIDBytes:(i+1)*numAccountIDBytes], chunkBytes[int8Key-numAccountIDBytes:])
+	}
+
+	accountIDsPacked.FromBytes(accountIDsBytes)
+
+	return accountIDsPacked
+}
+
+func (accountIDsPacked *AccountIdPacked) Unpack() []uint64 {
+	accountIDsBytes := accountIDsPacked.Bytes()
+	accountIDs := make([]uint64, 0)
+	for i := 0; i < numOfSenders; i++ {
+		chunkBytes := make([]byte, int8Key)
+		copy(chunkBytes[int8Key-numAccountIDBytes:], accountIDsBytes[i*numAccountIDBytes:(i+1)*numAccountIDBytes])
+
+		accountID := binary.BigEndian.Uint64(chunkBytes)
+		accountIDs = append(accountIDs, accountID)
+	}
+
+	return accountIDs
+}
+
+func (accountIDPacked *AccountIdPacked) Hash() intMaxTypes.Bytes32 {
+	h := crypto.Keccak256(accountIDPacked.Bytes()) // TODO: Is this correct hash?
+	var b intMaxTypes.Bytes32
+	b.FromBytes(h)
+
+	return b
+}
+
 type SignatureContent struct {
 	IsRegistrationBlock bool                `json:"isRegistrationBlock"`
 	TxTreeRoot          intMaxTypes.Bytes32 `json:"txTreeRoot"`
@@ -229,6 +294,96 @@ func (sc *SignatureContent) Set(other *SignatureContent) *SignatureContent {
 	sc.MessagePoint = other.MessagePoint
 
 	return sc
+}
+
+func (s *SignatureContent) ToFieldElementSlice() []ffg.Element {
+	buf := finite_field.NewBuffer(make([]ffg.Element, 0))
+	var isRegistrationBlock uint32 = 0
+	if s.IsRegistrationBlock {
+		isRegistrationBlock = 1
+	}
+	finite_field.WriteUint32(buf, isRegistrationBlock)
+	for _, d := range s.TxTreeRoot {
+		finite_field.WriteUint32(buf, d)
+	}
+	for _, d := range s.SenderFlag {
+		finite_field.WriteUint32(buf, d)
+	}
+	for _, d := range s.PublicKeyHash {
+		finite_field.WriteUint32(buf, d)
+	}
+	for _, d := range s.AccountIDHash {
+		finite_field.WriteUint32(buf, d)
+	}
+	for i := range s.AggPublicKey {
+		coord := s.AggPublicKey[i].ToFieldElementSlice()
+		for j := range coord {
+			finite_field.WriteGoldilocksField(buf, &coord[j])
+		}
+	}
+	for i := range s.AggSignature {
+		coord := s.AggSignature[i].ToFieldElementSlice()
+		for j := range coord {
+			finite_field.WriteGoldilocksField(buf, &coord[j])
+		}
+	}
+	for i := range s.MessagePoint {
+		coord := s.MessagePoint[i].ToFieldElementSlice()
+		for j := range coord {
+			finite_field.WriteGoldilocksField(buf, &coord[j])
+		}
+	}
+
+	return buf.Inner()
+}
+
+func (s *SignatureContent) Commitment() *intMaxGP.PoseidonHashOut {
+	flattenSignatureContent := s.ToFieldElementSlice()
+	fmt.Printf("len(flattenSignatureContent): %d\n", len(flattenSignatureContent))
+	commitment := intMaxGP.HashNoPad(flattenSignatureContent)
+
+	return commitment
+}
+
+func (s *SignatureContent) IsValidFormat(publicKeys []intMaxTypes.Uint256) error {
+	if len(publicKeys) != numOfSenders {
+		return errors.New("public keys length is invalid")
+	}
+
+	// sender flag check
+	zeroSenderFlag := intMaxTypes.Bytes16{}
+	if s.SenderFlag == zeroSenderFlag {
+		return errors.New("sender flag is zero")
+	}
+
+	// public key order check
+	curPublicKey := publicKeys[0]
+	for i := 1; i < len(publicKeys); i++ {
+		publicKey := publicKeys[i]
+		if curPublicKey.BigInt().Cmp(publicKey.BigInt()) != 1 && !publicKey.IsDummyPublicKey() {
+			return errors.New("public key order is invalid")
+		}
+
+		curPublicKey = publicKey
+	}
+
+	// public keys order and recovery check
+	for _, publicKey := range publicKeys {
+		_, err := intMaxAcc.NewPublicKeyFromAddressInt(publicKey.BigInt())
+		if err != nil {
+			return errors.New("public key recovery check failed")
+		}
+	}
+
+	// message point check
+	txTreeRoot := s.TxTreeRoot.ToFieldElementSlice()
+	messagePointExpected := intMaxGP.HashToG2(txTreeRoot)
+	messagePoint := intMaxTypes.NewG2AffineFromFlatG2(&s.MessagePoint)
+	if messagePointExpected.Equal(messagePoint) {
+		return errors.New("message point check failed")
+	}
+
+	return nil
 }
 
 type BlockWitness struct {
@@ -278,57 +433,148 @@ type MainValidationPublicInputs struct {
 	IsValid             bool
 }
 
-// TODO: Implement this
 func GetPublicKeysHash(publicKeys []intMaxTypes.Uint256) intMaxTypes.Bytes32 {
-	return intMaxTypes.Bytes32{}
+	publicKeysBytes := make([]byte, intMaxTypes.NumOfSenders*intMaxTypes.NumPublicKeyBytes)
+	for i, sender := range publicKeys {
+		publicKeyBytes := sender.Bytes() // Only x coordinate is used
+		copy(publicKeysBytes[int32Key*i:int32Key*(i+1)], publicKeyBytes)
+	}
+	dummyPublicKey := intMaxAcc.NewDummyPublicKey()
+	for i := len(publicKeys); i < intMaxTypes.NumOfSenders; i++ {
+		publicKeyBytes := dummyPublicKey.Pk.X.Bytes() // Only x coordinate is used
+		copy(publicKeysBytes[int32Key*i:int32Key*(i+1)], publicKeyBytes[:])
+	}
+
+	publicKeysHash := crypto.Keccak256(publicKeysBytes) // TODO: Is this correct hash?
+
+	var result intMaxTypes.Bytes32
+	result.FromBytes(publicKeysHash)
+
+	return result
 }
 
 func GetAccountIDsHash(accountIDs []uint64) intMaxTypes.Bytes32 {
-	return intMaxTypes.Bytes32{}
+	accountIDsPacked := new(AccountIdPacked).Pack(accountIDs)
+
+	return accountIDsPacked.Hash()
 }
 
 type AccountExclusionValue struct {
-	IsValid bool
+	AccountTreeRoot         *intMaxGP.PoseidonHashOut
+	AccountMembershipProofs []intMaxTree.IndexedMembershipProof
+	PublicKeys              []intMaxTypes.Uint256
+	PublicKeyCommitment     *intMaxGP.PoseidonHashOut
+	IsValid                 bool
 }
 
-// TODO: Implement this
+func getPublicKeyCommitment(publicKeys []intMaxTypes.Uint256) *intMaxGP.PoseidonHashOut {
+	publicKeyFlattened := make([]ffg.Element, 0)
+	for _, publicKey := range publicKeys {
+		publicKeyFlattened = append(publicKeyFlattened, publicKey.ToFieldElementSlice()...)
+	}
+
+	return intMaxGP.HashNoPad(publicKeyFlattened)
+}
+
 func NewAccountExclusionValue(
-	accountTreeRoot intMaxTree.PoseidonHashOut,
+	accountTreeRoot *intMaxGP.PoseidonHashOut,
 	accountMembershipProofs []intMaxTree.IndexedMembershipProof,
 	publicKeys []intMaxTypes.Uint256,
-) *AccountExclusionValue {
-	return &AccountExclusionValue{
-		IsValid: true,
+) (*AccountExclusionValue, error) {
+	result := true
+	for i, proof := range accountMembershipProofs {
+		err := proof.Verify(publicKeys[i].BigInt(), accountTreeRoot)
+		if err != nil {
+			var ErrAccountMembershipProofInvalid = errors.New("account membership proof is invalid")
+			return nil, errors.Join(ErrAccountMembershipProofInvalid, err)
+		}
+
+		isDummy := publicKeys[i].IsDummyPublicKey()
+		isExcluded := !proof.IsIncluded || isDummy
+		result = result && isExcluded
 	}
+
+	publicKeyCommitment := getPublicKeyCommitment(publicKeys)
+
+	return &AccountExclusionValue{
+		AccountTreeRoot:         accountTreeRoot,
+		AccountMembershipProofs: accountMembershipProofs,
+		PublicKeys:              publicKeys,
+		PublicKeyCommitment:     publicKeyCommitment,
+		IsValid:                 result,
+	}, nil
 }
 
 type AccountInclusionValue struct {
-	IsValid bool
+	AccountIDPacked     AccountIdPacked
+	AccountIDHash       intMaxTypes.Bytes32
+	AccountTreeRoot     *intMaxGP.PoseidonHashOut
+	AccountMerkleProofs []AccountMerkleProof
+	PublicKeys          []intMaxTypes.Uint256
+	PublicKeyCommitment *intMaxGP.PoseidonHashOut
+	IsValid             bool
 }
 
-// TODO: Implement this
 func NewAccountInclusionValue(
 	accountTreeRoot intMaxTree.PoseidonHashOut,
-	accountIdPacked *AccountIdPacked,
+	accountIDPacked *AccountIdPacked,
 	accountMerkleProofs []AccountMerkleProof,
 	publicKeys []intMaxTypes.Uint256,
-) *AccountInclusionValue {
-	return &AccountInclusionValue{
-		IsValid: true,
+) (*AccountInclusionValue, error) {
+	if len(accountMerkleProofs) != numOfSenders {
+		return nil, errors.New("account merkle proofs length should be equal to number of senders")
 	}
+
+	if len(publicKeys) != numOfSenders {
+		return nil, errors.New("public keys length should be equal to number of senders")
+	}
+
+	result := true
+	accountIDHash := accountIDPacked.Hash()
+	accountIDs := accountIDPacked.Unpack()
+	for i := range accountIDs {
+		accountID := accountIDs[i]
+		proof := accountMerkleProofs[i]
+		publicKey := publicKeys[i]
+		err := proof.Verify(accountTreeRoot, accountID, publicKey)
+		result = result && err == nil
+	}
+
+	publicKeyCommitment := getPublicKeyCommitment(publicKeys)
+
+	return &AccountInclusionValue{
+		AccountIDPacked:     *accountIDPacked,
+		AccountIDHash:       accountIDHash,
+		AccountTreeRoot:     &accountTreeRoot,
+		AccountMerkleProofs: accountMerkleProofs,
+		PublicKeys:          publicKeys,
+		PublicKeyCommitment: publicKeyCommitment,
+		IsValid:             true,
+	}, nil
 }
 
 type FormatValidationValue struct {
-	IsValid bool
+	PublicKeys          []intMaxTypes.Uint256
+	Signature           *SignatureContent
+	PublicKeyCommitment *intMaxGP.PoseidonHashOut
+	SignatureCommitment *intMaxGP.PoseidonHashOut
+	IsValid             bool
 }
 
-// TODO: Implement this
 func NewFormatValidationValue(
 	publicKeys []intMaxTypes.Uint256,
 	signature *SignatureContent,
 ) *FormatValidationValue {
+	pubkeyCommitment := getPublicKeyCommitment(publicKeys)
+	signatureCommitment := signature.Commitment()
+	err := signature.IsValidFormat(publicKeys)
+
 	return &FormatValidationValue{
-		IsValid: true,
+		PublicKeys:          publicKeys,
+		Signature:           signature,
+		PublicKeyCommitment: pubkeyCommitment,
+		SignatureCommitment: signatureCommitment,
+		IsValid:             err == nil,
 	}
 }
 
@@ -351,7 +597,7 @@ func GetSenderTreeRoot(publicKeys *[]intMaxTypes.Uint256, senderFlag intMaxTypes
 	return intMaxGP.PoseidonHashOut{}
 }
 
-func (w *BlockWitness) ToMainValidationPublicInputs() *MainValidationPublicInputs {
+func (w *BlockWitness) MainValidationPublicInputs() *MainValidationPublicInputs {
 	if new(block_post_service.PostedBlock).Genesis().Equals(w.Block) {
 		validityPis := new(ValidityPublicInputs).Genesis()
 		return &MainValidationPublicInputs{
@@ -391,11 +637,15 @@ func (w *BlockWitness) ToMainValidationPublicInputs() *MainValidationPublicInput
 		}
 
 		// Account exclusion verification
-		accountExclusionValue := NewAccountExclusionValue(
-			accountTreeRoot,
+		accountExclusionValue, err := NewAccountExclusionValue(
+			&accountTreeRoot,
 			*w.AccountMembershipProofs,
 			publicKeys,
 		)
+		if err != nil {
+			panic("account exclusion value is invalid: " + err.Error())
+		}
+
 		result = result && accountExclusionValue.IsValid
 	} else {
 		if w.AccountIdPacked != nil {
@@ -407,12 +657,16 @@ func (w *BlockWitness) ToMainValidationPublicInputs() *MainValidationPublicInput
 		}
 
 		// Account inclusion verification
-		accountInclusionValue := NewAccountInclusionValue(
+		accountInclusionValue, err := NewAccountInclusionValue(
 			accountTreeRoot,
 			w.AccountIdPacked,
 			*w.AccountMerkleProofs,
 			publicKeys,
 		)
+		if err != nil {
+			panic("account inclusion value is invalid: " + err.Error())
+		}
+
 		result = result && accountInclusionValue.IsValid
 	}
 
@@ -457,7 +711,7 @@ func (vw *ValidityWitness) Genesis() *ValidityWitness {
 	}
 }
 
-func (vw *ValidityWitness) ToValidityPublicInputs() *ValidityPublicInputs {
+func (vw *ValidityWitness) ValidityPublicInputs() *ValidityPublicInputs {
 	prevBlockTreeRoot := vw.BlockWitness.PrevBlockTreeRoot
 
 	// Check transition block tree root
@@ -475,7 +729,7 @@ func (vw *ValidityWitness) ToValidityPublicInputs() *ValidityPublicInputs {
 	blockHashLeaf := intMaxTree.NewBlockHashLeaf(block.Hash())
 	blockTreeRoot := vw.ValidityTransitionWitness.BlockMerkleProof.GetRoot(blockHashLeaf.Hash(), int(block.BlockNumber))
 
-	mainValidationPis := vw.BlockWitness.ToMainValidationPublicInputs()
+	mainValidationPis := vw.BlockWitness.MainValidationPublicInputs()
 
 	// transition account tree root
 	prevAccountTreeRoot := vw.BlockWitness.PrevAccountTreeRoot
@@ -483,7 +737,7 @@ func (vw *ValidityWitness) ToValidityPublicInputs() *ValidityPublicInputs {
 	if mainValidationPis.IsValid && mainValidationPis.IsRegistrationBlock {
 		accountRegistrationProofs := vw.ValidityTransitionWitness.AccountRegistrationProofs
 		if !accountRegistrationProofs.IsValid {
-			panic("account_registration_proofs should be given")
+			panic("account registration proofs should be given")
 		}
 		for i, senderLeaf := range vw.ValidityTransitionWitness.SenderLeaves {
 			accountRegistrationProof := accountRegistrationProofs.Proofs[i]
@@ -501,14 +755,15 @@ func (vw *ValidityWitness) ToValidityPublicInputs() *ValidityPublicInputs {
 				accountTreeRoot,
 			)
 			if err != nil {
-				panic("Invalid account registoration proof")
+				fmt.Printf("senderLeaf.Sender: %s\n", senderLeaf.Sender.String())
+				panic("Invalid account registration proof: " + err.Error())
 			}
 		}
 	}
 	if mainValidationPis.IsValid && !mainValidationPis.IsRegistrationBlock {
 		accountUpdateProofs := vw.ValidityTransitionWitness.AccountUpdateProofs
 		if !accountUpdateProofs.IsValid {
-			panic("account_update_proofs should be given")
+			panic("account update proofs should be given")
 		}
 		for i, senderLeaf := range vw.ValidityTransitionWitness.SenderLeaves {
 			accountUpdateProof := accountUpdateProofs.Proofs[i]
@@ -632,8 +887,8 @@ func (b *MockBlockBuilder) generateBlock(
 	senderFlagBytes := [int16Key]byte{}
 	for i, sender := range blockContent.Senders {
 		publicKey := new(intMaxTypes.Uint256).FromBigInt(sender.PublicKey.BigInt())
-		publicKeys = append(publicKeys, *publicKey)
-		accountIDs = append(accountIDs, sender.AccountID)
+		publicKeys[i] = *publicKey
+		accountIDs[i] = sender.AccountID
 		var flag uint8 = 0
 		if sender.IsSigned {
 			flag = 1
@@ -647,9 +902,9 @@ func (b *MockBlockBuilder) generateBlock(
 		SenderFlag:          intMaxTypes.Bytes16{},
 		PublicKeyHash:       GetPublicKeysHash(publicKeys),
 		AccountIDHash:       GetAccountIDsHash(accountIDs),
-		AggPublicKey:        G1ToSolidityType(blockContent.AggregatedPublicKey.Pk),
-		AggSignature:        G2ToSolidityType(blockContent.AggregatedSignature),
-		MessagePoint:        G2ToSolidityType(blockContent.MessagePoint),
+		AggPublicKey:        intMaxTypes.FlattenG1Affine(blockContent.AggregatedPublicKey.Pk),
+		AggSignature:        intMaxTypes.FlattenG2Affine(blockContent.AggregatedSignature),
+		MessagePoint:        intMaxTypes.FlattenG2Affine(blockContent.MessagePoint),
 	}
 	copy(signature.TxTreeRoot[:], intMaxTypes.CommonHashToUint32Slice(blockContent.TxTreeRoot))
 	signature.SenderFlag.FromBytes(senderFlagBytes[:])
@@ -658,14 +913,14 @@ func (b *MockBlockBuilder) generateBlock(
 	prevBlockTreeRoot := b.BlockTree.GetRoot()
 
 	if isRegistrationBlock {
-		accountMembershipProofs := make([]intMaxTree.IndexedMembershipProof, 0)
-		for _, sender := range blockContent.Senders {
+		accountMembershipProofs := make([]intMaxTree.IndexedMembershipProof, len(blockContent.Senders))
+		for i, sender := range blockContent.Senders {
 			accountMembershipProof, _, err := b.AccountTree.ProveMembership(sender.PublicKey.BigInt())
 			if err != nil {
 				panic(err)
 			}
 
-			accountMembershipProofs = append(accountMembershipProofs, *accountMembershipProof)
+			accountMembershipProofs[i] = *accountMembershipProof
 		}
 
 		blockWitness := &BlockWitness{
@@ -682,7 +937,7 @@ func (b *MockBlockBuilder) generateBlock(
 		return blockWitness, nil
 	}
 
-	accountMerkleProofs := make([]AccountMerkleProof, 0)
+	accountMerkleProofs := make([]AccountMerkleProof, len(blockContent.Senders))
 	accountIDPackedBytes := make([]byte, numAccountIDPackedBytes)
 	for i, sender := range blockContent.Senders {
 		accountIDByte := make([]byte, int8Key)
@@ -696,10 +951,10 @@ func (b *MockBlockBuilder) generateBlock(
 			panic("account is not included")
 		}
 
-		accountMerkleProofs = append(accountMerkleProofs, AccountMerkleProof{
+		accountMerkleProofs[i] = AccountMerkleProof{
 			MerkleProof: accountMerkleProof.LeafProof,
 			Leaf:        accountMerkleProof.Leaf,
-		})
+		}
 	}
 
 	accountIDPacked := new(AccountIdPacked)
@@ -718,89 +973,136 @@ func (b *MockBlockBuilder) generateBlock(
 	return blockWitness, nil
 }
 
-func (b *MockBlockBuilder) generateValidityWitness(blockWitness *BlockWitness) *ValidityWitness {
-	if blockWitness.Block.BlockNumber != b.LastBlockNumber+1 {
-		panic("block number is not equal to the last block number + 1")
+func getBitFromUint32Slice(limbs []uint32, i int) bool {
+	if i >= len(limbs)*int32Key {
+		panic("out of index")
 	}
-	prevPis := b.LastValidityWitness.ToValidityPublicInputs()
+
+	return (limbs[i/int32Key]>>(int32Key-1-i%int32Key))&1 == 1
+}
+
+func getSenderLeaves(publicKeys []intMaxTypes.Uint256, senderFlag intMaxTypes.Bytes16) []SenderLeaf {
+	senderLeaves := make([]SenderLeaf, 0)
+	for i, publicKey := range publicKeys {
+		senderLeaf := SenderLeaf{
+			Sender:  publicKey.BigInt(),
+			IsValid: getBitFromUint32Slice(senderFlag[:], i),
+		}
+		senderLeaves = append(senderLeaves, senderLeaf)
+	}
+
+	return senderLeaves
+}
+
+func (b *MockBlockBuilder) generateValidityWitness(blockWitness *BlockWitness) (*ValidityWitness, error) {
+	if blockWitness.Block.BlockNumber != b.LastBlockNumber+1 {
+		return nil, errors.New("block number is not equal to the last block number + 1")
+	}
+	prevPis := b.LastValidityWitness.ValidityPublicInputs()
 	if prevPis.PublicState.AccountTreeRoot != b.AccountTree.GetRoot() {
-		panic("account tree root is not equal to the last account tree root")
+		return nil, errors.New("account tree root is not equal to the last account tree root")
 	}
 	if prevPis.PublicState.BlockTreeRoot != b.BlockTree.GetRoot() {
-		panic("block tree root is not equal to the last block tree root")
+		return nil, errors.New("block tree root is not equal to the last block tree root")
 	}
 
-	// TODO: Implement this
+	blockMerkleProof, _, err := b.BlockTree.Prove(blockWitness.Block.BlockNumber)
+	if err != nil {
+		var ErrBlockTreeProve = errors.New("block tree prove error")
+		return nil, errors.Join(ErrBlockTreeProve, err)
+	}
 
-	// let block_merkle_proof = self
-	// 	.block_tree
-	// 	.prove(block_witness.block.block_number as usize);
-	// self.block_tree.push(block_witness.block.hash());
+	blockHashLeaf := intMaxTree.NewBlockHashLeaf(blockWitness.Block.Hash())
+	_, count, _ := b.BlockTree.GetCurrentRootCountAndSiblings()
+	if count != blockWitness.Block.BlockNumber {
+		return nil, errors.New("block number is not equal to the current block number")
+	}
 
-	// let sender_leaves =
-	// 	get_sender_leaves(&block_witness.pubkeys, block_witness.signature.sender_flag);
-	// let block_pis = block_witness.to_main_validation_pis();
+	_, err = b.BlockTree.AddLeaf(count, blockHashLeaf)
+	if err != nil {
+		var ErrBlockTreeAddLeaf = errors.New("block tree add leaf error")
+		return nil, errors.Join(ErrBlockTreeAddLeaf, err)
+	}
 
-	// let account_registoration_proofs = {
-	// 	if block_pis.is_valid && block_pis.is_registoration_block {
-	// 		let mut account_registoration_proofs = Vec::new();
-	// 		for sender_leaf in &sender_leaves {
-	// 			let last_block_number = if sender_leaf.is_valid {
-	// 				block_pis.block_number
-	// 			} else {
-	// 				0
-	// 			};
-	// 			let is_dummy_pubkey = sender_leaf.sender.is_dummy_pubkey();
-	// 			let proof = if is_dummy_pubkey {
-	// 				AccountRegistorationProof::dummy(ACCOUNT_TREE_HEIGHT)
-	// 			} else {
-	// 				self.account_tree
-	// 					.prove_and_insert(sender_leaf.sender, last_block_number as u64)
-	// 					.unwrap()
-	// 			};
-	// 			account_registoration_proofs.push(proof);
-	// 		}
-	// 		Some(account_registoration_proofs)
-	// 	} else {
-	// 		None
-	// 	}
-	// };
+	senderLeaves := getSenderLeaves(blockWitness.PublicKeys, blockWitness.Signature.SenderFlag)
 
-	// let account_update_proofs = {
-	// 	if block_pis.is_valid && (!block_pis.is_registoration_block) {
-	// 		let mut account_update_proofs = Vec::new();
-	// 		let block_number = block_pis.block_number;
-	// 		for sender_leaf in sender_leaves.iter() {
-	// 			let account_id = self.account_tree.index(sender_leaf.sender).unwrap();
-	// 			let prev_leaf = self.account_tree.get_leaf(account_id);
-	// 			let prev_last_block_number = prev_leaf.value as u32;
-	// 			let last_block_number = if sender_leaf.is_valid {
-	// 				block_number
-	// 			} else {
-	// 				prev_last_block_number
-	// 			};
-	// 			let proof = self
-	// 				.account_tree
-	// 				.prove_and_update(sender_leaf.sender, last_block_number as u64);
-	// 			account_update_proofs.push(proof);
-	// 		}
-	// 		Some(account_update_proofs)
-	// 	} else {
-	// 		None
-	// 	}
-	// };
-	// let validity_transition_witness = ValidityTransitionWitness {
-	// 	sender_leaves,
-	// 	block_merkle_proof,
-	// 	account_registoration_proofs,
-	// 	account_update_proofs,
-	// };
-	// ValidityWitness {
-	// 	validity_transition_witness,
-	// 	block_witness: block_witness.clone(),
-	// }
+	blockPis := blockWitness.MainValidationPublicInputs()
 
-	return nil
+	accountRegistrationProofsWitness := AccountRegistrationProofs{
+		IsValid: false,
+		Proofs:  nil,
+	}
+	if blockPis.IsValid && blockPis.IsRegistrationBlock {
+		accountRegistrationProofs := make([]intMaxTree.IndexedInsertionProof, 0)
+		for _, senderLeaf := range senderLeaves {
+			lastBlockNumber := uint32(0)
+			if senderLeaf.IsValid {
+				lastBlockNumber = blockPis.BlockNumber
+			}
+
+			var proof *intMaxTree.IndexedInsertionProof
+			isDummy := senderLeaf.Sender.Cmp(intMaxAcc.NewDummyPublicKey().BigInt()) == 0
+			if isDummy {
+				proof = intMaxTree.NewDummyAccountRegistrationProof(intMaxTree.ACCOUNT_TREE_HEIGHT)
+			} else {
+				proof, err = b.AccountTree.Insert(senderLeaf.Sender, uint64(lastBlockNumber))
+				if err != nil {
+					// invalid block
+					var ErrAccountTreeInsert = errors.New("account tree insert error")
+					return nil, errors.Join(ErrAccountTreeInsert, err)
+				}
+			}
+
+			accountRegistrationProofs = append(accountRegistrationProofs, *proof)
+		}
+
+		accountRegistrationProofsWitness = AccountRegistrationProofs{
+			IsValid: true,
+			Proofs:  accountRegistrationProofs,
+		}
+	}
+
+	accountUpdateProofsWitness := AccountUpdateProofs{
+		IsValid: false,
+		Proofs:  nil,
+	}
+	if blockPis.IsValid && !blockPis.IsRegistrationBlock {
+		accountUpdateProofs := make([]intMaxTree.IndexedUpdateProof, 0, len(senderLeaves))
+		for _, senderLeaf := range senderLeaves {
+			accountID, ok := b.AccountTree.GetAccountID(senderLeaf.Sender)
+			if !ok {
+				return nil, errors.New("account id not found")
+			}
+			prevLeaf := b.AccountTree.GetLeaf(accountID)
+			prevLastBlockNumber := uint32(prevLeaf.Value)
+			lastBlockNumber := prevLastBlockNumber
+			if senderLeaf.IsValid {
+				lastBlockNumber = blockPis.BlockNumber
+			}
+			var proof *intMaxTree.IndexedUpdateProof
+			proof, err = b.AccountTree.Update(senderLeaf.Sender, uint64(lastBlockNumber))
+			if err != nil {
+				var ErrAccountTreeUpdate = errors.New("account tree update error")
+				return nil, errors.Join(ErrAccountTreeUpdate, err)
+			}
+			accountUpdateProofs = append(accountUpdateProofs, *proof)
+		}
+
+		accountUpdateProofsWitness = AccountUpdateProofs{
+			IsValid: true,
+			Proofs:  accountUpdateProofs,
+		}
+	}
+
+	return &ValidityWitness{
+		BlockWitness: blockWitness,
+		ValidityTransitionWitness: &ValidityTransitionWitness{
+			SenderLeaves:              senderLeaves,
+			BlockMerkleProof:          blockMerkleProof,
+			AccountRegistrationProofs: accountRegistrationProofsWitness,
+			AccountUpdateProofs:       accountUpdateProofsWitness,
+		},
+	}, nil
 }
 
 func (b *MockBlockBuilder) postBlock(
@@ -808,16 +1110,20 @@ func (b *MockBlockBuilder) postBlock(
 	postedBlock *block_post_service.PostedBlock,
 ) *ValidityWitness {
 	blockWitness, txTree := b.generateBlock(blockContent, postedBlock)
-	validityWitness := b.generateValidityWitness(blockWitness)
+	validityWitness, err := b.generateValidityWitness(blockWitness)
+	if err != nil {
+		panic(err)
+	}
+
 	b.AuxInfo[blockWitness.Block.BlockNumber] =
 		AuxInfo{
 			TxTree:          txTree,
-			ValidityWitness: validityWitness, // clone
-			AccountTree:     b.AccountTree,   // clone
-			BlockTree:       b.BlockTree,     // clone
+			ValidityWitness: validityWitness,
+			AccountTree:     b.AccountTree,
+			BlockTree:       b.BlockTree,
 		}
 	b.LastBlockNumber = blockWitness.Block.BlockNumber
-	b.LastValidityWitness = validityWitness // clone
+	b.LastValidityWitness = validityWitness
 
 	return validityWitness
 }
@@ -883,26 +1189,4 @@ type TransitionWrapperCircuit interface {
 		validity_witness *ValidityWitness,
 	) (*intMaxTypes.Plonky2Proof, error)
 	CircuitData() *CircuitData
-}
-
-func G1ToSolidityType(pk *bn254.G1Affine) [2]intMaxTypes.Uint256 {
-	x := intMaxTypes.Uint256{}
-	y := intMaxTypes.Uint256{}
-	x.FromBigInt(pk.X.BigInt(new(big.Int)))
-	y.FromBigInt(pk.Y.BigInt(new(big.Int)))
-
-	return [2]intMaxTypes.Uint256{x, y}
-}
-
-func G2ToSolidityType(sig *bn254.G2Affine) [int4Key]intMaxTypes.Uint256 {
-	x_a0 := intMaxTypes.Uint256{}
-	x_a1 := intMaxTypes.Uint256{}
-	y_a0 := intMaxTypes.Uint256{}
-	y_a1 := intMaxTypes.Uint256{}
-	x_a0.FromBigInt(sig.X.A0.BigInt(new(big.Int)))
-	x_a1.FromBigInt(sig.X.A1.BigInt(new(big.Int)))
-	y_a0.FromBigInt(sig.Y.A0.BigInt(new(big.Int)))
-	y_a1.FromBigInt(sig.Y.A1.BigInt(new(big.Int)))
-
-	return [int4Key]intMaxTypes.Uint256{x_a1, y_a1, y_a1, y_a0}
 }

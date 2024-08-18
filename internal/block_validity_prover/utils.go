@@ -71,19 +71,6 @@ func FetchIntMaxBlockContentByCalldata(
 		return nil, errors.Join(ErrDecodeCallDataFail, err)
 	}
 
-	// TODO: Make block validity public inputs
-
-	defaultAddress := intMaxAcc.NewDummyPublicKey().ToAddress().String()
-	for index := range blockContent.Senders {
-		address := blockContent.Senders[index].PublicKey.ToAddress().String()
-		if !strings.EqualFold(address, defaultAddress) {
-			_, err = ai.RegisterPublicKey(blockContent.Senders[index].PublicKey, postedBlock.BlockNumber)
-			if err != nil {
-				return nil, errors.Join(ErrRegisterPublicKeyFail, err)
-			}
-		}
-	}
-
 	return blockContent, nil
 }
 

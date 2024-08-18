@@ -11,7 +11,7 @@ type AccountTree struct {
 }
 
 func NewAccountTree(height uint8) (*AccountTree, error) {
-	zeroHash := new(PoseidonHashOut)
+	zeroHash := new(IndexedMerkleLeaf).EmptyLeaf().Hash()
 	t, err := NewIndexedMerkleTree(height, zeroHash)
 	if err != nil {
 		return nil, err
@@ -41,8 +41,8 @@ func (t *AccountTree) GetAccountID(publicKey *big.Int) (accountID uint64, ok boo
 	return uint64(index), ok
 }
 
-func (t *AccountTree) Prove(accountID int) (siblings []*PoseidonHashOut, root PoseidonHashOut, err error) {
-	return t.inner.Prove(LeafIndex(accountID)) // nolint:unconvert
+func (t *AccountTree) Prove(accountID uint64) (proof *IndexedMerkleProof, root PoseidonHashOut, err error) {
+	return t.inner.Prove(LeafIndex(accountID))
 }
 
 func (t *AccountTree) ProveMembership(publicKey *big.Int) (proof *IndexedMembershipProof, root PoseidonHashOut, err error) {
@@ -55,4 +55,14 @@ func (t *AccountTree) Insert(publicKey *big.Int, lastSentBlockNumber uint64) (*I
 
 func (t *AccountTree) Update(publicKey *big.Int, lastSentBlockNumber uint64) (*IndexedUpdateProof, error) {
 	return t.inner.Update(publicKey, lastSentBlockNumber)
+}
+
+func NewDummyAccountRegistrationProof(height uint8) *IndexedInsertionProof {
+	return &IndexedInsertionProof{
+		Index:        0,
+		LowLeafProof: NewDummyIndexedMerkleProof(height),
+		LeafProof:    NewDummyIndexedMerkleProof(height),
+		LowLeafIndex: 0,
+		PrevLowLeaf:  new(IndexedMerkleLeaf).SetDefault(),
+	}
 }

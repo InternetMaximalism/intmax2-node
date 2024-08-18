@@ -7,6 +7,7 @@ import (
 	"intmax2-node/internal/finite_field"
 	"math/big"
 
+	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/iden3/go-iden3-crypto/ffg"
 )
@@ -110,6 +111,15 @@ func (b *Bytes32) UnmarshalJSON(data []byte) error {
 	return b.FromHex(s)
 }
 
+func (b *Bytes32) ToFieldElementSlice() []ffg.Element {
+	buf := make([]ffg.Element, 0)
+	for _, x := range b {
+		buf = append(buf, *new(ffg.Element).SetUint64(uint64(x)))
+	}
+
+	return buf
+}
+
 func Uint32SliceToBytes(v []uint32) []byte {
 	buf := make([]byte, len(v)*int4Key)
 	for i, n := range v {
@@ -196,6 +206,59 @@ func (v *Uint256) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (v *Uint256) Bytes() []byte {
+	return Uint32SliceToBytes(v.inner[:])
+}
+
+func (v *Uint256) FromBytes(bytes []byte) *Uint256 {
+	for i := 0; i < int8Key; i++ {
+		v.inner[i] = binary.BigEndian.Uint32(bytes[i*int4Key : (i+1)*int4Key])
+	}
+
+	return v
+}
+
 type FlatG1 = [2]Uint256
 
+func FlattenG1Affine(pk *bn254.G1Affine) FlatG1 {
+	x := Uint256{}
+	y := Uint256{}
+	x.FromBigInt(pk.X.BigInt(new(big.Int)))
+	y.FromBigInt(pk.Y.BigInt(new(big.Int)))
+
+	return [2]Uint256{x, y}
+}
+
+func NewG1AffineFromFlatG1(v *FlatG1) *bn254.G1Affine {
+	p := new(bn254.G1Affine)
+	p.X.SetBigInt(v[0].BigInt())
+	p.Y.SetBigInt(v[1].BigInt())
+
+	return p
+}
+
 type FlatG2 = [int4Key]Uint256
+
+func FlattenG2Affine(sig *bn254.G2Affine) FlatG2 {
+	x_a0 := Uint256{}
+	x_a1 := Uint256{}
+	y_a0 := Uint256{}
+	y_a1 := Uint256{}
+	x_a0.FromBigInt(sig.X.A0.BigInt(new(big.Int)))
+	x_a1.FromBigInt(sig.X.A1.BigInt(new(big.Int)))
+	y_a0.FromBigInt(sig.Y.A0.BigInt(new(big.Int)))
+	y_a1.FromBigInt(sig.Y.A1.BigInt(new(big.Int)))
+
+	return [int4Key]Uint256{x_a1, x_a0, y_a1, y_a0}
+}
+
+func NewG2AffineFromFlatG2(v *FlatG2) *bn254.G2Affine {
+	// x_a1, x_a0, y_a1, y_a0
+	p := new(bn254.G2Affine)
+	p.X.A1.SetBigInt(v[0].BigInt())
+	p.X.A0.SetBigInt(v[1].BigInt())
+	p.Y.A1.SetBigInt(v[2].BigInt())
+	p.Y.A0.SetBigInt(v[3].BigInt())
+
+	return p
+}

@@ -263,7 +263,7 @@ func (h *PoseidonHashOut) Equal(other *PoseidonHashOut) bool {
 func (h *PoseidonHashOut) Marshal() []byte {
 	a := []byte{}
 	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
-		b := reverseBytes(h.Elements[i].Marshal())
+		b := h.Elements[i].Marshal() // big-endian
 		a = append(a, b...)
 	}
 
@@ -281,7 +281,7 @@ func (h *PoseidonHashOut) Unmarshal(data []byte) error {
 	}
 
 	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
-		r := reverseBytes(data[i*elementSize : (i+1)*elementSize])
+		r := data[i*elementSize : (i+1)*elementSize] // big-endian
 		h.Elements[i] = *new(ffg.Element).SetBytes(r)
 	}
 
@@ -343,14 +343,6 @@ func (h *PoseidonHashOut) Uint32Array() [int8Key]uint32 {
 func (h *PoseidonHashOut) Uint32Slice() []uint32 {
 	b := h.Uint32Array()
 	return b[:]
-}
-
-func reverseBytes(data []byte) []byte {
-	reversed := make([]byte, len(data))
-	for i := range data {
-		reversed[i] = data[len(data)-1-i]
-	}
-	return reversed
 }
 
 func HexToHash(s string) *PoseidonHashOut {
