@@ -197,6 +197,9 @@ func TransferTransaction(
 var ErrFailedToCreateRecipientAddress = errors.New("failed to create recipient address")
 var ErrFailedToGetRecipientPublicKey = errors.New("failed to get recipient public key")
 var ErrFailedToEncryptTransfer = errors.New("failed to encrypt transfer")
+var ErrFailedToBaseDecodeTransaction = errors.New("failed to decode transaction from base64")
+var ErrFailedToDecryptTransaction = errors.New("failed to decrypt transaction")
+var ErrFailedToUnmarshalTransaction = errors.New("failed to unmarshal transaction")
 
 func MakeTransferBackupData(transfer *intMaxTypes.Transfer) (backupTransfer *transaction.BackupTransferInput, _ error) {
 	if transfer.Recipient.TypeOfAddress != "INTMAX" {
@@ -225,6 +228,30 @@ func MakeTransferBackupData(transfer *intMaxTypes.Transfer) (backupTransfer *tra
 		Recipient:                hexutil.Encode(transfer.Recipient.Marshal()),
 		EncodedEncryptedTransfer: base64.StdEncoding.EncodeToString(encryptedTransfer),
 	}, nil
+}
+
+func GetTransactionFromBackupData(
+	encryptedTransfer *GetTransactionsListDataTransaction,
+	senderAccount *intMaxAcc.PrivateKey,
+) (*intMaxTypes.TxDetails, error) {
+	ciphertext, err := base64.StdEncoding.DecodeString(encryptedTransfer.EncryptedTx)
+	if err != nil {
+		return nil, errors.Join(ErrFailedToBaseDecodeTransaction, err)
+	}
+
+	var message []byte
+	message, err = senderAccount.DecryptECIES(ciphertext)
+	if err != nil {
+		return nil, errors.Join(ErrFailedToDecryptTransaction, err)
+	}
+
+	var txDetails intMaxTypes.TxDetails
+	err = txDetails.Unmarshal(message)
+	if err != nil {
+		return nil, errors.Join(ErrFailedToUnmarshalTransaction, err)
+	}
+
+	return &txDetails, nil
 }
 
 type BackupWithdrawal struct {
@@ -410,4 +437,25 @@ func MakeWithdrawalBackupData(
 		Recipient:                hexutil.Encode(transfer.Recipient.Marshal()),
 		EncodedEncryptedTransfer: base64.StdEncoding.EncodeToString(encryptedTransfer),
 	}, nil
+}
+
+func TransactionsList(
+	ctx context.Context,
+	cfg *configs.Config,
+	startBlockNumber, limit uint64,
+	userEthPrivateKey string,
+) (json.RawMessage, error) {
+	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("fail to parse user private key: %v", err)
+	}
+
+	userAccount, err := intMaxAcc.NewPrivateKeyFromString(wallet.IntMaxPrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("fail to parse user private key: %v", err)
+	}
+
+	fmt.Printf("User's INTMAX Address: %s\n", userAccount.ToAddress().String())
+
+	return GetTransactionsListWithRawRequest(ctx, cfg, startBlockNumber, limit, userAccount)
 }
