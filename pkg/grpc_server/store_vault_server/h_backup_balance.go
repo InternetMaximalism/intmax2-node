@@ -34,6 +34,7 @@ func (s *StoreVaultServer) BackupBalance(ctx context.Context, req *node.BackupBa
 		EncryptedTransfers:    req.EncryptedTransfers,
 		EncryptedDeposits:     req.EncryptedDeposits,
 		Signature:             req.Signature,
+		BlockNumber:           uint32(req.BlockNumber),
 	}
 
 	err := input.Valid()

@@ -96,7 +96,10 @@ func (p *pgx) GetBackupBalance(conditions []string, values []interface{}) (*mDBA
 
 func (p *pgx) GetBackupBalances(condition string, value interface{}) ([]*mDBApp.BackupBalance, error) {
 	const baseQuery = `
-        SELECT id, user_address, encrypted_balance_proof, encrypted_balance_data, encrypted_txs, encrypted_transfers, encrypted_deposits, signature, block_number, created_at
+        SELECT
+		    id, user_address, encrypted_balance_proof, encrypted_balance_data,
+			encrypted_txs, encrypted_transfers, encrypted_deposits,
+			signature, block_number, created_at
         FROM backup_balances
         WHERE %s = $1
     `

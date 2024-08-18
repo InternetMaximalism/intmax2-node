@@ -62,7 +62,7 @@
         ]
       }
     },
-    "/v1/backups/balances": {
+    "/v1/backups/balance": {
       "get": {
         "operationId": "StoreVaultService_GetBackupBalances",
         "responses": {
@@ -148,7 +148,7 @@
         ]
       }
     },
-    "/v1/backups/deposits": {
+    "/v1/backups/deposit": {
       "get": {
         "operationId": "StoreVaultService_GetBackupDeposits",
         "responses": {
@@ -237,7 +237,7 @@
         ]
       }
     },
-    "/v1/backups/transactions": {
+    "/v1/backups/transaction": {
       "get": {
         "operationId": "StoreVaultService_GetBackupTransactions",
         "responses": {
@@ -326,7 +326,7 @@
         ]
       }
     },
-    "/v1/backups/transfers": {
+    "/v1/backups/transfer": {
       "get": {
         "operationId": "StoreVaultService_GetBackupTransfers",
         "responses": {
@@ -982,6 +982,10 @@
         },
         "signature": {
           "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
         }
       }
     },

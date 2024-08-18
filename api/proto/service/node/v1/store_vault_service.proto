@@ -15,14 +15,14 @@ service StoreVaultService {
   // ## This method handles the transfer of backup data.
   rpc BackupTransfer(BackupTransferRequest) returns (BackupTransferResponse) {
     option (google.api.http) = {
-      post: "/v1/backups/transfers"
+      post: "/v1/backups/transfer"
       body: "*"
     };
   }
 
   rpc GetBackupTransfers(GetBackupTransfersRequest) returns (GetBackupTransfersResponse) {
     option (google.api.http) = {
-      get: "/v1/backups/transfers"
+      get: "/v1/backups/transfer"
     };
   }
 
@@ -31,14 +31,14 @@ service StoreVaultService {
   // ## This method handles the transaction of backup data.
   rpc BackupTransaction(BackupTransactionRequest) returns (BackupTransactionResponse) {
     option (google.api.http) = {
-      post: "/v1/backups/transactions"
+      post: "/v1/backups/transaction"
       body: "*"
     };
   }
 
   rpc GetBackupTransactions(GetBackupTransactionsRequest) returns (GetBackupTransactionsResponse) {
     option (google.api.http) = {
-      get: "/v1/backups/transactions"
+      get: "/v1/backups/transaction"
     };
   }
 
@@ -47,27 +47,27 @@ service StoreVaultService {
   // ## This method handles the deposit of backup data.
   rpc BackupDeposit(BackupDepositRequest) returns (BackupDepositResponse) {
     option (google.api.http) = {
-      post: "/v1/backups/deposits"
+      post: "/v1/backups/deposit"
       body: "*"
     };
   }
 
   rpc GetBackupDeposits(GetBackupDepositsRequest) returns (GetBackupDepositsResponse) {
     option (google.api.http) = {
-      get: "/v1/backups/deposits"
+      get: "/v1/backups/deposit"
     };
   }
 
   rpc BackupBalance(BackupBalanceRequest) returns (BackupBalanceResponse) {
     option (google.api.http) = {
-      post: "/v1/backups/balances"
+      post: "/v1/backups/balance"
       body: "*"
     };
   }
 
   rpc GetBackupBalances(GetBackupBalancesRequest) returns (GetBackupBalancesResponse) {
     option (google.api.http) = {
-      get: "/v1/backups/balances"
+      get: "/v1/backups/balance"
     };
   }
 
@@ -295,6 +295,7 @@ message BackupBalanceRequest {
   repeated string encrypted_transfers = 5;
   repeated string encrypted_deposits = 6;
   string signature = 7;
+  uint64 block_number = 8;
 }
 
 message BackupBalanceResponse {
