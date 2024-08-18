@@ -30,16 +30,13 @@ type PublicState struct {
 }
 
 func (ps *PublicState) Genesis() *PublicState {
-	blockTree, err := intMaxTree.NewBlockHashTree(intMaxTree.BLOCK_HASH_TREE_HEIGHT, nil)
+	blockTree, err := NewBlockHashTree(intMaxTree.BLOCK_HASH_TREE_HEIGHT)
 	if err != nil {
 		panic(err)
 	}
 
 	genesisBlockHash := new(block_post_service.PostedBlock).Genesis().Hash()
-	blockTreeRoot, err := blockTree.AddLeaf(0, intMaxTree.NewBlockHashLeaf(genesisBlockHash))
-	if err != nil {
-		panic(err)
-	}
+	blockTreeRoot := blockTree.GetRoot()
 
 	accountTree, err := intMaxTree.NewAccountTree(intMaxTree.ACCOUNT_TREE_HEIGHT)
 	if err != nil {
@@ -54,7 +51,7 @@ func (ps *PublicState) Genesis() *PublicState {
 	accountTreeRoot := accountTree.GetRoot()
 	depositTreeRoot, _, _ := depositTree.GetCurrentRootCountAndSiblings()
 	return &PublicState{
-		BlockTreeRoot:       *blockTreeRoot,
+		BlockTreeRoot:       blockTreeRoot,
 		PrevAccountTreeRoot: prevAccountTreeRoot,
 		AccountTreeRoot:     accountTreeRoot,
 		DepositTreeRoot:     depositTreeRoot,
@@ -63,32 +60,70 @@ func (ps *PublicState) Genesis() *PublicState {
 	}
 }
 
-func (pis *PublicState) Equal(other *PublicState) bool {
-	if !pis.BlockTreeRoot.Equal(&other.BlockTreeRoot) {
+func (ps *PublicState) Equal(other *PublicState) bool {
+	if !ps.BlockTreeRoot.Equal(&other.BlockTreeRoot) {
 		return false
 	}
-	if !pis.PrevAccountTreeRoot.Equal(&other.PrevAccountTreeRoot) {
+	if !ps.PrevAccountTreeRoot.Equal(&other.PrevAccountTreeRoot) {
 		return false
 	}
-	if !pis.AccountTreeRoot.Equal(&other.AccountTreeRoot) {
+	if !ps.AccountTreeRoot.Equal(&other.AccountTreeRoot) {
 		return false
 	}
-	if pis.DepositTreeRoot != other.DepositTreeRoot {
+	if ps.DepositTreeRoot != other.DepositTreeRoot {
 		return false
 	}
-	if pis.BlockHash != other.BlockHash {
+	if ps.BlockHash != other.BlockHash {
 		return false
 	}
-	if pis.BlockNumber != other.BlockNumber {
+	if ps.BlockNumber != other.BlockNumber {
 		return false
 	}
+
 	return true
+}
+
+func FieldElementSliceToUint32Slice(value []ffg.Element) []uint32 {
+	v := make([]uint32, len(value))
+	for i, x := range value {
+		y := x.ToUint64Regular()
+		if y >= uint64(1)<<int32Key {
+			panic("overflow")
+		}
+		v[i] = uint32(y)
+	}
+
+	return v
+}
+
+const (
+	prevAccountTreeRootOffset = intMaxGP.NUM_HASH_OUT_ELTS
+	accountTreeRootOffset     = prevAccountTreeRootOffset + intMaxGP.NUM_HASH_OUT_ELTS
+	depositTreeRootOffset     = accountTreeRootOffset + intMaxGP.NUM_HASH_OUT_ELTS
+	blockHashOffset           = depositTreeRootOffset + int8Key
+	blockNumberOffset         = blockHashOffset + int8Key
+	PublicStateLimbSize       = blockNumberOffset + 1
+)
+
+func (ps *PublicState) FromFieldElementSlice(value []ffg.Element) *PublicState {
+	copy(ps.BlockTreeRoot.Elements[:], value[:intMaxGP.NUM_HASH_OUT_ELTS])
+	copy(ps.PrevAccountTreeRoot.Elements[:], value[prevAccountTreeRootOffset:accountTreeRootOffset])
+	copy(ps.AccountTreeRoot.Elements[:], value[accountTreeRootOffset:depositTreeRootOffset])
+	depositTreeRoot := intMaxTypes.Bytes32{}
+	copy(depositTreeRoot[:], FieldElementSliceToUint32Slice(value[depositTreeRootOffset:blockHashOffset]))
+	copy(ps.DepositTreeRoot[:], depositTreeRoot.Bytes())
+	blockHash := intMaxTypes.Bytes32{}
+	copy(blockHash[:], FieldElementSliceToUint32Slice(value[blockHashOffset:blockNumberOffset]))
+	copy(ps.BlockHash[:], blockHash.Bytes())
+	ps.BlockNumber = uint32(value[blockNumberOffset].ToUint64Regular())
+
+	return ps
 }
 
 type ValidityPublicInputs struct {
 	PublicState    *PublicState
 	TxTreeRoot     intMaxTypes.Bytes32
-	SenderTreeRoot intMaxGP.PoseidonHashOut
+	SenderTreeRoot *intMaxGP.PoseidonHashOut
 	IsValidBlock   bool
 }
 
@@ -100,7 +135,7 @@ func (vpi *ValidityPublicInputs) Genesis() *ValidityPublicInputs {
 	return &ValidityPublicInputs{
 		PublicState:    new(PublicState).Genesis(),
 		TxTreeRoot:     txTreeRoot,
-		SenderTreeRoot: *senderTreeRoot,
+		SenderTreeRoot: senderTreeRoot,
 		IsValidBlock:   isValidBlock,
 	}
 }
@@ -108,6 +143,23 @@ func (vpi *ValidityPublicInputs) Genesis() *ValidityPublicInputs {
 type SenderLeaf struct {
 	Sender  *big.Int `json:"sender"`
 	IsValid bool     `json:"isValid"`
+}
+
+func (leaf *SenderLeaf) ToFieldElementSlice() []ffg.Element {
+	buf := finite_field.NewBuffer(make([]ffg.Element, 0))
+	sender := intMaxTypes.BigIntToBytes32BeArray(leaf.Sender)
+	finite_field.WriteFixedSizeBytes(buf, sender[:], intMaxTypes.NumPublicKeyBytes)
+	if leaf.IsValid {
+		finite_field.WriteUint32(buf, 1)
+	} else {
+		finite_field.WriteUint32(buf, 0)
+	}
+
+	return buf.Inner()
+}
+
+func (leaf *SenderLeaf) Hash() *intMaxGP.PoseidonHashOut {
+	return intMaxGP.HashNoPad(leaf.ToFieldElementSlice())
 }
 
 type AccountRegistrationProofs struct {
@@ -131,12 +183,33 @@ func (vtw *ValidityTransitionWitness) Genesis() *ValidityTransitionWitness {
 	senderLeaves := make([]SenderLeaf, 0)
 	accountRegistrationProofs := make([]intMaxTree.IndexedInsertionProof, 0)
 	accountUpdateProofs := make([]intMaxTree.IndexedUpdateProof, 0)
-	blockHashTree, err := intMaxTree.NewBlockHashTree(intMaxTree.BLOCK_HASH_TREE_HEIGHT, nil)
+
+	// Create a empty block hash tree
+	blockHashTree, err := intMaxTree.NewBlockHashTreeWithInitialLeaves(intMaxTree.BLOCK_HASH_TREE_HEIGHT, nil)
 	if err != nil {
 		panic(err)
 	}
 
+	prevRoot := blockHashTree.GetRoot()
+	prevLeafHash := new(intMaxTree.BlockHashLeaf).SetDefault().Hash()
 	blockMerkleProof, _, err := blockHashTree.Prove(0)
+	if err != nil {
+		panic(err)
+	}
+
+	// verify
+	err = blockMerkleProof.Verify(prevLeafHash, 0, &prevRoot)
+	if err != nil {
+		panic(err)
+	}
+
+	genesisBlock := new(block_post_service.PostedBlock).Genesis()
+	genesisBlockHash := intMaxTree.NewBlockHashLeaf(genesisBlock.Hash())
+	newRoot, err := blockHashTree.AddLeaf(0, genesisBlockHash)
+	if err != nil {
+		panic(err)
+	}
+	err = blockMerkleProof.Verify(genesisBlockHash.Hash(), 0, newRoot)
 	if err != nil {
 		panic(err)
 	}
@@ -339,7 +412,6 @@ func (s *SignatureContent) ToFieldElementSlice() []ffg.Element {
 
 func (s *SignatureContent) Commitment() *intMaxGP.PoseidonHashOut {
 	flattenSignatureContent := s.ToFieldElementSlice()
-	fmt.Printf("len(flattenSignatureContent): %d\n", len(flattenSignatureContent))
 	commitment := intMaxGP.HashNoPad(flattenSignatureContent)
 
 	return commitment
@@ -386,6 +458,36 @@ func (s *SignatureContent) IsValidFormat(publicKeys []intMaxTypes.Uint256) error
 	return nil
 }
 
+// Verify that the calculation of agg_pubkey matches.
+// It is assumed that the format validation has already passed.
+func (s *SignatureContent) VerifyAggregation(publicKey []intMaxTypes.Uint256) error {
+	if len(publicKey) != numOfSenders {
+		return errors.New("public keys length is invalid")
+	}
+
+	aggregatedPublicKey := new(intMaxAcc.PublicKey)
+	for i, pubKey := range publicKey {
+		senderFlagBit := getBitFromUint32Slice(s.SenderFlag[:], i)
+		publicKey, err := intMaxAcc.NewPublicKeyFromAddressInt(pubKey.BigInt())
+		if err != nil {
+			return errors.New("public key recovery check failed")
+		}
+
+		publicKeysHash := s.PublicKeyHash.Bytes()
+		if senderFlagBit {
+			weightedPublicKey := publicKey.WeightByHash(publicKeysHash)
+			aggregatedPublicKey.Add(aggregatedPublicKey, weightedPublicKey)
+		}
+	}
+
+	aggPublicKey := intMaxTypes.NewG1AffineFromFlatG1(&s.AggPublicKey)
+	if !aggregatedPublicKey.Pk.Equal(aggPublicKey) {
+		return errors.New("aggregated public key does not match")
+	}
+
+	return nil
+}
+
 type BlockWitness struct {
 	Block                   *block_post_service.PostedBlock      `json:"block"`
 	Signature               SignatureContent                     `json:"signature"`
@@ -398,7 +500,7 @@ type BlockWitness struct {
 }
 
 func (bw *BlockWitness) Genesis() *BlockWitness {
-	blockHashTree, err := intMaxTree.NewBlockHashTree(intMaxTree.BLOCK_HASH_TREE_HEIGHT, nil)
+	blockHashTree, err := intMaxTree.NewBlockHashTreeWithInitialLeaves(intMaxTree.BLOCK_HASH_TREE_HEIGHT, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -425,9 +527,9 @@ type MainValidationPublicInputs struct {
 	PrevBlockHash       common.Hash
 	BlockHash           common.Hash
 	DepositTreeRoot     common.Hash
-	AccountTreeRoot     intMaxGP.PoseidonHashOut
+	AccountTreeRoot     *intMaxGP.PoseidonHashOut
 	TxTreeRoot          intMaxTypes.Bytes32
-	SenderTreeRoot      intMaxGP.PoseidonHashOut
+	SenderTreeRoot      *intMaxGP.PoseidonHashOut
 	BlockNumber         uint32
 	IsRegistrationBlock bool
 	IsValid             bool
@@ -579,22 +681,51 @@ func NewFormatValidationValue(
 }
 
 type AggregationValue struct {
-	IsValid bool
+	PublicKeys          []intMaxTypes.Uint256
+	Signature           *SignatureContent
+	PublicKeyCommitment *intMaxGP.PoseidonHashOut
+	SignatureCommitment *intMaxGP.PoseidonHashOut
+	IsValid             bool
 }
 
-// TODO: Implement this
 func NewAggregationValue(
 	publicKeys []intMaxTypes.Uint256,
 	signature *SignatureContent,
 ) *AggregationValue {
+	publicKeyCommitment := getPublicKeyCommitment(publicKeys)
+	signatureCommitment := signature.Commitment()
+	err := signature.VerifyAggregation(publicKeys)
+
 	return &AggregationValue{
-		IsValid: true,
+		PublicKeys:          publicKeys,
+		Signature:           signature,
+		PublicKeyCommitment: publicKeyCommitment,
+		SignatureCommitment: signatureCommitment,
+		IsValid:             err == nil,
 	}
 }
 
-// TODO: Implement this
-func GetSenderTreeRoot(publicKeys *[]intMaxTypes.Uint256, senderFlag intMaxTypes.Bytes16) intMaxGP.PoseidonHashOut {
-	return intMaxGP.PoseidonHashOut{}
+func GetSenderTreeRoot(publicKeys []intMaxTypes.Uint256, senderFlag intMaxTypes.Bytes16) *intMaxGP.PoseidonHashOut {
+	if len(publicKeys) != numOfSenders {
+		panic("public keys length should be equal to number of senders")
+	}
+
+	senderLeafHashes := make([]*intMaxGP.PoseidonHashOut, len(publicKeys))
+	for i, publicKey := range publicKeys {
+		isValid := getBitFromUint32Slice(senderFlag[:], i)
+		senderLeaf := SenderLeaf{Sender: publicKey.BigInt(), IsValid: isValid}
+		senderLeafHashes[i] = senderLeaf.Hash()
+	}
+
+	zeroHash := new(intMaxGP.PoseidonHashOut).SetZero()
+	senderTree, err := intMaxTree.NewPoseidonIncrementalMerkleTree(intMaxTree.TX_TREE_HEIGHT, senderLeafHashes, zeroHash)
+	if err != nil {
+		panic(err)
+	}
+
+	root, _, _ := senderTree.GetCurrentRootCountAndSiblings()
+
+	return &root
 }
 
 func (w *BlockWitness) MainValidationPublicInputs() *MainValidationPublicInputs {
@@ -604,7 +735,7 @@ func (w *BlockWitness) MainValidationPublicInputs() *MainValidationPublicInputs 
 			PrevBlockHash:       new(block_post_service.PostedBlock).Genesis().PrevBlockHash,
 			BlockHash:           validityPis.PublicState.BlockHash,
 			DepositTreeRoot:     validityPis.PublicState.DepositTreeRoot,
-			AccountTreeRoot:     validityPis.PublicState.AccountTreeRoot,
+			AccountTreeRoot:     &validityPis.PublicState.AccountTreeRoot,
 			TxTreeRoot:          validityPis.TxTreeRoot,
 			SenderTreeRoot:      validityPis.SenderTreeRoot,
 			BlockNumber:         validityPis.PublicState.BlockNumber,
@@ -682,7 +813,7 @@ func (w *BlockWitness) MainValidationPublicInputs() *MainValidationPublicInputs 
 
 	prev_block_hash := block.PrevBlockHash
 	blockHash := block.Hash()
-	senderTreeRoot := GetSenderTreeRoot(&publicKeys, signature.SenderFlag)
+	senderTreeRoot := GetSenderTreeRoot(publicKeys, signature.SenderFlag)
 
 	txTreeRoot := signature.TxTreeRoot
 
@@ -690,7 +821,7 @@ func (w *BlockWitness) MainValidationPublicInputs() *MainValidationPublicInputs 
 		PrevBlockHash:       prev_block_hash,
 		BlockHash:           blockHash,
 		DepositTreeRoot:     block.DepositRoot,
-		AccountTreeRoot:     accountTreeRoot,
+		AccountTreeRoot:     &accountTreeRoot,
 		TxTreeRoot:          txTreeRoot,
 		SenderTreeRoot:      senderTreeRoot,
 		BlockNumber:         block.BlockNumber,
@@ -800,6 +931,8 @@ func (vw *ValidityWitness) ValidityPublicInputs() *ValidityPublicInputs {
 	}
 }
 
+// AuxInfo is a structure for recording past tree states.
+// TODO: Copy the tree states
 type AuxInfo struct {
 	TxTree          *intMaxTree.TxTree
 	ValidityWitness *ValidityWitness
@@ -821,6 +954,15 @@ type MockBlockBuilder struct {
 	AuxInfo                                 map[uint32]AuxInfo
 }
 
+// NewBlockHashTree is a Merkle tree that includes the genesis block in the 0th leaf from the beginning.
+func NewBlockHashTree(height uint8) (*intMaxTree.BlockHashTree, error) {
+	genesisBlock := new(block_post_service.PostedBlock).Genesis()
+	genesisBlockHash := intMaxTree.NewBlockHashLeaf(genesisBlock.Hash())
+	initialLeaves := []*intMaxTree.BlockHashLeaf{genesisBlockHash}
+
+	return intMaxTree.NewBlockHashTreeWithInitialLeaves(height, initialLeaves)
+}
+
 func NewMockBlockBuilder(cfg *configs.Config) *MockBlockBuilder {
 	accountTree, err := intMaxTree.NewAccountTree(intMaxTree.ACCOUNT_TREE_HEIGHT)
 	if err != nil {
@@ -829,7 +971,14 @@ func NewMockBlockBuilder(cfg *configs.Config) *MockBlockBuilder {
 
 	blockHashes := make([][32]byte, 1)
 	blockHashes[0] = new(block_post_service.PostedBlock).Genesis().Hash()
-	blockTree, err := intMaxTree.NewBlockHashTree(intMaxTree.BLOCK_HASH_TREE_HEIGHT, blockHashes)
+	blockTree, err := intMaxTree.NewBlockHashTreeWithInitialLeaves(intMaxTree.BLOCK_HASH_TREE_HEIGHT, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	genesisBlock := new(block_post_service.PostedBlock).Genesis()
+	genesisBlockHash := intMaxTree.NewBlockHashLeaf(genesisBlock.Hash())
+	_, err = blockTree.AddLeaf(0, genesisBlockHash)
 	if err != nil {
 		panic(err)
 	}
@@ -1006,10 +1155,22 @@ func (b *MockBlockBuilder) generateValidityWitness(blockWitness *BlockWitness) (
 		return nil, errors.New("block tree root is not equal to the last block tree root")
 	}
 
+	defaultLeaf := new(intMaxTree.BlockHashLeaf).SetDefault()
+	prevBlockTreeRoot := prevPis.PublicState.BlockTreeRoot
 	blockMerkleProof, _, err := b.BlockTree.Prove(blockWitness.Block.BlockNumber)
 	if err != nil {
 		var ErrBlockTreeProve = errors.New("block tree prove error")
 		return nil, errors.Join(ErrBlockTreeProve, err)
+	}
+
+	// debug
+	err = blockMerkleProof.Verify(
+		defaultLeaf.Hash(),
+		int(blockWitness.Block.BlockNumber),
+		&prevBlockTreeRoot,
+	)
+	if err != nil {
+		panic("old block merkle proof is invalid")
 	}
 
 	blockHashLeaf := intMaxTree.NewBlockHashLeaf(blockWitness.Block.Hash())
@@ -1018,10 +1179,20 @@ func (b *MockBlockBuilder) generateValidityWitness(blockWitness *BlockWitness) (
 		return nil, errors.New("block number is not equal to the current block number")
 	}
 
-	_, err = b.BlockTree.AddLeaf(count, blockHashLeaf)
+	newBlockTreeRoot, err := b.BlockTree.AddLeaf(count, blockHashLeaf)
 	if err != nil {
 		var ErrBlockTreeAddLeaf = errors.New("block tree add leaf error")
 		return nil, errors.Join(ErrBlockTreeAddLeaf, err)
+	}
+
+	// debug
+	err = blockMerkleProof.Verify(
+		blockHashLeaf.Hash(),
+		int(blockWitness.Block.BlockNumber),
+		newBlockTreeRoot,
+	)
+	if err != nil {
+		panic("new block merkle proof is invalid")
 	}
 
 	senderLeaves := getSenderLeaves(blockWitness.PublicKeys, blockWitness.Signature.SenderFlag)
