@@ -123,11 +123,6 @@ func (mt *PoseidonIncrementalMerkleTree) ComputeMerkleProof(index uint64, leaves
 			// If it is odd
 			siblings = append(siblings, getLeaf(proofIndex-int1Key))
 		} else if len(leaves) > int1Key {
-			// if proofIndex >= uint64(len(leaves)) {
-			// 	siblings = append(siblings, getLeaf(proofIndex-int1Key))
-			// } else {
-			//  siblings = append(siblings, getLeaf(proofIndex+int1Key))
-			// }
 			siblings = append(siblings, getLeaf(proofIndex+int1Key))
 		}
 

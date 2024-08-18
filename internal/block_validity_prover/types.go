@@ -932,12 +932,11 @@ func (vw *ValidityWitness) ValidityPublicInputs() *ValidityPublicInputs {
 }
 
 // AuxInfo is a structure for recording past tree states.
-// TODO: Copy the tree states
 type AuxInfo struct {
-	TxTree          *intMaxTree.TxTree
 	ValidityWitness *ValidityWitness
-	AccountTree     *intMaxTree.AccountTree
-	BlockTree       *intMaxTree.BlockHashTree
+	// TxTree          *intMaxTree.TxTree
+	// AccountTree *intMaxTree.AccountTree
+	// BlockTree   *intMaxTree.BlockHashTree
 }
 
 type MockBlockBuilder struct {
@@ -991,19 +990,10 @@ func NewMockBlockBuilder(cfg *configs.Config) *MockBlockBuilder {
 	depositTreeRoot, _, _ := depositTree.GetCurrentRootCountAndSiblings()
 
 	validityWitness := new(ValidityWitness).Genesis()
-	zeroHash := new(intMaxGP.PoseidonHashOut).SetZero()
-	txTree, err := intMaxTree.NewTxTree(intMaxTree.TX_TREE_HEIGHT, nil, zeroHash)
-	if err != nil {
-		panic(err)
-	}
-
 	auxInfo := make(map[uint32]AuxInfo)
 	auxInfo[0] =
 		AuxInfo{
-			TxTree:          txTree,
 			ValidityWitness: validityWitness, // clone()
-			AccountTree:     accountTree,     // clone()
-			BlockTree:       blockTree,       // clone()
 		}
 	return &MockBlockBuilder{
 		LastBlockNumber:                         0,
@@ -1024,11 +1014,10 @@ type DepositLeafWithId struct {
 	DepositId   uint64
 }
 
-// TODO: Implement *intMaxTree.TxTree
 func (b *MockBlockBuilder) generateBlock(
 	blockContent *intMaxTypes.BlockContent,
 	postedBlock *block_post_service.PostedBlock,
-) (*BlockWitness, *intMaxTree.TxTree) {
+) (*BlockWitness, error) {
 	isRegistrationBlock := blockContent.SenderType == intMaxTypes.PublicKeySenderType
 
 	publicKeys := make([]intMaxTypes.Uint256, len(blockContent.Senders))
@@ -1066,7 +1055,7 @@ func (b *MockBlockBuilder) generateBlock(
 		for i, sender := range blockContent.Senders {
 			accountMembershipProof, _, err := b.AccountTree.ProveMembership(sender.PublicKey.BigInt())
 			if err != nil {
-				panic(err)
+				return nil, errors.New("account membership proof error")
 			}
 
 			accountMembershipProofs[i] = *accountMembershipProof
@@ -1092,17 +1081,17 @@ func (b *MockBlockBuilder) generateBlock(
 		accountIDByte := make([]byte, int8Key)
 		binary.BigEndian.PutUint64(accountIDByte, sender.AccountID)
 		copy(accountIDPackedBytes[i/int8Key:i/int8Key+int5Key], accountIDByte[int8Key-int5Key:])
-		accountMerkleProof, _, err := b.AccountTree.ProveMembership(sender.PublicKey.BigInt())
+		accountMembershipProof, _, err := b.AccountTree.ProveMembership(sender.PublicKey.BigInt())
 		if err != nil {
-			panic(err)
+			return nil, errors.New("account membership proof error")
 		}
-		if !accountMerkleProof.IsIncluded {
-			panic("account is not included")
+		if !accountMembershipProof.IsIncluded {
+			return nil, errors.New("account is not included")
 		}
 
 		accountMerkleProofs[i] = AccountMerkleProof{
-			MerkleProof: accountMerkleProof.LeafProof,
-			Leaf:        accountMerkleProof.Leaf,
+			MerkleProof: accountMembershipProof.LeafProof,
+			Leaf:        accountMembershipProof.Leaf,
 		}
 	}
 
@@ -1280,19 +1269,18 @@ func (b *MockBlockBuilder) postBlock(
 	blockContent *intMaxTypes.BlockContent,
 	postedBlock *block_post_service.PostedBlock,
 ) *ValidityWitness {
-	blockWitness, txTree := b.generateBlock(blockContent, postedBlock)
+	blockWitness, err := b.generateBlock(blockContent, postedBlock)
+	if err != nil {
+		panic(err)
+	}
 	validityWitness, err := b.generateValidityWitness(blockWitness)
 	if err != nil {
 		panic(err)
 	}
 
-	b.AuxInfo[blockWitness.Block.BlockNumber] =
-		AuxInfo{
-			TxTree:          txTree,
-			ValidityWitness: validityWitness,
-			AccountTree:     b.AccountTree,
-			BlockTree:       b.BlockTree,
-		}
+	b.AuxInfo[blockWitness.Block.BlockNumber] = AuxInfo{
+		ValidityWitness: validityWitness,
+	}
 	b.LastBlockNumber = blockWitness.Block.BlockNumber
 	b.LastValidityWitness = validityWitness
 
