@@ -81,11 +81,12 @@ func (p *pgx) GetBackupTransactions(condition string, value interface{}) ([]*mDB
 
 func (p *pgx) backupTransactionToDBApp(b *models.BackupTransaction) mDBApp.BackupTransaction {
 	return mDBApp.BackupTransaction{
-		ID:          b.ID,
-		Sender:      b.Sender,
-		EncryptedTx: b.EncryptedTx,
-		BlockNumber: b.BlockNumber,
-		Signature:   b.Signature,
-		CreatedAt:   b.CreatedAt,
+		ID:           b.ID,
+		Sender:       b.Sender,
+		TxDoubleHash: b.TxDoubleHash.String,
+		EncryptedTx:  b.EncryptedTx,
+		BlockNumber:  b.BlockNumber,
+		Signature:    b.Signature,
+		CreatedAt:    b.CreatedAt,
 	}
 }

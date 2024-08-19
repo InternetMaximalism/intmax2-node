@@ -87,10 +87,11 @@ func (p *pgx) GetBackupDeposits(condition string, value interface{}) ([]*mDBApp.
 
 func (p *pgx) backupDepositToDBApp(b *models.BackupDeposit) mDBApp.BackupDeposit {
 	return mDBApp.BackupDeposit{
-		ID:               b.ID,
-		Recipient:        b.Recipient,
-		EncryptedDeposit: b.EncryptedDeposit,
-		BlockNumber:      b.BlockNumber,
-		CreatedAt:        b.CreatedAt,
+		ID:                b.ID,
+		Recipient:         b.Recipient,
+		DepositDoubleHash: b.DepositDoubleHash.String,
+		EncryptedDeposit:  b.EncryptedDeposit,
+		BlockNumber:       b.BlockNumber,
+		CreatedAt:         b.CreatedAt,
 	}
 }

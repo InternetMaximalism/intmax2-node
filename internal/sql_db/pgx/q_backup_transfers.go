@@ -80,10 +80,11 @@ func (p *pgx) GetBackupTransfers(condition string, value interface{}) ([]*mDBApp
 
 func (p *pgx) backupTransferToDBApp(b *models.BackupTransfer) mDBApp.BackupTransfer {
 	return mDBApp.BackupTransfer{
-		ID:                b.ID,
-		Recipient:         b.Recipient,
-		EncryptedTransfer: b.EncryptedTransfer,
-		BlockNumber:       b.BlockNumber,
-		CreatedAt:         b.CreatedAt,
+		ID:                 b.ID,
+		Recipient:          b.Recipient,
+		TransferDoubleHash: b.TransferDoubleHash.String,
+		EncryptedTransfer:  b.EncryptedTransfer,
+		BlockNumber:        b.BlockNumber,
+		CreatedAt:          b.CreatedAt,
 	}
 }
