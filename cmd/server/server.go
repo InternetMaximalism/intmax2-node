@@ -229,7 +229,7 @@ func NewServerCmd(s *Server) *cobra.Command {
 					wg.Done()
 					s.WG.Done()
 				}()
-				tickerEventWatcher := time.NewTicker(s.Config.BlockValidityProver.TimeoutForEventWatcher)
+				tickerEventWatcher := time.NewTicker(s.Config.BlockPostService.TimeoutForPostingBlock)
 				defer func() {
 					if tickerEventWatcher != nil {
 						tickerEventWatcher.Stop()
