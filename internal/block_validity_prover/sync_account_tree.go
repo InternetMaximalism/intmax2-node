@@ -128,11 +128,48 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer) (err error) {
 			}
 
 			// Update block hash tree
-			p.blockBuilder.postBlock(blockContent, postedBlock)
+			validityWitness := p.blockBuilder.postBlock(blockContent, postedBlock)
+
+			// TODO: Separate another worker
+			err := p.requestAndFetchBlockValidityProof(validityWitness)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	p.blockBuilder.LastSeenBlockPostedEventBlockNumber = nextBN.Uint64()
 
 	return nil
+}
+
+func (p *blockValidityProver) requestAndFetchBlockValidityProof(validityWitness *ValidityWitness) (err error) {
+	blockHash := validityWitness.BlockWitness.Block.Hash()
+	err = p.requestBlockValidityProof(blockHash, validityWitness, p.blockBuilder.LastValidityProof)
+	if err != nil {
+		var ErrRequestBlockValidityProofFail = errors.New("request block validity proof fail")
+		return errors.Join(ErrRequestBlockValidityProofFail, err)
+	}
+
+	tickerBlockValidityProof := time.NewTicker(p.cfg.BlockValidityProver.TimeoutForFetchingBlockValidityProof)
+	defer func() {
+		if tickerBlockValidityProof != nil {
+			tickerBlockValidityProof.Stop()
+		}
+	}()
+	for {
+		select {
+		case <-p.ctx.Done():
+			return p.ctx.Err()
+		case <-tickerBlockValidityProof.C:
+			var validityProof string
+			validityProof, err = p.fetchBlockValidityProof(blockHash)
+			if err != nil {
+				continue
+			}
+
+			p.blockBuilder.LastValidityProof = &validityProof
+			return nil
+		}
+	}
 }

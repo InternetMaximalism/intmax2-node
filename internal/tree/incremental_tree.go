@@ -1,6 +1,7 @@
 package tree
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"intmax2-node/internal/hash/goldenposeidon"
@@ -247,7 +248,15 @@ func (mt *PoseidonIncrementalMerkleTree) CurrentRoot() PoseidonHashOut {
 }
 
 type MerkleProof struct {
-	Siblings []*goldenposeidon.PoseidonHashOut `json:"siblings"`
+	Siblings []*goldenposeidon.PoseidonHashOut
+}
+
+func (proof *MerkleProof) MarshalJSON() ([]byte, error) {
+	return json.Marshal(proof.Siblings)
+}
+
+func (proof *MerkleProof) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &proof.Siblings)
 }
 
 func (proof *MerkleProof) GetRoot(leaf *goldenposeidon.PoseidonHashOut, index int) *goldenposeidon.PoseidonHashOut {
