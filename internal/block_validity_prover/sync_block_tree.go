@@ -131,7 +131,7 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer) (err error) {
 			validityWitness := p.blockBuilder.postBlock(blockContent, postedBlock)
 
 			// TODO: Separate another worker
-			err := p.requestAndFetchBlockValidityProof(validityWitness)
+			err = p.requestAndFetchBlockValidityProof(validityWitness)
 			if err != nil {
 				return err
 			}
