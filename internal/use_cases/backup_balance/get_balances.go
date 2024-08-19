@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-//go:generate mockgen -destination=../mocks/mock_get_backup_balance.go -package=mocks -source=get_backup_balance.go
+//go:generate mockgen -destination=../mocks/mock_get_balances.go -package=mocks -source=get_balances.go
 
 type BackupDeposit struct {
 	Recipient        string    `json:"recipient"`

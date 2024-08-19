@@ -62,7 +62,141 @@
         ]
       }
     },
+    "/v1/backups/balance": {
+      "get": {
+        "operationId": "StoreVaultService_GetBackupBalances",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetBackupBalancesResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sender",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "startBlockNumber",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      },
+      "post": {
+        "operationId": "StoreVaultService_BackupBalance",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BackupBalanceResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BackupBalanceRequest"
+            }
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      }
+    },
     "/v1/backups/deposit": {
+      "get": {
+        "operationId": "StoreVaultService_GetBackupDeposits",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetBackupDepositsResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sender",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "startBlockNumber",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      },
       "post": {
         "summary": "BackupDeposit processes a request for data backup deposit",
         "description": "## This method handles the deposit of backup data.",
@@ -104,6 +238,54 @@
       }
     },
     "/v1/backups/transaction": {
+      "get": {
+        "operationId": "StoreVaultService_GetBackupTransactions",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetBackupTransactionsResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sender",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "startBlockNumber",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      },
       "post": {
         "summary": "BackupTransaction processes a request for data backup transaction",
         "description": "## This method handles the transaction of backup data.",
@@ -145,6 +327,54 @@
       }
     },
     "/v1/backups/transfer": {
+      "get": {
+        "operationId": "StoreVaultService_GetBackupTransfers",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetBackupTransfersResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sender",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "startBlockNumber",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      },
       "post": {
         "summary": "BackupTransfer processes a request for data backup transfer",
         "description": "## This method handles the transfer of backup data.",
@@ -568,6 +798,108 @@
     }
   },
   "definitions": {
+    "GetBackupBalancesResponseBalance": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "userAddress": {
+          "type": "string"
+        },
+        "encryptedBalanceProof": {
+          "type": "string"
+        },
+        "encryptedBalanceData": {
+          "type": "string"
+        },
+        "encryptedTxs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "encryptedTransfers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "encryptedDeposits": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "signature": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      }
+    },
+    "GetBackupDepositsResponseDeposit": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "recipient": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "encryptedDeposit": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      }
+    },
+    "GetBackupTransfersResponseTransfer": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "recipient": {
+          "type": "string"
+        },
+        "encryptedTransfer": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      }
+    },
+    "nodev1Transaction": {
+      "type": "object",
+      "properties": {
+        "transferTreeRoot": {
+          "type": "string",
+          "title": "the root of the transfer tree"
+        },
+        "nonce": {
+          "type": "integer",
+          "format": "int32",
+          "title": "the nonce of the transaction"
+        }
+      },
+      "title": "Transaction contains details about the transaction"
+    },
     "protobufAny": {
       "type": "object",
       "properties": {
@@ -617,6 +949,68 @@
       "default": "EMPTY",
       "description": "- EMPTY: the EMPTY address type\n - INTMAX: the INTMAX address type\n - ETHEREUM: the ETHEREUM address type",
       "title": "AddressType describes type of address"
+    },
+    "v1BackupBalanceRequest": {
+      "type": "object",
+      "properties": {
+        "user": {
+          "type": "string"
+        },
+        "encryptedBalanceProof": {
+          "type": "string"
+        },
+        "encryptedBalanceData": {
+          "type": "string"
+        },
+        "encryptedTxs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "encryptedTransfers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "encryptedDeposits": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "signature": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "v1BackupBalanceResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "Indicates if the backup transfer was successful"
+        },
+        "data": {
+          "$ref": "#/definitions/v1BackupBalanceResponseData",
+          "title": "Additional data related to the response"
+        }
+      }
+    },
+    "v1BackupBalanceResponseData": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "title": "A message indicating the result of the backup transfer"
+        }
+      },
+      "title": "Data is the nested message containing detailed response information"
     },
     "v1BackupDeposit": {
       "type": "object",
@@ -1003,6 +1397,198 @@
       },
       "title": "EnoughBalanceProof contains the proof for enough balance"
     },
+    "v1GetBackupBalancesResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "data": {
+          "$ref": "#/definitions/v1GetBackupBalancesResponseData"
+        },
+        "error": {
+          "$ref": "#/definitions/v1StoreVaultError"
+        }
+      }
+    },
+    "v1GetBackupBalancesResponseData": {
+      "type": "object",
+      "properties": {
+        "balances": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/GetBackupBalancesResponseBalance"
+          }
+        },
+        "meta": {
+          "$ref": "#/definitions/v1GetBackupBalancesResponseMeta"
+        }
+      }
+    },
+    "v1GetBackupBalancesResponseMeta": {
+      "type": "object",
+      "properties": {
+        "startBlockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "endBlockNumber": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "v1GetBackupDepositsResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "data": {
+          "$ref": "#/definitions/v1GetBackupDepositsResponseData"
+        },
+        "error": {
+          "$ref": "#/definitions/v1StoreVaultError"
+        }
+      }
+    },
+    "v1GetBackupDepositsResponseData": {
+      "type": "object",
+      "properties": {
+        "deposits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/GetBackupDepositsResponseDeposit"
+          }
+        },
+        "meta": {
+          "$ref": "#/definitions/v1GetBackupDepositsResponseMeta"
+        }
+      }
+    },
+    "v1GetBackupDepositsResponseMeta": {
+      "type": "object",
+      "properties": {
+        "startBlockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "endBlockNumber": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "v1GetBackupTransactionsResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "data": {
+          "$ref": "#/definitions/v1GetBackupTransactionsResponseData"
+        },
+        "error": {
+          "$ref": "#/definitions/v1StoreVaultError"
+        }
+      }
+    },
+    "v1GetBackupTransactionsResponseData": {
+      "type": "object",
+      "properties": {
+        "transactions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1GetBackupTransactionsResponseTransaction"
+          }
+        },
+        "meta": {
+          "$ref": "#/definitions/v1GetBackupTransactionsResponseMeta"
+        }
+      }
+    },
+    "v1GetBackupTransactionsResponseMeta": {
+      "type": "object",
+      "properties": {
+        "startBlockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "endBlockNumber": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "v1GetBackupTransactionsResponseTransaction": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "sender": {
+          "type": "string"
+        },
+        "signature": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "encryptedTx": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      }
+    },
+    "v1GetBackupTransfersResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "data": {
+          "$ref": "#/definitions/v1GetBackupTransfersResponseData"
+        },
+        "error": {
+          "$ref": "#/definitions/v1StoreVaultError"
+        }
+      }
+    },
+    "v1GetBackupTransfersResponseData": {
+      "type": "object",
+      "properties": {
+        "transfers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/GetBackupTransfersResponseTransfer"
+          }
+        },
+        "meta": {
+          "$ref": "#/definitions/v1GetBackupTransfersResponseMeta"
+        }
+      }
+    },
+    "v1GetBackupTransfersResponseMeta": {
+      "type": "object",
+      "properties": {
+        "startBlockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "endBlockNumber": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
     "v1GetBalancesResponse": {
       "type": "object",
       "properties": {
@@ -1121,20 +1707,16 @@
       },
       "title": "RecipientTransferDataTransactionRequest describes recipient of request to get info about the create new transaction"
     },
-    "v1Transaction": {
+    "v1StoreVaultError": {
       "type": "object",
       "properties": {
-        "transferTreeRoot": {
-          "type": "string",
-          "title": "the root of the transfer tree"
+        "code": {
+          "type": "string"
         },
-        "nonce": {
-          "type": "integer",
-          "format": "int32",
-          "title": "the nonce of the transaction"
+        "message": {
+          "type": "string"
         }
-      },
-      "title": "Transaction contains details about the transaction"
+      }
     },
     "v1TransactionRequest": {
       "type": "object",
@@ -1293,7 +1875,7 @@
           "title": "the transfer data"
         },
         "transaction": {
-          "$ref": "#/definitions/v1Transaction",
+          "$ref": "#/definitions/nodev1Transaction",
           "title": "the transaction data"
         },
         "transferHash": {
@@ -1328,7 +1910,7 @@
           "title": "the transfer Merkle proof"
         },
         "transaction": {
-          "$ref": "#/definitions/v1Transaction",
+          "$ref": "#/definitions/nodev1Transaction",
           "title": "the transaction data"
         },
         "txMerkleProof": {
