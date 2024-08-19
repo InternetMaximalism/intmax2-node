@@ -77,12 +77,18 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer) (err error) {
 		return nil
 	}
 
+	tickerEventWatcher := time.NewTicker(p.cfg.BlockValidityProver.TimeoutForEventWatcher)
+	defer func() {
+		if tickerEventWatcher != nil {
+			tickerEventWatcher.Stop()
+		}
+	}()
 	for key := range events {
 		select {
 		case <-p.ctx.Done():
 			p.log.Warnf("Received cancel signal from context, stopping...")
 			return p.ctx.Err()
-		default:
+		case <-tickerEventWatcher.C:
 			var blN uint256.Int
 			_ = blN.SetFromBig(new(big.Int).SetUint64(events[key].Raw.BlockNumber))
 
