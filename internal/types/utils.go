@@ -230,47 +230,53 @@ func (v *Uint256) FromBytes(bytes []byte) *Uint256 {
 	return v
 }
 
-type FlatG1 = [2]Uint256
+type FlatG1 = [2]Bytes32
 
 func FlattenG1Affine(pk *bn254.G1Affine) FlatG1 {
-	x := Uint256{}
-	y := Uint256{}
-	x.FromBigInt(pk.X.BigInt(new(big.Int)))
-	y.FromBigInt(pk.Y.BigInt(new(big.Int)))
+	x := Bytes32{}
+	y := Bytes32{}
+	pkX := pk.X.Bytes()
+	pkY := pk.Y.Bytes()
+	x.FromBytes(pkX[:])
+	y.FromBytes(pkY[:])
 
-	return [2]Uint256{x, y}
+	return [2]Bytes32{x, y}
 }
 
 func NewG1AffineFromFlatG1(v *FlatG1) *bn254.G1Affine {
 	p := new(bn254.G1Affine)
-	p.X.SetBigInt(v[0].BigInt())
-	p.Y.SetBigInt(v[1].BigInt())
+	p.X.SetBytes(v[0].Bytes())
+	p.Y.SetBytes(v[1].Bytes())
 
 	return p
 }
 
-type FlatG2 = [int4Key]Uint256
+type FlatG2 = [int4Key]Bytes32
 
 func FlattenG2Affine(sig *bn254.G2Affine) FlatG2 {
-	x_a0 := Uint256{}
-	x_a1 := Uint256{}
-	y_a0 := Uint256{}
-	y_a1 := Uint256{}
-	x_a0.FromBigInt(sig.X.A0.BigInt(new(big.Int)))
-	x_a1.FromBigInt(sig.X.A1.BigInt(new(big.Int)))
-	y_a0.FromBigInt(sig.Y.A0.BigInt(new(big.Int)))
-	y_a1.FromBigInt(sig.Y.A1.BigInt(new(big.Int)))
+	xA0 := Bytes32{}
+	xA1 := Bytes32{}
+	yA0 := Bytes32{}
+	yA1 := Bytes32{}
+	pkXA0 := sig.X.A0.Bytes()
+	pkXA1 := sig.X.A1.Bytes()
+	pkYA0 := sig.Y.A0.Bytes()
+	pkYA1 := sig.Y.A1.Bytes()
+	xA0.FromBytes(pkXA0[:])
+	xA1.FromBytes(pkXA1[:])
+	yA0.FromBytes(pkYA0[:])
+	yA1.FromBytes(pkYA1[:])
 
-	return [int4Key]Uint256{x_a1, x_a0, y_a1, y_a0}
+	return [int4Key]Bytes32{xA1, xA0, yA1, yA0}
 }
 
 func NewG2AffineFromFlatG2(v *FlatG2) *bn254.G2Affine {
 	// x_a1, x_a0, y_a1, y_a0
 	p := new(bn254.G2Affine)
-	p.X.A1.SetBigInt(v[0].BigInt())
-	p.X.A0.SetBigInt(v[1].BigInt())
-	p.Y.A1.SetBigInt(v[2].BigInt())
-	p.Y.A0.SetBigInt(v[3].BigInt())
+	p.X.A1.SetBytes(v[0].Bytes())
+	p.X.A0.SetBytes(v[1].Bytes())
+	p.Y.A1.SetBytes(v[2].Bytes())
+	p.Y.A0.SetBytes(v[3].Bytes())
 
 	return p
 }

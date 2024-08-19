@@ -35,6 +35,10 @@ func (t *AccountTree) GetLeaf(accountID uint64) *IndexedMerkleLeaf {
 	return t.inner.GetLeaf(LeafIndex(accountID))
 }
 
+func (t *AccountTree) Count() int {
+	return len(t.inner.Leaves)
+}
+
 func (t *AccountTree) GetAccountID(publicKey *big.Int) (accountID uint64, ok bool) {
 	index, ok := t.inner.GetIndex(publicKey)
 

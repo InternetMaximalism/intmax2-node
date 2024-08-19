@@ -161,7 +161,7 @@ async fn generate_proof(
 
         match response {
             Ok(v) => {
-                log::error!("Proof generation completed");
+                log::info!("Proof generation completed");
                 Ok(v)
             }
             Err(e) => {

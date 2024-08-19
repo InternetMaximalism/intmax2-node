@@ -1,6 +1,7 @@
 package tree
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"intmax2-node/internal/finite_field"
@@ -14,10 +15,50 @@ import (
 type LeafIndex = int
 
 type IndexedMerkleLeaf struct {
-	Key       *big.Int  `json:"key"`
+	Key       *big.Int
+	Value     uint64
+	NextIndex LeafIndex
+	NextKey   *big.Int
+}
+
+type SerializableIndexedMerkleLeaf struct {
+	Key       string    `json:"key"`
 	Value     uint64    `json:"value"`
 	NextIndex LeafIndex `json:"nextIndex"`
-	NextKey   *big.Int  `json:"nextKey"`
+	NextKey   string    `json:"nextKey"`
+}
+
+func (leaf *IndexedMerkleLeaf) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&SerializableIndexedMerkleLeaf{
+		Key:       leaf.Key.String(),
+		Value:     leaf.Value,
+		NextIndex: leaf.NextIndex,
+		NextKey:   leaf.NextKey.String(),
+	})
+}
+
+func (leaf *IndexedMerkleLeaf) UnmarshalJSON(data []byte) error {
+	aux := SerializableIndexedMerkleLeaf{}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	leaf.Value = aux.Value
+	leaf.NextIndex = aux.NextIndex
+
+	key, ok := new(big.Int).SetString(aux.Key, 10)
+	if !ok {
+		return errors.New("invalid key")
+	}
+	leaf.Key = key
+
+	nextKey, ok := new(big.Int).SetString(aux.NextKey, 10)
+	if !ok {
+		return errors.New("invalid next key")
+	}
+	leaf.NextKey = nextKey
+
+	return nil
 }
 
 func (leaf *IndexedMerkleLeaf) Set(other *IndexedMerkleLeaf) *IndexedMerkleLeaf {
@@ -74,7 +115,15 @@ func (leaf *IndexedMerkleLeaf) Hash() *goldenposeidon.PoseidonHashOut {
 }
 
 type IndexedMerkleProof struct {
-	Siblings []*goldenposeidon.PoseidonHashOut `json:"siblings"`
+	Siblings []*goldenposeidon.PoseidonHashOut
+}
+
+func (proof *IndexedMerkleProof) MarshalJSON() ([]byte, error) {
+	return json.Marshal(proof.Siblings)
+}
+
+func (proof *IndexedMerkleProof) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &proof.Siblings)
 }
 
 func NewDummyIndexedMerkleProof(height uint8) *IndexedMerkleProof {
@@ -84,6 +133,17 @@ func NewDummyIndexedMerkleProof(height uint8) *IndexedMerkleProof {
 	}
 
 	return &IndexedMerkleProof{Siblings: siblings}
+}
+
+func (proof *IndexedMerkleProof) IsDummy(height uint8) bool {
+	dummyProof := NewDummyIndexedMerkleProof(height)
+	for i := range proof.Siblings {
+		if !proof.Siblings[i].Equal(dummyProof.Siblings[i]) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // TODO: leaf is *BlockHashLeaf?
