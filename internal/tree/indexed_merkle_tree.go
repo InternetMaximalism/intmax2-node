@@ -12,6 +12,8 @@ import (
 	"github.com/iden3/go-iden3-crypto/ffg"
 )
 
+const base10 = 10
+
 type LeafIndex = int
 
 type IndexedMerkleLeaf struct {
@@ -46,13 +48,13 @@ func (leaf *IndexedMerkleLeaf) UnmarshalJSON(data []byte) error {
 	leaf.Value = aux.Value
 	leaf.NextIndex = aux.NextIndex
 
-	key, ok := new(big.Int).SetString(aux.Key, 10)
+	key, ok := new(big.Int).SetString(aux.Key, base10)
 	if !ok {
 		return errors.New("invalid key")
 	}
 	leaf.Key = key
 
-	nextKey, ok := new(big.Int).SetString(aux.NextKey, 10)
+	nextKey, ok := new(big.Int).SetString(aux.NextKey, base10)
 	if !ok {
 		return errors.New("invalid next key")
 	}

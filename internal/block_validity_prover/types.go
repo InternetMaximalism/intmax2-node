@@ -20,6 +20,8 @@ import (
 	"github.com/iden3/go-iden3-crypto/ffg"
 )
 
+const base10 = 10
+
 type PublicState struct {
 	BlockTreeRoot       intMaxGP.PoseidonHashOut `json:"blockTreeRoot"`
 	PrevAccountTreeRoot intMaxGP.PoseidonHashOut `json:"prevAccountTreeRoot"`
@@ -180,7 +182,7 @@ func (leaf *SenderLeaf) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	sender, ok := new(big.Int).SetString(v.Sender, 10)
+	sender, ok := new(big.Int).SetString(v.Sender, base10)
 	if !ok {
 		return errors.New("invalid sender")
 	}

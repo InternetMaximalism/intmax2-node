@@ -62,10 +62,17 @@ func (u *uc) Do(
 
 	// NOTICE: Perform signature verification during validation.
 
-	prevBalancePublicInputs, err := backup_balance.VerifyEnoughBalanceProof(input.EnoughBalanceProof.PrevBalanceProof)
-	transferPublicInputs, err := VerifyTransferStepProof(input.EnoughBalanceProof.TransferStepProof)
-	_ = prevBalancePublicInputs.Equal(&transferPublicInputs.PrevBalancePis)
 	/*
+		prevBalancePublicInputs, err := backup_balance.VerifyEnoughBalanceProof(input.EnoughBalanceProof.PrevBalanceProof)
+		if err != nil {
+			return err
+		}
+		transferPublicInputs, err := VerifyTransferStepProof(input.EnoughBalanceProof.TransferStepProof)
+		if err != nil {
+			return err
+		}
+		_ = prevBalancePublicInputs.Equal(&transferPublicInputs.PrevBalancePis)
+
 		// TODO: Check public inputs.
 		if !ok {
 			open_telemetry.MarkSpanError(spanCtx, ErrInvalidEnoughBalanceProof)

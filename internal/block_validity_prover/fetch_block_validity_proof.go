@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/go-resty/resty/v2"
 )
 
 type FetchBlockValidityProof struct {
@@ -21,32 +22,41 @@ type FetchBlockValidityProofInput struct {
 // Execute the following request:
 // curl $BLOCK_VALIDITY_PROVER_URL/proof/{:blockHash} | jq
 func (p *blockValidityProver) fetchBlockValidityProof(blockHash common.Hash) (string, error) {
+	const (
+		httpKey     = "http"
+		httpsKey    = "https"
+		contentType = "Content-Type"
+		appJSON     = "application/json"
+	)
+
 	apiUrl := fmt.Sprintf("%s/proof/%s", p.cfg.BlockValidityProver.BlockValidityProverUrl, blockHash.String())
 
-	resp, err := http.Get(apiUrl)
+	r := resty.New().R()
+	resp, err := r.SetContext(p.ctx).SetHeaders(map[string]string{
+		contentType: appJSON,
+	}).Get(apiUrl)
 	if err != nil {
-		return "", fmt.Errorf("failed to request API: %w", err)
-	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
-
-	var res FetchBlockValidityProof
-	if err = json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return "", fmt.Errorf("failed to decode JSON response: %w", err)
+		const msg = "failed to send of the transaction request: %w"
+		return "", fmt.Errorf(msg, err)
 	}
 
-	if !res.Success {
-		if res.ErrorMessage == nil {
-			return "", fmt.Errorf("failed to request API")
-		}
-
-		return "", fmt.Errorf("failed to request API: %s", *res.ErrorMessage)
+	if resp == nil {
+		const msg = "send request error occurred"
+		return "", fmt.Errorf(msg)
 	}
 
-	if res.Proof == nil {
-		return "", fmt.Errorf("proof is not found")
+	if resp.StatusCode() != http.StatusOK {
+		return "", fmt.Errorf("failed to get response")
 	}
 
-	return *res.Proof, nil
+	response := new(FetchBlockValidityProof)
+	if err = json.Unmarshal(resp.Body(), response); err != nil {
+		return "", fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if !response.Success {
+		return "", fmt.Errorf("failed to get verify deposit confirmation response: %v", response)
+	}
+
+	return *response.Proof, nil
 }
