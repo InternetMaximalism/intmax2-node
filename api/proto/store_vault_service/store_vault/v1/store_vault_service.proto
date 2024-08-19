@@ -1,12 +1,12 @@
 syntax = "proto3";
 
-package node.v1;
+package store_vault.v1;
 
 import "google/api/annotations.proto";
 
 // Defines the import path that should be used to import the generated package,
 // and the package name.
-option go_package = ".;node";
+option go_package = ".;store_vault";
 
 // Service definition for StoreVaultService
 service StoreVaultService {

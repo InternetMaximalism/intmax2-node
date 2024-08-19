@@ -9,7 +9,7 @@ import (
 	"intmax2-node/internal/pb/gateway"
 	"intmax2-node/internal/pb/gateway/consts"
 	"intmax2-node/internal/pb/gateway/http_response_modifier"
-	"intmax2-node/internal/pb/gen/service/node"
+	node "intmax2-node/internal/pb/gen/store_vault_service/node"
 	"intmax2-node/internal/pb/listener"
 	server "intmax2-node/pkg/grpc_server/store_vault_server"
 	"intmax2-node/third_party"
@@ -89,6 +89,7 @@ func (s *StoreVaultServer) Init() error {
 		appName,
 		s.Config.GRPC.Addr(), // listen incoming host:port for gRPC server
 		func(s grpc.ServiceRegistrar) {
+			node.RegisterInfoServiceServer(s, srv)
 			node.RegisterStoreVaultServiceServer(s, srv)
 		},
 	)
@@ -111,16 +112,17 @@ func (s *StoreVaultServer) Init() error {
 			HTTPTimeout:        tm,
 			HealthCheckHandler: s.HC,
 			Services: []gateway.RegisterServiceHandlerFunc{
+				node.RegisterInfoServiceHandler,
 				node.RegisterStoreVaultServiceHandler,
 			},
 			CorsHandler: c.Handler,
 			Swagger: &gateway.Swagger{
 				HostURL:            s.Config.Swagger.HostURL,
 				BasePath:           s.Config.Swagger.BasePath,
-				SwaggerPath:        configs.SwaggerPath,
-				FsSwagger:          swagger.FsSwagger,
-				OpenAPIPath:        configs.SwaggerOpenAPIPath,
-				FsOpenAPI:          third_party.OpenAPI,
+				SwaggerPath:        configs.SwaggerStoreVaultPath,
+				FsSwagger:          swagger.FsSwaggerStoreVault,
+				OpenAPIPath:        configs.SwaggerOpenAPIStoreVaultPath,
+				FsOpenAPI:          third_party.OpenAPIStoreVault,
 				RegexpBuildVersion: s.Config.Swagger.RegexpBuildVersion,
 				RegexpHostURL:      s.Config.Swagger.RegexpHostURL,
 				RegexpBasePATH:     s.Config.Swagger.RegexpBasePATH,

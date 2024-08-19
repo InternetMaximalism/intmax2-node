@@ -4,4 +4,4 @@ plugins:
     out: .
     opt:
       - paths=import
-      - outdir=internal/pb/gen/service/node
+      - outdir=internal/pb/gen/store_vault_service/node

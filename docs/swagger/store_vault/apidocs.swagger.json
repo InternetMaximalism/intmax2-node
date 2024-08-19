@@ -1,22 +1,16 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "INTMAX2 Node",
-    "description": "### Definitions\nThe INTMAX2 node service.\n",
+    "title": "INTMAX2 Store Vault",
+    "description": "### Definitions\nThe INTMAX2 Store Vault service.\n",
     "version": "SWAGGER_VERSION"
   },
   "tags": [
-    {
-      "name": "BlockBuilderService"
-    },
     {
       "name": "InfoService"
     },
     {
       "name": "StoreVaultService"
-    },
-    {
-      "name": "WithdrawalService"
     }
   ],
   "host": "SWAGGER_HOST_URL",
@@ -32,36 +26,6 @@
     "application/json"
   ],
   "paths": {
-    "/v1": {
-      "get": {
-        "summary": "HealthCheck returns the health check block builder info",
-        "description": "## HealthCheck returns the health check block builder info",
-        "operationId": "BlockBuilderService_HealthCheck",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1HealthCheckResponse"
-            }
-          },
-          "400": {
-            "description": "Validation error",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "schema": {
-              "$ref": "#/definitions/protobufEmpty"
-            }
-          }
-        },
-        "tags": [
-          "BlockBuilderService"
-        ]
-      }
-    },
     "/v1/backups/balance": {
       "get": {
         "operationId": "StoreVaultService_GetBackupBalances",
@@ -454,129 +418,6 @@
         ]
       }
     },
-    "/v1/block/proposed": {
-      "post": {
-        "summary": "BlockProposed returns the info about requests and retrieves the Merkle proof of a block containing the user's transaction, if available",
-        "description": "## BlockProposed returns the info about requests and retrieves the Merkle proof of a block containing the user's transaction, if available",
-        "operationId": "BlockBuilderService_BlockProposed",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1BlockProposedResponse"
-            }
-          },
-          "400": {
-            "description": "Validation error",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          },
-          "404": {
-            "description": "Not found error",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "schema": {
-              "$ref": "#/definitions/protobufEmpty"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1BlockProposedRequest"
-            }
-          }
-        ],
-        "tags": [
-          "BlockBuilderService"
-        ]
-      }
-    },
-    "/v1/block/signature": {
-      "post": {
-        "summary": "BlockSignature returns the info about sends the signature to approve the proposed block by signing the tx tree root",
-        "description": "## BlockSignature returns the info about sends the signature to approve the proposed block by signing the tx tree root",
-        "operationId": "BlockBuilderService_BlockSignature",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1BlockSignatureResponse"
-            }
-          },
-          "400": {
-            "description": "Validation error",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "schema": {
-              "$ref": "#/definitions/protobufEmpty"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1BlockSignatureRequest"
-            }
-          }
-        ],
-        "tags": [
-          "BlockBuilderService"
-        ]
-      }
-    },
-    "/v1/block/status/{txTreeRoot}": {
-      "get": {
-        "operationId": "BlockBuilderService_BlockStatusByTxTreeRoot",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1BlockStatusByTxTreeRootResponse"
-            }
-          },
-          "400": {
-            "description": "Validation error",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "schema": {
-              "$ref": "#/definitions/protobufEmpty"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "txTreeRoot",
-            "description": "the transaction tree root hash",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "tags": [
-          "BlockBuilderService"
-        ]
-      }
-    },
     "/v1/deposits/{depositId}/verify-confirmation": {
       "get": {
         "summary": "GetVerifyDepositConfirmation verifies the confirmation of a deposit",
@@ -616,76 +457,6 @@
         ]
       }
     },
-    "/v1/info": {
-      "get": {
-        "summary": "Info returns the info about retrieves the block builder's Scroll address, transaction fee, and difficulty",
-        "description": "## Info returns the info about retrieves the block builder's Scroll address, transaction fee, and difficulty",
-        "operationId": "BlockBuilderService_Info",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1InfoResponse"
-            }
-          },
-          "400": {
-            "description": "Validation error",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "schema": {
-              "$ref": "#/definitions/protobufEmpty"
-            }
-          }
-        },
-        "tags": [
-          "BlockBuilderService"
-        ]
-      }
-    },
-    "/v1/transaction": {
-      "post": {
-        "summary": "Transaction returns the info about create new transaction",
-        "description": "## Transaction returns the info about create new transaction",
-        "operationId": "BlockBuilderService_Transaction",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1TransactionResponse"
-            }
-          },
-          "400": {
-            "description": "Validation error",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "schema": {
-              "$ref": "#/definitions/protobufEmpty"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1TransactionRequest"
-            }
-          }
-        ],
-        "tags": [
-          "BlockBuilderService"
-        ]
-      }
-    },
     "/v1/version": {
       "get": {
         "summary": "Version returns the build service info",
@@ -713,86 +484,6 @@
         },
         "tags": [
           "InfoService"
-        ]
-      }
-    },
-    "/v1/withdrawals/find-by-hashes": {
-      "post": {
-        "summary": "WithdrawalsByHashes retrieves withdrawal records by their transfer hashes",
-        "description": "## WithdrawalsByHashes retrieves withdrawal records by their transfer hashes",
-        "operationId": "WithdrawalService_WithdrawalsByHashes",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1WithdrawalsByHashesResponse"
-            }
-          },
-          "400": {
-            "description": "Validation error",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "schema": {
-              "$ref": "#/definitions/protobufEmpty"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1WithdrawalsByHashesRequest"
-            }
-          }
-        ],
-        "tags": [
-          "WithdrawalService"
-        ]
-      }
-    },
-    "/v1/withdrawals/request": {
-      "post": {
-        "summary": "WithdrawalRequest processes a request for withdrawal",
-        "description": "## WithdrawalRequest processes a request for withdrawal",
-        "operationId": "WithdrawalService_WithdrawalRequest",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1WithdrawalRequestResponse"
-            }
-          },
-          "400": {
-            "description": "Validation error",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "schema": {
-              "$ref": "#/definitions/protobufEmpty"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1WithdrawalRequestRequest"
-            }
-          }
-        ],
-        "tags": [
-          "WithdrawalService"
         ]
       }
     }
@@ -864,6 +555,30 @@
         }
       }
     },
+    "GetBackupTransactionsResponseTransaction": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "sender": {
+          "type": "string"
+        },
+        "signature": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "encryptedTx": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      }
+    },
     "GetBackupTransfersResponseTransfer": {
       "type": "object",
       "properties": {
@@ -884,21 +599,6 @@
           "type": "string"
         }
       }
-    },
-    "nodev1Transaction": {
-      "type": "object",
-      "properties": {
-        "transferTreeRoot": {
-          "type": "string",
-          "title": "the root of the transfer tree"
-        },
-        "nonce": {
-          "type": "integer",
-          "format": "int32",
-          "title": "the nonce of the transaction"
-        }
-      },
-      "title": "Transaction contains details about the transaction"
     },
     "protobufAny": {
       "type": "object",
@@ -938,17 +638,6 @@
         }
       },
       "description": "The `Status` type defines a logical error model that is suitable for\ndifferent programming environments, including REST APIs and RPC APIs. It is\nused by [gRPC](https://github.com/grpc). Each `Status` message contains\nthree pieces of data: error code, error message, and error details.\n\nYou can find out more about this error model and how to work with it in the\n[API Design Guide](https://cloud.google.com/apis/design/errors)."
-    },
-    "v1AddressType": {
-      "type": "string",
-      "enum": [
-        "EMPTY",
-        "INTMAX",
-        "ETHEREUM"
-      ],
-      "default": "EMPTY",
-      "description": "- EMPTY: the EMPTY address type\n - INTMAX: the INTMAX address type\n - ETHEREUM: the ETHEREUM address type",
-      "title": "AddressType describes type of address"
     },
     "v1BackupBalanceRequest": {
       "type": "object",
@@ -1090,20 +779,6 @@
         }
       }
     },
-    "v1BackupTransactionData": {
-      "type": "object",
-      "properties": {
-        "encryptedTx": {
-          "type": "string",
-          "title": "The encrypted transaction data"
-        },
-        "signature": {
-          "type": "string",
-          "title": "The signature for the transaction"
-        }
-      },
-      "title": "BackupTransaction describes the backup data of transaction"
-    },
     "v1BackupTransactionRequest": {
       "type": "object",
       "properties": {
@@ -1169,20 +844,6 @@
         }
       }
     },
-    "v1BackupTransferData": {
-      "type": "object",
-      "properties": {
-        "encryptedTransfer": {
-          "type": "string",
-          "title": "The encrypted data for the transfer"
-        },
-        "recipient": {
-          "type": "string",
-          "title": "The recipient address"
-        }
-      },
-      "title": "BackupTransaction describes the backup data of transaction"
-    },
     "v1BackupTransferRequest": {
       "type": "object",
       "properties": {
@@ -1225,177 +886,6 @@
         }
       },
       "title": "Data is the nested message containing detailed response information"
-    },
-    "v1BlockProposedRequest": {
-      "type": "object",
-      "properties": {
-        "sender": {
-          "type": "string",
-          "title": "the sender's INTMAX address"
-        },
-        "txHash": {
-          "type": "string",
-          "title": "the hash of the user's transaction"
-        },
-        "expiration": {
-          "type": "string",
-          "format": "date-time",
-          "title": "the expiration of request"
-        },
-        "signature": {
-          "type": "string",
-          "title": "the signature of request (the hash calculated from txHash, sender, and expiration)"
-        }
-      },
-      "title": "BlockProposedRequest describes request about retrieves the Merkle proof of a block containing the user's transaction, if available"
-    },
-    "v1BlockProposedResponse": {
-      "type": "object",
-      "properties": {
-        "success": {
-          "type": "boolean",
-          "title": "the success flag"
-        },
-        "data": {
-          "$ref": "#/definitions/v1DataBlockProposedResponse",
-          "title": "the info about the request's result"
-        }
-      },
-      "title": "BlockProposedResponse describes response about retrieves the Merkle proof of a block containing the user's transaction, if available"
-    },
-    "v1BlockSignatureRequest": {
-      "type": "object",
-      "properties": {
-        "sender": {
-          "type": "string",
-          "title": "the sender's INTMAX address"
-        },
-        "txHash": {
-          "type": "string",
-          "title": "the transaction tree root hash"
-        },
-        "signature": {
-          "type": "string",
-          "title": "the user's signature"
-        },
-        "enoughBalanceProof": {
-          "$ref": "#/definitions/v1EnoughBalanceOfProofBlockSignatureRequest",
-          "title": "the proof of sufficient balance after sending"
-        },
-        "backupTx": {
-          "$ref": "#/definitions/v1BackupTransactionData",
-          "title": "The encrypted transaction data"
-        },
-        "backupTransfers": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1BackupTransferData"
-          },
-          "title": "The encrypted transfer data"
-        }
-      },
-      "title": "BlockSignatureRequest describes request about sends the signature to approve the proposed block by signing the tx tree root"
-    },
-    "v1BlockSignatureResponse": {
-      "type": "object",
-      "properties": {
-        "success": {
-          "type": "boolean",
-          "title": "the success flag"
-        },
-        "data": {
-          "$ref": "#/definitions/v1DataBlockSignatureResponse",
-          "title": "the info about the request's result"
-        }
-      },
-      "title": "BlockSignatureResponse describes response about sends the signature to approve the proposed block by signing the tx tree root"
-    },
-    "v1BlockStatusByTxTreeRootResponse": {
-      "type": "object",
-      "properties": {
-        "isPosted": {
-          "type": "boolean",
-          "title": "the status of the block"
-        },
-        "blockNumber": {
-          "type": "string",
-          "format": "uint64",
-          "title": "the block number"
-        }
-      },
-      "title": "BlockStatusResponse describes response about retrieves the status of a block by its tx tree root"
-    },
-    "v1DataBlockProposedResponse": {
-      "type": "object",
-      "properties": {
-        "txRoot": {
-          "type": "string",
-          "title": "the transaction tree root hash"
-        },
-        "txTreeMerkleProof": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "title": "the Merkle proof from the tx tree for the specified tx_hash"
-        },
-        "publicKeys": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "title": "DataBlockProposedResponse describes the data of response about retrieves the Merkle proof of a block containing the user's transaction, if available"
-    },
-    "v1DataBlockSignatureResponse": {
-      "type": "object",
-      "properties": {
-        "message": {
-          "type": "string",
-          "title": "the message about result of request"
-        }
-      },
-      "title": "DataBlockSignatureResponse describes the data of response about sends the signature to approve the proposed block by signing the tx tree root"
-    },
-    "v1DataTransactionResponse": {
-      "type": "object",
-      "properties": {
-        "message": {
-          "type": "string",
-          "title": "the message about result of request"
-        }
-      },
-      "title": "DataTransactionResponse describes the data of response to get info about the create new transaction"
-    },
-    "v1EnoughBalanceOfProofBlockSignatureRequest": {
-      "type": "object",
-      "properties": {
-        "prevBalanceProof": {
-          "$ref": "#/definitions/v1Plonky2ProofBlockSignatureRequest",
-          "title": "the previous balance proof value"
-        },
-        "transferStepProof": {
-          "$ref": "#/definitions/v1Plonky2ProofBlockSignatureRequest",
-          "title": "the transfer step proof value"
-        }
-      },
-      "title": "EnoughBalanceOfProofBlockSignatureRequest describes the proof of sufficient balance after sending for BlockSignatureRequest"
-    },
-    "v1EnoughBalanceProof": {
-      "type": "object",
-      "properties": {
-        "proof": {
-          "type": "string",
-          "title": "the proof string"
-        },
-        "publicInputs": {
-          "type": "string",
-          "title": "the public inputs for the proof"
-        }
-      },
-      "title": "EnoughBalanceProof contains the proof for enough balance"
     },
     "v1GetBackupBalancesResponse": {
       "type": "object",
@@ -1502,7 +992,7 @@
           "type": "array",
           "items": {
             "type": "object",
-            "$ref": "#/definitions/v1GetBackupTransactionsResponseTransaction"
+            "$ref": "#/definitions/GetBackupTransactionsResponseTransaction"
           }
         },
         "meta": {
@@ -1520,30 +1010,6 @@
         "endBlockNumber": {
           "type": "string",
           "format": "uint64"
-        }
-      }
-    },
-    "v1GetBackupTransactionsResponseTransaction": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "sender": {
-          "type": "string"
-        },
-        "signature": {
-          "type": "string"
-        },
-        "blockNumber": {
-          "type": "string",
-          "format": "uint64"
-        },
-        "encryptedTx": {
-          "type": "string"
-        },
-        "createdAt": {
-          "type": "string"
         }
       }
     },
@@ -1643,70 +1109,6 @@
       },
       "title": "Data is the nested message containing detailed response information"
     },
-    "v1HealthCheckResponse": {
-      "type": "object",
-      "properties": {
-        "success": {
-          "type": "boolean",
-          "title": "the success flag"
-        }
-      },
-      "title": "HealthCheckResponse describes response to get info about the health check block builder"
-    },
-    "v1InfoResponse": {
-      "type": "object",
-      "properties": {
-        "scrollAddress": {
-          "type": "string",
-          "title": "the block builder's Scroll address"
-        },
-        "transferFee": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          },
-          "title": "the mapping of token addresses in INTMAX to fees payable in those tokens"
-        },
-        "difficulty": {
-          "type": "string",
-          "title": "the PoW difficulty value"
-        }
-      },
-      "title": "InfoResponse describes response about retrieves the block builder's Scroll address, transaction fee, and difficulty"
-    },
-    "v1Plonky2ProofBlockSignatureRequest": {
-      "type": "object",
-      "properties": {
-        "publicInputs": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "format": "uint64"
-          },
-          "title": "the publicInputs value"
-        },
-        "proof": {
-          "type": "string",
-          "format": "byte",
-          "title": "the proof value"
-        }
-      },
-      "title": "Plonky2ProofOfEnoughBalanceProofOfBlockSignatureRequest describes the Plonky2Proof values for BlockSignatureRequest"
-    },
-    "v1RecipientTransferDataTransactionRequest": {
-      "type": "object",
-      "properties": {
-        "addressType": {
-          "$ref": "#/definitions/v1AddressType",
-          "title": "the address type of recipient"
-        },
-        "address": {
-          "type": "string",
-          "title": "the address of recipient"
-        }
-      },
-      "title": "RecipientTransferDataTransactionRequest describes recipient of request to get info about the create new transaction"
-    },
     "v1StoreVaultError": {
       "type": "object",
       "properties": {
@@ -1717,141 +1119,6 @@
           "type": "string"
         }
       }
-    },
-    "v1TransactionRequest": {
-      "type": "object",
-      "properties": {
-        "sender": {
-          "type": "string",
-          "title": "the sender's INTMAX address"
-        },
-        "transfersHash": {
-          "type": "string",
-          "title": "the Poseidon hash of transfer tree root and token index"
-        },
-        "nonce": {
-          "type": "string",
-          "format": "uint64",
-          "title": "the number of transactions executed with this public key"
-        },
-        "powNonce": {
-          "type": "string",
-          "title": "the PoW nonce"
-        },
-        "transferData": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1TransferDataTransactionRequest"
-          },
-          "title": "DEPRECATED\nthe transfer data of the transaction"
-        },
-        "expiration": {
-          "type": "string",
-          "format": "date-time",
-          "title": "the expiration of request"
-        },
-        "signature": {
-          "type": "string",
-          "title": "the signature of request (the hash calculated from transfersHash, nonce, powNonce, sender, and expiration)"
-        }
-      },
-      "title": "TransactionRequest describes request to get info about the create new transaction"
-    },
-    "v1TransactionResponse": {
-      "type": "object",
-      "properties": {
-        "success": {
-          "type": "boolean",
-          "title": "the success flag"
-        },
-        "data": {
-          "$ref": "#/definitions/v1DataTransactionResponse",
-          "title": "the info about the request's result"
-        }
-      },
-      "title": "TransactionRequest describes response to get info about the create new transaction"
-    },
-    "v1TransferData": {
-      "type": "object",
-      "properties": {
-        "recipient": {
-          "type": "string",
-          "title": "the recipient address"
-        },
-        "tokenIndex": {
-          "type": "integer",
-          "format": "int32",
-          "title": "the token index"
-        },
-        "amount": {
-          "type": "string",
-          "title": "the amount of the transfer"
-        },
-        "salt": {
-          "type": "string",
-          "title": "the salt used in the transfer"
-        }
-      },
-      "title": "TransferData contains details about the transfer"
-    },
-    "v1TransferDataTransactionRequest": {
-      "type": "object",
-      "properties": {
-        "recipient": {
-          "$ref": "#/definitions/v1RecipientTransferDataTransactionRequest",
-          "title": "the recipient info"
-        },
-        "tokenIndex": {
-          "type": "string",
-          "title": "the token index value"
-        },
-        "amount": {
-          "type": "string",
-          "title": "the amount value"
-        },
-        "salt": {
-          "type": "string",
-          "title": "the salt value"
-        }
-      },
-      "title": "DEPRECATED\nTransferDataTransactionRequest describes the data of transaction"
-    },
-    "v1TransferMerkleProof": {
-      "type": "object",
-      "properties": {
-        "siblings": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "title": "the list of sibling hashes in the Merkle tree"
-        },
-        "index": {
-          "type": "integer",
-          "format": "int32",
-          "title": "the index in the Merkle tree"
-        }
-      },
-      "title": "TransferMerkleProof contains the Merkle proof for the transfer"
-    },
-    "v1TxMerkleProof": {
-      "type": "object",
-      "properties": {
-        "siblings": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "title": "the list of sibling hashes in the Merkle tree"
-        },
-        "index": {
-          "type": "integer",
-          "format": "int32",
-          "title": "the index in the Merkle tree"
-        }
-      },
-      "title": "TxMerkleProof contains the Merkle proof for the transaction"
     },
     "v1VersionResponse": {
       "type": "object",
@@ -1866,126 +1133,6 @@
         }
       },
       "title": "VersionResponse describes response to get info about the build version info and build time"
-    },
-    "v1Withdrawal": {
-      "type": "object",
-      "properties": {
-        "transferData": {
-          "$ref": "#/definitions/v1TransferData",
-          "title": "the transfer data"
-        },
-        "transaction": {
-          "$ref": "#/definitions/nodev1Transaction",
-          "title": "the transaction data"
-        },
-        "transferHash": {
-          "type": "string",
-          "title": "the transfer hash"
-        },
-        "blockNumber": {
-          "type": "string",
-          "format": "uint64",
-          "title": "the block number"
-        },
-        "blockHash": {
-          "type": "string",
-          "title": "the block hash"
-        },
-        "status": {
-          "type": "string",
-          "description": "the status of the withdrawal (e.g., pending, success, failed)."
-        }
-      },
-      "title": "Withdrawal represents the withdrawal data"
-    },
-    "v1WithdrawalRequestRequest": {
-      "type": "object",
-      "properties": {
-        "transferData": {
-          "$ref": "#/definitions/v1TransferData",
-          "title": "the transfer data"
-        },
-        "transferMerkleProof": {
-          "$ref": "#/definitions/v1TransferMerkleProof",
-          "title": "the transfer Merkle proof"
-        },
-        "transaction": {
-          "$ref": "#/definitions/nodev1Transaction",
-          "title": "the transaction data"
-        },
-        "txMerkleProof": {
-          "$ref": "#/definitions/v1TxMerkleProof",
-          "title": "the transaction Merkle proof"
-        },
-        "transferHash": {
-          "type": "string",
-          "title": "the transfer hash"
-        },
-        "blockNumber": {
-          "type": "string",
-          "format": "uint64",
-          "title": "the block number"
-        },
-        "blockHash": {
-          "type": "string",
-          "title": "the block hash"
-        },
-        "enoughBalanceProof": {
-          "$ref": "#/definitions/v1EnoughBalanceProof",
-          "title": "the proof of enough balance"
-        }
-      },
-      "title": "WithdrawalProofRequest describes the request for a withdrawal proof"
-    },
-    "v1WithdrawalRequestResponse": {
-      "type": "object",
-      "properties": {
-        "success": {
-          "type": "boolean",
-          "title": "indicates if the request was successful"
-        },
-        "data": {
-          "$ref": "#/definitions/v1WithdrawalRequestResponseData",
-          "title": "contains additional data about the response"
-        }
-      },
-      "title": "WithdrawalRequestResponse describes the response for a withdrawal request"
-    },
-    "v1WithdrawalRequestResponseData": {
-      "type": "object",
-      "properties": {
-        "message": {
-          "type": "string",
-          "title": "the message with additional details"
-        }
-      },
-      "title": "Data contains additional information in the response"
-    },
-    "v1WithdrawalsByHashesRequest": {
-      "type": "object",
-      "properties": {
-        "transferHashes": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "title": "WithdrawalsByHashesRequest is the request message for WithdrawalsByHashes"
-    },
-    "v1WithdrawalsByHashesResponse": {
-      "type": "object",
-      "properties": {
-        "withdrawals": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1Withdrawal"
-          },
-          "description": "A list of Withdrawal messages that match the provided transfer hashes."
-        }
-      },
-      "title": "WithdrawalsByHashesResponse is the response message for WithdrawalsByHashes"
     }
   }
 }

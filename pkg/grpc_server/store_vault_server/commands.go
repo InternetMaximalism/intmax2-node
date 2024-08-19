@@ -7,6 +7,7 @@ import (
 	backupDeposit "intmax2-node/internal/use_cases/backup_deposit"
 	backupTransaction "intmax2-node/internal/use_cases/backup_transaction"
 	backupTransfer "intmax2-node/internal/use_cases/backup_transfer"
+	getVersion "intmax2-node/internal/use_cases/get_version"
 	verifyDepositConfirmation "intmax2-node/internal/use_cases/verify_deposit_confirmation"
 	ucGetBackupBalances "intmax2-node/pkg/use_cases/get_backup_balances"
 	ucGetBackupDeposits "intmax2-node/pkg/use_cases/get_backup_deposits"
@@ -14,6 +15,7 @@ import (
 	ucGetBackupTransfers "intmax2-node/pkg/use_cases/get_backup_transfers"
 	ucGetBalances "intmax2-node/pkg/use_cases/get_balances"
 	ucVerifyDepositConfirmation "intmax2-node/pkg/use_cases/get_verify_deposit_confirmation"
+	ucGetVersion "intmax2-node/pkg/use_cases/get_version"
 	ucPostBackupBalance "intmax2-node/pkg/use_cases/post_backup_balance"
 	ucPostBackupDeposit "intmax2-node/pkg/use_cases/post_backup_deposit"
 	ucPostBackupTransaction "intmax2-node/pkg/use_cases/post_backup_transaction"
@@ -23,6 +25,7 @@ import (
 //go:generate mockgen -destination=mock_commands_test.go -package=store_vault_server_test -source=commands.go
 
 type Commands interface {
+	GetVersion(version, buildTime string) getVersion.UseCaseGetVersion
 	PostBackupTransfer(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupTransfer.UseCasePostBackupTransfer
 	PostBackupTransaction(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupTransaction.UseCasePostBackupTransaction
 	PostBackupDeposit(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupDeposit.UseCasePostBackupDeposit
@@ -39,6 +42,10 @@ type commands struct{}
 
 func NewCommands() Commands {
 	return &commands{}
+}
+
+func (c *commands) GetVersion(version, buildTime string) getVersion.UseCaseGetVersion {
+	return ucGetVersion.New(version, buildTime)
 }
 
 func (c *commands) PostBackupTransfer(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupTransfer.UseCasePostBackupTransfer {

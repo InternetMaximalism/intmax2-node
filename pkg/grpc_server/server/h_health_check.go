@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 	"intmax2-node/internal/open_telemetry"
-	"intmax2-node/internal/pb/gen/service/node"
+	node "intmax2-node/internal/pb/gen/block_builder_service/node"
 	"intmax2-node/pkg/grpc_server/utils"
 )
 

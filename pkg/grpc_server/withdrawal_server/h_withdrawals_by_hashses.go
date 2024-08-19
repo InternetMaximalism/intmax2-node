@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"intmax2-node/internal/open_telemetry"
-	"intmax2-node/internal/pb/gen/service/node"
+	node "intmax2-node/internal/pb/gen/withdrawal_service/node"
 	postWithdrwalsByHashes "intmax2-node/internal/use_cases/post_withdrawals_by_hashes"
 	"intmax2-node/pkg/grpc_server/utils"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"

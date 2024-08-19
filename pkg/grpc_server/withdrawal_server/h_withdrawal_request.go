@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"intmax2-node/internal/blockchain"
 	"intmax2-node/internal/open_telemetry"
-	"intmax2-node/internal/pb/gen/service/node"
+	node "intmax2-node/internal/pb/gen/withdrawal_service/node"
 	postWithdrwalRequest "intmax2-node/internal/use_cases/post_withdrawal_request"
 	withdrawalService "intmax2-node/internal/withdrawal_service"
 	"intmax2-node/pkg/grpc_server/utils"

@@ -1,17 +1,17 @@
 syntax = "proto3";
 
-package node.v1;
+package block_builder.v1;
 
 import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
 import "protoc-gen-openapiv2/options/annotations.proto";
 import "tagger/tagger.proto";
 
-import "node/v1/generic.proto";
+import "block_builder/v1/generic.proto";
 
 // Defines the import path that should be used to import the generated package,
 // and the package name.
-option go_package = ".;node";
+option go_package = ".;block_builder";
 
 service BlockBuilderService {
   // HealthCheck returns the health check block builder info

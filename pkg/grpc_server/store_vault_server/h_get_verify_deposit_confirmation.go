@@ -3,7 +3,7 @@ package store_vault_server
 import (
 	"context"
 	"intmax2-node/internal/open_telemetry"
-	"intmax2-node/internal/pb/gen/service/node"
+	node "intmax2-node/internal/pb/gen/store_vault_service/node"
 	verifyDepositConfirmation "intmax2-node/internal/use_cases/verify_deposit_confirmation"
 	"intmax2-node/pkg/grpc_server/utils"
 

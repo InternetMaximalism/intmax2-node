@@ -1,25 +1,25 @@
 syntax = "proto3";
 
-package node.v1;
+package block_builder.v1;
 
 import "protoc-gen-openapiv2/options/annotations.proto";
 import "google/rpc/status.proto";
 import "google/protobuf/empty.proto";
 
-import "node/v1/block_builder_service.proto";
-import "node/v1/info_service.proto";
+import "block_builder/v1/info_service.proto";
+import "block_builder/v1/block_builder_service.proto";
 
 // Defines the import path that should be used to import the generated package,
 // and the package name.
-option go_package = ".;node";
+option go_package = ".;block_builder";
 
 // These annotations are used when generating the OpenAPI file.
 option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
   info: {
-    title: "INTMAX2 Node"
+    title: "INTMAX2 Block Builder"
     version: "SWAGGER_VERSION"
     description: "### Definitions\n"
-                 "The INTMAX2 node service.\n"
+                 "The INTMAX2 block builder service.\n"
   }
   schemes: HTTP
   schemes: HTTPS

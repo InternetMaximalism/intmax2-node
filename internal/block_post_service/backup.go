@@ -7,7 +7,7 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/logger"
-	"intmax2-node/internal/pb/gen/service/node"
+	node "intmax2-node/internal/pb/gen/store_vault_service/node"
 	"intmax2-node/internal/use_cases/backup_transaction"
 	"intmax2-node/internal/use_cases/backup_transfer"
 	"net/http"
