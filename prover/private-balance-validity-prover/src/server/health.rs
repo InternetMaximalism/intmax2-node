@@ -18,12 +18,16 @@ async fn health_check(
         .map_err(actix_web::error::ErrorInternalServerError)?;
 
     let pong: redis::RedisResult<String> = redis::cmd("PING").query_async(&mut conn).await;
-    let is_balance_circuit_built = state.balance_processor.get().is_some();
-    let is_validity_circuit_built = state.validity_circuit.get().is_some();
+    let is_balance_transition_circuit_built = state.balance_transition_processor.get().is_some();
+    let is_balance_circuit_built = state.balance_verifier_data.get().is_some();
+    let is_validity_circuit_built = state.validity_verifier_data.get().is_some();
 
     match pong {
         Ok(response) if response == "PONG" => {
-            if !is_balance_circuit_built || !is_validity_circuit_built {
+            if !is_balance_transition_circuit_built
+                || !is_balance_circuit_built
+                || !is_validity_circuit_built
+            {
                 return Ok(HttpResponse::InternalServerError().json(ErrorResponse {
                     success: false,
                     code: 500,

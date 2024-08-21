@@ -135,41 +135,50 @@ async fn generate_proof(
     }
 
     let balance_circuit_data = state
-        .balance_processor
+        .balance_transition_processor
         .get()
-        .ok_or_else(|| error::ErrorInternalServerError("balance processor not initialized"))?
-        .balance_circuit
+        .ok_or_else(|| {
+            error::ErrorInternalServerError("balance transition processor not initialized")
+        })?
+        .balance_transition_circuit
         .data
         .verifier_data();
-    let prev_balance_proof = if let Some(req_prev_balance_proof) = &req.prev_balance_proof {
+    let prev_balance_public_inputs = if let Some(req_prev_balance_proof) = &req.prev_balance_proof {
         log::debug!("requested proof size: {}", req_prev_balance_proof.len());
-        let prev_validity_proof =
+        let prev_balance_proof =
             decode_plonky2_proof(req_prev_balance_proof, &balance_circuit_data)
                 .map_err(error::ErrorInternalServerError)?;
         balance_circuit_data
-            .verify(prev_validity_proof.clone())
+            .verify(prev_balance_proof.clone())
             .map_err(error::ErrorInternalServerError)?;
 
-        Some(prev_validity_proof)
+        BalancePublicInputs::from_pis(&prev_balance_proof.public_inputs)
     } else {
-        None
+        BalancePublicInputs::new(public_key)
     };
 
     let receive_deposit_witness = req.receive_deposit_witness.clone();
 
-    // TODO: Validation check of balance_witness
-
     // Spawn a new task to generate the proof
     actix_web::rt::spawn(async move {
-        let balance_public_inputs =
-            BalancePublicInputs::from_pis(&prev_balance_proof.unwrap().public_inputs);
         let response = generate_deposit_transition_proof_job(
-            &balance_public_inputs,
+            &prev_balance_public_inputs,
             &receive_deposit_witness,
             state
-                .balance_processor
+                .balance_transition_processor
                 .get()
-                .ok_or_else(|| error::ErrorInternalServerError("balance processor not initialized"))
+                .ok_or_else(|| {
+                    error::ErrorInternalServerError("balance transition processor not initialized")
+                })
+                .expect("Failed to get balance processor"),
+            &state
+                .balance_verifier_data
+                .get()
+                .ok_or_else(|| {
+                    error::ErrorInternalServerError(
+                        "verifier data of balance circuit not initialized",
+                    )
+                })
                 .expect("Failed to get balance processor"),
         );
 

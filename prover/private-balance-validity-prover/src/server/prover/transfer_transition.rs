@@ -1,19 +1,21 @@
 use crate::{
     app::{
-        encode::decode_plonky2_proof,
+        config,
         interface::{
             ProofResponse, ProofTransferRequest, ProofTransferValue, ProofsTransferResponse,
             TransferIdQuery,
         },
         state::AppState,
     },
-    proof::generate_balance_transfer_proof_job,
+    proof::generate_transfer_transition_proof_job,
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
+use anyhow::Context as _;
 use intmax2_zkp::{
     circuits::balance::balance_pis::BalancePublicInputs,
     ethereum_types::{u256::U256, u32limb_trait::U32LimbTrait},
 };
+use redis::{ExistenceCheck, SetExpiry, SetOptions};
 
 #[get("/proof/{public_key}/transfer/{private_commitment}")]
 async fn get_proof(
@@ -45,7 +47,7 @@ async fn get_proof(
     Ok(HttpResponse::Ok().json(response))
 }
 
-#[get("/proofs/{public_key}/transfer")]
+#[get("/proofs/{public_key}/transition/transfer")]
 async fn get_proofs(
     query_params: web::Path<String>,
     req: HttpRequest,
@@ -96,7 +98,7 @@ async fn get_proofs(
     Ok(HttpResponse::Ok().json(response))
 }
 
-#[post("/proof/{public_key}/transfer")]
+#[post("/proof/{public_key}/transition/transfer")]
 async fn generate_proof(
     query_params: web::Path<String>,
     req: web::Json<ProofTransferRequest>,
@@ -110,29 +112,21 @@ async fn generate_proof(
 
     let public_key = U256::from_hex(&query_params).expect("failed to parse public key");
 
-    let balance_circuit_data = state
-        .balance_processor
-        .get()
-        .ok_or_else(|| error::ErrorInternalServerError("validity circuit not initialized"))?
-        .balance_circuit
-        .data
-        .verifier_data();
+    let balance_circuit_verifier_data = state.balance_verifier_data.get().ok_or_else(|| {
+        error::ErrorInternalServerError("verifier data of balance circuit not initialized")
+    })?;
 
     let receive_transfer_witness = req
         .receive_transfer_witness
-        .decode(&balance_circuit_data)
-        .map_err(error::ErrorInternalServerError)?;
-    balance_circuit_data
-        .verify(receive_transfer_witness.balance_proof.clone())
+        .decode(&balance_circuit_verifier_data)
         .map_err(error::ErrorInternalServerError)?;
     let balance_public_inputs =
         BalancePublicInputs::from_pis(&receive_transfer_witness.balance_proof.public_inputs);
-
-    // let block_hash = balance_public_inputs.public_state.block_hash;
     let private_commitment = balance_public_inputs.private_commitment;
     let request_id =
         get_balance_transfer_request_id(&public_key.to_hex(), &private_commitment.to_string());
     log::debug!("request ID: {:?}", request_id);
+
     let old_proof = redis::Cmd::get(&request_id)
         .query_async::<_, Option<String>>(&mut redis_conn)
         .await
@@ -147,41 +141,38 @@ async fn generate_proof(
         return Ok(HttpResponse::Ok().json(response));
     }
 
-    let prev_balance_proof = if let Some(req_prev_balance_proof) = &req.prev_balance_proof {
-        log::debug!("requested proof size: {}", req_prev_balance_proof.len());
-        let prev_balance_proof =
-            decode_plonky2_proof(req_prev_balance_proof, &balance_circuit_data)
-                .map_err(error::ErrorInternalServerError)?;
-        balance_circuit_data
-            .verify(prev_balance_proof.clone())
-            .map_err(error::ErrorInternalServerError)?;
-
-        Some(prev_balance_proof)
-    } else {
-        None
-    };
-
-    // TODO: Validation check of balance_witness
+    let prev_balance_public_inputs = serde_json::from_str(&req.prev_balance_public_inputs)
+        .map_err(actix_web::error::ErrorInternalServerError)?;
 
     // Spawn a new task to generate the proof
     actix_web::rt::spawn(async move {
-        let response = generate_balance_transfer_proof_job(
-            request_id,
-            public_key,
-            prev_balance_proof,
+        let response = generate_transfer_transition_proof_job(
+            &prev_balance_public_inputs,
             &receive_transfer_witness,
             state
-                .balance_processor
+                .balance_transition_processor
                 .get()
-                .expect("balance processor not initialized"),
-            &mut redis_conn,
-        )
-        .await;
+                .expect("balance transition processor not initialized"),
+            &state
+                .balance_verifier_data
+                .get()
+                .expect("verifier data of balance circuit not initialized"),
+        );
 
         match response {
-            Ok(v) => {
+            Ok(proof) => {
+                let opts = SetOptions::default()
+                    .conditional_set(ExistenceCheck::NX)
+                    .get(true)
+                    .with_expiration(SetExpiry::EX(config::get("proof_expiration")));
+
+                let _ = redis::Cmd::set_options(&request_id, proof, opts)
+                    .query_async::<_, Option<String>>(&mut redis_conn)
+                    .await
+                    .with_context(|| "Failed to set proof")?;
+
                 log::info!("Proof generation completed");
-                Ok(v)
+                Ok(())
             }
             Err(e) => {
                 log::error!("Failed to generate proof: {:?}", e);

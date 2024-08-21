@@ -1238,6 +1238,7 @@ dependencies = [
 [[package]]
 name = "intmax2-zkp"
 version = "0.1.0"
+source = "git+https://github.com/InternetMaximalism/intmax2-zkp?branch=feature/serialize2#9693c1216db3ffe0bbd25d527f83875820568f41"
 dependencies = [
  "anyhow",
  "ark-bn254",
@@ -1691,6 +1692,7 @@ checksum = "d231b230927b5e4ad203db57bbcbee2802f6bce620b1e4a9024a07d94e2907ec"
 [[package]]
 name = "plonky2"
 version = "0.2.2"
+source = "git+https://github.com/InternetMaximalism/polygon-plonky2.git?branch=intmax2-dev#8dbbe5142aea5a05bcbf948b63935f204e40f646"
 dependencies = [
  "ahash 0.8.11",
  "anyhow",
@@ -1701,8 +1703,8 @@ dependencies = [
  "log",
  "num",
  "plonky2_field",
- "plonky2_maybe_rayon 0.2.0",
- "plonky2_util 0.2.0",
+ "plonky2_maybe_rayon",
+ "plonky2_util",
  "rand",
  "rand_chacha",
  "serde",
@@ -1737,11 +1739,12 @@ dependencies = [
 [[package]]
 name = "plonky2_field"
 version = "0.2.2"
+source = "git+https://github.com/InternetMaximalism/polygon-plonky2.git?branch=intmax2-dev#9bd35bd0310afb1d9d5190519f452446e2e8e19d"
 dependencies = [
  "anyhow",
  "itertools 0.11.0",
  "num",
- "plonky2_util 0.2.0",
+ "plonky2_util",
  "rand",
  "serde",
  "static_assertions",
@@ -1751,6 +1754,7 @@ dependencies = [
 [[package]]
 name = "plonky2_keccak"
 version = "0.1.0"
+source = "git+https://github.com/InternetMaximalism/plonky2_keccak#8bf18d3e66e5c2f2782e9f506e434417d8ebd332"
 dependencies = [
  "anyhow",
  "env_logger",
@@ -1762,13 +1766,6 @@ dependencies = [
  "rand",
  "starky",
  "tiny-keccak",
-]
-
-[[package]]
-name = "plonky2_maybe_rayon"
-version = "0.2.0"
-dependencies = [
- "rayon",
 ]
 
 [[package]]
@@ -1788,12 +1785,8 @@ dependencies = [
  "itertools 0.10.5",
  "num",
  "plonky2",
- "plonky2_util 0.2.0 (git+https://github.com/InternetMaximalism/polygon-plonky2.git?branch=intmax2-dev)",
+ "plonky2_util",
 ]
-
-[[package]]
-name = "plonky2_util"
-version = "0.2.0"
 
 [[package]]
 name = "plonky2_util"
@@ -2179,8 +2172,8 @@ dependencies = [
  "log",
  "num-bigint 0.4.6",
  "plonky2",
- "plonky2_maybe_rayon 0.2.0 (git+https://github.com/InternetMaximalism/polygon-plonky2.git?branch=intmax2-dev)",
- "plonky2_util 0.2.0 (git+https://github.com/InternetMaximalism/polygon-plonky2.git?branch=intmax2-dev)",
+ "plonky2_maybe_rayon",
+ "plonky2_util",
 ]
 
 [[package]]

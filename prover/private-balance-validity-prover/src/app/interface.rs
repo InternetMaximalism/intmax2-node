@@ -87,7 +87,7 @@ pub struct ProofsUpdateResponse {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProofTransferRequest {
-    pub prev_balance_proof: Option<String>,
+    pub prev_balance_public_inputs: String,
     pub receive_transfer_witness: SerializableReceiveTransferWitness,
 }
 
