@@ -1,21 +1,23 @@
 use crate::{
     app::{
+        config,
         encode::decode_plonky2_proof,
         interface::{
             ProofResponse, ProofSendRequest, ProofSendValue, ProofsSendResponse, SendIdQuery,
         },
         state::AppState,
     },
-    proof::generate_balance_send_proof_job,
+    proof::generate_send_transition_proof_job,
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
+use anyhow::Context as _;
 use intmax2_zkp::{
-    circuits::validity::validity_pis::ValidityPublicInputs,
     common::witness::update_witness::UpdateWitness,
     ethereum_types::{u256::U256, u32limb_trait::U32LimbTrait},
 };
+use redis::{ExistenceCheck, SetExpiry, SetOptions};
 
-#[get("/proof/{public_key}/send/{block_hash}")]
+#[get("/proof/{public_key}/transition/send/{block_hash}")]
 async fn get_proof(
     query_params: web::Path<(String, String)>,
     redis: web::Data<redis::Client>,
@@ -27,10 +29,9 @@ async fn get_proof(
 
     let public_key = U256::from_hex(&query_params.0).expect("failed to parse public key");
 
-    let block_hash = &query_params.1;
     let proof = redis::Cmd::get(&get_balance_send_request_id(
         &public_key.to_hex(),
-        block_hash,
+        &query_params.1,
     ))
     .query_async::<_, Option<String>>(&mut conn)
     .await
@@ -45,7 +46,7 @@ async fn get_proof(
     Ok(HttpResponse::Ok().json(response))
 }
 
-#[get("/proofs/{public_key}/send")]
+#[get("/proofs/{public_key}/transition/send")]
 async fn get_proofs(
     query_params: web::Path<String>,
     req: HttpRequest,
@@ -96,7 +97,7 @@ async fn get_proofs(
     Ok(HttpResponse::Ok().json(response))
 }
 
-#[post("/proof/{public_key}/send")]
+#[post("/proof/{public_key}/transition/send")]
 async fn generate_proof(
     query_params: web::Path<String>,
     req: web::Json<ProofSendRequest>,
@@ -110,26 +111,24 @@ async fn generate_proof(
 
     let public_key = U256::from_hex(&query_params).expect("failed to parse public key");
 
-    let validity_circuit_data = state
-        .validity_circuit
+    let validity_verifier_data = state
+        .validity_verifier_data
         .get()
-        .ok_or_else(|| error::ErrorInternalServerError("validity circuit not initialized"))?
-        .data
-        .verifier_data();
+        .ok_or_else(|| error::ErrorInternalServerError("validity circuit not initialized"))?;
     let encoded_validity_proof = req.balance_update_witness.validity_proof.clone();
-    let validity_proof = decode_plonky2_proof(&encoded_validity_proof, &validity_circuit_data)
+    let validity_proof = decode_plonky2_proof(&encoded_validity_proof, &validity_verifier_data)
         .map_err(error::ErrorInternalServerError)?;
-    validity_circuit_data
+    validity_verifier_data
         .verify(validity_proof.clone())
         .map_err(error::ErrorInternalServerError)?;
-    let validity_public_inputs = ValidityPublicInputs::from_pis(&validity_proof.public_inputs);
     let balance_update_witness = UpdateWitness {
         validity_proof,
         block_merkle_proof: req.balance_update_witness.block_merkle_proof.clone(),
         account_membership_proof: req.balance_update_witness.account_membership_proof.clone(),
     };
 
-    let block_hash = validity_public_inputs.public_state.block_hash;
+    // let block_hash = validity_public_inputs.public_state.block_hash;
+    let block_hash = U256::from(1); // TODO
     let request_id = get_balance_send_request_id(&public_key.to_hex(), &block_hash.to_hex());
     log::debug!("request ID: {:?}", request_id);
     let old_proof = redis::Cmd::get(&request_id)
@@ -146,53 +145,40 @@ async fn generate_proof(
         return Ok(HttpResponse::Ok().json(response));
     }
 
-    let balance_circuit_data = state
-        .balance_processor
-        .get()
-        .ok_or_else(|| error::ErrorInternalServerError("balance processor not initialized"))?
-        .balance_circuit
-        .data
-        .verifier_data();
-    let prev_balance_proof = if let Some(req_prev_balance_proof) = &req.prev_balance_proof {
-        log::debug!("requested proof size: {}", req_prev_balance_proof.len());
-        let prev_balance_proof =
-            decode_plonky2_proof(&req_prev_balance_proof, &balance_circuit_data)
-                .map_err(error::ErrorInternalServerError)?;
-        balance_circuit_data
-            .verify(prev_balance_proof.clone())
-            .map_err(error::ErrorInternalServerError)?;
-
-        Some(prev_balance_proof)
-    } else {
-        None
-    };
-
-    // TODO: Validation check of balance_witness
-
     // Spawn a new task to generate the proof
     actix_web::rt::spawn(async move {
-        let response = generate_balance_send_proof_job(
-            request_id,
-            public_key,
-            prev_balance_proof,
+        let response = generate_send_transition_proof_job(
             &req.send_witness,
             &balance_update_witness,
             state
-                .balance_processor
+                .balance_transition_processor
                 .get()
-                .expect("balance processor not initialized"),
+                .expect("balance transition processor not initialized"),
+            &state
+                .balance_verifier_data
+                .get()
+                .expect("verifier data of balance circuit not initialized")
+                .verifier_only,
             state
-                .validity_circuit
+                .validity_verifier_data
                 .get()
                 .expect("validity circuit not initialized"),
-            &mut redis_conn,
-        )
-        .await;
+        );
 
         match response {
-            Ok(v) => {
+            Ok(proof) => {
+                let opts = SetOptions::default()
+                    .conditional_set(ExistenceCheck::NX)
+                    .get(true)
+                    .with_expiration(SetExpiry::EX(config::get("proof_expiration")));
+
+                let _ = redis::Cmd::set_options(&request_id, proof, opts)
+                    .query_async::<_, Option<String>>(&mut redis_conn)
+                    .await
+                    .with_context(|| "Failed to set proof")?;
+
                 log::info!("Proof generation completed");
-                Ok(v)
+                Ok(())
             }
             Err(e) => {
                 log::error!("Failed to generate proof: {:?}", e);
