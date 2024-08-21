@@ -20,6 +20,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.0.1
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0
 	github.com/holiman/uint256 v1.2.4
+	github.com/huin/goupnp v1.3.0
 	github.com/iden3/go-iden3-crypto v0.0.16
 	github.com/iotaledger/iota.go v1.0.0
 	github.com/jackc/pgx/v5 v5.6.0
@@ -29,6 +30,7 @@ require (
 	github.com/prodadidb/go-validation v1.0.0
 	github.com/prometheus/client_golang v1.19.1
 	github.com/rs/cors v1.11.0
+	github.com/rs/xid v1.5.0
 	github.com/rubenv/sql-migrate v1.6.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.8.0
@@ -36,6 +38,7 @@ require (
 	github.com/status-im/keycard-go v0.2.0
 	github.com/stretchr/testify v1.9.0
 	github.com/tidwall/gjson v1.17.1
+	github.com/tidwall/sjson v1.2.5
 	github.com/yaronsumel/grpc-throttle v0.0.0-20190317162315-207a473e9394
 	go.etcd.io/bbolt v1.3.10
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.52.0
@@ -80,7 +83,6 @@ require (
 	github.com/go-redis/redis/v8 v8.11.5 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.1.0 // indirect
-	github.com/huin/goupnp v1.3.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
@@ -106,7 +108,6 @@ require (
 	github.com/tevino/abool v1.2.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
-	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect

@@ -55,7 +55,7 @@ func GetBalances(
 		resTransactions[i] = &backupBalance.BackupTransaction{
 			Sender:      transaction.Sender,
 			EncryptedTx: transaction.EncryptedTx,
-			BlockNumber: transaction.BlockNumber,
+			BlockNumber: uint64(transaction.BlockNumber),
 			CreatedAt:   transaction.CreatedAt,
 		}
 	}

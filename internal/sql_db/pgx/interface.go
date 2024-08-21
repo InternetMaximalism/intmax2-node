@@ -3,6 +3,7 @@ package pgx
 import (
 	"context"
 	"encoding/json"
+	mFL "intmax2-node/internal/sql_filter/models"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 
@@ -129,6 +130,16 @@ type BackupTransactions interface {
 	GetBackupTransaction(condition string, value string) (*mDBApp.BackupTransaction, error)
 	GetBackupTransactionBySenderAndTxDoubleHash(sender, txDoubleHash string) (*mDBApp.BackupTransaction, error)
 	GetBackupTransactions(condition string, value interface{}) ([]*mDBApp.BackupTransaction, error)
+	GetBackupTransactionsBySender(
+		sender string,
+		pagination mDBApp.PaginationOfListOfBackupTransactionsInput,
+		sorting mFL.Sorting, orderBy mFL.OrderBy,
+		filters mFL.FiltersList,
+	) (
+		paginator *mDBApp.PaginationOfListOfBackupTransactions,
+		listDBApp mDBApp.ListOfBackupTransaction,
+		err error,
+	)
 }
 
 type BackupDeposits interface {

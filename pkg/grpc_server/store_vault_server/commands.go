@@ -7,6 +7,7 @@ import (
 	backupDeposit "intmax2-node/internal/use_cases/backup_deposit"
 	getBackupTransactionByHash "intmax2-node/internal/use_cases/get_backup_transaction_by_hash"
 	getBackupTransactions "intmax2-node/internal/use_cases/get_backup_transactions"
+	getBackupTransactionsList "intmax2-node/internal/use_cases/get_backup_transactions_list"
 	getBackupTransfers "intmax2-node/internal/use_cases/get_backup_transfers"
 	getVersion "intmax2-node/internal/use_cases/get_version"
 	postBackupTransaction "intmax2-node/internal/use_cases/post_backup_transaction"
@@ -16,6 +17,7 @@ import (
 	ucGetBackupDeposits "intmax2-node/pkg/use_cases/get_backup_deposits"
 	ucGetBackupTransactionByHash "intmax2-node/pkg/use_cases/get_backup_transaction_by_hash"
 	ucGetBackupTransactions "intmax2-node/pkg/use_cases/get_backup_transactions"
+	ucGetBackupTransactionsList "intmax2-node/pkg/use_cases/get_backup_transactions_list"
 	ucGetBackupTransfers "intmax2-node/pkg/use_cases/get_backup_transfers"
 	ucGetBalances "intmax2-node/pkg/use_cases/get_balances"
 	ucVerifyDepositConfirmation "intmax2-node/pkg/use_cases/get_verify_deposit_confirmation"
@@ -48,6 +50,11 @@ type Commands interface {
 		log logger.Logger,
 		db SQLDriverApp,
 	) getBackupTransactions.UseCaseGetBackupTransactions
+	GetBackupTransactionsList(
+		cfg *configs.Config,
+		log logger.Logger,
+		db SQLDriverApp,
+	) getBackupTransactionsList.UseCaseGetBackupTransactionsList
 	GetBackupTransactionByHash(
 		cfg *configs.Config,
 		log logger.Logger,
@@ -103,6 +110,14 @@ func (c *commands) GetBackupTransactions(
 	db SQLDriverApp,
 ) getBackupTransactions.UseCaseGetBackupTransactions {
 	return ucGetBackupTransactions.New(cfg, log, db)
+}
+
+func (c *commands) GetBackupTransactionsList(
+	cfg *configs.Config,
+	log logger.Logger,
+	db SQLDriverApp,
+) getBackupTransactionsList.UseCaseGetBackupTransactionsList {
+	return ucGetBackupTransactionsList.New(cfg, log, db)
 }
 
 func (c *commands) GetBackupTransactionByHash(

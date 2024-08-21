@@ -3,6 +3,7 @@ package db_app
 import (
 	"context"
 	"encoding/json"
+	mFL "intmax2-node/internal/sql_filter/models"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/pkg/sql_db/db_app/models"
 
@@ -129,6 +130,16 @@ type BackupTransactions interface {
 	GetBackupTransaction(condition string, value string) (*models.BackupTransaction, error)
 	GetBackupTransactionBySenderAndTxDoubleHash(sender, txDoubleHash string) (*models.BackupTransaction, error)
 	GetBackupTransactions(condition string, value interface{}) ([]*models.BackupTransaction, error)
+	GetBackupTransactionsBySender(
+		sender string,
+		pagination models.PaginationOfListOfBackupTransactionsInput,
+		sorting mFL.Sorting, orderBy mFL.OrderBy,
+		filters mFL.FiltersList,
+	) (
+		paginator *models.PaginationOfListOfBackupTransactions,
+		listDBApp models.ListOfBackupTransaction,
+		err error,
+	)
 }
 
 type BackupDeposits interface {

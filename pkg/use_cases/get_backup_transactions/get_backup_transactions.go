@@ -2,8 +2,6 @@ package get_backup_transactions
 
 import (
 	"context"
-	"go.opentelemetry.io/otel/attribute"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
@@ -11,6 +9,9 @@ import (
 	service "intmax2-node/internal/store_vault_service"
 	getBackupTransaction "intmax2-node/internal/use_cases/get_backup_transactions"
 	"intmax2-node/pkg/sql_db/db_app/models"
+
+	"go.opentelemetry.io/otel/attribute"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // uc describes use case
@@ -74,7 +75,7 @@ func generateBackupTransaction(transactions []*models.BackupTransaction) []*node
 			Id:          transactions[key].ID,
 			Sender:      transactions[key].Sender,
 			Signature:   transactions[key].Signature,
-			BlockNumber: transactions[key].BlockNumber,
+			BlockNumber: uint64(transactions[key].BlockNumber),
 			EncryptedTx: transactions[key].EncryptedTx,
 			CreatedAt: &timestamppb.Timestamp{
 				Seconds: transactions[key].CreatedAt.Unix(),

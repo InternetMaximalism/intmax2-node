@@ -64,7 +64,7 @@ func (u *uc) Do(
 			Id:          transaction.ID,
 			Sender:      transaction.Sender,
 			Signature:   transaction.Signature,
-			BlockNumber: transaction.BlockNumber,
+			BlockNumber: uint64(transaction.BlockNumber),
 			EncryptedTx: transaction.EncryptedTx,
 			CreatedAt: &timestamppb.Timestamp{
 				Seconds: transaction.CreatedAt.Unix(),

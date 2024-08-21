@@ -2,6 +2,7 @@ package store_vault_server
 
 import (
 	"context"
+	mFL "intmax2-node/internal/sql_filter/models"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 
 	"github.com/dimiro1/health"
@@ -43,6 +44,16 @@ type BackupTransactions interface {
 	GetBackupTransaction(condition string, value string) (*mDBApp.BackupTransaction, error)
 	GetBackupTransactionBySenderAndTxDoubleHash(sender, txDoubleHash string) (*mDBApp.BackupTransaction, error)
 	GetBackupTransactions(condition string, value interface{}) ([]*mDBApp.BackupTransaction, error)
+	GetBackupTransactionsBySender(
+		sender string,
+		pagination mDBApp.PaginationOfListOfBackupTransactionsInput,
+		sorting mFL.Sorting, orderBy mFL.OrderBy,
+		filters mFL.FiltersList,
+	) (
+		paginator *mDBApp.PaginationOfListOfBackupTransactions,
+		listDBApp mDBApp.ListOfBackupTransaction,
+		err error,
+	)
 }
 
 type BackupDeposits interface {
