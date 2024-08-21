@@ -202,6 +202,56 @@
       }
     },
     "/v1/backups/transaction": {
+      "get": {
+        "summary": "GetBackupTransactions processes a request for backup transactions list",
+        "description": "## This method handles the backup transactions list.",
+        "operationId": "StoreVaultService_GetBackupTransactions",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetBackupTransactionsResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sender",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "startBlockNumber",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      },
       "post": {
         "summary": "BackupTransaction processes a request for data backup transaction",
         "description": "## This method handles the transaction of backup data.",
@@ -286,58 +336,6 @@
         ]
       }
     },
-    "/v1/backups/transactions": {
-      "get": {
-        "summary": "GetBackupTransactions processes a request for backup transactions list",
-        "description": "## This method handles the backup transactions list.",
-        "operationId": "StoreVaultService_GetBackupTransactions",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1GetBackupTransactionsResponse"
-            }
-          },
-          "400": {
-            "description": "Validation error",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "schema": {
-              "$ref": "#/definitions/protobufEmpty"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "sender",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "startBlockNumber",
-            "in": "query",
-            "required": false,
-            "type": "string",
-            "format": "uint64"
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "type": "string",
-            "format": "uint64"
-          }
-        ],
-        "tags": [
-          "StoreVaultService"
-        ]
-      }
-    },
     "/v1/backups/transactions/list": {
       "post": {
         "summary": "GetBackupTransactionsList processes a request for backup transactions list with pagination and filters",
@@ -379,47 +377,6 @@
       }
     },
     "/v1/backups/transfer": {
-      "post": {
-        "summary": "BackupTransfer processes a request for data backup transfer",
-        "description": "## This method handles the transfer of backup data.",
-        "operationId": "StoreVaultService_BackupTransfer",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1BackupTransferResponse"
-            }
-          },
-          "400": {
-            "description": "Validation error",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "schema": {
-              "$ref": "#/definitions/protobufEmpty"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "description": "BackupTransferRequest is the request message for BackupTransfer method.",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1BackupTransferRequest"
-            }
-          }
-        ],
-        "tags": [
-          "StoreVaultService"
-        ]
-      }
-    },
-    "/v1/backups/transfers": {
       "get": {
         "operationId": "StoreVaultService_GetBackupTransfers",
         "responses": {
@@ -462,6 +419,45 @@
             "required": false,
             "type": "string",
             "format": "uint64"
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      },
+      "post": {
+        "summary": "BackupTransfer processes a request for data backup transfer",
+        "description": "## This method handles the transfer of backup data.",
+        "operationId": "StoreVaultService_BackupTransfer",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BackupTransferResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "BackupTransferRequest is the request message for BackupTransfer method.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BackupTransferRequest"
+            }
           }
         ],
         "tags": [

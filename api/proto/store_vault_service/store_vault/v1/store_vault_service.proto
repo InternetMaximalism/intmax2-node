@@ -23,7 +23,7 @@ service StoreVaultService {
 
   rpc GetBackupTransfers(GetBackupTransfersRequest) returns (GetBackupTransfersResponse) {
     option (google.api.http) = {
-      get: "/v1/backups/transfers"
+      get: "/v1/backups/transfer"
     };
   }
 
@@ -42,7 +42,7 @@ service StoreVaultService {
   // ## This method handles the backup transactions list.
   rpc GetBackupTransactions(GetBackupTransactionsRequest) returns (GetBackupTransactionsResponse) {
     option (google.api.http) = {
-      get: "/v1/backups/transactions"
+      get: "/v1/backups/transaction"
     };
   }
 
