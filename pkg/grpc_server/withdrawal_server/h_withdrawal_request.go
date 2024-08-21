@@ -4,19 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"intmax2-node/internal/blockchain"
 	"intmax2-node/internal/open_telemetry"
 	node "intmax2-node/internal/pb/gen/withdrawal_service/node"
 	postWithdrwalRequest "intmax2-node/internal/use_cases/post_withdrawal_request"
 	withdrawalService "intmax2-node/internal/withdrawal_service"
 	"intmax2-node/pkg/grpc_server/utils"
-	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
-
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
 
-func (s *WithdrawalServer) WithdrawalRequest(ctx context.Context, req *node.WithdrawalRequestRequest) (*node.WithdrawalRequestResponse, error) {
+func (s *WithdrawalServer) WithdrawalRequest(
+	ctx context.Context,
+	req *node.WithdrawalRequestRequest,
+) (*node.WithdrawalRequestResponse, error) {
 	resp := node.WithdrawalRequestResponse{}
 
 	const (
@@ -31,28 +32,28 @@ func (s *WithdrawalServer) WithdrawalRequest(ctx context.Context, req *node.With
 	defer span.End()
 
 	input := postWithdrwalRequest.UCPostWithdrawalRequestInput{
-		TransferData: mDBApp.TransferData{
+		TransferData: &postWithdrwalRequest.UCPostWithdrawalRequestTransferDataInput{
 			Recipient:  req.TransferData.Recipient,
-			TokenIndex: req.TransferData.TokenIndex,
+			TokenIndex: int64(req.TransferData.TokenIndex),
 			Amount:     req.TransferData.Amount,
 			Salt:       req.TransferData.Salt,
 		},
-		TransferMerkleProof: mDBApp.TransferMerkleProof{
+		TransferMerkleProof: &postWithdrwalRequest.UCPostWithdrawalRequestTransferMerkleProofInput{
 			Siblings: req.TransferMerkleProof.Siblings,
-			Index:    req.TransferMerkleProof.Index,
+			Index:    int64(req.TransferMerkleProof.Index),
 		},
-		Transaction: mDBApp.Transaction{
+		Transaction: &postWithdrwalRequest.UCPostWithdrawalRequestTransactionInput{
 			TransferTreeRoot: req.Transaction.TransferTreeRoot,
-			Nonce:            req.Transaction.Nonce,
+			Nonce:            int64(req.Transaction.Nonce),
 		},
-		TxMerkleProof: mDBApp.TxMerkleProof{
+		TxMerkleProof: &postWithdrwalRequest.UCPostWithdrawalRequestTxMerkleProofInput{
 			Siblings: req.TxMerkleProof.Siblings,
-			Index:    req.TxMerkleProof.Index,
+			Index:    int64(req.TxMerkleProof.Index),
 		},
 		TransferHash: req.TransferHash,
-		BlockNumber:  req.BlockNumber,
+		BlockNumber:  int64(req.BlockNumber),
 		BlockHash:    req.BlockHash,
-		EnoughBalanceProof: mDBApp.EnoughBalanceProof{
+		EnoughBalanceProof: &postWithdrwalRequest.UCPostWithdrawalRequestEnoughBalanceProofInput{
 			Proof:        req.EnoughBalanceProof.Proof,
 			PublicInputs: req.EnoughBalanceProof.PublicInputs,
 		},
@@ -88,7 +89,7 @@ func (s *WithdrawalServer) WithdrawalRequest(ctx context.Context, req *node.With
 	}
 
 	resp.Success = true
-	resp.Data = &node.WithdrawalRequestResponse_Data{Message: "Withdraw request accepted."}
+	resp.Data = &node.WithdrawalRequestResponse_Data{Message: postWithdrwalRequest.SuccessMsg}
 
 	return &resp, utils.OK(spanCtx)
 }

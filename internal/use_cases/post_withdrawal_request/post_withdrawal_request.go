@@ -2,16 +2,55 @@ package post_withdrawal_request
 
 import (
 	"context"
-	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 )
 
 //go:generate mockgen -destination=../mocks/mock_post_withdrawal_request.go -package=mocks -source=post_withdrawal_request.go
 
 const (
-	SuccessMsg = "Withdrawal request accepted."
+	SuccessMsg = "Withdraw request accepted."
 )
 
-// Define the WithdrawalRequestRequest struct
+type UCPostWithdrawalRequestTransferDataInput struct {
+	Recipient  string `json:"recipient"`
+	TokenIndex int64  `json:"token_index"`
+	Amount     string `json:"amount"`
+	Salt       string `json:"salt"`
+}
+
+type UCPostWithdrawalRequestTransferMerkleProofInput struct {
+	Siblings []string `json:"siblings"`
+	Index    int64    `json:"index"`
+}
+
+type UCPostWithdrawalRequestTransactionInput struct {
+	TransferTreeRoot string `json:"transfer_tree_root"`
+	Nonce            int64  `json:"nonce"`
+}
+
+type UCPostWithdrawalRequestTxMerkleProofInput struct {
+	Siblings []string `json:"siblings"`
+	Index    int64    `json:"index"`
+}
+
+type UCPostWithdrawalRequestEnoughBalanceProofInput struct {
+	Proof        string `json:"proof"`
+	PublicInputs string `json:"public_inputs"`
+}
+
+type UCPostWithdrawalRequestInput struct {
+	TransferData        *UCPostWithdrawalRequestTransferDataInput        `json:"transfer_data"`
+	TransferMerkleProof *UCPostWithdrawalRequestTransferMerkleProofInput `json:"transfer_merkle_proof"`
+	Transaction         *UCPostWithdrawalRequestTransactionInput         `json:"transaction"`
+	TxMerkleProof       *UCPostWithdrawalRequestTxMerkleProofInput       `json:"tx_merkle_proof"`
+	TransferHash        string                                           `json:"transfer_hash"`
+	BlockNumber         int64                                            `json:"block_number"`
+	BlockHash           string                                           `json:"block_hash"`
+	EnoughBalanceProof  *UCPostWithdrawalRequestEnoughBalanceProofInput  `json:"enough_balance_proof"`
+}
+
+/**
+
+
 type UCPostWithdrawalRequestInput struct {
 	TransferData        mDBApp.TransferData        `json:"transfer_data"`
 	TransferMerkleProof mDBApp.TransferMerkleProof `json:"transfer_merkle_proof"`
@@ -22,6 +61,7 @@ type UCPostWithdrawalRequestInput struct {
 	BlockHash           string                     `json:"block_hash"`
 	EnoughBalanceProof  mDBApp.EnoughBalanceProof  `json:"enough_balance_proof"`
 }
+*/
 
 // UseCasePostWithdrawalRequest describes PostWithdrawalRequest
 type UseCasePostWithdrawalRequest interface {

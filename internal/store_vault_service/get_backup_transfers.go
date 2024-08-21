@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
-	backupTransfer "intmax2-node/internal/use_cases/backup_transfer"
+	backupTransfers "intmax2-node/internal/use_cases/get_backup_transfers"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 )
 
@@ -14,7 +14,7 @@ func GetBackupTransfers(
 	cfg *configs.Config,
 	log logger.Logger,
 	db SQLDriverApp,
-	input *backupTransfer.UCGetBackupTransferInput,
+	input *backupTransfers.UCGetBackupTransfersInput,
 ) ([]*mDBApp.BackupTransfer, error) {
 	transfers, err := db.GetBackupTransfers("recipient", input.Sender)
 	if err != nil {

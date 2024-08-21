@@ -13,7 +13,10 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-func (s *WithdrawalServer) WithdrawalsByHashes(ctx context.Context, req *node.WithdrawalsByHashesRequest) (*node.WithdrawalsByHashesResponse, error) {
+func (s *WithdrawalServer) WithdrawalsByHashes(
+	ctx context.Context,
+	req *node.WithdrawalsByHashesRequest,
+) (*node.WithdrawalsByHashesResponse, error) {
 	resp := node.WithdrawalsByHashesResponse{}
 
 	const (
@@ -51,16 +54,16 @@ func (s *WithdrawalServer) WithdrawalsByHashes(ctx context.Context, req *node.Wi
 			resp.Withdrawals = append(resp.Withdrawals, &node.Withdrawal{
 				TransferData: &node.TransferData{
 					Recipient:  w.TransferData.Recipient,
-					TokenIndex: w.TransferData.TokenIndex,
+					TokenIndex: int32(w.TransferData.TokenIndex),
 					Amount:     w.TransferData.Amount,
 					Salt:       w.TransferData.Salt,
 				},
 				Transaction: &node.Transaction{
 					TransferTreeRoot: w.Transaction.TransferTreeRoot,
-					Nonce:            w.Transaction.Nonce,
+					Nonce:            int32(w.Transaction.Nonce),
 				},
 				TransferHash: w.TransferHash,
-				BlockNumber:  w.BlockNumber,
+				BlockNumber:  uint64(w.BlockNumber),
 				BlockHash:    w.BlockHash,
 				Status:       mDBApp.WithdrawalStatus(w.Status).String(),
 			})

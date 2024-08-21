@@ -1,4 +1,4 @@
-package backup_transfer
+package get_backup_transfers
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 
 //go:generate mockgen -destination=../mocks/mock_get_backup_transfers.go -package=mocks -source=get_backup_transfers.go
 
-type UCGetBackupTransferInput struct {
+type UCGetBackupTransfersInput struct {
 	Sender           string `json:"sender"`
 	StartBlockNumber uint64 `json:"startBlockNumber"`
 	Limit            uint64 `json:"limit"`
@@ -15,5 +15,5 @@ type UCGetBackupTransferInput struct {
 
 // UseCaseGetBackupTransfers describes GetBackupTransfers contract.
 type UseCaseGetBackupTransfers interface {
-	Do(ctx context.Context, input *UCGetBackupTransferInput) (*node.GetBackupTransfersResponse_Data, error)
+	Do(ctx context.Context, input *UCGetBackupTransfersInput) (*node.GetBackupTransfersResponse_Data, error)
 }

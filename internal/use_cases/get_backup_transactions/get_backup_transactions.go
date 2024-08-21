@@ -1,4 +1,4 @@
-package backup_transaction
+package get_backup_transactions
 
 import (
 	"context"

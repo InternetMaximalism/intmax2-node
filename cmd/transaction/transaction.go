@@ -24,7 +24,6 @@ func NewTransactionCmd(b *Transaction) *cobra.Command {
 		Use:   use,
 		Short: short,
 	}
-	transactionCmd.AddCommand(txListCmd(b))
 	transactionCmd.AddCommand(txTransferCmd(b))
 	transactionCmd.AddCommand(txDepositCmd(b))
 	transactionCmd.AddCommand(txWithdrawalCmd(b))

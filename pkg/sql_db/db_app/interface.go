@@ -4,11 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	intMaxTypes "intmax2-node/internal/types"
-	backupBalance "intmax2-node/internal/use_cases/backup_balance"
-	backupDeposit "intmax2-node/internal/use_cases/backup_deposit"
-	backupTransaction "intmax2-node/internal/use_cases/backup_transaction"
-	backupTransfer "intmax2-node/internal/use_cases/backup_transfer"
-	postWithdrwalRequest "intmax2-node/internal/use_cases/post_withdrawal_request"
 	"intmax2-node/pkg/sql_db/db_app/models"
 
 	"github.com/dimiro1/health"
@@ -100,7 +95,17 @@ type Balances interface {
 }
 
 type Withdrawals interface {
-	CreateWithdrawal(id string, input *postWithdrwalRequest.UCPostWithdrawalRequestInput) (*models.Withdrawal, error)
+	CreateWithdrawal(
+		id string,
+		transferData *models.TransferData,
+		transferMerkleProof *models.TransferMerkleProof,
+		transaction *models.Transaction,
+		txMerkleProof *models.TxMerkleProof,
+		transferHash string,
+		blockNumber int64,
+		blockHash string,
+		enoughBalanceProof *models.EnoughBalanceProof,
+	) (*models.Withdrawal, error)
 	UpdateWithdrawalsStatus(ids []string, status models.WithdrawalStatus) error
 	WithdrawalByID(id string) (*models.Withdrawal, error)
 	WithdrawalsByHashes(transferHashes []string) (*[]models.Withdrawal, error)
@@ -108,19 +113,29 @@ type Withdrawals interface {
 }
 
 type BackupTransfers interface {
-	CreateBackupTransfer(input *backupTransfer.UCPostBackupTransferInput) (*models.BackupTransfer, error)
+	CreateBackupTransfer(
+		recipient, encryptedTransferHash, encryptedTransfer string,
+		blockNumber int64,
+	) (*models.BackupTransfer, error)
 	GetBackupTransfer(condition string, value string) (*models.BackupTransfer, error)
 	GetBackupTransfers(condition string, value interface{}) ([]*models.BackupTransfer, error)
 }
 
 type BackupTransactions interface {
-	CreateBackupTransaction(input *backupTransaction.UCPostBackupTransactionInput) (*models.BackupTransaction, error)
+	CreateBackupTransaction(
+		sender, encryptedTxHash, encryptedTx, signature string,
+		blockNumber int64,
+	) (*models.BackupTransaction, error)
 	GetBackupTransaction(condition string, value string) (*models.BackupTransaction, error)
+	GetBackupTransactionBySenderAndTxDoubleHash(sender, txDoubleHash string) (*models.BackupTransaction, error)
 	GetBackupTransactions(condition string, value interface{}) ([]*models.BackupTransaction, error)
 }
 
 type BackupDeposits interface {
-	CreateBackupDeposit(input *backupDeposit.UCPostBackupDepositInput) (*models.BackupDeposit, error)
+	CreateBackupDeposit(
+		recipient, encryptedDeposit string,
+		blockNumber int64,
+	) (*models.BackupDeposit, error)
 	GetBackupDeposit(conditions []string, values []interface{}) (*models.BackupDeposit, error)
 	GetBackupDeposits(condition string, value interface{}) ([]*models.BackupDeposit, error)
 }
@@ -161,7 +176,11 @@ type Accounts interface {
 }
 
 type BackupBalances interface {
-	CreateBackupBalance(input *backupBalance.UCPostBackupBalanceInput) (*models.BackupBalance, error)
+	CreateBackupBalance(
+		user, encryptedBalanceProof, encryptedBalanceData, signature string,
+		encryptedTxs, encryptedTransfers, encryptedDeposits []string,
+		blockNumber int64,
+	) (*models.BackupBalance, error)
 	GetBackupBalance(conditions []string, values []interface{}) (*models.BackupBalance, error)
 	GetBackupBalances(condition string, value interface{}) ([]*models.BackupBalance, error)
 }

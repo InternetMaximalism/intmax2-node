@@ -202,7 +202,94 @@
       }
     },
     "/v1/backups/transaction": {
+      "post": {
+        "summary": "BackupTransaction processes a request for data backup transaction",
+        "description": "## This method handles the transaction of backup data.",
+        "operationId": "StoreVaultService_BackupTransaction",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BackupTransactionResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "BackupTransactionRequest is the request message for BackupTransaction method.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BackupTransactionRequest"
+            }
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      }
+    },
+    "/v1/backups/transaction/{txHash}": {
       "get": {
+        "summary": "GetBackupTransactionByHash processes a request for backup transaction by hash",
+        "description": "## This method handles the backup transaction by hash.",
+        "operationId": "StoreVaultService_GetBackupTransactionByHash",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetBackupTransactionByHashResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "txHash",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "sender",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      }
+    },
+    "/v1/backups/transactions": {
+      "get": {
+        "summary": "GetBackupTransactions processes a request for backup transactions list",
+        "description": "## This method handles the backup transactions list.",
         "operationId": "StoreVaultService_GetBackupTransactions",
         "responses": {
           "200": {
@@ -249,16 +336,18 @@
         "tags": [
           "StoreVaultService"
         ]
-      },
+      }
+    },
+    "/v1/backups/transfer": {
       "post": {
-        "summary": "BackupTransaction processes a request for data backup transaction",
-        "description": "## This method handles the transaction of backup data.",
-        "operationId": "StoreVaultService_BackupTransaction",
+        "summary": "BackupTransfer processes a request for data backup transfer",
+        "description": "## This method handles the transfer of backup data.",
+        "operationId": "StoreVaultService_BackupTransfer",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1BackupTransactionResponse"
+              "$ref": "#/definitions/v1BackupTransferResponse"
             }
           },
           "400": {
@@ -277,11 +366,11 @@
         "parameters": [
           {
             "name": "body",
-            "description": "BackupTransactionRequest is the request message for BackupTransaction method.",
+            "description": "BackupTransferRequest is the request message for BackupTransfer method.",
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/v1BackupTransactionRequest"
+              "$ref": "#/definitions/v1BackupTransferRequest"
             }
           }
         ],
@@ -290,7 +379,7 @@
         ]
       }
     },
-    "/v1/backups/transfer": {
+    "/v1/backups/transfers": {
       "get": {
         "operationId": "StoreVaultService_GetBackupTransfers",
         "responses": {
@@ -333,45 +422,6 @@
             "required": false,
             "type": "string",
             "format": "uint64"
-          }
-        ],
-        "tags": [
-          "StoreVaultService"
-        ]
-      },
-      "post": {
-        "summary": "BackupTransfer processes a request for data backup transfer",
-        "description": "## This method handles the transfer of backup data.",
-        "operationId": "StoreVaultService_BackupTransfer",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1BackupTransferResponse"
-            }
-          },
-          "400": {
-            "description": "Validation error",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "schema": {
-              "$ref": "#/definitions/protobufEmpty"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "body",
-            "description": "BackupTransferRequest is the request message for BackupTransfer method.",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/v1BackupTransferRequest"
-            }
           }
         ],
         "tags": [
@@ -530,7 +580,8 @@
           "type": "string"
         },
         "createdAt": {
-          "type": "string"
+          "type": "string",
+          "format": "date-time"
         }
       }
     },
@@ -551,31 +602,8 @@
           "type": "string"
         },
         "createdAt": {
-          "type": "string"
-        }
-      }
-    },
-    "GetBackupTransactionsResponseTransaction": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "sender": {
-          "type": "string"
-        },
-        "signature": {
-          "type": "string"
-        },
-        "blockNumber": {
           "type": "string",
-          "format": "uint64"
-        },
-        "encryptedTx": {
-          "type": "string"
-        },
-        "createdAt": {
-          "type": "string"
+          "format": "date-time"
         }
       }
     },
@@ -596,7 +624,8 @@
           "type": "string"
         },
         "createdAt": {
-          "type": "string"
+          "type": "string",
+          "format": "date-time"
         }
       }
     },
@@ -715,7 +744,8 @@
           "format": "uint64"
         },
         "createdAt": {
-          "type": "string"
+          "type": "string",
+          "format": "date-time"
         }
       }
     },
@@ -775,13 +805,18 @@
           "type": "string"
         },
         "createdAt": {
-          "type": "string"
+          "type": "string",
+          "format": "date-time"
         }
       }
     },
     "v1BackupTransactionRequest": {
       "type": "object",
       "properties": {
+        "txHash": {
+          "type": "string",
+          "title": "The transaction hash"
+        },
         "encryptedTx": {
           "type": "string",
           "title": "The encrypted transaction data"
@@ -840,13 +875,18 @@
           "format": "uint64"
         },
         "createdAt": {
-          "type": "string"
+          "type": "string",
+          "format": "date-time"
         }
       }
     },
     "v1BackupTransferRequest": {
       "type": "object",
       "properties": {
+        "transferHash": {
+          "type": "string",
+          "title": "The transfer hash"
+        },
         "encryptedTransfer": {
           "type": "string",
           "title": "The encrypted data for the transfer"
@@ -971,6 +1011,50 @@
         }
       }
     },
+    "v1GetBackupTransactionByHashResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "data": {
+          "$ref": "#/definitions/v1GetBackupTransactionByHashResponseData"
+        }
+      }
+    },
+    "v1GetBackupTransactionByHashResponseData": {
+      "type": "object",
+      "properties": {
+        "transaction": {
+          "$ref": "#/definitions/v1GetBackupTransactionByHashResponseTransaction"
+        }
+      }
+    },
+    "v1GetBackupTransactionByHashResponseTransaction": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "sender": {
+          "type": "string"
+        },
+        "signature": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "encryptedTx": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
     "v1GetBackupTransactionsResponse": {
       "type": "object",
       "properties": {
@@ -992,7 +1076,7 @@
           "type": "array",
           "items": {
             "type": "object",
-            "$ref": "#/definitions/GetBackupTransactionsResponseTransaction"
+            "$ref": "#/definitions/v1GetBackupTransactionsResponseTransaction"
           }
         },
         "meta": {
@@ -1010,6 +1094,31 @@
         "endBlockNumber": {
           "type": "string",
           "format": "uint64"
+        }
+      }
+    },
+    "v1GetBackupTransactionsResponseTransaction": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "sender": {
+          "type": "string"
+        },
+        "signature": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "encryptedTx": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
         }
       }
     },

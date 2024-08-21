@@ -334,6 +334,10 @@
     "v1BackupTransactionData": {
       "type": "object",
       "properties": {
+        "txHash": {
+          "type": "string",
+          "title": "The transaction hash"
+        },
         "encryptedTx": {
           "type": "string",
           "title": "The encrypted transaction data"
@@ -348,6 +352,10 @@
     "v1BackupTransferData": {
       "type": "object",
       "properties": {
+        "transferHash": {
+          "type": "string",
+          "title": "The transfer hash"
+        },
         "encryptedTransfer": {
           "type": "string",
           "title": "The encrypted data for the transfer"

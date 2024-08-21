@@ -11,8 +11,8 @@ import (
 	"intmax2-node/internal/open_telemetry"
 	service "intmax2-node/internal/store_vault_service"
 	intMaxTypes "intmax2-node/internal/types"
-	backupTransaction "intmax2-node/internal/use_cases/backup_transaction"
-	"intmax2-node/pkg/use_cases/post_backup_transfer"
+	postBackupTransaction "intmax2-node/internal/use_cases/post_backup_transaction"
+	postBackupTransfer "intmax2-node/pkg/use_cases/post_backup_transfer"
 	"io"
 
 	"github.com/iden3/go-iden3-crypto/ffg"
@@ -26,7 +26,7 @@ type uc struct {
 	db  SQLDriverApp
 }
 
-func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupTransaction.UseCasePostBackupTransaction {
+func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) postBackupTransaction.UseCasePostBackupTransaction {
 	return &uc{
 		cfg: cfg,
 		log: log,
@@ -35,12 +35,13 @@ func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupTransact
 }
 
 func (u *uc) Do(
-	ctx context.Context, input *backupTransaction.UCPostBackupTransactionInput,
+	ctx context.Context, input *postBackupTransaction.UCPostBackupTransactionInput,
 ) error {
 	const (
 		hName          = "UseCase PostBackupTransaction"
 		senderKey      = "sender"
 		blockNumberKey = "block_number"
+		txHashKey      = "tx_hash"
 		encryptedTxKey = "encrypted_tx"
 	)
 
@@ -55,6 +56,7 @@ func (u *uc) Do(
 	span.SetAttributes(
 		attribute.String(senderKey, input.Sender),
 		attribute.Int64(blockNumberKey, int64(input.BlockNumber)),
+		attribute.String(txHashKey, input.TxHash),
 		attribute.String(encryptedTxKey, input.EncryptedTx),
 	)
 
@@ -72,7 +74,7 @@ func WriteTransfers(buf io.Writer, transfers []*intMaxTypes.Transfer) error {
 	}
 
 	for _, transfer := range transfers {
-		if err := post_backup_transfer.WriteTransfer(buf, transfer); err != nil {
+		if err := postBackupTransfer.WriteTransfer(buf, transfer); err != nil {
 			return err
 		}
 	}

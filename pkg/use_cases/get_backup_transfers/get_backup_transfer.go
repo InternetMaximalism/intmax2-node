@@ -2,16 +2,15 @@ package get_backup_transfers
 
 import (
 	"context"
+	"go.opentelemetry.io/otel/attribute"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
 	node "intmax2-node/internal/pb/gen/store_vault_service/node"
 	service "intmax2-node/internal/store_vault_service"
-	"intmax2-node/internal/use_cases/backup_transfer"
+	getBackupTransfers "intmax2-node/internal/use_cases/get_backup_transfers"
 	"intmax2-node/pkg/sql_db/db_app/models"
-	"time"
-
-	"go.opentelemetry.io/otel/attribute"
 )
 
 // uc describes use case
@@ -21,7 +20,11 @@ type uc struct {
 	db  SQLDriverApp
 }
 
-func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backup_transfer.UseCaseGetBackupTransfers {
+func New(
+	cfg *configs.Config,
+	log logger.Logger,
+	db SQLDriverApp,
+) getBackupTransfers.UseCaseGetBackupTransfers {
 	return &uc{
 		cfg: cfg,
 		log: log,
@@ -30,13 +33,13 @@ func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backup_transfe
 }
 
 func (u *uc) Do(
-	ctx context.Context, input *backup_transfer.UCGetBackupTransferInput,
+	ctx context.Context, input *getBackupTransfers.UCGetBackupTransfersInput,
 ) (*node.GetBackupTransfersResponse_Data, error) {
 	const (
-		hName           = "UseCase GetBackupTransfers"
-		recipientKey    = "recipient"
-		startBackupTime = "start_backup_time"
-		limitKey        = "limit"
+		hName               = "UseCase GetBackupTransfers"
+		senderKey           = "sender"
+		startBlockNumberKey = "start_block_number"
+		limitKey            = "limit"
 	)
 
 	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
@@ -48,6 +51,8 @@ func (u *uc) Do(
 	}
 
 	span.SetAttributes(
+		attribute.String(senderKey, input.Sender),
+		attribute.Int64(startBlockNumberKey, int64(input.StartBlockNumber)),
 		attribute.Int64(limitKey, int64(input.Limit)),
 	)
 
@@ -69,13 +74,16 @@ func (u *uc) Do(
 
 func generateBackupTransfers(transfers []*models.BackupTransfer) []*node.GetBackupTransfersResponse_Transfer {
 	results := make([]*node.GetBackupTransfersResponse_Transfer, 0, len(transfers))
-	for _, transfer := range transfers {
+	for key := range transfers {
 		backupTransfer := &node.GetBackupTransfersResponse_Transfer{
-			Id:                transfer.ID,
-			Recipient:         transfer.Recipient,
-			BlockNumber:       transfer.BlockNumber,
-			EncryptedTransfer: transfer.EncryptedTransfer,
-			CreatedAt:         transfer.CreatedAt.Format(time.RFC3339),
+			Id:                transfers[key].ID,
+			Recipient:         transfers[key].Recipient,
+			BlockNumber:       transfers[key].BlockNumber,
+			EncryptedTransfer: transfers[key].EncryptedTransfer,
+			CreatedAt: &timestamppb.Timestamp{
+				Seconds: transfers[key].CreatedAt.Unix(),
+				Nanos:   int32(transfers[key].CreatedAt.Nanosecond()),
+			},
 		}
 		results = append(results, backupTransfer)
 	}

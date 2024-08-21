@@ -2,16 +2,15 @@ package get_backup_transactions
 
 import (
 	"context"
+	"go.opentelemetry.io/otel/attribute"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
 	node "intmax2-node/internal/pb/gen/store_vault_service/node"
 	service "intmax2-node/internal/store_vault_service"
-	"intmax2-node/internal/use_cases/backup_transaction"
+	getBackupTransaction "intmax2-node/internal/use_cases/get_backup_transactions"
 	"intmax2-node/pkg/sql_db/db_app/models"
-	"time"
-
-	"go.opentelemetry.io/otel/attribute"
 )
 
 // uc describes use case
@@ -21,7 +20,7 @@ type uc struct {
 	db  SQLDriverApp
 }
 
-func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backup_transaction.UseCaseGetBackupTransactions {
+func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) getBackupTransaction.UseCaseGetBackupTransactions {
 	return &uc{
 		cfg: cfg,
 		log: log,
@@ -30,7 +29,7 @@ func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backup_transac
 }
 
 func (u *uc) Do(
-	ctx context.Context, input *backup_transaction.UCGetBackupTransactionsInput,
+	ctx context.Context, input *getBackupTransaction.UCGetBackupTransactionsInput,
 ) (*node.GetBackupTransactionsResponse_Data, error) {
 	const (
 		hName               = "UseCase GetBackupTransactions"
@@ -70,14 +69,17 @@ func (u *uc) Do(
 
 func generateBackupTransaction(transactions []*models.BackupTransaction) []*node.GetBackupTransactionsResponse_Transaction {
 	results := make([]*node.GetBackupTransactionsResponse_Transaction, 0, len(transactions))
-	for _, transaction := range transactions {
+	for key := range transactions {
 		backupTransaction := &node.GetBackupTransactionsResponse_Transaction{
-			Id:          transaction.ID,
-			Sender:      transaction.Sender,
-			Signature:   transaction.Signature,
-			BlockNumber: transaction.BlockNumber,
-			EncryptedTx: transaction.EncryptedTx,
-			CreatedAt:   transaction.CreatedAt.Format(time.RFC3339),
+			Id:          transactions[key].ID,
+			Sender:      transactions[key].Sender,
+			Signature:   transactions[key].Signature,
+			BlockNumber: transactions[key].BlockNumber,
+			EncryptedTx: transactions[key].EncryptedTx,
+			CreatedAt: &timestamppb.Timestamp{
+				Seconds: transactions[key].CreatedAt.Unix(),
+				Nanos:   int32(transactions[key].CreatedAt.Nanosecond()),
+			},
 		}
 		results = append(results, backupTransaction)
 	}

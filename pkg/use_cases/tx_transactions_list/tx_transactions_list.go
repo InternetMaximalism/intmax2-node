@@ -11,19 +11,12 @@ import (
 	"intmax2-node/internal/mnemonic_wallet"
 	"intmax2-node/internal/open_telemetry"
 	service "intmax2-node/internal/tx_transfer_service"
-	txTransfersList "intmax2-node/internal/use_cases/tx_transactions_list"
+	txTransactionsList "intmax2-node/internal/use_cases/tx_transactions_list"
 	"math/big"
 	"strconv"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
-)
-
-var (
-	ErrEmptyUserPrivateKey     = errors.New("user private key is empty")
-	ErrMoreThenZeroLimit       = errors.New("limit must be more than zero")
-	ErrInvalidLimit            = errors.New("limit must be valid value")
-	ErrInvalidStartBlockNumber = errors.New("start block number must be valid")
 )
 
 // uc describes use case
@@ -37,7 +30,7 @@ func New(
 	cfg *configs.Config,
 	log logger.Logger,
 	sb ServiceBlockchain,
-) txTransfersList.UseCaseTxTransactionsList {
+) txTransactionsList.UseCaseTxTransactionsList {
 	return &uc{
 		cfg: cfg,
 		log: log,

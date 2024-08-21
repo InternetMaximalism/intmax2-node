@@ -128,15 +128,18 @@ message TransactionRequest {
 
 // BackupTransaction describes the backup data of transaction
 message BackupTransactionData {
+  // The transaction hash
+  string tx_hash = 5 [json_name="txHash", (tagger.tags)="json:\"txHash,omitempty\""];
   // The encrypted transaction data
   string encrypted_tx = 10 [json_name="encryptedTx", (tagger.tags)="json:\"encryptedTx,omitempty\""];
-
   // The signature for the transaction
   string signature = 20 [json_name="signature", (tagger.tags)="json:\"signature,omitempty\""];
 }
 
 // BackupTransaction describes the backup data of transaction
 message BackupTransferData {
+  // The transfer hash
+  string transfer_hash = 5 [json_name="transferHash", (tagger.tags)="json:\"transferHash,omitempty\""];
   // The encrypted data for the transfer
   string encrypted_transfer = 10 [json_name="encryptedTransfer", (tagger.tags)="json:\"encryptedTransfer,omitempty\""];
   // The recipient address

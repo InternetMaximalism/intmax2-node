@@ -1,4 +1,4 @@
-package backup_transfer
+package post_backup_transfer
 
 import (
 	"context"
@@ -11,6 +11,7 @@ const (
 )
 
 type UCPostBackupTransferInput struct {
+	TransferHash      string `json:"transferHash"`
 	EncryptedTransfer string `json:"encryptedTransfer"`
 	Recipient         string `json:"recipient"`
 	BlockNumber       uint32 `json:"blockNumber"`

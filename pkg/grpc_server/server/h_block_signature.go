@@ -42,6 +42,7 @@ func (s *Server) BlockSignature(
 	}
 
 	if req.BackupTransaction != nil {
+		input.BackupTx.TxHash = req.BackupTransaction.TxHash
 		input.BackupTx.EncodedEncryptedTx = req.BackupTransaction.EncryptedTx
 		input.BackupTx.Signature = req.BackupTransaction.Signature
 	}
@@ -49,6 +50,7 @@ func (s *Server) BlockSignature(
 	for key := range req.BackupTransfers {
 		data := transaction.BackupTransferInput{
 			Recipient:                req.BackupTransfers[key].Recipient,
+			TransferHash:             req.BackupTransfers[key].TransferHash,
 			EncodedEncryptedTransfer: req.BackupTransfers[key].EncryptedTransfer,
 		}
 		input.BackupTransfers[key] = &data

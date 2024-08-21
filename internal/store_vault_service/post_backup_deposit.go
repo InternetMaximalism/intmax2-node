@@ -15,7 +15,9 @@ func PostBackupDeposit(
 	db SQLDriverApp,
 	input *backupDeposit.UCPostBackupDepositInput,
 ) error {
-	_, err := db.CreateBackupDeposit(input)
+	_, err := db.CreateBackupDeposit(
+		input.Recipient, input.EncryptedDeposit, int64(input.BlockNumber),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to create backup deposit to db: %w", err)
 	}

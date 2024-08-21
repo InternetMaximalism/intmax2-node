@@ -3,6 +3,7 @@ syntax = "proto3";
 package store_vault.v1;
 
 import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
 
 // Defines the import path that should be used to import the generated package,
 // and the package name.
@@ -22,7 +23,7 @@ service StoreVaultService {
 
   rpc GetBackupTransfers(GetBackupTransfersRequest) returns (GetBackupTransfersResponse) {
     option (google.api.http) = {
-      get: "/v1/backups/transfer"
+      get: "/v1/backups/transfers"
     };
   }
 
@@ -36,9 +37,21 @@ service StoreVaultService {
     };
   }
 
+  // GetBackupTransactions processes a request for backup transactions list
+  //
+  // ## This method handles the backup transactions list.
   rpc GetBackupTransactions(GetBackupTransactionsRequest) returns (GetBackupTransactionsResponse) {
     option (google.api.http) = {
-      get: "/v1/backups/transaction"
+      get: "/v1/backups/transactions"
+    };
+  }
+
+  // GetBackupTransactionByHash processes a request for backup transaction by hash
+  //
+  // ## This method handles the backup transaction by hash.
+  rpc GetBackupTransactionByHash(GetBackupTransactionByHashRequest) returns (GetBackupTransactionByHashResponse) {
+    option (google.api.http) = {
+      get: "/v1/backups/transaction/{tx_hash}"
     };
   }
 
@@ -92,12 +105,14 @@ service StoreVaultService {
 
 // BackupTransferRequest is the request message for BackupTransfer method.
 message BackupTransferRequest {
+  // The transfer hash
+  string transfer_hash = 10;
   // The encrypted data for the transfer
-  string encrypted_transfer = 1;
+  string encrypted_transfer = 20;
   // The recipient address
-  string recipient = 2;
+  string recipient = 30;
   // The block number associated with the transfer
-  uint64 block_number = 3;
+  uint64 block_number = 40;
 }
 
 // BackupTransferResponse is the response message for Backup method.
@@ -133,7 +148,7 @@ message GetBackupTransfersResponse {
     uint64 block_number = 2;
     string recipient = 3;
     string encrypted_transfer = 4;
-    string created_at = 5;
+    google.protobuf.Timestamp created_at = 5;
   }
 
   message Meta {
@@ -151,14 +166,16 @@ message StoreVaultError {
 
 // BackupTransactionRequest is the request message for BackupTransaction method.
 message BackupTransactionRequest {
+  // The transaction hash
+  string tx_hash = 10;
   // The encrypted transaction data
-  string encrypted_tx = 1;
+  string encrypted_tx = 20;
   // The sender address
-  string sender = 2;
+  string sender = 30;
   // The block number associated with the transaction
-  uint64 block_number = 3;
+  uint64 block_number = 40;
   // The signature for the transaction
-  string signature = 4;
+  string signature = 50;
 }
 
 // BackupTransactionResponse is the response message for Backup method.
@@ -195,7 +212,7 @@ message GetBackupTransactionsResponse {
     string signature = 3;
     uint64 block_number = 4;
     string encrypted_tx = 5;
-    string created_at = 6;
+    google.protobuf.Timestamp created_at = 6;
   }
 
   message Meta {
@@ -204,6 +221,29 @@ message GetBackupTransactionsResponse {
   }
 
   StoreVaultError error = 3;
+}
+
+message GetBackupTransactionByHashRequest {
+  string sender = 1;
+  string tx_hash = 2;
+}
+
+message GetBackupTransactionByHashResponse {
+  bool success = 1;
+  Data data = 2;
+
+  message Data {
+    Transaction transaction = 1;
+  }
+
+  message Transaction {
+    string id = 1;
+    string sender = 2;
+    string signature = 3;
+    uint64 block_number = 4;
+    string encrypted_tx = 5;
+    google.protobuf.Timestamp created_at = 6;
+  }
 }
 
 // BackupDepositRequest is the request message for BackupDeposit method.
@@ -249,7 +289,7 @@ message GetBackupDepositsResponse {
     string recipient = 2;
     uint64 block_number = 3;
     string encrypted_deposit = 4;
-    string created_at = 5;
+    google.protobuf.Timestamp created_at = 5;
   }
 
   message Meta {
@@ -270,21 +310,21 @@ message BackupDeposit {
   string recipient = 1;
   string encrypted_deposit = 2;
   uint64 block_number = 3;
-  string created_at = 4;
+  google.protobuf.Timestamp created_at = 4;
 }
 
 message BackupTransfer {
   string encrypted_transfer = 1;
   string recipient = 2;
   uint64 block_number = 3;
-  string created_at = 4;
+  google.protobuf.Timestamp created_at = 4;
 }
 
 message BackupTransaction {
 	string sender = 1;
 	string encrypted_tx = 2;
 	string block_number = 3;
-	string created_at = 4;
+  google.protobuf.Timestamp created_at = 4;
 }
 
 message BackupBalanceRequest {
@@ -345,7 +385,7 @@ message GetBackupBalancesResponse {
     repeated string encrypted_deposits = 7;
     uint64 block_number = 8;
     string signature = 9;
-    string created_at = 10;
+    google.protobuf.Timestamp created_at = 10;
   }
 
   message Meta {

@@ -1,4 +1,4 @@
-package backup_transaction
+package post_backup_transaction
 
 import (
 	"context"
@@ -11,6 +11,7 @@ const (
 )
 
 type UCPostBackupTransactionInput struct {
+	TxHash      string `json:"txHash"`
 	EncryptedTx string `json:"encryptedTx"`
 	Sender      string `json:"sender"`
 	BlockNumber uint32 `json:"blockNumber"`

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"intmax2-node/internal/open_telemetry"
 	node "intmax2-node/internal/pb/gen/store_vault_service/node"
-	backupTransction "intmax2-node/internal/use_cases/backup_transaction"
+	postBackupTransction "intmax2-node/internal/use_cases/post_backup_transaction"
 	"intmax2-node/pkg/grpc_server/utils"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -26,7 +26,8 @@ func (s *StoreVaultServer) BackupTransaction(ctx context.Context, req *node.Back
 		))
 	defer span.End()
 
-	input := backupTransction.UCPostBackupTransactionInput{
+	input := postBackupTransction.UCPostBackupTransactionInput{
+		TxHash:      req.TxHash,
 		EncryptedTx: req.EncryptedTx,
 		Sender:      req.Sender,
 		Signature:   req.Signature,
@@ -57,7 +58,7 @@ func (s *StoreVaultServer) BackupTransaction(ctx context.Context, req *node.Back
 	}
 
 	resp.Success = true
-	resp.Data = &node.BackupTransactionResponse_Data{Message: backupTransction.SuccessMsg}
+	resp.Data = &node.BackupTransactionResponse_Data{Message: postBackupTransction.SuccessMsg}
 
 	return &resp, utils.OK(spanCtx)
 }

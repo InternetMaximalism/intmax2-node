@@ -180,6 +180,7 @@ func WithdrawalTransaction(
 
 	encodedEncryptedTx := base64.StdEncoding.EncodeToString(encryptedTx)
 	backupTx := transaction.BackupTransactionData{
+		TxHash:             txHash.String(),
 		EncodedEncryptedTx: encodedEncryptedTx,
 		Signature:          "0x",
 	}

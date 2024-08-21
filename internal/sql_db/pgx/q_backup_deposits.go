@@ -5,7 +5,6 @@ import (
 	"fmt"
 	errPgx "intmax2-node/internal/sql_db/pgx/errors"
 	"intmax2-node/internal/sql_db/pgx/models"
-	backupDeposit "intmax2-node/internal/use_cases/backup_deposit"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"strings"
 	"time"
@@ -13,7 +12,10 @@ import (
 	"github.com/google/uuid"
 )
 
-func (p *pgx) CreateBackupDeposit(input *backupDeposit.UCPostBackupDepositInput) (*mDBApp.BackupDeposit, error) {
+func (p *pgx) CreateBackupDeposit(
+	recipient, encryptedDeposit string,
+	blockNumber int64,
+) (*mDBApp.BackupDeposit, error) {
 	const query = `
 	    INSERT INTO backup_deposits
         (id, recipient, encrypted_deposit, block_number, created_at)
@@ -23,7 +25,7 @@ func (p *pgx) CreateBackupDeposit(input *backupDeposit.UCPostBackupDepositInput)
 	id := uuid.New().String()
 	createdAt := time.Now().UTC()
 
-	err := p.createBackupEntry(query, id, input.Recipient, input.EncryptedDeposit, input.BlockNumber, createdAt)
+	err := p.createBackupEntry(query, id, recipient, encryptedDeposit, blockNumber, createdAt)
 	if err != nil {
 		return nil, err
 	}

@@ -5,14 +5,17 @@ import (
 	"fmt"
 	"intmax2-node/internal/open_telemetry"
 	node "intmax2-node/internal/pb/gen/store_vault_service/node"
-	backupTransfer "intmax2-node/internal/use_cases/backup_transfer"
+	getBackupTransfers "intmax2-node/internal/use_cases/get_backup_transfers"
 	"intmax2-node/pkg/grpc_server/utils"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
-func (s *StoreVaultServer) GetBackupTransfers(ctx context.Context, req *node.GetBackupTransfersRequest) (*node.GetBackupTransfersResponse, error) {
+func (s *StoreVaultServer) GetBackupTransfers(
+	ctx context.Context,
+	req *node.GetBackupTransfersRequest,
+) (*node.GetBackupTransfersResponse, error) {
 	resp := node.GetBackupTransfersResponse{}
 
 	const (
@@ -26,7 +29,7 @@ func (s *StoreVaultServer) GetBackupTransfers(ctx context.Context, req *node.Get
 		))
 	defer span.End()
 
-	input := backupTransfer.UCGetBackupTransferInput{
+	input := getBackupTransfers.UCGetBackupTransfersInput{
 		Sender:           req.Sender,
 		StartBlockNumber: req.StartBlockNumber,
 		Limit:            req.Limit,

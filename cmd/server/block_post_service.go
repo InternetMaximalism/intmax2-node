@@ -9,13 +9,13 @@ import (
 type BlockPostService interface {
 	BackupTransaction(
 		sender intMaxAcc.Address,
-		encodedEncryptedTx string,
+		encodedEncryptedTxHash, encodedEncryptedTx string,
 		signature string,
 		blockNumber uint64,
 	) error
 	BackupTransfer(
 		recipient intMaxAcc.Address,
-		encodedEncryptedTransfer string,
+		encodedEncryptedTransferHash, encodedEncryptedTransfer string,
 		blockNumber uint64,
 	) error
 }

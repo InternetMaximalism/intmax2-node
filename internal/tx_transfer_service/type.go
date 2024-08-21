@@ -1,5 +1,9 @@
 package tx_transfer_service
 
+import (
+	intMaxTypes "intmax2-node/internal/types"
+)
+
 type SimpleResponseData struct {
 	Message string `json:"message"`
 }
@@ -9,7 +13,7 @@ type SendTransactionResponse struct {
 	Data    SimpleResponseData `json:"data"`
 }
 
-type GetTransactionsListDataTransaction struct {
+type GetTransactionData struct {
 	ID          string `json:"id"`
 	Sender      string `json:"sender"`
 	Signature   string `json:"signature"`
@@ -18,14 +22,23 @@ type GetTransactionsListDataTransaction struct {
 	CreatedAt   string `json:"createdAt"`
 }
 
+type GetTransactionTxData struct {
+	ID          string                 `json:"id"`
+	Sender      string                 `json:"sender"`
+	Signature   string                 `json:"signature"`
+	BlockNumber string                 `json:"blockNumber"`
+	TxDetails   *intMaxTypes.TxDetails `json:"txDetails"`
+	CreatedAt   string                 `json:"createdAt"`
+}
+
 type GetTransactionsListDataMeta struct {
 	StartBlockNumber string `json:"startBlockNumber"`
 	EndBlockNumber   string `json:"endBlockNumber"`
 }
 
 type GetTransactionsListData struct {
-	Transactions []*GetTransactionsListDataTransaction `json:"transactions"`
-	Meta         *GetTransactionsListDataMeta          `json:"meta"`
+	Transactions []*GetTransactionData        `json:"transactions"`
+	Meta         *GetTransactionsListDataMeta `json:"meta"`
 }
 
 type GetTransactionsListError struct {
@@ -48,4 +61,13 @@ type GetTransactionsListTransaction struct {
 type GetTransactionsList struct {
 	Transactions []*GetTransactionsListTransaction `json:"transactions"`
 	Meta         *GetTransactionsListDataMeta      `json:"meta"`
+}
+
+type GetTransactionByHashData struct {
+	Transaction *GetTransactionData `json:"transaction"`
+}
+
+type GetTransactionByHashResponse struct {
+	Success bool                      `json:"success"`
+	Data    *GetTransactionByHashData `json:"data"`
 }

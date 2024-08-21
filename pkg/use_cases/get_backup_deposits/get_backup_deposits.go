@@ -2,6 +2,8 @@ package get_backup_deposits
 
 import (
 	"context"
+	"go.opentelemetry.io/otel/attribute"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
@@ -9,9 +11,6 @@ import (
 	service "intmax2-node/internal/store_vault_service"
 	"intmax2-node/internal/use_cases/backup_deposit"
 	"intmax2-node/pkg/sql_db/db_app/models"
-	"time"
-
-	"go.opentelemetry.io/otel/attribute"
 )
 
 // uc describes use case
@@ -75,7 +74,10 @@ func generateBackupDeposits(deposits []*models.BackupDeposit) []*node.GetBackupD
 			Recipient:        deposit.Recipient,
 			BlockNumber:      deposit.BlockNumber,
 			EncryptedDeposit: deposit.EncryptedDeposit,
-			CreatedAt:        deposit.CreatedAt.Format(time.RFC3339),
+			CreatedAt: &timestamppb.Timestamp{
+				Seconds: deposit.CreatedAt.Unix(),
+				Nanos:   int32(deposit.CreatedAt.Nanosecond()),
+			},
 		}
 		results = append(results, backupDeposit)
 	}

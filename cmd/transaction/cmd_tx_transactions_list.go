@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func txListCmd(b *Transaction) *cobra.Command {
+func txTransferTransactionsListCmd(b *Transaction) *cobra.Command {
 	const (
 		use   = "list"
 		short = "Get transactions list"

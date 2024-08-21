@@ -9,6 +9,7 @@ import (
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/logger"
 	postWithdrwalRequest "intmax2-node/internal/use_cases/post_withdrawal_request"
+	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	dbErrors "intmax2-node/pkg/sql_db/errors"
 	"intmax2-node/pkg/utils"
 
@@ -92,7 +93,34 @@ func PostWithdrawalRequest(
 		return fmt.Errorf("failed to send withdrawal request to prover: %w", err)
 	}
 
-	_, err = db.CreateWithdrawal(id, input)
+	_, err = db.CreateWithdrawal(
+		id,
+		&mDBApp.TransferData{
+			Recipient:  input.TransferData.Recipient,
+			TokenIndex: input.TransferData.TokenIndex,
+			Amount:     input.TransferData.Amount,
+			Salt:       input.TransferData.Salt,
+		},
+		&mDBApp.TransferMerkleProof{
+			Siblings: input.TransferMerkleProof.Siblings,
+			Index:    input.TransferMerkleProof.Index,
+		},
+		&mDBApp.Transaction{
+			TransferTreeRoot: input.Transaction.TransferTreeRoot,
+			Nonce:            input.Transaction.Nonce,
+		},
+		&mDBApp.TxMerkleProof{
+			Siblings: input.TxMerkleProof.Siblings,
+			Index:    input.TxMerkleProof.Index,
+		},
+		input.TransferHash,
+		input.BlockNumber,
+		input.BlockHash,
+		&mDBApp.EnoughBalanceProof{
+			Proof:        input.EnoughBalanceProof.Proof,
+			PublicInputs: input.EnoughBalanceProof.PublicInputs,
+		},
+	)
 	if err != nil {
 		if errors.Is(err, dbErrors.ErrNotUnique) {
 			return ErrWithdrawalRequestAlreadyExists
@@ -111,7 +139,7 @@ func (s *WithdrawalRequestService) verifyBalanceProof() error {
 
 // Check the block number
 func (s *WithdrawalRequestService) checkBlockNumber(input *postWithdrwalRequest.UCPostWithdrawalRequestInput) error {
-	if input.BlockNumber >= uint64(1)<<int32Key {
+	if input.BlockNumber >= int64(1)<<int32Key {
 		return fmt.Errorf("block number is too large")
 	}
 

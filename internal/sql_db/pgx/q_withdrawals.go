@@ -5,34 +5,53 @@ import (
 	"fmt"
 	errPgx "intmax2-node/internal/sql_db/pgx/errors"
 	"intmax2-node/internal/sql_db/pgx/models"
-	postWithdrwalRequest "intmax2-node/internal/use_cases/post_withdrawal_request"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"strings"
 	"time"
 )
 
-func (p *pgx) CreateWithdrawal(id string, input *postWithdrwalRequest.UCPostWithdrawalRequestInput) (*mDBApp.Withdrawal, error) {
-	const query = `
-	    INSERT INTO withdrawals
-        (id, status, transfer_data, transfer_merkle_proof, transaction, tx_merkle_proof, enough_balance_proof, transfer_hash, block_number, block_hash, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-	`
+func (p *pgx) CreateWithdrawal(
+	id string,
+	transferData *mDBApp.TransferData,
+	transferMerkleProof *mDBApp.TransferMerkleProof,
+	transaction *mDBApp.Transaction,
+	txMerkleProof *mDBApp.TxMerkleProof,
+	transferHash string,
+	blockNumber int64,
+	blockHash string,
+	enoughBalanceProof *mDBApp.EnoughBalanceProof,
+) (*mDBApp.Withdrawal, error) {
+	const (
+		query = `
+	    INSERT INTO withdrawals (
+	    id ,status ,transfer_data ,transfer_merkle_proof ,transaction
+	    ,tx_merkle_proof ,enough_balance_proof ,transfer_hash
+	    ,block_number ,block_hash ,created_at
+	    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+`
+		transferDataKey        = "TransferData"
+		transferMerkleProofKey = "TransferMerkleProof"
+		transactionKey         = "Transaction"
+		txMerkleProofKey       = "TxMerkleProof"
+		enoughBalanceProofKey  = "EnoughBalanceProof"
+	)
 
 	createdAt := time.Now().UTC()
 
 	jsonFields := map[string]interface{}{
-		"TransferData":        input.TransferData,
-		"TransferMerkleProof": input.TransferMerkleProof,
-		"Transaction":         input.Transaction,
-		"TxMerkleProof":       input.TxMerkleProof,
-		"EnoughBalanceProof":  input.EnoughBalanceProof,
+		transferDataKey:        transferData,
+		transferMerkleProofKey: transferMerkleProof,
+		transactionKey:         transaction,
+		txMerkleProofKey:       txMerkleProof,
+		enoughBalanceProofKey:  enoughBalanceProof,
 	}
 
 	jsonData := make(map[string][]byte)
 	for field, data := range jsonFields {
 		jsonBytes, err := json.Marshal(data)
 		if err != nil {
-			return nil, fmt.Errorf("error encoding %s: %w", field, err)
+			const msg = "error encoding %s: %w"
+			return nil, fmt.Errorf(msg, field, err)
 		}
 		jsonData[field] = jsonBytes
 	}
@@ -42,14 +61,14 @@ func (p *pgx) CreateWithdrawal(id string, input *postWithdrwalRequest.UCPostWith
 		query,
 		id,
 		mDBApp.WS_PENDING,
-		jsonData["TransferData"],
-		jsonData["TransferMerkleProof"],
-		jsonData["Transaction"],
-		jsonData["TxMerkleProof"],
-		jsonData["EnoughBalanceProof"],
-		input.TransferHash,
-		input.BlockNumber,
-		input.BlockHash,
+		jsonData[transferDataKey],
+		jsonData[transferMerkleProofKey],
+		jsonData[transactionKey],
+		jsonData[txMerkleProofKey],
+		jsonData[enoughBalanceProofKey],
+		transferHash,
+		blockNumber,
+		blockHash,
 		createdAt,
 	)
 	if err != nil {
@@ -66,24 +85,25 @@ func (p *pgx) CreateWithdrawal(id string, input *postWithdrwalRequest.UCPostWith
 }
 
 func (p *pgx) UpdateWithdrawalsStatus(ids []string, status mDBApp.WithdrawalStatus) error {
+	const (
+		q = ` UPDATE withdrawals SET status = %d WHERE id IN (%s) `
+
+		maskPlaceholderKey = "$%d"
+		maskJoinKey        = ", "
+	)
+
 	placeholder := make([]string, len(ids))
 	for i := range ids {
-		placeholder[i] = fmt.Sprintf("$%d", i+1)
+		placeholder[i] = fmt.Sprintf(maskPlaceholderKey, i+1)
 	}
-	placeholderStr := strings.Join(placeholder, ", ")
-
-	query := fmt.Sprintf(`
-	    UPDATE withdrawals
-		SET status = %d
-		WHERE id IN (%s)
-	`, status, placeholderStr)
+	placeholderStr := strings.Join(placeholder, maskJoinKey)
 
 	args := make([]interface{}, len(ids))
 	for i, id := range ids {
 		args[i] = id
 	}
 
-	_, err := p.exec(p.ctx, query, args...)
+	_, err := p.exec(p.ctx, fmt.Sprintf(q, status, placeholderStr), args...)
 	if err != nil {
 		return errPgx.Err(err)
 	}
@@ -92,15 +112,23 @@ func (p *pgx) UpdateWithdrawalsStatus(ids []string, status mDBApp.WithdrawalStat
 }
 
 func (p *pgx) WithdrawalByID(id string) (*mDBApp.Withdrawal, error) {
-	const query = `
-	    SELECT id, status, transfer_data, transfer_merkle_proof, transaction, tx_merkle_proof, enough_balance_proof, transfer_hash, block_number, block_hash, created_at
-	    FROM withdrawals
-        WHERE id = $1
-    `
+	const (
+		q = `
+SELECT
+id ,status ,transfer_data ,transfer_merkle_proof ,transaction
+,tx_merkle_proof ,enough_balance_proof ,transfer_hash
+,block_number ,block_hash ,created_at
+FROM withdrawals
+WHERE id = $1
+`
+	)
 
-	var tmp models.Withdrawal
-	var transferDataJSON, transferMerkleProofJSON, transactionJSON, txMerkleProofJSON, enoughBalanceProofJSON []byte
-	err := errPgx.Err(p.queryRow(p.ctx, query, id).
+	var (
+		tmp models.Withdrawal
+
+		transferDataJSON, transferMerkleProofJSON, transactionJSON, txMerkleProofJSON, enoughBalanceProofJSON []byte
+	)
+	err := errPgx.Err(p.queryRow(p.ctx, q, id).
 		Scan(
 			&tmp.ID,
 			&tmp.Status,
@@ -118,7 +146,14 @@ func (p *pgx) WithdrawalByID(id string) (*mDBApp.Withdrawal, error) {
 		return nil, err
 	}
 
-	err = unmarshalWithdrawalData(&tmp, transferDataJSON, transferMerkleProofJSON, transactionJSON, txMerkleProofJSON, enoughBalanceProofJSON)
+	err = unmarshalWithdrawalData(
+		&tmp,
+		transferDataJSON,
+		transferMerkleProofJSON,
+		transactionJSON,
+		txMerkleProofJSON,
+		enoughBalanceProofJSON,
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -20,6 +20,8 @@ func txTransferCmd(b *Transaction) *cobra.Command {
 		Short: short,
 	}
 
+	transferCmd.AddCommand(txTransferTransactionsListCmd(b))
+	transferCmd.AddCommand(txTransferTransactionInfoByHashCmd(b))
 	transferCmd.AddCommand(txTransferTokenCmd(b, ethTokenType))
 	transferCmd.AddCommand(txTransferTokenCmd(b, erc20TokenType))
 	transferCmd.AddCommand(txTransferTokenCmd(b, erc721TokenType))
