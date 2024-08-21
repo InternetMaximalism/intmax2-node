@@ -1,6 +1,7 @@
 package tx_transfer_service
 
 import (
+	"encoding/json"
 	intMaxTypes "intmax2-node/internal/types"
 )
 
@@ -31,38 +32,6 @@ type GetTransactionTxData struct {
 	CreatedAt   string                 `json:"createdAt"`
 }
 
-type GetTransactionsListDataMeta struct {
-	StartBlockNumber string `json:"startBlockNumber"`
-	EndBlockNumber   string `json:"endBlockNumber"`
-}
-
-type GetTransactionsListData struct {
-	Transactions []*GetTransactionData        `json:"transactions"`
-	Meta         *GetTransactionsListDataMeta `json:"meta"`
-}
-
-type GetTransactionsListError struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
-
-type GetTransactionsListResponse struct {
-	Success bool                      `json:"success"`
-	Data    *GetTransactionsListData  `json:"data"`
-	Error   *GetTransactionsListError `json:"error"`
-}
-
-type GetTransactionsListTransaction struct {
-	BlockNumber string `json:"blockNumber"`
-	TxHash      string `json:"txHash"`
-	CreatedAt   string `json:"createdAt"`
-}
-
-type GetTransactionsList struct {
-	Transactions []*GetTransactionsListTransaction `json:"transactions"`
-	Meta         *GetTransactionsListDataMeta      `json:"meta"`
-}
-
 type GetTransactionByHashData struct {
 	Transaction *GetTransactionData `json:"transaction"`
 }
@@ -70,4 +39,18 @@ type GetTransactionByHashData struct {
 type GetTransactionByHashResponse struct {
 	Success bool                      `json:"success"`
 	Data    *GetTransactionByHashData `json:"data"`
+}
+
+type GetTransactionsListResponse struct {
+	Success bool                     `json:"success"`
+	Data    *GetTransactionsListData `json:"data"`
+}
+
+type GetTransactionsListData struct {
+	Transactions []*GetTransactionData `json:"transactions"`
+	Pagination   json.RawMessage       `json:"pagination"`
+}
+
+type GetTransactionsList struct {
+	TxHashes []string `json:"txHashes"`
 }

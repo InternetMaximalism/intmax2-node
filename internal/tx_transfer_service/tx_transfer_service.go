@@ -469,7 +469,7 @@ func MakeWithdrawalBackupData(
 func TransactionsList(
 	ctx context.Context,
 	cfg *configs.Config,
-	startBlockNumber, limit uint64,
+	input *GetTransactionsListInput,
 	userEthPrivateKey string,
 ) (json.RawMessage, error) {
 	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
@@ -484,7 +484,7 @@ func TransactionsList(
 
 	fmt.Printf("User's INTMAX Address: %s\n", userAccount.ToAddress().String())
 
-	return GetTransactionsListWithRawRequest(ctx, cfg, startBlockNumber, limit, userAccount)
+	return GetTransactionsListWithRawRequest(ctx, cfg, input, userAccount)
 }
 
 func TransactionByHash(

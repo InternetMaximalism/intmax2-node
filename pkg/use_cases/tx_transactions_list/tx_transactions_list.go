@@ -12,11 +12,8 @@ import (
 	"intmax2-node/internal/open_telemetry"
 	service "intmax2-node/internal/tx_transfer_service"
 	txTransactionsList "intmax2-node/internal/use_cases/tx_transactions_list"
-	"math/big"
-	"strconv"
 
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 )
 
 // uc describes use case
@@ -40,47 +37,34 @@ func New(
 
 func (u *uc) Do(
 	ctx context.Context,
-	args []string,
-	startBlockNumber, limit, userEthPrivateKey string,
+	input *txTransactionsList.UCTxTransactionsListInput,
+	userEthPrivateKey string,
 ) (json.RawMessage, error) {
 	const (
-		hName               = "UseCase TxTransactionsList"
-		senderKey           = "sender"
-		limitKey            = "limit"
-		startBlockNumberKey = "start_block_number"
+		hName         = "UseCase TxTransactionsList"
+		senderKey     = "sender"
+		inputValueKey = "input_value"
 	)
 
-	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName,
-		trace.WithAttributes(
-			attribute.String(limitKey, limit),
-			attribute.String(startBlockNumberKey, startBlockNumber),
-		))
+	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
 	defer span.End()
+
+	if input == nil {
+		open_telemetry.MarkSpanError(spanCtx, ErrInputValueEmpty)
+		return nil, ErrInputValueEmpty
+	}
+
+	inBytes, err := json.Marshal(&input)
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return nil, errors.Join(ErrMarshalJSONFail, err)
+	}
+
+	span.SetAttributes(attribute.String(inputValueKey, string(inBytes)))
 
 	if userEthPrivateKey == "" {
 		open_telemetry.MarkSpanError(spanCtx, ErrEmptyUserPrivateKey)
 		return nil, ErrEmptyUserPrivateKey
-	}
-
-	lm, err := strconv.Atoi(limit)
-	if err != nil {
-		open_telemetry.MarkSpanError(spanCtx, errors.Join(ErrInvalidLimit, err))
-		return nil, ErrInvalidLimit
-	}
-
-	if lm < 0 {
-		open_telemetry.MarkSpanError(spanCtx, ErrMoreThenZeroLimit)
-		return nil, ErrMoreThenZeroLimit
-	}
-
-	var (
-		bn      *big.Int
-		bnCheck bool
-	)
-	bn, bnCheck = new(big.Int).SetString(startBlockNumber, 10)
-	if !bnCheck {
-		open_telemetry.MarkSpanError(spanCtx, ErrInvalidStartBlockNumber)
-		return nil, ErrInvalidStartBlockNumber
 	}
 
 	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
@@ -104,5 +88,20 @@ func (u *uc) Do(
 		attribute.String(senderKey, userAddress.String()),
 	)
 
-	return service.TransactionsList(spanCtx, u.cfg, bn.Uint64(), uint64(lm), userEthPrivateKey)
+	return service.TransactionsList(spanCtx, u.cfg, &service.GetTransactionsListInput{
+		Sorting: input.Sorting,
+		Pagination: &service.GetTransactionsListPagination{
+			Direction: input.Pagination.Direction,
+			Limit:     input.Pagination.Limit,
+			Cursor: &service.GetTransactionsListPaginationCursor{
+				BlockNumber:  input.Pagination.Cursor.BlockNumber,
+				SortingValue: input.Pagination.Cursor.SortingValue,
+			},
+		},
+		Filter: &service.GetTransactionsListFilter{
+			Name:      input.Filter.Name,
+			Condition: input.Filter.Condition,
+			Value:     input.Filter.Value,
+		},
+	}, userEthPrivateKey)
 }

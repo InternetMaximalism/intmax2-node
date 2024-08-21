@@ -9,6 +9,7 @@ import (
 	intMaxTypes "intmax2-node/internal/types"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common"
@@ -18,23 +19,49 @@ import (
 	"github.com/tidwall/sjson"
 )
 
+type GetTransactionsListFilter struct {
+	Name      string `json:"name"`
+	Condition string `json:"condition"`
+	Value     string `json:"value"`
+}
+
+type GetTransactionsListPaginationCursor struct {
+	BlockNumber  string `json:"blockNumber"`
+	SortingValue string `json:"sortingValue"`
+}
+
+type GetTransactionsListPagination struct {
+	Direction string                               `json:"direction"`
+	Limit     string                               `json:"limit"`
+	Cursor    *GetTransactionsListPaginationCursor `json:"cursor"`
+}
+
+type GetTransactionsListInput struct {
+	Sorting    string                         `json:"sorting"`
+	Pagination *GetTransactionsListPagination `json:"pagination"`
+	Filter     *GetTransactionsListFilter     `json:"filter"`
+}
+
 func GetTransactionsListWithRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
-	startBlockNumber, limit uint64,
+	input *GetTransactionsListInput,
 	senderAccount *intMaxAcc.PrivateKey,
 ) (json.RawMessage, error) {
 	resp, err := getTransactionsListRawRequest(
 		ctx,
 		cfg,
-		startBlockNumber, limit,
+		input,
 		senderAccount,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	transactionsList := make([]*GetTransactionsListTransaction, len(resp.Transactions))
+	txList := GetTransactionsList{
+		TxHashes: make([]string, len(resp.Transactions)),
+	}
+
 	for key := range resp.Transactions {
 		var txDetails *intMaxTypes.TxDetails
 		txDetails, err = GetTransactionFromBackupData(
@@ -44,42 +71,90 @@ func GetTransactionsListWithRawRequest(
 		if err != nil {
 			return nil, err
 		}
-		transactionsList[key] = &GetTransactionsListTransaction{
-			BlockNumber: resp.Transactions[key].BlockNumber,
-			TxHash:      txDetails.Hash().String(),
-			CreatedAt:   resp.Transactions[key].CreatedAt,
-		}
+		txList.TxHashes[key] = txDetails.Hash().String()
 	}
 
-	txList := GetTransactionsList{
-		Transactions: transactionsList,
-		Meta:         resp.Meta,
+	var pg interface{}
+	err = json.Unmarshal(resp.Pagination, &pg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal JSON with pagination: %w", err)
 	}
 
-	return json.MarshalIndent(txList, "", "  ")
+	var js []byte
+	js, err = json.MarshalIndent(txList, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal txList: %w", err)
+	}
+
+	js, err = sjson.SetBytes(js, "pagination", pg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update JSON with pagination: %w", err)
+	}
+
+	return js, nil
 }
 
 func getTransactionsListRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
-	startBlockNumber, limit uint64,
+	input *GetTransactionsListInput,
 	senderAccount *intMaxAcc.PrivateKey,
 ) (*GetTransactionsListData, error) {
 	const (
 		contentType = "Content-Type"
 		appJSON     = "application/json"
+		emptyKey    = ""
 	)
 
-	apiUrl := fmt.Sprintf("%s/v1/backups/transactions", cfg.API.DataStoreVaultUrl)
+	apiUrl := fmt.Sprintf("%s/v1/backups/transactions/list", cfg.API.DataStoreVaultUrl)
+
+	body := map[string]interface{}{
+		"sorting": input.Sorting,
+		"sender":  senderAccount.ToAddress().String(),
+		"pagination": map[string]interface{}{
+			"direction": input.Pagination.Direction,
+			"perPage":   input.Pagination.Limit,
+		},
+	}
+
+	if strings.TrimSpace(input.Filter.Name) != emptyKey &&
+		strings.TrimSpace(input.Filter.Condition) != emptyKey &&
+		strings.TrimSpace(input.Filter.Value) != emptyKey {
+		body["filter"] = []map[string]interface{}{
+			{
+				"relation":  "and",
+				"dataField": input.Filter.Name,
+				"condition": input.Filter.Condition,
+				"value":     input.Filter.Value,
+			},
+		}
+	}
+
+	jsBody, err := json.Marshal(&body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal body for send to route with tx list: %w", err)
+	}
+
+	if strings.TrimSpace(input.Pagination.Cursor.BlockNumber) != emptyKey &&
+		strings.TrimSpace(input.Pagination.Cursor.SortingValue) != emptyKey {
+		jsBody, err = sjson.SetBytes(jsBody, "pagination.cursor", map[string]interface{}{
+			"blockNumber":  input.Pagination.Cursor.BlockNumber,
+			"sortingValue": input.Pagination.Cursor.SortingValue,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal pagination cursor of body for send to route with tx list: %w", err)
+		}
+	}
+
+	err = json.Unmarshal(jsBody, &body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal body for send to route with tx list: %w", err)
+	}
 
 	r := resty.New().R()
 	resp, err := r.SetContext(ctx).SetHeaders(map[string]string{
 		contentType: appJSON,
-	}).SetQueryParams(map[string]string{
-		"sender":           senderAccount.ToAddress().String(),
-		"limit":            fmt.Sprintf("%d", limit),
-		"startBlockNumber": fmt.Sprintf("%d", startBlockNumber),
-	}).Get(apiUrl)
+	}).SetBody(body).Post(apiUrl)
 	if err != nil {
 		const msg = "failed to send of the transaction request: %w"
 		return nil, fmt.Errorf(msg, err)
@@ -91,7 +166,7 @@ func getTransactionsListRawRequest(
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("failed to get response")
+		return nil, fmt.Errorf("failed to get transactions list: %s", resp.String())
 	}
 
 	response := new(GetTransactionsListResponse)
@@ -100,7 +175,7 @@ func getTransactionsListRawRequest(
 	}
 
 	if !response.Success {
-		return nil, fmt.Errorf("failed to get transfers list: %s", response.Error.Message)
+		return nil, fmt.Errorf("failed to get transactions list: %s", resp.String())
 	}
 
 	return response.Data, nil
