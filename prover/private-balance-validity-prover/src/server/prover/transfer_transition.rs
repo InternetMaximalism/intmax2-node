@@ -1,9 +1,10 @@
 use crate::{
     app::{
         config,
+        encode::decode_plonky2_proof,
         interface::{
-            ProofResponse, ProofTransferRequest, ProofTransferValue, ProofsTransferResponse,
-            TransferIdQuery,
+            IdsQuery, ProofResponse, ProofTransferRequest, ProofTransferValue,
+            ProofsTransferResponse,
         },
         state::AppState,
     },
@@ -17,7 +18,7 @@ use intmax2_zkp::{
 };
 use redis::{ExistenceCheck, SetExpiry, SetOptions};
 
-#[get("/proof/{public_key}/transfer/{private_commitment}")]
+#[get("/proof/{public_key}/transition/transfer/{id}")]
 async fn get_proof(
     query_params: web::Path<(String, String)>,
     redis: web::Data<redis::Client>,
@@ -32,7 +33,7 @@ async fn get_proof(
     let private_commitment = &query_params.1;
     let proof = redis::Cmd::get(&get_balance_transfer_request_id(
         &public_key.to_hex(),
-        &private_commitment,
+        private_commitment,
     ))
     .query_async::<_, Option<String>>(&mut conn)
     .await
@@ -61,12 +62,12 @@ async fn get_proofs(
     let public_key = U256::from_hex(&query_params).expect("failed to parse public key");
 
     let query_string = req.query_string();
-    let ids_query = serde_qs::from_str::<TransferIdQuery>(query_string);
+    let ids_query = serde_qs::from_str::<IdsQuery>(query_string);
     let private_commitments: Vec<String>;
 
     match ids_query {
         Ok(query) => {
-            private_commitments = query.private_commitments;
+            private_commitments = query.ids;
         }
         Err(e) => {
             log::warn!("Failed to deserialize query: {:?}", e);
@@ -83,7 +84,7 @@ async fn get_proofs(
             .map_err(actix_web::error::ErrorInternalServerError)?;
         if let Some(proof) = some_proof {
             proofs.push(ProofTransferValue {
-                private_commitment: (*private_commitment).to_string(),
+                private_commitment: private_commitment.to_string(),
                 proof,
             });
         }
@@ -120,9 +121,12 @@ async fn generate_proof(
         .receive_transfer_witness
         .decode(&balance_circuit_verifier_data)
         .map_err(error::ErrorInternalServerError)?;
-    let balance_public_inputs =
-        BalancePublicInputs::from_pis(&receive_transfer_witness.balance_proof.public_inputs);
-    let private_commitment = balance_public_inputs.private_commitment;
+
+    let private_commitment = req
+        .receive_transfer_witness
+        .private_witness
+        .prev_private_state
+        .commitment();
     let request_id =
         get_balance_transfer_request_id(&public_key.to_hex(), &private_commitment.to_string());
     log::debug!("request ID: {:?}", request_id);
@@ -141,8 +145,19 @@ async fn generate_proof(
         return Ok(HttpResponse::Ok().json(response));
     }
 
-    let prev_balance_public_inputs = serde_json::from_str(&req.prev_balance_public_inputs)
-        .map_err(actix_web::error::ErrorInternalServerError)?;
+    let prev_balance_public_inputs = if let Some(req_prev_balance_proof) = &req.prev_balance_proof {
+        log::debug!("requested proof size: {}", req_prev_balance_proof.len());
+        let prev_balance_proof =
+            decode_plonky2_proof(req_prev_balance_proof, &balance_circuit_verifier_data)
+                .map_err(error::ErrorInternalServerError)?;
+        balance_circuit_verifier_data
+            .verify(prev_balance_proof.clone())
+            .map_err(error::ErrorInternalServerError)?;
+
+        BalancePublicInputs::from_pis(&prev_balance_proof.public_inputs)
+    } else {
+        BalancePublicInputs::new(public_key)
+    };
 
     // Spawn a new task to generate the proof
     actix_web::rt::spawn(async move {
@@ -150,9 +165,9 @@ async fn generate_proof(
             &prev_balance_public_inputs,
             &receive_transfer_witness,
             state
-                .balance_transition_processor
+                .receive_transfer_circuit
                 .get()
-                .expect("balance transition processor not initialized"),
+                .expect("receive transfer circuit not initialized"),
             &state
                 .balance_verifier_data
                 .get()
@@ -185,7 +200,7 @@ async fn generate_proof(
         success: true,
         proof: None,
         error_message: Some(format!(
-            "balance proof (private_commitment: {}) is generating",
+            "balance proof (id: {}) is generating",
             private_commitment
         )),
     };

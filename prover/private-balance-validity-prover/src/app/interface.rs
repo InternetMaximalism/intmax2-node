@@ -37,14 +37,14 @@ pub struct ProofDepositRequest {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DepositIndexQuery {
-    pub deposit_indices: Vec<String>,
+pub struct IdsQuery {
+    pub ids: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProofDepositValue {
-    pub deposit_index: String,
+    pub private_commitment: String,
     pub proof: String,
 }
 
@@ -61,12 +61,6 @@ pub struct ProofsDepositResponse {
 pub struct ProofUpdateRequest {
     pub prev_balance_proof: Option<String>,
     pub balance_update_witness: SerializableUpdateWitness,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UpdateIdQuery {
-    pub block_hashes: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -87,14 +81,8 @@ pub struct ProofsUpdateResponse {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProofTransferRequest {
-    pub prev_balance_public_inputs: String,
+    pub prev_balance_proof: Option<String>,
     pub receive_transfer_witness: SerializableReceiveTransferWitness,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TransferIdQuery {
-    pub private_commitments: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -117,19 +105,19 @@ pub struct ProofsTransferResponse {
 pub struct ProofSendRequest {
     pub prev_balance_proof: Option<String>,
     pub send_witness: SendWitness,
-    pub balance_update_witness: SerializableUpdateWitness,
+    // pub balance_update_witness: SerializableUpdateWitness,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SendIdQuery {
-    pub block_hashes: Vec<String>,
+    pub private_commitments: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProofSendValue {
-    pub block_hash: String,
+    pub private_commitment: String,
     pub proof: String,
 }
 
