@@ -1238,7 +1238,7 @@ dependencies = [
 [[package]]
 name = "intmax2-zkp"
 version = "0.1.0"
-source = "git+https://github.com/InternetMaximalism/intmax2-zkp?branch=feature/serialize2#9693c1216db3ffe0bbd25d527f83875820568f41"
+source = "git+https://github.com/InternetMaximalism/intmax2-zkp?branch=feature/serialize2#128b10db5a90cc90b3783adfea651be43c5e5bf9"
 dependencies = [
  "anyhow",
  "ark-bn254",

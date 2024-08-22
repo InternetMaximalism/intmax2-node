@@ -3,8 +3,7 @@ use crate::{
         config,
         encode::decode_plonky2_proof,
         interface::{
-            DepositIndexQuery, ProofDepositRequest, ProofDepositValue, ProofResponse,
-            ProofsDepositResponse,
+            IdsQuery, ProofDepositRequest, ProofDepositValue, ProofResponse, ProofsDepositResponse,
         },
         state::AppState,
     },
@@ -29,14 +28,10 @@ async fn get_proof(
         .map_err(actix_web::error::ErrorInternalServerError)?;
 
     let public_key = U256::from_hex(&query_params.0).expect("failed to parse public key");
-
-    let deposit_index = query_params
-        .1
-        .parse::<usize>()
-        .map_err(error::ErrorInternalServerError)?;
+    let private_commitment = &query_params.1;
     let proof = redis::Cmd::get(&get_receive_deposit_request_id(
         &public_key.to_hex(),
-        deposit_index,
+        private_commitment,
     ))
     .query_async::<_, Option<String>>(&mut conn)
     .await
@@ -65,12 +60,12 @@ async fn get_proofs(
     let public_key = U256::from_hex(&query_params).expect("failed to parse public key");
 
     let query_string = req.query_string();
-    let ids_query = serde_qs::from_str::<DepositIndexQuery>(query_string);
-    let deposit_indices: Vec<String>;
+    let private_commitments_query = serde_qs::from_str::<IdsQuery>(query_string);
+    let private_commitments: Vec<String>;
 
-    match ids_query {
+    match private_commitments_query {
         Ok(query) => {
-            deposit_indices = query.deposit_indices;
+            private_commitments = query.ids;
         }
         Err(e) => {
             log::warn!("Failed to deserialize query: {:?}", e);
@@ -79,16 +74,16 @@ async fn get_proofs(
     }
 
     let mut proofs: Vec<ProofDepositValue> = Vec::new();
-    for deposit_index in &deposit_indices {
-        let deposit_index_usize = deposit_index.parse::<usize>().unwrap();
-        let request_id = get_receive_deposit_request_id(&public_key.to_hex(), deposit_index_usize);
+    for private_commitment in &private_commitments {
+        let request_id =
+            get_receive_deposit_request_id(&public_key.to_hex(), &private_commitment.to_string());
         let some_proof = redis::Cmd::get(&request_id)
             .query_async::<_, Option<String>>(&mut conn)
             .await
             .map_err(actix_web::error::ErrorInternalServerError)?;
         if let Some(proof) = some_proof {
             proofs.push(ProofDepositValue {
-                deposit_index: (*deposit_index).to_string(),
+                private_commitment: private_commitment.to_string(),
                 proof,
             });
         }
@@ -117,8 +112,13 @@ async fn generate_proof(
 
     let public_key = U256::from_hex(&query_params).expect("failed to parse public key");
 
-    let deposit_index = req.receive_deposit_witness.deposit_witness.deposit_index;
-    let request_id = get_receive_deposit_request_id(&public_key.to_hex(), deposit_index);
+    let private_commitment = req
+        .receive_deposit_witness
+        .private_witness
+        .prev_private_state
+        .commitment();
+    let request_id =
+        get_receive_deposit_request_id(&public_key.to_hex(), &private_commitment.to_string());
     log::debug!("request ID: {:?}", request_id);
     let old_proof = redis::Cmd::get(&request_id)
         .query_async::<_, Option<String>>(&mut redis_conn)
@@ -134,21 +134,17 @@ async fn generate_proof(
         return Ok(HttpResponse::Ok().json(response));
     }
 
-    let balance_circuit_data = state
-        .balance_transition_processor
+    let balance_verifier_data = state
+        .balance_verifier_data
         .get()
-        .ok_or_else(|| {
-            error::ErrorInternalServerError("balance transition processor not initialized")
-        })?
-        .balance_transition_circuit
-        .data
-        .verifier_data();
+        .ok_or_else(|| error::ErrorInternalServerError("balance verifier data not initialized"))?;
+
     let prev_balance_public_inputs = if let Some(req_prev_balance_proof) = &req.prev_balance_proof {
         log::debug!("requested proof size: {}", req_prev_balance_proof.len());
         let prev_balance_proof =
-            decode_plonky2_proof(req_prev_balance_proof, &balance_circuit_data)
+            decode_plonky2_proof(req_prev_balance_proof, &balance_verifier_data)
                 .map_err(error::ErrorInternalServerError)?;
-        balance_circuit_data
+        balance_verifier_data
             .verify(prev_balance_proof.clone())
             .map_err(error::ErrorInternalServerError)?;
 
@@ -164,20 +160,11 @@ async fn generate_proof(
         let response = generate_deposit_transition_proof_job(
             &prev_balance_public_inputs,
             &receive_deposit_witness,
-            state
-                .balance_transition_processor
-                .get()
-                .ok_or_else(|| {
-                    error::ErrorInternalServerError("balance transition processor not initialized")
-                })
-                .expect("Failed to get balance processor"),
             &state
-                .balance_verifier_data
+                .receive_deposit_circuit
                 .get()
                 .ok_or_else(|| {
-                    error::ErrorInternalServerError(
-                        "verifier data of balance circuit not initialized",
-                    )
+                    error::ErrorInternalServerError("receive deposit circuit not initialized")
                 })
                 .expect("Failed to get balance processor"),
         );
@@ -208,14 +195,14 @@ async fn generate_proof(
         success: true,
         proof: None,
         error_message: Some(format!(
-            "balance proof (deposit_index: {}) is generating",
-            deposit_index
+            "balance proof (id: {}) is generating",
+            private_commitment
         )),
     };
 
     Ok(HttpResponse::Ok().json(response))
 }
 
-fn get_receive_deposit_request_id(public_key: &str, deposit_index: usize) -> String {
+fn get_receive_deposit_request_id(public_key: &str, deposit_index: &str) -> String {
     format!("balance-validity/{}/deposit/{}", public_key, deposit_index)
 }
