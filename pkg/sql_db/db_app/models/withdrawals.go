@@ -15,6 +15,7 @@ func (s WithdrawalStatus) String() string {
 }
 
 type TransferData struct {
+	// address hex string
 	Recipient  string `json:"recipient"`
 	TokenIndex int32  `json:"token_index"`
 	Amount     string `json:"amount"`
