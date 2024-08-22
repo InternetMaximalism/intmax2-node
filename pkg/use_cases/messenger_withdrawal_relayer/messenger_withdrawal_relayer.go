@@ -18,7 +18,6 @@ type uc struct {
 }
 
 func New(
-	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
 	sb ServiceBlockchain,

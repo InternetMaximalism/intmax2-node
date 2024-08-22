@@ -30,12 +30,17 @@ type MessengerWithdrawalRelayerMockService struct {
 }
 
 func newMessengerWithdrawalRelayerMockService(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, sb ServiceBlockchain) (*MessengerWithdrawalRelayerMockService, error) {
-	scrollLink, err := sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
+	ethLink, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
 	}
 
-	ethClient, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
+	scrollLink, err := sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Scroll network chain link: %w", err)
+	}
+
+	ethClient, err := utils.NewClient(ethLink)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new client: %w", err)
 	}

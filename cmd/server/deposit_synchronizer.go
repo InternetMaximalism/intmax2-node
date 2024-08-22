@@ -6,6 +6,6 @@ import (
 )
 
 type DepositSynchronizer interface {
-	Init() (err error)
+	Init(ctx context.Context) (err error)
 	Start(ctx context.Context, tickerCurrentFile *time.Ticker) error
 }

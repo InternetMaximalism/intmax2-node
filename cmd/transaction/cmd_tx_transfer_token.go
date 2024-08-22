@@ -36,7 +36,14 @@ func txTransferTokenCmd(b *Transaction, token string) *cobra.Command {
 	cmd.PersistentFlags().StringVar(&userEthPrivateKey, userPrivateKeyKey, emptyKey, userPrivateDescription)
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
-		err := newCommands().SendTransferTransaction(
+		err := b.SB.SetupEthereumNetworkChainID(b.Context)
+		if err != nil {
+			const msg = "Fatal: %v\n"
+			_, _ = fmt.Fprintf(os.Stderr, msg, err)
+			os.Exit(1)
+		}
+
+		err = newCommands().SendTransferTransaction(
 			b.Config, b.Log, b.SB,
 		).Do(
 			b.Context,

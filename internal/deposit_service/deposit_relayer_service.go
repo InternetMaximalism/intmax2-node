@@ -32,13 +32,13 @@ type DepositRelayerService struct {
 	liquidity *bindings.Liquidity
 }
 
-func newDepositRelayerService(ctx context.Context, cfg *configs.Config, log logger.Logger, _ ServiceBlockchain) (*DepositRelayerService, error) {
-	// link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
-	// }
+func newDepositRelayerService(ctx context.Context, cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) (*DepositRelayerService, error) {
+	link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
+	}
 
-	client, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
+	client, err := utils.NewClient(link)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new client: %w", err)
 	}

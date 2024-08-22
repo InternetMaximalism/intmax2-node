@@ -9,8 +9,10 @@ import (
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/block_post_service"
+	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
+	"intmax2-node/internal/open_telemetry"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"intmax2-node/pkg/utils"
@@ -21,6 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 const BlockPostedEventSignatureID = "0xe27163b76905dc373b4ad854ddc9403bbac659c5f1c5191c39e5a7c44574040a"
@@ -31,33 +34,75 @@ type blockValidityProver struct {
 	cfg                       *configs.Config
 	log                       logger.Logger
 	dbApp                     SQLDriverApp
+	sb                        ServiceBlockchain
 	lastSeenScrollBlockNumber uint64
 	accountInfoMap            block_post_service.AccountInfo
 }
 
-func New(cfg *configs.Config, log logger.Logger, dbApp SQLDriverApp) BlockValidityProver {
+func New(
+	cfg *configs.Config,
+	log logger.Logger,
+	dbApp SQLDriverApp,
+	sb ServiceBlockchain,
+) BlockValidityProver {
 	return &blockValidityProver{
 		cfg:                       cfg,
 		log:                       log,
 		dbApp:                     dbApp,
+		sb:                        sb,
 		lastSeenScrollBlockNumber: cfg.Blockchain.RollupContractDeployedBlockNumber,
 		accountInfoMap:            block_post_service.NewAccountInfo(dbApp),
 	}
 }
 
-func (w *blockValidityProver) Init() error {
+func (w *blockValidityProver) Init(ctx context.Context) (err error) {
+	const (
+		hName = "BlockValidityProver func:Init"
+	)
+
+	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
+	defer span.End()
+
+	err = w.sb.SetupScrollNetworkChainID(ctx)
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return errors.Join(errorsB.ErrSetupScrollNetworkChainIDFail, err)
+	}
+
 	return nil
 }
 
 func (w *blockValidityProver) Start(
 	ctx context.Context,
 	tickerEventWatcher *time.Ticker,
-) error {
-	rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(w.cfg, "https://sepolia-rpc.scroll.io")
+) (err error) {
+	const (
+		hName = "BlockValidityProver func:Start"
+	)
 
-	scrollClient, err := utils.NewClient(rollupCfg.NetworkRpcUrl)
+	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
+	defer span.End()
+
+	err = w.Init(spanCtx)
 	if err != nil {
-		return fmt.Errorf("failed to create new client: %w", err)
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return errors.Join(ErrInitFail, err)
+	}
+
+	var link string
+	link, err = w.sb.ScrollNetworkChainLinkEvmJSONRPC(spanCtx)
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return errors.Join(errorsB.ErrScrollNetworkChainLinkEvmJSONRPCFail, err)
+	}
+
+	rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(w.cfg, link)
+
+	var scrollClient *ethclient.Client
+	scrollClient, err = utils.NewClient(rollupCfg.NetworkRpcUrl)
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return errors.Join(ErrNewClientFail, err)
 	}
 	defer scrollClient.Close()
 

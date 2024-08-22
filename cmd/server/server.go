@@ -60,15 +60,15 @@ func NewServerCmd(s *Server) *cobra.Command {
 				s.Log.Fatalf(msg, err.Error())
 			}
 
-			err = s.BlockValidityProver.Init()
-			if err != nil {
-				const msg = "init the Block Validity Prover error occurred: %v"
-				s.Log.Fatalf(msg, err.Error())
-			}
-
 			err = s.SB.CheckScrollPrivateKey(s.Context)
 			if err != nil {
 				const msg = "check private key error occurred: %v"
+				s.Log.Fatalf(msg, err.Error())
+			}
+
+			err = s.BlockValidityProver.Init(s.Context)
+			if err != nil {
+				const msg = "init the Block Validity Prover error occurred: %v"
 				s.Log.Fatalf(msg, err.Error())
 			}
 

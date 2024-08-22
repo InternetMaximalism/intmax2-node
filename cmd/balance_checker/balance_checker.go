@@ -50,7 +50,14 @@ func getBalanceCmd(b *Balance) *cobra.Command {
 	cmd.PersistentFlags().StringVar(&userEthPrivateKey, userPrivateKeyKey, emptyKey, userAddressDescription)
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
-		err := newCommands().GetBalance(b.Config, b.Log, b.SB).Do(b.Context, args, userEthPrivateKey)
+		err := b.SB.SetupEthereumNetworkChainID(b.Context)
+		if err != nil {
+			const msg = "Fatal: %v\n"
+			_, _ = fmt.Fprintf(os.Stderr, msg, err)
+			os.Exit(1)
+		}
+
+		err = newCommands().GetBalance(b.Config, b.Log, b.SB).Do(b.Context, args, userEthPrivateKey)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Fatal: %v\n", err)
 			os.Exit(1)

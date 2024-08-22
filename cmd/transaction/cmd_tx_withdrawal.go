@@ -42,7 +42,14 @@ func txWithdrawalCmd(b *Transaction) *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&resume, resumeKey, defaultResume, resumeDescription)
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
-		err := newCommands().SendWithdrawalTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, recipientAddressStr, amount, utils.RemoveZeroX(userEthPrivateKey), resume)
+		err := b.SB.SetupEthereumNetworkChainID(b.Context)
+		if err != nil {
+			const msg = "Fatal: %v\n"
+			_, _ = fmt.Fprintf(os.Stderr, msg, err)
+			os.Exit(1)
+		}
+
+		err = newCommands().SendWithdrawalTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, recipientAddressStr, amount, utils.RemoveZeroX(userEthPrivateKey), resume)
 		if err != nil {
 			const msg = "Fatal: %v\n"
 			_, _ = fmt.Fprintf(os.Stderr, msg, err)

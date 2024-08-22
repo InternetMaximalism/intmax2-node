@@ -10,8 +10,10 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_service"
+	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
+	"intmax2-node/internal/open_telemetry"
 	intMaxTree "intmax2-node/internal/tree"
 	"intmax2-node/internal/tx_transfer_service"
 	intMaxTypes "intmax2-node/internal/types"
@@ -138,6 +140,7 @@ func WithdrawalTransaction(
 		ctx,
 		cfg,
 		log,
+		sb,
 		userAccount,
 		transfersHash,
 		nonce,
@@ -215,7 +218,7 @@ func WithdrawalTransaction(
 	fmt.Println("The transaction has been successfully sent.")
 
 	// Send withdrawal request
-	err = SendWithdrawalRequest(ctx, cfg, log, &tx_transfer_service.BackupWithdrawal{
+	err = SendWithdrawalRequest(ctx, cfg, log, sb, &tx_transfer_service.BackupWithdrawal{
 		SenderAddress:       userAccount.ToAddress(),
 		Transfer:            transfer,
 		TransferMerkleProof: transferMerkleProof,
@@ -239,6 +242,7 @@ func ResumeWithdrawalRequest(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
+	sb ServiceBlockchain,
 	recipientAddressHex string,
 	resumeIncompleteWithdrawals bool,
 ) {
@@ -295,7 +299,7 @@ func ResumeWithdrawalRequest(
 
 	for _, backupWithdrawal := range incompleteBackupWithdrawals {
 		// Send withdrawal request
-		err = SendWithdrawalRequest(ctx, cfg, log, backupWithdrawal)
+		err = SendWithdrawalRequest(ctx, cfg, log, sb, backupWithdrawal)
 		if err != nil {
 			if errors.Is(err, withdrawalService.ErrWithdrawalRequestAlreadyExists) {
 				log.Warnf("The withdrawal request already exists.")
@@ -318,6 +322,7 @@ func SendWithdrawalTransactionFromBackupTransfer(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
+	sb ServiceBlockchain,
 	backupWithdrawal *transaction.BackupTransferInput,
 ) error {
 	// base64 decode
@@ -334,15 +339,22 @@ func SendWithdrawalTransactionFromBackupTransfer(
 	}
 
 	// Send withdrawal transaction
-	return SendWithdrawalRequest(ctx, cfg, log, &withdrawal)
+	return SendWithdrawalRequest(ctx, cfg, log, sb, &withdrawal)
 }
 
 func SendWithdrawalRequest(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
+	sb ServiceBlockchain,
 	withdrawal *tx_transfer_service.BackupWithdrawal,
 ) error {
+	err := sb.SetupScrollNetworkChainID(ctx)
+	if err != nil {
+		open_telemetry.MarkSpanError(ctx, err)
+		return errors.Join(errorsB.ErrSetupScrollNetworkChainIDFail, err)
+	}
+
 	// Specify the block number containing the transaction.
 	blockStatus, err := tx_transfer_service.GetBlockStatus(ctx, cfg, log, withdrawal.TxTreeRoot)
 	if err != nil {
@@ -352,7 +364,14 @@ func SendWithdrawalRequest(
 		return fmt.Errorf("failed to get block status: %w", err)
 	}
 
-	rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(cfg, "https://sepolia-rpc.scroll.io")
+	var link string
+	link, err = sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
+	if err != nil {
+		open_telemetry.MarkSpanError(ctx, err)
+		return errors.Join(errorsB.ErrScrollNetworkChainLinkEvmJSONRPCFail, err)
+	}
+
+	rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(cfg, link)
 	blockNumber, err := strconv.ParseUint(blockStatus.BlockNumber, base10, numUint32Bits)
 	if err != nil {
 		return fmt.Errorf("failed to parse block number: %w", err)

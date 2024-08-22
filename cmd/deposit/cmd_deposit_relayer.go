@@ -27,6 +27,12 @@ func relayerCmd(d *Deposit) *cobra.Command {
 			l.Fatalf(msg, err.Error())
 		}
 
+		err = d.SB.SetupEthereumNetworkChainID(d.Context)
+		if err != nil {
+			const msg = "Fatal: %v"
+			l.Fatalf(msg, err.Error())
+		}
+
 		err = d.DbApp.Exec(d.Context, nil, func(db interface{}, _ interface{}) (err error) {
 			q := db.(SQLDriverApp)
 			return newCommands().DepositRelayer(d.Config, l, q, d.SB).Do(d.Context)

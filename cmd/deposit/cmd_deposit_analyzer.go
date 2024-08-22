@@ -1,10 +1,9 @@
 package deposit
 
 import (
+	"github.com/spf13/cobra"
 	"intmax2-node/internal/logger"
 	"intmax2-node/pkg/utils"
-
-	"github.com/spf13/cobra"
 )
 
 func analyzerCmd(d *Deposit) *cobra.Command {
@@ -24,6 +23,12 @@ func analyzerCmd(d *Deposit) *cobra.Command {
 		err := utils.IsValidEthereumPrivateKey(d.Config.Blockchain.DepositAnalyzerPrivateKeyHex)
 		if err != nil {
 			const msg = "check deposit analyzer private key error occurred: %v"
+			l.Fatalf(msg, err.Error())
+		}
+
+		err = d.SB.SetupEthereumNetworkChainID(d.Context)
+		if err != nil {
+			const msg = "Fatal: %v"
 			l.Fatalf(msg, err.Error())
 		}
 
