@@ -5,14 +5,17 @@ import (
 	"fmt"
 	"intmax2-node/internal/open_telemetry"
 	node "intmax2-node/internal/pb/gen/store_vault_service/node"
-	backupDeposit "intmax2-node/internal/use_cases/backup_deposit"
+	postBackupDeposit "intmax2-node/internal/use_cases/post_backup_deposit"
 	"intmax2-node/pkg/grpc_server/utils"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
-func (s *StoreVaultServer) BackupDeposit(ctx context.Context, req *node.BackupDepositRequest) (*node.BackupDepositResponse, error) {
+func (s *StoreVaultServer) BackupDeposit(
+	ctx context.Context,
+	req *node.BackupDepositRequest,
+) (*node.BackupDepositResponse, error) {
 	resp := node.BackupDepositResponse{}
 
 	const (
@@ -26,10 +29,11 @@ func (s *StoreVaultServer) BackupDeposit(ctx context.Context, req *node.BackupDe
 		))
 	defer span.End()
 
-	input := backupDeposit.UCPostBackupDepositInput{
+	input := postBackupDeposit.UCPostBackupDepositInput{
+		DepositHash:      req.DepositHash,
 		EncryptedDeposit: req.EncryptedDeposit,
 		Recipient:        req.Recipient,
-		BlockNumber:      uint32(req.BlockNumber),
+		BlockNumber:      int64(req.BlockNumber),
 	}
 
 	err := input.Valid()
@@ -56,7 +60,7 @@ func (s *StoreVaultServer) BackupDeposit(ctx context.Context, req *node.BackupDe
 	}
 
 	resp.Success = true
-	resp.Data = &node.BackupDepositResponse_Data{Message: backupDeposit.SuccessMsg}
+	resp.Data = &node.BackupDepositResponse_Data{Message: postBackupDeposit.SuccessMsg}
 
 	return &resp, utils.OK(spanCtx)
 }

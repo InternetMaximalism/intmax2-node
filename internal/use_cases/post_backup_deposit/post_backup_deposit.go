@@ -1,4 +1,4 @@
-package backup_deposit
+package post_backup_deposit
 
 import (
 	"context"
@@ -12,8 +12,9 @@ const (
 
 type UCPostBackupDepositInput struct {
 	Recipient        string `json:"recipient"`
+	DepositHash      string `json:"depositHash"`
 	EncryptedDeposit string `json:"encryptedDeposit"`
-	BlockNumber      uint32 `json:"blockNumber"`
+	BlockNumber      int64  `json:"blockNumber"`
 }
 
 // UseCasePostBackupDeposit describes PostBackupDeposit contract.

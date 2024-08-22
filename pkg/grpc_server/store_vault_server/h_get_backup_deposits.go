@@ -5,14 +5,17 @@ import (
 	"fmt"
 	"intmax2-node/internal/open_telemetry"
 	node "intmax2-node/internal/pb/gen/store_vault_service/node"
-	backupDeposit "intmax2-node/internal/use_cases/backup_deposit"
+	backupDeposit "intmax2-node/internal/use_cases/get_backup_deposits"
 	"intmax2-node/pkg/grpc_server/utils"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
-func (s *StoreVaultServer) GetBackupDeposits(ctx context.Context, req *node.GetBackupDepositsRequest) (*node.GetBackupDepositsResponse, error) {
+func (s *StoreVaultServer) GetBackupDeposits(
+	ctx context.Context,
+	req *node.GetBackupDepositsRequest,
+) (*node.GetBackupDepositsResponse, error) {
 	resp := node.GetBackupDepositsResponse{}
 
 	const (

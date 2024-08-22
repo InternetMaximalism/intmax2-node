@@ -51,7 +51,7 @@ type BackupTransactions interface {
 
 type BackupDeposits interface {
 	CreateBackupDeposit(
-		recipient, encryptedDeposit string,
+		recipient, depositHash, encryptedDeposit string,
 		blockNumber int64,
 	) (*mDBApp.BackupDeposit, error)
 	GetBackupDeposit(conditions []string, values []interface{}) (*mDBApp.BackupDeposit, error)

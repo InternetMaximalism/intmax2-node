@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
-	backupDeposit "intmax2-node/internal/use_cases/backup_deposit"
+	postBackupDeposit "intmax2-node/internal/use_cases/post_backup_deposit"
 )
 
 func PostBackupDeposit(
@@ -13,10 +13,10 @@ func PostBackupDeposit(
 	cfg *configs.Config,
 	log logger.Logger,
 	db SQLDriverApp,
-	input *backupDeposit.UCPostBackupDepositInput,
+	input *postBackupDeposit.UCPostBackupDepositInput,
 ) error {
 	_, err := db.CreateBackupDeposit(
-		input.Recipient, input.EncryptedDeposit, int64(input.BlockNumber),
+		input.Recipient, input.DepositHash, input.EncryptedDeposit, input.BlockNumber,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create backup deposit to db: %w", err)

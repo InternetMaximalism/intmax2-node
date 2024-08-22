@@ -4,12 +4,13 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 	backupBalance "intmax2-node/internal/use_cases/backup_balance"
-	backupDeposit "intmax2-node/internal/use_cases/backup_deposit"
+	getBackupDeposits "intmax2-node/internal/use_cases/get_backup_deposits"
 	getBackupTransactionByHash "intmax2-node/internal/use_cases/get_backup_transaction_by_hash"
 	getBackupTransactions "intmax2-node/internal/use_cases/get_backup_transactions"
 	getBackupTransactionsList "intmax2-node/internal/use_cases/get_backup_transactions_list"
 	getBackupTransfers "intmax2-node/internal/use_cases/get_backup_transfers"
 	getVersion "intmax2-node/internal/use_cases/get_version"
+	postBackupDeposit "intmax2-node/internal/use_cases/post_backup_deposit"
 	postBackupTransaction "intmax2-node/internal/use_cases/post_backup_transaction"
 	"intmax2-node/internal/use_cases/post_backup_transfer"
 	verifyDepositConfirmation "intmax2-node/internal/use_cases/verify_deposit_confirmation"
@@ -37,8 +38,16 @@ type Commands interface {
 		log logger.Logger,
 		db SQLDriverApp,
 	) post_backup_transfer.UseCasePostBackupTransfer
-	PostBackupTransaction(cfg *configs.Config, log logger.Logger, db SQLDriverApp) postBackupTransaction.UseCasePostBackupTransaction
-	PostBackupDeposit(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupDeposit.UseCasePostBackupDeposit
+	PostBackupTransaction(
+		cfg *configs.Config,
+		log logger.Logger,
+		db SQLDriverApp,
+	) postBackupTransaction.UseCasePostBackupTransaction
+	PostBackupDeposit(
+		cfg *configs.Config,
+		log logger.Logger,
+		db SQLDriverApp,
+	) postBackupDeposit.UseCasePostBackupDeposit
 	PostBackupBalance(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupBalance.UseCasePostBackupBalance
 	GetBackupTransfers(
 		cfg *configs.Config,
@@ -60,7 +69,11 @@ type Commands interface {
 		log logger.Logger,
 		db SQLDriverApp,
 	) getBackupTransactionByHash.UseCaseGetBackupTransactionByHash
-	GetBackupDeposits(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupDeposit.UseCaseGetBackupDeposits
+	GetBackupDeposits(
+		cfg *configs.Config,
+		log logger.Logger,
+		db SQLDriverApp,
+	) getBackupDeposits.UseCaseGetBackupDeposits
 	GetBackupBalances(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupBalance.UseCaseGetBackupBalances
 	GetBalances(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupBalance.UseCaseGetBalances
 	GetVerifyDepositConfirmation(cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) verifyDepositConfirmation.UseCaseGetVerifyDepositConfirmation
@@ -84,11 +97,19 @@ func (c *commands) PostBackupTransfer(
 	return ucPostBackupTransfer.New(cfg, log, db)
 }
 
-func (c *commands) PostBackupTransaction(cfg *configs.Config, log logger.Logger, db SQLDriverApp) postBackupTransaction.UseCasePostBackupTransaction {
+func (c *commands) PostBackupTransaction(
+	cfg *configs.Config,
+	log logger.Logger,
+	db SQLDriverApp,
+) postBackupTransaction.UseCasePostBackupTransaction {
 	return ucPostBackupTransaction.New(cfg, log, db)
 }
 
-func (c *commands) PostBackupDeposit(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupDeposit.UseCasePostBackupDeposit {
+func (c *commands) PostBackupDeposit(
+	cfg *configs.Config,
+	log logger.Logger,
+	db SQLDriverApp,
+) postBackupDeposit.UseCasePostBackupDeposit {
 	return ucPostBackupDeposit.New(cfg, log, db)
 }
 
@@ -128,7 +149,11 @@ func (c *commands) GetBackupTransactionByHash(
 	return ucGetBackupTransactionByHash.New(cfg, log, db)
 }
 
-func (c *commands) GetBackupDeposits(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupDeposit.UseCaseGetBackupDeposits {
+func (c *commands) GetBackupDeposits(
+	cfg *configs.Config,
+	log logger.Logger,
+	db SQLDriverApp,
+) getBackupDeposits.UseCaseGetBackupDeposits {
 	return ucGetBackupDeposits.New(cfg, log, db)
 }
 

@@ -544,12 +544,14 @@ message GetBackupTransactionByHashResponse {
 
 // BackupDepositRequest is the request message for BackupDeposit method.
 message BackupDepositRequest {
+  // The deposit hash
+  string deposit_hash = 10;
   // The recipient address
-  string recipient = 1;
+  string recipient = 20;
   // The encrypted deposit data
-  string encrypted_deposit = 2;
+  string encrypted_deposit = 30;
   // The block number associated with the deposit
-  uint64 block_number = 3;
+  uint64 block_number = 40;
 }
 
 // BackupDepositResponse is the response message for Backup method.

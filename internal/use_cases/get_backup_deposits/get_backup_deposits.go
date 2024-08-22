@@ -1,4 +1,4 @@
-package backup_deposit
+package get_backup_deposits
 
 import (
 	"context"

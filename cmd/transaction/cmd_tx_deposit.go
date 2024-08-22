@@ -36,7 +36,11 @@ func txDepositCmd(b *Transaction) *cobra.Command {
 	cmd.PersistentFlags().StringVar(&userEthPrivateKey, userPrivateKeyKey, emptyKey, userPrivateDescription)
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
-		err := newCommands().SendDepositTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, recipientAddressStr, amount, utils.RemoveZeroX(userEthPrivateKey))
+		err := newCommands().SendDepositTransaction(
+			b.Config, b.Log, b.SB,
+		).Do(
+			b.Context, args, recipientAddressStr, amount, utils.RemoveZeroX(userEthPrivateKey),
+		)
 		if err != nil {
 			const msg = "Fatal: %v\n"
 			fmt.Fprintf(os.Stderr, msg, err)

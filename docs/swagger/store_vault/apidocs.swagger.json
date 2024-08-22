@@ -822,6 +822,10 @@
     "v1BackupDepositRequest": {
       "type": "object",
       "properties": {
+        "depositHash": {
+          "type": "string",
+          "title": "The deposit hash"
+        },
         "recipient": {
           "type": "string",
           "title": "The recipient address"

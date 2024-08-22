@@ -13,19 +13,19 @@ import (
 )
 
 func (p *pgx) CreateBackupDeposit(
-	recipient, encryptedDeposit string,
+	recipient, depositHash, encryptedDeposit string,
 	blockNumber int64,
 ) (*mDBApp.BackupDeposit, error) {
 	const query = `
 	    INSERT INTO backup_deposits
-        (id, recipient, encrypted_deposit, block_number, created_at)
-        VALUES ($1, $2, $3, $4, $5)
+        (id, recipient, deposit_double_hash, encrypted_deposit, block_number, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6)
 	`
 
 	id := uuid.New().String()
 	createdAt := time.Now().UTC()
 
-	err := p.createBackupEntry(query, id, recipient, encryptedDeposit, blockNumber, createdAt)
+	err := p.createBackupEntry(query, id, recipient, depositHash, encryptedDeposit, blockNumber, createdAt)
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +35,7 @@ func (p *pgx) CreateBackupDeposit(
 
 func (p *pgx) GetBackupDeposit(conditions []string, values []interface{}) (*mDBApp.BackupDeposit, error) {
 	const baseQuery = `
-        SELECT id, recipient, encrypted_deposit, block_number, created_at 
+        SELECT id, recipient, deposit_double_hash, encrypted_deposit, block_number, created_at 
         FROM backup_deposits 
         WHERE %s`
 
@@ -51,6 +51,7 @@ func (p *pgx) GetBackupDeposit(conditions []string, values []interface{}) (*mDBA
 		Scan(
 			&b.ID,
 			&b.Recipient,
+			&b.DepositDoubleHash,
 			&b.EncryptedDeposit,
 			&b.BlockNumber,
 			&b.CreatedAt,
@@ -65,7 +66,7 @@ func (p *pgx) GetBackupDeposit(conditions []string, values []interface{}) (*mDBA
 
 func (p *pgx) GetBackupDeposits(condition string, value interface{}) ([]*mDBApp.BackupDeposit, error) {
 	const baseQuery = `
-        SELECT id, recipient, encrypted_deposit, block_number, created_at
+        SELECT id, recipient, deposit_double_hash, encrypted_deposit, block_number, created_at
         FROM backup_deposits
         WHERE %s = $1
     `
@@ -73,7 +74,7 @@ func (p *pgx) GetBackupDeposits(condition string, value interface{}) ([]*mDBApp.
 	var deposits []*mDBApp.BackupDeposit
 	err := p.getBackupEntries(query, value, func(rows *sql.Rows) error {
 		var b models.BackupDeposit
-		err := rows.Scan(&b.ID, &b.Recipient, &b.EncryptedDeposit, &b.BlockNumber, &b.CreatedAt)
+		err := rows.Scan(&b.ID, &b.Recipient, &b.DepositDoubleHash, &b.EncryptedDeposit, &b.BlockNumber, &b.CreatedAt)
 		if err != nil {
 			return err
 		}

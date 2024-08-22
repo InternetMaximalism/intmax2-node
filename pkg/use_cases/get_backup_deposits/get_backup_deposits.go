@@ -2,15 +2,16 @@ package get_backup_deposits
 
 import (
 	"context"
-	"go.opentelemetry.io/otel/attribute"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
 	node "intmax2-node/internal/pb/gen/store_vault_service/node"
 	service "intmax2-node/internal/store_vault_service"
-	"intmax2-node/internal/use_cases/backup_deposit"
+	getBackupDeposits "intmax2-node/internal/use_cases/get_backup_deposits"
 	"intmax2-node/pkg/sql_db/db_app/models"
+
+	"go.opentelemetry.io/otel/attribute"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // uc describes use case
@@ -20,7 +21,11 @@ type uc struct {
 	db  SQLDriverApp
 }
 
-func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backup_deposit.UseCaseGetBackupDeposits {
+func New(
+	cfg *configs.Config,
+	log logger.Logger,
+	db SQLDriverApp,
+) getBackupDeposits.UseCaseGetBackupDeposits {
 	return &uc{
 		cfg: cfg,
 		log: log,
@@ -29,7 +34,7 @@ func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backup_deposit
 }
 
 func (u *uc) Do(
-	ctx context.Context, input *backup_deposit.UCGetBackupDepositsInput,
+	ctx context.Context, input *getBackupDeposits.UCGetBackupDepositsInput,
 ) (*node.GetBackupDepositsResponse_Data, error) {
 	const (
 		hName           = "UseCase GetBackupDeposits"
