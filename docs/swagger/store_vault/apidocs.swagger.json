@@ -201,6 +201,46 @@
         ]
       }
     },
+    "/v1/backups/deposits/list": {
+      "post": {
+        "summary": "GetBackupDepositsList processes a request for backup deposits list with pagination and filters",
+        "description": "## This method handles the backup deposits list with pagination and filters.\n\nOption for `orderBy` (default=`date_create`)\n\nOption for `sorting`: `asc`, `desc` (default=`desc`)\n\n** **\n\nIn body request need pass array of filters.\n\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Filter must be of this struct:\n   \u003c/summary\u003e\n   ```\n   {\n     \"relation\":   \"string\",\n     \"dataField\": \"string\",\n     \"condition\":  \"string\",\n     \"value\":      \"string\"\n   }\n   ```\n\u003c/details\u003e\n\nOption for `relation`: `and`, `or`\n\nOption for `dataField`:\n * `block_number`\n\nOption condition by `dataField`:\n * `block_number`: `lessThan`, `lessThanOrEqualTo`, `is`, `greaterThanOrEqualTo`, `greaterThan`.\n\nFilter `block_number`: `lessThan`, `lessThanOrEqualTo`, `is`, `greaterThanOrEqualTo`, `greaterThan`:\n * for filtering need set the value `value` with specified block number\n example: `value` = `1` (`is`).\n\n** **\n\nIn body request need pass pagination\n\n`perPage` number of items to list per page (min = 0, max=100, default = 100 (if equal 0))\n\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for request must be of this struct:\n   \u003c/summary\u003e\n   ```\n   {\n     \"direction\": \"string\",\n     \"perPage\": \"string\",\n     \"cursor\": {\n       \"blockNumber\": \"string\",\n       \"sortingValue\": \"string\"\n     }\n   }\n   ```\n\u003c/details\u003e\n\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response must be of this struct:\n   \u003c/summary\u003e\n   ```\n   {\n     \"perPage\": \"string\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"string\",\n         \"sortingValue\": \"string\"\n       },\n       \"next\": {\n         \"blockNumber\": \"string\",\n         \"sortingValue\": \"string\"\n       }\n     }\n   }\n   ```\n\u003c/details\u003e\n\nFirst request with empty pagination with request and empty list of items\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response must be of this struct:\n   \u003c/summary\u003e\n   ```\n   {\n     \"perPage\": \"100\",\n     \"cursor\": null\n   }\n   ```\n\u003c/details\u003e\n\nA request with non-empty `pagination` made from a response with a non-empty list of elements and pagination (`sorting` is `asc`)\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response and next request must be of this struct:\n   \u003c/summary\u003e\n   ```\n   Pagination from response\n   {\n     \"perPage\": \"100\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"1\"\n       },\n       \"next\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"100\"\n       }\n     }\n   }\n   Pagination for request from response with next values\n   {\n     \"perPage\": \"100\",\n     \"direction\": \"next\",\n     \"cursor\": {\n       \"blockNumber\": \"1\",\n       \"sorting_value\": \"100\"\n     }\n   }\n   ```\n\u003c/details\u003e\n\nA request with non-empty `pagination` made from a response with a non-empty list of elements and pagination (`sorting` is `desc`)\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response and next request must be of this struct:\n   \u003c/summary\u003e\n   ```\n   Pagination from response\n   {\n     \"perPage\": \"10\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"10\"\n       },\n       \"next\": {\n         \"blockNumber\": \"1\",\n         \"sorting_value\": \"1\"\n       }\n     }\n   }\n   Pagination for request from response with next values\n   {\n     \"perPage\": \"10\",\n     \"direction\": \"next\",\n     \"cursor\": {\n       \"blockNumber\": \"1\",\n       \"sortingValue\": \"1\"\n     }\n   }\n   ```\n\u003c/details\u003e\n\nA request with non-empty pagination made from a response with a non-empty list of items and pagination for the situation when the end of the items list is reached.\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response and next request must be of this struct:\n   \u003c/summary\u003e\n   ```\n   Pagination from response\n   {\n     \"perPage\": \"10\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"10\"\n       },\n       \"next\": {\n         \"blockNumber\": \"1\",\n         \"sorting_value\": \"1\"\n       }\n     }\n   }\n   Pagination for request from response with next values\n   {\n     \"perPage\": \"10\",\n     \"direction\": \"next\",\n     \"cursor\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"1\"\n     }\n   }\n   Pagination from response\n   {\n     \"perPage\": \"10\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"1\"\n       },\n       \"next\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"1\"\n       }\n     }\n   }\n   ```\n\u003c/details\u003e",
+        "operationId": "StoreVaultService_GetBackupDepositsList",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetBackupDepositsListResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1GetBackupDepositsListRequest"
+            }
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      }
+    },
     "/v1/backups/transaction": {
       "get": {
         "summary": "GetBackupTransactions processes a request for backup transactions list",
@@ -621,62 +661,6 @@
         }
       }
     },
-    "GetBackupDepositsResponseDeposit": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "recipient": {
-          "type": "string"
-        },
-        "blockNumber": {
-          "type": "string",
-          "format": "uint64"
-        },
-        "encryptedDeposit": {
-          "type": "string"
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time"
-        }
-      }
-    },
-    "GetBackupTransactionsListRequestFilter": {
-      "type": "object",
-      "properties": {
-        "relation": {
-          "type": "string",
-          "title": "relation rule between filters (and or)"
-        },
-        "dataField": {
-          "type": "string",
-          "title": "data field to which the filter is applied"
-        },
-        "condition": {
-          "type": "string",
-          "title": "condition of filter"
-        },
-        "value": {
-          "type": "string",
-          "title": "value of filter"
-        }
-      }
-    },
-    "GetBackupTransactionsListResponseCursor": {
-      "type": "object",
-      "properties": {
-        "prev": {
-          "$ref": "#/definitions/v1GetBackupTransactionsListResponseCursorBase",
-          "title": "the previous value for paging"
-        },
-        "next": {
-          "$ref": "#/definitions/v1GetBackupTransactionsListResponseCursorBase",
-          "title": "the next value for paging"
-        }
-      }
-    },
     "GetBackupTransfersResponseTransfer": {
       "type": "object",
       "properties": {
@@ -1043,6 +1027,173 @@
         }
       }
     },
+    "v1GetBackupDepositsListRequest": {
+      "type": "object",
+      "properties": {
+        "pagination": {
+          "$ref": "#/definitions/v1GetBackupDepositsListRequestPagination",
+          "title": "the pagination value"
+        },
+        "sender": {
+          "type": "string"
+        },
+        "sorting": {
+          "type": "string",
+          "title": "order by sorting (asc or desc)"
+        },
+        "orderBy": {
+          "type": "string",
+          "title": "order by (example: date_start)"
+        },
+        "filter": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1GetBackupDepositsListRequestFilter"
+          },
+          "title": "filter of body"
+        }
+      }
+    },
+    "v1GetBackupDepositsListRequestCursorBase": {
+      "type": "object",
+      "properties": {
+        "blockNumber": {
+          "type": "string",
+          "title": "the number of block\nexample = \"1\""
+        },
+        "sortingValue": {
+          "type": "string",
+          "title": "cursor of next/prev sorting value by pagination\nexample = \"1\""
+        }
+      }
+    },
+    "v1GetBackupDepositsListRequestFilter": {
+      "type": "object",
+      "properties": {
+        "relation": {
+          "type": "string",
+          "title": "relation rule between filters (and or)"
+        },
+        "dataField": {
+          "type": "string",
+          "title": "data field to which the filter is applied"
+        },
+        "condition": {
+          "type": "string",
+          "title": "condition of filter"
+        },
+        "value": {
+          "type": "string",
+          "title": "value of filter"
+        }
+      }
+    },
+    "v1GetBackupDepositsListRequestPagination": {
+      "type": "object",
+      "properties": {
+        "direction": {
+          "type": "string",
+          "title": "the direction (prev or next)"
+        },
+        "perPage": {
+          "type": "string",
+          "title": "number of items to list per page\nOptional, min = 0, max=100, default = 10 (and if equal 0)"
+        },
+        "cursor": {
+          "$ref": "#/definitions/v1GetBackupDepositsListRequestCursorBase",
+          "title": "cursor by pagination"
+        }
+      }
+    },
+    "v1GetBackupDepositsListResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "data": {
+          "$ref": "#/definitions/v1GetBackupDepositsListResponseData"
+        }
+      }
+    },
+    "v1GetBackupDepositsListResponseCursor": {
+      "type": "object",
+      "properties": {
+        "prev": {
+          "$ref": "#/definitions/v1GetBackupDepositsListResponseCursorBase",
+          "title": "the previous value for paging"
+        },
+        "next": {
+          "$ref": "#/definitions/v1GetBackupDepositsListResponseCursorBase",
+          "title": "the next value for paging"
+        }
+      }
+    },
+    "v1GetBackupDepositsListResponseCursorBase": {
+      "type": "object",
+      "properties": {
+        "blockNumber": {
+          "type": "string",
+          "title": "the number of block\nexample = \"1\""
+        },
+        "sortingValue": {
+          "type": "string",
+          "title": "cursor of next/prev sorting value by pagination\nexample = \"1\""
+        }
+      }
+    },
+    "v1GetBackupDepositsListResponseData": {
+      "type": "object",
+      "properties": {
+        "pagination": {
+          "$ref": "#/definitions/v1GetBackupDepositsListResponsePagination",
+          "title": "the pagination value"
+        },
+        "deposits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1GetBackupDepositsListResponseDeposit"
+          }
+        }
+      }
+    },
+    "v1GetBackupDepositsListResponseDeposit": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "recipient": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "encryptedDeposit": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1GetBackupDepositsListResponsePagination": {
+      "type": "object",
+      "properties": {
+        "perPage": {
+          "type": "string",
+          "title": "number of items to list per page\nOptional, min = 0, max=100, default = 10 (and if equal 0)"
+        },
+        "cursor": {
+          "$ref": "#/definitions/v1GetBackupDepositsListResponseCursor",
+          "title": "cursor by pagination"
+        }
+      }
+    },
     "v1GetBackupDepositsResponse": {
       "type": "object",
       "properties": {
@@ -1064,11 +1215,33 @@
           "type": "array",
           "items": {
             "type": "object",
-            "$ref": "#/definitions/GetBackupDepositsResponseDeposit"
+            "$ref": "#/definitions/v1GetBackupDepositsResponseDeposit"
           }
         },
         "meta": {
           "$ref": "#/definitions/v1GetBackupDepositsResponseMeta"
+        }
+      }
+    },
+    "v1GetBackupDepositsResponseDeposit": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "recipient": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "encryptedDeposit": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
         }
       }
     },
@@ -1151,7 +1324,7 @@
           "type": "array",
           "items": {
             "type": "object",
-            "$ref": "#/definitions/GetBackupTransactionsListRequestFilter"
+            "$ref": "#/definitions/v1GetBackupTransactionsListRequestFilter"
           },
           "title": "filter of body"
         }
@@ -1167,6 +1340,27 @@
         "sortingValue": {
           "type": "string",
           "title": "cursor of next/prev sorting value by pagination\nexample = \"1\""
+        }
+      }
+    },
+    "v1GetBackupTransactionsListRequestFilter": {
+      "type": "object",
+      "properties": {
+        "relation": {
+          "type": "string",
+          "title": "relation rule between filters (and or)"
+        },
+        "dataField": {
+          "type": "string",
+          "title": "data field to which the filter is applied"
+        },
+        "condition": {
+          "type": "string",
+          "title": "condition of filter"
+        },
+        "value": {
+          "type": "string",
+          "title": "value of filter"
         }
       }
     },
@@ -1195,6 +1389,19 @@
         },
         "data": {
           "$ref": "#/definitions/v1GetBackupTransactionsListResponseData"
+        }
+      }
+    },
+    "v1GetBackupTransactionsListResponseCursor": {
+      "type": "object",
+      "properties": {
+        "prev": {
+          "$ref": "#/definitions/v1GetBackupTransactionsListResponseCursorBase",
+          "title": "the previous value for paging"
+        },
+        "next": {
+          "$ref": "#/definitions/v1GetBackupTransactionsListResponseCursorBase",
+          "title": "the next value for paging"
         }
       }
     },
@@ -1235,7 +1442,7 @@
           "title": "number of items to list per page\nOptional, min = 0, max=100, default = 10 (and if equal 0)"
         },
         "cursor": {
-          "$ref": "#/definitions/GetBackupTransactionsListResponseCursor",
+          "$ref": "#/definitions/v1GetBackupTransactionsListResponseCursor",
           "title": "cursor by pagination"
         }
       }

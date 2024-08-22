@@ -56,6 +56,16 @@ type BackupDeposits interface {
 	) (*mDBApp.BackupDeposit, error)
 	GetBackupDeposit(conditions []string, values []interface{}) (*mDBApp.BackupDeposit, error)
 	GetBackupDeposits(condition string, value interface{}) ([]*mDBApp.BackupDeposit, error)
+	GetBackupDepositsByRecipient(
+		recipient string,
+		pagination mDBApp.PaginationOfListOfBackupDepositsInput,
+		sorting mFL.Sorting, orderBy mFL.OrderBy,
+		filters mFL.FiltersList,
+	) (
+		paginator *mDBApp.PaginationOfListOfBackupDeposits,
+		listDBApp mDBApp.ListOfBackupDeposit,
+		err error,
+	)
 }
 
 type BackupBalances interface {

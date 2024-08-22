@@ -281,6 +281,216 @@ service StoreVaultService {
     };
   }
 
+  // GetBackupDepositsList processes a request for backup deposits list with pagination and filters
+  //
+  // ## This method handles the backup deposits list with pagination and filters.
+  //
+  // Option for `orderBy` (default=`date_create`)
+  //
+  // Option for `sorting`: `asc`, `desc` (default=`desc`)
+  //
+  // ** **
+  //
+  // In body request need pass array of filters.
+  //
+  // <details>
+  //    <summary>
+  //      Filter must be of this struct:
+  //    </summary>
+  //    ```
+  //    {
+  //      "relation":   "string",
+  //      "dataField": "string",
+  //      "condition":  "string",
+  //      "value":      "string"
+  //    }
+  //    ```
+  // </details>
+  //
+  // Option for `relation`: `and`, `or`
+  //
+  // Option for `dataField`:
+  //  * `block_number`
+  //
+  // Option condition by `dataField`:
+  //  * `block_number`: `lessThan`, `lessThanOrEqualTo`, `is`, `greaterThanOrEqualTo`, `greaterThan`.
+  //
+  // Filter `block_number`: `lessThan`, `lessThanOrEqualTo`, `is`, `greaterThanOrEqualTo`, `greaterThan`:
+  //  * for filtering need set the value `value` with specified block number
+  //  example: `value` = `1` (`is`).
+  //
+  // ** **
+  //
+  // In body request need pass pagination
+  //
+  // `perPage` number of items to list per page (min = 0, max=100, default = 100 (if equal 0))
+  //
+  // <details>
+  //    <summary>
+  //      Pagination for request must be of this struct:
+  //    </summary>
+  //    ```
+  //    {
+  //      "direction": "string",
+  //      "perPage": "string",
+  //      "cursor": {
+  //        "blockNumber": "string",
+  //        "sortingValue": "string"
+  //      }
+  //    }
+  //    ```
+  // </details>
+  //
+  // <details>
+  //    <summary>
+  //      Pagination for response must be of this struct:
+  //    </summary>
+  //    ```
+  //    {
+  //      "perPage": "string",
+  //      "cursor": {
+  //        "prev": {
+  //          "blockNumber": "string",
+  //          "sortingValue": "string"
+  //        },
+  //        "next": {
+  //          "blockNumber": "string",
+  //          "sortingValue": "string"
+  //        }
+  //      }
+  //    }
+  //    ```
+  // </details>
+  //
+  // First request with empty pagination with request and empty list of items
+  // <details>
+  //    <summary>
+  //      Pagination for response must be of this struct:
+  //    </summary>
+  //    ```
+  //    {
+  //      "perPage": "100",
+  //      "cursor": null
+  //    }
+  //    ```
+  // </details>
+  //
+  // A request with non-empty `pagination` made from a response with a non-empty list of elements and pagination (`sorting` is `asc`)
+  // <details>
+  //    <summary>
+  //      Pagination for response and next request must be of this struct:
+  //    </summary>
+  //    ```
+  //    Pagination from response
+  //    {
+  //      "perPage": "100",
+  //      "cursor": {
+  //        "prev": {
+  //          "blockNumber": "1",
+  //          "sortingValue": "1"
+  //        },
+  //        "next": {
+  //          "blockNumber": "1",
+  //          "sortingValue": "100"
+  //        }
+  //      }
+  //    }
+  //    Pagination for request from response with next values
+  //    {
+  //      "perPage": "100",
+  //      "direction": "next",
+  //      "cursor": {
+  //        "blockNumber": "1",
+  //        "sorting_value": "100"
+  //      }
+  //    }
+  //    ```
+  // </details>
+  //
+  // A request with non-empty `pagination` made from a response with a non-empty list of elements and pagination (`sorting` is `desc`)
+  // <details>
+  //    <summary>
+  //      Pagination for response and next request must be of this struct:
+  //    </summary>
+  //    ```
+  //    Pagination from response
+  //    {
+  //      "perPage": "10",
+  //      "cursor": {
+  //        "prev": {
+  //          "blockNumber": "1",
+  //          "sortingValue": "10"
+  //        },
+  //        "next": {
+  //          "blockNumber": "1",
+  //          "sorting_value": "1"
+  //        }
+  //      }
+  //    }
+  //    Pagination for request from response with next values
+  //    {
+  //      "perPage": "10",
+  //      "direction": "next",
+  //      "cursor": {
+  //        "blockNumber": "1",
+  //        "sortingValue": "1"
+  //      }
+  //    }
+  //    ```
+  // </details>
+  //
+  // A request with non-empty pagination made from a response with a non-empty list of items and pagination for the situation when the end of the items list is reached.
+  // <details>
+  //    <summary>
+  //      Pagination for response and next request must be of this struct:
+  //    </summary>
+  //    ```
+  //    Pagination from response
+  //    {
+  //      "perPage": "10",
+  //      "cursor": {
+  //        "prev": {
+  //          "blockNumber": "1",
+  //          "sortingValue": "10"
+  //        },
+  //        "next": {
+  //          "blockNumber": "1",
+  //          "sorting_value": "1"
+  //        }
+  //      }
+  //    }
+  //    Pagination for request from response with next values
+  //    {
+  //      "perPage": "10",
+  //      "direction": "next",
+  //      "cursor": {
+  //          "blockNumber": "1",
+  //          "sortingValue": "1"
+  //      }
+  //    }
+  //    Pagination from response
+  //    {
+  //      "perPage": "10",
+  //      "cursor": {
+  //        "prev": {
+  //          "blockNumber": "1",
+  //          "sortingValue": "1"
+  //        },
+  //        "next": {
+  //          "blockNumber": "1",
+  //          "sortingValue": "1"
+  //        }
+  //      }
+  //    }
+  //    ```
+  // </details>
+  rpc GetBackupDepositsList(GetBackupDepositsListRequest) returns (GetBackupDepositsListResponse) {
+    option (google.api.http) = {
+      post: "/v1/backups/deposits/list"
+      body: "*"
+    };
+  }
+
   rpc BackupBalance(BackupBalanceRequest) returns (BackupBalanceResponse) {
     option (google.api.http) = {
       post: "/v1/backups/balance"
@@ -481,8 +691,8 @@ message GetBackupTransactionsListResponse {
 
   message Data {
     // the pagination value
-    Pagination pagination = 5;
-    repeated Transaction transactions = 1;
+    Pagination pagination = 10;
+    repeated Transaction transactions = 20;
   }
 
   message Pagination {
@@ -596,6 +806,91 @@ message GetBackupDepositsResponse {
   }
 
   StoreVaultError error = 3;
+}
+
+message GetBackupDepositsListRequest {
+  // the pagination value
+  Pagination pagination = 5;
+  string sender = 1;
+  // order by sorting (asc or desc)
+  string sorting = 20;
+  // order by (example: date_start)
+  string order_by = 30;
+  // filter of body
+  repeated Filter filter = 50;
+
+  message Pagination {
+    // the direction (prev or next)
+    string direction = 10;
+    // number of items to list per page
+    // Optional, min = 0, max=100, default = 10 (and if equal 0)
+    string per_page = 30;
+    // cursor by pagination
+    CursorBase cursor = 40;
+  }
+
+  message CursorBase {
+    // the number of block
+    // example = "1"
+    string block_number = 10;
+    // cursor of next/prev sorting value by pagination
+    // example = "1"
+    string sorting_value = 20;
+  }
+
+  message Filter {
+    // relation rule between filters (and or)
+    string relation = 1;
+    // data field to which the filter is applied
+    string data_field = 2;
+    // condition of filter
+    string condition = 3;
+    // value of filter
+    string value = 4;
+  }
+}
+
+message GetBackupDepositsListResponse {
+  bool success = 1;
+  Data data = 2;
+
+  message Data {
+    // the pagination value
+    Pagination pagination = 10;
+    repeated Deposit deposits = 20;
+  }
+
+  message Pagination {
+    // number of items to list per page
+    // Optional, min = 0, max=100, default = 10 (and if equal 0)
+    string per_page = 30;
+    // cursor by pagination
+    Cursor cursor = 40;
+  }
+
+  message Cursor {
+    // the previous value for paging
+    CursorBase prev = 10;
+    // the next value for paging
+    CursorBase next = 20;
+  }
+
+  message CursorBase {
+    // the number of block
+    // example = "1"
+    string block_number = 10;
+    // cursor of next/prev sorting value by pagination
+    // example = "1"
+    string sorting_value = 20;
+  }
+
+  message Deposit {
+    string id = 1;
+    string recipient = 2;
+    uint64 block_number = 3;
+    string encrypted_deposit = 4;
+    google.protobuf.Timestamp created_at = 5;
+  }
 }
 
 // GetBalanceRequest is the request message for GetBalances method.

@@ -77,7 +77,7 @@ func generateBackupDeposits(deposits []*models.BackupDeposit) []*node.GetBackupD
 		backupDeposit := &node.GetBackupDepositsResponse_Deposit{
 			Id:               deposit.ID,
 			Recipient:        deposit.Recipient,
-			BlockNumber:      deposit.BlockNumber,
+			BlockNumber:      uint64(deposit.BlockNumber),
 			EncryptedDeposit: deposit.EncryptedDeposit,
 			CreatedAt: &timestamppb.Timestamp{
 				Seconds: deposit.CreatedAt.Unix(),

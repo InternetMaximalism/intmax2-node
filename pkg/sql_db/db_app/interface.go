@@ -149,6 +149,16 @@ type BackupDeposits interface {
 	) (*models.BackupDeposit, error)
 	GetBackupDeposit(conditions []string, values []interface{}) (*models.BackupDeposit, error)
 	GetBackupDeposits(condition string, value interface{}) ([]*models.BackupDeposit, error)
+	GetBackupDepositsByRecipient(
+		recipient string,
+		pagination models.PaginationOfListOfBackupDepositsInput,
+		sorting mFL.Sorting, orderBy mFL.OrderBy,
+		filters mFL.FiltersList,
+	) (
+		paginator *models.PaginationOfListOfBackupDeposits,
+		listDBApp models.ListOfBackupDeposit,
+		err error,
+	)
 }
 
 type CtrlEventBlockNumbersJobs interface {

@@ -1,4 +1,4 @@
-package get_backup_transactions_list
+package get_backup_deposits_list
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
-	getBackupTransactionsList "intmax2-node/internal/use_cases/get_backup_transactions_list"
+	getBackupDepositsList "intmax2-node/internal/use_cases/get_backup_deposits_list"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"strconv"
 
@@ -25,7 +25,7 @@ func New(
 	cfg *configs.Config,
 	log logger.Logger,
 	db SQLDriverApp,
-) getBackupTransactionsList.UseCaseGetBackupTransactionsList {
+) getBackupDepositsList.UseCaseGetBackupDepositsList {
 	return &uc{
 		cfg: cfg,
 		log: log,
@@ -34,10 +34,10 @@ func New(
 }
 
 func (u *uc) Do(
-	ctx context.Context, input *getBackupTransactionsList.UCGetBackupTransactionsListInput,
-) (*getBackupTransactionsList.UCGetBackupTransactionsList, error) {
+	ctx context.Context, input *getBackupDepositsList.UCGetBackupDepositsListInput,
+) (*getBackupDepositsList.UCGetBackupDepositsList, error) {
 	const (
-		hName    = "UseCase GetBackupTransactionsList"
+		hName    = "UseCase GetBackupDepositsList"
 		inputKey = "input"
 	)
 
@@ -56,12 +56,12 @@ func (u *uc) Do(
 	}
 	span.SetAttributes(attribute.String(inputKey, string(bInput)))
 
-	var pagination mDBApp.PaginationOfListOfBackupTransactionsInput
+	var pagination mDBApp.PaginationOfListOfBackupDepositsInput
 	if input.Pagination != nil {
 		pagination.Direction = input.Pagination.Direction
 		pagination.Offset = input.Pagination.Offset
 		if input.Pagination.Cursor != nil {
-			pagination.Cursor = &mDBApp.CursorBaseOfListOfBackupTransactions{
+			pagination.Cursor = &mDBApp.CursorBaseOfListOfBackupDeposits{
 				BN:           input.Pagination.Cursor.ConvertBlockNumber,
 				SortingValue: input.Pagination.Cursor.ConvertSortingValue,
 			}
@@ -72,11 +72,11 @@ func (u *uc) Do(
 	}
 
 	var (
-		paginator *mDBApp.PaginationOfListOfBackupTransactions
-		listDBApp mDBApp.ListOfBackupTransaction
+		paginator *mDBApp.PaginationOfListOfBackupDeposits
+		listDBApp mDBApp.ListOfBackupDeposit
 	)
-	paginator, listDBApp, err = u.db.GetBackupTransactionsBySender(
-		input.Sender,
+	paginator, listDBApp, err = u.db.GetBackupDepositsByRecipient(
+		input.Recipient,
 		pagination,
 		input.Sorting, input.OrderBy,
 		input.Filters,
@@ -86,24 +86,24 @@ func (u *uc) Do(
 		return nil, errors.Join(ErrGetBackupTransactionsBySenderFail, err)
 	}
 
-	resp := getBackupTransactionsList.UCGetBackupTransactionsList{
-		List: make([]getBackupTransactionsList.ItemOfGetBackupTransactionsList, len(listDBApp)),
+	resp := getBackupDepositsList.UCGetBackupDepositsList{
+		List: make([]getBackupDepositsList.ItemOfGetBackupDepositsList, len(listDBApp)),
 	}
 
-	resp.Pagination = getBackupTransactionsList.UCGetBackupTransactionsListPaginationOfList{
+	resp.Pagination = getBackupDepositsList.UCGetBackupDepositsListPaginationOfList{
 		PerPage: strconv.Itoa(pagination.Offset),
 	}
 
 	if paginator.Cursor != nil {
-		resp.Pagination.Cursor = &getBackupTransactionsList.UCGetBackupTransactionsListCursorList{}
+		resp.Pagination.Cursor = &getBackupDepositsList.UCGetBackupDepositsListCursorList{}
 		if paginator.Cursor.Prev != nil {
-			resp.Pagination.Cursor.Prev = &getBackupTransactionsList.UCGetBackupTransactionsListCursorBase{
+			resp.Pagination.Cursor.Prev = &getBackupDepositsList.UCGetBackupDepositsListCursorBase{
 				BlockNumber:  paginator.Cursor.Prev.BN.String(),
 				SortingValue: paginator.Cursor.Prev.SortingValue.String(),
 			}
 		}
 		if paginator.Cursor.Next != nil {
-			resp.Pagination.Cursor.Next = &getBackupTransactionsList.UCGetBackupTransactionsListCursorBase{
+			resp.Pagination.Cursor.Next = &getBackupDepositsList.UCGetBackupDepositsListCursorBase{
 				BlockNumber:  paginator.Cursor.Next.BN.String(),
 				SortingValue: paginator.Cursor.Next.SortingValue.String(),
 			}
@@ -111,14 +111,13 @@ func (u *uc) Do(
 	}
 
 	for key := range listDBApp {
-		resp.List[key] = getBackupTransactionsList.ItemOfGetBackupTransactionsList{
-			ID:           listDBApp[key].ID,
-			Sender:       listDBApp[key].Sender,
-			TxDoubleHash: listDBApp[key].TxDoubleHash,
-			EncryptedTx:  listDBApp[key].EncryptedTx,
-			BlockNumber:  listDBApp[key].BlockNumber,
-			Signature:    listDBApp[key].Signature,
-			CreatedAt:    listDBApp[key].CreatedAt,
+		resp.List[key] = getBackupDepositsList.ItemOfGetBackupDepositsList{
+			ID:                listDBApp[key].ID,
+			Recipient:         listDBApp[key].Recipient,
+			DepositDoubleHash: listDBApp[key].DepositDoubleHash,
+			EncryptedDeposit:  listDBApp[key].EncryptedDeposit,
+			BlockNumber:       listDBApp[key].BlockNumber,
+			CreatedAt:         listDBApp[key].CreatedAt,
 		}
 	}
 

@@ -36,7 +36,7 @@ func GetBalances(
 		resDeposits[i] = &backupBalance.BackupDeposit{
 			Recipient:        deposit.Recipient,
 			EncryptedDeposit: deposit.EncryptedDeposit,
-			BlockNumber:      deposit.BlockNumber,
+			BlockNumber:      uint64(deposit.BlockNumber),
 			CreatedAt:        deposit.CreatedAt,
 		}
 	}
