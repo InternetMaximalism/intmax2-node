@@ -26,13 +26,13 @@ type MessengerWithdrawalRelayerService struct {
 	l1ScrollMessenger *bindings.L1ScrollMessenger
 }
 
-func newMessengerWithdrawalRelayerService(ctx context.Context, cfg *configs.Config, log logger.Logger, _ ServiceBlockchain) (*MessengerWithdrawalRelayerService, error) {
-	// link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
-	// }
+func newMessengerWithdrawalRelayerService(ctx context.Context, cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) (*MessengerWithdrawalRelayerService, error) {
+	link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
+	}
 
-	client, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
+	client, err := utils.NewClient(link)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new client: %w", err)
 	}

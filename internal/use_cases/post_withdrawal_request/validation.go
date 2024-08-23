@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	Base10 = 10
+	base10 = 10
 )
 
 // ErrValueInvalid error: value must be valid.
@@ -42,7 +42,7 @@ func (input *UCPostWithdrawalRequestInput) validateTransferData(value interface{
 		return errors.New("TokenIndex must be non-negative")
 	}
 	amount := new(big.Int)
-	amount, ok = amount.SetString(transferData.Amount, Base10)
+	amount, ok = amount.SetString(transferData.Amount, base10)
 	if !ok {
 		return errors.New("amount must be a valid number")
 	}

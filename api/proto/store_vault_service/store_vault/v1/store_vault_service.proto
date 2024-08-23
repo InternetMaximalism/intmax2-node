@@ -1,0 +1,1009 @@
+syntax = "proto3";
+
+package store_vault.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+// Defines the import path that should be used to import the generated package,
+// and the package name.
+option go_package = ".;store_vault";
+
+// Service definition for StoreVaultService
+service StoreVaultService {
+  // BackupTransfer processes a request for data backup transfer
+  //
+  // ## This method handles the transfer of backup data.
+  rpc BackupTransfer(BackupTransferRequest) returns (BackupTransferResponse) {
+    option (google.api.http) = {
+      post: "/v1/backups/transfer"
+      body: "*"
+    };
+  }
+
+  rpc GetBackupTransfers(GetBackupTransfersRequest) returns (GetBackupTransfersResponse) {
+    option (google.api.http) = {
+      get: "/v1/backups/transfer"
+    };
+  }
+
+  // BackupTransaction processes a request for data backup transaction
+  //
+  // ## This method handles the transaction of backup data.
+  rpc BackupTransaction(BackupTransactionRequest) returns (BackupTransactionResponse) {
+    option (google.api.http) = {
+      post: "/v1/backups/transaction"
+      body: "*"
+    };
+  }
+
+  // GetBackupTransactions processes a request for backup transactions list
+  //
+  // ## This method handles the backup transactions list.
+  rpc GetBackupTransactions(GetBackupTransactionsRequest) returns (GetBackupTransactionsResponse) {
+    option (google.api.http) = {
+      get: "/v1/backups/transaction"
+    };
+  }
+
+  // GetBackupTransactionsList processes a request for backup transactions list with pagination and filters
+  //
+  // ## This method handles the backup transactions list with pagination and filters.
+  //
+  // Option for `orderBy` (default=`date_create`)
+  //
+  // Option for `sorting`: `asc`, `desc` (default=`desc`)
+  //
+  // ** **
+  //
+  // In body request need pass array of filters.
+  //
+  // <details>
+  //    <summary>
+  //      Filter must be of this struct:
+  //    </summary>
+  //    ```
+  //    {
+  //      "relation":   "string",
+  //      "dataField": "string",
+  //      "condition":  "string",
+  //      "value":      "string"
+  //    }
+  //    ```
+  // </details>
+  //
+  // Option for `relation`: `and`, `or`
+  //
+  // Option for `dataField`:
+  //  * `block_number`
+  //
+  // Option condition by `dataField`:
+  //  * `block_number`: `lessThan`, `lessThanOrEqualTo`, `is`, `greaterThanOrEqualTo`, `greaterThan`.
+  //
+  // Filter `block_number`: `lessThan`, `lessThanOrEqualTo`, `is`, `greaterThanOrEqualTo`, `greaterThan`:
+  //  * for filtering need set the value `value` with specified block number
+  //  example: `value` = `1` (`is`).
+  //
+  // ** **
+  //
+  // In body request need pass pagination
+  //
+  // `perPage` number of items to list per page (min = 0, max=100, default = 100 (if equal 0))
+  //
+  // <details>
+  //    <summary>
+  //      Pagination for request must be of this struct:
+  //    </summary>
+  //    ```
+  //    {
+  //      "direction": "string",
+  //      "perPage": "string",
+  //      "cursor": {
+  //        "blockNumber": "string",
+  //        "sortingValue": "string"
+  //      }
+  //    }
+  //    ```
+  // </details>
+  //
+  // <details>
+  //    <summary>
+  //      Pagination for response must be of this struct:
+  //    </summary>
+  //    ```
+  //    {
+  //      "perPage": "string",
+  //      "cursor": {
+  //        "prev": {
+  //          "blockNumber": "string",
+  //          "sortingValue": "string"
+  //        },
+  //        "next": {
+  //          "blockNumber": "string",
+  //          "sortingValue": "string"
+  //        }
+  //      }
+  //    }
+  //    ```
+  // </details>
+  //
+  // First request with empty pagination with request and empty list of items
+  // <details>
+  //    <summary>
+  //      Pagination for response must be of this struct:
+  //    </summary>
+  //    ```
+  //    {
+  //      "perPage": "100",
+  //      "cursor": null
+  //    }
+  //    ```
+  // </details>
+  //
+  // A request with non-empty `pagination` made from a response with a non-empty list of elements and pagination (`sorting` is `asc`)
+  // <details>
+  //    <summary>
+  //      Pagination for response and next request must be of this struct:
+  //    </summary>
+  //    ```
+  //    Pagination from response
+  //    {
+  //      "perPage": "100",
+  //      "cursor": {
+  //        "prev": {
+  //          "blockNumber": "1",
+  //          "sortingValue": "1"
+  //        },
+  //        "next": {
+  //          "blockNumber": "1",
+  //          "sortingValue": "100"
+  //        }
+  //      }
+  //    }
+  //    Pagination for request from response with next values
+  //    {
+  //      "perPage": "100",
+  //      "direction": "next",
+  //      "cursor": {
+  //        "blockNumber": "1",
+  //        "sorting_value": "100"
+  //      }
+  //    }
+  //    ```
+  // </details>
+  //
+  // A request with non-empty `pagination` made from a response with a non-empty list of elements and pagination (`sorting` is `desc`)
+  // <details>
+  //    <summary>
+  //      Pagination for response and next request must be of this struct:
+  //    </summary>
+  //    ```
+  //    Pagination from response
+  //    {
+  //      "perPage": "10",
+  //      "cursor": {
+  //        "prev": {
+  //          "blockNumber": "1",
+  //          "sortingValue": "10"
+  //        },
+  //        "next": {
+  //          "blockNumber": "1",
+  //          "sorting_value": "1"
+  //        }
+  //      }
+  //    }
+  //    Pagination for request from response with next values
+  //    {
+  //      "perPage": "10",
+  //      "direction": "next",
+  //      "cursor": {
+  //        "blockNumber": "1",
+  //        "sortingValue": "1"
+  //      }
+  //    }
+  //    ```
+  // </details>
+  //
+  // A request with non-empty pagination made from a response with a non-empty list of items and pagination for the situation when the end of the items list is reached.
+  // <details>
+  //    <summary>
+  //      Pagination for response and next request must be of this struct:
+  //    </summary>
+  //    ```
+  //    Pagination from response
+  //    {
+  //      "perPage": "10",
+  //      "cursor": {
+  //        "prev": {
+  //          "blockNumber": "1",
+  //          "sortingValue": "10"
+  //        },
+  //        "next": {
+  //          "blockNumber": "1",
+  //          "sorting_value": "1"
+  //        }
+  //      }
+  //    }
+  //    Pagination for request from response with next values
+  //    {
+  //      "perPage": "10",
+  //      "direction": "next",
+  //      "cursor": {
+  //          "blockNumber": "1",
+  //          "sortingValue": "1"
+  //      }
+  //    }
+  //    Pagination from response
+  //    {
+  //      "perPage": "10",
+  //      "cursor": {
+  //        "prev": {
+  //          "blockNumber": "1",
+  //          "sortingValue": "1"
+  //        },
+  //        "next": {
+  //          "blockNumber": "1",
+  //          "sortingValue": "1"
+  //        }
+  //      }
+  //    }
+  //    ```
+  // </details>
+  rpc GetBackupTransactionsList(GetBackupTransactionsListRequest) returns (GetBackupTransactionsListResponse) {
+    option (google.api.http) = {
+      post: "/v1/backups/transactions/list"
+      body: "*"
+    };
+  }
+
+  // GetBackupTransactionByHash processes a request for backup transaction by hash
+  //
+  // ## This method handles the backup transaction by hash.
+  rpc GetBackupTransactionByHash(GetBackupTransactionByHashRequest) returns (GetBackupTransactionByHashResponse) {
+    option (google.api.http) = {
+      get: "/v1/backups/transaction/{tx_hash}"
+    };
+  }
+
+  // BackupDeposit processes a request for data backup deposit
+  //
+  // ## This method handles the deposit of backup data.
+  rpc BackupDeposit(BackupDepositRequest) returns (BackupDepositResponse) {
+    option (google.api.http) = {
+      post: "/v1/backups/deposit"
+      body: "*"
+    };
+  }
+
+  rpc GetBackupDeposits(GetBackupDepositsRequest) returns (GetBackupDepositsResponse) {
+    option (google.api.http) = {
+      get: "/v1/backups/deposit"
+    };
+  }
+
+  // GetBackupDepositsList processes a request for backup deposits list with pagination and filters
+  //
+  // ## This method handles the backup deposits list with pagination and filters.
+  //
+  // Option for `orderBy` (default=`date_create`)
+  //
+  // Option for `sorting`: `asc`, `desc` (default=`desc`)
+  //
+  // ** **
+  //
+  // In body request need pass array of filters.
+  //
+  // <details>
+  //    <summary>
+  //      Filter must be of this struct:
+  //    </summary>
+  //    ```
+  //    {
+  //      "relation":   "string",
+  //      "dataField": "string",
+  //      "condition":  "string",
+  //      "value":      "string"
+  //    }
+  //    ```
+  // </details>
+  //
+  // Option for `relation`: `and`, `or`
+  //
+  // Option for `dataField`:
+  //  * `block_number`
+  //
+  // Option condition by `dataField`:
+  //  * `block_number`: `lessThan`, `lessThanOrEqualTo`, `is`, `greaterThanOrEqualTo`, `greaterThan`.
+  //
+  // Filter `block_number`: `lessThan`, `lessThanOrEqualTo`, `is`, `greaterThanOrEqualTo`, `greaterThan`:
+  //  * for filtering need set the value `value` with specified block number
+  //  example: `value` = `1` (`is`).
+  //
+  // ** **
+  //
+  // In body request need pass pagination
+  //
+  // `perPage` number of items to list per page (min = 0, max=100, default = 100 (if equal 0))
+  //
+  // <details>
+  //    <summary>
+  //      Pagination for request must be of this struct:
+  //    </summary>
+  //    ```
+  //    {
+  //      "direction": "string",
+  //      "perPage": "string",
+  //      "cursor": {
+  //        "blockNumber": "string",
+  //        "sortingValue": "string"
+  //      }
+  //    }
+  //    ```
+  // </details>
+  //
+  // <details>
+  //    <summary>
+  //      Pagination for response must be of this struct:
+  //    </summary>
+  //    ```
+  //    {
+  //      "perPage": "string",
+  //      "cursor": {
+  //        "prev": {
+  //          "blockNumber": "string",
+  //          "sortingValue": "string"
+  //        },
+  //        "next": {
+  //          "blockNumber": "string",
+  //          "sortingValue": "string"
+  //        }
+  //      }
+  //    }
+  //    ```
+  // </details>
+  //
+  // First request with empty pagination with request and empty list of items
+  // <details>
+  //    <summary>
+  //      Pagination for response must be of this struct:
+  //    </summary>
+  //    ```
+  //    {
+  //      "perPage": "100",
+  //      "cursor": null
+  //    }
+  //    ```
+  // </details>
+  //
+  // A request with non-empty `pagination` made from a response with a non-empty list of elements and pagination (`sorting` is `asc`)
+  // <details>
+  //    <summary>
+  //      Pagination for response and next request must be of this struct:
+  //    </summary>
+  //    ```
+  //    Pagination from response
+  //    {
+  //      "perPage": "100",
+  //      "cursor": {
+  //        "prev": {
+  //          "blockNumber": "1",
+  //          "sortingValue": "1"
+  //        },
+  //        "next": {
+  //          "blockNumber": "1",
+  //          "sortingValue": "100"
+  //        }
+  //      }
+  //    }
+  //    Pagination for request from response with next values
+  //    {
+  //      "perPage": "100",
+  //      "direction": "next",
+  //      "cursor": {
+  //        "blockNumber": "1",
+  //        "sorting_value": "100"
+  //      }
+  //    }
+  //    ```
+  // </details>
+  //
+  // A request with non-empty `pagination` made from a response with a non-empty list of elements and pagination (`sorting` is `desc`)
+  // <details>
+  //    <summary>
+  //      Pagination for response and next request must be of this struct:
+  //    </summary>
+  //    ```
+  //    Pagination from response
+  //    {
+  //      "perPage": "10",
+  //      "cursor": {
+  //        "prev": {
+  //          "blockNumber": "1",
+  //          "sortingValue": "10"
+  //        },
+  //        "next": {
+  //          "blockNumber": "1",
+  //          "sorting_value": "1"
+  //        }
+  //      }
+  //    }
+  //    Pagination for request from response with next values
+  //    {
+  //      "perPage": "10",
+  //      "direction": "next",
+  //      "cursor": {
+  //        "blockNumber": "1",
+  //        "sortingValue": "1"
+  //      }
+  //    }
+  //    ```
+  // </details>
+  //
+  // A request with non-empty pagination made from a response with a non-empty list of items and pagination for the situation when the end of the items list is reached.
+  // <details>
+  //    <summary>
+  //      Pagination for response and next request must be of this struct:
+  //    </summary>
+  //    ```
+  //    Pagination from response
+  //    {
+  //      "perPage": "10",
+  //      "cursor": {
+  //        "prev": {
+  //          "blockNumber": "1",
+  //          "sortingValue": "10"
+  //        },
+  //        "next": {
+  //          "blockNumber": "1",
+  //          "sorting_value": "1"
+  //        }
+  //      }
+  //    }
+  //    Pagination for request from response with next values
+  //    {
+  //      "perPage": "10",
+  //      "direction": "next",
+  //      "cursor": {
+  //          "blockNumber": "1",
+  //          "sortingValue": "1"
+  //      }
+  //    }
+  //    Pagination from response
+  //    {
+  //      "perPage": "10",
+  //      "cursor": {
+  //        "prev": {
+  //          "blockNumber": "1",
+  //          "sortingValue": "1"
+  //        },
+  //        "next": {
+  //          "blockNumber": "1",
+  //          "sortingValue": "1"
+  //        }
+  //      }
+  //    }
+  //    ```
+  // </details>
+  rpc GetBackupDepositsList(GetBackupDepositsListRequest) returns (GetBackupDepositsListResponse) {
+    option (google.api.http) = {
+      post: "/v1/backups/deposits/list"
+      body: "*"
+    };
+  }
+
+  rpc BackupBalance(BackupBalanceRequest) returns (BackupBalanceResponse) {
+    option (google.api.http) = {
+      post: "/v1/backups/balance"
+      body: "*"
+    };
+  }
+
+  rpc GetBackupBalances(GetBackupBalancesRequest) returns (GetBackupBalancesResponse) {
+    option (google.api.http) = {
+      get: "/v1/backups/balance"
+    };
+  }
+
+  // GetBalances retrieves balances for a given address
+  //
+  // ## This method retrieves the balance for the provided address.
+  rpc GetBalances(GetBalancesRequest) returns (GetBalancesResponse) {
+    option (google.api.http) = {
+      get: "/v1/balances/{address}"
+    };
+  }
+
+  // GetVerifyDepositConfirmation verifies the confirmation of a deposit
+  //
+  // ## This method verifies if a deposit has been confirmed.
+  rpc GetVerifyDepositConfirmation(GetVerifyDepositConfirmationRequest) returns (GetVerifyDepositConfirmationResponse) {
+    option (google.api.http) = {
+      get: "/v1/deposits/{deposit_id}/verify-confirmation"
+    };
+  }
+}
+
+// BackupTransferRequest is the request message for BackupTransfer method.
+message BackupTransferRequest {
+  // The transfer hash
+  string transfer_hash = 10;
+  // The encrypted data for the transfer
+  string encrypted_transfer = 20;
+  // The recipient address
+  string recipient = 30;
+  // The block number associated with the transfer
+  uint64 block_number = 40;
+}
+
+// BackupTransferResponse is the response message for Backup method.
+message BackupTransferResponse {
+  // Indicates if the backup transfer was successful
+  bool success = 1;
+  // Additional data related to the response
+  Data data = 2;
+  // Data is the nested message containing detailed response information
+  message Data {
+    // A message indicating the result of the backup transfer
+    string message = 1;
+  }
+}
+
+message GetBackupTransfersRequest {
+  string sender = 1;
+  uint64 start_block_number = 2;
+  uint64 limit = 3;
+}
+
+message GetBackupTransfersResponse {
+  bool success = 1;
+  Data data = 2;
+
+  message Data {
+    repeated Transfer transfers = 1;
+    Meta meta = 2;
+  }
+
+  message Transfer {
+    string id = 1;
+    uint64 block_number = 2;
+    string recipient = 3;
+    string encrypted_transfer = 4;
+    google.protobuf.Timestamp created_at = 5;
+  }
+
+  message Meta {
+    uint64 start_block_number = 1;
+    uint64 end_block_number = 2;
+  }
+
+  StoreVaultError error = 3;
+}
+
+message StoreVaultError {
+  string code = 1;
+  string message = 2;
+}
+
+// BackupTransactionRequest is the request message for BackupTransaction method.
+message BackupTransactionRequest {
+  // The transaction hash
+  string tx_hash = 10;
+  // The encrypted transaction data
+  string encrypted_tx = 20;
+  // The sender address
+  string sender = 30;
+  // The block number associated with the transaction
+  uint64 block_number = 40;
+  // The signature for the transaction
+  string signature = 50;
+}
+
+// BackupTransactionResponse is the response message for Backup method.
+message BackupTransactionResponse {
+  // Indicates if the backup transfer was successful
+  bool success = 1;
+  // Additional data related to the response
+  Data data = 2;
+  // Data is the nested message containing detailed response information
+  message Data {
+    // A message indicating the result of the backup transfer
+    string message = 1;
+  }
+}
+
+message GetBackupTransactionsRequest {
+  string sender = 1;
+  uint64 start_block_number = 2;
+  uint64 limit = 3;
+}
+
+message GetBackupTransactionsResponse {
+  bool success = 1;
+  Data data = 2;
+
+  message Data {
+    repeated Transaction transactions = 1;
+    Meta meta = 2;
+  }
+
+  message Transaction {
+    string id = 1;
+    string sender = 2;
+    string signature = 3;
+    uint64 block_number = 4;
+    string encrypted_tx = 5;
+    google.protobuf.Timestamp created_at = 6;
+  }
+
+  message Meta {
+    uint64 start_block_number = 1;
+    uint64 end_block_number = 2;
+  }
+
+  StoreVaultError error = 3;
+}
+
+message GetBackupTransactionsListRequest {
+  // the pagination value
+  Pagination pagination = 5;
+  string sender = 1;
+  // order by sorting (asc or desc)
+  string sorting = 20;
+  // order by (example: date_start)
+  string order_by = 30;
+  // filter of body
+  repeated Filter filter = 50;
+
+  message Pagination {
+    // the direction (prev or next)
+    string direction = 10;
+    // number of items to list per page
+    // Optional, min = 0, max=100, default = 10 (and if equal 0)
+    string per_page = 30;
+    // cursor by pagination
+    CursorBase cursor = 40;
+  }
+
+  message CursorBase {
+    // the number of block
+    // example = "1"
+    string block_number = 10;
+    // cursor of next/prev sorting value by pagination
+    // example = "1"
+    string sorting_value = 20;
+  }
+
+  message Filter {
+    // relation rule between filters (and or)
+    string relation = 1;
+    // data field to which the filter is applied
+    string data_field = 2;
+    // condition of filter
+    string condition = 3;
+    // value of filter
+    string value = 4;
+  }
+}
+
+message GetBackupTransactionsListResponse {
+  bool success = 1;
+  Data data = 2;
+
+  message Data {
+    // the pagination value
+    Pagination pagination = 10;
+    repeated Transaction transactions = 20;
+  }
+
+  message Pagination {
+    // number of items to list per page
+    // Optional, min = 0, max=100, default = 10 (and if equal 0)
+    string per_page = 30;
+    // cursor by pagination
+    Cursor cursor = 40;
+  }
+
+  message Cursor {
+    // the previous value for paging
+    CursorBase prev = 10;
+    // the next value for paging
+    CursorBase next = 20;
+  }
+
+  message CursorBase {
+    // the number of block
+    // example = "1"
+    string block_number = 10;
+    // cursor of next/prev sorting value by pagination
+    // example = "1"
+    string sorting_value = 20;
+  }
+
+  message Transaction {
+    string id = 1;
+    string sender = 2;
+    string signature = 3;
+    uint64 block_number = 4;
+    string encrypted_tx = 5;
+    google.protobuf.Timestamp created_at = 6;
+  }
+}
+
+message GetBackupTransactionByHashRequest {
+  string sender = 1;
+  string tx_hash = 2;
+}
+
+message GetBackupTransactionByHashResponse {
+  bool success = 1;
+  Data data = 2;
+
+  message Data {
+    Transaction transaction = 1;
+  }
+
+  message Transaction {
+    string id = 1;
+    string sender = 2;
+    string signature = 3;
+    uint64 block_number = 4;
+    string encrypted_tx = 5;
+    google.protobuf.Timestamp created_at = 6;
+  }
+}
+
+// BackupDepositRequest is the request message for BackupDeposit method.
+message BackupDepositRequest {
+  // The deposit hash
+  string deposit_hash = 10;
+  // The recipient address
+  string recipient = 20;
+  // The encrypted deposit data
+  string encrypted_deposit = 30;
+  // The block number associated with the deposit
+  uint64 block_number = 40;
+}
+
+// BackupDepositResponse is the response message for Backup method.
+message BackupDepositResponse {
+  // Indicates if the backup transfer was successful
+  bool success = 1;
+  // Additional data related to the response
+  Data data = 2;
+  // Data is the nested message containing detailed response information
+  message Data {
+    // A message indicating the result of the backup transfer
+    string message = 1;
+  }
+}
+
+message GetBackupDepositsRequest {
+  string sender = 1;
+  uint64 start_block_number = 2;
+  uint64 limit = 3;
+}
+
+message GetBackupDepositsResponse {
+  bool success = 1;
+  Data data = 2;
+
+  message Data {
+    repeated Deposit deposits = 1;
+    Meta meta = 2;
+  }
+
+  message Deposit {
+    string id = 1;
+    string recipient = 2;
+    uint64 block_number = 3;
+    string encrypted_deposit = 4;
+    google.protobuf.Timestamp created_at = 5;
+  }
+
+  message Meta {
+    uint64 start_block_number = 1;
+    uint64 end_block_number = 2;
+  }
+
+  StoreVaultError error = 3;
+}
+
+message GetBackupDepositsListRequest {
+  // the pagination value
+  Pagination pagination = 5;
+  string sender = 1;
+  // order by sorting (asc or desc)
+  string sorting = 20;
+  // order by (example: date_start)
+  string order_by = 30;
+  // filter of body
+  repeated Filter filter = 50;
+
+  message Pagination {
+    // the direction (prev or next)
+    string direction = 10;
+    // number of items to list per page
+    // Optional, min = 0, max=100, default = 10 (and if equal 0)
+    string per_page = 30;
+    // cursor by pagination
+    CursorBase cursor = 40;
+  }
+
+  message CursorBase {
+    // the number of block
+    // example = "1"
+    string block_number = 10;
+    // cursor of next/prev sorting value by pagination
+    // example = "1"
+    string sorting_value = 20;
+  }
+
+  message Filter {
+    // relation rule between filters (and or)
+    string relation = 1;
+    // data field to which the filter is applied
+    string data_field = 2;
+    // condition of filter
+    string condition = 3;
+    // value of filter
+    string value = 4;
+  }
+}
+
+message GetBackupDepositsListResponse {
+  bool success = 1;
+  Data data = 2;
+
+  message Data {
+    // the pagination value
+    Pagination pagination = 10;
+    repeated Deposit deposits = 20;
+  }
+
+  message Pagination {
+    // number of items to list per page
+    // Optional, min = 0, max=100, default = 10 (and if equal 0)
+    string per_page = 30;
+    // cursor by pagination
+    Cursor cursor = 40;
+  }
+
+  message Cursor {
+    // the previous value for paging
+    CursorBase prev = 10;
+    // the next value for paging
+    CursorBase next = 20;
+  }
+
+  message CursorBase {
+    // the number of block
+    // example = "1"
+    string block_number = 10;
+    // cursor of next/prev sorting value by pagination
+    // example = "1"
+    string sorting_value = 20;
+  }
+
+  message Deposit {
+    string id = 1;
+    string recipient = 2;
+    uint64 block_number = 3;
+    string encrypted_deposit = 4;
+    google.protobuf.Timestamp created_at = 5;
+  }
+}
+
+// GetBalanceRequest is the request message for GetBalances method.
+message GetBalancesRequest {
+  // The address to retrieve the balance for
+  string address = 1;
+}
+
+message BackupDeposit {
+  string recipient = 1;
+  string encrypted_deposit = 2;
+  uint64 block_number = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+message BackupTransfer {
+  string encrypted_transfer = 1;
+  string recipient = 2;
+  uint64 block_number = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+message BackupTransaction {
+	string sender = 1;
+	string encrypted_tx = 2;
+	string block_number = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+message BackupBalanceRequest {
+  string user = 1;
+  string encrypted_balance_proof = 2;
+  string encrypted_balance_data = 3;
+  repeated string encrypted_txs = 4;
+  repeated string encrypted_transfers = 5;
+  repeated string encrypted_deposits = 6;
+  string signature = 7;
+  uint64 block_number = 8;
+}
+
+message BackupBalanceResponse {
+  // Indicates if the backup transfer was successful
+  bool success = 1;
+  // Additional data related to the response
+  Data data = 2;
+  // Data is the nested message containing detailed response information
+  message Data {
+    // A message indicating the result of the backup transfer
+    string message = 1;
+  }
+}
+
+// The response message containing a list of token balances.
+message GetBalancesResponse {
+  // The list of deposits
+  repeated BackupDeposit deposits = 1;
+  // The list of transfers
+  repeated BackupTransfer transfers = 2;
+  // The list of transactions
+  repeated BackupTransaction transactions = 3;
+}
+
+message GetBackupBalancesRequest {
+  string sender = 1;
+  uint64 start_block_number = 2;
+  uint64 limit = 3;
+}
+
+message GetBackupBalancesResponse {
+  bool success = 1;
+  Data data = 2;
+
+  message Data {
+    repeated Balance balances = 1;
+    Meta meta = 2;
+  }
+
+  message Balance {
+    string id = 1;
+    string user_address = 2;
+    string encrypted_balance_proof = 3;
+    string encrypted_balance_data = 4;
+    repeated string encrypted_txs = 5;
+    repeated string encrypted_transfers = 6;
+    repeated string encrypted_deposits = 7;
+    uint64 block_number = 8;
+    string signature = 9;
+    google.protobuf.Timestamp created_at = 10;
+  }
+
+  message Meta {
+    uint64 start_block_number = 1;
+    uint64 end_block_number = 2;
+  }
+
+  StoreVaultError error = 3;
+}
+
+// The request message for verifying deposit confirmation
+message GetVerifyDepositConfirmationRequest {
+  // The ID of the deposit to be verified
+  string deposit_id = 1;
+}
+
+// The response message for verifying deposit confirmation
+message GetVerifyDepositConfirmationResponse {
+  // Indicates if the verify deposit confirmation was successful
+  bool success = 1;
+  // Additional data related to the response
+  Data data = 2;
+  // Data is the nested message containing detailed response information
+  message Data {
+    // Indicates whether the deposit is confirmed
+    bool confirmed = 1;
+  }
+}

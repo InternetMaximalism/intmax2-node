@@ -5,13 +5,13 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
-	"intmax2-node/internal/pb/gen/service/node"
+	node "intmax2-node/internal/pb/gen/store_vault_service/node"
 	service "intmax2-node/internal/store_vault_service"
-	"intmax2-node/internal/use_cases/backup_deposit"
+	getBackupDeposits "intmax2-node/internal/use_cases/get_backup_deposits"
 	"intmax2-node/pkg/sql_db/db_app/models"
-	"time"
 
 	"go.opentelemetry.io/otel/attribute"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // uc describes use case
@@ -21,7 +21,11 @@ type uc struct {
 	db  SQLDriverApp
 }
 
-func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backup_deposit.UseCaseGetBackupDeposits {
+func New(
+	cfg *configs.Config,
+	log logger.Logger,
+	db SQLDriverApp,
+) getBackupDeposits.UseCaseGetBackupDeposits {
 	return &uc{
 		cfg: cfg,
 		log: log,
@@ -30,7 +34,7 @@ func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backup_deposit
 }
 
 func (u *uc) Do(
-	ctx context.Context, input *backup_deposit.UCGetBackupDepositsInput,
+	ctx context.Context, input *getBackupDeposits.UCGetBackupDepositsInput,
 ) (*node.GetBackupDepositsResponse_Data, error) {
 	const (
 		hName           = "UseCase GetBackupDeposits"
@@ -73,9 +77,12 @@ func generateBackupDeposits(deposits []*models.BackupDeposit) []*node.GetBackupD
 		backupDeposit := &node.GetBackupDepositsResponse_Deposit{
 			Id:               deposit.ID,
 			Recipient:        deposit.Recipient,
-			BlockNumber:      deposit.BlockNumber,
+			BlockNumber:      uint64(deposit.BlockNumber),
 			EncryptedDeposit: deposit.EncryptedDeposit,
-			CreatedAt:        deposit.CreatedAt.Format(time.RFC3339),
+			CreatedAt: &timestamppb.Timestamp{
+				Seconds: deposit.CreatedAt.Unix(),
+				Nanos:   int32(deposit.CreatedAt.Nanosecond()),
+			},
 		}
 		results = append(results, backupDeposit)
 	}

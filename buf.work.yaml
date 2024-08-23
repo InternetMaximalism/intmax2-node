@@ -1,4 +1,6 @@
 version: v1
 directories:
-  - api/proto/service
+  - api/proto//block_builder_service
+  - api/proto/store_vault_service
+  - api/proto/withdrawal_service
   - third_party/proto_import

@@ -8,8 +8,16 @@ import (
 
 type ServiceBlockchain interface {
 	GenericCommandsSB
+	ChainSB
 }
 
 type GenericCommandsSB interface {
 	CheckScrollPrivateKey(ctx context.Context) (err error)
+}
+
+type ChainSB interface {
+	SetupEthereumNetworkChainID(ctx context.Context) error
+	EthereumNetworkChainLinkEvmJSONRPC(ctx context.Context) (string, error)
+	SetupScrollNetworkChainID(ctx context.Context) error
+	ScrollNetworkChainLinkEvmJSONRPC(ctx context.Context) (string, error)
 }

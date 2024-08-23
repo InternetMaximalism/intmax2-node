@@ -12,7 +12,7 @@ import (
 	"intmax2-node/internal/pb/gateway"
 	"intmax2-node/internal/pb/gateway/consts"
 	"intmax2-node/internal/pb/gateway/http_response_modifier"
-	"intmax2-node/internal/pb/gen/service/node"
+	node "intmax2-node/internal/pb/gen/block_builder_service/node"
 	"intmax2-node/internal/pb/listener"
 	"intmax2-node/pkg/grpc_server/server"
 	"intmax2-node/third_party"
@@ -60,15 +60,15 @@ func NewServerCmd(s *Server) *cobra.Command {
 				s.Log.Fatalf(msg, err.Error())
 			}
 
-			err = s.BlockValidityProver.Init()
-			if err != nil {
-				const msg = "init the Block Validity Prover error occurred: %v"
-				s.Log.Fatalf(msg, err.Error())
-			}
-
 			err = s.SB.CheckScrollPrivateKey(s.Context)
 			if err != nil {
 				const msg = "check private key error occurred: %v"
+				s.Log.Fatalf(msg, err.Error())
+			}
+
+			err = s.BlockValidityProver.Init(s.Context)
+			if err != nil {
+				const msg = "init the Block Validity Prover error occurred: %v"
 				s.Log.Fatalf(msg, err.Error())
 			}
 
@@ -331,10 +331,10 @@ func (s *Server) Init() error {
 			Swagger: &gateway.Swagger{
 				HostURL:            s.Config.Swagger.HostURL,
 				BasePath:           s.Config.Swagger.BasePath,
-				SwaggerPath:        configs.SwaggerPath,
-				FsSwagger:          swagger.FsSwagger,
-				OpenAPIPath:        configs.SwaggerOpenAPIPath,
-				FsOpenAPI:          third_party.OpenAPI,
+				SwaggerPath:        configs.SwaggerBlockBuilderPath,
+				FsSwagger:          swagger.FsSwaggerBlockBuilder,
+				OpenAPIPath:        configs.SwaggerOpenAPIBlockBuilderPath,
+				FsOpenAPI:          third_party.OpenAPIBlockBuilder,
 				RegexpBuildVersion: s.Config.Swagger.RegexpBuildVersion,
 				RegexpHostURL:      s.Config.Swagger.RegexpHostURL,
 				RegexpBasePATH:     s.Config.Swagger.RegexpBasePATH,

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"intmax2-node/internal/open_telemetry"
-	"intmax2-node/internal/pb/gen/service/node"
-	backupTransfer "intmax2-node/internal/use_cases/backup_transfer"
+	node "intmax2-node/internal/pb/gen/store_vault_service/node"
+	backupTransfer "intmax2-node/internal/use_cases/post_backup_transfer"
 	"intmax2-node/pkg/grpc_server/utils"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -27,6 +27,7 @@ func (s *StoreVaultServer) BackupTransfer(ctx context.Context, req *node.BackupT
 	defer span.End()
 
 	input := backupTransfer.UCPostBackupTransferInput{
+		TransferHash:      req.TransferHash,
 		EncryptedTransfer: req.EncryptedTransfer,
 		Recipient:         req.Recipient,
 		BlockNumber:       uint32(req.BlockNumber),

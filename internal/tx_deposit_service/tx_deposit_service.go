@@ -11,9 +11,9 @@ import (
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/hash/goldenposeidon"
-	"intmax2-node/internal/pb/gen/service/node"
+	node "intmax2-node/internal/pb/gen/store_vault_service/node"
 	intMaxTypes "intmax2-node/internal/types"
-	"intmax2-node/internal/use_cases/backup_deposit"
+	postBackupDeposit "intmax2-node/internal/use_cases/post_backup_deposit"
 	"intmax2-node/pkg/utils"
 	"math/big"
 	"net/http"
@@ -442,6 +442,14 @@ func (d *TxDepositService) BackupDeposit(
 		Salt:       salt,
 	}
 
+	recipientSaltHash := intMaxAcc.GetPublicKeySaltHash(recipientPublicKey.Pk.X.BigInt(new(big.Int)), salt)
+
+	depositHash := new(intMaxTypes.DepositLeaf).Set(&intMaxTypes.DepositLeaf{
+		RecipientSaltHash: recipientSaltHash,
+		TokenIndex:        tokenIndex,
+		Amount:            amount,
+	}).Hash()
+
 	encodedDeposit := deposit.Marshal()
 	encryptedDeposit, err := intMaxAcc.EncryptECIES(
 		rand.Reader,
@@ -457,9 +465,10 @@ func (d *TxDepositService) BackupDeposit(
 	err = backupDepositRawRequest(
 		d.ctx,
 		d.cfg,
+		depositHash.String(),
 		encodedEncryptedText,
 		recipientPublicKey.ToAddress().String(),
-		uint32(depositID),
+		int64(depositID),
 	)
 
 	if err != nil {
@@ -472,11 +481,13 @@ func (d *TxDepositService) BackupDeposit(
 func backupDepositRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
+	depositHash string,
 	encodedEncryptedText string,
 	recipient string,
-	depositID uint32,
+	depositID int64,
 ) error {
-	ucInput := backup_deposit.UCPostBackupDepositInput{
+	ucInput := postBackupDeposit.UCPostBackupDepositInput{
+		DepositHash:      depositHash,
 		EncryptedDeposit: encodedEncryptedText,
 		Recipient:        recipient,
 		BlockNumber:      depositID,
@@ -521,7 +532,11 @@ func backupDepositRawRequest(
 	}
 
 	if !response.Success {
-		return fmt.Errorf("failed to send transaction: %s", response.Data.Message)
+		if response.Data != nil {
+			return fmt.Errorf("failed to send transaction: %s", response.Data.Message)
+		}
+
+		return fmt.Errorf("failed to send transaction with unknown error")
 	}
 
 	return nil

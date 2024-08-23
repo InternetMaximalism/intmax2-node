@@ -88,6 +88,7 @@ func (u *uc) Do(
 	sender, err := intMaxAcc.NewPublicKeyFromAddressHex(input.Sender)
 	if innerErr := b.BackupTransaction(
 		sender.ToAddress(),
+		input.BackupTx.TxHash,
 		input.BackupTx.EncodedEncryptedTx,
 		input.BackupTx.Signature,
 		blockNumber,
@@ -121,7 +122,7 @@ func (u *uc) Do(
 			}
 			u.log.Printf("INTMAX Address: %s\n", intMaxAddress.String())
 			if innerErr := b.BackupTransfer(
-				intMaxAddress, encodedEncryptedTransfer.EncodedEncryptedTransfer, blockNumber,
+				intMaxAddress, encodedEncryptedTransfer.TransferHash, encodedEncryptedTransfer.EncodedEncryptedTransfer, blockNumber,
 			); innerErr != nil {
 				open_telemetry.MarkSpanError(spanCtx, innerErr)
 				return innerErr
@@ -136,7 +137,7 @@ func (u *uc) Do(
 
 			u.log.Printf("ETH Address: %s\n", ethAddress.String())
 			if innerErr := b.BackupWithdrawal(
-				ethAddress, encodedEncryptedTransfer.EncodedEncryptedTransfer, blockNumber,
+				ethAddress, encodedEncryptedTransfer.TransferHash, encodedEncryptedTransfer.EncodedEncryptedTransfer, blockNumber,
 			); innerErr != nil {
 				open_telemetry.MarkSpanError(spanCtx, innerErr)
 				return innerErr

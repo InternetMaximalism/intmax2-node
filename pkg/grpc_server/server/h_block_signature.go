@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 	"intmax2-node/internal/open_telemetry"
-	"intmax2-node/internal/pb/gen/service/node"
+	node "intmax2-node/internal/pb/gen/block_builder_service/node"
 	"intmax2-node/internal/use_cases/block_signature"
 	"intmax2-node/internal/use_cases/transaction"
 	"intmax2-node/pkg/grpc_server/utils"
@@ -42,6 +42,7 @@ func (s *Server) BlockSignature(
 	}
 
 	if req.BackupTransaction != nil {
+		input.BackupTx.TxHash = req.BackupTransaction.TxHash
 		input.BackupTx.EncodedEncryptedTx = req.BackupTransaction.EncryptedTx
 		input.BackupTx.Signature = req.BackupTransaction.Signature
 	}
@@ -49,6 +50,7 @@ func (s *Server) BlockSignature(
 	for key := range req.BackupTransfers {
 		data := transaction.BackupTransferInput{
 			Recipient:                req.BackupTransfers[key].Recipient,
+			TransferHash:             req.BackupTransfers[key].TransferHash,
 			EncodedEncryptedTransfer: req.BackupTransfers[key].EncryptedTransfer,
 		}
 		input.BackupTransfers[key] = &data

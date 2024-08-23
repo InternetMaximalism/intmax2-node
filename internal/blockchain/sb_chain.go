@@ -7,9 +7,11 @@ import (
 	"fmt"
 	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/open_telemetry"
+	"math/big"
 	"os"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/prodadidb/go-validation"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -156,11 +158,30 @@ func (sb *serviceBlockchain) ethereumNetworkChainIDValidator() error {
 
 func (sb *serviceBlockchain) SetupEthereumNetworkChainID(ctx context.Context) error {
 	const (
-		hName = "ServiceBlockchain func:SetupEthereumNetworkChainID"
+		hName    = "ServiceBlockchain func:SetupEthereumNetworkChainID"
+		emptyKey = ""
 	)
 
 	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
 	defer span.End()
+
+	sb.cfg.Blockchain.EthereumNetworkRpcUrl = strings.TrimSpace(sb.cfg.Blockchain.EthereumNetworkRpcUrl)
+	if sb.cfg.Blockchain.EthereumNetworkRpcUrl != emptyKey {
+		client, err := ethclient.DialContext(spanCtx, sb.cfg.Blockchain.EthereumNetworkRpcUrl)
+		if err != nil {
+			open_telemetry.MarkSpanError(spanCtx, err)
+			return errors.Join(errorsB.ErrEthClientDialFail)
+		}
+
+		var chainID *big.Int
+		chainID, err = client.ChainID(spanCtx)
+		if err != nil {
+			open_telemetry.MarkSpanError(spanCtx, err)
+			return errors.Join(errorsB.ErrChainIDWithEthClientFail)
+		}
+
+		sb.cfg.Blockchain.EthereumNetworkChainID = chainID.String()
+	}
 
 	err := sb.ethereumNetworkChainIDValidator()
 	if err != nil {
@@ -200,6 +221,26 @@ func (sb *serviceBlockchain) EthereumNetworkChainLinkEvmJSONRPC(ctx context.Cont
 		))
 	defer span.End()
 
+	sb.cfg.Blockchain.EthereumNetworkRpcUrl = strings.TrimSpace(sb.cfg.Blockchain.EthereumNetworkRpcUrl)
+	if sb.cfg.Blockchain.EthereumNetworkRpcUrl != emptyKey {
+		client, err := ethclient.DialContext(spanCtx, sb.cfg.Blockchain.EthereumNetworkRpcUrl)
+		if err != nil {
+			open_telemetry.MarkSpanError(spanCtx, err)
+			return emptyKey, errors.Join(errorsB.ErrEthClientDialFail)
+		}
+
+		var chainID *big.Int
+		chainID, err = client.ChainID(spanCtx)
+		if err != nil {
+			open_telemetry.MarkSpanError(spanCtx, err)
+			return emptyKey, errors.Join(errorsB.ErrChainIDWithEthClientFail)
+		}
+
+		sb.cfg.Blockchain.EthereumNetworkChainID = chainID.String()
+
+		return sb.cfg.Blockchain.EthereumNetworkRpcUrl, nil
+	}
+
 	err := sb.ethereumNetworkChainIDValidator()
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
@@ -232,8 +273,8 @@ func (sb *serviceBlockchain) EthereumNetworkChainLinkExplorer(ctx context.Contex
 		return emptyKey, errors.Join(ErrEthereumChainIDInvalid, err)
 	}
 
-	if strings.EqualFold(sb.cfg.Blockchain.ScrollNetworkChainID, string(ScrollMainNetChainID)) {
-		return string(ScrollMainNetChainLinkExplorer), nil
+	if strings.EqualFold(sb.cfg.Blockchain.ScrollNetworkChainID, string(EthereumMainNetChainID)) {
+		return string(EthereumMainNetChainLinkExplorer), nil
 	}
 
 	return string(EthereumSepoliaChainLinkExplorer), nil

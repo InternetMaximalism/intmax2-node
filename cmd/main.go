@@ -77,9 +77,9 @@ func main() {
 	}
 
 	w := worker.New(cfg, log, dbApp)
-	depositSynchronizer := deposit_synchronizer.New(cfg, log, dbApp)
-	blockValidityProver := block_validity_prover.New(cfg, log, dbApp)
 	bc := blockchain.New(ctx, cfg)
+	depositSynchronizer := deposit_synchronizer.New(cfg, log, dbApp, bc)
+	blockValidityProver := block_validity_prover.New(cfg, log, dbApp, bc)
 	ns := network_service.New(cfg)
 	hc := health.NewHandler()
 	bbr := block_builder_registry_service.New(cfg, log, bc)

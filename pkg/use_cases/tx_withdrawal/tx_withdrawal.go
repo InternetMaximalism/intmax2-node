@@ -52,7 +52,7 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressHex, amount,
 		return ErrEmptyRecipientAddress
 	}
 
-	service.ResumeWithdrawalRequest(spanCtx, u.cfg, u.log, recipientAddressHex, resumeIncompleteWithdrawals)
+	service.ResumeWithdrawalRequest(spanCtx, u.cfg, u.log, u.sb, recipientAddressHex, resumeIncompleteWithdrawals)
 
 	if resumeIncompleteWithdrawals {
 		u.log.Infof("Complete the withdrawal request")

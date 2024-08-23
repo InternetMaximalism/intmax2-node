@@ -4,14 +4,14 @@ import (
 	"context"
 	"fmt"
 	"intmax2-node/internal/open_telemetry"
-	"intmax2-node/internal/pb/gen/service/node"
+	node "intmax2-node/internal/pb/gen/store_vault_service/node"
 	backupBalance "intmax2-node/internal/use_cases/backup_balance"
 	"intmax2-node/pkg/grpc_server/utils"
 	"strconv"
-	"time"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const int10Key = 10
@@ -64,12 +64,15 @@ func (s *StoreVaultServer) GetBalances(ctx context.Context, req *node.GetBalance
 
 func convertToDeposits(deposits []*backupBalance.BackupDeposit) []*node.BackupDeposit {
 	result := make([]*node.BackupDeposit, len(deposits))
-	for i, deposit := range deposits {
-		result[i] = &node.BackupDeposit{
-			Recipient:        deposit.Recipient,
-			EncryptedDeposit: deposit.EncryptedDeposit,
-			BlockNumber:      deposit.BlockNumber,
-			CreatedAt:        deposit.CreatedAt.Format(time.RFC3339),
+	for key := range deposits {
+		result[key] = &node.BackupDeposit{
+			Recipient:        deposits[key].Recipient,
+			EncryptedDeposit: deposits[key].EncryptedDeposit,
+			BlockNumber:      deposits[key].BlockNumber,
+			CreatedAt: &timestamppb.Timestamp{
+				Seconds: deposits[key].CreatedAt.Unix(),
+				Nanos:   int32(deposits[key].CreatedAt.Nanosecond()),
+			},
 		}
 	}
 	return result
@@ -77,12 +80,15 @@ func convertToDeposits(deposits []*backupBalance.BackupDeposit) []*node.BackupDe
 
 func convertToTransfers(transfers []*backupBalance.BackupTransfer) []*node.BackupTransfer {
 	result := make([]*node.BackupTransfer, len(transfers))
-	for i, transfer := range transfers {
-		result[i] = &node.BackupTransfer{
-			Recipient:         transfer.Recipient,
-			EncryptedTransfer: transfer.EncryptedTransfer,
-			BlockNumber:       transfer.BlockNumber,
-			CreatedAt:         transfer.CreatedAt.Format(time.RFC3339),
+	for key := range transfers {
+		result[key] = &node.BackupTransfer{
+			Recipient:         transfers[key].Recipient,
+			EncryptedTransfer: transfers[key].EncryptedTransfer,
+			BlockNumber:       transfers[key].BlockNumber,
+			CreatedAt: &timestamppb.Timestamp{
+				Seconds: transfers[key].CreatedAt.Unix(),
+				Nanos:   int32(transfers[key].CreatedAt.Nanosecond()),
+			},
 		}
 	}
 	return result
@@ -90,12 +96,15 @@ func convertToTransfers(transfers []*backupBalance.BackupTransfer) []*node.Backu
 
 func convertToTransactions(transactions []*backupBalance.BackupTransaction) []*node.BackupTransaction {
 	result := make([]*node.BackupTransaction, len(transactions))
-	for i, transaction := range transactions {
-		result[i] = &node.BackupTransaction{
-			Sender:      transaction.Sender,
-			EncryptedTx: transaction.EncryptedTx,
-			BlockNumber: strconv.FormatUint(transaction.BlockNumber, int10Key),
-			CreatedAt:   transaction.CreatedAt.Format(time.RFC3339),
+	for key := range transactions {
+		result[key] = &node.BackupTransaction{
+			Sender:      transactions[key].Sender,
+			EncryptedTx: transactions[key].EncryptedTx,
+			BlockNumber: strconv.FormatUint(transactions[key].BlockNumber, int10Key),
+			CreatedAt: &timestamppb.Timestamp{
+				Seconds: transactions[key].CreatedAt.Unix(),
+				Nanos:   int32(transactions[key].CreatedAt.Nanosecond()),
+			},
 		}
 	}
 	return result

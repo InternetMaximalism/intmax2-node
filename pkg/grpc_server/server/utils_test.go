@@ -9,7 +9,7 @@ import (
 	"intmax2-node/internal/pb/gateway"
 	"intmax2-node/internal/pb/gateway/consts"
 	"intmax2-node/internal/pb/gateway/http_response_modifier"
-	"intmax2-node/internal/pb/gen/service/node"
+	node "intmax2-node/internal/pb/gen/block_builder_service/node"
 	"intmax2-node/internal/pb/listener"
 	"intmax2-node/pkg/grpc_server/server"
 	"intmax2-node/third_party"
@@ -101,10 +101,10 @@ func Start(
 			Swagger: &gateway.Swagger{
 				HostURL:            cfg.Swagger.HostURL,
 				BasePath:           cfg.Swagger.BasePath,
-				SwaggerPath:        configs.SwaggerPath,
-				FsSwagger:          swagger.FsSwagger,
-				OpenAPIPath:        configs.SwaggerOpenAPIPath,
-				FsOpenAPI:          third_party.OpenAPI,
+				SwaggerPath:        configs.SwaggerBlockBuilderPath,
+				FsSwagger:          swagger.FsSwaggerBlockBuilder,
+				OpenAPIPath:        configs.SwaggerOpenAPIBlockBuilderPath,
+				FsOpenAPI:          third_party.OpenAPIBlockBuilder,
 				RegexpBuildVersion: cfg.Swagger.RegexpBuildVersion,
 				RegexpHostURL:      cfg.Swagger.RegexpHostURL,
 				RegexpBasePATH:     cfg.Swagger.RegexpBasePATH,

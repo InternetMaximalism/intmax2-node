@@ -2,7 +2,6 @@ package withdrawal_server
 
 import (
 	"context"
-	postWithdrwalRequest "intmax2-node/internal/use_cases/post_withdrawal_request"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 
 	"github.com/dimiro1/health"
@@ -26,7 +25,17 @@ type ServiceCommands interface {
 }
 
 type Withdrawals interface {
-	CreateWithdrawal(id string, input *postWithdrwalRequest.UCPostWithdrawalRequestInput) (*mDBApp.Withdrawal, error)
+	CreateWithdrawal(
+		id string,
+		transferData *mDBApp.TransferData,
+		transferMerkleProof *mDBApp.TransferMerkleProof,
+		transaction *mDBApp.Transaction,
+		txMerkleProof *mDBApp.TxMerkleProof,
+		transferHash string,
+		blockNumber int64,
+		blockHash string,
+		enoughBalanceProof *mDBApp.EnoughBalanceProof,
+	) (*mDBApp.Withdrawal, error)
 	UpdateWithdrawalsStatus(ids []string, status mDBApp.WithdrawalStatus) error
 	WithdrawalByID(id string) (*mDBApp.Withdrawal, error)
 	WithdrawalsByHashes(transferHashes []string) (*[]mDBApp.Withdrawal, error)

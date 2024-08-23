@@ -5,11 +5,12 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
-	"intmax2-node/internal/pb/gen/service/node"
+	node "intmax2-node/internal/pb/gen/store_vault_service/node"
 	service "intmax2-node/internal/store_vault_service"
 	"intmax2-node/internal/use_cases/backup_balance"
 	"intmax2-node/pkg/sql_db/db_app/models"
-	"time"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // uc describes use case
@@ -73,7 +74,10 @@ func generateBackupBalances(balances []*models.BackupBalance) []*node.GetBackupB
 			EncryptedDeposits:     balance.EncryptedDeposits,
 			BlockNumber:           balance.BlockNumber,
 			Signature:             balance.Signature,
-			CreatedAt:             balance.CreatedAt.Format(time.RFC3339),
+			CreatedAt: &timestamppb.Timestamp{
+				Seconds: balance.CreatedAt.Unix(),
+				Nanos:   int32(balance.CreatedAt.Nanosecond()),
+			},
 		}
 		results = append(results, backupBalance)
 	}

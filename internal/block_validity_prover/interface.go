@@ -8,7 +8,7 @@ import (
 )
 
 type BlockValidityProver interface {
-	Init() error
+	Init(ctx context.Context) error
 	Start(
 		ctx context.Context,
 		tickerEventWatcher *time.Ticker,

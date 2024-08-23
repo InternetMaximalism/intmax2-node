@@ -15,18 +15,18 @@ type BlockPostService interface {
 	FetchScrollCalldataByHash(txHash common.Hash) ([]byte, error)
 	BackupTransaction(
 		sender intMaxAcc.Address,
-		encodedEncryptedTx string,
+		encodedEncryptedTxHash, encodedEncryptedTx string,
 		signature string,
 		blockNumber uint64,
 	) error
 	BackupTransfer(
 		recipient intMaxAcc.Address,
-		encodedEncryptedTransfer string,
+		encodedEncryptedTransferHash, encodedEncryptedTransfer string,
 		blockNumber uint64,
 	) error
 	BackupWithdrawal(
 		recipient common.Address,
-		encodedEncryptedTransfer string,
+		encodedEncryptedTransferHash, encodedEncryptedTransfer string,
 		blockNumber uint64,
 	) error
 }

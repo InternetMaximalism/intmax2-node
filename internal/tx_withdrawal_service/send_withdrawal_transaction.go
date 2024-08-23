@@ -29,6 +29,7 @@ func SendWithdrawalTransaction(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
+	sb ServiceBlockchain,
 	senderAccount *intMaxAcc.PrivateKey,
 	transfersHash intMaxTypes.PoseidonHashOut,
 	nonce uint64,

@@ -7,9 +7,9 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/logger"
-	"intmax2-node/internal/pb/gen/service/node"
-	"intmax2-node/internal/use_cases/backup_transaction"
-	"intmax2-node/internal/use_cases/backup_transfer"
+	node "intmax2-node/internal/pb/gen/store_vault_service/node"
+	postBackupTransaction "intmax2-node/internal/use_cases/post_backup_transaction"
+	"intmax2-node/internal/use_cases/post_backup_transfer"
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -18,7 +18,7 @@ import (
 
 func (d *blockPostService) BackupTransaction(
 	sender intMaxAcc.Address,
-	encodedEncryptedTx string,
+	txHash, encodedEncryptedTx string,
 	signature string,
 	blockNumber uint64,
 ) error {
@@ -26,6 +26,7 @@ func (d *blockPostService) BackupTransaction(
 		d.ctx,
 		d.cfg,
 		d.log,
+		txHash,
 		encodedEncryptedTx,
 		signature,
 		sender.String(),
@@ -43,12 +44,13 @@ func backupTransactionRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
-	encodedEncryptedTx string,
+	txHash, encodedEncryptedTx string,
 	signature string,
 	sender string,
 	blockNumber uint32,
 ) error {
-	ucInput := backup_transaction.UCPostBackupTransactionInput{
+	ucInput := postBackupTransaction.UCPostBackupTransactionInput{
+		TxHash:      txHash,
 		EncryptedTx: encodedEncryptedTx,
 		Sender:      sender,
 		BlockNumber: blockNumber,
@@ -107,13 +109,14 @@ func backupTransactionRawRequest(
 
 func (d *blockPostService) BackupTransfer(
 	recipient intMaxAcc.Address,
-	encodedEncryptedTransfer string,
+	encodedEncryptedTransferHash, encodedEncryptedTransfer string,
 	blockNumber uint64,
 ) error {
 	err := backupTransferRawRequest(
 		d.ctx,
 		d.cfg,
 		d.log,
+		encodedEncryptedTransferHash,
 		encodedEncryptedTransfer,
 		recipient.String(),
 		uint32(blockNumber),
@@ -130,11 +133,12 @@ func backupTransferRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
-	encodedEncryptedTransfer string,
+	encodedEncryptedTransferHash, encodedEncryptedTransfer string,
 	recipient string,
 	blockNumber uint32,
 ) error {
-	ucInput := backup_transfer.UCPostBackupTransferInput{
+	ucInput := post_backup_transfer.UCPostBackupTransferInput{
+		TransferHash:      encodedEncryptedTransferHash,
 		EncryptedTransfer: encodedEncryptedTransfer,
 		Recipient:         recipient,
 		BlockNumber:       blockNumber,
@@ -192,13 +196,14 @@ func backupTransferRawRequest(
 
 func (d *blockPostService) BackupWithdrawal(
 	recipient common.Address,
-	encodedEncryptedTransfer string,
+	encodedEncryptedTransferHash, encodedEncryptedTransfer string,
 	blockNumber uint64,
 ) error {
 	err := backupWithdrawalRawRequest(
 		d.ctx,
 		d.cfg,
 		d.log,
+		encodedEncryptedTransferHash,
 		encodedEncryptedTransfer,
 		recipient.Hex(),
 		uint32(blockNumber),
@@ -215,11 +220,12 @@ func backupWithdrawalRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
-	encodedEncryptedTransfer string,
+	encodedEncryptedTransferHash, encodedEncryptedTransfer string,
 	recipient string,
 	blockNumber uint32,
 ) error {
-	ucInput := backup_transfer.UCPostBackupTransferInput{
+	ucInput := post_backup_transfer.UCPostBackupTransferInput{
+		TransferHash:      encodedEncryptedTransferHash,
 		EncryptedTransfer: encodedEncryptedTransfer,
 		Recipient:         recipient,
 		BlockNumber:       blockNumber,

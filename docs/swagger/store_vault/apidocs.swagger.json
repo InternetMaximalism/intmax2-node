@@ -1,0 +1,1664 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "INTMAX2 Store Vault",
+    "description": "### Definitions\nThe INTMAX2 Store Vault service.\n",
+    "version": "SWAGGER_VERSION"
+  },
+  "tags": [
+    {
+      "name": "InfoService"
+    },
+    {
+      "name": "StoreVaultService"
+    }
+  ],
+  "host": "SWAGGER_HOST_URL",
+  "basePath": "SWAGGER_BASE_PATH",
+  "schemes": [
+    "http",
+    "https"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v1/backups/balance": {
+      "get": {
+        "operationId": "StoreVaultService_GetBackupBalances",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetBackupBalancesResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sender",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "startBlockNumber",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      },
+      "post": {
+        "operationId": "StoreVaultService_BackupBalance",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BackupBalanceResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BackupBalanceRequest"
+            }
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      }
+    },
+    "/v1/backups/deposit": {
+      "get": {
+        "operationId": "StoreVaultService_GetBackupDeposits",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetBackupDepositsResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sender",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "startBlockNumber",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      },
+      "post": {
+        "summary": "BackupDeposit processes a request for data backup deposit",
+        "description": "## This method handles the deposit of backup data.",
+        "operationId": "StoreVaultService_BackupDeposit",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BackupDepositResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "BackupDepositRequest is the request message for BackupDeposit method.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BackupDepositRequest"
+            }
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      }
+    },
+    "/v1/backups/deposits/list": {
+      "post": {
+        "summary": "GetBackupDepositsList processes a request for backup deposits list with pagination and filters",
+        "description": "## This method handles the backup deposits list with pagination and filters.\n\nOption for `orderBy` (default=`date_create`)\n\nOption for `sorting`: `asc`, `desc` (default=`desc`)\n\n** **\n\nIn body request need pass array of filters.\n\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Filter must be of this struct:\n   \u003c/summary\u003e\n   ```\n   {\n     \"relation\":   \"string\",\n     \"dataField\": \"string\",\n     \"condition\":  \"string\",\n     \"value\":      \"string\"\n   }\n   ```\n\u003c/details\u003e\n\nOption for `relation`: `and`, `or`\n\nOption for `dataField`:\n * `block_number`\n\nOption condition by `dataField`:\n * `block_number`: `lessThan`, `lessThanOrEqualTo`, `is`, `greaterThanOrEqualTo`, `greaterThan`.\n\nFilter `block_number`: `lessThan`, `lessThanOrEqualTo`, `is`, `greaterThanOrEqualTo`, `greaterThan`:\n * for filtering need set the value `value` with specified block number\n example: `value` = `1` (`is`).\n\n** **\n\nIn body request need pass pagination\n\n`perPage` number of items to list per page (min = 0, max=100, default = 100 (if equal 0))\n\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for request must be of this struct:\n   \u003c/summary\u003e\n   ```\n   {\n     \"direction\": \"string\",\n     \"perPage\": \"string\",\n     \"cursor\": {\n       \"blockNumber\": \"string\",\n       \"sortingValue\": \"string\"\n     }\n   }\n   ```\n\u003c/details\u003e\n\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response must be of this struct:\n   \u003c/summary\u003e\n   ```\n   {\n     \"perPage\": \"string\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"string\",\n         \"sortingValue\": \"string\"\n       },\n       \"next\": {\n         \"blockNumber\": \"string\",\n         \"sortingValue\": \"string\"\n       }\n     }\n   }\n   ```\n\u003c/details\u003e\n\nFirst request with empty pagination with request and empty list of items\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response must be of this struct:\n   \u003c/summary\u003e\n   ```\n   {\n     \"perPage\": \"100\",\n     \"cursor\": null\n   }\n   ```\n\u003c/details\u003e\n\nA request with non-empty `pagination` made from a response with a non-empty list of elements and pagination (`sorting` is `asc`)\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response and next request must be of this struct:\n   \u003c/summary\u003e\n   ```\n   Pagination from response\n   {\n     \"perPage\": \"100\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"1\"\n       },\n       \"next\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"100\"\n       }\n     }\n   }\n   Pagination for request from response with next values\n   {\n     \"perPage\": \"100\",\n     \"direction\": \"next\",\n     \"cursor\": {\n       \"blockNumber\": \"1\",\n       \"sorting_value\": \"100\"\n     }\n   }\n   ```\n\u003c/details\u003e\n\nA request with non-empty `pagination` made from a response with a non-empty list of elements and pagination (`sorting` is `desc`)\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response and next request must be of this struct:\n   \u003c/summary\u003e\n   ```\n   Pagination from response\n   {\n     \"perPage\": \"10\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"10\"\n       },\n       \"next\": {\n         \"blockNumber\": \"1\",\n         \"sorting_value\": \"1\"\n       }\n     }\n   }\n   Pagination for request from response with next values\n   {\n     \"perPage\": \"10\",\n     \"direction\": \"next\",\n     \"cursor\": {\n       \"blockNumber\": \"1\",\n       \"sortingValue\": \"1\"\n     }\n   }\n   ```\n\u003c/details\u003e\n\nA request with non-empty pagination made from a response with a non-empty list of items and pagination for the situation when the end of the items list is reached.\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response and next request must be of this struct:\n   \u003c/summary\u003e\n   ```\n   Pagination from response\n   {\n     \"perPage\": \"10\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"10\"\n       },\n       \"next\": {\n         \"blockNumber\": \"1\",\n         \"sorting_value\": \"1\"\n       }\n     }\n   }\n   Pagination for request from response with next values\n   {\n     \"perPage\": \"10\",\n     \"direction\": \"next\",\n     \"cursor\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"1\"\n     }\n   }\n   Pagination from response\n   {\n     \"perPage\": \"10\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"1\"\n       },\n       \"next\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"1\"\n       }\n     }\n   }\n   ```\n\u003c/details\u003e",
+        "operationId": "StoreVaultService_GetBackupDepositsList",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetBackupDepositsListResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1GetBackupDepositsListRequest"
+            }
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      }
+    },
+    "/v1/backups/transaction": {
+      "get": {
+        "summary": "GetBackupTransactions processes a request for backup transactions list",
+        "description": "## This method handles the backup transactions list.",
+        "operationId": "StoreVaultService_GetBackupTransactions",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetBackupTransactionsResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sender",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "startBlockNumber",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      },
+      "post": {
+        "summary": "BackupTransaction processes a request for data backup transaction",
+        "description": "## This method handles the transaction of backup data.",
+        "operationId": "StoreVaultService_BackupTransaction",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BackupTransactionResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "BackupTransactionRequest is the request message for BackupTransaction method.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BackupTransactionRequest"
+            }
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      }
+    },
+    "/v1/backups/transaction/{txHash}": {
+      "get": {
+        "summary": "GetBackupTransactionByHash processes a request for backup transaction by hash",
+        "description": "## This method handles the backup transaction by hash.",
+        "operationId": "StoreVaultService_GetBackupTransactionByHash",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetBackupTransactionByHashResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "txHash",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "sender",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      }
+    },
+    "/v1/backups/transactions/list": {
+      "post": {
+        "summary": "GetBackupTransactionsList processes a request for backup transactions list with pagination and filters",
+        "description": "## This method handles the backup transactions list with pagination and filters.\n\nOption for `orderBy` (default=`date_create`)\n\nOption for `sorting`: `asc`, `desc` (default=`desc`)\n\n** **\n\nIn body request need pass array of filters.\n\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Filter must be of this struct:\n   \u003c/summary\u003e\n   ```\n   {\n     \"relation\":   \"string\",\n     \"dataField\": \"string\",\n     \"condition\":  \"string\",\n     \"value\":      \"string\"\n   }\n   ```\n\u003c/details\u003e\n\nOption for `relation`: `and`, `or`\n\nOption for `dataField`:\n * `block_number`\n\nOption condition by `dataField`:\n * `block_number`: `lessThan`, `lessThanOrEqualTo`, `is`, `greaterThanOrEqualTo`, `greaterThan`.\n\nFilter `block_number`: `lessThan`, `lessThanOrEqualTo`, `is`, `greaterThanOrEqualTo`, `greaterThan`:\n * for filtering need set the value `value` with specified block number\n example: `value` = `1` (`is`).\n\n** **\n\nIn body request need pass pagination\n\n`perPage` number of items to list per page (min = 0, max=100, default = 100 (if equal 0))\n\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for request must be of this struct:\n   \u003c/summary\u003e\n   ```\n   {\n     \"direction\": \"string\",\n     \"perPage\": \"string\",\n     \"cursor\": {\n       \"blockNumber\": \"string\",\n       \"sortingValue\": \"string\"\n     }\n   }\n   ```\n\u003c/details\u003e\n\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response must be of this struct:\n   \u003c/summary\u003e\n   ```\n   {\n     \"perPage\": \"string\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"string\",\n         \"sortingValue\": \"string\"\n       },\n       \"next\": {\n         \"blockNumber\": \"string\",\n         \"sortingValue\": \"string\"\n       }\n     }\n   }\n   ```\n\u003c/details\u003e\n\nFirst request with empty pagination with request and empty list of items\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response must be of this struct:\n   \u003c/summary\u003e\n   ```\n   {\n     \"perPage\": \"100\",\n     \"cursor\": null\n   }\n   ```\n\u003c/details\u003e\n\nA request with non-empty `pagination` made from a response with a non-empty list of elements and pagination (`sorting` is `asc`)\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response and next request must be of this struct:\n   \u003c/summary\u003e\n   ```\n   Pagination from response\n   {\n     \"perPage\": \"100\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"1\"\n       },\n       \"next\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"100\"\n       }\n     }\n   }\n   Pagination for request from response with next values\n   {\n     \"perPage\": \"100\",\n     \"direction\": \"next\",\n     \"cursor\": {\n       \"blockNumber\": \"1\",\n       \"sorting_value\": \"100\"\n     }\n   }\n   ```\n\u003c/details\u003e\n\nA request with non-empty `pagination` made from a response with a non-empty list of elements and pagination (`sorting` is `desc`)\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response and next request must be of this struct:\n   \u003c/summary\u003e\n   ```\n   Pagination from response\n   {\n     \"perPage\": \"10\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"10\"\n       },\n       \"next\": {\n         \"blockNumber\": \"1\",\n         \"sorting_value\": \"1\"\n       }\n     }\n   }\n   Pagination for request from response with next values\n   {\n     \"perPage\": \"10\",\n     \"direction\": \"next\",\n     \"cursor\": {\n       \"blockNumber\": \"1\",\n       \"sortingValue\": \"1\"\n     }\n   }\n   ```\n\u003c/details\u003e\n\nA request with non-empty pagination made from a response with a non-empty list of items and pagination for the situation when the end of the items list is reached.\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response and next request must be of this struct:\n   \u003c/summary\u003e\n   ```\n   Pagination from response\n   {\n     \"perPage\": \"10\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"10\"\n       },\n       \"next\": {\n         \"blockNumber\": \"1\",\n         \"sorting_value\": \"1\"\n       }\n     }\n   }\n   Pagination for request from response with next values\n   {\n     \"perPage\": \"10\",\n     \"direction\": \"next\",\n     \"cursor\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"1\"\n     }\n   }\n   Pagination from response\n   {\n     \"perPage\": \"10\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"1\"\n       },\n       \"next\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"1\"\n       }\n     }\n   }\n   ```\n\u003c/details\u003e",
+        "operationId": "StoreVaultService_GetBackupTransactionsList",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetBackupTransactionsListResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1GetBackupTransactionsListRequest"
+            }
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      }
+    },
+    "/v1/backups/transfer": {
+      "get": {
+        "operationId": "StoreVaultService_GetBackupTransfers",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetBackupTransfersResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sender",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "startBlockNumber",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "uint64"
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      },
+      "post": {
+        "summary": "BackupTransfer processes a request for data backup transfer",
+        "description": "## This method handles the transfer of backup data.",
+        "operationId": "StoreVaultService_BackupTransfer",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BackupTransferResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "BackupTransferRequest is the request message for BackupTransfer method.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BackupTransferRequest"
+            }
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      }
+    },
+    "/v1/balances/{address}": {
+      "get": {
+        "summary": "GetBalances retrieves balances for a given address",
+        "description": "## This method retrieves the balance for the provided address.",
+        "operationId": "StoreVaultService_GetBalances",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetBalancesResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "address",
+            "description": "The address to retrieve the balance for",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      }
+    },
+    "/v1/deposits/{depositId}/verify-confirmation": {
+      "get": {
+        "summary": "GetVerifyDepositConfirmation verifies the confirmation of a deposit",
+        "description": "## This method verifies if a deposit has been confirmed.",
+        "operationId": "StoreVaultService_GetVerifyDepositConfirmation",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetVerifyDepositConfirmationResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "depositId",
+            "description": "The ID of the deposit to be verified",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      }
+    },
+    "/v1/version": {
+      "get": {
+        "summary": "Version returns the build service info",
+        "description": "## Version returns the build service info",
+        "operationId": "InfoService_Version",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1VersionResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "tags": [
+          "InfoService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "GetBackupBalancesResponseBalance": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "userAddress": {
+          "type": "string"
+        },
+        "encryptedBalanceProof": {
+          "type": "string"
+        },
+        "encryptedBalanceData": {
+          "type": "string"
+        },
+        "encryptedTxs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "encryptedTransfers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "encryptedDeposits": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "signature": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "GetBackupTransfersResponseTransfer": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "recipient": {
+          "type": "string"
+        },
+        "encryptedTransfer": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string",
+          "description": "A URL/resource name that uniquely identifies the type of the serialized\nprotocol buffer message. This string must contain at least\none \"/\" character. The last segment of the URL's path must represent\nthe fully qualified name of the type (as in\n`path/google.protobuf.Duration`). The name should be in a canonical form\n(e.g., leading \".\" is not accepted).\n\nIn practice, teams usually precompile into the binary all types that they\nexpect it to use in the context of Any. However, for URLs which use the\nscheme `http`, `https`, or no scheme, one can optionally set up a type\nserver that maps type URLs to message definitions as follows:\n\n* If no scheme is provided, `https` is assumed.\n* An HTTP GET on the URL must yield a [google.protobuf.Type][]\n  value in binary format, or produce an error.\n* Applications are allowed to cache lookup results based on the\n  URL, or have them precompiled into a binary to avoid any\n  lookup. Therefore, binary compatibility needs to be preserved\n  on changes to types. (Use versioned type names to manage\n  breaking changes.)\n\nNote: this functionality is not currently available in the official\nprotobuf release, and it is not used for type URLs beginning with\ntype.googleapis.com.\n\nSchemes other than `http`, `https` (or the empty scheme) might be\nused with implementation specific semantics."
+        }
+      },
+      "additionalProperties": {},
+      "description": "`Any` contains an arbitrary serialized protocol buffer message along with a\nURL that describes the type of the serialized message.\n\nProtobuf library provides support to pack/unpack Any values in the form\nof utility functions or additional generated methods of the Any type.\n\nExample 1: Pack and unpack a message in C++.\n\n    Foo foo = ...;\n    Any any;\n    any.PackFrom(foo);\n    ...\n    if (any.UnpackTo(\u0026foo)) {\n      ...\n    }\n\nExample 2: Pack and unpack a message in Java.\n\n    Foo foo = ...;\n    Any any = Any.pack(foo);\n    ...\n    if (any.is(Foo.class)) {\n      foo = any.unpack(Foo.class);\n    }\n\n Example 3: Pack and unpack a message in Python.\n\n    foo = Foo(...)\n    any = Any()\n    any.Pack(foo)\n    ...\n    if any.Is(Foo.DESCRIPTOR):\n      any.Unpack(foo)\n      ...\n\n Example 4: Pack and unpack a message in Go\n\n     foo := \u0026pb.Foo{...}\n     any, err := ptypes.MarshalAny(foo)\n     ...\n     foo := \u0026pb.Foo{}\n     if err := ptypes.UnmarshalAny(any, foo); err != nil {\n       ...\n     }\n\nThe pack methods provided by protobuf library will by default use\n'type.googleapis.com/full.type.name' as the type URL and the unpack\nmethods only use the fully qualified type name after the last '/'\nin the type URL, for example \"foo.bar.com/x/y.z\" will yield type\nname \"y.z\".\n\n\nJSON\n====\nThe JSON representation of an `Any` value uses the regular\nrepresentation of the deserialized, embedded message, with an\nadditional field `@type` which contains the type URL. Example:\n\n    package google.profile;\n    message Person {\n      string first_name = 1;\n      string last_name = 2;\n    }\n\n    {\n      \"@type\": \"type.googleapis.com/google.profile.Person\",\n      \"firstName\": \u003cstring\u003e,\n      \"lastName\": \u003cstring\u003e\n    }\n\nIf the embedded message type is well-known and has a custom JSON\nrepresentation, that representation will be embedded adding a field\n`value` which holds the custom JSON in addition to the `@type`\nfield. Example (for message [google.protobuf.Duration][]):\n\n    {\n      \"@type\": \"type.googleapis.com/google.protobuf.Duration\",\n      \"value\": \"1.212s\"\n    }"
+    },
+    "protobufEmpty": {
+      "type": "object",
+      "description": "service Foo {\n      rpc Bar(google.protobuf.Empty) returns (google.protobuf.Empty);\n    }",
+      "title": "A generic empty message that you can re-use to avoid defining duplicated\nempty messages in your APIs. A typical example is to use it as the request\nor the response type of an API method. For instance:"
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The status code, which should be an enum value of [google.rpc.Code][google.rpc.Code]."
+        },
+        "message": {
+          "type": "string",
+          "description": "A developer-facing error message, which should be in English. Any\nuser-facing error message should be localized and sent in the\n[google.rpc.Status.details][google.rpc.Status.details] field, or localized by the client."
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          },
+          "description": "A list of messages that carry the error details.  There is a common set of\nmessage types for APIs to use."
+        }
+      },
+      "description": "The `Status` type defines a logical error model that is suitable for\ndifferent programming environments, including REST APIs and RPC APIs. It is\nused by [gRPC](https://github.com/grpc). Each `Status` message contains\nthree pieces of data: error code, error message, and error details.\n\nYou can find out more about this error model and how to work with it in the\n[API Design Guide](https://cloud.google.com/apis/design/errors)."
+    },
+    "v1BackupBalanceRequest": {
+      "type": "object",
+      "properties": {
+        "user": {
+          "type": "string"
+        },
+        "encryptedBalanceProof": {
+          "type": "string"
+        },
+        "encryptedBalanceData": {
+          "type": "string"
+        },
+        "encryptedTxs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "encryptedTransfers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "encryptedDeposits": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "signature": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "v1BackupBalanceResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "Indicates if the backup transfer was successful"
+        },
+        "data": {
+          "$ref": "#/definitions/v1BackupBalanceResponseData",
+          "title": "Additional data related to the response"
+        }
+      }
+    },
+    "v1BackupBalanceResponseData": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "title": "A message indicating the result of the backup transfer"
+        }
+      },
+      "title": "Data is the nested message containing detailed response information"
+    },
+    "v1BackupDeposit": {
+      "type": "object",
+      "properties": {
+        "recipient": {
+          "type": "string"
+        },
+        "encryptedDeposit": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1BackupDepositRequest": {
+      "type": "object",
+      "properties": {
+        "depositHash": {
+          "type": "string",
+          "title": "The deposit hash"
+        },
+        "recipient": {
+          "type": "string",
+          "title": "The recipient address"
+        },
+        "encryptedDeposit": {
+          "type": "string",
+          "title": "The encrypted deposit data"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64",
+          "title": "The block number associated with the deposit"
+        }
+      },
+      "description": "BackupDepositRequest is the request message for BackupDeposit method."
+    },
+    "v1BackupDepositResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "Indicates if the backup transfer was successful"
+        },
+        "data": {
+          "$ref": "#/definitions/v1BackupDepositResponseData",
+          "title": "Additional data related to the response"
+        }
+      },
+      "description": "BackupDepositResponse is the response message for Backup method."
+    },
+    "v1BackupDepositResponseData": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "title": "A message indicating the result of the backup transfer"
+        }
+      },
+      "title": "Data is the nested message containing detailed response information"
+    },
+    "v1BackupTransaction": {
+      "type": "object",
+      "properties": {
+        "sender": {
+          "type": "string"
+        },
+        "encryptedTx": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1BackupTransactionRequest": {
+      "type": "object",
+      "properties": {
+        "txHash": {
+          "type": "string",
+          "title": "The transaction hash"
+        },
+        "encryptedTx": {
+          "type": "string",
+          "title": "The encrypted transaction data"
+        },
+        "sender": {
+          "type": "string",
+          "title": "The sender address"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64",
+          "title": "The block number associated with the transaction"
+        },
+        "signature": {
+          "type": "string",
+          "title": "The signature for the transaction"
+        }
+      },
+      "description": "BackupTransactionRequest is the request message for BackupTransaction method."
+    },
+    "v1BackupTransactionResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "Indicates if the backup transfer was successful"
+        },
+        "data": {
+          "$ref": "#/definitions/v1BackupTransactionResponseData",
+          "title": "Additional data related to the response"
+        }
+      },
+      "description": "BackupTransactionResponse is the response message for Backup method."
+    },
+    "v1BackupTransactionResponseData": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "title": "A message indicating the result of the backup transfer"
+        }
+      },
+      "title": "Data is the nested message containing detailed response information"
+    },
+    "v1BackupTransfer": {
+      "type": "object",
+      "properties": {
+        "encryptedTransfer": {
+          "type": "string"
+        },
+        "recipient": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1BackupTransferRequest": {
+      "type": "object",
+      "properties": {
+        "transferHash": {
+          "type": "string",
+          "title": "The transfer hash"
+        },
+        "encryptedTransfer": {
+          "type": "string",
+          "title": "The encrypted data for the transfer"
+        },
+        "recipient": {
+          "type": "string",
+          "title": "The recipient address"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64",
+          "title": "The block number associated with the transfer"
+        }
+      },
+      "description": "BackupTransferRequest is the request message for BackupTransfer method."
+    },
+    "v1BackupTransferResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "Indicates if the backup transfer was successful"
+        },
+        "data": {
+          "$ref": "#/definitions/v1BackupTransferResponseData",
+          "title": "Additional data related to the response"
+        }
+      },
+      "description": "BackupTransferResponse is the response message for Backup method."
+    },
+    "v1BackupTransferResponseData": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "title": "A message indicating the result of the backup transfer"
+        }
+      },
+      "title": "Data is the nested message containing detailed response information"
+    },
+    "v1GetBackupBalancesResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "data": {
+          "$ref": "#/definitions/v1GetBackupBalancesResponseData"
+        },
+        "error": {
+          "$ref": "#/definitions/v1StoreVaultError"
+        }
+      }
+    },
+    "v1GetBackupBalancesResponseData": {
+      "type": "object",
+      "properties": {
+        "balances": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/GetBackupBalancesResponseBalance"
+          }
+        },
+        "meta": {
+          "$ref": "#/definitions/v1GetBackupBalancesResponseMeta"
+        }
+      }
+    },
+    "v1GetBackupBalancesResponseMeta": {
+      "type": "object",
+      "properties": {
+        "startBlockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "endBlockNumber": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "v1GetBackupDepositsListRequest": {
+      "type": "object",
+      "properties": {
+        "pagination": {
+          "$ref": "#/definitions/v1GetBackupDepositsListRequestPagination",
+          "title": "the pagination value"
+        },
+        "sender": {
+          "type": "string"
+        },
+        "sorting": {
+          "type": "string",
+          "title": "order by sorting (asc or desc)"
+        },
+        "orderBy": {
+          "type": "string",
+          "title": "order by (example: date_start)"
+        },
+        "filter": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1GetBackupDepositsListRequestFilter"
+          },
+          "title": "filter of body"
+        }
+      }
+    },
+    "v1GetBackupDepositsListRequestCursorBase": {
+      "type": "object",
+      "properties": {
+        "blockNumber": {
+          "type": "string",
+          "title": "the number of block\nexample = \"1\""
+        },
+        "sortingValue": {
+          "type": "string",
+          "title": "cursor of next/prev sorting value by pagination\nexample = \"1\""
+        }
+      }
+    },
+    "v1GetBackupDepositsListRequestFilter": {
+      "type": "object",
+      "properties": {
+        "relation": {
+          "type": "string",
+          "title": "relation rule between filters (and or)"
+        },
+        "dataField": {
+          "type": "string",
+          "title": "data field to which the filter is applied"
+        },
+        "condition": {
+          "type": "string",
+          "title": "condition of filter"
+        },
+        "value": {
+          "type": "string",
+          "title": "value of filter"
+        }
+      }
+    },
+    "v1GetBackupDepositsListRequestPagination": {
+      "type": "object",
+      "properties": {
+        "direction": {
+          "type": "string",
+          "title": "the direction (prev or next)"
+        },
+        "perPage": {
+          "type": "string",
+          "title": "number of items to list per page\nOptional, min = 0, max=100, default = 10 (and if equal 0)"
+        },
+        "cursor": {
+          "$ref": "#/definitions/v1GetBackupDepositsListRequestCursorBase",
+          "title": "cursor by pagination"
+        }
+      }
+    },
+    "v1GetBackupDepositsListResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "data": {
+          "$ref": "#/definitions/v1GetBackupDepositsListResponseData"
+        }
+      }
+    },
+    "v1GetBackupDepositsListResponseCursor": {
+      "type": "object",
+      "properties": {
+        "prev": {
+          "$ref": "#/definitions/v1GetBackupDepositsListResponseCursorBase",
+          "title": "the previous value for paging"
+        },
+        "next": {
+          "$ref": "#/definitions/v1GetBackupDepositsListResponseCursorBase",
+          "title": "the next value for paging"
+        }
+      }
+    },
+    "v1GetBackupDepositsListResponseCursorBase": {
+      "type": "object",
+      "properties": {
+        "blockNumber": {
+          "type": "string",
+          "title": "the number of block\nexample = \"1\""
+        },
+        "sortingValue": {
+          "type": "string",
+          "title": "cursor of next/prev sorting value by pagination\nexample = \"1\""
+        }
+      }
+    },
+    "v1GetBackupDepositsListResponseData": {
+      "type": "object",
+      "properties": {
+        "pagination": {
+          "$ref": "#/definitions/v1GetBackupDepositsListResponsePagination",
+          "title": "the pagination value"
+        },
+        "deposits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1GetBackupDepositsListResponseDeposit"
+          }
+        }
+      }
+    },
+    "v1GetBackupDepositsListResponseDeposit": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "recipient": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "encryptedDeposit": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1GetBackupDepositsListResponsePagination": {
+      "type": "object",
+      "properties": {
+        "perPage": {
+          "type": "string",
+          "title": "number of items to list per page\nOptional, min = 0, max=100, default = 10 (and if equal 0)"
+        },
+        "cursor": {
+          "$ref": "#/definitions/v1GetBackupDepositsListResponseCursor",
+          "title": "cursor by pagination"
+        }
+      }
+    },
+    "v1GetBackupDepositsResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "data": {
+          "$ref": "#/definitions/v1GetBackupDepositsResponseData"
+        },
+        "error": {
+          "$ref": "#/definitions/v1StoreVaultError"
+        }
+      }
+    },
+    "v1GetBackupDepositsResponseData": {
+      "type": "object",
+      "properties": {
+        "deposits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1GetBackupDepositsResponseDeposit"
+          }
+        },
+        "meta": {
+          "$ref": "#/definitions/v1GetBackupDepositsResponseMeta"
+        }
+      }
+    },
+    "v1GetBackupDepositsResponseDeposit": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "recipient": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "encryptedDeposit": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1GetBackupDepositsResponseMeta": {
+      "type": "object",
+      "properties": {
+        "startBlockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "endBlockNumber": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "v1GetBackupTransactionByHashResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "data": {
+          "$ref": "#/definitions/v1GetBackupTransactionByHashResponseData"
+        }
+      }
+    },
+    "v1GetBackupTransactionByHashResponseData": {
+      "type": "object",
+      "properties": {
+        "transaction": {
+          "$ref": "#/definitions/v1GetBackupTransactionByHashResponseTransaction"
+        }
+      }
+    },
+    "v1GetBackupTransactionByHashResponseTransaction": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "sender": {
+          "type": "string"
+        },
+        "signature": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "encryptedTx": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1GetBackupTransactionsListRequest": {
+      "type": "object",
+      "properties": {
+        "pagination": {
+          "$ref": "#/definitions/v1GetBackupTransactionsListRequestPagination",
+          "title": "the pagination value"
+        },
+        "sender": {
+          "type": "string"
+        },
+        "sorting": {
+          "type": "string",
+          "title": "order by sorting (asc or desc)"
+        },
+        "orderBy": {
+          "type": "string",
+          "title": "order by (example: date_start)"
+        },
+        "filter": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1GetBackupTransactionsListRequestFilter"
+          },
+          "title": "filter of body"
+        }
+      }
+    },
+    "v1GetBackupTransactionsListRequestCursorBase": {
+      "type": "object",
+      "properties": {
+        "blockNumber": {
+          "type": "string",
+          "title": "the number of block\nexample = \"1\""
+        },
+        "sortingValue": {
+          "type": "string",
+          "title": "cursor of next/prev sorting value by pagination\nexample = \"1\""
+        }
+      }
+    },
+    "v1GetBackupTransactionsListRequestFilter": {
+      "type": "object",
+      "properties": {
+        "relation": {
+          "type": "string",
+          "title": "relation rule between filters (and or)"
+        },
+        "dataField": {
+          "type": "string",
+          "title": "data field to which the filter is applied"
+        },
+        "condition": {
+          "type": "string",
+          "title": "condition of filter"
+        },
+        "value": {
+          "type": "string",
+          "title": "value of filter"
+        }
+      }
+    },
+    "v1GetBackupTransactionsListRequestPagination": {
+      "type": "object",
+      "properties": {
+        "direction": {
+          "type": "string",
+          "title": "the direction (prev or next)"
+        },
+        "perPage": {
+          "type": "string",
+          "title": "number of items to list per page\nOptional, min = 0, max=100, default = 10 (and if equal 0)"
+        },
+        "cursor": {
+          "$ref": "#/definitions/v1GetBackupTransactionsListRequestCursorBase",
+          "title": "cursor by pagination"
+        }
+      }
+    },
+    "v1GetBackupTransactionsListResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "data": {
+          "$ref": "#/definitions/v1GetBackupTransactionsListResponseData"
+        }
+      }
+    },
+    "v1GetBackupTransactionsListResponseCursor": {
+      "type": "object",
+      "properties": {
+        "prev": {
+          "$ref": "#/definitions/v1GetBackupTransactionsListResponseCursorBase",
+          "title": "the previous value for paging"
+        },
+        "next": {
+          "$ref": "#/definitions/v1GetBackupTransactionsListResponseCursorBase",
+          "title": "the next value for paging"
+        }
+      }
+    },
+    "v1GetBackupTransactionsListResponseCursorBase": {
+      "type": "object",
+      "properties": {
+        "blockNumber": {
+          "type": "string",
+          "title": "the number of block\nexample = \"1\""
+        },
+        "sortingValue": {
+          "type": "string",
+          "title": "cursor of next/prev sorting value by pagination\nexample = \"1\""
+        }
+      }
+    },
+    "v1GetBackupTransactionsListResponseData": {
+      "type": "object",
+      "properties": {
+        "pagination": {
+          "$ref": "#/definitions/v1GetBackupTransactionsListResponsePagination",
+          "title": "the pagination value"
+        },
+        "transactions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1GetBackupTransactionsListResponseTransaction"
+          }
+        }
+      }
+    },
+    "v1GetBackupTransactionsListResponsePagination": {
+      "type": "object",
+      "properties": {
+        "perPage": {
+          "type": "string",
+          "title": "number of items to list per page\nOptional, min = 0, max=100, default = 10 (and if equal 0)"
+        },
+        "cursor": {
+          "$ref": "#/definitions/v1GetBackupTransactionsListResponseCursor",
+          "title": "cursor by pagination"
+        }
+      }
+    },
+    "v1GetBackupTransactionsListResponseTransaction": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "sender": {
+          "type": "string"
+        },
+        "signature": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "encryptedTx": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1GetBackupTransactionsResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "data": {
+          "$ref": "#/definitions/v1GetBackupTransactionsResponseData"
+        },
+        "error": {
+          "$ref": "#/definitions/v1StoreVaultError"
+        }
+      }
+    },
+    "v1GetBackupTransactionsResponseData": {
+      "type": "object",
+      "properties": {
+        "transactions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1GetBackupTransactionsResponseTransaction"
+          }
+        },
+        "meta": {
+          "$ref": "#/definitions/v1GetBackupTransactionsResponseMeta"
+        }
+      }
+    },
+    "v1GetBackupTransactionsResponseMeta": {
+      "type": "object",
+      "properties": {
+        "startBlockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "endBlockNumber": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "v1GetBackupTransactionsResponseTransaction": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "sender": {
+          "type": "string"
+        },
+        "signature": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "encryptedTx": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1GetBackupTransfersResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "data": {
+          "$ref": "#/definitions/v1GetBackupTransfersResponseData"
+        },
+        "error": {
+          "$ref": "#/definitions/v1StoreVaultError"
+        }
+      }
+    },
+    "v1GetBackupTransfersResponseData": {
+      "type": "object",
+      "properties": {
+        "transfers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/GetBackupTransfersResponseTransfer"
+          }
+        },
+        "meta": {
+          "$ref": "#/definitions/v1GetBackupTransfersResponseMeta"
+        }
+      }
+    },
+    "v1GetBackupTransfersResponseMeta": {
+      "type": "object",
+      "properties": {
+        "startBlockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "endBlockNumber": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "v1GetBalancesResponse": {
+      "type": "object",
+      "properties": {
+        "deposits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1BackupDeposit"
+          },
+          "title": "The list of deposits"
+        },
+        "transfers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1BackupTransfer"
+          },
+          "title": "The list of transfers"
+        },
+        "transactions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1BackupTransaction"
+          },
+          "title": "The list of transactions"
+        }
+      },
+      "description": "The response message containing a list of token balances."
+    },
+    "v1GetVerifyDepositConfirmationResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "Indicates if the verify deposit confirmation was successful"
+        },
+        "data": {
+          "$ref": "#/definitions/v1GetVerifyDepositConfirmationResponseData",
+          "title": "Additional data related to the response"
+        }
+      },
+      "title": "The response message for verifying deposit confirmation"
+    },
+    "v1GetVerifyDepositConfirmationResponseData": {
+      "type": "object",
+      "properties": {
+        "confirmed": {
+          "type": "boolean",
+          "title": "Indicates whether the deposit is confirmed"
+        }
+      },
+      "title": "Data is the nested message containing detailed response information"
+    },
+    "v1StoreVaultError": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "v1VersionResponse": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "title": "the service version"
+        },
+        "buildtime": {
+          "type": "string",
+          "title": "the service build time"
+        }
+      },
+      "title": "VersionResponse describes response to get info about the build version info and build time"
+    }
+  }
+}
