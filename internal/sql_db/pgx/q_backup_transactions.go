@@ -281,7 +281,7 @@ WHERE sender = @sender %s
 			},
 		}
 
-		switch orderBy {
+		switch orderBy { // nolint:gocritic
 		case mFL.DateCreate:
 			paginator.Cursor.Prev.SortingValue = new(big.Int).SetInt64(list[startV].CreatedAt.UTC().UnixNano())
 			paginator.Cursor.Next.SortingValue = new(big.Int).SetInt64(list[endV].CreatedAt.UTC().UnixNano())
