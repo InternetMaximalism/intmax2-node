@@ -17,16 +17,19 @@ type DepositEventInfo struct {
 	BlockNumber   *uint64
 }
 
-func fetchLastDepositAnalyzedEvent(liquidity *bindings.Liquidity, startBlockNumber uint64) (*DepositEventInfo, error) {
+func fetchLastDepositAnalyzedEvent(ctx context.Context, liquidity *bindings.Liquidity, startBlockNumber uint64) (*DepositEventInfo, error) {
 	iterator, err := liquidity.FilterDepositsAnalyzed(&bind.FilterOpts{
-		Start: startBlockNumber,
-		End:   nil,
-	}, []*big.Int{})
+		Start:   startBlockNumber,
+		End:     nil,
+		Context: ctx,
+	}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to filter logs: %v", err)
 	}
 
-	defer iterator.Close()
+	defer func() {
+		_ = iterator.Close()
+	}()
 
 	var lastEvent *DepositEventInfo
 
@@ -56,15 +59,18 @@ func fetchLastDepositAnalyzedEvent(liquidity *bindings.Liquidity, startBlockNumb
 	return lastEvent, nil
 }
 
-func fetchLastDepositRelayedEvent(liquidity *bindings.Liquidity, startBlockNumber uint64) (*DepositEventInfo, error) {
+func fetchLastDepositRelayedEvent(ctx context.Context, liquidity *bindings.Liquidity, startBlockNumber uint64) (*DepositEventInfo, error) {
 	iterator, err := liquidity.FilterDepositsRelayed(&bind.FilterOpts{
-		Start: startBlockNumber,
-		End:   nil,
-	}, []*big.Int{})
+		Start:   startBlockNumber,
+		End:     nil,
+		Context: ctx,
+	}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to filter logs: %v", err)
 	}
-	defer iterator.Close()
+	defer func() {
+		_ = iterator.Close()
+	}()
 
 	var lastEvent *DepositEventInfo
 
@@ -94,15 +100,19 @@ func fetchLastDepositRelayedEvent(liquidity *bindings.Liquidity, startBlockNumbe
 	return lastEvent, nil
 }
 
-func fetchDepositEvent(liquidity *bindings.Liquidity, startBlockNumber uint64, depositIds []*big.Int) (*DepositEventInfo, error) {
+func fetchDepositEvent(ctx context.Context, liquidity *bindings.Liquidity, startBlockNumber uint64, depositIds []*big.Int) (*DepositEventInfo, error) {
+	nextBlock := startBlockNumber + 1
 	iterator, err := liquidity.FilterDeposited(&bind.FilterOpts{
-		Start: startBlockNumber,
-		End:   nil,
+		Start:   nextBlock,
+		End:     nil,
+		Context: ctx,
 	}, depositIds, []common.Address{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to filter logs: %v", err)
 	}
-	defer iterator.Close()
+	defer func() {
+		_ = iterator.Close()
+	}()
 
 	var event *DepositEventInfo
 
@@ -127,8 +137,8 @@ func fetchDepositEvent(liquidity *bindings.Liquidity, startBlockNumber uint64, d
 	return event, nil
 }
 
-func isBlockTimeExceeded(client *ethclient.Client, blockNumber uint64, minutes int) (bool, error) {
-	block, err := client.BlockByNumber(context.Background(), big.NewInt(int64(blockNumber)))
+func isBlockTimeExceeded(ctx context.Context, client *ethclient.Client, blockNumber uint64, minutes int) (bool, error) {
+	block, err := client.BlockByNumber(ctx, big.NewInt(int64(blockNumber)))
 	if err != nil {
 		return false, fmt.Errorf("failed to get block by number: %w", err)
 	}

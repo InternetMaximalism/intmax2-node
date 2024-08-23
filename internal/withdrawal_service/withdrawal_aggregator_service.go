@@ -524,6 +524,5 @@ func extractIds(withdrawas []mDBApp.Withdrawal) []string {
 }
 
 func requestWithdrawalProof(witness WithdrawalWitness, prevProof *intMaxTypes.Plonky2Proof) *intMaxTypes.Plonky2Proof {
-
 	return nil
 }

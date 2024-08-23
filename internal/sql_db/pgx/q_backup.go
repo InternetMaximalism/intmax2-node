@@ -19,7 +19,9 @@ func (p *pgx) getBackupEntries(query string, value interface{}, scanFunc func(*s
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	for rows.Next() {
 		err = scanFunc(rows)

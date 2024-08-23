@@ -10,7 +10,7 @@ import (
 //go:generate mockgen -destination=mock_block_post_service.go -package=server -source=block_post_service.go
 
 type BlockPostService interface {
-	Init() (err error)
+	Init(ctx context.Context) (err error)
 	Start(ctx context.Context, tickerEventWatcher *time.Ticker) error
 	FetchAccountIDFromPublicKey(publicKey *intMaxAcc.PublicKey) (accountID uint64, err error)
 	FetchPublicKeyFromAddress(accountID uint64) (publicKey *intMaxAcc.PublicKey, err error)

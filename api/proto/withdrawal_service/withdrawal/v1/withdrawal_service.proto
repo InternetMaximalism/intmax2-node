@@ -1,0 +1,136 @@
+syntax = "proto3";
+
+package withdrawal.v1;
+
+import "google/api/annotations.proto";
+
+// Defines the import path that should be used to import the generated package,
+// and the package name.
+option go_package = ".;withdrawal";
+
+service WithdrawalService {
+  // WithdrawalRequest processes a request for withdrawal
+  //
+  // ## WithdrawalRequest processes a request for withdrawal
+  rpc WithdrawalRequest(WithdrawalRequestRequest) returns (WithdrawalRequestResponse) {
+    option (google.api.http) = {
+      post: "/v1/withdrawals/request"
+      body: "*"
+    };
+  }
+
+  // WithdrawalsByHashes retrieves withdrawal records by their transfer hashes
+  //
+  // ## WithdrawalsByHashes retrieves withdrawal records by their transfer hashes
+  rpc WithdrawalsByHashes(WithdrawalsByHashesRequest) returns (WithdrawalsByHashesResponse) {
+    option (google.api.http) = {
+      post: "/v1/withdrawals/find-by-hashes"
+      body: "*"
+    };
+  }
+}
+
+// WithdrawalProofRequest describes the request for a withdrawal proof
+message WithdrawalRequestRequest {
+  // the transfer data
+  TransferData transfer_data = 1;
+  // the transfer Merkle proof
+  TransferMerkleProof transfer_merkle_proof = 2;
+  // the transaction data
+  Transaction transaction = 3;
+  // the transaction Merkle proof
+  TxMerkleProof tx_merkle_proof = 4;
+  // the transfer hash
+  string transfer_hash = 5;
+    // the block number
+  uint64 block_number = 6;
+  // the block hash
+  string block_hash = 7;
+  // the proof of enough balance
+  EnoughBalanceProof enough_balance_proof = 8;
+}
+
+// TransferData contains details about the transfer
+message TransferData {
+  // the recipient address
+  string recipient = 1;
+  // the token index
+  int32 token_index = 2;
+  // the amount of the transfer
+  string amount = 3;
+  // the salt used in the transfer
+  string salt = 4;
+}
+
+// TransferMerkleProof contains the Merkle proof for the transfer
+message TransferMerkleProof {
+  // the list of sibling hashes in the Merkle tree
+  repeated string siblings = 1;
+  // the index in the Merkle tree
+  int32 index = 2;
+}
+
+// Transaction contains details about the transaction
+message Transaction {
+  // the root of the transfer tree
+  string transfer_tree_root = 1;
+  // the nonce of the transaction
+  int32 nonce = 2;
+}
+
+// TxMerkleProof contains the Merkle proof for the transaction
+message TxMerkleProof {
+  // the list of sibling hashes in the Merkle tree
+  repeated string siblings = 1;
+  // the index in the Merkle tree
+  int32 index = 2;
+}
+
+// EnoughBalanceProof contains the proof for enough balance
+message EnoughBalanceProof {
+  // the proof string
+  string proof = 1;
+  // the public inputs for the proof
+  string public_inputs = 2;
+}
+
+// WithdrawalRequestResponse describes the response for a withdrawal request
+message WithdrawalRequestResponse {
+  // indicates if the request was successful
+  bool success = 1;
+  // contains additional data about the response
+  Data data = 2;
+
+  // Data contains additional information in the response
+  message Data {
+    // the message with additional details
+    string message = 1;
+  }
+}
+
+// WithdrawalsByHashesRequest is the request message for WithdrawalsByHashes
+message WithdrawalsByHashesRequest {
+  repeated string transfer_hashes = 1;
+}
+
+// Withdrawal represents the withdrawal data
+message Withdrawal {
+  // the transfer data
+  TransferData transfer_data = 1;
+  // the transaction data
+  Transaction transaction = 2;
+  // the transfer hash
+  string transfer_hash = 3;
+  // the block number
+  uint64 block_number = 4;
+  // the block hash
+  string block_hash = 5;
+  // the status of the withdrawal (e.g., pending, success, failed).
+  string status = 6;
+}
+
+// WithdrawalsByHashesResponse is the response message for WithdrawalsByHashes
+message WithdrawalsByHashesResponse {
+  // A list of Withdrawal messages that match the provided transfer hashes.
+  repeated Withdrawal withdrawals = 1;
+}

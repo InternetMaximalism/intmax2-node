@@ -1,5 +1,6 @@
 .vscode
 .idea
+.DS_Store
 build
 **/*.pb.go
 **/*.pb.gw.go
@@ -8,6 +9,10 @@ intmax2-node
 **/mock_*
 vendor
 .env
-docs/swagger/node
+docs/swagger/block_builder
+docs/swagger/store_vault
+docs/swagger/withdrawal
 internal/pb/gen
-third_party/OpenAPI/node
+third_party/OpenAPI/block_builder_service/block_builder
+third_party/OpenAPI/store_vault_service/store_vault
+third_party/OpenAPI/withdrawal_service/withdrawal

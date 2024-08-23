@@ -5,8 +5,14 @@ import (
 )
 
 const (
-	SwaggerPath        = "node/apidocs.swagger.json"
-	SwaggerOpenAPIPath = "OpenAPI"
+	SwaggerBlockBuilderPath        = "block_builder/apidocs.swagger.json"
+	SwaggerOpenAPIBlockBuilderPath = "OpenAPI/block_builder_service"
+
+	SwaggerStoreVaultPath        = "store_vault/apidocs.swagger.json"
+	SwaggerOpenAPIStoreVaultPath = "OpenAPI/store_vault_service"
+
+	SwaggerWithdrawalPath        = "withdrawal/apidocs.swagger.json"
+	SwaggerOpenAPIWithdrawalPath = "OpenAPI/withdrawal_service"
 
 	swaggerBuildVersion = `SWAGGER_VERSION`
 	swaggerHostURL      = `SWAGGER_HOST_URL`

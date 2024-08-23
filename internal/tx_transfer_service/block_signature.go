@@ -2,6 +2,8 @@ package tx_transfer_service
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,7 +12,7 @@ import (
 	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/hash/goldenposeidon"
-	"intmax2-node/internal/pb/gen/service/node"
+	node "intmax2-node/internal/pb/gen/block_builder_service/node"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/block_signature"
@@ -174,6 +176,21 @@ func SendSignedProposedBlock(
 	if err != nil {
 		fmt.Printf("Signature verification failed: %v\n", err)
 		return errors.New("signature verification failed")
+	}
+
+	if backupTx != nil {
+		var encryptedSignature []byte
+		encryptedSignature, err = intMaxAcc.EncryptECIES(
+			rand.Reader,
+			senderAccount.Public(),
+			signature.Marshal(),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to encrypt the transaction hash: %w", err)
+		}
+
+		encodedEncryptedSignature := base64.StdEncoding.EncodeToString(encryptedSignature)
+		backupTx.Signature = encodedEncryptedSignature
 	}
 
 	return PostBlockSignatureRawRequest(

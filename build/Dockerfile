@@ -1,4 +1,4 @@
-FROM golang:1.21.9-alpine3.19 as intmax2-build-tools
+FROM golang:1.21.9-alpine3.19 AS intmax2-build-tools
 RUN apk add make git clang-extra-tools
 WORKDIR /src
 #ARG goproxy=direct
@@ -13,7 +13,7 @@ RUN go install -v google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.4.0
 RUN go install -v google.golang.org/protobuf/cmd/protoc-gen-go@v1.34.2
 RUN go install -v github.com/srikrsna/protoc-gen-gotag@v1.0.1
 
-FROM intmax2-build-tools as intmax2-build-env
+FROM intmax2-build-tools AS intmax2-build-env
 ENV GIT_USE=true
 ENV SWAGGER_USE=true
 ENV SWAGGER_BUILD_MODE=true
@@ -28,6 +28,6 @@ ENV GOPROXY=$goproxy
 ENV CGO_ENABLED=0
 RUN make
 
-FROM alpine:3.19 as intmax2-run-env
+FROM alpine:3.19 AS intmax2-run-env
 COPY --from=intmax2-build-env /src/intmax2-node /app/intmax2-node
 WORKDIR /app

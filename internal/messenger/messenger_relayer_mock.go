@@ -30,19 +30,24 @@ type MessengerRelayerMockService struct {
 }
 
 func newMessengerRelayerMockService(ctx context.Context, cfg *configs.Config, log logger.Logger, db SQLDriverApp, sb ServiceBlockchain) (*MessengerRelayerMockService, error) {
-	scrollLink, err := sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
+	ethLink, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
 	}
 
-	ethClient, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
+	scrollLink, err := sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new client: %w", err)
+		return nil, fmt.Errorf("failed to get Scroll network chain link: %w", err)
+	}
+
+	ethClient, err := utils.NewClient(ethLink)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new ETH client: %w", err)
 	}
 
 	scrollClient, err := utils.NewClient(scrollLink)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new client: %w", err)
+		return nil, fmt.Errorf("failed to create new Scroll client: %w", err)
 	}
 
 	l1ScrollMessenger, err := bindings.NewL1ScrollMessenger(common.HexToAddress(cfg.Blockchain.ScrollMessengerL1ContractAddress), ethClient)

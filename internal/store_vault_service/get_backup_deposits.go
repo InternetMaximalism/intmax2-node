@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
-	backupDeposit "intmax2-node/internal/use_cases/backup_deposit"
+	backupDeposit "intmax2-node/internal/use_cases/get_backup_deposits"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 )
 

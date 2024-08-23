@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"intmax2-node/internal/open_telemetry"
-	"intmax2-node/internal/pb/gen/service/node"
-	backupTransaction "intmax2-node/internal/use_cases/backup_transaction"
+	node "intmax2-node/internal/pb/gen/store_vault_service/node"
+	getBackupTransactions "intmax2-node/internal/use_cases/get_backup_transactions"
 	"intmax2-node/pkg/grpc_server/utils"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -26,7 +26,7 @@ func (s *StoreVaultServer) GetBackupTransactions(ctx context.Context, req *node.
 		))
 	defer span.End()
 
-	input := backupTransaction.UCGetBackupTransactionsInput{
+	input := getBackupTransactions.UCGetBackupTransactionsInput{
 		Sender:           req.Sender,
 		StartBlockNumber: req.StartBlockNumber,
 		Limit:            req.Limit,

@@ -34,12 +34,14 @@ type TransferDataTransaction struct {
 }
 
 type BackupTransactionData struct {
+	TxHash             string `json:"txHash"`
 	EncodedEncryptedTx string `json:"encryptedTx"`
 	Signature          string `json:"signature"`
 }
 
 type BackupTransferInput struct {
 	Recipient                string `json:"recipient"`
+	TransferHash             string `json:"transferHash"`
 	EncodedEncryptedTransfer string `json:"encryptedTransfer"`
 }
 

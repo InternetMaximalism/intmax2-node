@@ -82,3 +82,9 @@ var ErrScrollNetworkChainLinkEvmJSONRPCFail = errors.New(
 
 // ErrMostBlockNumberFail error: failed to get block number.
 var ErrMostBlockNumberFail = errors.New("failed to get most block number")
+
+// ErrEthClientDialFail error: failed to dial ETH client.
+var ErrEthClientDialFail = errors.New("failed to dial ETH client")
+
+// ErrChainIDWithEthClientFail error: failed to get chain ID with ETH client.
+var ErrChainIDWithEthClientFail = errors.New("failed to get chain ID with ETH client")

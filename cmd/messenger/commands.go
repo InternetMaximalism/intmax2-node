@@ -1,7 +1,6 @@
 package messenger
 
 import (
-	"context"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 	messengerRelayerMock "intmax2-node/internal/use_cases/messenger_relayer_mock"
@@ -16,20 +15,17 @@ import (
 
 type Commands interface {
 	MessengerRelayerMock(
-		Context context.Context,
 		cfg *configs.Config,
 		log logger.Logger,
 		db SQLDriverApp,
 		sb ServiceBlockchain,
 	) messengerRelayerMock.UseCaseMessengerRelayerMock
 	MessengerWithdrawalRelayer(
-		ctx context.Context,
 		cfg *configs.Config,
 		log logger.Logger,
 		sb ServiceBlockchain,
 	) messengerWithdrawalRelayer.UseCaseMessengerWithdrawalRelayer
 	MessengerWithdrawalRelayerMock(
-		ctx context.Context,
 		cfg *configs.Config,
 		log logger.Logger,
 		db SQLDriverApp,
@@ -44,30 +40,27 @@ func newCommands() Commands {
 }
 
 func (c *commands) MessengerRelayerMock(
-	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
 	db SQLDriverApp,
 	sb ServiceBlockchain,
 ) messengerRelayerMock.UseCaseMessengerRelayerMock {
-	return ucMessengerRelayerMock.New(ctx, cfg, log, db, sb)
+	return ucMessengerRelayerMock.New(cfg, log, db, sb)
 }
 
 func (c *commands) MessengerWithdrawalRelayer(
-	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
 	sb ServiceBlockchain,
 ) messengerWithdrawalRelayer.UseCaseMessengerWithdrawalRelayer {
-	return ucMessengerWithdrawalRelayer.New(ctx, cfg, log, sb)
+	return ucMessengerWithdrawalRelayer.New(cfg, log, sb)
 }
 
 func (c *commands) MessengerWithdrawalRelayerMock(
-	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
 	db SQLDriverApp,
 	sb ServiceBlockchain,
 ) messengerWithdrawalRelayerMock.UseCaseMessengerWithdrawalRelayerMock {
-	return ucMessengerWithdrawalRelayerMock.New(ctx, cfg, log, db, sb)
+	return ucMessengerWithdrawalRelayerMock.New(cfg, log, db, sb)
 }

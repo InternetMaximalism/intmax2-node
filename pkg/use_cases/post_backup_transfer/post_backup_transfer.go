@@ -9,7 +9,7 @@ import (
 	"intmax2-node/internal/open_telemetry"
 	service "intmax2-node/internal/store_vault_service"
 	intMaxTypes "intmax2-node/internal/types"
-	backupTransfer "intmax2-node/internal/use_cases/backup_transfer"
+	postBackupTransfer "intmax2-node/internal/use_cases/post_backup_transfer"
 	"io"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -22,7 +22,11 @@ type uc struct {
 	db  SQLDriverApp
 }
 
-func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupTransfer.UseCasePostBackupTransfer {
+func New(
+	cfg *configs.Config,
+	log logger.Logger,
+	db SQLDriverApp,
+) postBackupTransfer.UseCasePostBackupTransfer {
 	return &uc{
 		cfg: cfg,
 		log: log,
@@ -31,12 +35,13 @@ func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupTransfer
 }
 
 func (u *uc) Do(
-	ctx context.Context, input *backupTransfer.UCPostBackupTransferInput,
+	ctx context.Context, input *postBackupTransfer.UCPostBackupTransferInput,
 ) error {
 	const (
-		hName          = "UseCase PostBackupTransfer"
-		recipientKey   = "recipient"
-		blockNumberKey = "block_number"
+		hName           = "UseCase PostBackupTransfer"
+		transferHashKey = "transfer_hash"
+		recipientKey    = "recipient"
+		blockNumberKey  = "block_number"
 	)
 
 	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
@@ -48,6 +53,7 @@ func (u *uc) Do(
 	}
 
 	span.SetAttributes(
+		attribute.String(transferHashKey, input.TransferHash),
 		attribute.String(recipientKey, input.Recipient),
 		attribute.Int64(blockNumberKey, int64(input.BlockNumber)),
 	)

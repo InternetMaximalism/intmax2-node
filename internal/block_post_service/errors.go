@@ -94,3 +94,9 @@ var ErrInvalidRegistrationBlockContent = errors.New("invalid registration block 
 
 // ErrInvalidNonRegistrationBlockContent error: invalid non-registration block content.
 var ErrInvalidNonRegistrationBlockContent = errors.New("invalid non-registration block content")
+
+// ErrInitFail error: failed to init.
+var ErrInitFail = errors.New("failed to init")
+
+// ErrNewClientFail error: failed to create new client.
+var ErrNewClientFail = errors.New("failed to create new client")

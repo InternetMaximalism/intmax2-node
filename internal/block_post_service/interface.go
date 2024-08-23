@@ -8,7 +8,7 @@ import (
 )
 
 type BlockPostService interface {
-	Init() error
+	Init(ctx context.Context) (err error)
 	Start(
 		ctx context.Context,
 		tickerEventWatcher *time.Ticker,

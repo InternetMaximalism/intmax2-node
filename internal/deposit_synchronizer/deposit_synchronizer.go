@@ -8,8 +8,10 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/bindings"
+	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/logger"
+	"intmax2-node/internal/open_telemetry"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/pkg/utils"
 	"math/big"
@@ -21,6 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/event"
 )
 
@@ -35,32 +38,74 @@ type depositSynchronizer struct {
 	cfg                       *configs.Config
 	log                       logger.Logger
 	dbApp                     SQLDriverApp
+	sb                        ServiceBlockchain
 	lastSeenScrollBlockNumber uint64
 }
 
-func New(cfg *configs.Config, log logger.Logger, dbApp SQLDriverApp) *depositSynchronizer {
+func New(
+	cfg *configs.Config,
+	log logger.Logger,
+	dbApp SQLDriverApp,
+	sb ServiceBlockchain,
+) DepositSynchronizer {
 	const startScrollBlockNumber uint64 = 5691248
 	return &depositSynchronizer{
 		cfg:                       cfg,
 		log:                       log,
 		dbApp:                     dbApp,
+		sb:                        sb,
 		lastSeenScrollBlockNumber: startScrollBlockNumber,
 	}
 }
 
-func (w *depositSynchronizer) Init() error {
+func (w *depositSynchronizer) Init(ctx context.Context) (err error) {
+	const (
+		hName = "DepositSynchronizer func:Init"
+	)
+
+	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
+	defer span.End()
+
+	err = w.sb.SetupScrollNetworkChainID(ctx)
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return errors.Join(errorsB.ErrSetupScrollNetworkChainIDFail, err)
+	}
+
 	return nil
 }
 
 func (w *depositSynchronizer) Start(
 	ctx context.Context,
 	tickerEventWatcher *time.Ticker,
-) error {
-	rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(w.cfg, "https://sepolia-rpc.scroll.io")
+) (err error) {
+	const (
+		hName = "DepositSynchronizer func:Start"
+	)
 
-	scrollClient, err := utils.NewClient(rollupCfg.NetworkRpcUrl)
+	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
+	defer span.End()
+
+	err = w.Init(spanCtx)
 	if err != nil {
-		return fmt.Errorf("failed to create new client: %w", err)
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return errors.Join(ErrInitFail, err)
+	}
+
+	var link string
+	link, err = w.sb.ScrollNetworkChainLinkEvmJSONRPC(spanCtx)
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return errors.Join(errorsB.ErrScrollNetworkChainLinkEvmJSONRPCFail, err)
+	}
+
+	rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(w.cfg, link)
+
+	var scrollClient *ethclient.Client
+	scrollClient, err = utils.NewClient(rollupCfg.NetworkRpcUrl)
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return errors.Join(ErrNewClientFail, err)
 	}
 	defer scrollClient.Close()
 
@@ -200,7 +245,14 @@ func (w *depositSynchronizer) Start(
 	}
 }
 
-func SubscribeDepositsProcessed(cfg *intMaxTypes.RollupContractConfig, ctx context.Context) (eventChan chan *bindings.RollupDepositsProcessed, subscription event.Subscription, err error) {
+func SubscribeDepositsProcessed(
+	ctx context.Context,
+	cfg *intMaxTypes.RollupContractConfig,
+) (
+	eventChan chan *bindings.RollupDepositsProcessed,
+	subscription event.Subscription,
+	err error,
+) {
 	client, err := utils.NewClient(cfg.NetworkRpcUrl)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create new client: %w", err)

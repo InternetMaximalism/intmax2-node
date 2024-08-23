@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
-	backupTransaction "intmax2-node/internal/use_cases/backup_transaction"
+	postBackupTransaction "intmax2-node/internal/use_cases/post_backup_transaction"
 )
 
 func PostBackupTransaction(
@@ -13,9 +13,11 @@ func PostBackupTransaction(
 	cfg *configs.Config,
 	log logger.Logger,
 	db SQLDriverApp,
-	input *backupTransaction.UCPostBackupTransactionInput,
+	input *postBackupTransaction.UCPostBackupTransactionInput,
 ) error {
-	_, err := db.CreateBackupTransaction(input)
+	_, err := db.CreateBackupTransaction(
+		input.Sender, input.TxHash, input.EncryptedTx, input.Signature, int64(input.BlockNumber),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to create backup transaction to db: %w", err)
 	}

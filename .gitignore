@@ -1,5 +1,6 @@
 .vscode
 .idea
+.DS_Store
 *.pb.go
 *.pb.gw.go
 *.gen.go
@@ -13,7 +14,12 @@ cmd/examples/*
 !cmd/examples/.gitkeep
 build/sql_dbs/*
 !build/sql_dbs/.gitkeep
-build/env.docker.node
+build/env.docker.block-builder-service
+build/env.docker.store-vault-server
+build/env.docker.withdrawal-server
 internal/pb/gen
-third_party/OpenAPI/node
-.DS_Store
+third_party/OpenAPI/*
+!third_party/OpenAPI/_default
+!third_party/OpenAPI/block_builder_service/index.html
+!third_party/OpenAPI/store_vault_service/index.html
+!third_party/OpenAPI/withdrawal_service/index.html

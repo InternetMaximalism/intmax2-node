@@ -34,32 +34,79 @@ build:
 
 .PHONY: gen
 gen: format-proto
-	buf generate -v --debug --timeout=2m --template api/proto/service/buf.gen.yaml api/proto/service
-	buf generate -v --debug --timeout=2m --template api/proto/service/buf.gen.tagger.yaml api/proto/service
-	go generate ./...
-	cp -rf docs/swagger/node third_party/OpenAPI
+	buf generate -v --debug --timeout=2m --template api/proto/block_builder_service/buf.gen.yaml api/proto/block_builder_service
+	buf generate -v --debug --timeout=2m --template api/proto/block_builder_service/buf.gen.tagger.yaml api/proto/block_builder_service
+	buf generate -v --debug --timeout=2m --template api/proto/store_vault_service/buf.gen.yaml api/proto/store_vault_service
+	buf generate -v --debug --timeout=2m --template api/proto/store_vault_service/buf.gen.tagger.yaml api/proto/store_vault_service
+	buf generate -v --debug --timeout=2m --template api/proto/withdrawal_service/buf.gen.yaml api/proto/withdrawal_service
+	buf generate -v --debug --timeout=2m --template api/proto/withdrawal_service/buf.gen.tagger.yaml api/proto/withdrawal_service
+	go generate -v ./...
+	cp -rf docs/swagger/block_builder third_party/OpenAPI/block_builder_service
+	cp -rf third_party/OpenAPI/_default/* third_party/OpenAPI/block_builder_service
+	cp -rf docs/swagger/store_vault third_party/OpenAPI/store_vault_service
+	cp -rf third_party/OpenAPI/_default/* third_party/OpenAPI/store_vault_service
+	cp -rf docs/swagger/withdrawal third_party/OpenAPI/withdrawal_service
+	cp -rf third_party/OpenAPI/_default/* third_party/OpenAPI/withdrawal_service
+# node
 ifneq (${SWAGGER_USE},)
-# generic values
 ifneq (${SWAGGER_BUILD_MODE},)
-	$(SED_COMMAND) -i "s/SWAGGER_VERSION/$(VERSION)/g" third_party/OpenAPI/node/apidocs.swagger.json
+	$(SED_COMMAND) -i "s/SWAGGER_VERSION/$(VERSION)/g" third_party/OpenAPI/block_builder_service/block_builder/apidocs.swagger.json
 else
-	$(SED_COMMAND) -i "s/SWAGGER_VERSION/v0.0.0/g" third_party/OpenAPI/node/apidocs.swagger.json
+	$(SED_COMMAND) -i "s/SWAGGER_VERSION/v0.0.0/g" third_party/OpenAPI/block_builder_service/block_builder/apidocs.swagger.json
 endif
 ifneq (${SWAGGER_HOST_URL},)
-	$(SED_COMMAND) -i "s/SWAGGER_HOST_URL/${SWAGGER_HOST_URL}/g" third_party/OpenAPI/node/apidocs.swagger.json
+	$(SED_COMMAND) -i "s/SWAGGER_HOST_URL/${SWAGGER_HOST_URL}/g" third_party/OpenAPI/block_builder_service/block_builder/apidocs.swagger.json
 else
-	$(SED_COMMAND) -i "s/SWAGGER_HOST_URL//g" third_party/OpenAPI/node/apidocs.swagger.json
+	$(SED_COMMAND) -i "s/SWAGGER_HOST_URL//g" third_party/OpenAPI/block_builder_service/block_builder/apidocs.swagger.json
 endif
 ifneq (${SWAGGER_BASE_PATH},)
-	$(SED_COMMAND) -i "s/SWAGGER_BASE_PATH/${SWAGGER_BASE_PATH}/g" third_party/OpenAPI/node/apidocs.swagger.json
+	$(SED_COMMAND) -i "s/SWAGGER_BASE_PATH/${SWAGGER_BASE_PATH}/g" third_party/OpenAPI/block_builder_service/block_builder/apidocs.swagger.json
 else
-	$(SED_COMMAND) -i "s/SWAGGER_BASE_PATH/\//g" third_party/OpenAPI/node/apidocs.swagger.json
+	$(SED_COMMAND) -i "s/SWAGGER_BASE_PATH/\//g" third_party/OpenAPI/block_builder_service/block_builder/apidocs.swagger.json
+endif
+endif
+# store vault
+ifneq (${SWAGGER_USE},)
+ifneq (${SWAGGER_BUILD_MODE},)
+	$(SED_COMMAND) -i "s/SWAGGER_VERSION/$(VERSION)/g" third_party/OpenAPI/store_vault_service/store_vault/apidocs.swagger.json
+else
+	$(SED_COMMAND) -i "s/SWAGGER_VERSION/v0.0.0/g" third_party/OpenAPI/store_vault_service/store_vault/apidocs.swagger.json
+endif
+ifneq (${SWAGGER_HOST_URL},)
+	$(SED_COMMAND) -i "s/SWAGGER_HOST_URL/${SWAGGER_HOST_URL}/g" third_party/OpenAPI/store_vault_service/store_vault/apidocs.swagger.json
+else
+	$(SED_COMMAND) -i "s/SWAGGER_HOST_URL//g" third_party/OpenAPI/store_vault_service/store_vault/apidocs.swagger.json
+endif
+ifneq (${SWAGGER_BASE_PATH},)
+	$(SED_COMMAND) -i "s/SWAGGER_BASE_PATH/${SWAGGER_BASE_PATH}/g" third_party/OpenAPI/store_vault_service/store_vault/apidocs.swagger.json
+else
+	$(SED_COMMAND) -i "s/SWAGGER_BASE_PATH/\//g" third_party/OpenAPI/store_vault_service/store_vault/apidocs.swagger.json
+endif
+endif
+# withdrawal
+ifneq (${SWAGGER_USE},)
+ifneq (${SWAGGER_BUILD_MODE},)
+	$(SED_COMMAND) -i "s/SWAGGER_VERSION/$(VERSION)/g" third_party/OpenAPI/withdrawal_service/withdrawal/apidocs.swagger.json
+else
+	$(SED_COMMAND) -i "s/SWAGGER_VERSION/v0.0.0/g" third_party/OpenAPI/withdrawal_service/withdrawal/apidocs.swagger.json
+endif
+ifneq (${SWAGGER_HOST_URL},)
+	$(SED_COMMAND) -i "s/SWAGGER_HOST_URL/${SWAGGER_HOST_URL}/g" third_party/OpenAPI/withdrawal_service/withdrawal/apidocs.swagger.json
+else
+	$(SED_COMMAND) -i "s/SWAGGER_HOST_URL//g" third_party/OpenAPI/withdrawal_service/withdrawal/apidocs.swagger.json
+endif
+ifneq (${SWAGGER_BASE_PATH},)
+	$(SED_COMMAND) -i "s/SWAGGER_BASE_PATH/${SWAGGER_BASE_PATH}/g" third_party/OpenAPI/withdrawal_service/withdrawal/apidocs.swagger.json
+else
+	$(SED_COMMAND) -i "s/SWAGGER_BASE_PATH/\//g" third_party/OpenAPI/withdrawal_service/withdrawal/apidocs.swagger.json
 endif
 endif
 
 .PHONY: format-proto
 format-proto: ## format all protos
-	clang-format -i api/proto/service/node/v1/node.proto
+	clang-format -i api/proto/block_builder_service/block_builder/v1/block_builder.proto
+	clang-format -i api/proto/store_vault_service/store_vault/v1/store_vault.proto
+	clang-format -i api/proto/withdrawal_service/withdrawal/v1/withdrawal.proto
 
 .PHONY: tools
 tools:
@@ -76,39 +123,52 @@ tools:
 run: gen ## starting application and dependency services
 # translate `SWAGGER_USE=true GIT_USE=true HTTP_PORT=8080 GRPC_PORT=10000 CMD_RUN="run" make run` => ./intmax2-node run
 # translate `SWAGGER_USE=true GIT_USE=true HTTP_PORT=8081 GRPC_PORT=10001 CMD_RUN="store-vault-server run" make run` => ./intmax2-node store-vault-server run
+# translate `SWAGGER_USE=true GIT_USE=true HTTP_PORT=8082 GRPC_PORT=10002 CMD_RUN="withdrawal-server" make run` => ./intmax2-node withdrawal-server
 	go run $(GOFLAGS) ./cmd ${CMD_RUN}
 
 .PHONY: up
 up: ## starting application and dependency services
-	cp -f build/env.docker.node.example build/env.docker.node
+	cp -f build/env.docker.block-builder-service.example build/env.docker.block-builder-service
+	cp -f build/env.docker.store-vault-server.example build/env.docker.store-vault-server
+	cp -f build/env.docker.withdrawal-server.example build/env.docker.withdrawal-server
 	docker compose -f build/docker-compose.yml up
 
 .PHONY: build-up
 build-up: down ## rebuilding containers and starting application and dependency services
-	cp -f build/env.docker.node.example build/env.docker.node
+	cp -f build/env.docker.block-builder-service.example build/env.docker.block-builder-service
 	cp -f build/env.docker.store-vault-server.example build/env.docker.store-vault-server
+	cp -f build/env.docker.withdrawal-server.example build/env.docker.withdrawal-server
 	docker compose -f build/docker-compose.yml build $(re_build_arg)
 	docker compose -f build/docker-compose.yml up
 
 .PHONY: start-build-up
 start-build-up: down ## rebuilding containers and starting application and dependency services
-	cp -f build/env.docker.node.example build/env.docker.node
+	cp -f build/env.docker.block-builder-service.example build/env.docker.block-builder-service
+	cp -f build/env.docker.store-vault-server.example build/env.docker.store-vault-server
+	cp -f build/env.docker.withdrawal-server.example build/env.docker.withdrawal-server
 	docker compose -f build/docker-compose.yml up -d intmax2-node-postgres
 	docker compose -f build/docker-compose.yml up -d intmax2-node-ot-collector
 
 .PHONY: down
 down:
-	cp -f build/env.docker.node.example build/env.docker.node
+	cp -f build/env.docker.block-builder-service.example build/env.docker.block-builder-service
+	cp -f build/env.docker.store-vault-server.example build/env.docker.store-vault-server
+	cp -f build/env.docker.withdrawal-server.example build/env.docker.withdrawal-server
 	docker compose -f build/docker-compose.yml down
-	rm -f build/env.docker.node
+	rm -f build/env.docker.block-builder-service
+	rm -f build/env.docker.store-vault-server
+	rm -f build/env.docker.withdrawal-server
 
 .PHONY: clean-all
 clean-all: down
-	rm -f build/env.docker.node
+	rm -f build/env.docker.block-builder-service
 	rm -f build/env.docker.store-vault-server
+	rm -f build/env.docker.withdrawal-server
 	rm -rf build/sql_dbs/intmax2-node-postgres
 
 .PHONY: lint
 lint:
-	buf lint api/proto/service
+	buf lint api/proto/block_builder_service
+	buf lint api/proto/store_vault_service
+	buf lint api/proto/withdrawal_service
 	golangci-lint run --timeout=10m --fix ./...

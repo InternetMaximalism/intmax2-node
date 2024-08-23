@@ -1,0 +1,7 @@
+version: v1
+plugins:
+  - name: gotag
+    out: .
+    opt:
+      - paths=import
+      - outdir=internal/pb/gen/store_vault_service/node

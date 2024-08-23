@@ -8,8 +8,7 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/logger"
-
-	"github.com/jackc/pgx/v5"
+	errorsDB "intmax2-node/pkg/sql_db/errors"
 
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"intmax2-node/pkg/utils"
@@ -37,13 +36,13 @@ func NewDepositAnalyzerService(ctx context.Context, cfg *configs.Config, log log
 	return newDepositAnalyzerService(ctx, cfg, log, sc)
 }
 
-func newDepositAnalyzerService(ctx context.Context, cfg *configs.Config, log logger.Logger, _ ServiceBlockchain) (*DepositAnalyzerService, error) {
-	// link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
-	// if err != nil {
-	//   return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
-	// }
+func newDepositAnalyzerService(ctx context.Context, cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) (*DepositAnalyzerService, error) {
+	link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
+	}
 
-	client, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
+	client, err := utils.NewClient(link)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new client: %w", err)
 	}
@@ -69,101 +68,121 @@ func DepositAnalyzer(ctx context.Context, cfg *configs.Config, log logger.Logger
 		panic(fmt.Sprintf("Failed to initialize DepositAnalyzerService: %v", err.Error()))
 	}
 
-	event, err := db.EventBlockNumberByEventName(mDBApp.DepositsAnalyzedEvent)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) || err.Error() == "not found" {
+	_ = db.Exec(ctx, nil, func(d interface{}, _ interface{}) (err error) {
+		q := d.(SQLDriverApp)
+
+		event, err := q.EventBlockNumberByEventName(mDBApp.DepositsAnalyzedEvent)
+		if err != nil {
+			if errors.Is(err, errorsDB.ErrNotFound) {
+				event = &mDBApp.EventBlockNumber{
+					EventName:                mDBApp.DepositsAnalyzedEvent,
+					LastProcessedBlockNumber: cfg.Blockchain.LiquidityContractDeployedBlockNumber,
+				}
+			} else {
+				panic(fmt.Sprintf("Error fetching event block number: %v", err.Error()))
+			}
+		} else if event == nil {
 			event = &mDBApp.EventBlockNumber{
 				EventName:                mDBApp.DepositsAnalyzedEvent,
-				LastProcessedBlockNumber: 0,
+				LastProcessedBlockNumber: cfg.Blockchain.LiquidityContractDeployedBlockNumber,
 			}
-		} else {
-			panic(fmt.Sprintf("Error fetching event block number: %v", err.Error()))
 		}
-	} else if event == nil {
-		event = &mDBApp.EventBlockNumber{
-			EventName:                mDBApp.DepositsAnalyzedEvent,
-			LastProcessedBlockNumber: 0,
+
+		lastEventInfo, err := depositAnalyzerService.fetchLastDepositAnalyzedEvent(event.LastProcessedBlockNumber)
+		if err != nil {
+			panic(fmt.Sprintf("Failed to get last deposit analyzed block number: %v", err.Error()))
 		}
-	}
+		if lastEventInfo == nil || lastEventInfo.BlockNumber == nil {
+			panic("Last event info or block number is nil")
+		}
 
-	lastEventInfo, err := depositAnalyzerService.fetchLastDepositAnalyzedEvent(event.LastProcessedBlockNumber)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to get last deposit analyzed block number: %v", err.Error()))
-	}
-	if lastEventInfo == nil || lastEventInfo.BlockNumber == nil {
-		panic("Last event info or block number is nil")
-	}
+		if *lastEventInfo.BlockNumber == uint64(0) {
+			lastEventInfo.BlockNumber = &event.LastProcessedBlockNumber
+		}
 
-	events, maxDepositIndex, tokenIndexMap, err := depositAnalyzerService.fetchNewDeposits(*lastEventInfo.BlockNumber)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to fetch new deposits: %v", err.Error()))
-	}
+		_, err = q.UpsertEventBlockNumber(mDBApp.DepositsAnalyzedEvent, *lastEventInfo.BlockNumber)
+		if err != nil {
+			panic(fmt.Sprintf("Error updating event block number: %v", err.Error()))
+		}
 
-	shouldSubmit, err := depositAnalyzerService.shouldProcessDepositAnalyzer(
-		events,
-		*lastEventInfo.BlockNumber,
-	)
-	if err != nil {
-		panic(fmt.Sprintf("Error in threshold and time diff check: %v", err.Error()))
-	}
+		var (
+			events          []*bindings.LiquidityDeposited
+			maxDepositIndex *big.Int
+			tokenIndexMap   map[uint32]bool
+		)
+		events, maxDepositIndex, tokenIndexMap, err =
+			depositAnalyzerService.fetchNewDeposits(*lastEventInfo.BlockNumber)
+		if err != nil {
+			panic(fmt.Sprintf("Failed to fetch new deposits: %v", err.Error()))
+		}
 
-	if !shouldSubmit {
-		log.Infof(
-			"Deposit analyzer will not be processed at this time. Unprocessed deposit count: %d, Last deposit block number: %d",
-			len(events),
+		shouldSubmit, err := depositAnalyzerService.shouldProcessDepositAnalyzer(
+			events,
 			*lastEventInfo.BlockNumber,
 		)
-		return
-	}
-
-	tokenInfoMap, err := depositAnalyzerService.getTokenInfoMap(tokenIndexMap)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to get token info map: %v", err.Error()))
-	}
-
-	var rejectDepositIndices []*big.Int
-	for _, event := range events {
-		contractAddress := tokenInfoMap[event.TokenIndex]
-		score := fetchAMLScore(event.Sender.Hex(), contractAddress.Hex())
-		if score > amlRejectionThreshold {
-			rejectDepositIndices = append(rejectDepositIndices, new(big.Int).SetUint64(uint64(event.TokenIndex)))
+		if err != nil {
+			panic(fmt.Sprintf("Error in threshold and time diff check: %v", err.Error()))
 		}
-	}
 
-	receipt, err := depositAnalyzerService.analyzeDeposits(maxDepositIndex, rejectDepositIndices)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to analyze deposits: %v", err.Error()))
-	}
+		if !shouldSubmit {
+			log.Infof(
+				"Deposit analyzer will not be processed at this time. Unprocessed deposit count: %d, Last deposit block number: %d",
+				len(events),
+				*lastEventInfo.BlockNumber,
+			)
+			return nil
+		}
 
-	if receipt == nil {
-		panic("Received nil receipt for transaction")
-	}
+		tokenInfoMap, err := depositAnalyzerService.getTokenInfoMap(tokenIndexMap)
+		if err != nil {
+			panic(fmt.Sprintf("Failed to get token info map: %v", err.Error()))
+		}
 
-	switch receipt.Status {
-	case types.ReceiptStatusSuccessful:
-		log.Infof("Successfully deposit analyzed %d deposits, %d rejections. Transaction Hash: %v", len(events), len(rejectDepositIndices), receipt.TxHash.Hex())
-	case types.ReceiptStatusFailed:
-		panic(fmt.Sprintf("Transaction failed: deposit analyzed unsuccessful. Transaction Hash: %v", receipt.TxHash.Hex()))
-	default:
-		panic(fmt.Sprintf("Unexpected transaction status: %d. Transaction Hash: %v", receipt.Status, receipt.TxHash.Hex()))
-	}
+		var rejectDepositIndices []*big.Int
+		for _, event := range events {
+			contractAddress := tokenInfoMap[event.TokenIndex]
+			score := fetchAMLScore(event.Sender.Hex(), contractAddress.Hex())
+			if score > amlRejectionThreshold {
+				rejectDepositIndices = append(rejectDepositIndices, new(big.Int).SetUint64(uint64(event.TokenIndex)))
+			}
+		}
 
-	_, err = db.UpsertEventBlockNumber(mDBApp.DepositsAnalyzedEvent, *lastEventInfo.BlockNumber)
-	if err != nil {
-		panic(fmt.Sprintf("Error updating event block number: %v", err.Error()))
-	}
+		receipt, err := depositAnalyzerService.analyzeDeposits(maxDepositIndex, rejectDepositIndices)
+		if err != nil {
+			panic(fmt.Sprintf("Failed to analyze deposits: %v", err.Error()))
+		}
+
+		if receipt == nil {
+			panic("Received nil receipt for transaction")
+		}
+
+		switch receipt.Status {
+		case types.ReceiptStatusSuccessful:
+			log.Infof("Successfully deposit analyzed %d deposits, %d rejections. Transaction Hash: %v", len(events), len(rejectDepositIndices), receipt.TxHash.Hex())
+		case types.ReceiptStatusFailed:
+			panic(fmt.Sprintf("Transaction failed: deposit analyzed unsuccessful. Transaction Hash: %v", receipt.TxHash.Hex()))
+		default:
+			panic(fmt.Sprintf("Unexpected transaction status: %d. Transaction Hash: %v", receipt.Status, receipt.TxHash.Hex()))
+		}
+
+		return nil
+	})
 }
 
 func (d *DepositAnalyzerService) fetchLastDepositAnalyzedEvent(startBlockNumber uint64) (*DepositEventInfo, error) {
+	nextBlock := startBlockNumber + 1
 	iterator, err := d.liquidity.FilterDepositsAnalyzed(&bind.FilterOpts{
-		Start: startBlockNumber,
-		End:   nil,
-	}, []*big.Int{})
+		Start:   nextBlock,
+		End:     nil,
+		Context: d.ctx,
+	}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to filter logs: %v", err)
 	}
 
-	defer iterator.Close()
+	defer func() {
+		_ = iterator.Close()
+	}()
 
 	var lastEvent *DepositEventInfo
 
@@ -193,7 +212,9 @@ func (d *DepositAnalyzerService) fetchLastDepositAnalyzedEvent(startBlockNumber 
 	return lastEvent, nil
 }
 
-func (d *DepositAnalyzerService) fetchNewDeposits(startBlock uint64) (_ []*bindings.LiquidityDeposited, _ *big.Int, _ map[uint32]bool, _ error) {
+func (d *DepositAnalyzerService) fetchNewDeposits(
+	startBlock uint64,
+) ([]*bindings.LiquidityDeposited, *big.Int, map[uint32]bool, error) {
 	nextBlock := startBlock + 1
 	iterator, err := d.liquidity.FilterDeposited(&bind.FilterOpts{
 		Start:   nextBlock,
@@ -237,7 +258,7 @@ func (d *DepositAnalyzerService) shouldProcessDepositAnalyzer(events []*bindings
 	}
 
 	depositIds := []*big.Int{}
-	eventInfo, err := fetchDepositEvent(d.liquidity, lastBlockNumber, depositIds)
+	eventInfo, err := fetchDepositEvent(d.ctx, d.liquidity, lastBlockNumber, depositIds)
 	if err != nil {
 		if err.Error() == noDepositEventsFoundError {
 			fmt.Println("No deposit events found, skipping process")
@@ -250,7 +271,7 @@ func (d *DepositAnalyzerService) shouldProcessDepositAnalyzer(events []*bindings
 		return false, nil
 	}
 
-	isExceeded, err := isBlockTimeExceeded(d.client, *eventInfo.BlockNumber, int(d.cfg.Blockchain.DepositAnalyzerMinutesThreshold))
+	isExceeded, err := isBlockTimeExceeded(d.ctx, d.client, *eventInfo.BlockNumber, int(d.cfg.Blockchain.DepositAnalyzerMinutesThreshold))
 	if err != nil {
 		return false, fmt.Errorf("error occurred while checking time difference: %w", err)
 	}

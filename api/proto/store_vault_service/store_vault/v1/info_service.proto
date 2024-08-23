@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package store_vault.v1;
+
+import "google/api/annotations.proto";
+
+// Defines the import path that should be used to import the generated package,
+// and the package name.
+option go_package = ".;store_vault";
+
+service InfoService {
+  // Version returns the build service info
+  //
+  // ## Version returns the build service info
+  rpc Version(VersionRequest) returns (VersionResponse) {
+    option (google.api.http) = {
+      get: "/v1/version"
+    };
+  }
+}
+
+// VersionRequest describes request to get info about the build version info and build time
+message VersionRequest {}
+
+// VersionResponse describes response to get info about the build version info and build time
+message VersionResponse {
+  // the service version
+  string version = 1;
+  // the service build time
+  string buildtime = 2;
+}

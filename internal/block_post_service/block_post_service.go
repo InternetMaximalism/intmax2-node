@@ -8,8 +8,10 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/bindings"
+	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
+	"intmax2-node/internal/open_telemetry"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"intmax2-node/pkg/utils"
@@ -30,29 +32,63 @@ type blockPostService struct {
 	cfg                       *configs.Config
 	log                       logger.Logger
 	dbApp                     SQLDriverApp
+	sb                        ServiceBlockchain
 	lastSeenScrollBlockNumber uint64
 	accountInfoMap            AccountInfo
 }
 
-func New(cfg *configs.Config, log logger.Logger, dbApp SQLDriverApp) BlockPostService {
+func New(cfg *configs.Config, log logger.Logger, dbApp SQLDriverApp, sb ServiceBlockchain) BlockPostService {
 	return &blockPostService{
 		cfg:                       cfg,
 		log:                       log,
 		dbApp:                     dbApp,
+		sb:                        sb,
 		lastSeenScrollBlockNumber: cfg.Blockchain.RollupContractDeployedBlockNumber,
 		accountInfoMap:            NewAccountInfo(dbApp),
 	}
 }
+func (w *blockPostService) Init(ctx context.Context) (err error) {
+	const (
+		hName = "BlockValidityProver func:Init"
+	)
 
-func (w *blockPostService) Init() error {
+	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
+	defer span.End()
+
+	err = w.sb.SetupScrollNetworkChainID(ctx)
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return errors.Join(errorsB.ErrSetupScrollNetworkChainIDFail, err)
+	}
+
 	return nil
 }
 
 func (w *blockPostService) Start(
 	ctx context.Context,
 	tickerEventWatcher *time.Ticker,
-) error {
-	rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(w.cfg, "https://sepolia-rpc.scroll.io")
+) (err error) {
+	const (
+		hName = "BlockValidityProver func:Start"
+	)
+
+	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
+	defer span.End()
+
+	err = w.Init(spanCtx)
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return errors.Join(ErrInitFail, err)
+	}
+
+	var link string
+	link, err = w.sb.ScrollNetworkChainLinkEvmJSONRPC(spanCtx)
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return errors.Join(errorsB.ErrScrollNetworkChainLinkEvmJSONRPCFail, err)
+	}
+
+	rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(w.cfg, link)
 
 	scrollClient, err := utils.NewClient(rollupCfg.NetworkRpcUrl)
 	if err != nil {

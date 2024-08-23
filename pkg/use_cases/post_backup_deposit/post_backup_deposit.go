@@ -7,7 +7,7 @@ import (
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
 	service "intmax2-node/internal/store_vault_service"
-	backupDeposit "intmax2-node/internal/use_cases/backup_deposit"
+	postBackupDeposit "intmax2-node/internal/use_cases/post_backup_deposit"
 
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -19,7 +19,7 @@ type uc struct {
 	db  SQLDriverApp
 }
 
-func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupDeposit.UseCasePostBackupDeposit {
+func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) postBackupDeposit.UseCasePostBackupDeposit {
 	return &uc{
 		cfg: cfg,
 		log: log,
@@ -28,12 +28,13 @@ func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupDeposit.
 }
 
 func (u *uc) Do(
-	ctx context.Context, input *backupDeposit.UCPostBackupDepositInput,
+	ctx context.Context, input *postBackupDeposit.UCPostBackupDepositInput,
 ) error {
 	const (
 		hName               = "UseCase PostBackupDeposit"
 		recipientKey        = "recipient"
 		blockNumberKey      = "block_number"
+		depositHashKey      = "deposit_hash"
 		encryptedDepositKey = "encrypted_deposit"
 	)
 
@@ -47,7 +48,8 @@ func (u *uc) Do(
 
 	span.SetAttributes(
 		attribute.String(recipientKey, input.Recipient),
-		attribute.Int64(blockNumberKey, int64(input.BlockNumber)),
+		attribute.Int64(blockNumberKey, input.BlockNumber),
+		attribute.String(depositHashKey, input.DepositHash),
 		attribute.String(encryptedDepositKey, input.EncryptedDeposit),
 	)
 

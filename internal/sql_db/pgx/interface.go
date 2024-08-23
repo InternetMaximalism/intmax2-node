@@ -3,12 +3,8 @@ package pgx
 import (
 	"context"
 	"encoding/json"
+	mFL "intmax2-node/internal/sql_filter/models"
 	intMaxTypes "intmax2-node/internal/types"
-	backupBalance "intmax2-node/internal/use_cases/backup_balance"
-	backupDeposit "intmax2-node/internal/use_cases/backup_deposit"
-	backupTransaction "intmax2-node/internal/use_cases/backup_transaction"
-	backupTransfer "intmax2-node/internal/use_cases/backup_transfer"
-	postWithdrwalRequest "intmax2-node/internal/use_cases/post_withdrawal_request"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 
 	"github.com/dimiro1/health"
@@ -100,7 +96,17 @@ type Balances interface {
 }
 
 type Withdrawals interface {
-	CreateWithdrawal(id string, input *postWithdrwalRequest.UCPostWithdrawalRequestInput) (*mDBApp.Withdrawal, error)
+	CreateWithdrawal(
+		id string,
+		transferData *mDBApp.TransferData,
+		transferMerkleProof *mDBApp.TransferMerkleProof,
+		transaction *mDBApp.Transaction,
+		txMerkleProof *mDBApp.TxMerkleProof,
+		transferHash string,
+		blockNumber int64,
+		blockHash string,
+		enoughBalanceProof *mDBApp.EnoughBalanceProof,
+	) (*mDBApp.Withdrawal, error)
 	UpdateWithdrawalsStatus(ids []string, status mDBApp.WithdrawalStatus) error
 	WithdrawalByID(id string) (*mDBApp.Withdrawal, error)
 	WithdrawalsByHashes(transferHashes []string) (*[]mDBApp.Withdrawal, error)
@@ -108,21 +114,51 @@ type Withdrawals interface {
 }
 
 type BackupTransfers interface {
-	CreateBackupTransfer(input *backupTransfer.UCPostBackupTransferInput) (*mDBApp.BackupTransfer, error)
+	CreateBackupTransfer(
+		recipient, encryptedTransferHash, encryptedTransfer string,
+		blockNumber int64,
+	) (*mDBApp.BackupTransfer, error)
 	GetBackupTransfer(condition string, value string) (*mDBApp.BackupTransfer, error)
 	GetBackupTransfers(condition string, value interface{}) ([]*mDBApp.BackupTransfer, error)
 }
 
 type BackupTransactions interface {
-	CreateBackupTransaction(input *backupTransaction.UCPostBackupTransactionInput) (*mDBApp.BackupTransaction, error)
+	CreateBackupTransaction(
+		sender, encryptedTxHash, encryptedTx, signature string,
+		blockNumber int64,
+	) (*mDBApp.BackupTransaction, error)
 	GetBackupTransaction(condition string, value string) (*mDBApp.BackupTransaction, error)
+	GetBackupTransactionBySenderAndTxDoubleHash(sender, txDoubleHash string) (*mDBApp.BackupTransaction, error)
 	GetBackupTransactions(condition string, value interface{}) ([]*mDBApp.BackupTransaction, error)
+	GetBackupTransactionsBySender(
+		sender string,
+		pagination mDBApp.PaginationOfListOfBackupTransactionsInput,
+		sorting mFL.Sorting, orderBy mFL.OrderBy,
+		filters mFL.FiltersList,
+	) (
+		paginator *mDBApp.PaginationOfListOfBackupTransactions,
+		listDBApp mDBApp.ListOfBackupTransaction,
+		err error,
+	)
 }
 
 type BackupDeposits interface {
-	CreateBackupDeposit(input *backupDeposit.UCPostBackupDepositInput) (*mDBApp.BackupDeposit, error)
+	CreateBackupDeposit(
+		recipient, depositHash, encryptedDeposit string,
+		blockNumber int64,
+	) (*mDBApp.BackupDeposit, error)
 	GetBackupDeposit(conditions []string, values []interface{}) (*mDBApp.BackupDeposit, error)
 	GetBackupDeposits(condition string, value interface{}) ([]*mDBApp.BackupDeposit, error)
+	GetBackupDepositsByRecipient(
+		recipient string,
+		pagination mDBApp.PaginationOfListOfBackupDepositsInput,
+		sorting mFL.Sorting, orderBy mFL.OrderBy,
+		filters mFL.FiltersList,
+	) (
+		paginator *mDBApp.PaginationOfListOfBackupDeposits,
+		listDBApp mDBApp.ListOfBackupDeposit,
+		err error,
+	)
 }
 
 type CtrlEventBlockNumbersJobs interface {
@@ -161,7 +197,11 @@ type Accounts interface {
 }
 
 type BackupBalances interface {
-	CreateBackupBalance(input *backupBalance.UCPostBackupBalanceInput) (*mDBApp.BackupBalance, error)
+	CreateBackupBalance(
+		user, encryptedBalanceProof, encryptedBalanceData, signature string,
+		encryptedTxs, encryptedTransfers, encryptedDeposits []string,
+		blockNumber int64,
+	) (*mDBApp.BackupBalance, error)
 	GetBackupBalance(conditions []string, values []interface{}) (*mDBApp.BackupBalance, error)
 	GetBackupBalances(condition string, value interface{}) ([]*mDBApp.BackupBalance, error)
 }

@@ -9,7 +9,7 @@ import (
 	"intmax2-node/internal/pb/gateway"
 	"intmax2-node/internal/pb/gateway/consts"
 	"intmax2-node/internal/pb/gateway/http_response_modifier"
-	"intmax2-node/internal/pb/gen/service/node"
+	node "intmax2-node/internal/pb/gen/withdrawal_service/node"
 	"intmax2-node/internal/pb/listener"
 	server "intmax2-node/pkg/grpc_server/withdrawal_server"
 	"intmax2-node/third_party"
@@ -89,6 +89,7 @@ func (s *WithdrawalServer) Init() error {
 		s.Config.GRPC.Addr(), // listen incoming host:port for gRPC server
 		func(s grpc.ServiceRegistrar) {
 			node.RegisterWithdrawalServiceServer(s, srv)
+			node.RegisterInfoServiceServer(s, srv)
 		},
 	)
 
@@ -111,15 +112,16 @@ func (s *WithdrawalServer) Init() error {
 			HealthCheckHandler: s.HC,
 			Services: []gateway.RegisterServiceHandlerFunc{
 				node.RegisterWithdrawalServiceHandler,
+				node.RegisterInfoServiceHandler,
 			},
 			CorsHandler: c.Handler,
 			Swagger: &gateway.Swagger{
 				HostURL:            s.Config.Swagger.HostURL,
 				BasePath:           s.Config.Swagger.BasePath,
-				SwaggerPath:        configs.SwaggerPath,
-				FsSwagger:          swagger.FsSwagger,
-				OpenAPIPath:        configs.SwaggerOpenAPIPath,
-				FsOpenAPI:          third_party.OpenAPI,
+				SwaggerPath:        configs.SwaggerWithdrawalPath,
+				FsSwagger:          swagger.FsSwaggerWithdrawal,
+				OpenAPIPath:        configs.SwaggerOpenAPIWithdrawalPath,
+				FsOpenAPI:          third_party.OpenAPIWithdrawal,
 				RegexpBuildVersion: s.Config.Swagger.RegexpBuildVersion,
 				RegexpHostURL:      s.Config.Swagger.RegexpHostURL,
 				RegexpBasePATH:     s.Config.Swagger.RegexpBasePATH,

@@ -61,7 +61,7 @@ func GetBalance(
 		return ErrInvalidTokenType
 	}
 
-	l1Balance, err := GetTokenBalance(ctx, cfg, lg, *wallet.WalletAddress, *tokenInfo)
+	l1Balance, err := GetTokenBalance(ctx, cfg, lg, sb, *wallet.WalletAddress, *tokenInfo)
 	if err != nil {
 		return fmt.Errorf(ErrFailedToGetBalance, "Ethereum")
 	}
@@ -122,10 +122,16 @@ func GetTokenBalance(
 	ctx context.Context,
 	cfg *configs.Config,
 	lg logger.Logger,
+	sb ServiceBlockchain,
 	owner common.Address,
 	tokenInfo intMaxTypes.TokenInfo,
 ) (balance *big.Int, err error) {
-	client, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
+	link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failet to get the Evm JSON RPC link")
+	}
+
+	client, err := utils.NewClient(link)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new client: %w", err)
 	}
@@ -197,7 +203,12 @@ func GetTokenIndexFromLiquidityContract(
 	sb ServiceBlockchain,
 	tokenInfo intMaxTypes.TokenInfo,
 ) (uint32, error) {
-	client, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
+	link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get the EVN JSON RPC link: %w", err)
+	}
+
+	client, err := utils.NewClient(link)
 	if err != nil {
 		return 0, fmt.Errorf("failed to create new client: %w", err)
 	}

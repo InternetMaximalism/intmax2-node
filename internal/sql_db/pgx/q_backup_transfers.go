@@ -5,24 +5,26 @@ import (
 	"fmt"
 	errPgx "intmax2-node/internal/sql_db/pgx/errors"
 	"intmax2-node/internal/sql_db/pgx/models"
-	backupTransfer "intmax2-node/internal/use_cases/backup_transfer"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-func (p *pgx) CreateBackupTransfer(input *backupTransfer.UCPostBackupTransferInput) (*mDBApp.BackupTransfer, error) {
+func (p *pgx) CreateBackupTransfer(
+	recipient, encryptedTransferHash, encryptedTransfer string,
+	blockNumber int64,
+) (*mDBApp.BackupTransfer, error) {
 	const query = `
 	    INSERT INTO backup_transfers
-        (id, recipient, encrypted_transfer, block_number, created_at)
-        VALUES ($1, $2, $3, $4, $5)
+        (id, recipient, transfer_double_hash, encrypted_transfer, block_number, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6)
 	`
 
 	id := uuid.New().String()
 	createdAt := time.Now().UTC()
 
-	err := p.createBackupEntry(query, id, input.Recipient, input.EncryptedTransfer, input.BlockNumber, createdAt)
+	err := p.createBackupEntry(query, id, recipient, encryptedTransferHash, encryptedTransfer, blockNumber, createdAt)
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +34,7 @@ func (p *pgx) CreateBackupTransfer(input *backupTransfer.UCPostBackupTransferInp
 
 func (p *pgx) GetBackupTransfer(condition, value string) (*mDBApp.BackupTransfer, error) {
 	const baseQuery = `
-        SELECT id, recipient, encrypted_transfer, block_number, created_at
+        SELECT id, recipient, transfer_double_hash, encrypted_transfer, block_number, created_at
         FROM backup_transfers
         WHERE %s = $1
     `
@@ -43,6 +45,7 @@ func (p *pgx) GetBackupTransfer(condition, value string) (*mDBApp.BackupTransfer
 		Scan(
 			&b.ID,
 			&b.Recipient,
+			&b.TransferDoubleHash,
 			&b.EncryptedTransfer,
 			&b.BlockNumber,
 			&b.CreatedAt,
@@ -56,7 +59,7 @@ func (p *pgx) GetBackupTransfer(condition, value string) (*mDBApp.BackupTransfer
 
 func (p *pgx) GetBackupTransfers(condition string, value interface{}) ([]*mDBApp.BackupTransfer, error) {
 	const baseQuery = `
-        SELECT id, recipient, encrypted_transfer, block_number, created_at
+        SELECT id, recipient, transfer_double_hash, encrypted_transfer, block_number, created_at
         FROM backup_transfers
         WHERE %s = $1
     `
@@ -64,7 +67,7 @@ func (p *pgx) GetBackupTransfers(condition string, value interface{}) ([]*mDBApp
 	var transfers []*mDBApp.BackupTransfer
 	err := p.getBackupEntries(query, value, func(rows *sql.Rows) error {
 		var b models.BackupTransfer
-		err := rows.Scan(&b.ID, &b.Recipient, &b.EncryptedTransfer, &b.BlockNumber, &b.CreatedAt)
+		err := rows.Scan(&b.ID, &b.Recipient, &b.TransferDoubleHash, &b.EncryptedTransfer, &b.BlockNumber, &b.CreatedAt)
 		if err != nil {
 			return err
 		}
@@ -80,10 +83,11 @@ func (p *pgx) GetBackupTransfers(condition string, value interface{}) ([]*mDBApp
 
 func (p *pgx) backupTransferToDBApp(b *models.BackupTransfer) mDBApp.BackupTransfer {
 	return mDBApp.BackupTransfer{
-		ID:                b.ID,
-		Recipient:         b.Recipient,
-		EncryptedTransfer: b.EncryptedTransfer,
-		BlockNumber:       b.BlockNumber,
-		CreatedAt:         b.CreatedAt,
+		ID:                 b.ID,
+		Recipient:          b.Recipient,
+		TransferDoubleHash: b.TransferDoubleHash.String,
+		EncryptedTransfer:  b.EncryptedTransfer,
+		BlockNumber:        b.BlockNumber,
+		CreatedAt:          b.CreatedAt,
 	}
 }
