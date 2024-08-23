@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
+	intMaxAccTypes "intmax2-node/internal/accounts/types"
 	intMaxTypes "intmax2-node/internal/types"
 	"net/http"
 	"net/url"
@@ -230,7 +231,7 @@ func GetTransactionByHashWithRawRequest(
 	arrTxDetails := gjson.GetBytes(js, "txDetails.Transfers").Array()
 	for key := range arrTxDetails {
 		var address string
-		if arrTxDetails[key].Get("Recipient.TypeOfAddress").String() == "INTMAX" {
+		if arrTxDetails[key].Get("Recipient.TypeOfAddress").String() == intMaxAccTypes.INTMAXAddressType {
 			var addr intMaxAcc.Address
 			addr, err = txDetails.Transfers[key].Recipient.ToINTMAXAddress()
 			if err != nil {

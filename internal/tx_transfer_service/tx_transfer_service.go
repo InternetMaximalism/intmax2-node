@@ -8,11 +8,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	intMaxAccTypes "intmax2-node/internal/accounts/types"
 	"intmax2-node/internal/balance_service"
+	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/mnemonic_wallet"
 	intMaxTree "intmax2-node/internal/tree"
@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
@@ -44,12 +45,12 @@ func TransferTransaction(
 ) error {
 	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
 	if err != nil {
-		return fmt.Errorf("fail to parse user private key: %v", err)
+		return fmt.Errorf("fail to get wallet from private key: %w", err)
 	}
 
 	userAccount, err := intMaxAcc.NewPrivateKeyFromString(wallet.IntMaxPrivateKey)
 	if err != nil {
-		return fmt.Errorf("fail to parse user private key: %v", err)
+		return fmt.Errorf("fail to parse user private key: %w", err)
 	}
 
 	tokenInfo, err := new(intMaxTypes.TokenInfo).ParseFromStrings(args)
@@ -204,7 +205,7 @@ var ErrFailedToDecrypt = errors.New("failed to decrypt")
 var ErrFailedToUnmarshal = errors.New("failed to unmarshal")
 
 func MakeTransferBackupData(transfer *intMaxTypes.Transfer) (backupTransfer *transaction.BackupTransferInput, _ error) {
-	if transfer.Recipient.TypeOfAddress != "INTMAX" {
+	if transfer.Recipient.TypeOfAddress != intMaxAccTypes.INTMAXAddressType {
 		return nil, errors.New("recipient address should be INTMAX")
 	}
 
@@ -474,12 +475,12 @@ func TransactionsList(
 ) (json.RawMessage, error) {
 	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
 	if err != nil {
-		return nil, fmt.Errorf("fail to parse user private key: %v", err)
+		return nil, errors.Join(errorsB.ErrWalletAddressNotRecognized, err)
 	}
 
 	userAccount, err := intMaxAcc.NewPrivateKeyFromString(wallet.IntMaxPrivateKey)
 	if err != nil {
-		return nil, fmt.Errorf("fail to parse user private key: %v", err)
+		return nil, errors.Join(ErrRecoverWalletFromPrivateKey, err)
 	}
 
 	fmt.Printf("User's INTMAX Address: %s\n", userAccount.ToAddress().String())
@@ -495,12 +496,12 @@ func TransactionByHash(
 ) (json.RawMessage, error) {
 	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
 	if err != nil {
-		return nil, fmt.Errorf("fail to parse user private key: %v", err)
+		return nil, errors.Join(errorsB.ErrWalletAddressNotRecognized, err)
 	}
 
 	userAccount, err := intMaxAcc.NewPrivateKeyFromString(wallet.IntMaxPrivateKey)
 	if err != nil {
-		return nil, fmt.Errorf("fail to parse user private key: %v", err)
+		return nil, errors.Join(ErrRecoverWalletFromPrivateKey, err)
 	}
 
 	return GetTransactionByHashWithRawRequest(ctx, cfg, txHash, userAccount)

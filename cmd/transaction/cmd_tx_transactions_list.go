@@ -20,7 +20,7 @@ func txTransferTransactionsListCmd(b *Transaction) *cobra.Command {
 		filterNameKey                    = "filterName"
 		filterNameDesc                   = "specify the filter name. use as --filterName \"block_number\" (support value: \"block_number\")"
 		filterConditionKey               = "filterCondition"
-		filterConditionDesc              = "specify the filter condition. use as --filterCondition \"is\" (support values: \"lessThan\", \"lessThanOrEqualTo\", \"is\", \"greaterThanOrEqualTo\", \"greaterThan\")"
+		filterConditionDesc              = "specify the filter condition. use as --filterCondition \"is\" (support values: \"lessThan\", \"lessThanOrEqualTo\", \"is\", \"greaterThanOrEqualTo\", \"greaterThan\")" // nolint:lll
 		filterValueKey                   = "filterValue"
 		filterValueDesc                  = "specify the value of filter. use as --filterValue \"1\""
 		sortingKey                       = "sorting"

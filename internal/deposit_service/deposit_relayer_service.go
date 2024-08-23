@@ -64,15 +64,17 @@ func DepositRelayer(ctx context.Context, cfg *configs.Config, log logger.Logger,
 		panic(fmt.Sprintf("Failed to initialize DepositRelayerService: %v", err.Error()))
 	}
 
-	_ = db.Exec(ctx, nil, func(d interface{}, input interface{}) error {
+	_ = db.Exec(ctx, nil, func(d interface{}, input interface{}) (err error) {
 		q := d.(SQLDriverApp)
 
-		blockNumberEvents, err := depositRelayerService.getBlockNumberEvents(q)
+		var blockNumberEvents map[string]*mDBApp.EventBlockNumber
+		blockNumberEvents, err = depositRelayerService.getBlockNumberEvents(q)
 		if err != nil {
 			panic(fmt.Sprintf("Failed to get block number events: %v", err.Error()))
 		}
 
-		depositIndices, err := depositRelayerService.fetchLastDepositEventIndices(
+		var depositIndices DepositIndices
+		depositIndices, err = depositRelayerService.fetchLastDepositEventIndices(
 			blockNumberEvents[mDBApp.DepositsAnalyzedEvent].LastProcessedBlockNumber,
 			blockNumberEvents[mDBApp.DepositsRelayedEvent].LastProcessedBlockNumber,
 		)
@@ -112,7 +114,8 @@ func DepositRelayer(ctx context.Context, cfg *configs.Config, log logger.Logger,
 			return nil
 		}
 
-		receipt, err := depositRelayerService.relayDeposits(*depositIndices.LastDepositAnalyzedEventInfo.LastDepositId, unprocessedDepositCount)
+		var receipt *types.Receipt
+		receipt, err = depositRelayerService.relayDeposits(*depositIndices.LastDepositAnalyzedEventInfo.LastDepositId, unprocessedDepositCount)
 		if err != nil {
 			panic(fmt.Sprintf("Failed to relay deposits: %v", err.Error()))
 		}

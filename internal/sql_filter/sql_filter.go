@@ -46,8 +46,7 @@ func (c *SQLFilter) FilterDataToWhereQuery(
 }
 
 func (c *SQLFilter) dataFieldToColumn(dataField models.DataField) (column string) {
-	switch dataField {
-	case models.DataFieldBlockNumber:
+	if dataField == models.DataFieldBlockNumber {
 		column = "block_number"
 	}
 
@@ -122,9 +121,7 @@ func (c *SQLFilter) filterToQueryWithParams(
 	expression, newArguments := c.conditionToExpression(filter.Condition, value)
 	placeholder, placeholderKey := c.generatePlaceholderWithKey()
 
-	switch filter.DataField {
-	case
-		models.DataFieldBlockNumber:
+	if filter.DataField == models.DataFieldBlockNumber {
 		const mask = "(%s %s %s)"
 		query = fmt.Sprintf(mask, column, expression, placeholder)
 	}

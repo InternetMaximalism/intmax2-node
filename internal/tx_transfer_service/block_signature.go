@@ -179,7 +179,8 @@ func SendSignedProposedBlock(
 	}
 
 	if backupTx != nil {
-		encryptedSignature, err := intMaxAcc.EncryptECIES(
+		var encryptedSignature []byte
+		encryptedSignature, err = intMaxAcc.EncryptECIES(
 			rand.Reader,
 			senderAccount.Public(),
 			signature.Marshal(),
