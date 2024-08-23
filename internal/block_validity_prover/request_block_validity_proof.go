@@ -21,15 +21,19 @@ type ProveBlockValidityInput struct {
 	ValidityWitness *CompressedValidityWitness `json:"validityWitness"`
 
 	// base64 encoded string
-	PrevValidityProof *string `json:"prevValidityProof"`
+	PrevValidityProof *string `json:"prevValidityProof,omitempty"`
 }
 
 // Execute the following request:
 // curl -X POST -d '{"blockHash":"0x01", "validityWitness":'$(cat data/validity_witness_1.json)', "prevValidityProof":null }'
 // -H "Content-Type: application/json" $BLOCK_VALIDITY_PROVER_URL/proof | jq
 func (p *blockValidityProver) requestBlockValidityProof(blockHash common.Hash, validityWitness *ValidityWitness, prevValidityProof *string) error {
-	maxUsedAccountID := p.blockBuilder.AccountTree.Count()
-	compressedValidityWitness, err := validityWitness.Compress(maxUsedAccountID)
+	nextAccountID, err := p.blockBuilder.NextAccountID()
+	if err != nil {
+		return fmt.Errorf("failed to get next account ID: %w", err)
+	}
+
+	compressedValidityWitness, err := validityWitness.Compress(nextAccountID)
 	if err != nil {
 		return fmt.Errorf("failed to compress validity witness: %w", err)
 	}
