@@ -2,7 +2,6 @@ package get_backup_balances
 
 import (
 	"context"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
@@ -10,6 +9,8 @@ import (
 	service "intmax2-node/internal/store_vault_service"
 	"intmax2-node/internal/use_cases/backup_balance"
 	"intmax2-node/pkg/sql_db/db_app/models"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // uc describes use case

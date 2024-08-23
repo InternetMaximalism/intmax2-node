@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 	"intmax2-node/internal/blockchain"
 	"intmax2-node/internal/open_telemetry"
 	node "intmax2-node/internal/pb/gen/withdrawal_service/node"
 	postWithdrwalRequest "intmax2-node/internal/use_cases/post_withdrawal_request"
 	withdrawalService "intmax2-node/internal/withdrawal_service"
 	"intmax2-node/pkg/grpc_server/utils"
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func (s *WithdrawalServer) WithdrawalRequest(

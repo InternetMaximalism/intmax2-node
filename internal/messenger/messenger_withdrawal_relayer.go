@@ -29,7 +29,7 @@ type MessengerWithdrawalRelayerService struct {
 func newMessengerWithdrawalRelayerService(ctx context.Context, cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) (*MessengerWithdrawalRelayerService, error) {
 	link, err := sb.EthereumNetworkChainLinkEvmJSONRPC(ctx)
 	if err != nil {
-	 	return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
+		return nil, fmt.Errorf("failed to get Ethereum network chain link: %w", err)
 	}
 
 	client, err := utils.NewClient(link)

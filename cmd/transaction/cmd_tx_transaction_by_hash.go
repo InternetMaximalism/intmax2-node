@@ -2,9 +2,10 @@ package transaction
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
 	"intmax2-node/pkg/utils"
 	"os"
+
+	"github.com/spf13/cobra"
 )
 
 func txTransferTransactionInfoByHashCmd(b *Transaction) *cobra.Command {

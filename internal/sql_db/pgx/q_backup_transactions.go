@@ -204,7 +204,6 @@ WHERE sender = @sender %s
 			where += fmt.Sprintf(
 				"AND ((block_number, %s) %s ('%s', '%s'))",
 				orderByValue, cond, rID, cursor)
-
 		}
 	}
 

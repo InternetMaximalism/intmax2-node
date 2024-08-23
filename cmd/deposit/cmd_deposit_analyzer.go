@@ -1,9 +1,10 @@
 package deposit
 
 import (
-	"github.com/spf13/cobra"
 	"intmax2-node/internal/logger"
 	"intmax2-node/pkg/utils"
+
+	"github.com/spf13/cobra"
 )
 
 func analyzerCmd(d *Deposit) *cobra.Command {
