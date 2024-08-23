@@ -532,7 +532,11 @@ func backupDepositRawRequest(
 	}
 
 	if !response.Success {
-		return fmt.Errorf("failed to send transaction: %s", response.Data.Message)
+		if response.Data != nil {
+			return fmt.Errorf("failed to send transaction: %s", response.Data.Message)
+		}
+
+		return fmt.Errorf("failed to send transaction with unknown error")
 	}
 
 	return nil
