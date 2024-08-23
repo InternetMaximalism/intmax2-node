@@ -26,7 +26,7 @@ type blockValidityProver struct {
 	scrollClient *ethclient.Client
 	liquidity    *bindings.Liquidity
 	rollup       *bindings.Rollup
-	blockBuilder *MockBlockBuilder
+	blockBuilder SQLDriverApp
 }
 
 func NewBlockValidityProver(ctx context.Context, cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) (*blockValidityProver, error) {

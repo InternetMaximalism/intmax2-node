@@ -1,6 +1,7 @@
 package block_validity_prover
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
@@ -14,7 +15,7 @@ import (
 	"github.com/holiman/uint256"
 )
 
-func (ai *MockBlockBuilder) RegisterPublicKey(pk *intMaxAcc.PublicKey, lastSentBlockNumber uint32) (accountID uint64, err error) {
+func (ai *mockBlockBuilder) RegisterPublicKey(pk *intMaxAcc.PublicKey, lastSentBlockNumber uint32) (accountID uint64, err error) {
 	publicKey := pk.BigInt()
 	proof, _, err := ai.AccountTree.ProveMembership(publicKey)
 	if err != nil {
@@ -42,7 +43,7 @@ func (ai *MockBlockBuilder) RegisterPublicKey(pk *intMaxAcc.PublicKey, lastSentB
 	return uint64(insertionProof.Index), nil
 }
 
-func (ai *MockBlockBuilder) PublicKeyByAccountID(accountID uint64) (pk *intMaxAcc.PublicKey, err error) {
+func (ai *mockBlockBuilder) PublicKeyByAccountID(accountID uint64) (pk *intMaxAcc.PublicKey, err error) {
 	var accID uint256.Int
 	accID.SetUint64(accountID)
 
@@ -56,12 +57,15 @@ func (ai *MockBlockBuilder) PublicKeyByAccountID(accountID uint64) (pk *intMaxAc
 	return pk, nil
 }
 
-func (ai *MockBlockBuilder) AccountBySenderAddress(_ string) (*uint256.Int, error) {
+func (ai *mockBlockBuilder) AccountBySenderAddress(_ string) (*uint256.Int, error) {
 	return nil, fmt.Errorf("AccountBySenderAddress not implemented")
 }
 
 func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer) (err error) {
-	blockNumber := p.blockBuilder.LastSeenBlockPostedEventBlockNumber
+	blockNumber, err := p.blockBuilder.LastSeenBlockPostedEventBlockNumber()
+	if err != nil {
+		return errors.Join(ErrLastSeenBlockPostedEventBlockNumberFail, err)
+	}
 
 	var (
 		events []*bindings.RollupBlockPosted
@@ -133,28 +137,63 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer) (err error) {
 				p.log.Debugf(msg, intMaxBlockNumber.String(), blN.String())
 			}
 
-			// Update block hash tree
-			validityWitness := p.blockBuilder.postBlock(blockContent, postedBlock)
+			// TODO: Update block hash tree
+
+			senders := make([]intMaxTypes.ColumnSender, len(blockContent.Senders))
+			for i, sender := range blockContent.Senders {
+				senders[i] = intMaxTypes.ColumnSender{
+					PublicKey: hex.EncodeToString(sender.PublicKey.ToAddress().Bytes()),
+					AccountID: sender.AccountID,
+					IsSigned:  sender.IsSigned,
+				}
+			}
+
+			err := setAuxInfo(
+				p.blockBuilder,
+				postedBlock,
+				blockContent,
+			)
+			if err != nil {
+				return errors.Join(ErrCreateBlockContentFail, err)
+			}
 
 			// TODO: Separate another worker
-			err = p.requestAndFetchBlockValidityProof(validityWitness)
+
+			blockWitness, err := p.blockBuilder.GenerateBlock(blockContent, postedBlock)
 			if err != nil {
-				return err
+				panic(err)
 			}
+
+			validityWitness, err := generateValidityWitness(p.blockBuilder, blockWitness)
+			if err != nil {
+				panic(err)
+			}
+
+			validityProof, err := p.requestAndFetchBlockValidityProof(validityWitness)
+			if err != nil {
+				return errors.Join(ErrRequestAndFetchBlockValidityProofFail, err)
+			}
+
+			p.blockBuilder.SetValidityProof(validityWitness.BlockWitness.Block.BlockNumber, validityProof)
 		}
 	}
 
-	p.blockBuilder.LastSeenBlockPostedEventBlockNumber = nextBN.Uint64()
+	p.blockBuilder.SetLastSeenBlockPostedEventBlockNumber(nextBN.Uint64())
 
 	return nil
 }
 
-func (p *blockValidityProver) requestAndFetchBlockValidityProof(validityWitness *ValidityWitness) (err error) {
+func (p *blockValidityProver) requestAndFetchBlockValidityProof(validityWitness *ValidityWitness) (validityProof string, err error) {
 	blockHash := validityWitness.BlockWitness.Block.Hash()
-	err = p.requestBlockValidityProof(blockHash, validityWitness, p.blockBuilder.LastValidityProof)
+	lastValidityProof, err := p.blockBuilder.LastValidityProof()
+	if err != nil && !errors.Is(err, ErrNoLastValidityProof) {
+		var ErrLastValidityProofFail = errors.New("last validity proof fail")
+		return "", errors.Join(ErrLastValidityProofFail, err)
+	}
+	err = p.requestBlockValidityProof(blockHash, validityWitness, lastValidityProof)
 	if err != nil {
 		var ErrRequestBlockValidityProofFail = errors.New("request block validity proof fail")
-		return errors.Join(ErrRequestBlockValidityProofFail, err)
+		return "", errors.Join(ErrRequestBlockValidityProofFail, err)
 	}
 
 	tickerBlockValidityProof := time.NewTicker(p.cfg.BlockValidityProver.TimeoutForFetchingBlockValidityProof)
@@ -166,7 +205,7 @@ func (p *blockValidityProver) requestAndFetchBlockValidityProof(validityWitness 
 	for {
 		select {
 		case <-p.ctx.Done():
-			return p.ctx.Err()
+			return "", p.ctx.Err()
 		case <-tickerBlockValidityProof.C:
 			var validityProof string
 			validityProof, err = p.fetchBlockValidityProof(blockHash)
@@ -174,8 +213,7 @@ func (p *blockValidityProver) requestAndFetchBlockValidityProof(validityWitness 
 				continue
 			}
 
-			p.blockBuilder.LastValidityProof = &validityProof
-			return nil
+			return validityProof, nil
 		}
 	}
 }

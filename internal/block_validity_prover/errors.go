@@ -116,3 +116,15 @@ var ErrInvalidRegistrationBlockContent = errors.New("invalid registration block 
 
 // ErrInvalidNonRegistrationBlockContent error: invalid non-registration block content.
 var ErrInvalidNonRegistrationBlockContent = errors.New("invalid non-registration block content")
+
+// ErrCreateBlockContentFail error: failed to create block content.
+var ErrCreateBlockContentFail = errors.New("failed to create block content")
+
+// ErrRequestAndFetchBlockValidityProofFail error: request and fetch block validity proof fail.
+var ErrRequestAndFetchBlockValidityProofFail = errors.New("request and fetch block validity proof fail")
+
+// ErrLastSeenBlockPostedEventBlockNumberFail error: failed to get last seen block posted event block number.
+var ErrLastSeenBlockPostedEventBlockNumberFail = errors.New("failed to get last seen block posted event block number")
+
+// ErrNoLastValidityProof error: no last validity proof.
+var ErrNoLastValidityProof = errors.New("no last validity proof")

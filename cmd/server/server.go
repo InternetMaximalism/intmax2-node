@@ -245,7 +245,7 @@ func NewServerCmd(s *Server) *cobra.Command {
 
 				err = blockValidityProver.SyncBlockTree(blockSynchronizer)
 				if err != nil {
-					const msg = "failed to sync deposit tree: %+v"
+					const msg = "failed to sync block tree: %+v"
 					s.Log.Fatalf(msg, err.Error())
 				}
 
