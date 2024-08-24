@@ -110,21 +110,20 @@ func (mt *PoseidonIncrementalMerkleTree) ComputeMerkleProof(index uint64, leaves
 	}
 	proofIndex := index
 	for height := uint8(int0Key); height < mt.height; height++ {
-		getLeaf := func(index uint64) *PoseidonHashOut {
-			if proofIndex >= uint64(len(leaves)) {
-				return mt.zeroHashes[height]
-			}
-			return leaves[index]
-		}
-
 		if len(leaves)%int2Key == int1Key {
 			leaves = append(leaves, mt.zeroHashes[height])
 		}
-		if proofIndex%int2Key == int1Key {
-			// If it is odd
-			siblings = append(siblings, getLeaf(proofIndex-int1Key))
-		} else if len(leaves) > int1Key {
-			siblings = append(siblings, getLeaf(proofIndex+int1Key))
+
+		getLeaf := func(i uint64) *PoseidonHashOut {
+			if i >= uint64(len(leaves)) {
+				return mt.zeroHashes[height]
+			}
+
+			return leaves[i]
+		}
+
+		if len(leaves) > int1Key {
+			siblings = append(siblings, getLeaf(proofIndex^int1Key))
 		}
 
 		var (
@@ -235,7 +234,7 @@ func (mt *PoseidonIncrementalMerkleTree) initSiblings(initialLeaves []*PoseidonH
 		return siblings, *root, nil
 	}
 
-	return mt.ComputeMerkleProof(mt.count, initialLeaves)
+	return mt.ComputeMerkleProof(mt.count-1, initialLeaves)
 }
 
 // GetCurrentRootCountAndSiblings returns the latest root, count and sibblings
