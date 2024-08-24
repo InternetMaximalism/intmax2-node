@@ -349,14 +349,14 @@ func (t *IndexedMerkleTree) GetLeaf(index LeafIndex) *IndexedMerkleLeaf {
 }
 
 func (t *IndexedMerkleTree) Prove(index LeafIndex) (proof *IndexedMerkleProof, root PoseidonHashOut, err error) {
-	siblings, err := t.inner.Prove(index)
+	innerProof, err := t.inner.Prove(index)
 	if err != nil {
 		return nil, goldenposeidon.PoseidonHashOut{}, err
 	}
 
 	root = t.GetRoot()
 
-	proof = &IndexedMerkleProof{Siblings: siblings}
+	proof = &IndexedMerkleProof{Siblings: innerProof.Siblings}
 	return proof, root, err
 }
 
@@ -435,7 +435,7 @@ func (t *IndexedMerkleTree) Update(key *big.Int, value uint64) (*IndexedUpdatePr
 	}
 
 	return &IndexedUpdateProof{
-		LeafProof: IndexedMerkleProof{Siblings: leafProof},
+		LeafProof: IndexedMerkleProof{Siblings: leafProof.Siblings},
 		LeafIndex: index,
 		PrevLeaf:  *prevLeaf,
 	}, nil

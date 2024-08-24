@@ -46,6 +46,10 @@ func (t *PoseidonMerkleTree) GetNodeHash(
 		return h
 	}
 
+	return t.getZeroHash(nodeIndex)
+}
+
+func (t *PoseidonMerkleTree) getZeroHash(nodeIndex int) *PoseidonHashOut {
 	reversedIndex := len(t.zeroHashes) - bits.Len(uint(nodeIndex))
 
 	return t.zeroHashes[reversedIndex]
@@ -76,7 +80,7 @@ func (t *PoseidonMerkleTree) updateLeaf(
 	}
 }
 
-func (t *PoseidonMerkleTree) Prove(index int) ([]*PoseidonHashOut, error) {
+func (t *PoseidonMerkleTree) Prove(index int) (*PoseidonMerkleProof, error) {
 	if index < 0 || index >= 1<<int(t.height) {
 		var ErrMerkleTreeIndexOutOfRange = errors.New("the Merkle tree index out of range")
 		return nil, ErrMerkleTreeIndexOutOfRange
@@ -90,5 +94,44 @@ func (t *PoseidonMerkleTree) Prove(index int) ([]*PoseidonHashOut, error) {
 		nodeIndex >>= 1
 	}
 
-	return siblings, nil
+	return &PoseidonMerkleProof{
+		Siblings: siblings,
+	}, nil
+}
+
+type PoseidonMerkleProof struct {
+	Siblings []*PoseidonHashOut
+}
+
+func (proof *PoseidonMerkleProof) GetMerkleRoot(
+	index int,
+	leafHash *PoseidonHashOut,
+) *PoseidonHashOut {
+	nodeHash := new(PoseidonHashOut).Set(leafHash)
+
+	for _, sibling := range proof.Siblings {
+		if index&1 == 1 {
+			nodeHash = goldenposeidon.Compress(sibling, nodeHash)
+		} else {
+			nodeHash = goldenposeidon.Compress(nodeHash, sibling)
+		}
+		index >>= 1
+	}
+
+	return nodeHash
+}
+
+func (proof *PoseidonMerkleProof) Verify(
+	root *PoseidonHashOut,
+	index int,
+	leafHash *PoseidonHashOut,
+) error {
+	expectedRoot := proof.GetMerkleRoot(index, leafHash)
+
+	if !expectedRoot.Equal(root) {
+		var ErrMerkleProofVerifyFail = errors.New("the Merkle proof verify fail")
+		return ErrMerkleProofVerifyFail
+	}
+
+	return nil
 }
