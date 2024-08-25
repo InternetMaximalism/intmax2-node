@@ -65,8 +65,6 @@ var ErrInvalidERC1155Args = errors.New("ERC1155 operation requires a token addre
 
 var ErrInvalidTokenType = errors.New("invalid token type. Use 'eth', 'erc20', 'erc721', or 'erc1155'")
 
-var ErrTokenNotFound = errors.New("token not found on INTMAX network")
-
 var ErrFailedToGetBalance = errors.New("failed to get balance")
 
 var ErrFetchTokenByTokenAddressAndTokenIDWithDBApp = errors.New("failed to fetch token by tokenAddress and tokenId with DBApp")

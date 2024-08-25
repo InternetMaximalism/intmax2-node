@@ -45,10 +45,5 @@ func (u *uc) Do(ctx context.Context, args []string, userEthPrivateKey string) (e
 		}
 	}()
 
-	err = service.GetBalance(spanCtx, u.cfg, u.log, u.sb, args, userEthPrivateKey)
-	if err != nil {
-		return fmt.Errorf("failed to get balance: %w", err)
-	}
-
-	return err
+	return service.GetBalance(spanCtx, u.cfg, u.log, u.sb, args, userEthPrivateKey)
 }

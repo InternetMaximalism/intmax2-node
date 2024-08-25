@@ -63,7 +63,7 @@ func (ti *TokenInfo) ParseFromStrings(args []string) (*TokenInfo, error) {
 		if err != nil {
 			return nil, ErrInvalidERC20Args
 		}
-		tokenAddress = common.Address(tokenAddressBytes)
+		tokenAddress = common.BytesToAddress(tokenAddressBytes)
 	case erc721TokenType:
 		if len(args) != int3Key {
 			return nil, ErrInvalidERC721Args
@@ -73,7 +73,7 @@ func (ti *TokenInfo) ParseFromStrings(args []string) (*TokenInfo, error) {
 		if err != nil {
 			return nil, ErrInvalidERC721Args
 		}
-		tokenAddress = common.Address(tokenAddressBytes)
+		tokenAddress = common.BytesToAddress(tokenAddressBytes)
 		tokenIDStr := args[2]
 		tokenID, ok = new(big.Int).SetString(tokenIDStr, int10Key)
 		if !ok {
@@ -88,7 +88,7 @@ func (ti *TokenInfo) ParseFromStrings(args []string) (*TokenInfo, error) {
 		if err != nil {
 			return nil, ErrInvalidERC1155Args
 		}
-		tokenAddress = common.Address(tokenAddressBytes)
+		tokenAddress = common.BytesToAddress(tokenAddressBytes)
 		tokenIDStr := args[2]
 		tokenID, ok = new(big.Int).SetString(tokenIDStr, int10Key)
 		if !ok {

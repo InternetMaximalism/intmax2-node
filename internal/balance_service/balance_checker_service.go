@@ -45,12 +45,12 @@ func GetBalance(
 ) error {
 	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(utils.RemoveZeroX(userEthPrivateKey))
 	if err != nil {
-		return errors.Join(ErrInvalidPrivateKey, err)
+		return ErrInvalidPrivateKey
 	}
 
 	userPk, err := intMaxAcc.NewPrivateKeyFromString(wallet.IntMaxPrivateKey)
 	if err != nil {
-		return errors.Join(ErrRecoverWalletFromPrivateKey, err)
+		return ErrRecoverWalletFromPrivateKey
 	}
 
 	fmt.Printf("Ethereum address: %s\n", wallet.WalletAddress.Hex())
@@ -58,14 +58,12 @@ func GetBalance(
 
 	tokenInfo, err := new(intMaxTypes.TokenInfo).ParseFromStrings(args)
 	if err != nil {
-		fmt.Println(ErrInvalidTokenType)
-		return nil
+		return ErrInvalidTokenType
 	}
 
 	l1Balance, err := GetTokenBalance(ctx, cfg, lg, *wallet.WalletAddress, *tokenInfo)
 	if err != nil {
-		fmt.Printf(ErrFailedToGetBalance, "Ethereum")
-		return nil
+		return fmt.Errorf(ErrFailedToGetBalance, "Ethereum")
 	}
 
 	switch tokenInfo.TokenType {
@@ -94,18 +92,16 @@ func GetBalance(
 
 	tokenIndex, err := GetTokenIndexFromLiquidityContract(ctx, cfg, sb, *tokenInfo)
 	if err != nil {
-		if errors.Is(err, ErrTokenNotFound) {
-			fmt.Println("Specified token is not found in INTMAX network")
-			return nil
+		if errors.Is(err, ErrTokenNotFoundOnIntMax) {
+			return errors.New("specified token is not found in INTMAX network")
 		}
 
-		return errors.Join(ErrFailedToGetTokenIndex, err)
+		return ErrFailedToGetTokenIndex
 	}
 
-	l2Balance, err := GetUserBalance(ctx, cfg, lg, userPk, tokenIndex)
+	l2Balance, err := GetUserBalance(ctx, cfg, userPk, tokenIndex)
 	if err != nil {
-		fmt.Printf(ErrFailedToGetBalance, "INTMAX")
-		return nil
+		return fmt.Errorf(ErrFailedToGetBalance, "INTMAX")
 	}
 
 	switch tokenInfo.TokenType {
@@ -220,7 +216,7 @@ func GetTokenIndexFromLiquidityContract(
 		return 0, fmt.Errorf("failed to get token index from liquidity contract: %v", err)
 	}
 	if !ok {
-		return 0, ErrTokenNotFound
+		return 0, ErrTokenNotFoundOnIntMax
 	}
 
 	return tokenIndex, nil
@@ -229,15 +225,14 @@ func GetTokenIndexFromLiquidityContract(
 func GetUserBalance(
 	ctx context.Context,
 	cfg *configs.Config,
-	lg logger.Logger,
 	userPrivateKey *intMaxAcc.PrivateKey,
 	tokenIndex uint32,
 ) (*big.Int, error) {
-	userAllData, err := GetUserBalancesRawRequest(ctx, cfg, lg, userPrivateKey.ToAddress().String())
+	userAllData, err := GetUserBalancesRawRequest(ctx, cfg, userPrivateKey.ToAddress().String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user balances: %w", err)
 	}
-	balanceData, err := CalculateBalance(ctx, cfg, lg, userAllData, tokenIndex, *userPrivateKey)
+	balanceData, err := CalculateBalance(ctx, cfg, userAllData, tokenIndex, *userPrivateKey)
 	if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
 		return nil, ErrFetchBalanceByUserAddressAndTokenInfoWithDBApp
 	}
@@ -255,7 +250,6 @@ func GetUserBalance(
 func GetUserBalancesRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
-	lg logger.Logger,
 	address string,
 ) (*GetBalancesResponse, error) {
 	const (
@@ -282,12 +276,7 @@ func GetUserBalancesRawRequest(
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		err = fmt.Errorf("failed to get response")
-		lg.WithFields(logger.Fields{
-			"status_code": resp.StatusCode(),
-			"response":    resp.String(),
-		}).WithError(err).Errorf("Unexpected status code")
-		return nil, err
+		return nil, fmt.Errorf("failed to get response")
 	}
 
 	response := new(GetBalancesResponse)
@@ -301,7 +290,6 @@ func GetUserBalancesRawRequest(
 func GetDepositValidityRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
-	lg logger.Logger,
 	depositID string,
 ) (bool, error) {
 	const (
@@ -329,12 +317,7 @@ func GetDepositValidityRawRequest(
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		err = fmt.Errorf("failed to get response")
-		lg.WithFields(logger.Fields{
-			"status_code": resp.StatusCode(),
-			"response":    resp.String(),
-		}).WithError(err).Errorf("Unexpected status code")
-		return false, err
+		return false, fmt.Errorf("failed to get response")
 	}
 
 	response := new(GetVerifyDepositConfirmationResponse)
@@ -352,7 +335,6 @@ func GetDepositValidityRawRequest(
 func CalculateBalance(
 	ctx context.Context,
 	cfg *configs.Config,
-	lg logger.Logger,
 	userAllData *GetBalancesResponse,
 	tokenIndex uint32,
 	userPrivateKey intMaxAcc.PrivateKey,
@@ -383,7 +365,6 @@ func CalculateBalance(
 		ok, err := GetDepositValidityRawRequest(
 			ctx,
 			cfg,
-			lg,
 			depositID,
 		)
 		if err != nil {

@@ -11,7 +11,6 @@ import (
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/hash/goldenposeidon"
-	"intmax2-node/internal/logger"
 	"intmax2-node/internal/pb/gen/service/node"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/backup_deposit"
@@ -41,12 +40,11 @@ var ErrFailedToApproveERC721Transaction = errors.New("failed to send ERC721.Appr
 type TxDepositService struct {
 	ctx       context.Context
 	cfg       *configs.Config
-	log       logger.Logger
 	client    *ethclient.Client
 	liquidity *bindings.Liquidity
 }
 
-func NewTxDepositService(ctx context.Context, cfg *configs.Config, log logger.Logger, _ ServiceBlockchain) (*TxDepositService, error) {
+func NewTxDepositService(ctx context.Context, cfg *configs.Config, _ ServiceBlockchain) (*TxDepositService, error) {
 	client, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new client: %w", err)
@@ -60,7 +58,6 @@ func NewTxDepositService(ctx context.Context, cfg *configs.Config, log logger.Lo
 	return &TxDepositService{
 		ctx:       ctx,
 		cfg:       cfg,
-		log:       log,
 		client:    client,
 		liquidity: liquidity,
 	}, nil
@@ -247,6 +244,7 @@ func (d *TxDepositService) depositEth(
 	}
 	transactOpts.Value = amount
 
+	fmt.Printf("Deposit ETH to %s. Processing...\n", recipient.String())
 	tx, err := d.liquidity.DepositETH(transactOpts, recipientSaltHash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send DepositETH transaction: %w", err)
@@ -300,6 +298,7 @@ func (d *TxDepositService) depositErc20(
 		return nil, ErrInsufficientERC20Balance
 	}
 
+	fmt.Println("Approve ERC20 token. Processing...")
 	tx, err := erc20.Approve(transactOpts, common.HexToAddress(d.cfg.Blockchain.LiquidityContractAddress), amount)
 	if err != nil {
 		return nil, errors.Join(ErrFailedToApproveERC20Transaction, err)
@@ -310,6 +309,7 @@ func (d *TxDepositService) depositErc20(
 		return nil, errors.Join(ErrWaitForTransaction, err)
 	}
 
+	fmt.Printf("Deposit ERC20 token to %s. Processing...\n", recipient.String())
 	tx2, err := d.liquidity.DepositERC20(transactOpts, tokenAddress, recipientSaltHash, amount)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send DepositERC20 transaction: %w", err)
@@ -363,6 +363,7 @@ func (d *TxDepositService) depositErc721(
 		return nil, ErrInsufficientERC721Balance
 	}
 
+	fmt.Println("Approve ERC721 token. Processing...")
 	tx, err := erc721.Approve(transactOpts, common.HexToAddress(d.cfg.Blockchain.LiquidityContractAddress), tokenId)
 	if err != nil {
 		return nil, errors.Join(ErrFailedToApproveERC721Transaction, err)
@@ -373,6 +374,7 @@ func (d *TxDepositService) depositErc721(
 		return nil, errors.Join(ErrWaitForTransaction, err)
 	}
 
+	fmt.Printf("Deposit ERC721 token to %s. Processing...\n", recipient.String())
 	tx2, err := d.liquidity.DepositERC721(transactOpts, tokenAddress, recipientSaltHash, tokenId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send DepositERC721 transaction: %w", err)
@@ -455,7 +457,6 @@ func (d *TxDepositService) BackupDeposit(
 	err = backupDepositRawRequest(
 		d.ctx,
 		d.cfg,
-		d.log,
 		encodedEncryptedText,
 		recipientPublicKey.ToAddress().String(),
 		uint32(depositID),
@@ -471,7 +472,6 @@ func (d *TxDepositService) BackupDeposit(
 func backupDepositRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
-	log logger.Logger,
 	encodedEncryptedText string,
 	recipient string,
 	depositID uint32,
@@ -512,12 +512,7 @@ func backupDepositRawRequest(
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		err = fmt.Errorf("failed to get response")
-		log.WithFields(logger.Fields{
-			"status_code": resp.StatusCode(),
-			"response":    resp.String(),
-		}).WithError(err).Errorf("Unexpected status code")
-		return err
+		return fmt.Errorf("failed to get response")
 	}
 
 	response := new(node.BackupDepositResponse)

@@ -2,9 +2,7 @@ package tx_withdrawal_service
 
 import "errors"
 
-const (
-	ErrFailedToGetBalance = "failed to get balance"
-)
+var ErrFailedToGetBalance = errors.New("failed to get balance")
 
 var ErrTokenNotFound = errors.New("token not found")
 
