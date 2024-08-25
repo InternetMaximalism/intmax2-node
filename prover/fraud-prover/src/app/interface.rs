@@ -17,7 +17,6 @@ pub struct ErrorResponse {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FraudProofRequest {
-    pub id: String,
     pub validity_proof: String,
     pub challenger: String,
 }

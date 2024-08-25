@@ -23,13 +23,13 @@ curl $FRAUD_PROVER_URL/health | jq
 
 ```sh
 # generate proof
-curl -X POST -d '{ "id": "1", "challenger":"0x9Fa732B331a5455125c57f9db2E54E03c1CbbA5E", "fraudProof":"'$(base64 --input data/fraud_proof_0x436d3f984fe2d267a6cf8bec2cd062473dd56cec08540115c430474c25f9be4e.bin)'" }' -H "Content-Type: application/json" $FRAUD_PROVER_URL/proof/wrapper | jq
+curl -X POST -d '{ "challenger":"0x9Fa732B331a5455125c57f9db2E54E03c1CbbA5E", "validityProof":"'$(base64 --input data/validity_proof_2.bin)'" }' -H "Content-Type: application/json" $FRAUD_PROVER_URL/proof/fraud | jq
 
 # get proof
-curl $FRAUD_PROVER_URL/proof/fraud/2 | jq
+curl $FRAUD_PROVER_URL/proof/fraud/0x6c2ff605ed2adab635279915e3a420e0df65c73df30c5902644758ebde74f2e6 | jq
 
 # get proofs
-curl "$FRAUD_PROVER_URL/proofs/wrapper?ids[]=1&ids[]=2" | jq
+curl "$FRAUD_PROVER_URL/proofs/fraud?ids[]=0x6c2ff605ed2adab635279915e3a420e0df65c73df30c5902644758ebde74f2e6" | jq
 ```
 
 ## Docker

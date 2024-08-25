@@ -10,7 +10,10 @@ use crate::{
     proof::generate_fraud_proof_job,
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
-use intmax2_zkp::ethereum_types::{address::Address, u32limb_trait::U32LimbTrait as _};
+use intmax2_zkp::{
+    circuits::validity::validity_pis::ValidityPublicInputs,
+    ethereum_types::{address::Address, u32limb_trait::U32LimbTrait as _},
+};
 
 #[get("/proof/fraud/{id}")]
 async fn get_proof(
@@ -93,7 +96,21 @@ async fn generate_proof(
         .await
         .map_err(error::ErrorInternalServerError)?;
 
-    let request_id = get_fraud_request_id(&req.id);
+    let validity_circuit_data = state
+        .validity_circuit
+        .get()
+        .ok_or_else(|| error::ErrorInternalServerError("validity circuit is not initialized"))?
+        .data
+        .verifier_data();
+    let validity_proof = decode_plonky2_proof(&req.validity_proof, &validity_circuit_data)
+        .map_err(error::ErrorInternalServerError)?;
+
+    let challenger = Address::from_hex(&req.challenger).map_err(error::ErrorInternalServerError)?;
+
+    let block_hash = ValidityPublicInputs::from_pis(&validity_proof.public_inputs)
+        .public_state
+        .block_hash;
+    let request_id = get_fraud_request_id(&block_hash.to_string());
     let old_proof = redis::Cmd::get(&request_id)
         .query_async::<_, Option<String>>(&mut redis_conn)
         .await
@@ -107,17 +124,6 @@ async fn generate_proof(
 
         return Ok(HttpResponse::Ok().json(response));
     }
-
-    let validity_circuit_data = state
-        .validity_circuit
-        .get()
-        .ok_or_else(|| error::ErrorInternalServerError("validity circuit is not initialized"))?
-        .data
-        .verifier_data();
-    let validity_proof = decode_plonky2_proof(&req.validity_proof, &validity_circuit_data)
-        .map_err(error::ErrorInternalServerError)?;
-
-    let challenger = Address::from_hex(&req.challenger).map_err(error::ErrorInternalServerError)?;
 
     // Spawn a new task to generate the proof
     actix_web::rt::spawn(async move {
@@ -147,10 +153,13 @@ async fn generate_proof(
 
     Ok(HttpResponse::Ok().json(GenerateProofResponse {
         success: true,
-        message: "fraud proof is generating".to_string(),
+        message: format!(
+            "fraud proof (block hash: {}) is generating",
+            block_hash.to_string()
+        ),
     }))
 }
 
-fn get_fraud_request_id(id: &str) -> String {
-    format!("fraud/{}", id)
+fn get_fraud_request_id(block_hash: &str) -> String {
+    format!("fraud/{}", block_hash)
 }
