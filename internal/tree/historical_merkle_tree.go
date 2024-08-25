@@ -3,6 +3,7 @@ package tree
 import (
 	"encoding/json"
 	"fmt"
+	"intmax2-node/internal/hash/goldenposeidon"
 	"math/bits"
 )
 
@@ -24,41 +25,145 @@ type PreimageWithType struct {
 	PreimageJSON []byte
 }
 
-type Preimages interface {
-	BatchUpdate(preimages map[string]*PreimageWithType) error
+type MerkleTreeHistory interface {
+	PushVersion(root *PoseidonHashOut, leaves map[int]*PoseidonHashOut, preimages map[string]*PreimageWithType) error
+	LatestVersion() int
 	GetPreimageByHash(hash string) (*PreimageWithType, error)
+	GetLeaves(version int, indices []int) (map[int]*PoseidonHashOut, error)
+	GetRoot(version int) (*PoseidonHashOut, error)
+	SetUnusedIndex(index int)
+	NextUnusedIndex() int
 }
 
-type preimagesOnMemory map[string]*PreimageWithType
+type merkleTreeHistoryOnMemory struct {
+	preimages       map[string]*PreimageWithType
+	versionedLeaves []map[int]*PoseidonHashOut
+	historicalRoots []string
+	nextUnusedIndex int
+	countWrite      int
+	countRead       int
+}
 
-func (p *preimagesOnMemory) BatchUpdate(preimages map[string]*PreimageWithType) error {
-	for k, v := range preimages {
-		(*p)[k] = v
+func NewMerkleTreeHistoryOnMemory() *merkleTreeHistoryOnMemory {
+	return &merkleTreeHistoryOnMemory{
+		preimages:       make(map[string]*PreimageWithType),
+		versionedLeaves: make([]map[int]*PoseidonHashOut, 0), // version => leaf => hash
 	}
+}
+
+func (p *merkleTreeHistoryOnMemory) PushVersion(root *PoseidonHashOut, leaves map[int]*PoseidonHashOut, preimages map[string]*PreimageWithType) error {
+	for k, v := range preimages {
+		p.preimages[k] = v
+	}
+
+	p.versionedLeaves = append(p.versionedLeaves, leaves)
+	p.historicalRoots = append(p.historicalRoots, root.String())
+	p.countWrite += len(preimages)
 
 	return nil
 }
 
-func (p *preimagesOnMemory) GetPreimageByHash(k string) (*PreimageWithType, error) {
-	v, ok := (*p)[k]
+func (p *merkleTreeHistoryOnMemory) LatestVersion() int {
+	return len(p.versionedLeaves) - 1
+}
+
+func (p *merkleTreeHistoryOnMemory) GetPreimageByHash(k string) (*PreimageWithType, error) {
+	v, ok := p.preimages[k]
 	if !ok {
 		return nil, fmt.Errorf("preimage not found")
 	}
+	p.countRead++
 
 	return v, nil
 }
 
+func (p *merkleTreeHistoryOnMemory) GetLeaves(version int, indices []int) (map[int]*PoseidonHashOut, error) {
+	if version < 0 {
+		return nil, fmt.Errorf("version must be greater than or equal to 0")
+	}
+	if version >= len(p.versionedLeaves) {
+		return nil, fmt.Errorf("version not found")
+	}
+
+	result := make(map[int]*PoseidonHashOut)
+	for _, index := range indices {
+		var hash *PoseidonHashOut
+		var v int
+		for v := version; v >= 0; v-- {
+			leaves := p.versionedLeaves[v]
+			var ok bool
+			foundHash, ok := leaves[index]
+			if ok {
+				hash = new(PoseidonHashOut).Set(foundHash)
+				break
+			}
+		}
+
+		if v < 0 {
+			continue
+		}
+		p.countRead++
+
+		result[index] = hash
+	}
+
+	return result, nil
+}
+
+func (p *merkleTreeHistoryOnMemory) GetRoot(version int) (*PoseidonHashOut, error) {
+	if version < 0 {
+		return nil, fmt.Errorf("version must be greater than or equal to 0")
+	}
+	if version >= len(p.historicalRoots) {
+		return nil, fmt.Errorf("version not found")
+	}
+
+	root := p.historicalRoots[version]
+	if root == "" {
+		return nil, fmt.Errorf("root not found")
+	}
+
+	p.countRead++
+
+	result := new(PoseidonHashOut)
+	result.FromString(root)
+
+	return result, nil
+}
+
+func (p *merkleTreeHistoryOnMemory) SetUnusedIndex(index int) {
+	p.nextUnusedIndex = index
+}
+
+func (p *merkleTreeHistoryOnMemory) NextUnusedIndex() int {
+	return p.nextUnusedIndex
+}
+
+func (p *merkleTreeHistoryOnMemory) Size() int {
+	size := 0
+	for key, value := range p.preimages {
+		size += len(key) + len(value.PreimageJSON) + 16
+	}
+
+	return size
+}
+
+func (p *merkleTreeHistoryOnMemory) ReportStats() {
+	fmt.Printf("size of Storage: %d bytes\n", p.Size())
+	fmt.Printf("count of writing storage: %d\n", p.countRead)
+	fmt.Printf("count of reading storage: %d\n", p.countRead)
+}
+
 type HistoricalPoseidonMerkleTree struct {
 	*PoseidonMerkleTree
-	NextUnusedIndex      int
-	HistoricalRoots      []string
-	Cache                Preimages
+	Storage              MerkleTreeHistory
 	CachingSubTreeHeight uint8
 }
 
 func NewHistoricalPoseidonMerkleTree(
 	height uint8,
 	zeroHash *PoseidonHashOut,
+	storage MerkleTreeHistory,
 	cachingSubTreeHeight uint8,
 ) (*HistoricalPoseidonMerkleTree, error) {
 	mt, err := NewPoseidonMerkleTree(height, zeroHash)
@@ -67,22 +172,36 @@ func NewHistoricalPoseidonMerkleTree(
 	}
 
 	root := mt.GetRoot()
-	cache := make(preimagesOnMemory)
+	tmpCache := make(map[string]*PreimageWithType)
 	addCache(
 		root.String(),
 		height,
 		[]string{},
 		zeroHash.String(),
-		cache,
+		tmpCache,
 	)
 
-	return &HistoricalPoseidonMerkleTree{
+	emptyLeaves := make(map[int]*goldenposeidon.PoseidonHashOut)
+	storage.PushVersion(root, emptyLeaves, tmpCache)
+
+	tree := HistoricalPoseidonMerkleTree{
 		PoseidonMerkleTree:   mt,
-		NextUnusedIndex:      0,
-		HistoricalRoots:      []string{root.String()},
-		Cache:                &cache,
+		Storage:              storage,
 		CachingSubTreeHeight: cachingSubTreeHeight,
-	}, nil
+	}
+
+	nextUnusedIndex := storage.NextUnusedIndex()
+	indices := []int{}
+	for i := 0; i < nextUnusedIndex; i++ {
+		indices = append(indices, i)
+	}
+
+	err = tree.LoadNodeHashes(indices)
+	if err != nil {
+		return nil, err
+	}
+
+	return &tree, nil
 }
 
 type PoseidonMerkleLeafWithIndex struct {
@@ -93,35 +212,88 @@ type PoseidonMerkleLeafWithIndex struct {
 func (t *HistoricalPoseidonMerkleTree) UpdateLeaves(
 	leaves []*PoseidonMerkleLeafWithIndex,
 ) (root *PoseidonHashOut, err error) {
-	tmpPreimages := make(preimagesOnMemory)
+	tmpPreimages := make(map[string]*PreimageWithType)
 	for _, leaf := range leaves {
-
 		_, err := t.updateLeaf(leaf.Index, leaf.LeafHash, tmpPreimages)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	t.Cache.BatchUpdate(tmpPreimages)
+	leavesMap := make(map[int]*PoseidonHashOut)
+	for _, leaf := range leaves {
+		leavesMap[leaf.Index] = leaf.LeafHash
+	}
+
+	t.Storage.PushVersion(t.PoseidonMerkleTree.GetRoot(), leavesMap, tmpPreimages)
 
 	root = t.PoseidonMerkleTree.GetRoot()
-	t.HistoricalRoots = append(t.HistoricalRoots, root.String())
+	// t.Storage.historicalRoots = append(t.Storage.historicalRoots, root.String())
 
 	return root, nil
+}
+
+func (t *HistoricalPoseidonMerkleTree) GetRoot() *PoseidonHashOut {
+	return t.PoseidonMerkleTree.GetRoot()
+}
+
+func (t *HistoricalPoseidonMerkleTree) LoadNodeHashes(indices []int) error {
+	latestVersion := t.Storage.LatestVersion()
+	root, err := t.Storage.GetRoot(latestVersion)
+	if err != nil {
+		fmt.Printf("not found root root")
+		return err
+	}
+
+	leavesMap, err := t.Storage.GetLeaves(latestVersion, indices)
+	if err != nil {
+		return err
+	}
+
+	leaves := make([]*PoseidonMerkleLeafWithIndex, 0, len(leavesMap))
+	// for i := range indices {
+	// 	leaves[i] = &PoseidonMerkleLeafWithIndex{
+	// 		Index:    indices[i],
+	// 		LeafHash: leavesMap[indices[i]],
+	// 	}
+	// }
+	for k, v := range leavesMap {
+		v := PoseidonMerkleLeafWithIndex{
+			Index:    k,
+			LeafHash: v,
+		}
+		leaves = append(leaves, &v)
+	}
+
+	t.PoseidonMerkleTree.ClearCache()
+	_, err = t.UpdateLeaves(leaves)
+	if err != nil {
+		return err
+	}
+
+	if t.PoseidonMerkleTree.GetRoot().Equal(root) {
+		return nil
+	}
+
+	return nil
 }
 
 func (t *HistoricalPoseidonMerkleTree) updateLeaf(
 	index int,
 	leafHash *PoseidonHashOut,
-	cache preimagesOnMemory,
+	cache map[string]*PreimageWithType,
 ) (string, error) {
+	// t.LoadNodeHashes()
+
 	t.PoseidonMerkleTree.updateLeaf(index, new(PoseidonHashOut).Set(leafHash))
 
-	if int(index) >= t.NextUnusedIndex {
-		t.NextUnusedIndex = int(index) + 1
+	nextUnusedIndex := t.Storage.NextUnusedIndex()
+	if int(index) >= nextUnusedIndex {
+		nextUnusedIndex = int(index) + 1
+		t.Storage.SetUnusedIndex(int(index) + 1)
 	}
 
-	significantHeight := uint8(effectiveBits(uint(t.NextUnusedIndex - 1)))
+	significantHeight := uint8(effectiveBits(uint(nextUnusedIndex - 1)))
 
 	restHeight := significantHeight % t.CachingSubTreeHeight
 
@@ -133,9 +305,11 @@ func (t *HistoricalPoseidonMerkleTree) updateLeaf(
 	for i := uint8(0); i < significantHeight-restHeight; i += t.CachingSubTreeHeight {
 		targetLeftMostChildNodeIndex := targetChildNodeIndex & ^clearMask
 		nonDefaultChildren := []string{}
+		defaultChild := t.getZeroHash(targetChildNodeIndex)
 		for j := 0; j < numTargetNodes; j++ {
-			nodeHash := t.GetNodeHash(targetLeftMostChildNodeIndex + j)
-			nonDefaultChildren = append(nonDefaultChildren, nodeHash.String())
+			if nodeHash, ok := t.nodeHashes[targetLeftMostChildNodeIndex+j]; ok {
+				nonDefaultChildren = append(nonDefaultChildren, nodeHash.String())
+			}
 		}
 
 		nextTargetChildNodeIndex := targetChildNodeIndex >> t.CachingSubTreeHeight
@@ -144,7 +318,7 @@ func (t *HistoricalPoseidonMerkleTree) updateLeaf(
 			parentHash.String(),
 			t.CachingSubTreeHeight,
 			nonDefaultChildren,
-			t.getZeroHash(targetChildNodeIndex).String(),
+			defaultChild.String(),
 			cache,
 		)
 		targetChildNodeIndex = nextTargetChildNodeIndex
@@ -180,6 +354,8 @@ func (t *HistoricalPoseidonMerkleTree) updateLeaf(
 }
 
 func (t *HistoricalPoseidonMerkleTree) Prove(targetRoot *PoseidonHashOut, index int) (*PoseidonMerkleProof, error) {
+	// t.LoadNodeHashes()
+
 	nodeIndex := 1<<t.height + index
 
 	siblings := make([]*PoseidonHashOut, 0)
@@ -187,7 +363,7 @@ func (t *HistoricalPoseidonMerkleTree) Prove(targetRoot *PoseidonHashOut, index 
 	targetHeight := uint8(0)
 	targetNodeHash := new(PoseidonHashOut).Set(targetRoot)
 	for targetHeight < t.height {
-		preimageWithType, err := t.Cache.GetPreimageByHash(targetNodeHash.String())
+		preimageWithType, err := t.Storage.GetPreimageByHash(targetNodeHash.String())
 		if err != nil {
 			return nil, fmt.Errorf("preimage not found")
 		}
@@ -201,6 +377,7 @@ func (t *HistoricalPoseidonMerkleTree) Prove(targetRoot *PoseidonHashOut, index 
 		if err != nil {
 			return nil, err
 		}
+		// fmt.Printf("preimage = %v\n", preimage)
 
 		defaultChild := new(PoseidonHashOut)
 		err = defaultChild.FromString(preimage.DefaultChild)
@@ -279,11 +456,11 @@ func getSubTreeIndex(nodeIndex int, truncatedHeight, subTreeHeight uint8) int {
 }
 
 func addCache(
-	root string,
+	parentHash string,
 	treeHeight uint8,
 	nonDefaultChildren []string,
 	defaultChild string,
-	cache preimagesOnMemory,
+	cache map[string]*PreimageWithType,
 ) error {
 	subTreePreimage := PoseidonSubTreePreimage{
 		Height:             treeHeight,
@@ -301,7 +478,7 @@ func addCache(
 		PreimageJSON: subTreePreimageJSON,
 	}
 
-	cache[root] = &subTree
+	cache[parentHash] = &subTree
 
 	return nil
 }

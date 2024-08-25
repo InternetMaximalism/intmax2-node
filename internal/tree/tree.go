@@ -14,6 +14,10 @@ type PoseidonMerkleTree struct {
 	nodeHashes map[int]*PoseidonHashOut
 }
 
+func (t *PoseidonMerkleTree) ClearCache() {
+	t.nodeHashes = make(map[int]*PoseidonHashOut)
+}
+
 // NewPoseidonMerkleTree creates new PoseidonMerkleTree by giving leaf nodes.
 func NewPoseidonMerkleTree(
 	height uint8,
