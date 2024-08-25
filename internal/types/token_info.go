@@ -51,48 +51,48 @@ func (ti *TokenInfo) ParseFromStrings(args []string) (*TokenInfo, error) {
 	switch tokenTypeStr {
 	case ethTokenType:
 		if len(args) != 1 {
-			return nil, ErrETHBalanceCheckArgs
+			return nil, ErrInvalidETHArgs
 		}
 		tokenType = ethTokenTypeEnum
 	case erc20TokenType:
 		if len(args) != int2Key {
-			return nil, ErrERC20BalanceCheckArgs
+			return nil, ErrInvalidERC20Args
 		}
 		tokenType = erc20TokenTypeEnum
 		tokenAddressBytes, err := hexutil.Decode(args[1])
 		if err != nil {
-			return nil, ErrERC20BalanceCheckArgs
+			return nil, ErrInvalidERC20Args
 		}
 		tokenAddress = common.BytesToAddress(tokenAddressBytes)
 	case erc721TokenType:
 		if len(args) != int3Key {
-			return nil, ErrERC721BalanceCheckArgs
+			return nil, ErrInvalidERC721Args
 		}
 		tokenType = erc721TokenTypeEnum
 		tokenAddressBytes, err := hexutil.Decode(args[1])
 		if err != nil {
-			return nil, ErrERC721BalanceCheckArgs
+			return nil, ErrInvalidERC721Args
 		}
 		tokenAddress = common.BytesToAddress(tokenAddressBytes)
 		tokenIDStr := args[2]
 		tokenID, ok = new(big.Int).SetString(tokenIDStr, int10Key)
 		if !ok {
-			return nil, ErrERC721BalanceCheckArgs
+			return nil, ErrInvalidERC721Args
 		}
 	case erc1155TokenType:
 		if len(args) != int3Key {
-			return nil, ErrERC1155BalanceCheckArgs
+			return nil, ErrInvalidERC1155Args
 		}
 		tokenType = erc1155TokenTypeEnum
 		tokenAddressBytes, err := hexutil.Decode(args[1])
 		if err != nil {
-			return nil, ErrERC1155BalanceCheckArgs
+			return nil, ErrInvalidERC1155Args
 		}
 		tokenAddress = common.BytesToAddress(tokenAddressBytes)
 		tokenIDStr := args[2]
 		tokenID, ok = new(big.Int).SetString(tokenIDStr, int10Key)
 		if !ok {
-			return nil, ErrERC1155BalanceCheckArgs
+			return nil, ErrInvalidERC1155Args
 		}
 	default:
 		return nil, ErrInvalidTokenType

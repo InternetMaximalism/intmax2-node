@@ -55,13 +55,13 @@ var ErrPowNonceTooLarge = errors.New("PoW nonce is too large")
 
 var ErrTokenTypeRequired = errors.New("token type is required")
 
-var ErrETHBalanceCheckArgs = errors.New("ETH balance check doesn't require additional arguments")
+var ErrInvalidETHArgs = errors.New("ETH operation requires additional arguments")
 
-var ErrERC721BalanceCheckArgs = errors.New("ERC721 balance check requires a token address and token ID")
+var ErrInvalidERC20Args = errors.New("ERC20 operation requires a token address")
 
-var ErrERC20BalanceCheckArgs = errors.New("ERC20 balance check requires a token address")
+var ErrInvalidERC721Args = errors.New("ERC721 operation requires a token address and token ID")
 
-var ErrERC1155BalanceCheckArgs = errors.New("ERC1155 balance check requires a token address and token ID")
+var ErrInvalidERC1155Args = errors.New("ERC1155 operation requires a token address and token ID")
 
 var ErrInvalidTokenType = errors.New("invalid token type. Use 'eth', 'erc20', 'erc721', or 'erc1155'")
 
