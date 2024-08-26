@@ -256,12 +256,22 @@ message BlockStatusByTxTreeRootResponse {
 // InfoRequest describes request about retrieves the block builder's Scroll address, transaction fee, and difficulty
 message InfoRequest {}
 
-// InfoResponse describes response about retrieves the block builder's Scroll address, transaction fee, and difficulty
-message InfoResponse {
+
+
+// DataInfoResponse describes the data of response about retrieves the block builder's Scroll address, transaction fee, and difficulty
+message DataInfoResponse {
   // the block builder's Scroll address
   string scroll_address = 10 [json_name="scrollAddress", (tagger.tags)="json:\"scrollAddress,omitempty\""];
   // the mapping of token addresses in INTMAX to fees payable in those tokens
   map<string,string> transfer_fee = 20 [json_name="transferFee", (tagger.tags)="json:\"transferFee,omitempty\""];
   // the PoW difficulty value
-  string difficulty = 30 [json_name="difficulty", (tagger.tags)="json:\"difficulty,omitempty\""];
+  uint32 difficulty = 30 [json_name="difficulty", (tagger.tags)="json:\"difficulty,omitempty\""];
+}
+
+// InfoResponse describes response about retrieves the block builder's Scroll address, transaction fee, and difficulty
+message InfoResponse {
+  // the success flag
+  bool success = 1 [json_name="success", (tagger.tags)="json:\"success,omitempty\""];
+  // the info about the request's result
+  DataInfoResponse data = 10 [json_name="data", (tagger.tags)="json:\"data,omitempty\""];
 }

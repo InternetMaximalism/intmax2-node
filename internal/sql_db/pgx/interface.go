@@ -29,6 +29,8 @@ type PGX interface {
 	Senders
 	Accounts
 	BackupBalances
+	CtrlProcessingJobs
+	GasPriceOracle
 }
 
 type GenericCommands interface {
@@ -204,4 +206,14 @@ type BackupBalances interface {
 	) (*mDBApp.BackupBalance, error)
 	GetBackupBalance(conditions []string, values []interface{}) (*mDBApp.BackupBalance, error)
 	GetBackupBalances(condition string, value interface{}) ([]*mDBApp.BackupBalance, error)
+}
+
+type CtrlProcessingJobs interface {
+	CreateCtrlProcessingJobs(name string) error
+	CtrlProcessingJobs(name string) (*mDBApp.CtrlProcessingJobs, error)
+}
+
+type GasPriceOracle interface {
+	CreateGasPriceOracle(name string, value *uint256.Int) error
+	GasPriceOracle(name string) (*mDBApp.GasPriceOracle, error)
 }

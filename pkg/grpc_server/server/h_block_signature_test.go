@@ -45,6 +45,8 @@ func TestHandlerBlockSignature(t *testing.T) {
 	dbApp := NewMockSQLDriverApp(ctrl)
 	wrk := NewMockWorker(ctrl)
 	hc := health.NewHandler()
+	sb := NewMockServiceBlockchain(ctrl)
+	storageGPO := NewMockGPOStorage(ctrl)
 
 	pw := pow.New(cfg.PoW.Difficulty)
 	pWorker := pow.NewWorker(cfg.PoW.Workers, pw)
@@ -75,7 +77,7 @@ func TestHandlerBlockSignature(t *testing.T) {
 	cmd := NewMockCommands(ctrl)
 	//ucBS := mocks.NewMockUseCaseBlockSignature(ctrl)
 
-	grpcServerStop, gwServer := Start(cmd, ctx, cfg, log, dbApp, &hc, pwNonce, wrk)
+	grpcServerStop, gwServer := Start(cmd, ctx, cfg, log, dbApp, &hc, pwNonce, wrk, sb, storageGPO)
 	defer grpcServerStop()
 
 	cases := []struct {

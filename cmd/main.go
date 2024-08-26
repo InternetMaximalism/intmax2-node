@@ -26,6 +26,7 @@ import (
 	"intmax2-node/internal/open_telemetry"
 	"intmax2-node/internal/pow"
 	"intmax2-node/internal/worker"
+	"intmax2-node/pkg/gas_price_oracle"
 	"intmax2-node/pkg/logger"
 	"intmax2-node/pkg/sql_db/db_app"
 	"os"
@@ -83,6 +84,7 @@ func main() {
 	ns := network_service.New(cfg)
 	hc := health.NewHandler()
 	bbr := block_builder_registry_service.New(cfg, log, bc)
+	storeGPO := gas_price_oracle.NewStoreGPO(cfg, dbApp, bc)
 
 	pw := pow.New(cfg.PoW.Difficulty)
 	pWorker := pow.NewWorker(cfg.PoW.Workers, pw)
@@ -107,6 +109,7 @@ func main() {
 			Worker:              w,
 			DepositSynchronizer: depositSynchronizer,
 			BlockValidityProver: blockValidityProver,
+			GPOStorage:          storeGPO,
 		}),
 		migrator.NewMigratorCmd(ctx, log, dbApp),
 		deposit.NewDepositCmd(&deposit.Deposit{

@@ -23,6 +23,8 @@ type SQLDriverApp interface {
 	EventBlockNumbersErrors
 	Senders
 	Accounts
+	CtrlProcessingJobs
+	GasPriceOracleApp
 }
 
 type GenericCommandsApp interface {
@@ -99,4 +101,14 @@ type Accounts interface {
 	AccountByAccountID(accountID *uint256.Int) (*mDBApp.Account, error)
 	ResetSequenceByAccounts() error
 	DelAllAccounts() error
+}
+
+type CtrlProcessingJobs interface {
+	CreateCtrlProcessingJobs(name string) error
+	CtrlProcessingJobs(name string) (*mDBApp.CtrlProcessingJobs, error)
+}
+
+type GasPriceOracleApp interface {
+	CreateGasPriceOracle(name string, value *uint256.Int) error
+	GasPriceOracle(name string) (*mDBApp.GasPriceOracle, error)
 }
