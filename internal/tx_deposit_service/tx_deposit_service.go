@@ -245,7 +245,7 @@ func (d *TxDepositService) depositEth(
 	transactOpts.Value = amount
 
 	fmt.Printf("Deposit ETH to %s. Processing...\n", recipient.String())
-	tx, err := d.liquidity.DepositETH(transactOpts, recipientSaltHash)
+	tx, err := d.liquidity.DepositNativeToken(transactOpts, recipientSaltHash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send DepositETH transaction: %w", err)
 	}
