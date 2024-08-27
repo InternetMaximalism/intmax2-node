@@ -55,7 +55,7 @@ type WithdrawalProofPublicInputsLibWithdrawalProofPublicInputs struct {
 
 // WithdrawalMetaData contains all meta data concerning the Withdrawal contract.
 var WithdrawalMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"target\",\"type\":\"address\"}],\"name\":\"AddressEmptyCode\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"blockHash\",\"type\":\"bytes32\"}],\"name\":\"BlockHashNotExists\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"claimableWithdrawalId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"rear\",\"type\":\"uint256\"}],\"name\":\"ClaimableWithdrawalIsTooLarge\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"directWithdrawalId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"rear\",\"type\":\"uint256\"}],\"name\":\"DirectWithdrawalIsTooLarge\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"implementation\",\"type\":\"address\"}],\"name\":\"ERC1967InvalidImplementation\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"ERC1967NonPayable\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"FailedInnerCall\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidInitialization\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"NotInitializing\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"OwnableInvalidOwner\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"OwnableUnauthorizedAccount\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"QueueIsEmpty\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"QueueIsEmpty\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"count\",\"type\":\"uint256\"}],\"name\":\"TooManyRelayClaimableWithdrawals\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"count\",\"type\":\"uint256\"}],\"name\":\"TooManyRelayDirectWithdrawals\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"UUPSUnauthorizedCallContext\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"slot\",\"type\":\"bytes32\"}],\"name\":\"UUPSUnsupportedProxiableUUID\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"WithdrawalAggregatorMismatch\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"requestIndex\",\"type\":\"uint256\"}],\"name\":\"WithdrawalBlockHashNotPosted\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"WithdrawalChainVerificationFailed\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"WithdrawalProofVerificationFailed\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"WithdrawalsHashMismatch\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"claimableWithdrawalId\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"id\",\"type\":\"uint256\"}],\"indexed\":false,\"internalType\":\"structWithdrawalLib.Withdrawal\",\"name\":\"withdrawal\",\"type\":\"tuple\"}],\"name\":\"ClaimableWithdrawalQueued\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"directWithdrawalId\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"id\",\"type\":\"uint256\"}],\"indexed\":false,\"internalType\":\"structWithdrawalLib.Withdrawal\",\"name\":\"withdrawal\",\"type\":\"tuple\"}],\"name\":\"DirectWithdrawalQueued\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint64\",\"name\":\"version\",\"type\":\"uint64\"}],\"name\":\"Initialized\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"implementation\",\"type\":\"address\"}],\"name\":\"Upgraded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"lastDirectWithdrawalId\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"lastClaimableWithdrawalId\",\"type\":\"uint256\"}],\"name\":\"WithdrawalsQueued\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"UPGRADE_INTERFACE_VERSION\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getLastClaimableWithdrawalId\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getLastDirectWithdrawalId\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getLastRelayedClaimableWithdrawalId\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getLastRelayedDirectWithdrawalId\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_scrollMessenger\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_withdrawalVerifier\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_liquidity\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_rollup\",\"type\":\"address\"},{\"internalType\":\"uint256[]\",\"name\":\"_directWithdrawalTokenIndices\",\"type\":\"uint256[]\"}],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"proxiableUUID\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"upToClamableWithdrawalId\",\"type\":\"uint256\"}],\"name\":\"relayClaimableWithdrawals\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"upToDirectWithdrawalId\",\"type\":\"uint256\"}],\"name\":\"relayDirectWithdrawals\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"upToDirectWithdrawalId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"upToClamableWithdrawalId\",\"type\":\"uint256\"}],\"name\":\"relayWithdrawals\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"nullifier\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"blockHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint32\",\"name\":\"blockNumber\",\"type\":\"uint32\"}],\"internalType\":\"structChainedWithdrawalLib.ChainedWithdrawal[]\",\"name\":\"withdrawals\",\"type\":\"tuple[]\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"lastWithdrawalHash\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"withdrawalAggregator\",\"type\":\"address\"}],\"internalType\":\"structWithdrawalProofPublicInputsLib.WithdrawalProofPublicInputs\",\"name\":\"publicInputs\",\"type\":\"tuple\"},{\"internalType\":\"bytes\",\"name\":\"proof\",\"type\":\"bytes\"}],\"name\":\"submitWithdrawalProof\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"newImplementation\",\"type\":\"address\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"upgradeToAndCall\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"target\",\"type\":\"address\"}],\"name\":\"AddressEmptyCode\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"blockHash\",\"type\":\"bytes32\"}],\"name\":\"BlockHashNotExists\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"claimableWithdrawalId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"rear\",\"type\":\"uint256\"}],\"name\":\"ClaimableWithdrawalIsTooLarge\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"directWithdrawalId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"rear\",\"type\":\"uint256\"}],\"name\":\"DirectWithdrawalIsTooLarge\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"implementation\",\"type\":\"address\"}],\"name\":\"ERC1967InvalidImplementation\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"ERC1967NonPayable\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"FailedInnerCall\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidInitialization\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"NotInitializing\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"owner\",\"type\":\"address\"}],\"name\":\"OwnableInvalidOwner\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"OwnableUnauthorizedAccount\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"tokenIndice\",\"type\":\"uint256\"}],\"name\":\"TokenAlreadyExist\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"tokenIndice\",\"type\":\"uint256\"}],\"name\":\"TokenNotExist\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"count\",\"type\":\"uint256\"}],\"name\":\"TooManyRelayClaimableWithdrawals\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"count\",\"type\":\"uint256\"}],\"name\":\"TooManyRelayDirectWithdrawals\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"UUPSUnauthorizedCallContext\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"slot\",\"type\":\"bytes32\"}],\"name\":\"UUPSUnsupportedProxiableUUID\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"WithdrawalAggregatorMismatch\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"requestIndex\",\"type\":\"uint256\"}],\"name\":\"WithdrawalBlockHashNotPosted\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"WithdrawalChainVerificationFailed\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"WithdrawalProofVerificationFailed\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"WithdrawalsHashMismatch\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"claimableWithdrawalId\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"id\",\"type\":\"uint256\"}],\"indexed\":false,\"internalType\":\"structWithdrawalLib.Withdrawal\",\"name\":\"withdrawal\",\"type\":\"tuple\"}],\"name\":\"ClaimableWithdrawalQueued\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"directWithdrawalId\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"id\",\"type\":\"uint256\"}],\"indexed\":false,\"internalType\":\"structWithdrawalLib.Withdrawal\",\"name\":\"withdrawal\",\"type\":\"tuple\"}],\"name\":\"DirectWithdrawalQueued\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint64\",\"name\":\"version\",\"type\":\"uint64\"}],\"name\":\"Initialized\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"implementation\",\"type\":\"address\"}],\"name\":\"Upgraded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"lastDirectWithdrawalId\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"lastClaimableWithdrawalId\",\"type\":\"uint256\"}],\"name\":\"WithdrawalsQueued\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"UPGRADE_INTERFACE_VERSION\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256[]\",\"name\":\"tokenIndices\",\"type\":\"uint256[]\"}],\"name\":\"addDirectWithdrawalTokenIndices\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getDirectWithdrawalTokenIndices\",\"outputs\":[{\"internalType\":\"uint256[]\",\"name\":\"\",\"type\":\"uint256[]\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_scrollMessenger\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_withdrawalVerifier\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_liquidity\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_rollup\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_contribution\",\"type\":\"address\"},{\"internalType\":\"uint256[]\",\"name\":\"_directWithdrawalTokenIndices\",\"type\":\"uint256[]\"}],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"lastClaimableWithdrawalId\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"lastDirectWithdrawalId\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"proxiableUUID\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256[]\",\"name\":\"tokenIndices\",\"type\":\"uint256[]\"}],\"name\":\"removeDirectWithdrawalTokenIndices\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"renounceOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"nullifier\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"blockHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint32\",\"name\":\"blockNumber\",\"type\":\"uint32\"}],\"internalType\":\"structChainedWithdrawalLib.ChainedWithdrawal[]\",\"name\":\"withdrawals\",\"type\":\"tuple[]\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"lastWithdrawalHash\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"withdrawalAggregator\",\"type\":\"address\"}],\"internalType\":\"structWithdrawalProofPublicInputsLib.WithdrawalProofPublicInputs\",\"name\":\"publicInputs\",\"type\":\"tuple\"},{\"internalType\":\"bytes\",\"name\":\"proof\",\"type\":\"bytes\"}],\"name\":\"submitWithdrawalProof\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"newImplementation\",\"type\":\"address\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"upgradeToAndCall\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
 }
 
 // WithdrawalABI is the input ABI used to generate the binding from.
@@ -235,12 +235,43 @@ func (_Withdrawal *WithdrawalCallerSession) UPGRADEINTERFACEVERSION() (string, e
 	return _Withdrawal.Contract.UPGRADEINTERFACEVERSION(&_Withdrawal.CallOpts)
 }
 
-// GetLastClaimableWithdrawalId is a free data retrieval call binding the contract method 0x9c23689a.
+// GetDirectWithdrawalTokenIndices is a free data retrieval call binding the contract method 0xa7178c37.
 //
-// Solidity: function getLastClaimableWithdrawalId() view returns(uint256)
-func (_Withdrawal *WithdrawalCaller) GetLastClaimableWithdrawalId(opts *bind.CallOpts) (*big.Int, error) {
+// Solidity: function getDirectWithdrawalTokenIndices() view returns(uint256[])
+func (_Withdrawal *WithdrawalCaller) GetDirectWithdrawalTokenIndices(opts *bind.CallOpts) ([]*big.Int, error) {
 	var out []interface{}
-	err := _Withdrawal.contract.Call(opts, &out, "getLastClaimableWithdrawalId")
+	err := _Withdrawal.contract.Call(opts, &out, "getDirectWithdrawalTokenIndices")
+
+	if err != nil {
+		return *new([]*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new([]*big.Int)).(*[]*big.Int)
+
+	return out0, err
+
+}
+
+// GetDirectWithdrawalTokenIndices is a free data retrieval call binding the contract method 0xa7178c37.
+//
+// Solidity: function getDirectWithdrawalTokenIndices() view returns(uint256[])
+func (_Withdrawal *WithdrawalSession) GetDirectWithdrawalTokenIndices() ([]*big.Int, error) {
+	return _Withdrawal.Contract.GetDirectWithdrawalTokenIndices(&_Withdrawal.CallOpts)
+}
+
+// GetDirectWithdrawalTokenIndices is a free data retrieval call binding the contract method 0xa7178c37.
+//
+// Solidity: function getDirectWithdrawalTokenIndices() view returns(uint256[])
+func (_Withdrawal *WithdrawalCallerSession) GetDirectWithdrawalTokenIndices() ([]*big.Int, error) {
+	return _Withdrawal.Contract.GetDirectWithdrawalTokenIndices(&_Withdrawal.CallOpts)
+}
+
+// LastClaimableWithdrawalId is a free data retrieval call binding the contract method 0x3c3377a5.
+//
+// Solidity: function lastClaimableWithdrawalId() view returns(uint256)
+func (_Withdrawal *WithdrawalCaller) LastClaimableWithdrawalId(opts *bind.CallOpts) (*big.Int, error) {
+	var out []interface{}
+	err := _Withdrawal.contract.Call(opts, &out, "lastClaimableWithdrawalId")
 
 	if err != nil {
 		return *new(*big.Int), err
@@ -252,26 +283,26 @@ func (_Withdrawal *WithdrawalCaller) GetLastClaimableWithdrawalId(opts *bind.Cal
 
 }
 
-// GetLastClaimableWithdrawalId is a free data retrieval call binding the contract method 0x9c23689a.
+// LastClaimableWithdrawalId is a free data retrieval call binding the contract method 0x3c3377a5.
 //
-// Solidity: function getLastClaimableWithdrawalId() view returns(uint256)
-func (_Withdrawal *WithdrawalSession) GetLastClaimableWithdrawalId() (*big.Int, error) {
-	return _Withdrawal.Contract.GetLastClaimableWithdrawalId(&_Withdrawal.CallOpts)
+// Solidity: function lastClaimableWithdrawalId() view returns(uint256)
+func (_Withdrawal *WithdrawalSession) LastClaimableWithdrawalId() (*big.Int, error) {
+	return _Withdrawal.Contract.LastClaimableWithdrawalId(&_Withdrawal.CallOpts)
 }
 
-// GetLastClaimableWithdrawalId is a free data retrieval call binding the contract method 0x9c23689a.
+// LastClaimableWithdrawalId is a free data retrieval call binding the contract method 0x3c3377a5.
 //
-// Solidity: function getLastClaimableWithdrawalId() view returns(uint256)
-func (_Withdrawal *WithdrawalCallerSession) GetLastClaimableWithdrawalId() (*big.Int, error) {
-	return _Withdrawal.Contract.GetLastClaimableWithdrawalId(&_Withdrawal.CallOpts)
+// Solidity: function lastClaimableWithdrawalId() view returns(uint256)
+func (_Withdrawal *WithdrawalCallerSession) LastClaimableWithdrawalId() (*big.Int, error) {
+	return _Withdrawal.Contract.LastClaimableWithdrawalId(&_Withdrawal.CallOpts)
 }
 
-// GetLastDirectWithdrawalId is a free data retrieval call binding the contract method 0x4470590b.
+// LastDirectWithdrawalId is a free data retrieval call binding the contract method 0x705aeb47.
 //
-// Solidity: function getLastDirectWithdrawalId() view returns(uint256)
-func (_Withdrawal *WithdrawalCaller) GetLastDirectWithdrawalId(opts *bind.CallOpts) (*big.Int, error) {
+// Solidity: function lastDirectWithdrawalId() view returns(uint256)
+func (_Withdrawal *WithdrawalCaller) LastDirectWithdrawalId(opts *bind.CallOpts) (*big.Int, error) {
 	var out []interface{}
-	err := _Withdrawal.contract.Call(opts, &out, "getLastDirectWithdrawalId")
+	err := _Withdrawal.contract.Call(opts, &out, "lastDirectWithdrawalId")
 
 	if err != nil {
 		return *new(*big.Int), err
@@ -283,80 +314,18 @@ func (_Withdrawal *WithdrawalCaller) GetLastDirectWithdrawalId(opts *bind.CallOp
 
 }
 
-// GetLastDirectWithdrawalId is a free data retrieval call binding the contract method 0x4470590b.
+// LastDirectWithdrawalId is a free data retrieval call binding the contract method 0x705aeb47.
 //
-// Solidity: function getLastDirectWithdrawalId() view returns(uint256)
-func (_Withdrawal *WithdrawalSession) GetLastDirectWithdrawalId() (*big.Int, error) {
-	return _Withdrawal.Contract.GetLastDirectWithdrawalId(&_Withdrawal.CallOpts)
+// Solidity: function lastDirectWithdrawalId() view returns(uint256)
+func (_Withdrawal *WithdrawalSession) LastDirectWithdrawalId() (*big.Int, error) {
+	return _Withdrawal.Contract.LastDirectWithdrawalId(&_Withdrawal.CallOpts)
 }
 
-// GetLastDirectWithdrawalId is a free data retrieval call binding the contract method 0x4470590b.
+// LastDirectWithdrawalId is a free data retrieval call binding the contract method 0x705aeb47.
 //
-// Solidity: function getLastDirectWithdrawalId() view returns(uint256)
-func (_Withdrawal *WithdrawalCallerSession) GetLastDirectWithdrawalId() (*big.Int, error) {
-	return _Withdrawal.Contract.GetLastDirectWithdrawalId(&_Withdrawal.CallOpts)
-}
-
-// GetLastRelayedClaimableWithdrawalId is a free data retrieval call binding the contract method 0x9a1e9c39.
-//
-// Solidity: function getLastRelayedClaimableWithdrawalId() view returns(uint256)
-func (_Withdrawal *WithdrawalCaller) GetLastRelayedClaimableWithdrawalId(opts *bind.CallOpts) (*big.Int, error) {
-	var out []interface{}
-	err := _Withdrawal.contract.Call(opts, &out, "getLastRelayedClaimableWithdrawalId")
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// GetLastRelayedClaimableWithdrawalId is a free data retrieval call binding the contract method 0x9a1e9c39.
-//
-// Solidity: function getLastRelayedClaimableWithdrawalId() view returns(uint256)
-func (_Withdrawal *WithdrawalSession) GetLastRelayedClaimableWithdrawalId() (*big.Int, error) {
-	return _Withdrawal.Contract.GetLastRelayedClaimableWithdrawalId(&_Withdrawal.CallOpts)
-}
-
-// GetLastRelayedClaimableWithdrawalId is a free data retrieval call binding the contract method 0x9a1e9c39.
-//
-// Solidity: function getLastRelayedClaimableWithdrawalId() view returns(uint256)
-func (_Withdrawal *WithdrawalCallerSession) GetLastRelayedClaimableWithdrawalId() (*big.Int, error) {
-	return _Withdrawal.Contract.GetLastRelayedClaimableWithdrawalId(&_Withdrawal.CallOpts)
-}
-
-// GetLastRelayedDirectWithdrawalId is a free data retrieval call binding the contract method 0x164c0b26.
-//
-// Solidity: function getLastRelayedDirectWithdrawalId() view returns(uint256)
-func (_Withdrawal *WithdrawalCaller) GetLastRelayedDirectWithdrawalId(opts *bind.CallOpts) (*big.Int, error) {
-	var out []interface{}
-	err := _Withdrawal.contract.Call(opts, &out, "getLastRelayedDirectWithdrawalId")
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// GetLastRelayedDirectWithdrawalId is a free data retrieval call binding the contract method 0x164c0b26.
-//
-// Solidity: function getLastRelayedDirectWithdrawalId() view returns(uint256)
-func (_Withdrawal *WithdrawalSession) GetLastRelayedDirectWithdrawalId() (*big.Int, error) {
-	return _Withdrawal.Contract.GetLastRelayedDirectWithdrawalId(&_Withdrawal.CallOpts)
-}
-
-// GetLastRelayedDirectWithdrawalId is a free data retrieval call binding the contract method 0x164c0b26.
-//
-// Solidity: function getLastRelayedDirectWithdrawalId() view returns(uint256)
-func (_Withdrawal *WithdrawalCallerSession) GetLastRelayedDirectWithdrawalId() (*big.Int, error) {
-	return _Withdrawal.Contract.GetLastRelayedDirectWithdrawalId(&_Withdrawal.CallOpts)
+// Solidity: function lastDirectWithdrawalId() view returns(uint256)
+func (_Withdrawal *WithdrawalCallerSession) LastDirectWithdrawalId() (*big.Int, error) {
+	return _Withdrawal.Contract.LastDirectWithdrawalId(&_Withdrawal.CallOpts)
 }
 
 // Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
@@ -421,88 +390,67 @@ func (_Withdrawal *WithdrawalCallerSession) ProxiableUUID() ([32]byte, error) {
 	return _Withdrawal.Contract.ProxiableUUID(&_Withdrawal.CallOpts)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0x2da3f9ce.
+// AddDirectWithdrawalTokenIndices is a paid mutator transaction binding the contract method 0x871c5fe7.
 //
-// Solidity: function initialize(address _scrollMessenger, address _withdrawalVerifier, address _liquidity, address _rollup, uint256[] _directWithdrawalTokenIndices) returns()
-func (_Withdrawal *WithdrawalTransactor) Initialize(opts *bind.TransactOpts, _scrollMessenger common.Address, _withdrawalVerifier common.Address, _liquidity common.Address, _rollup common.Address, _directWithdrawalTokenIndices []*big.Int) (*types.Transaction, error) {
-	return _Withdrawal.contract.Transact(opts, "initialize", _scrollMessenger, _withdrawalVerifier, _liquidity, _rollup, _directWithdrawalTokenIndices)
+// Solidity: function addDirectWithdrawalTokenIndices(uint256[] tokenIndices) returns()
+func (_Withdrawal *WithdrawalTransactor) AddDirectWithdrawalTokenIndices(opts *bind.TransactOpts, tokenIndices []*big.Int) (*types.Transaction, error) {
+	return _Withdrawal.contract.Transact(opts, "addDirectWithdrawalTokenIndices", tokenIndices)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0x2da3f9ce.
+// AddDirectWithdrawalTokenIndices is a paid mutator transaction binding the contract method 0x871c5fe7.
 //
-// Solidity: function initialize(address _scrollMessenger, address _withdrawalVerifier, address _liquidity, address _rollup, uint256[] _directWithdrawalTokenIndices) returns()
-func (_Withdrawal *WithdrawalSession) Initialize(_scrollMessenger common.Address, _withdrawalVerifier common.Address, _liquidity common.Address, _rollup common.Address, _directWithdrawalTokenIndices []*big.Int) (*types.Transaction, error) {
-	return _Withdrawal.Contract.Initialize(&_Withdrawal.TransactOpts, _scrollMessenger, _withdrawalVerifier, _liquidity, _rollup, _directWithdrawalTokenIndices)
+// Solidity: function addDirectWithdrawalTokenIndices(uint256[] tokenIndices) returns()
+func (_Withdrawal *WithdrawalSession) AddDirectWithdrawalTokenIndices(tokenIndices []*big.Int) (*types.Transaction, error) {
+	return _Withdrawal.Contract.AddDirectWithdrawalTokenIndices(&_Withdrawal.TransactOpts, tokenIndices)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0x2da3f9ce.
+// AddDirectWithdrawalTokenIndices is a paid mutator transaction binding the contract method 0x871c5fe7.
 //
-// Solidity: function initialize(address _scrollMessenger, address _withdrawalVerifier, address _liquidity, address _rollup, uint256[] _directWithdrawalTokenIndices) returns()
-func (_Withdrawal *WithdrawalTransactorSession) Initialize(_scrollMessenger common.Address, _withdrawalVerifier common.Address, _liquidity common.Address, _rollup common.Address, _directWithdrawalTokenIndices []*big.Int) (*types.Transaction, error) {
-	return _Withdrawal.Contract.Initialize(&_Withdrawal.TransactOpts, _scrollMessenger, _withdrawalVerifier, _liquidity, _rollup, _directWithdrawalTokenIndices)
+// Solidity: function addDirectWithdrawalTokenIndices(uint256[] tokenIndices) returns()
+func (_Withdrawal *WithdrawalTransactorSession) AddDirectWithdrawalTokenIndices(tokenIndices []*big.Int) (*types.Transaction, error) {
+	return _Withdrawal.Contract.AddDirectWithdrawalTokenIndices(&_Withdrawal.TransactOpts, tokenIndices)
 }
 
-// RelayClaimableWithdrawals is a paid mutator transaction binding the contract method 0x2b8d1b5c.
+// Initialize is a paid mutator transaction binding the contract method 0xf05d0982.
 //
-// Solidity: function relayClaimableWithdrawals(uint256 upToClamableWithdrawalId) returns()
-func (_Withdrawal *WithdrawalTransactor) RelayClaimableWithdrawals(opts *bind.TransactOpts, upToClamableWithdrawalId *big.Int) (*types.Transaction, error) {
-	return _Withdrawal.contract.Transact(opts, "relayClaimableWithdrawals", upToClamableWithdrawalId)
+// Solidity: function initialize(address _scrollMessenger, address _withdrawalVerifier, address _liquidity, address _rollup, address _contribution, uint256[] _directWithdrawalTokenIndices) returns()
+func (_Withdrawal *WithdrawalTransactor) Initialize(opts *bind.TransactOpts, _scrollMessenger common.Address, _withdrawalVerifier common.Address, _liquidity common.Address, _rollup common.Address, _contribution common.Address, _directWithdrawalTokenIndices []*big.Int) (*types.Transaction, error) {
+	return _Withdrawal.contract.Transact(opts, "initialize", _scrollMessenger, _withdrawalVerifier, _liquidity, _rollup, _contribution, _directWithdrawalTokenIndices)
 }
 
-// RelayClaimableWithdrawals is a paid mutator transaction binding the contract method 0x2b8d1b5c.
+// Initialize is a paid mutator transaction binding the contract method 0xf05d0982.
 //
-// Solidity: function relayClaimableWithdrawals(uint256 upToClamableWithdrawalId) returns()
-func (_Withdrawal *WithdrawalSession) RelayClaimableWithdrawals(upToClamableWithdrawalId *big.Int) (*types.Transaction, error) {
-	return _Withdrawal.Contract.RelayClaimableWithdrawals(&_Withdrawal.TransactOpts, upToClamableWithdrawalId)
+// Solidity: function initialize(address _scrollMessenger, address _withdrawalVerifier, address _liquidity, address _rollup, address _contribution, uint256[] _directWithdrawalTokenIndices) returns()
+func (_Withdrawal *WithdrawalSession) Initialize(_scrollMessenger common.Address, _withdrawalVerifier common.Address, _liquidity common.Address, _rollup common.Address, _contribution common.Address, _directWithdrawalTokenIndices []*big.Int) (*types.Transaction, error) {
+	return _Withdrawal.Contract.Initialize(&_Withdrawal.TransactOpts, _scrollMessenger, _withdrawalVerifier, _liquidity, _rollup, _contribution, _directWithdrawalTokenIndices)
 }
 
-// RelayClaimableWithdrawals is a paid mutator transaction binding the contract method 0x2b8d1b5c.
+// Initialize is a paid mutator transaction binding the contract method 0xf05d0982.
 //
-// Solidity: function relayClaimableWithdrawals(uint256 upToClamableWithdrawalId) returns()
-func (_Withdrawal *WithdrawalTransactorSession) RelayClaimableWithdrawals(upToClamableWithdrawalId *big.Int) (*types.Transaction, error) {
-	return _Withdrawal.Contract.RelayClaimableWithdrawals(&_Withdrawal.TransactOpts, upToClamableWithdrawalId)
+// Solidity: function initialize(address _scrollMessenger, address _withdrawalVerifier, address _liquidity, address _rollup, address _contribution, uint256[] _directWithdrawalTokenIndices) returns()
+func (_Withdrawal *WithdrawalTransactorSession) Initialize(_scrollMessenger common.Address, _withdrawalVerifier common.Address, _liquidity common.Address, _rollup common.Address, _contribution common.Address, _directWithdrawalTokenIndices []*big.Int) (*types.Transaction, error) {
+	return _Withdrawal.Contract.Initialize(&_Withdrawal.TransactOpts, _scrollMessenger, _withdrawalVerifier, _liquidity, _rollup, _contribution, _directWithdrawalTokenIndices)
 }
 
-// RelayDirectWithdrawals is a paid mutator transaction binding the contract method 0x38d78c78.
+// RemoveDirectWithdrawalTokenIndices is a paid mutator transaction binding the contract method 0x9a0002a9.
 //
-// Solidity: function relayDirectWithdrawals(uint256 upToDirectWithdrawalId) returns()
-func (_Withdrawal *WithdrawalTransactor) RelayDirectWithdrawals(opts *bind.TransactOpts, upToDirectWithdrawalId *big.Int) (*types.Transaction, error) {
-	return _Withdrawal.contract.Transact(opts, "relayDirectWithdrawals", upToDirectWithdrawalId)
+// Solidity: function removeDirectWithdrawalTokenIndices(uint256[] tokenIndices) returns()
+func (_Withdrawal *WithdrawalTransactor) RemoveDirectWithdrawalTokenIndices(opts *bind.TransactOpts, tokenIndices []*big.Int) (*types.Transaction, error) {
+	return _Withdrawal.contract.Transact(opts, "removeDirectWithdrawalTokenIndices", tokenIndices)
 }
 
-// RelayDirectWithdrawals is a paid mutator transaction binding the contract method 0x38d78c78.
+// RemoveDirectWithdrawalTokenIndices is a paid mutator transaction binding the contract method 0x9a0002a9.
 //
-// Solidity: function relayDirectWithdrawals(uint256 upToDirectWithdrawalId) returns()
-func (_Withdrawal *WithdrawalSession) RelayDirectWithdrawals(upToDirectWithdrawalId *big.Int) (*types.Transaction, error) {
-	return _Withdrawal.Contract.RelayDirectWithdrawals(&_Withdrawal.TransactOpts, upToDirectWithdrawalId)
+// Solidity: function removeDirectWithdrawalTokenIndices(uint256[] tokenIndices) returns()
+func (_Withdrawal *WithdrawalSession) RemoveDirectWithdrawalTokenIndices(tokenIndices []*big.Int) (*types.Transaction, error) {
+	return _Withdrawal.Contract.RemoveDirectWithdrawalTokenIndices(&_Withdrawal.TransactOpts, tokenIndices)
 }
 
-// RelayDirectWithdrawals is a paid mutator transaction binding the contract method 0x38d78c78.
+// RemoveDirectWithdrawalTokenIndices is a paid mutator transaction binding the contract method 0x9a0002a9.
 //
-// Solidity: function relayDirectWithdrawals(uint256 upToDirectWithdrawalId) returns()
-func (_Withdrawal *WithdrawalTransactorSession) RelayDirectWithdrawals(upToDirectWithdrawalId *big.Int) (*types.Transaction, error) {
-	return _Withdrawal.Contract.RelayDirectWithdrawals(&_Withdrawal.TransactOpts, upToDirectWithdrawalId)
-}
-
-// RelayWithdrawals is a paid mutator transaction binding the contract method 0xa25da128.
-//
-// Solidity: function relayWithdrawals(uint256 upToDirectWithdrawalId, uint256 upToClamableWithdrawalId) returns()
-func (_Withdrawal *WithdrawalTransactor) RelayWithdrawals(opts *bind.TransactOpts, upToDirectWithdrawalId *big.Int, upToClamableWithdrawalId *big.Int) (*types.Transaction, error) {
-	return _Withdrawal.contract.Transact(opts, "relayWithdrawals", upToDirectWithdrawalId, upToClamableWithdrawalId)
-}
-
-// RelayWithdrawals is a paid mutator transaction binding the contract method 0xa25da128.
-//
-// Solidity: function relayWithdrawals(uint256 upToDirectWithdrawalId, uint256 upToClamableWithdrawalId) returns()
-func (_Withdrawal *WithdrawalSession) RelayWithdrawals(upToDirectWithdrawalId *big.Int, upToClamableWithdrawalId *big.Int) (*types.Transaction, error) {
-	return _Withdrawal.Contract.RelayWithdrawals(&_Withdrawal.TransactOpts, upToDirectWithdrawalId, upToClamableWithdrawalId)
-}
-
-// RelayWithdrawals is a paid mutator transaction binding the contract method 0xa25da128.
-//
-// Solidity: function relayWithdrawals(uint256 upToDirectWithdrawalId, uint256 upToClamableWithdrawalId) returns()
-func (_Withdrawal *WithdrawalTransactorSession) RelayWithdrawals(upToDirectWithdrawalId *big.Int, upToClamableWithdrawalId *big.Int) (*types.Transaction, error) {
-	return _Withdrawal.Contract.RelayWithdrawals(&_Withdrawal.TransactOpts, upToDirectWithdrawalId, upToClamableWithdrawalId)
+// Solidity: function removeDirectWithdrawalTokenIndices(uint256[] tokenIndices) returns()
+func (_Withdrawal *WithdrawalTransactorSession) RemoveDirectWithdrawalTokenIndices(tokenIndices []*big.Int) (*types.Transaction, error) {
+	return _Withdrawal.Contract.RemoveDirectWithdrawalTokenIndices(&_Withdrawal.TransactOpts, tokenIndices)
 }
 
 // RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
@@ -659,28 +607,47 @@ func (it *WithdrawalClaimableWithdrawalQueuedIterator) Close() error {
 // WithdrawalClaimableWithdrawalQueued represents a ClaimableWithdrawalQueued event raised by the Withdrawal contract.
 type WithdrawalClaimableWithdrawalQueued struct {
 	ClaimableWithdrawalId *big.Int
+	Recipient             common.Address
 	Withdrawal            WithdrawalLibWithdrawal
 	Raw                   types.Log // Blockchain specific contextual infos
 }
 
-// FilterClaimableWithdrawalQueued is a free log retrieval operation binding the contract event 0x3f2af586660eac5da372987fbb0f33da2d2768ed5e7416e4b96d1c74656ef2da.
+// FilterClaimableWithdrawalQueued is a free log retrieval operation binding the contract event 0xa82167f0d0baa7a4ee5cec53c8b897a8de2debb946fc5e79d62e3c502396b1e1.
 //
-// Solidity: event ClaimableWithdrawalQueued(uint256 claimableWithdrawalId, (address,uint32,uint256,uint256) withdrawal)
-func (_Withdrawal *WithdrawalFilterer) FilterClaimableWithdrawalQueued(opts *bind.FilterOpts) (*WithdrawalClaimableWithdrawalQueuedIterator, error) {
+// Solidity: event ClaimableWithdrawalQueued(uint256 indexed claimableWithdrawalId, address indexed recipient, (address,uint32,uint256,uint256) withdrawal)
+func (_Withdrawal *WithdrawalFilterer) FilterClaimableWithdrawalQueued(opts *bind.FilterOpts, claimableWithdrawalId []*big.Int, recipient []common.Address) (*WithdrawalClaimableWithdrawalQueuedIterator, error) {
 
-	logs, sub, err := _Withdrawal.contract.FilterLogs(opts, "ClaimableWithdrawalQueued")
+	var claimableWithdrawalIdRule []interface{}
+	for _, claimableWithdrawalIdItem := range claimableWithdrawalId {
+		claimableWithdrawalIdRule = append(claimableWithdrawalIdRule, claimableWithdrawalIdItem)
+	}
+	var recipientRule []interface{}
+	for _, recipientItem := range recipient {
+		recipientRule = append(recipientRule, recipientItem)
+	}
+
+	logs, sub, err := _Withdrawal.contract.FilterLogs(opts, "ClaimableWithdrawalQueued", claimableWithdrawalIdRule, recipientRule)
 	if err != nil {
 		return nil, err
 	}
 	return &WithdrawalClaimableWithdrawalQueuedIterator{contract: _Withdrawal.contract, event: "ClaimableWithdrawalQueued", logs: logs, sub: sub}, nil
 }
 
-// WatchClaimableWithdrawalQueued is a free log subscription operation binding the contract event 0x3f2af586660eac5da372987fbb0f33da2d2768ed5e7416e4b96d1c74656ef2da.
+// WatchClaimableWithdrawalQueued is a free log subscription operation binding the contract event 0xa82167f0d0baa7a4ee5cec53c8b897a8de2debb946fc5e79d62e3c502396b1e1.
 //
-// Solidity: event ClaimableWithdrawalQueued(uint256 claimableWithdrawalId, (address,uint32,uint256,uint256) withdrawal)
-func (_Withdrawal *WithdrawalFilterer) WatchClaimableWithdrawalQueued(opts *bind.WatchOpts, sink chan<- *WithdrawalClaimableWithdrawalQueued) (event.Subscription, error) {
+// Solidity: event ClaimableWithdrawalQueued(uint256 indexed claimableWithdrawalId, address indexed recipient, (address,uint32,uint256,uint256) withdrawal)
+func (_Withdrawal *WithdrawalFilterer) WatchClaimableWithdrawalQueued(opts *bind.WatchOpts, sink chan<- *WithdrawalClaimableWithdrawalQueued, claimableWithdrawalId []*big.Int, recipient []common.Address) (event.Subscription, error) {
 
-	logs, sub, err := _Withdrawal.contract.WatchLogs(opts, "ClaimableWithdrawalQueued")
+	var claimableWithdrawalIdRule []interface{}
+	for _, claimableWithdrawalIdItem := range claimableWithdrawalId {
+		claimableWithdrawalIdRule = append(claimableWithdrawalIdRule, claimableWithdrawalIdItem)
+	}
+	var recipientRule []interface{}
+	for _, recipientItem := range recipient {
+		recipientRule = append(recipientRule, recipientItem)
+	}
+
+	logs, sub, err := _Withdrawal.contract.WatchLogs(opts, "ClaimableWithdrawalQueued", claimableWithdrawalIdRule, recipientRule)
 	if err != nil {
 		return nil, err
 	}
@@ -712,9 +679,9 @@ func (_Withdrawal *WithdrawalFilterer) WatchClaimableWithdrawalQueued(opts *bind
 	}), nil
 }
 
-// ParseClaimableWithdrawalQueued is a log parse operation binding the contract event 0x3f2af586660eac5da372987fbb0f33da2d2768ed5e7416e4b96d1c74656ef2da.
+// ParseClaimableWithdrawalQueued is a log parse operation binding the contract event 0xa82167f0d0baa7a4ee5cec53c8b897a8de2debb946fc5e79d62e3c502396b1e1.
 //
-// Solidity: event ClaimableWithdrawalQueued(uint256 claimableWithdrawalId, (address,uint32,uint256,uint256) withdrawal)
+// Solidity: event ClaimableWithdrawalQueued(uint256 indexed claimableWithdrawalId, address indexed recipient, (address,uint32,uint256,uint256) withdrawal)
 func (_Withdrawal *WithdrawalFilterer) ParseClaimableWithdrawalQueued(log types.Log) (*WithdrawalClaimableWithdrawalQueued, error) {
 	event := new(WithdrawalClaimableWithdrawalQueued)
 	if err := _Withdrawal.contract.UnpackLog(event, "ClaimableWithdrawalQueued", log); err != nil {
@@ -794,28 +761,47 @@ func (it *WithdrawalDirectWithdrawalQueuedIterator) Close() error {
 // WithdrawalDirectWithdrawalQueued represents a DirectWithdrawalQueued event raised by the Withdrawal contract.
 type WithdrawalDirectWithdrawalQueued struct {
 	DirectWithdrawalId *big.Int
+	Recipient          common.Address
 	Withdrawal         WithdrawalLibWithdrawal
 	Raw                types.Log // Blockchain specific contextual infos
 }
 
-// FilterDirectWithdrawalQueued is a free log retrieval operation binding the contract event 0x93080122bf1eaab8665b29fb3bd5058bf008f53df680d51173e40ac6db315441.
+// FilterDirectWithdrawalQueued is a free log retrieval operation binding the contract event 0x9623b10e54d4fc7d3add91d9d36dc3e9c58bcb11a65d6d1f6f6c40752ac7a252.
 //
-// Solidity: event DirectWithdrawalQueued(uint256 directWithdrawalId, (address,uint32,uint256,uint256) withdrawal)
-func (_Withdrawal *WithdrawalFilterer) FilterDirectWithdrawalQueued(opts *bind.FilterOpts) (*WithdrawalDirectWithdrawalQueuedIterator, error) {
+// Solidity: event DirectWithdrawalQueued(uint256 indexed directWithdrawalId, address indexed recipient, (address,uint32,uint256,uint256) withdrawal)
+func (_Withdrawal *WithdrawalFilterer) FilterDirectWithdrawalQueued(opts *bind.FilterOpts, directWithdrawalId []*big.Int, recipient []common.Address) (*WithdrawalDirectWithdrawalQueuedIterator, error) {
 
-	logs, sub, err := _Withdrawal.contract.FilterLogs(opts, "DirectWithdrawalQueued")
+	var directWithdrawalIdRule []interface{}
+	for _, directWithdrawalIdItem := range directWithdrawalId {
+		directWithdrawalIdRule = append(directWithdrawalIdRule, directWithdrawalIdItem)
+	}
+	var recipientRule []interface{}
+	for _, recipientItem := range recipient {
+		recipientRule = append(recipientRule, recipientItem)
+	}
+
+	logs, sub, err := _Withdrawal.contract.FilterLogs(opts, "DirectWithdrawalQueued", directWithdrawalIdRule, recipientRule)
 	if err != nil {
 		return nil, err
 	}
 	return &WithdrawalDirectWithdrawalQueuedIterator{contract: _Withdrawal.contract, event: "DirectWithdrawalQueued", logs: logs, sub: sub}, nil
 }
 
-// WatchDirectWithdrawalQueued is a free log subscription operation binding the contract event 0x93080122bf1eaab8665b29fb3bd5058bf008f53df680d51173e40ac6db315441.
+// WatchDirectWithdrawalQueued is a free log subscription operation binding the contract event 0x9623b10e54d4fc7d3add91d9d36dc3e9c58bcb11a65d6d1f6f6c40752ac7a252.
 //
-// Solidity: event DirectWithdrawalQueued(uint256 directWithdrawalId, (address,uint32,uint256,uint256) withdrawal)
-func (_Withdrawal *WithdrawalFilterer) WatchDirectWithdrawalQueued(opts *bind.WatchOpts, sink chan<- *WithdrawalDirectWithdrawalQueued) (event.Subscription, error) {
+// Solidity: event DirectWithdrawalQueued(uint256 indexed directWithdrawalId, address indexed recipient, (address,uint32,uint256,uint256) withdrawal)
+func (_Withdrawal *WithdrawalFilterer) WatchDirectWithdrawalQueued(opts *bind.WatchOpts, sink chan<- *WithdrawalDirectWithdrawalQueued, directWithdrawalId []*big.Int, recipient []common.Address) (event.Subscription, error) {
 
-	logs, sub, err := _Withdrawal.contract.WatchLogs(opts, "DirectWithdrawalQueued")
+	var directWithdrawalIdRule []interface{}
+	for _, directWithdrawalIdItem := range directWithdrawalId {
+		directWithdrawalIdRule = append(directWithdrawalIdRule, directWithdrawalIdItem)
+	}
+	var recipientRule []interface{}
+	for _, recipientItem := range recipient {
+		recipientRule = append(recipientRule, recipientItem)
+	}
+
+	logs, sub, err := _Withdrawal.contract.WatchLogs(opts, "DirectWithdrawalQueued", directWithdrawalIdRule, recipientRule)
 	if err != nil {
 		return nil, err
 	}
@@ -847,9 +833,9 @@ func (_Withdrawal *WithdrawalFilterer) WatchDirectWithdrawalQueued(opts *bind.Wa
 	}), nil
 }
 
-// ParseDirectWithdrawalQueued is a log parse operation binding the contract event 0x93080122bf1eaab8665b29fb3bd5058bf008f53df680d51173e40ac6db315441.
+// ParseDirectWithdrawalQueued is a log parse operation binding the contract event 0x9623b10e54d4fc7d3add91d9d36dc3e9c58bcb11a65d6d1f6f6c40752ac7a252.
 //
-// Solidity: event DirectWithdrawalQueued(uint256 directWithdrawalId, (address,uint32,uint256,uint256) withdrawal)
+// Solidity: event DirectWithdrawalQueued(uint256 indexed directWithdrawalId, address indexed recipient, (address,uint32,uint256,uint256) withdrawal)
 func (_Withdrawal *WithdrawalFilterer) ParseDirectWithdrawalQueued(log types.Log) (*WithdrawalDirectWithdrawalQueued, error) {
 	event := new(WithdrawalDirectWithdrawalQueued)
 	if err := _Withdrawal.contract.UnpackLog(event, "DirectWithdrawalQueued", log); err != nil {

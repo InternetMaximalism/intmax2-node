@@ -225,17 +225,6 @@ Usage:
 Flags:
   -h, --help   help for analyzer
 ```
-### Command `./intmax2-node deposit relayer --help`
-```
-# ./intmax2-node deposit relayer --help
-Run deposit relayer service
-
-Usage:
-  app deposit relayer [flags]
-
-Flags:
-  -h, --help   help for relayer
-```
 ### Command `./intmax2-node store-valut-server run --help`
 ```
 # ./intmax2-node store-valut-server run --help
@@ -268,28 +257,6 @@ Usage:
 
 Flags:
   -h, --help help for aggregator
-```
-### Command `./intmax2-node withdrawal relayer --help`
-```
-# ./intmax2-node withdrawal relayer --help
-Run withdrawal relayer service
-
-Usage:
-  app withdrawal relayer [flags]
-
-Flags:
-  -h, --help help for relayer
-```
-### Command `./intmax2-node messenger relayer --help`
-```
-# ./intmax2-node messenger relayer --help
-Run messenger relayer service
-
-Usage:
-  app messenger relayer [flags]
-
-Flags:
-  -h, --help help for relayer
 ```
 ### Command `./intmax2-node messenger withdrawal-relayer --help`
 ```
@@ -455,14 +422,11 @@ When a node starts, it tries to find and remember its external address in this o
 |   | BLOCKCHAIN_ETHEREUM_NETWORK_CHAIN_ID                  |                                                                    | the Ethereum blockchain network ID. Chain ID must be equal: Sepolia = `11155111`; Ethereum = `1`                                           |
 |   | BLOCKCHAIN_ETHEREUM_BUILDER_KEY_HEX                   |                                                                    | (pk) Ethereum builder private key                                                                                                          |
 |   | BLOCKCHAIN_ETHEREUM_DEPOSIT_ANALYZER_PRIVATE_KEY_HEX  |                                                                    | (pk) Ethereum deposit analyzer private key                                                                                                 |
-|   | BLOCKCHAIN_ETHEREUM_DEPOSIT_RELAYER_PRIVATE_KEY_HEX   |                                                                    | (pk) Ethereum deposit relayer private key                                                                                                  |
 |   | BLOCKCHAIN_ETHEREUM_WITHDRAWAL_PRIVATE_KEY_HEX        |                                                                    | (pk) Ethereum withdrawal private key                                                                                                       |
 |   | BLOCKCHAIN_ETHEREUM_MESSENEGER_MOCK_PRIVATE_KEY_HEX   |                                                                    | (pk) Ethereum messenger mock private key                                                                                                   |
 |   | BLOCKCHAIN_MAX_COUNTER_OF_TRANSACTION                 | 128                                                                | max number of transactions in the block                                                                                                    |
 |   | BLOCKCHAIN_DEPOSIT_ANALYZER_THRESHOLD                 | 10                                                                 | threshold for deposit analyzer                                                                                                             |
 |   | BLOCKCHAIN_DEPOSIT_ANALYZER_MINUTES_THRESHOLD         | 10                                                                 | minutes threshold for deposit analyzer                                                                                                     |
-|   | BLOCKCHAIN_DEPOSIT_RELAYER_THRESHOLD                  | 128                                                                | threshold for deposit relayer                                                                                                              |
-|   | BLOCKCHAIN_DEPOSIT_RELAYER_MINUTES_THRESHOLD          | 60                                                                 | minutes threshold for deposit relayer                                                                                                      |
 |   | **WALLET**                                            |                                                                    |                                                                                                                                            |
 |   | WALLET_PRIVATE_KEY_HEX                                |                                                                    | (pk) private key for wallet address recognizing                                                                                            |
 |   | WALLET_MNEMONIC_VALUE                                 |                                                                    | (mnemonic) mnemonic for recovery private key                                                                                               |

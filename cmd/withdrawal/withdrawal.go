@@ -28,7 +28,6 @@ func NewWithdrawCmd(w *Withdrawal) *cobra.Command {
 		Short: short,
 	}
 	withdrawalCmd.AddCommand(aggregatorCmd(w))
-	withdrawalCmd.AddCommand(relayerCmd(w))
 
 	return withdrawalCmd
 }
@@ -58,38 +57,6 @@ func aggregatorCmd(w *Withdrawal) *cobra.Command {
 		})
 		if err != nil {
 			const msg = "failed to processing withdrawal aggregator: %v"
-			l.Fatalf(msg, err.Error())
-		}
-	}
-
-	return &cmd
-}
-
-func relayerCmd(w *Withdrawal) *cobra.Command {
-	const (
-		use   = "relayer"
-		short = "Run withdrawal relayer service"
-	)
-
-	cmd := cobra.Command{
-		Use:   use,
-		Short: short,
-	}
-
-	cmd.Run = func(cmd *cobra.Command, args []string) {
-		l := w.Log.WithFields(logger.Fields{"module": use})
-
-		err := utils.IsValidEthereumPrivateKey(w.Config.Blockchain.WithdrawalPrivateKeyHex)
-		if err != nil {
-			const msg = "check withdrawal private key error occurred: %v"
-			l.Fatalf(msg, err.Error())
-		}
-		err = w.DbApp.Exec(w.Context, nil, func(db interface{}, _ interface{}) (err error) {
-			q := db.(SQLDriverApp)
-			return newCommands().WithdrawalRelayer(w.Context, w.Config, l, q, w.SB).Do(w.Context)
-		})
-		if err != nil {
-			const msg = "failed to processing withdrawal relayer: %v"
 			l.Fatalf(msg, err.Error())
 		}
 	}

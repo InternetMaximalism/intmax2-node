@@ -8,6 +8,7 @@ import (
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/open_telemetry"
 	"intmax2-node/pkg/utils"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -112,7 +113,7 @@ func fetchRecipientClaimableWithdrawals(
 			opts.End = &endBlock
 		}
 		var events *bindings.WithdrawalClaimableWithdrawalQueuedIterator
-		events, err = withdrawalContract.FilterClaimableWithdrawalQueued(&opts)
+		events, err = withdrawalContract.FilterClaimableWithdrawalQueued(&opts, []*big.Int{}, []common.Address{})
 		if err != nil {
 			open_telemetry.MarkSpanError(spanCtx, err)
 			return nil, err

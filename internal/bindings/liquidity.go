@@ -52,7 +52,7 @@ type ITokenDataTokenInfo struct {
 
 // LiquidityMetaData contains all meta data concerning the Liquidity contract.
 var LiquidityMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[],\"name\":\"AccessControlBadConfirmation\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"neededRole\",\"type\":\"bytes32\"}],\"name\":\"AccessControlUnauthorizedAccount\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"target\",\"type\":\"address\"}],\"name\":\"AddressEmptyCode\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"AddressInsufficientBalance\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"implementation\",\"type\":\"address\"}],\"name\":\"ERC1967InvalidImplementation\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"ERC1967NonPayable\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"FailedInnerCall\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidAmount\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"depositDataHash\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"calculatedHash\",\"type\":\"bytes32\"}],\"name\":\"InvalidDepositHash\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidInitialization\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidTokenAddress\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidTokenInfo\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidValue\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidWithdrawalAddress\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"NotInitializing\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"OnlyRecipientCanCancelDeposit\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"ReentrancyGuardReentrantCall\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"token\",\"type\":\"address\"}],\"name\":\"SafeERC20FailedOperation\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"SenderIsNotScrollMessenger\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"upToDepositId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lastDepositId\",\"type\":\"uint256\"}],\"name\":\"TriedAnalyzeNotExists\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"upToDepositId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lastAnalyzedDepositId\",\"type\":\"uint256\"}],\"name\":\"TriedCollectDepositsNotAnalyzedYet\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"rejectIndex\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lastAnalyzedDepositId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"upToDepositId\",\"type\":\"uint256\"}],\"name\":\"TriedToRejectOutOfRange\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"UUPSUnauthorizedCallContext\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"slot\",\"type\":\"bytes32\"}],\"name\":\"UUPSUnsupportedProxiableUUID\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"upToDepositId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lastAnalyzedDepositId\",\"type\":\"uint256\"}],\"name\":\"UpToDepositIdIsTooOld\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"WithdrawalAddressNotSet\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"withdrawalHash\",\"type\":\"bytes32\"}],\"name\":\"WithdrawalNotFound\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"lastProcessedClaimableWithdrawalId\",\"type\":\"uint256\"}],\"name\":\"ClaimableWithdrawalsProcessed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"depositId\",\"type\":\"uint256\"}],\"name\":\"DepositCanceled\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"depositId\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"bytes32\",\"name\":\"recipientSaltHash\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"requestedAt\",\"type\":\"uint256\"}],\"name\":\"Deposited\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"lastAnalyzedDepositId\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256[]\",\"name\":\"rejectedIndices\",\"type\":\"uint256[]\"}],\"name\":\"DepositsAnalyzed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"lastRelayedDepositId\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"bytes\",\"name\":\"message\",\"type\":\"bytes\"}],\"name\":\"DepositsRelayed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"lastProcessedDirectWithdrawalId\",\"type\":\"uint256\"}],\"name\":\"DirectWithdrawalsProcessed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint64\",\"name\":\"version\",\"type\":\"uint64\"}],\"name\":\"Initialized\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"previousAdminRole\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"newAdminRole\",\"type\":\"bytes32\"}],\"name\":\"RoleAdminChanged\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"}],\"name\":\"RoleGranted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"}],\"name\":\"RoleRevoked\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"implementation\",\"type\":\"address\"}],\"name\":\"Upgraded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"withdrawalHash\",\"type\":\"bytes32\"}],\"name\":\"WithdrawalClaimable\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"ANALYZER\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"DEFAULT_ADMIN_ROLE\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"UPGRADE_INTERFACE_VERSION\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"initialERC20Tokens\",\"type\":\"address[]\"}],\"name\":\"__TokenData_init\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"upToDepositId\",\"type\":\"uint256\"},{\"internalType\":\"uint256[]\",\"name\":\"rejectDepositIds\",\"type\":\"uint256[]\"}],\"name\":\"analyzeDeposits\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"depositId\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"recipientSaltHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"internalType\":\"structDepositLib.Deposit\",\"name\":\"deposit\",\"type\":\"tuple\"}],\"name\":\"cancelDeposit\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"id\",\"type\":\"uint256\"}],\"internalType\":\"structWithdrawalLib.Withdrawal[]\",\"name\":\"withdrawals\",\"type\":\"tuple[]\"}],\"name\":\"claimWithdrawals\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"recipientSaltHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"tokenId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"depositERC1155\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"recipientSaltHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"depositERC20\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"recipientSaltHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"tokenId\",\"type\":\"uint256\"}],\"name\":\"depositERC721\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"recipientSaltHash\",\"type\":\"bytes32\"}],\"name\":\"depositETH\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"depositId\",\"type\":\"uint256\"}],\"name\":\"getDepositData\",\"outputs\":[{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"depositHash\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"},{\"internalType\":\"bool\",\"name\":\"isRejected\",\"type\":\"bool\"}],\"internalType\":\"structDepositQueueLib.DepositData\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getLastAnalyzedDepositId\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getLastDepositId\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getLastRelayedDepositId\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"}],\"name\":\"getRoleAdmin\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"enumITokenData.TokenType\",\"name\":\"tokenType\",\"type\":\"uint8\"},{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"tokenId\",\"type\":\"uint256\"}],\"name\":\"getTokenIndex\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"},{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"}],\"name\":\"getTokenInfo\",\"outputs\":[{\"components\":[{\"internalType\":\"enumITokenData.TokenType\",\"name\":\"tokenType\",\"type\":\"uint8\"},{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"tokenId\",\"type\":\"uint256\"}],\"internalType\":\"structITokenData.TokenInfo\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"grantRole\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"hasRole\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_l1ScrollMessenger\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_rollup\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_withdrawal\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_analyzer\",\"type\":\"address\"},{\"internalType\":\"address[]\",\"name\":\"initialERC20Tokens\",\"type\":\"address[]\"}],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_lastProcessedClaimableWithdrawalId\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"withdrawalHahes\",\"type\":\"bytes32[]\"}],\"name\":\"processClaimableWithdrawals\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_lastProcessedDirectWithdrawalId\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"id\",\"type\":\"uint256\"}],\"internalType\":\"structWithdrawalLib.Withdrawal[]\",\"name\":\"withdrawals\",\"type\":\"tuple[]\"}],\"name\":\"processDirectWithdrawals\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_lastProcessedDirectWithdrawalId\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"id\",\"type\":\"uint256\"}],\"internalType\":\"structWithdrawalLib.Withdrawal[]\",\"name\":\"withdrawals\",\"type\":\"tuple[]\"},{\"internalType\":\"uint256\",\"name\":\"_lastProcessedClaimableWithdrawalId\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"withdrawalHahes\",\"type\":\"bytes32[]\"}],\"name\":\"processWithdrawals\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"proxiableUUID\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"upToDepositId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"}],\"name\":\"relayDeposits\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"callerConfirmation\",\"type\":\"address\"}],\"name\":\"renounceRole\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"revokeRole\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes4\",\"name\":\"interfaceId\",\"type\":\"bytes4\"}],\"name\":\"supportsInterface\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"newImplementation\",\"type\":\"address\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"upgradeToAndCall\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[],\"name\":\"AccessControlBadConfirmation\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"neededRole\",\"type\":\"bytes32\"}],\"name\":\"AccessControlUnauthorizedAccount\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"target\",\"type\":\"address\"}],\"name\":\"AddressEmptyCode\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"AddressInsufficientBalance\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"implementation\",\"type\":\"address\"}],\"name\":\"ERC1967InvalidImplementation\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"ERC1967NonPayable\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"FailedInnerCall\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidAmount\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"depositDataHash\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"calculatedHash\",\"type\":\"bytes32\"}],\"name\":\"InvalidDepositHash\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidInitialization\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidTokenAddress\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidTokenInfo\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidValue\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"InvalidWithdrawalAddress\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"NotInitializing\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"OnlyRecipientCanCancelDeposit\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"token\",\"type\":\"address\"}],\"name\":\"SafeERC20FailedOperation\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"SenderIsNotScrollMessenger\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"upToDepositId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"lastDepositId\",\"type\":\"uint256\"}],\"name\":\"TriedAnalyzeNotExists\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"rejectIndex\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"front\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"upToDepositId\",\"type\":\"uint256\"}],\"name\":\"TriedToRejectOutOfRange\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"UUPSUnauthorizedCallContext\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"slot\",\"type\":\"bytes32\"}],\"name\":\"UUPSUnsupportedProxiableUUID\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"WithdrawalAddressNotSet\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"withdrawalHash\",\"type\":\"bytes32\"}],\"name\":\"WithdrawalNotFound\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"lastProcessedClaimableWithdrawalId\",\"type\":\"uint256\"}],\"name\":\"ClaimableWithdrawalsProcessed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"withdrawalHash\",\"type\":\"bytes32\"}],\"name\":\"ClaimedWithdrawal\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"depositId\",\"type\":\"uint256\"}],\"name\":\"DepositCanceled\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"depositId\",\"type\":\"uint256\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"recipientSaltHash\",\"type\":\"bytes32\"},{\"indexed\":false,\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"requestedAt\",\"type\":\"uint256\"}],\"name\":\"Deposited\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"upToDepositId\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256[]\",\"name\":\"rejectedIndices\",\"type\":\"uint256[]\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"bytes\",\"name\":\"message\",\"type\":\"bytes\"}],\"name\":\"DepositsAnalyzedAndRelayed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"uint256\",\"name\":\"lastProcessedDirectWithdrawalId\",\"type\":\"uint256\"}],\"name\":\"DirectWithdrawalsProcessed\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint64\",\"name\":\"version\",\"type\":\"uint64\"}],\"name\":\"Initialized\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"previousAdminRole\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"newAdminRole\",\"type\":\"bytes32\"}],\"name\":\"RoleAdminChanged\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"}],\"name\":\"RoleGranted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"}],\"name\":\"RoleRevoked\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"address\",\"name\":\"implementation\",\"type\":\"address\"}],\"name\":\"Upgraded\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes32\",\"name\":\"withdrawalHash\",\"type\":\"bytes32\"}],\"name\":\"WithdrawalClaimable\",\"type\":\"event\"},{\"inputs\":[],\"name\":\"ANALYZER\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"DEFAULT_ADMIN_ROLE\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"UPGRADE_INTERFACE_VERSION\",\"outputs\":[{\"internalType\":\"string\",\"name\":\"\",\"type\":\"string\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address[]\",\"name\":\"initialERC20Tokens\",\"type\":\"address[]\"}],\"name\":\"__TokenData_init\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"upToDepositId\",\"type\":\"uint256\"},{\"internalType\":\"uint256[]\",\"name\":\"rejectDepositIds\",\"type\":\"uint256[]\"},{\"internalType\":\"uint256\",\"name\":\"gasLimit\",\"type\":\"uint256\"}],\"name\":\"analyzeAndRelayDeposits\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"depositId\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"recipientSaltHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"internalType\":\"structDepositLib.Deposit\",\"name\":\"deposit\",\"type\":\"tuple\"}],\"name\":\"cancelDeposit\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"components\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"id\",\"type\":\"uint256\"}],\"internalType\":\"structWithdrawalLib.Withdrawal[]\",\"name\":\"withdrawals\",\"type\":\"tuple[]\"}],\"name\":\"claimWithdrawals\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"recipientSaltHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"tokenId\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"depositERC1155\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"recipientSaltHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"}],\"name\":\"depositERC20\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"bytes32\",\"name\":\"recipientSaltHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"tokenId\",\"type\":\"uint256\"}],\"name\":\"depositERC721\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"recipientSaltHash\",\"type\":\"bytes32\"}],\"name\":\"depositNativeToken\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"depositId\",\"type\":\"uint256\"}],\"name\":\"getDepositData\",\"outputs\":[{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"depositHash\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"},{\"internalType\":\"bool\",\"name\":\"isRejected\",\"type\":\"bool\"}],\"internalType\":\"structDepositQueueLib.DepositData\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getLastDepositId\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getLastRelayedDepositId\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"}],\"name\":\"getRoleAdmin\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"enumITokenData.TokenType\",\"name\":\"tokenType\",\"type\":\"uint8\"},{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"tokenId\",\"type\":\"uint256\"}],\"name\":\"getTokenIndex\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"},{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"}],\"name\":\"getTokenInfo\",\"outputs\":[{\"components\":[{\"internalType\":\"enumITokenData.TokenType\",\"name\":\"tokenType\",\"type\":\"uint8\"},{\"internalType\":\"address\",\"name\":\"tokenAddress\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"tokenId\",\"type\":\"uint256\"}],\"internalType\":\"structITokenData.TokenInfo\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"grantRole\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"hasRole\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_l1ScrollMessenger\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_rollup\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_withdrawal\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_analyzer\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_contribution\",\"type\":\"address\"},{\"internalType\":\"address[]\",\"name\":\"initialERC20Tokens\",\"type\":\"address[]\"}],\"name\":\"initialize\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"},{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"},{\"internalType\":\"bytes\",\"name\":\"\",\"type\":\"bytes\"}],\"name\":\"onERC1155Received\",\"outputs\":[{\"internalType\":\"bytes4\",\"name\":\"\",\"type\":\"bytes4\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_lastProcessedDirectWithdrawalId\",\"type\":\"uint256\"},{\"components\":[{\"internalType\":\"address\",\"name\":\"recipient\",\"type\":\"address\"},{\"internalType\":\"uint32\",\"name\":\"tokenIndex\",\"type\":\"uint32\"},{\"internalType\":\"uint256\",\"name\":\"amount\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"id\",\"type\":\"uint256\"}],\"internalType\":\"structWithdrawalLib.Withdrawal[]\",\"name\":\"withdrawals\",\"type\":\"tuple[]\"},{\"internalType\":\"uint256\",\"name\":\"_lastProcessedClaimableWithdrawalId\",\"type\":\"uint256\"},{\"internalType\":\"bytes32[]\",\"name\":\"withdrawalHashes\",\"type\":\"bytes32[]\"}],\"name\":\"processWithdrawals\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"proxiableUUID\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"callerConfirmation\",\"type\":\"address\"}],\"name\":\"renounceRole\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"role\",\"type\":\"bytes32\"},{\"internalType\":\"address\",\"name\":\"account\",\"type\":\"address\"}],\"name\":\"revokeRole\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes4\",\"name\":\"interfaceId\",\"type\":\"bytes4\"}],\"name\":\"supportsInterface\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"newImplementation\",\"type\":\"address\"},{\"internalType\":\"bytes\",\"name\":\"data\",\"type\":\"bytes\"}],\"name\":\"upgradeToAndCall\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"}]",
 }
 
 // LiquidityABI is the input ABI used to generate the binding from.
@@ -325,37 +325,6 @@ func (_Liquidity *LiquidityCallerSession) GetDepositData(depositId *big.Int) (De
 	return _Liquidity.Contract.GetDepositData(&_Liquidity.CallOpts, depositId)
 }
 
-// GetLastAnalyzedDepositId is a free data retrieval call binding the contract method 0x6af5e3bd.
-//
-// Solidity: function getLastAnalyzedDepositId() view returns(uint256)
-func (_Liquidity *LiquidityCaller) GetLastAnalyzedDepositId(opts *bind.CallOpts) (*big.Int, error) {
-	var out []interface{}
-	err := _Liquidity.contract.Call(opts, &out, "getLastAnalyzedDepositId")
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// GetLastAnalyzedDepositId is a free data retrieval call binding the contract method 0x6af5e3bd.
-//
-// Solidity: function getLastAnalyzedDepositId() view returns(uint256)
-func (_Liquidity *LiquiditySession) GetLastAnalyzedDepositId() (*big.Int, error) {
-	return _Liquidity.Contract.GetLastAnalyzedDepositId(&_Liquidity.CallOpts)
-}
-
-// GetLastAnalyzedDepositId is a free data retrieval call binding the contract method 0x6af5e3bd.
-//
-// Solidity: function getLastAnalyzedDepositId() view returns(uint256)
-func (_Liquidity *LiquidityCallerSession) GetLastAnalyzedDepositId() (*big.Int, error) {
-	return _Liquidity.Contract.GetLastAnalyzedDepositId(&_Liquidity.CallOpts)
-}
-
 // GetLastDepositId is a free data retrieval call binding the contract method 0xdd9ea299.
 //
 // Solidity: function getLastDepositId() view returns(uint256)
@@ -543,6 +512,37 @@ func (_Liquidity *LiquidityCallerSession) HasRole(role [32]byte, account common.
 	return _Liquidity.Contract.HasRole(&_Liquidity.CallOpts, role, account)
 }
 
+// OnERC1155Received is a free data retrieval call binding the contract method 0xf23a6e61.
+//
+// Solidity: function onERC1155Received(address , address , uint256 , uint256 , bytes ) pure returns(bytes4)
+func (_Liquidity *LiquidityCaller) OnERC1155Received(opts *bind.CallOpts, arg0 common.Address, arg1 common.Address, arg2 *big.Int, arg3 *big.Int, arg4 []byte) ([4]byte, error) {
+	var out []interface{}
+	err := _Liquidity.contract.Call(opts, &out, "onERC1155Received", arg0, arg1, arg2, arg3, arg4)
+
+	if err != nil {
+		return *new([4]byte), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new([4]byte)).(*[4]byte)
+
+	return out0, err
+
+}
+
+// OnERC1155Received is a free data retrieval call binding the contract method 0xf23a6e61.
+//
+// Solidity: function onERC1155Received(address , address , uint256 , uint256 , bytes ) pure returns(bytes4)
+func (_Liquidity *LiquiditySession) OnERC1155Received(arg0 common.Address, arg1 common.Address, arg2 *big.Int, arg3 *big.Int, arg4 []byte) ([4]byte, error) {
+	return _Liquidity.Contract.OnERC1155Received(&_Liquidity.CallOpts, arg0, arg1, arg2, arg3, arg4)
+}
+
+// OnERC1155Received is a free data retrieval call binding the contract method 0xf23a6e61.
+//
+// Solidity: function onERC1155Received(address , address , uint256 , uint256 , bytes ) pure returns(bytes4)
+func (_Liquidity *LiquidityCallerSession) OnERC1155Received(arg0 common.Address, arg1 common.Address, arg2 *big.Int, arg3 *big.Int, arg4 []byte) ([4]byte, error) {
+	return _Liquidity.Contract.OnERC1155Received(&_Liquidity.CallOpts, arg0, arg1, arg2, arg3, arg4)
+}
+
 // ProxiableUUID is a free data retrieval call binding the contract method 0x52d1902d.
 //
 // Solidity: function proxiableUUID() view returns(bytes32)
@@ -626,25 +626,25 @@ func (_Liquidity *LiquidityTransactorSession) TokenDataInit(initialERC20Tokens [
 	return _Liquidity.Contract.TokenDataInit(&_Liquidity.TransactOpts, initialERC20Tokens)
 }
 
-// AnalyzeDeposits is a paid mutator transaction binding the contract method 0xd9013ab8.
+// AnalyzeAndRelayDeposits is a paid mutator transaction binding the contract method 0x5362485e.
 //
-// Solidity: function analyzeDeposits(uint256 upToDepositId, uint256[] rejectDepositIds) returns()
-func (_Liquidity *LiquidityTransactor) AnalyzeDeposits(opts *bind.TransactOpts, upToDepositId *big.Int, rejectDepositIds []*big.Int) (*types.Transaction, error) {
-	return _Liquidity.contract.Transact(opts, "analyzeDeposits", upToDepositId, rejectDepositIds)
+// Solidity: function analyzeAndRelayDeposits(uint256 upToDepositId, uint256[] rejectDepositIds, uint256 gasLimit) payable returns()
+func (_Liquidity *LiquidityTransactor) AnalyzeAndRelayDeposits(opts *bind.TransactOpts, upToDepositId *big.Int, rejectDepositIds []*big.Int, gasLimit *big.Int) (*types.Transaction, error) {
+	return _Liquidity.contract.Transact(opts, "analyzeAndRelayDeposits", upToDepositId, rejectDepositIds, gasLimit)
 }
 
-// AnalyzeDeposits is a paid mutator transaction binding the contract method 0xd9013ab8.
+// AnalyzeAndRelayDeposits is a paid mutator transaction binding the contract method 0x5362485e.
 //
-// Solidity: function analyzeDeposits(uint256 upToDepositId, uint256[] rejectDepositIds) returns()
-func (_Liquidity *LiquiditySession) AnalyzeDeposits(upToDepositId *big.Int, rejectDepositIds []*big.Int) (*types.Transaction, error) {
-	return _Liquidity.Contract.AnalyzeDeposits(&_Liquidity.TransactOpts, upToDepositId, rejectDepositIds)
+// Solidity: function analyzeAndRelayDeposits(uint256 upToDepositId, uint256[] rejectDepositIds, uint256 gasLimit) payable returns()
+func (_Liquidity *LiquiditySession) AnalyzeAndRelayDeposits(upToDepositId *big.Int, rejectDepositIds []*big.Int, gasLimit *big.Int) (*types.Transaction, error) {
+	return _Liquidity.Contract.AnalyzeAndRelayDeposits(&_Liquidity.TransactOpts, upToDepositId, rejectDepositIds, gasLimit)
 }
 
-// AnalyzeDeposits is a paid mutator transaction binding the contract method 0xd9013ab8.
+// AnalyzeAndRelayDeposits is a paid mutator transaction binding the contract method 0x5362485e.
 //
-// Solidity: function analyzeDeposits(uint256 upToDepositId, uint256[] rejectDepositIds) returns()
-func (_Liquidity *LiquidityTransactorSession) AnalyzeDeposits(upToDepositId *big.Int, rejectDepositIds []*big.Int) (*types.Transaction, error) {
-	return _Liquidity.Contract.AnalyzeDeposits(&_Liquidity.TransactOpts, upToDepositId, rejectDepositIds)
+// Solidity: function analyzeAndRelayDeposits(uint256 upToDepositId, uint256[] rejectDepositIds, uint256 gasLimit) payable returns()
+func (_Liquidity *LiquidityTransactorSession) AnalyzeAndRelayDeposits(upToDepositId *big.Int, rejectDepositIds []*big.Int, gasLimit *big.Int) (*types.Transaction, error) {
+	return _Liquidity.Contract.AnalyzeAndRelayDeposits(&_Liquidity.TransactOpts, upToDepositId, rejectDepositIds, gasLimit)
 }
 
 // CancelDeposit is a paid mutator transaction binding the contract method 0x6ef5475b.
@@ -752,25 +752,25 @@ func (_Liquidity *LiquidityTransactorSession) DepositERC721(tokenAddress common.
 	return _Liquidity.Contract.DepositERC721(&_Liquidity.TransactOpts, tokenAddress, recipientSaltHash, tokenId)
 }
 
-// DepositETH is a paid mutator transaction binding the contract method 0xd68d9d4e.
+// DepositNativeToken is a paid mutator transaction binding the contract method 0xffd55332.
 //
-// Solidity: function depositETH(bytes32 recipientSaltHash) payable returns()
-func (_Liquidity *LiquidityTransactor) DepositETH(opts *bind.TransactOpts, recipientSaltHash [32]byte) (*types.Transaction, error) {
-	return _Liquidity.contract.Transact(opts, "depositETH", recipientSaltHash)
+// Solidity: function depositNativeToken(bytes32 recipientSaltHash) payable returns()
+func (_Liquidity *LiquidityTransactor) DepositNativeToken(opts *bind.TransactOpts, recipientSaltHash [32]byte) (*types.Transaction, error) {
+	return _Liquidity.contract.Transact(opts, "depositNativeToken", recipientSaltHash)
 }
 
-// DepositETH is a paid mutator transaction binding the contract method 0xd68d9d4e.
+// DepositNativeToken is a paid mutator transaction binding the contract method 0xffd55332.
 //
-// Solidity: function depositETH(bytes32 recipientSaltHash) payable returns()
-func (_Liquidity *LiquiditySession) DepositETH(recipientSaltHash [32]byte) (*types.Transaction, error) {
-	return _Liquidity.Contract.DepositETH(&_Liquidity.TransactOpts, recipientSaltHash)
+// Solidity: function depositNativeToken(bytes32 recipientSaltHash) payable returns()
+func (_Liquidity *LiquiditySession) DepositNativeToken(recipientSaltHash [32]byte) (*types.Transaction, error) {
+	return _Liquidity.Contract.DepositNativeToken(&_Liquidity.TransactOpts, recipientSaltHash)
 }
 
-// DepositETH is a paid mutator transaction binding the contract method 0xd68d9d4e.
+// DepositNativeToken is a paid mutator transaction binding the contract method 0xffd55332.
 //
-// Solidity: function depositETH(bytes32 recipientSaltHash) payable returns()
-func (_Liquidity *LiquidityTransactorSession) DepositETH(recipientSaltHash [32]byte) (*types.Transaction, error) {
-	return _Liquidity.Contract.DepositETH(&_Liquidity.TransactOpts, recipientSaltHash)
+// Solidity: function depositNativeToken(bytes32 recipientSaltHash) payable returns()
+func (_Liquidity *LiquidityTransactorSession) DepositNativeToken(recipientSaltHash [32]byte) (*types.Transaction, error) {
+	return _Liquidity.Contract.DepositNativeToken(&_Liquidity.TransactOpts, recipientSaltHash)
 }
 
 // GrantRole is a paid mutator transaction binding the contract method 0x2f2ff15d.
@@ -794,109 +794,46 @@ func (_Liquidity *LiquidityTransactorSession) GrantRole(role [32]byte, account c
 	return _Liquidity.Contract.GrantRole(&_Liquidity.TransactOpts, role, account)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0xf8453e7c.
+// Initialize is a paid mutator transaction binding the contract method 0xb5df06b4.
 //
-// Solidity: function initialize(address _l1ScrollMessenger, address _rollup, address _withdrawal, address _analyzer, address[] initialERC20Tokens) returns()
-func (_Liquidity *LiquidityTransactor) Initialize(opts *bind.TransactOpts, _l1ScrollMessenger common.Address, _rollup common.Address, _withdrawal common.Address, _analyzer common.Address, initialERC20Tokens []common.Address) (*types.Transaction, error) {
-	return _Liquidity.contract.Transact(opts, "initialize", _l1ScrollMessenger, _rollup, _withdrawal, _analyzer, initialERC20Tokens)
+// Solidity: function initialize(address _l1ScrollMessenger, address _rollup, address _withdrawal, address _analyzer, address _contribution, address[] initialERC20Tokens) returns()
+func (_Liquidity *LiquidityTransactor) Initialize(opts *bind.TransactOpts, _l1ScrollMessenger common.Address, _rollup common.Address, _withdrawal common.Address, _analyzer common.Address, _contribution common.Address, initialERC20Tokens []common.Address) (*types.Transaction, error) {
+	return _Liquidity.contract.Transact(opts, "initialize", _l1ScrollMessenger, _rollup, _withdrawal, _analyzer, _contribution, initialERC20Tokens)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0xf8453e7c.
+// Initialize is a paid mutator transaction binding the contract method 0xb5df06b4.
 //
-// Solidity: function initialize(address _l1ScrollMessenger, address _rollup, address _withdrawal, address _analyzer, address[] initialERC20Tokens) returns()
-func (_Liquidity *LiquiditySession) Initialize(_l1ScrollMessenger common.Address, _rollup common.Address, _withdrawal common.Address, _analyzer common.Address, initialERC20Tokens []common.Address) (*types.Transaction, error) {
-	return _Liquidity.Contract.Initialize(&_Liquidity.TransactOpts, _l1ScrollMessenger, _rollup, _withdrawal, _analyzer, initialERC20Tokens)
+// Solidity: function initialize(address _l1ScrollMessenger, address _rollup, address _withdrawal, address _analyzer, address _contribution, address[] initialERC20Tokens) returns()
+func (_Liquidity *LiquiditySession) Initialize(_l1ScrollMessenger common.Address, _rollup common.Address, _withdrawal common.Address, _analyzer common.Address, _contribution common.Address, initialERC20Tokens []common.Address) (*types.Transaction, error) {
+	return _Liquidity.Contract.Initialize(&_Liquidity.TransactOpts, _l1ScrollMessenger, _rollup, _withdrawal, _analyzer, _contribution, initialERC20Tokens)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0xf8453e7c.
+// Initialize is a paid mutator transaction binding the contract method 0xb5df06b4.
 //
-// Solidity: function initialize(address _l1ScrollMessenger, address _rollup, address _withdrawal, address _analyzer, address[] initialERC20Tokens) returns()
-func (_Liquidity *LiquidityTransactorSession) Initialize(_l1ScrollMessenger common.Address, _rollup common.Address, _withdrawal common.Address, _analyzer common.Address, initialERC20Tokens []common.Address) (*types.Transaction, error) {
-	return _Liquidity.Contract.Initialize(&_Liquidity.TransactOpts, _l1ScrollMessenger, _rollup, _withdrawal, _analyzer, initialERC20Tokens)
-}
-
-// ProcessClaimableWithdrawals is a paid mutator transaction binding the contract method 0x9ef300e1.
-//
-// Solidity: function processClaimableWithdrawals(uint256 _lastProcessedClaimableWithdrawalId, bytes32[] withdrawalHahes) returns()
-func (_Liquidity *LiquidityTransactor) ProcessClaimableWithdrawals(opts *bind.TransactOpts, _lastProcessedClaimableWithdrawalId *big.Int, withdrawalHahes [][32]byte) (*types.Transaction, error) {
-	return _Liquidity.contract.Transact(opts, "processClaimableWithdrawals", _lastProcessedClaimableWithdrawalId, withdrawalHahes)
-}
-
-// ProcessClaimableWithdrawals is a paid mutator transaction binding the contract method 0x9ef300e1.
-//
-// Solidity: function processClaimableWithdrawals(uint256 _lastProcessedClaimableWithdrawalId, bytes32[] withdrawalHahes) returns()
-func (_Liquidity *LiquiditySession) ProcessClaimableWithdrawals(_lastProcessedClaimableWithdrawalId *big.Int, withdrawalHahes [][32]byte) (*types.Transaction, error) {
-	return _Liquidity.Contract.ProcessClaimableWithdrawals(&_Liquidity.TransactOpts, _lastProcessedClaimableWithdrawalId, withdrawalHahes)
-}
-
-// ProcessClaimableWithdrawals is a paid mutator transaction binding the contract method 0x9ef300e1.
-//
-// Solidity: function processClaimableWithdrawals(uint256 _lastProcessedClaimableWithdrawalId, bytes32[] withdrawalHahes) returns()
-func (_Liquidity *LiquidityTransactorSession) ProcessClaimableWithdrawals(_lastProcessedClaimableWithdrawalId *big.Int, withdrawalHahes [][32]byte) (*types.Transaction, error) {
-	return _Liquidity.Contract.ProcessClaimableWithdrawals(&_Liquidity.TransactOpts, _lastProcessedClaimableWithdrawalId, withdrawalHahes)
-}
-
-// ProcessDirectWithdrawals is a paid mutator transaction binding the contract method 0x652531a5.
-//
-// Solidity: function processDirectWithdrawals(uint256 _lastProcessedDirectWithdrawalId, (address,uint32,uint256,uint256)[] withdrawals) returns()
-func (_Liquidity *LiquidityTransactor) ProcessDirectWithdrawals(opts *bind.TransactOpts, _lastProcessedDirectWithdrawalId *big.Int, withdrawals []WithdrawalLibWithdrawal) (*types.Transaction, error) {
-	return _Liquidity.contract.Transact(opts, "processDirectWithdrawals", _lastProcessedDirectWithdrawalId, withdrawals)
-}
-
-// ProcessDirectWithdrawals is a paid mutator transaction binding the contract method 0x652531a5.
-//
-// Solidity: function processDirectWithdrawals(uint256 _lastProcessedDirectWithdrawalId, (address,uint32,uint256,uint256)[] withdrawals) returns()
-func (_Liquidity *LiquiditySession) ProcessDirectWithdrawals(_lastProcessedDirectWithdrawalId *big.Int, withdrawals []WithdrawalLibWithdrawal) (*types.Transaction, error) {
-	return _Liquidity.Contract.ProcessDirectWithdrawals(&_Liquidity.TransactOpts, _lastProcessedDirectWithdrawalId, withdrawals)
-}
-
-// ProcessDirectWithdrawals is a paid mutator transaction binding the contract method 0x652531a5.
-//
-// Solidity: function processDirectWithdrawals(uint256 _lastProcessedDirectWithdrawalId, (address,uint32,uint256,uint256)[] withdrawals) returns()
-func (_Liquidity *LiquidityTransactorSession) ProcessDirectWithdrawals(_lastProcessedDirectWithdrawalId *big.Int, withdrawals []WithdrawalLibWithdrawal) (*types.Transaction, error) {
-	return _Liquidity.Contract.ProcessDirectWithdrawals(&_Liquidity.TransactOpts, _lastProcessedDirectWithdrawalId, withdrawals)
+// Solidity: function initialize(address _l1ScrollMessenger, address _rollup, address _withdrawal, address _analyzer, address _contribution, address[] initialERC20Tokens) returns()
+func (_Liquidity *LiquidityTransactorSession) Initialize(_l1ScrollMessenger common.Address, _rollup common.Address, _withdrawal common.Address, _analyzer common.Address, _contribution common.Address, initialERC20Tokens []common.Address) (*types.Transaction, error) {
+	return _Liquidity.Contract.Initialize(&_Liquidity.TransactOpts, _l1ScrollMessenger, _rollup, _withdrawal, _analyzer, _contribution, initialERC20Tokens)
 }
 
 // ProcessWithdrawals is a paid mutator transaction binding the contract method 0x088f0bdd.
 //
-// Solidity: function processWithdrawals(uint256 _lastProcessedDirectWithdrawalId, (address,uint32,uint256,uint256)[] withdrawals, uint256 _lastProcessedClaimableWithdrawalId, bytes32[] withdrawalHahes) returns()
-func (_Liquidity *LiquidityTransactor) ProcessWithdrawals(opts *bind.TransactOpts, _lastProcessedDirectWithdrawalId *big.Int, withdrawals []WithdrawalLibWithdrawal, _lastProcessedClaimableWithdrawalId *big.Int, withdrawalHahes [][32]byte) (*types.Transaction, error) {
-	return _Liquidity.contract.Transact(opts, "processWithdrawals", _lastProcessedDirectWithdrawalId, withdrawals, _lastProcessedClaimableWithdrawalId, withdrawalHahes)
+// Solidity: function processWithdrawals(uint256 _lastProcessedDirectWithdrawalId, (address,uint32,uint256,uint256)[] withdrawals, uint256 _lastProcessedClaimableWithdrawalId, bytes32[] withdrawalHashes) returns()
+func (_Liquidity *LiquidityTransactor) ProcessWithdrawals(opts *bind.TransactOpts, _lastProcessedDirectWithdrawalId *big.Int, withdrawals []WithdrawalLibWithdrawal, _lastProcessedClaimableWithdrawalId *big.Int, withdrawalHashes [][32]byte) (*types.Transaction, error) {
+	return _Liquidity.contract.Transact(opts, "processWithdrawals", _lastProcessedDirectWithdrawalId, withdrawals, _lastProcessedClaimableWithdrawalId, withdrawalHashes)
 }
 
 // ProcessWithdrawals is a paid mutator transaction binding the contract method 0x088f0bdd.
 //
-// Solidity: function processWithdrawals(uint256 _lastProcessedDirectWithdrawalId, (address,uint32,uint256,uint256)[] withdrawals, uint256 _lastProcessedClaimableWithdrawalId, bytes32[] withdrawalHahes) returns()
-func (_Liquidity *LiquiditySession) ProcessWithdrawals(_lastProcessedDirectWithdrawalId *big.Int, withdrawals []WithdrawalLibWithdrawal, _lastProcessedClaimableWithdrawalId *big.Int, withdrawalHahes [][32]byte) (*types.Transaction, error) {
-	return _Liquidity.Contract.ProcessWithdrawals(&_Liquidity.TransactOpts, _lastProcessedDirectWithdrawalId, withdrawals, _lastProcessedClaimableWithdrawalId, withdrawalHahes)
+// Solidity: function processWithdrawals(uint256 _lastProcessedDirectWithdrawalId, (address,uint32,uint256,uint256)[] withdrawals, uint256 _lastProcessedClaimableWithdrawalId, bytes32[] withdrawalHashes) returns()
+func (_Liquidity *LiquiditySession) ProcessWithdrawals(_lastProcessedDirectWithdrawalId *big.Int, withdrawals []WithdrawalLibWithdrawal, _lastProcessedClaimableWithdrawalId *big.Int, withdrawalHashes [][32]byte) (*types.Transaction, error) {
+	return _Liquidity.Contract.ProcessWithdrawals(&_Liquidity.TransactOpts, _lastProcessedDirectWithdrawalId, withdrawals, _lastProcessedClaimableWithdrawalId, withdrawalHashes)
 }
 
 // ProcessWithdrawals is a paid mutator transaction binding the contract method 0x088f0bdd.
 //
-// Solidity: function processWithdrawals(uint256 _lastProcessedDirectWithdrawalId, (address,uint32,uint256,uint256)[] withdrawals, uint256 _lastProcessedClaimableWithdrawalId, bytes32[] withdrawalHahes) returns()
-func (_Liquidity *LiquidityTransactorSession) ProcessWithdrawals(_lastProcessedDirectWithdrawalId *big.Int, withdrawals []WithdrawalLibWithdrawal, _lastProcessedClaimableWithdrawalId *big.Int, withdrawalHahes [][32]byte) (*types.Transaction, error) {
-	return _Liquidity.Contract.ProcessWithdrawals(&_Liquidity.TransactOpts, _lastProcessedDirectWithdrawalId, withdrawals, _lastProcessedClaimableWithdrawalId, withdrawalHahes)
-}
-
-// RelayDeposits is a paid mutator transaction binding the contract method 0x76918c0d.
-//
-// Solidity: function relayDeposits(uint256 upToDepositId, uint256 gasLimit) payable returns()
-func (_Liquidity *LiquidityTransactor) RelayDeposits(opts *bind.TransactOpts, upToDepositId *big.Int, gasLimit *big.Int) (*types.Transaction, error) {
-	return _Liquidity.contract.Transact(opts, "relayDeposits", upToDepositId, gasLimit)
-}
-
-// RelayDeposits is a paid mutator transaction binding the contract method 0x76918c0d.
-//
-// Solidity: function relayDeposits(uint256 upToDepositId, uint256 gasLimit) payable returns()
-func (_Liquidity *LiquiditySession) RelayDeposits(upToDepositId *big.Int, gasLimit *big.Int) (*types.Transaction, error) {
-	return _Liquidity.Contract.RelayDeposits(&_Liquidity.TransactOpts, upToDepositId, gasLimit)
-}
-
-// RelayDeposits is a paid mutator transaction binding the contract method 0x76918c0d.
-//
-// Solidity: function relayDeposits(uint256 upToDepositId, uint256 gasLimit) payable returns()
-func (_Liquidity *LiquidityTransactorSession) RelayDeposits(upToDepositId *big.Int, gasLimit *big.Int) (*types.Transaction, error) {
-	return _Liquidity.Contract.RelayDeposits(&_Liquidity.TransactOpts, upToDepositId, gasLimit)
+// Solidity: function processWithdrawals(uint256 _lastProcessedDirectWithdrawalId, (address,uint32,uint256,uint256)[] withdrawals, uint256 _lastProcessedClaimableWithdrawalId, bytes32[] withdrawalHashes) returns()
+func (_Liquidity *LiquidityTransactorSession) ProcessWithdrawals(_lastProcessedDirectWithdrawalId *big.Int, withdrawals []WithdrawalLibWithdrawal, _lastProcessedClaimableWithdrawalId *big.Int, withdrawalHashes [][32]byte) (*types.Transaction, error) {
+	return _Liquidity.Contract.ProcessWithdrawals(&_Liquidity.TransactOpts, _lastProcessedDirectWithdrawalId, withdrawals, _lastProcessedClaimableWithdrawalId, withdrawalHashes)
 }
 
 // RenounceRole is a paid mutator transaction binding the contract method 0x36568abe.
@@ -1100,6 +1037,159 @@ func (_Liquidity *LiquidityFilterer) WatchClaimableWithdrawalsProcessed(opts *bi
 func (_Liquidity *LiquidityFilterer) ParseClaimableWithdrawalsProcessed(log types.Log) (*LiquidityClaimableWithdrawalsProcessed, error) {
 	event := new(LiquidityClaimableWithdrawalsProcessed)
 	if err := _Liquidity.contract.UnpackLog(event, "ClaimableWithdrawalsProcessed", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// LiquidityClaimedWithdrawalIterator is returned from FilterClaimedWithdrawal and is used to iterate over the raw logs and unpacked data for ClaimedWithdrawal events raised by the Liquidity contract.
+type LiquidityClaimedWithdrawalIterator struct {
+	Event *LiquidityClaimedWithdrawal // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *LiquidityClaimedWithdrawalIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(LiquidityClaimedWithdrawal)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(LiquidityClaimedWithdrawal)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *LiquidityClaimedWithdrawalIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *LiquidityClaimedWithdrawalIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// LiquidityClaimedWithdrawal represents a ClaimedWithdrawal event raised by the Liquidity contract.
+type LiquidityClaimedWithdrawal struct {
+	Recipient      common.Address
+	WithdrawalHash [32]byte
+	Raw            types.Log // Blockchain specific contextual infos
+}
+
+// FilterClaimedWithdrawal is a free log retrieval operation binding the contract event 0x0575467d13f5ab9174f470cec96623374b05cf4b19a3c83a4bfca523e243ab04.
+//
+// Solidity: event ClaimedWithdrawal(address indexed recipient, bytes32 indexed withdrawalHash)
+func (_Liquidity *LiquidityFilterer) FilterClaimedWithdrawal(opts *bind.FilterOpts, recipient []common.Address, withdrawalHash [][32]byte) (*LiquidityClaimedWithdrawalIterator, error) {
+
+	var recipientRule []interface{}
+	for _, recipientItem := range recipient {
+		recipientRule = append(recipientRule, recipientItem)
+	}
+	var withdrawalHashRule []interface{}
+	for _, withdrawalHashItem := range withdrawalHash {
+		withdrawalHashRule = append(withdrawalHashRule, withdrawalHashItem)
+	}
+
+	logs, sub, err := _Liquidity.contract.FilterLogs(opts, "ClaimedWithdrawal", recipientRule, withdrawalHashRule)
+	if err != nil {
+		return nil, err
+	}
+	return &LiquidityClaimedWithdrawalIterator{contract: _Liquidity.contract, event: "ClaimedWithdrawal", logs: logs, sub: sub}, nil
+}
+
+// WatchClaimedWithdrawal is a free log subscription operation binding the contract event 0x0575467d13f5ab9174f470cec96623374b05cf4b19a3c83a4bfca523e243ab04.
+//
+// Solidity: event ClaimedWithdrawal(address indexed recipient, bytes32 indexed withdrawalHash)
+func (_Liquidity *LiquidityFilterer) WatchClaimedWithdrawal(opts *bind.WatchOpts, sink chan<- *LiquidityClaimedWithdrawal, recipient []common.Address, withdrawalHash [][32]byte) (event.Subscription, error) {
+
+	var recipientRule []interface{}
+	for _, recipientItem := range recipient {
+		recipientRule = append(recipientRule, recipientItem)
+	}
+	var withdrawalHashRule []interface{}
+	for _, withdrawalHashItem := range withdrawalHash {
+		withdrawalHashRule = append(withdrawalHashRule, withdrawalHashItem)
+	}
+
+	logs, sub, err := _Liquidity.contract.WatchLogs(opts, "ClaimedWithdrawal", recipientRule, withdrawalHashRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(LiquidityClaimedWithdrawal)
+				if err := _Liquidity.contract.UnpackLog(event, "ClaimedWithdrawal", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseClaimedWithdrawal is a log parse operation binding the contract event 0x0575467d13f5ab9174f470cec96623374b05cf4b19a3c83a4bfca523e243ab04.
+//
+// Solidity: event ClaimedWithdrawal(address indexed recipient, bytes32 indexed withdrawalHash)
+func (_Liquidity *LiquidityFilterer) ParseClaimedWithdrawal(log types.Log) (*LiquidityClaimedWithdrawal, error) {
+	event := new(LiquidityClaimedWithdrawal)
+	if err := _Liquidity.contract.UnpackLog(event, "ClaimedWithdrawal", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
@@ -1330,8 +1420,8 @@ type LiquidityDeposited struct {
 
 // FilterDeposited is a free log retrieval operation binding the contract event 0x1e88950eef3c1bd8dd83d765aec1f21f34ca153104f0acd7a6218bf8f48e8410.
 //
-// Solidity: event Deposited(uint256 indexed depositId, address indexed sender, bytes32 recipientSaltHash, uint32 tokenIndex, uint256 amount, uint256 requestedAt)
-func (_Liquidity *LiquidityFilterer) FilterDeposited(opts *bind.FilterOpts, depositId []*big.Int, sender []common.Address) (*LiquidityDepositedIterator, error) {
+// Solidity: event Deposited(uint256 indexed depositId, address indexed sender, bytes32 indexed recipientSaltHash, uint32 tokenIndex, uint256 amount, uint256 requestedAt)
+func (_Liquidity *LiquidityFilterer) FilterDeposited(opts *bind.FilterOpts, depositId []*big.Int, sender []common.Address, recipientSaltHash [][32]byte) (*LiquidityDepositedIterator, error) {
 
 	var depositIdRule []interface{}
 	for _, depositIdItem := range depositId {
@@ -1341,8 +1431,12 @@ func (_Liquidity *LiquidityFilterer) FilterDeposited(opts *bind.FilterOpts, depo
 	for _, senderItem := range sender {
 		senderRule = append(senderRule, senderItem)
 	}
+	var recipientSaltHashRule []interface{}
+	for _, recipientSaltHashItem := range recipientSaltHash {
+		recipientSaltHashRule = append(recipientSaltHashRule, recipientSaltHashItem)
+	}
 
-	logs, sub, err := _Liquidity.contract.FilterLogs(opts, "Deposited", depositIdRule, senderRule)
+	logs, sub, err := _Liquidity.contract.FilterLogs(opts, "Deposited", depositIdRule, senderRule, recipientSaltHashRule)
 	if err != nil {
 		return nil, err
 	}
@@ -1351,8 +1445,8 @@ func (_Liquidity *LiquidityFilterer) FilterDeposited(opts *bind.FilterOpts, depo
 
 // WatchDeposited is a free log subscription operation binding the contract event 0x1e88950eef3c1bd8dd83d765aec1f21f34ca153104f0acd7a6218bf8f48e8410.
 //
-// Solidity: event Deposited(uint256 indexed depositId, address indexed sender, bytes32 recipientSaltHash, uint32 tokenIndex, uint256 amount, uint256 requestedAt)
-func (_Liquidity *LiquidityFilterer) WatchDeposited(opts *bind.WatchOpts, sink chan<- *LiquidityDeposited, depositId []*big.Int, sender []common.Address) (event.Subscription, error) {
+// Solidity: event Deposited(uint256 indexed depositId, address indexed sender, bytes32 indexed recipientSaltHash, uint32 tokenIndex, uint256 amount, uint256 requestedAt)
+func (_Liquidity *LiquidityFilterer) WatchDeposited(opts *bind.WatchOpts, sink chan<- *LiquidityDeposited, depositId []*big.Int, sender []common.Address, recipientSaltHash [][32]byte) (event.Subscription, error) {
 
 	var depositIdRule []interface{}
 	for _, depositIdItem := range depositId {
@@ -1362,8 +1456,12 @@ func (_Liquidity *LiquidityFilterer) WatchDeposited(opts *bind.WatchOpts, sink c
 	for _, senderItem := range sender {
 		senderRule = append(senderRule, senderItem)
 	}
+	var recipientSaltHashRule []interface{}
+	for _, recipientSaltHashItem := range recipientSaltHash {
+		recipientSaltHashRule = append(recipientSaltHashRule, recipientSaltHashItem)
+	}
 
-	logs, sub, err := _Liquidity.contract.WatchLogs(opts, "Deposited", depositIdRule, senderRule)
+	logs, sub, err := _Liquidity.contract.WatchLogs(opts, "Deposited", depositIdRule, senderRule, recipientSaltHashRule)
 	if err != nil {
 		return nil, err
 	}
@@ -1397,7 +1495,7 @@ func (_Liquidity *LiquidityFilterer) WatchDeposited(opts *bind.WatchOpts, sink c
 
 // ParseDeposited is a log parse operation binding the contract event 0x1e88950eef3c1bd8dd83d765aec1f21f34ca153104f0acd7a6218bf8f48e8410.
 //
-// Solidity: event Deposited(uint256 indexed depositId, address indexed sender, bytes32 recipientSaltHash, uint32 tokenIndex, uint256 amount, uint256 requestedAt)
+// Solidity: event Deposited(uint256 indexed depositId, address indexed sender, bytes32 indexed recipientSaltHash, uint32 tokenIndex, uint256 amount, uint256 requestedAt)
 func (_Liquidity *LiquidityFilterer) ParseDeposited(log types.Log) (*LiquidityDeposited, error) {
 	event := new(LiquidityDeposited)
 	if err := _Liquidity.contract.UnpackLog(event, "Deposited", log); err != nil {
@@ -1407,9 +1505,9 @@ func (_Liquidity *LiquidityFilterer) ParseDeposited(log types.Log) (*LiquidityDe
 	return event, nil
 }
 
-// LiquidityDepositsAnalyzedIterator is returned from FilterDepositsAnalyzed and is used to iterate over the raw logs and unpacked data for DepositsAnalyzed events raised by the Liquidity contract.
-type LiquidityDepositsAnalyzedIterator struct {
-	Event *LiquidityDepositsAnalyzed // Event containing the contract specifics and raw log
+// LiquidityDepositsAnalyzedAndRelayedIterator is returned from FilterDepositsAnalyzedAndRelayed and is used to iterate over the raw logs and unpacked data for DepositsAnalyzedAndRelayed events raised by the Liquidity contract.
+type LiquidityDepositsAnalyzedAndRelayedIterator struct {
+	Event *LiquidityDepositsAnalyzedAndRelayed // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -1423,7 +1521,7 @@ type LiquidityDepositsAnalyzedIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *LiquidityDepositsAnalyzedIterator) Next() bool {
+func (it *LiquidityDepositsAnalyzedAndRelayedIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -1432,7 +1530,7 @@ func (it *LiquidityDepositsAnalyzedIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(LiquidityDepositsAnalyzed)
+			it.Event = new(LiquidityDepositsAnalyzedAndRelayed)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -1447,7 +1545,7 @@ func (it *LiquidityDepositsAnalyzedIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(LiquidityDepositsAnalyzed)
+		it.Event = new(LiquidityDepositsAnalyzedAndRelayed)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -1463,52 +1561,54 @@ func (it *LiquidityDepositsAnalyzedIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *LiquidityDepositsAnalyzedIterator) Error() error {
+func (it *LiquidityDepositsAnalyzedAndRelayedIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *LiquidityDepositsAnalyzedIterator) Close() error {
+func (it *LiquidityDepositsAnalyzedAndRelayedIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// LiquidityDepositsAnalyzed represents a DepositsAnalyzed event raised by the Liquidity contract.
-type LiquidityDepositsAnalyzed struct {
-	LastAnalyzedDepositId *big.Int
-	RejectedIndices       []*big.Int
-	Raw                   types.Log // Blockchain specific contextual infos
+// LiquidityDepositsAnalyzedAndRelayed represents a DepositsAnalyzedAndRelayed event raised by the Liquidity contract.
+type LiquidityDepositsAnalyzedAndRelayed struct {
+	UpToDepositId   *big.Int
+	RejectedIndices []*big.Int
+	GasLimit        *big.Int
+	Message         []byte
+	Raw             types.Log // Blockchain specific contextual infos
 }
 
-// FilterDepositsAnalyzed is a free log retrieval operation binding the contract event 0x48f1daf7209f4eda2120ee12101bdb8e7f108f2e8d84fc2d6a62b96682f9592c.
+// FilterDepositsAnalyzedAndRelayed is a free log retrieval operation binding the contract event 0x2f41e147f23b2fb60bd8f0c0f016c37b7eeff712415ba8c2d60f846be3b098e6.
 //
-// Solidity: event DepositsAnalyzed(uint256 indexed lastAnalyzedDepositId, uint256[] rejectedIndices)
-func (_Liquidity *LiquidityFilterer) FilterDepositsAnalyzed(opts *bind.FilterOpts, lastAnalyzedDepositId []*big.Int) (*LiquidityDepositsAnalyzedIterator, error) {
+// Solidity: event DepositsAnalyzedAndRelayed(uint256 indexed upToDepositId, uint256[] rejectedIndices, uint256 gasLimit, bytes message)
+func (_Liquidity *LiquidityFilterer) FilterDepositsAnalyzedAndRelayed(opts *bind.FilterOpts, upToDepositId []*big.Int) (*LiquidityDepositsAnalyzedAndRelayedIterator, error) {
 
-	var lastAnalyzedDepositIdRule []interface{}
-	for _, lastAnalyzedDepositIdItem := range lastAnalyzedDepositId {
-		lastAnalyzedDepositIdRule = append(lastAnalyzedDepositIdRule, lastAnalyzedDepositIdItem)
+	var upToDepositIdRule []interface{}
+	for _, upToDepositIdItem := range upToDepositId {
+		upToDepositIdRule = append(upToDepositIdRule, upToDepositIdItem)
 	}
 
-	logs, sub, err := _Liquidity.contract.FilterLogs(opts, "DepositsAnalyzed", lastAnalyzedDepositIdRule)
+	logs, sub, err := _Liquidity.contract.FilterLogs(opts, "DepositsAnalyzedAndRelayed", upToDepositIdRule)
 	if err != nil {
 		return nil, err
 	}
-	return &LiquidityDepositsAnalyzedIterator{contract: _Liquidity.contract, event: "DepositsAnalyzed", logs: logs, sub: sub}, nil
+	return &LiquidityDepositsAnalyzedAndRelayedIterator{contract: _Liquidity.contract, event: "DepositsAnalyzedAndRelayed", logs: logs, sub: sub}, nil
 }
 
-// WatchDepositsAnalyzed is a free log subscription operation binding the contract event 0x48f1daf7209f4eda2120ee12101bdb8e7f108f2e8d84fc2d6a62b96682f9592c.
+// WatchDepositsAnalyzedAndRelayed is a free log subscription operation binding the contract event 0x2f41e147f23b2fb60bd8f0c0f016c37b7eeff712415ba8c2d60f846be3b098e6.
 //
-// Solidity: event DepositsAnalyzed(uint256 indexed lastAnalyzedDepositId, uint256[] rejectedIndices)
-func (_Liquidity *LiquidityFilterer) WatchDepositsAnalyzed(opts *bind.WatchOpts, sink chan<- *LiquidityDepositsAnalyzed, lastAnalyzedDepositId []*big.Int) (event.Subscription, error) {
+// Solidity: event DepositsAnalyzedAndRelayed(uint256 indexed upToDepositId, uint256[] rejectedIndices, uint256 gasLimit, bytes message)
+func (_Liquidity *LiquidityFilterer) WatchDepositsAnalyzedAndRelayed(opts *bind.WatchOpts, sink chan<- *LiquidityDepositsAnalyzedAndRelayed, upToDepositId []*big.Int) (event.Subscription, error) {
 
-	var lastAnalyzedDepositIdRule []interface{}
-	for _, lastAnalyzedDepositIdItem := range lastAnalyzedDepositId {
-		lastAnalyzedDepositIdRule = append(lastAnalyzedDepositIdRule, lastAnalyzedDepositIdItem)
+	var upToDepositIdRule []interface{}
+	for _, upToDepositIdItem := range upToDepositId {
+		upToDepositIdRule = append(upToDepositIdRule, upToDepositIdItem)
 	}
 
-	logs, sub, err := _Liquidity.contract.WatchLogs(opts, "DepositsAnalyzed", lastAnalyzedDepositIdRule)
+	logs, sub, err := _Liquidity.contract.WatchLogs(opts, "DepositsAnalyzedAndRelayed", upToDepositIdRule)
 	if err != nil {
 		return nil, err
 	}
@@ -1518,8 +1618,8 @@ func (_Liquidity *LiquidityFilterer) WatchDepositsAnalyzed(opts *bind.WatchOpts,
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(LiquidityDepositsAnalyzed)
-				if err := _Liquidity.contract.UnpackLog(event, "DepositsAnalyzed", log); err != nil {
+				event := new(LiquidityDepositsAnalyzedAndRelayed)
+				if err := _Liquidity.contract.UnpackLog(event, "DepositsAnalyzedAndRelayed", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -1540,158 +1640,12 @@ func (_Liquidity *LiquidityFilterer) WatchDepositsAnalyzed(opts *bind.WatchOpts,
 	}), nil
 }
 
-// ParseDepositsAnalyzed is a log parse operation binding the contract event 0x48f1daf7209f4eda2120ee12101bdb8e7f108f2e8d84fc2d6a62b96682f9592c.
+// ParseDepositsAnalyzedAndRelayed is a log parse operation binding the contract event 0x2f41e147f23b2fb60bd8f0c0f016c37b7eeff712415ba8c2d60f846be3b098e6.
 //
-// Solidity: event DepositsAnalyzed(uint256 indexed lastAnalyzedDepositId, uint256[] rejectedIndices)
-func (_Liquidity *LiquidityFilterer) ParseDepositsAnalyzed(log types.Log) (*LiquidityDepositsAnalyzed, error) {
-	event := new(LiquidityDepositsAnalyzed)
-	if err := _Liquidity.contract.UnpackLog(event, "DepositsAnalyzed", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// LiquidityDepositsRelayedIterator is returned from FilterDepositsRelayed and is used to iterate over the raw logs and unpacked data for DepositsRelayed events raised by the Liquidity contract.
-type LiquidityDepositsRelayedIterator struct {
-	Event *LiquidityDepositsRelayed // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *LiquidityDepositsRelayedIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(LiquidityDepositsRelayed)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(LiquidityDepositsRelayed)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *LiquidityDepositsRelayedIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *LiquidityDepositsRelayedIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// LiquidityDepositsRelayed represents a DepositsRelayed event raised by the Liquidity contract.
-type LiquidityDepositsRelayed struct {
-	LastRelayedDepositId *big.Int
-	GasLimit             *big.Int
-	Message              []byte
-	Raw                  types.Log // Blockchain specific contextual infos
-}
-
-// FilterDepositsRelayed is a free log retrieval operation binding the contract event 0x71df2a50f3ab1563277a27043770eb570eeaa3fc42ef76c607cdc667a82d03a4.
-//
-// Solidity: event DepositsRelayed(uint256 indexed lastRelayedDepositId, uint256 gasLimit, bytes message)
-func (_Liquidity *LiquidityFilterer) FilterDepositsRelayed(opts *bind.FilterOpts, lastRelayedDepositId []*big.Int) (*LiquidityDepositsRelayedIterator, error) {
-
-	var lastRelayedDepositIdRule []interface{}
-	for _, lastRelayedDepositIdItem := range lastRelayedDepositId {
-		lastRelayedDepositIdRule = append(lastRelayedDepositIdRule, lastRelayedDepositIdItem)
-	}
-
-	logs, sub, err := _Liquidity.contract.FilterLogs(opts, "DepositsRelayed", lastRelayedDepositIdRule)
-	if err != nil {
-		return nil, err
-	}
-	return &LiquidityDepositsRelayedIterator{contract: _Liquidity.contract, event: "DepositsRelayed", logs: logs, sub: sub}, nil
-}
-
-// WatchDepositsRelayed is a free log subscription operation binding the contract event 0x71df2a50f3ab1563277a27043770eb570eeaa3fc42ef76c607cdc667a82d03a4.
-//
-// Solidity: event DepositsRelayed(uint256 indexed lastRelayedDepositId, uint256 gasLimit, bytes message)
-func (_Liquidity *LiquidityFilterer) WatchDepositsRelayed(opts *bind.WatchOpts, sink chan<- *LiquidityDepositsRelayed, lastRelayedDepositId []*big.Int) (event.Subscription, error) {
-
-	var lastRelayedDepositIdRule []interface{}
-	for _, lastRelayedDepositIdItem := range lastRelayedDepositId {
-		lastRelayedDepositIdRule = append(lastRelayedDepositIdRule, lastRelayedDepositIdItem)
-	}
-
-	logs, sub, err := _Liquidity.contract.WatchLogs(opts, "DepositsRelayed", lastRelayedDepositIdRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(LiquidityDepositsRelayed)
-				if err := _Liquidity.contract.UnpackLog(event, "DepositsRelayed", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseDepositsRelayed is a log parse operation binding the contract event 0x71df2a50f3ab1563277a27043770eb570eeaa3fc42ef76c607cdc667a82d03a4.
-//
-// Solidity: event DepositsRelayed(uint256 indexed lastRelayedDepositId, uint256 gasLimit, bytes message)
-func (_Liquidity *LiquidityFilterer) ParseDepositsRelayed(log types.Log) (*LiquidityDepositsRelayed, error) {
-	event := new(LiquidityDepositsRelayed)
-	if err := _Liquidity.contract.UnpackLog(event, "DepositsRelayed", log); err != nil {
+// Solidity: event DepositsAnalyzedAndRelayed(uint256 indexed upToDepositId, uint256[] rejectedIndices, uint256 gasLimit, bytes message)
+func (_Liquidity *LiquidityFilterer) ParseDepositsAnalyzedAndRelayed(log types.Log) (*LiquidityDepositsAnalyzedAndRelayed, error) {
+	event := new(LiquidityDepositsAnalyzedAndRelayed)
+	if err := _Liquidity.contract.UnpackLog(event, "DepositsAnalyzedAndRelayed", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
