@@ -9,6 +9,7 @@ import (
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/logger"
 	errorsDB "intmax2-node/pkg/sql_db/errors"
+	"time"
 
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"intmax2-node/pkg/utils"
@@ -21,6 +22,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
+const fixedDepositValueInWei = 1e17 // 0.1 ETH in Wei
 const amlRejectionThreshold = 70
 const noDepositEventsFoundError = "No deposit events found"
 
@@ -30,6 +32,11 @@ type DepositAnalyzerService struct {
 	log       logger.Logger
 	client    *ethclient.Client
 	liquidity *bindings.Liquidity
+}
+
+type DepositEventInfo struct {
+	LastDepositId *uint64
+	BlockNumber   *uint64
 }
 
 func NewDepositAnalyzerService(ctx context.Context, cfg *configs.Config, log logger.Logger, sc ServiceBlockchain) (*DepositAnalyzerService, error) {
@@ -71,11 +78,11 @@ func DepositAnalyzer(ctx context.Context, cfg *configs.Config, log logger.Logger
 	_ = db.Exec(ctx, nil, func(d interface{}, _ interface{}) (err error) {
 		q := d.(SQLDriverApp)
 
-		event, err := q.EventBlockNumberByEventName(mDBApp.DepositsAnalyzedEvent)
+		event, err := q.EventBlockNumberByEventName(mDBApp.DepositsAndAnalyzedReleyedEvent)
 		if err != nil {
 			if errors.Is(err, errorsDB.ErrNotFound) {
 				event = &mDBApp.EventBlockNumber{
-					EventName:                mDBApp.DepositsAnalyzedEvent,
+					EventName:                mDBApp.DepositsAndAnalyzedReleyedEvent,
 					LastProcessedBlockNumber: cfg.Blockchain.LiquidityContractDeployedBlockNumber,
 				}
 			} else {
@@ -83,15 +90,16 @@ func DepositAnalyzer(ctx context.Context, cfg *configs.Config, log logger.Logger
 			}
 		} else if event == nil {
 			event = &mDBApp.EventBlockNumber{
-				EventName:                mDBApp.DepositsAnalyzedEvent,
+				EventName:                mDBApp.DepositsAndAnalyzedReleyedEvent,
 				LastProcessedBlockNumber: cfg.Blockchain.LiquidityContractDeployedBlockNumber,
 			}
 		}
 
-		lastEventInfo, err := depositAnalyzerService.fetchLastDepositAnalyzedEvent(event.LastProcessedBlockNumber)
+		lastEventInfo, err := depositAnalyzerService.fetchLastDepositsAndAnalyzedReleyedEvent(event.LastProcessedBlockNumber)
 		if err != nil {
 			panic(fmt.Sprintf("Failed to get last deposit analyzed block number: %v", err.Error()))
 		}
+
 		if lastEventInfo == nil || lastEventInfo.BlockNumber == nil {
 			panic("Last event info or block number is nil")
 		}
@@ -100,7 +108,7 @@ func DepositAnalyzer(ctx context.Context, cfg *configs.Config, log logger.Logger
 			lastEventInfo.BlockNumber = &event.LastProcessedBlockNumber
 		}
 
-		_, err = q.UpsertEventBlockNumber(mDBApp.DepositsAnalyzedEvent, *lastEventInfo.BlockNumber)
+		_, err = q.UpsertEventBlockNumber(mDBApp.DepositsAndAnalyzedReleyedEvent, *lastEventInfo.BlockNumber)
 		if err != nil {
 			panic(fmt.Sprintf("Error updating event block number: %v", err.Error()))
 		}
@@ -110,6 +118,7 @@ func DepositAnalyzer(ctx context.Context, cfg *configs.Config, log logger.Logger
 			maxDepositIndex *big.Int
 			tokenIndexMap   map[uint32]bool
 		)
+
 		events, maxDepositIndex, tokenIndexMap, err =
 			depositAnalyzerService.fetchNewDeposits(*lastEventInfo.BlockNumber)
 		if err != nil {
@@ -143,13 +152,19 @@ func DepositAnalyzer(ctx context.Context, cfg *configs.Config, log logger.Logger
 			contractAddress := tokenInfoMap[event.TokenIndex]
 			score := fetchAMLScore(event.Sender.Hex(), contractAddress.Hex())
 			if score > amlRejectionThreshold {
-				rejectDepositIndices = append(rejectDepositIndices, new(big.Int).SetUint64(uint64(event.TokenIndex)))
+				rejectDepositIndices = append(rejectDepositIndices, new(big.Int).SetUint64(event.DepositId.Uint64()))
 			}
 		}
 
-		receipt, err := depositAnalyzerService.analyzeDeposits(maxDepositIndex, rejectDepositIndices)
+		lastRelayedDepositId, err := depositAnalyzerService.getLastRelayedDepositId()
 		if err != nil {
-			panic(fmt.Sprintf("Failed to analyze deposits: %v", err.Error()))
+			panic(fmt.Sprintf("Failed to get last relayed deposit id: %v", err.Error()))
+		}
+
+		pendingDepositsCount := maxDepositIndex.Uint64() - lastRelayedDepositId - uint64(len(rejectDepositIndices))
+		receipt, err := depositAnalyzerService.analyzeAndRelayDeposits(maxDepositIndex, rejectDepositIndices, pendingDepositsCount)
+		if err != nil {
+			panic(fmt.Sprintf("Failed to analyze and relay deposits: %v", err.Error()))
 		}
 
 		if receipt == nil {
@@ -158,9 +173,9 @@ func DepositAnalyzer(ctx context.Context, cfg *configs.Config, log logger.Logger
 
 		switch receipt.Status {
 		case types.ReceiptStatusSuccessful:
-			log.Infof("Successfully deposit analyzed %d deposits, %d rejections. Transaction Hash: %v", len(events), len(rejectDepositIndices), receipt.TxHash.Hex())
+			log.Infof("Successfully analyzed and relayed deposits %d deposits, %d rejections. Transaction Hash: %v", len(events), len(rejectDepositIndices), receipt.TxHash.Hex())
 		case types.ReceiptStatusFailed:
-			panic(fmt.Sprintf("Transaction failed: deposit analyzed unsuccessful. Transaction Hash: %v", receipt.TxHash.Hex()))
+			panic(fmt.Sprintf("Transaction failed: analyzed and relayed deposits unsuccessful. Transaction Hash: %v", receipt.TxHash.Hex()))
 		default:
 			panic(fmt.Sprintf("Unexpected transaction status: %d. Transaction Hash: %v", receipt.Status, receipt.TxHash.Hex()))
 		}
@@ -169,9 +184,9 @@ func DepositAnalyzer(ctx context.Context, cfg *configs.Config, log logger.Logger
 	})
 }
 
-func (d *DepositAnalyzerService) fetchLastDepositAnalyzedEvent(startBlockNumber uint64) (*DepositEventInfo, error) {
+func (d *DepositAnalyzerService) fetchLastDepositsAndAnalyzedReleyedEvent(startBlockNumber uint64) (*DepositEventInfo, error) {
 	nextBlock := startBlockNumber + 1
-	iterator, err := d.liquidity.FilterDepositsAnalyzed(&bind.FilterOpts{
+	iterator, err := d.liquidity.FilterDepositsAnalyzedAndRelayed(&bind.FilterOpts{
 		Start:   nextBlock,
 		End:     nil,
 		Context: d.ctx,
@@ -191,7 +206,7 @@ func (d *DepositAnalyzerService) fetchLastDepositAnalyzedEvent(startBlockNumber 
 			return nil, fmt.Errorf("error encountered while iterating: %v", iterator.Error())
 		}
 
-		currentId := iterator.Event.LastAnalyzedDepositId.Uint64()
+		currentId := iterator.Event.UpToDepositId.Uint64()
 		currentBlockNumber := iterator.Event.Raw.BlockNumber
 
 		lastEvent = &DepositEventInfo{
@@ -220,7 +235,7 @@ func (d *DepositAnalyzerService) fetchNewDeposits(
 		Start:   nextBlock,
 		End:     nil,
 		Context: d.ctx,
-	}, []*big.Int{}, []common.Address{})
+	}, []*big.Int{}, []common.Address{}, [][32]byte{})
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to filter logs: %w", err)
 	}
@@ -323,11 +338,14 @@ func (d *DepositAnalyzerService) getTokenInfoMap(tokenIndexMap map[uint32]bool) 
 	return tokenInfoMap, nil
 }
 
-func (d *DepositAnalyzerService) analyzeDeposits(upToDepositId *big.Int, rejectDepositIndices []*big.Int) (*types.Receipt, error) {
+func (d *DepositAnalyzerService) analyzeAndRelayDeposits(upToDepositId *big.Int, rejectDepositIndices []*big.Int, numDepositsToRelay uint64) (*types.Receipt, error) {
 	transactOpts, err := utils.CreateTransactor(d.cfg.Blockchain.DepositAnalyzerPrivateKeyHex, d.cfg.Blockchain.EthereumNetworkChainID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create transactor: %w", err)
 	}
+
+	transactOpts.Value = big.NewInt(fixedDepositValueInWei)
+	gasLimit := new(big.Int).SetUint64(calculateAnalyzeAndRelayGasLimit(numDepositsToRelay))
 
 	err = utils.LogTransactionDebugInfo(
 		d.log,
@@ -335,14 +353,15 @@ func (d *DepositAnalyzerService) analyzeDeposits(upToDepositId *big.Int, rejectD
 		d.cfg.Blockchain.LiquidityContractAddress,
 		upToDepositId,
 		rejectDepositIndices,
+		gasLimit,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to log transaction debug info: %w", err)
 	}
 
-	tx, err := d.liquidity.AnalyzeDeposits(transactOpts, upToDepositId, rejectDepositIndices)
+	tx, err := d.liquidity.AnalyzeAndRelayDeposits(transactOpts, upToDepositId, rejectDepositIndices, gasLimit)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send AnalyzeDeposits transaction: %w", err)
+		return nil, fmt.Errorf("failed to send AnalyzeAndRelayDeposits transaction: %w", err)
 	}
 
 	receipt, err := bind.WaitMined(d.ctx, d.client, tx)
@@ -357,4 +376,80 @@ func fetchAMLScore(sender string, contractAddress string) uint32 { // nolint:goc
 	const int50Key = 50
 	// TODO: Implement a real AML score fetching function
 	return int50Key
+}
+
+func calculateAnalyzeAndRelayGasLimit(numDepositsToRelay uint64) uint64 {
+	const (
+		baseGas       = uint64(220000)
+		perDepositGas = uint64(20000)
+		bufferGas     = uint64(100000)
+	)
+	return baseGas + (perDepositGas * numDepositsToRelay) + bufferGas
+}
+
+func isBlockTimeExceeded(ctx context.Context, client *ethclient.Client, blockNumber uint64, minutes int) (bool, error) {
+	block, err := client.BlockByNumber(ctx, big.NewInt(int64(blockNumber)))
+	if err != nil {
+		return false, fmt.Errorf("failed to get block by number: %w", err)
+	}
+
+	timestamp := block.Time()
+	currentTime := time.Now()
+
+	blockTime := time.Unix(int64(timestamp), 0)
+	diff := currentTime.Sub(blockTime)
+	duration := time.Duration(minutes) * time.Minute
+
+	return diff > duration, nil
+}
+
+func fetchDepositEvent(ctx context.Context, liquidity *bindings.Liquidity, startBlockNumber uint64, depositIds []*big.Int) (*DepositEventInfo, error) {
+	nextBlock := startBlockNumber + 1
+	iterator, err := liquidity.FilterDeposited(&bind.FilterOpts{
+		Start:   nextBlock,
+		End:     nil,
+		Context: ctx,
+	}, depositIds, []common.Address{}, [][32]byte{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to filter logs: %v", err)
+	}
+	defer func() {
+		_ = iterator.Close()
+	}()
+
+	var event *DepositEventInfo
+
+	for iterator.Next() {
+		if iterator.Error() != nil {
+			return nil, fmt.Errorf("error encountered while iterating: %v", iterator.Error())
+		}
+
+		currentId := iterator.Event.DepositId.Uint64()
+		currentBlockNumber := iterator.Event.Raw.BlockNumber
+
+		event = &DepositEventInfo{
+			LastDepositId: &currentId,
+			BlockNumber:   &currentBlockNumber,
+		}
+	}
+
+	if event == nil {
+		return nil, fmt.Errorf("no deposit events found")
+	}
+
+	return event, nil
+}
+
+func (d *DepositAnalyzerService) getLastRelayedDepositId() (uint64, error) {
+	lastRelayedDepositId, err := d.liquidity.GetLastRelayedDepositId(&bind.CallOpts{
+		Pending: false,
+		Context: d.ctx,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("failed to get last relayed deposit id: %w", err)
+	}
+	if !lastRelayedDepositId.IsUint64() {
+		return 0, fmt.Errorf("last relayed deposit id exceeds uint64 range")
+	}
+	return lastRelayedDepositId.Uint64(), nil
 }
