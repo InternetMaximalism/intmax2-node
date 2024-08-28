@@ -37,6 +37,8 @@ func (leaf *BlockHashLeaf) Hash() *PoseidonHashOut {
 	return intMaxGP.HashNoPad(inputs)
 }
 
+type BlockHashMerkleProof = MerkleProof
+
 type BlockHashTree struct {
 	Leaves []*BlockHashLeaf
 	inner  *PoseidonIncrementalMerkleTree

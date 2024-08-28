@@ -47,6 +47,17 @@ func (flags *InsufficientFlags) FromFieldElementSlice(value []ffg.Element) *Insu
 	return flags
 }
 
+func (flags *InsufficientFlags) SetBit(index int, isValid bool) {
+	limbIndex := index / 32
+	bitIndex := index % 32
+
+	if isValid {
+		flags.Limbs[limbIndex] |= 1 << bitIndex
+	} else {
+		flags.Limbs[limbIndex] &^= 1 << bitIndex
+	}
+}
+
 type BalancePublicInputs struct {
 	PublicKey               *big.Int                           `json:"pubkey"`
 	PrivateCommitment       goldenposeidon.PoseidonHashOut     `json:"privateCommitment"`
