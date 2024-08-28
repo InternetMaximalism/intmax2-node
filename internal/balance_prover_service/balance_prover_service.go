@@ -5,6 +5,7 @@ import (
 
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_validity_prover"
+	"intmax2-node/internal/hash/goldenposeidon"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/backup_balance"
@@ -45,13 +46,21 @@ func (s *MockBlockBuilder) GetDepositTreeProof(index uint32) *intMaxTree.MerkleP
 	return nil
 }
 
-// pub struct BalancePublicInputs {
-//     pub pubkey: U256,
-//     pub private_commitment: PoseidonHashOut,
-//     pub last_tx_hash: PoseidonHashOut,
-//     pub last_tx_insufficient_flags: InsufficientFlags,
-//     pub public_state: PublicState,
-// }
+func (s *MockBlockBuilder) GetBlockMerkleProof(rootBlockNumber, leafBlockNumber uint32) (*intMaxTree.BlockHashMerkleProof, error) {
+	// if rootBlockNumber < leafBlockNumber {
+	// 	return nil, errors.New("root block number is less than leaf block number")
+	// }
+
+	// auxInfo, ok := s.GetAuxInfo(rootBlockNumber)
+	// if !ok {
+	// 	return nil, errors.New("current block number not found")
+	// }
+	// blockMerkleProof := auxInfo.BlockTree.Prove(int(leafBlockNumber))
+
+	// return blockMerkleProof, nil
+
+	return nil, errors.New("not implemented")
+}
 
 type BalancePublicInputs struct {
 	PubKey                  *intMaxAcc.PublicKey
@@ -61,6 +70,62 @@ type BalancePublicInputs struct {
 	PublicState             *block_validity_prover.PublicState
 }
 
+const balancePublicInputsLen = 47
+const (
+	int2Key = 2
+	int3Key = 3
+	int4Key = 4
+	int8Key = 8
+)
+
 func (s *BalancePublicInputs) FromPublicInputs(publicInputs []ffg.Element) (*BalancePublicInputs, error) {
-	return nil, errors.New("not implemented")
+	if len(publicInputs) < balancePublicInputsLen {
+		return nil, errors.New("invalid length")
+	}
+
+	const (
+		numHashOutElts                = goldenposeidon.NUM_HASH_OUT_ELTS
+		publicKeyOffset               = 0
+		privateCommitmentOffset       = publicKeyOffset + int8Key
+		lastTxHashOffset              = privateCommitmentOffset + numHashOutElts
+		lastTxInsufficientFlagsOffset = lastTxHashOffset + numHashOutElts
+		publicStateOffset             = lastTxInsufficientFlagsOffset + backup_balance.InsufficientFlagsLen
+		end                           = publicStateOffset + block_validity_prover.PublicStateLimbSize
+	)
+
+	address := new(intMaxTypes.Uint256).FromFieldElementSlice(publicInputs[0:int8Key])
+	publicKey, err := new(intMaxAcc.PublicKey).SetBigInt(address.BigInt())
+	if err != nil {
+		return nil, err
+	}
+	privateCommitment := poseidonHashOut{
+		Elements: [numHashOutElts]ffg.Element{
+			publicInputs[privateCommitmentOffset],
+			publicInputs[privateCommitmentOffset+1],
+			publicInputs[privateCommitmentOffset+int2Key],
+			publicInputs[privateCommitmentOffset+int3Key],
+		},
+	}
+	lastTxHash := poseidonHashOut{
+		Elements: [numHashOutElts]ffg.Element{
+			publicInputs[lastTxHashOffset],
+			publicInputs[lastTxHashOffset+1],
+			publicInputs[lastTxHashOffset+int2Key],
+			publicInputs[lastTxHashOffset+int3Key],
+		},
+	}
+	lastTxInsufficientFlags := new(backup_balance.InsufficientFlags).FromFieldElementSlice(
+		publicInputs[lastTxInsufficientFlagsOffset:publicStateOffset],
+	)
+	publicState := new(block_validity_prover.PublicState).FromFieldElementSlice(
+		publicInputs[publicStateOffset:end],
+	)
+
+	return &BalancePublicInputs{
+		PubKey:                  publicKey,
+		PrivateCommitment:       &privateCommitment,
+		LastTxHash:              &lastTxHash,
+		LastTxInsufficientFlags: *lastTxInsufficientFlags,
+		PublicState:             publicState,
+	}, nil
 }

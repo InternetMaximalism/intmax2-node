@@ -120,8 +120,8 @@ func (t *BlockHashTree) Prove(index uint32) (proof MerkleProof, root PoseidonHas
 	return proof, root, err
 }
 
-func (t *BlockHashTree) GetRoot() PoseidonHashOut {
+func (t *BlockHashTree) GetRoot() *PoseidonHashOut {
 	root, _, _ := t.inner.GetCurrentRootCountAndSiblings()
 
-	return root
+	return &root
 }

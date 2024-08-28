@@ -25,7 +25,7 @@ func NewNullifierTree(height uint8) (*NullifierTree, error) {
 	}, nil
 }
 
-func (t *NullifierTree) GetRoot() PoseidonHashOut {
+func (t *NullifierTree) GetRoot() *PoseidonHashOut {
 	root := t.inner.GetRoot()
 
 	return root
@@ -35,11 +35,11 @@ func (t *NullifierTree) GetLeaf(index LeafIndex) *IndexedMerkleLeaf {
 	return t.inner.Leaves[index]
 }
 
-func (t *NullifierTree) Prove(index LeafIndex) (proof *IndexedMerkleProof, root PoseidonHashOut, err error) {
+func (t *NullifierTree) Prove(index LeafIndex) (proof *IndexedMerkleProof, root *PoseidonHashOut, err error) {
 	return t.inner.Prove(index)
 }
 
-func (t *NullifierTree) ProveMembership(key *big.Int) (membershipProof *IndexedMembershipProof, root PoseidonHashOut, err error) {
+func (t *NullifierTree) ProveMembership(key *big.Int) (membershipProof *IndexedMembershipProof, root *PoseidonHashOut, err error) {
 	return t.inner.ProveMembership(key)
 }
 

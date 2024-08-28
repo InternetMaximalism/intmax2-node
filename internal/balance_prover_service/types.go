@@ -198,13 +198,16 @@ type ReceiveDepositWitness struct {
 	PrivateWitness *PrivateWitness `json:"privateWitness"`
 }
 
-type ReceiveTransferWitness struct {
-	Tx                  intMaxTypes.Tx         `json:"tx"`
-	Transfer            intMaxTypes.Transfer   `json:"transfer"`
-	TransferIndex       uint                   `json:"transferIndex"`
-	TransferMerkleProof intMaxTree.MerkleProof `json:"transferMerkleProof"`
+type TransferWitness struct {
+	Tx                  intMaxTypes.Tx          `json:"tx"`
+	Transfer            intMaxTypes.Transfer    `json:"transfer"`
+	TransferIndex       uint32                  `json:"transferIndex"`
+	TransferMerkleProof *intMaxTree.MerkleProof `json:"transferMerkleProof"`
 }
 
-// type PublicInputs struct{}
-
-// type ProofWithPublicInputs struct {}
+type ReceiveTransferWitness struct {
+	TransferWitness  *TransferWitness                 `json:"transferWitness"`
+	PrivateWitness   *PrivateWitness                  `json:"privateWitness"`
+	BalanceProof     *intMaxTypes.Plonky2Proof        `json:"balanceProof"`
+	BlockMerkleProof *intMaxTree.BlockHashMerkleProof `json:"blockMerkleProof"`
+}

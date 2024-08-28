@@ -174,7 +174,7 @@ func (s *BalanceProverService) ReceiveTransfer(
 	wallet *MockWallet,
 	balanceProcessor *BalanceProcessor,
 	blockBuilder *MockBlockBuilder,
-	transferWitness *ReceiveTransferWitness,
+	transferWitness *TransferWitness,
 	senderBalanceProof *intMaxTypes.Plonky2Proof,
 ) error {
 	receiveTransferWitness, err := wallet.ReceiveTransferAndUpdate(

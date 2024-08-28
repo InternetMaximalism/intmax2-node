@@ -51,11 +51,11 @@ type BlockContents interface {
 	// GenerateValidityWitness(blockWitness *BlockWitness) (*ValidityWitness, error)
 	NextAccountID() (uint64, error)
 	AppendAccountTreeLeaf(sender *big.Int, lastBlockNumber uint64) (*intMaxTree.IndexedInsertionProof, error)
-	AccountTreeRoot() (intMaxGP.PoseidonHashOut, error)
+	AccountTreeRoot() (*intMaxGP.PoseidonHashOut, error)
 	GetAccountTreeLeaf(sender *big.Int) (*intMaxTree.IndexedMerkleLeaf, error)
 	UpdateAccountTreeLeaf(sender *big.Int, lastBlockNumber uint64) (*intMaxTree.IndexedUpdateProof, error)
 	AppendBlockTreeLeaf(block *block_post_service.PostedBlock) error
-	BlockTreeRoot() (intMaxGP.PoseidonHashOut, error)
+	BlockTreeRoot() (*intMaxGP.PoseidonHashOut, error)
 	BlockTreeProof(blockNumber uint32) (*intMaxTree.MerkleProof, error)
 }
 

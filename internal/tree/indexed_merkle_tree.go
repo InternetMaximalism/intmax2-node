@@ -338,20 +338,20 @@ func NewIndexedMerkleTree(height uint8, zeroHash *goldenposeidon.PoseidonHashOut
 	}, nil
 }
 
-func (t *IndexedMerkleTree) GetRoot() PoseidonHashOut {
+func (t *IndexedMerkleTree) GetRoot() *PoseidonHashOut {
 	root := t.inner.GetRoot()
 
-	return *root
+	return root
 }
 
 func (t *IndexedMerkleTree) GetLeaf(index LeafIndex) *IndexedMerkleLeaf {
 	return t.Leaves[index]
 }
 
-func (t *IndexedMerkleTree) Prove(index LeafIndex) (proof *IndexedMerkleProof, root PoseidonHashOut, err error) {
+func (t *IndexedMerkleTree) Prove(index LeafIndex) (proof *IndexedMerkleProof, root *PoseidonHashOut, err error) {
 	innerProof, err := t.inner.Prove(index)
 	if err != nil {
-		return nil, goldenposeidon.PoseidonHashOut{}, err
+		return nil, nil, err
 	}
 
 	root = t.GetRoot()
@@ -360,12 +360,12 @@ func (t *IndexedMerkleTree) Prove(index LeafIndex) (proof *IndexedMerkleProof, r
 	return proof, root, err
 }
 
-func (t *IndexedMerkleTree) ProveMembership(key *big.Int) (membership_proof *IndexedMembershipProof, root PoseidonHashOut, err error) {
+func (t *IndexedMerkleTree) ProveMembership(key *big.Int) (membership_proof *IndexedMembershipProof, root *PoseidonHashOut, err error) {
 	lowIndex := t.GetLowIndex(key)
 	lowLeaf := t.GetLeaf(lowIndex)
 	leafProof, root, err := t.Prove(lowIndex)
 	if err != nil {
-		return nil, goldenposeidon.PoseidonHashOut{}, err
+		return nil, nil, err
 	}
 
 	membership_proof = &IndexedMembershipProof{
@@ -470,7 +470,7 @@ func (t *IndexedMerkleTree) Insert(key *big.Int, value uint64) (*IndexedInsertio
 	err = lowLeafProof.Verify(
 		newLowLeaf,
 		lowIndex,
-		&rootAfterUpdatedPrevLeaf,
+		rootAfterUpdatedPrevLeaf,
 	)
 	if err != nil {
 		fmt.Println("Fail to verify new low leaf")
@@ -479,7 +479,7 @@ func (t *IndexedMerkleTree) Insert(key *big.Int, value uint64) (*IndexedInsertio
 	err = lowLeafProof.Verify(
 		prevLowLeaf,
 		lowIndex,
-		&prevRoot,
+		prevRoot,
 	)
 	if err != nil {
 		fmt.Println("Fail to verify old low leaf")
@@ -505,7 +505,7 @@ func (t *IndexedMerkleTree) Insert(key *big.Int, value uint64) (*IndexedInsertio
 	err = leafProof.Verify(
 		leaf,
 		index,
-		&newRoot,
+		newRoot,
 	)
 	if err != nil {
 		fmt.Println("Fail to verify new")
@@ -514,7 +514,7 @@ func (t *IndexedMerkleTree) Insert(key *big.Int, value uint64) (*IndexedInsertio
 	err = leafProof.Verify(
 		new(IndexedMerkleLeaf).EmptyLeaf(),
 		index,
-		&rootAfterUpdatedPrevLeaf,
+		rootAfterUpdatedPrevLeaf,
 	)
 	if err != nil {
 		fmt.Println("Fail to verify old")

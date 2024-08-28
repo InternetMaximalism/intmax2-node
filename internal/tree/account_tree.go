@@ -27,7 +27,7 @@ func NewAccountTree(height uint8) (*AccountTree, error) {
 	}, nil
 }
 
-func (t *AccountTree) GetRoot() PoseidonHashOut {
+func (t *AccountTree) GetRoot() *PoseidonHashOut {
 	return t.inner.GetRoot()
 }
 
@@ -45,11 +45,11 @@ func (t *AccountTree) GetAccountID(publicKey *big.Int) (accountID uint64, ok boo
 	return uint64(index), ok
 }
 
-func (t *AccountTree) Prove(accountID uint64) (proof *IndexedMerkleProof, root PoseidonHashOut, err error) {
+func (t *AccountTree) Prove(accountID uint64) (proof *IndexedMerkleProof, root *PoseidonHashOut, err error) {
 	return t.inner.Prove(LeafIndex(accountID))
 }
 
-func (t *AccountTree) ProveMembership(publicKey *big.Int) (proof *IndexedMembershipProof, root PoseidonHashOut, err error) {
+func (t *AccountTree) ProveMembership(publicKey *big.Int) (proof *IndexedMembershipProof, root *PoseidonHashOut, err error) {
 	return t.inner.ProveMembership(publicKey)
 }
 

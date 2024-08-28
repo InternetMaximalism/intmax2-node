@@ -104,6 +104,21 @@ func (proof *AssetMerkleProof) GetRoot(
 	return root
 }
 
+func (proof *AssetMerkleProof) Verify(
+	leaf *AssetLeaf,
+	index uint32,
+	root *PoseidonHashOut,
+) error {
+	merkleProof := MerkleProof{
+		Siblings: proof.Siblings,
+	}
+	return merkleProof.Verify(
+		leaf.Hash(),
+		int(index),
+		root,
+	)
+}
+
 type AssetTree struct {
 	Leaves []*AssetLeaf
 	inner  *PoseidonIncrementalMerkleTree
@@ -186,9 +201,9 @@ func (t *AssetTree) GetLeaf(index uint32) *AssetLeaf {
 	return t.Leaves[index]
 }
 
-func (t *AssetTree) GetRoot() PoseidonHashOut {
+func (t *AssetTree) GetRoot() *PoseidonHashOut {
 	root, _, _ := t.inner.GetCurrentRootCountAndSiblings()
-	return root
+	return &root
 }
 
 func (t *AssetTree) UpdateLeaf(index uint32, leaf *AssetLeaf) (root *PoseidonHashOut, err error) {

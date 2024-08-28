@@ -29,12 +29,12 @@ import (
 const base10 = 10
 
 type PublicState struct {
-	BlockTreeRoot       intMaxGP.PoseidonHashOut `json:"blockTreeRoot"`
-	PrevAccountTreeRoot intMaxGP.PoseidonHashOut `json:"prevAccountTreeRoot"`
-	AccountTreeRoot     intMaxGP.PoseidonHashOut `json:"accountTreeRoot"`
-	DepositTreeRoot     common.Hash              `json:"depositTreeRoot"`
-	BlockHash           common.Hash              `json:"blockHash"`
-	BlockNumber         uint32                   `json:"blockNumber"`
+	BlockTreeRoot       *intMaxGP.PoseidonHashOut `json:"blockTreeRoot"`
+	PrevAccountTreeRoot *intMaxGP.PoseidonHashOut `json:"prevAccountTreeRoot"`
+	AccountTreeRoot     *intMaxGP.PoseidonHashOut `json:"accountTreeRoot"`
+	DepositTreeRoot     common.Hash               `json:"depositTreeRoot"`
+	BlockHash           common.Hash               `json:"blockHash"`
+	BlockNumber         uint32                    `json:"blockNumber"`
 }
 
 func (ps *PublicState) Genesis() *PublicState {
@@ -69,13 +69,13 @@ func (ps *PublicState) Genesis() *PublicState {
 }
 
 func (ps *PublicState) Equal(other *PublicState) bool {
-	if !ps.BlockTreeRoot.Equal(&other.BlockTreeRoot) {
+	if !ps.BlockTreeRoot.Equal(other.BlockTreeRoot) {
 		return false
 	}
-	if !ps.PrevAccountTreeRoot.Equal(&other.PrevAccountTreeRoot) {
+	if !ps.PrevAccountTreeRoot.Equal(other.PrevAccountTreeRoot) {
 		return false
 	}
-	if !ps.AccountTreeRoot.Equal(&other.AccountTreeRoot) {
+	if !ps.AccountTreeRoot.Equal(other.AccountTreeRoot) {
 		return false
 	}
 	if ps.DepositTreeRoot != other.DepositTreeRoot {
@@ -251,7 +251,7 @@ func (vtw *ValidityTransitionWitness) Genesis() *ValidityTransitionWitness {
 	}
 
 	// verify
-	err = blockMerkleProof.Verify(prevLeafHash, 0, &prevRoot)
+	err = blockMerkleProof.Verify(prevLeafHash, 0, prevRoot)
 	if err != nil {
 		panic(err)
 	}
@@ -364,12 +364,12 @@ type AccountMerkleProof struct {
 	Leaf        intMaxTree.IndexedMerkleLeaf  `json:"leaf"`
 }
 
-func (proof *AccountMerkleProof) Verify(accountTreeRoot intMaxGP.PoseidonHashOut, accountID uint64, publicKey intMaxTypes.Uint256) error {
+func (proof *AccountMerkleProof) Verify(accountTreeRoot *intMaxGP.PoseidonHashOut, accountID uint64, publicKey intMaxTypes.Uint256) error {
 	if publicKey.IsDummyPublicKey() {
 		return errors.New("public key is zero")
 	}
 
-	err := proof.MerkleProof.Verify(&proof.Leaf, int(accountID), &accountTreeRoot)
+	err := proof.MerkleProof.Verify(&proof.Leaf, int(accountID), accountTreeRoot)
 	if err != nil {
 		var ErrMerkleProofInvalid = errors.New("given Merkle proof is invalid")
 		return errors.Join(ErrMerkleProofInvalid, err)
@@ -623,8 +623,8 @@ type BlockWitness struct {
 	Block                   *block_post_service.PostedBlock      `json:"block"`
 	Signature               SignatureContent                     `json:"signature"`
 	PublicKeys              []intMaxTypes.Uint256                `json:"pubkeys"`
-	PrevAccountTreeRoot     intMaxTree.PoseidonHashOut           `json:"prevAccountTreeRoot"`
-	PrevBlockTreeRoot       intMaxTree.PoseidonHashOut           `json:"prevBlockTreeRoot"`
+	PrevAccountTreeRoot     *intMaxTree.PoseidonHashOut          `json:"prevAccountTreeRoot"`
+	PrevBlockTreeRoot       *intMaxTree.PoseidonHashOut          `json:"prevBlockTreeRoot"`
 	AccountIdPacked         *AccountIdPacked                     `json:"accountIdPacked,omitempty"`         // in account id case
 	AccountMerkleProofs     *[]AccountMerkleProof                `json:"accountMerkleProofs,omitempty"`     // in account id case
 	AccountMembershipProofs *[]intMaxTree.IndexedMembershipProof `json:"accountMembershipProofs,omitempty"` // in pubkey case
@@ -659,7 +659,7 @@ func (bw *BlockWitness) Genesis() *BlockWitness {
 		Signature:               SignatureContent{},
 		PublicKeys:              make([]intMaxTypes.Uint256, 0),
 		PrevAccountTreeRoot:     prevAccountTreeRoot,
-		PrevBlockTreeRoot:       prevBlockTreeRoot,
+		PrevBlockTreeRoot:       &prevBlockTreeRoot,
 		AccountIdPacked:         nil,
 		AccountMerkleProofs:     nil,
 		AccountMembershipProofs: nil,
@@ -671,8 +671,8 @@ func (bw *BlockWitness) Compress(maxAccountID uint64) (compressed *CompressedBlo
 		Block:                    bw.Block,
 		Signature:                bw.Signature,
 		PublicKeys:               bw.PublicKeys,
-		PrevAccountTreeRoot:      bw.PrevAccountTreeRoot,
-		PrevBlockTreeRoot:        bw.PrevBlockTreeRoot,
+		PrevAccountTreeRoot:      *bw.PrevAccountTreeRoot,
+		PrevBlockTreeRoot:        *bw.PrevBlockTreeRoot,
 		AccountIdPacked:          bw.AccountIdPacked,
 		CommonAccountMerkleProof: make([]*intMaxGP.PoseidonHashOut, 0),
 	}
@@ -841,7 +841,7 @@ type AccountInclusionValue struct {
 }
 
 func NewAccountInclusionValue(
-	accountTreeRoot intMaxTree.PoseidonHashOut,
+	accountTreeRoot *intMaxTree.PoseidonHashOut,
 	accountIDPacked *AccountIdPacked,
 	accountMerkleProofs []AccountMerkleProof,
 	publicKeys []intMaxTypes.Uint256,
@@ -870,7 +870,7 @@ func NewAccountInclusionValue(
 	return &AccountInclusionValue{
 		AccountIDPacked:     *accountIDPacked,
 		AccountIDHash:       accountIDHash,
-		AccountTreeRoot:     &accountTreeRoot,
+		AccountTreeRoot:     accountTreeRoot,
 		AccountMerkleProofs: accountMerkleProofs,
 		PublicKeys:          publicKeys,
 		PublicKeyCommitment: publicKeyCommitment,
@@ -958,7 +958,7 @@ func (w *BlockWitness) MainValidationPublicInputs() *MainValidationPublicInputs 
 			PrevBlockHash:       new(block_post_service.PostedBlock).Genesis().PrevBlockHash,
 			BlockHash:           validityPis.PublicState.BlockHash,
 			DepositTreeRoot:     validityPis.PublicState.DepositTreeRoot,
-			AccountTreeRoot:     &validityPis.PublicState.AccountTreeRoot,
+			AccountTreeRoot:     validityPis.PublicState.AccountTreeRoot,
 			TxTreeRoot:          validityPis.TxTreeRoot,
 			SenderTreeRoot:      validityPis.SenderTreeRoot,
 			BlockNumber:         validityPis.PublicState.BlockNumber,
@@ -992,7 +992,7 @@ func (w *BlockWitness) MainValidationPublicInputs() *MainValidationPublicInputs 
 
 		// Account exclusion verification
 		accountExclusionValue, err := NewAccountExclusionValue(
-			&accountTreeRoot,
+			accountTreeRoot,
 			*w.AccountMembershipProofs,
 			publicKeys,
 		)
@@ -1044,7 +1044,7 @@ func (w *BlockWitness) MainValidationPublicInputs() *MainValidationPublicInputs 
 		PrevBlockHash:       prev_block_hash,
 		BlockHash:           blockHash,
 		DepositTreeRoot:     block.DepositRoot,
-		AccountTreeRoot:     &accountTreeRoot,
+		AccountTreeRoot:     accountTreeRoot,
 		TxTreeRoot:          txTreeRoot,
 		SenderTreeRoot:      senderTreeRoot,
 		BlockNumber:         block.BlockNumber,
@@ -1096,7 +1096,7 @@ func (vw *ValidityWitness) ValidityPublicInputs() *ValidityPublicInputs {
 	err := vw.ValidityTransitionWitness.BlockMerkleProof.Verify(
 		defaultLeaf.Hash(),
 		int(block.BlockNumber),
-		&prevBlockTreeRoot,
+		prevBlockTreeRoot,
 	)
 
 	if err != nil {
@@ -1109,7 +1109,7 @@ func (vw *ValidityWitness) ValidityPublicInputs() *ValidityPublicInputs {
 
 	// transition account tree root
 	prevAccountTreeRoot := vw.BlockWitness.PrevAccountTreeRoot
-	accountTreeRoot := new(intMaxGP.PoseidonHashOut).Set(&prevAccountTreeRoot)
+	accountTreeRoot := new(intMaxGP.PoseidonHashOut).Set(prevAccountTreeRoot)
 	if mainValidationPis.IsValid && mainValidationPis.IsRegistrationBlock {
 		accountRegistrationProofs := vw.ValidityTransitionWitness.AccountRegistrationProofs
 		if !accountRegistrationProofs.IsValid {
@@ -1163,9 +1163,9 @@ func (vw *ValidityWitness) ValidityPublicInputs() *ValidityPublicInputs {
 
 	return &ValidityPublicInputs{
 		PublicState: &PublicState{
-			BlockTreeRoot:       *blockTreeRoot,
+			BlockTreeRoot:       blockTreeRoot,
 			PrevAccountTreeRoot: prevAccountTreeRoot,
-			AccountTreeRoot:     *accountTreeRoot,
+			AccountTreeRoot:     accountTreeRoot,
 			DepositTreeRoot:     block.DepositRoot,
 			BlockHash:           mainValidationPis.BlockHash,
 			BlockNumber:         block.BlockNumber,
@@ -1381,11 +1381,11 @@ func (db *mockBlockBuilder) LastValidityWitness() (*ValidityWitness, error) {
 	return db.lastValidityWitness, nil
 }
 
-func (db *mockBlockBuilder) AccountTreeRoot() (intMaxGP.PoseidonHashOut, error) {
+func (db *mockBlockBuilder) AccountTreeRoot() (*intMaxGP.PoseidonHashOut, error) {
 	return db.AccountTree.GetRoot(), nil
 }
 
-func (db *mockBlockBuilder) BlockTreeRoot() (intMaxGP.PoseidonHashOut, error) {
+func (db *mockBlockBuilder) BlockTreeRoot() (*intMaxGP.PoseidonHashOut, error) {
 	return db.BlockTree.GetRoot(), nil
 }
 
@@ -1483,7 +1483,7 @@ func generateValidityWitness(db SQLDriverApp, blockWitness *BlockWitness) (*Vali
 	err = blockMerkleProof.Verify(
 		defaultLeaf.Hash(),
 		int(blockWitness.Block.BlockNumber),
-		&prevBlockTreeRoot,
+		prevBlockTreeRoot,
 	)
 	if err != nil {
 		panic("old block merkle proof is invalid")
@@ -1503,7 +1503,7 @@ func generateValidityWitness(db SQLDriverApp, blockWitness *BlockWitness) (*Vali
 	err = blockMerkleProof.Verify(
 		blockHashLeaf.Hash(),
 		int(blockWitness.Block.BlockNumber),
-		&newBlockTreeRoot,
+		newBlockTreeRoot,
 	)
 	if err != nil {
 		panic("new block merkle proof is invalid")
