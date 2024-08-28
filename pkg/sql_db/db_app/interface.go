@@ -29,6 +29,8 @@ type SQLDb interface {
 	Senders
 	Accounts
 	BackupBalances
+	CtrlProcessingJobs
+	GasPriceOracle
 }
 
 type GenericCommands interface {
@@ -204,4 +206,14 @@ type BackupBalances interface {
 	) (*models.BackupBalance, error)
 	GetBackupBalance(conditions []string, values []interface{}) (*models.BackupBalance, error)
 	GetBackupBalances(condition string, value interface{}) ([]*models.BackupBalance, error)
+}
+
+type CtrlProcessingJobs interface {
+	CreateCtrlProcessingJobs(name string) error
+	CtrlProcessingJobs(name string) (*models.CtrlProcessingJobs, error)
+}
+
+type GasPriceOracle interface {
+	CreateGasPriceOracle(name string, value *uint256.Int) error
+	GasPriceOracle(name string) (*models.GasPriceOracle, error)
 }

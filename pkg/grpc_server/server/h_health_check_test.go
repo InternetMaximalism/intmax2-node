@@ -33,6 +33,8 @@ func TestHandlerHealthCheck(t *testing.T) {
 	pw := NewMockPoWNonce(ctrl)
 	dbApp := NewMockSQLDriverApp(ctrl)
 	worker := NewMockWorker(ctrl)
+	sb := NewMockServiceBlockchain(ctrl)
+	storageGPO := NewMockGPOStorage(ctrl)
 
 	hc := health.NewHandler()
 	hcTestImpl := newHcTest()
@@ -57,7 +59,7 @@ func TestHandlerHealthCheck(t *testing.T) {
 
 	cmd := NewMockCommands(ctrl)
 
-	grpcServerStop, gwServer := Start(cmd, ctx, cfg, log, dbApp, &hc, pw, worker)
+	grpcServerStop, gwServer := Start(cmd, ctx, cfg, log, dbApp, &hc, pw, worker, sb, storageGPO)
 	defer grpcServerStop()
 
 	uc := mocks.NewMockUseCaseHealthCheck(ctrl)
