@@ -105,7 +105,7 @@ func (t *DepositTree) BuildMerkleRoot(leaves [][numHashBytes]byte) (common.Hash,
 	return t.inner.BuildMerkleRoot(leaves)
 }
 
-func (t *DepositTree) GetCurrentRootCountAndSiblings() (root common.Hash, nextIndex uint32, siblings [][numHashBytes]byte) {
+func (t *DepositTree) GetCurrentRootCountAndSiblings() (root common.Hash, nextIndex uint32, siblings *KeccakMerkleProof) {
 	return t.inner.GetCurrentRootCountAndSiblings()
 }
 
@@ -125,6 +125,6 @@ func (t *DepositTree) AddLeaf(index uint32, leaf DepositLeaf) (root [numHashByte
 	return root, nil
 }
 
-func (t *DepositTree) ComputeMerkleProof(index uint32, leaves [][numHashBytes]byte) (siblings [][numHashBytes]byte, root common.Hash, err error) {
+func (t *DepositTree) ComputeMerkleProof(index uint32, leaves [][numHashBytes]byte) (siblings *KeccakMerkleProof, root common.Hash, err error) {
 	return t.inner.ComputeMerkleProof(index, leaves)
 }

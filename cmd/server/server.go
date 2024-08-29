@@ -200,25 +200,25 @@ func NewServerCmd(s *Server) *cobra.Command {
 				}
 			}()
 
-			wg.Add(1)
-			s.WG.Add(1)
-			go func() {
-				defer func() {
-					wg.Done()
-					s.WG.Done()
-				}()
-				tickerEventWatcher := time.NewTicker(s.Config.BlockPostService.TimeoutForEventWatcher)
-				defer func() {
-					if tickerEventWatcher != nil {
-						tickerEventWatcher.Stop()
-					}
-				}()
-				err = block_synchronizer.StartBlocksFetcher(s.Context, s.Config, s.Log, s.DbApp, tickerEventWatcher)
-				if err != nil {
-					const msg = "failed to start Block Post Service: %+v"
-					s.Log.Fatalf(msg, err.Error())
-				}
-			}()
+			// wg.Add(1)
+			// s.WG.Add(1)
+			// go func() {
+			// 	defer func() {
+			// 		wg.Done()
+			// 		s.WG.Done()
+			// 	}()
+			// 	tickerEventWatcher := time.NewTicker(s.Config.BlockPostService.TimeoutForEventWatcher)
+			// 	defer func() {
+			// 		if tickerEventWatcher != nil {
+			// 			tickerEventWatcher.Stop()
+			// 		}
+			// 	}()
+			// 	err = block_synchronizer.StartBlocksFetcher(s.Context, s.Config, s.Log, s.DbApp, tickerEventWatcher)
+			// 	if err != nil {
+			// 		const msg = "failed to start Block Post Service: %+v"
+			// 		s.Log.Fatalf(msg, err.Error())
+			// 	}
+			// }()
 
 			wg.Add(1)
 			s.WG.Add(1)

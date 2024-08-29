@@ -12,6 +12,7 @@ import (
 type BlockValidityProver interface {
 	SyncDepositTree() error
 	SyncBlockTree(_ BlockSynchronizer) error
+	BlockBuilder() SQLDriverApp
 }
 
 type BlockSynchronizer interface {

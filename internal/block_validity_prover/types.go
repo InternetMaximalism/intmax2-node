@@ -1188,7 +1188,7 @@ type mockBlockBuilder struct {
 	AccountTree                             *intMaxTree.AccountTree      // current account tree
 	BlockTree                               *intMaxTree.BlockHashTree    // current block hash tree
 	DepositTree                             *intMaxTree.KeccakMerkleTree // current deposit tree
-	DepositLeaves                           map[common.Hash]*DepositLeafWithId
+	DepositLeaves                           []*intMaxTree.DepositLeaf
 	DepositTreeRoots                        []common.Hash
 	lastSeenProcessDepositsEventBlockNumber uint64
 	lastSeenBlockPostedEventBlockNumber     uint64
@@ -1227,23 +1227,23 @@ func NewMockBlockBuilder(cfg *configs.Config) SQLDriverApp {
 		panic(err)
 	}
 
-	// zeroDepositHash := new(intMaxTree.DepositLeaf).SetZero().Hash()
-	// depositTree, err := intMaxTree.NewKeccakMerkleTree(intMaxTree.DEPOSIT_TREE_HEIGHT, nil, zeroDepositHash)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// depositTreeRoot, _, _ := depositTree.GetCurrentRootCountAndSiblings()
+	zeroDepositHash := new(intMaxTree.DepositLeaf).SetZero().Hash()
+	depositTree, err := intMaxTree.NewKeccakMerkleTree(intMaxTree.DEPOSIT_TREE_HEIGHT, nil, zeroDepositHash)
+	if err != nil {
+		panic(err)
+	}
+	depositTreeRoot, _, _ := depositTree.GetCurrentRootCountAndSiblings()
 
 	validityWitness := new(ValidityWitness).Genesis()
 	auxInfo := make(map[uint32]*mDBApp.BlockContent)
 	return &mockBlockBuilder{
-		lastValidityWitness: validityWitness,
-		ValidityProofs:      make([]string, 1),
-		AccountTree:         accountTree,
-		BlockTree:           blockTree,
-		// DepositTree:                             depositTree,
-		// DepositLeaves:                           make(map[common.Hash]*DepositLeafWithId),
-		// DepositTreeRoots:                        []common.Hash{depositTreeRoot},
+		lastValidityWitness:                     validityWitness,
+		ValidityProofs:                          make([]string, 1),
+		AccountTree:                             accountTree,
+		BlockTree:                               blockTree,
+		DepositTree:                             depositTree,
+		DepositLeaves:                           make([]*intMaxTree.DepositLeaf, 0),
+		DepositTreeRoots:                        []common.Hash{depositTreeRoot},
 		lastSeenProcessDepositsEventBlockNumber: cfg.Blockchain.RollupContractDeployedBlockNumber,
 		lastSeenBlockPostedEventBlockNumber:     cfg.Blockchain.RollupContractDeployedBlockNumber,
 		AuxInfo:                                 auxInfo,
@@ -1398,6 +1398,33 @@ func (db *mockBlockBuilder) BlockTreeProof(blockNumber uint32) (*intMaxTree.Merk
 	return &proof, nil
 }
 
+func (db *mockBlockBuilder) DepositTreeProof(blockNumber uint32) (*intMaxTree.KeccakMerkleProof, error) {
+	leaves := make([][32]byte, 0)
+	for _, depositLeaf := range db.DepositLeaves {
+		leaves = append(leaves, [32]byte(depositLeaf.Hash()))
+	}
+	proof, _, err := db.DepositTree.ComputeMerkleProof(blockNumber, leaves)
+	if err != nil {
+		return nil, errors.New("block tree proof error")
+	}
+
+	return proof, nil
+}
+
+func (db *mockBlockBuilder) AppendDeposit(blockNumber uint32, depositLeaf *intMaxTree.DepositLeaf) error {
+	leafHash := depositLeaf.Hash()
+	_, err := db.DepositTree.AddLeaf(blockNumber, [32]byte(leafHash))
+	if err != nil {
+		return errors.New("deposit tree add leaf error")
+	}
+
+	// db.DepositLeaves = append(db.DepositLeaves, &depositLeaf)
+	// depositTreeRoot, _, _ := db.DepositTree.GetCurrentRootCountAndSiblings()
+	// db.DepositTreeRoots = append(db.DepositTreeRoots, depositTreeRoot)
+
+	return nil
+}
+
 func (db *mockBlockBuilder) AppendBlockTreeLeaf(block *block_post_service.PostedBlock) error {
 	blockHashLeaf := intMaxTree.NewBlockHashLeaf(block.Hash())
 	_, count, _ := db.BlockTree.GetCurrentRootCountAndSiblings()
@@ -1459,7 +1486,8 @@ func generateValidityWitness(db SQLDriverApp, blockWitness *BlockWitness) (*Vali
 	if err != nil {
 		return nil, errors.New("account tree root error")
 	}
-	if prevPis.PublicState.AccountTreeRoot != accountTreeRoot {
+	if !prevPis.PublicState.AccountTreeRoot.Equal(accountTreeRoot) {
+		fmt.Printf("prevPis.PublicState.AccountTreeRoot is not the same with accountTreeRoot, %s != %s", prevPis.PublicState.AccountTreeRoot.String(), accountTreeRoot.String())
 		return nil, errors.New("account tree root is not equal to the last account tree root")
 	}
 
@@ -1467,7 +1495,8 @@ func generateValidityWitness(db SQLDriverApp, blockWitness *BlockWitness) (*Vali
 	if err != nil {
 		return nil, errors.New("block tree root error")
 	}
-	if prevPis.PublicState.BlockTreeRoot != blockTreeRoot {
+	if !prevPis.PublicState.BlockTreeRoot.Equal(blockTreeRoot) {
+		fmt.Printf("prevPis.PublicState.BlockTreeRoot is not the same with blockTreeRoot, %s != %s", prevPis.PublicState.BlockTreeRoot.String(), blockTreeRoot.String())
 		return nil, errors.New("block tree root is not equal to the last block tree root")
 	}
 

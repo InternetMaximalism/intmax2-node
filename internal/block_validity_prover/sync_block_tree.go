@@ -61,6 +61,10 @@ func (ai *mockBlockBuilder) AccountBySenderAddress(_ string) (*uint256.Int, erro
 	return nil, fmt.Errorf("AccountBySenderAddress not implemented")
 }
 
+func (p *blockValidityProver) BlockBuilder() SQLDriverApp {
+	return p.blockBuilder
+}
+
 func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer) (err error) {
 	blockNumber, err := p.blockBuilder.LastSeenBlockPostedEventBlockNumber()
 	if err != nil {

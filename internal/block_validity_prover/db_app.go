@@ -65,6 +65,9 @@ type DepositTreeBuilder interface {
 	LastDepositTreeRoot() (common.Hash, error)
 	AppendDepositTreeRoot(depositTreeRoot common.Hash) error
 	AppendDepositTreeLeaf(depositHash common.Hash) error
+
+	DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, error)
+	AppendDeposit(depositIndex uint32, depositLeaf *intMaxTree.DepositLeaf) error
 }
 
 type EventBlockNumbers interface {

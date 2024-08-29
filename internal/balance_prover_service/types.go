@@ -2,14 +2,26 @@ package balance_prover_service
 
 import (
 	"errors"
+	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_validity_prover"
+	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/backup_balance"
 	"math/big"
+
+	"github.com/iden3/go-iden3-crypto/ffg"
 )
 
-const SENDER_TREE_HEIGHT = 7
+const (
+	SENDER_TREE_HEIGHT     = 7
+	balancePublicInputsLen = 47
+
+	int2Key = 2
+	int3Key = 3
+	int4Key = 4
+	int8Key = 8
+)
 
 type poseidonHashOut = intMaxTypes.PoseidonHashOut
 
@@ -49,6 +61,16 @@ func (w *SendWitness) GetIncludedBlockNumber() uint32 {
 func (w *SendWitness) GetPrevBlockNumber() uint32 {
 	return w.PrevBalancePis.PublicState.BlockNumber
 }
+
+type Salt = poseidonHashOut
+
+// func (s *Salt) SetRandom() *Salt {
+// 	for _, e := range s.Elements {
+// 		e.SetRandom()
+// 	}
+
+// 	return s
+// }
 
 type SpentValue struct {
 	PrevPrivateState      *PrivateState                    `json:"prevPrivateState"`
@@ -176,10 +198,10 @@ type UpdateWitness struct {
 }
 
 type DepositWitness struct {
-	DepositSalt        Salt                   `json:"depositSalt"`
-	DepositIndex       uint                   `json:"depositIndex"`
-	Deposit            intMaxTree.DepositLeaf `json:"deposit"`
-	DepositMerkleProof intMaxTree.MerkleProof `json:"depositMerkleProof"`
+	DepositSalt        Salt                          `json:"depositSalt"`
+	DepositIndex       uint                          `json:"depositIndex"`
+	Deposit            intMaxTree.DepositLeaf        `json:"deposit"`
+	DepositMerkleProof *intMaxTree.KeccakMerkleProof `json:"depositMerkleProof"`
 }
 
 type PrivateWitness struct {
@@ -210,4 +232,123 @@ type ReceiveTransferWitness struct {
 	PrivateWitness   *PrivateWitness                  `json:"privateWitness"`
 	BalanceProof     *intMaxTypes.Plonky2Proof        `json:"balanceProof"`
 	BlockMerkleProof *intMaxTree.BlockHashMerkleProof `json:"blockMerkleProof"`
+}
+
+type ValidityVerifierData struct{}
+
+type DepositCase struct {
+	DepositSalt  Salt                   `json:"depositSalt"`
+	DepositIndex uint32                 `json:"depositIndex"`
+	Deposit      intMaxTree.DepositLeaf `json:"deposit"`
+}
+
+type PrivateState struct {
+	AssetTreeRoot     *poseidonHashOut `json:"assetTreeRoot"`
+	NullifierTreeRoot *poseidonHashOut `json:"nullifierTreeRoot"`
+	Nonce             uint32           `json:"nonce"`
+	Salt              Salt             `json:"salt"`
+}
+
+func (s *PrivateState) SetDefault() *PrivateState {
+	zeroAsset := intMaxTree.AssetLeaf{
+		IsInsufficient: false,
+		Amount:         new(intMaxTypes.Uint256).FromBigInt(big.NewInt(0)),
+	}
+	assetTree, err := intMaxTree.NewAssetTree(intMaxTree.TX_TREE_HEIGHT, nil, zeroAsset.Hash())
+	if err != nil {
+		panic(err)
+	}
+
+	const nullifierTreeHeight = 32
+	nullifierTree, err := intMaxTree.NewNullifierTree(nullifierTreeHeight)
+	if err != nil {
+		panic(err)
+	}
+
+	assetTreeRoot, _, _ := assetTree.GetCurrentRootCountAndSiblings()
+	nullifierTreeRoot := nullifierTree.GetRoot()
+	return &PrivateState{
+		AssetTreeRoot:     &assetTreeRoot,
+		NullifierTreeRoot: nullifierTreeRoot,
+		Nonce:             0,
+		Salt:              Salt{},
+	}
+}
+
+func (s *PrivateState) ToFieldElementSlice() []ffg.Element {
+	buf := make([]ffg.Element, 0, 32+32+1+32)
+	buf = append(buf, s.AssetTreeRoot.Elements[:]...)
+	buf = append(buf, s.NullifierTreeRoot.Elements[:]...)
+	buf = append(buf, *new(ffg.Element).SetUint64(uint64(s.Nonce)))
+	buf = append(buf, s.Salt.Elements[:]...)
+
+	return buf
+}
+
+func (s *PrivateState) Commitment() *poseidonHashOut {
+	return intMaxGP.HashNoPad(s.ToFieldElementSlice())
+}
+
+type BalanceValidityAuxInfo struct {
+	ValidityWitness *block_validity_prover.ValidityWitness
+}
+
+type BalancePublicInputs struct {
+	PubKey                  *intMaxAcc.PublicKey
+	PrivateCommitment       *intMaxTypes.PoseidonHashOut
+	LastTxHash              *intMaxTypes.PoseidonHashOut
+	LastTxInsufficientFlags backup_balance.InsufficientFlags
+	PublicState             *block_validity_prover.PublicState
+}
+
+func (s *BalancePublicInputs) FromPublicInputs(publicInputs []ffg.Element) (*BalancePublicInputs, error) {
+	if len(publicInputs) < balancePublicInputsLen {
+		return nil, errors.New("invalid length")
+	}
+
+	const (
+		numHashOutElts                = intMaxGP.NUM_HASH_OUT_ELTS
+		publicKeyOffset               = 0
+		privateCommitmentOffset       = publicKeyOffset + int8Key
+		lastTxHashOffset              = privateCommitmentOffset + numHashOutElts
+		lastTxInsufficientFlagsOffset = lastTxHashOffset + numHashOutElts
+		publicStateOffset             = lastTxInsufficientFlagsOffset + backup_balance.InsufficientFlagsLen
+		end                           = publicStateOffset + block_validity_prover.PublicStateLimbSize
+	)
+
+	address := new(intMaxTypes.Uint256).FromFieldElementSlice(publicInputs[0:int8Key])
+	publicKey, err := new(intMaxAcc.PublicKey).SetBigInt(address.BigInt())
+	if err != nil {
+		return nil, err
+	}
+	privateCommitment := poseidonHashOut{
+		Elements: [numHashOutElts]ffg.Element{
+			publicInputs[privateCommitmentOffset],
+			publicInputs[privateCommitmentOffset+1],
+			publicInputs[privateCommitmentOffset+int2Key],
+			publicInputs[privateCommitmentOffset+int3Key],
+		},
+	}
+	lastTxHash := poseidonHashOut{
+		Elements: [numHashOutElts]ffg.Element{
+			publicInputs[lastTxHashOffset],
+			publicInputs[lastTxHashOffset+1],
+			publicInputs[lastTxHashOffset+int2Key],
+			publicInputs[lastTxHashOffset+int3Key],
+		},
+	}
+	lastTxInsufficientFlags := new(backup_balance.InsufficientFlags).FromFieldElementSlice(
+		publicInputs[lastTxInsufficientFlagsOffset:publicStateOffset],
+	)
+	publicState := new(block_validity_prover.PublicState).FromFieldElementSlice(
+		publicInputs[publicStateOffset:end],
+	)
+
+	return &BalancePublicInputs{
+		PubKey:                  publicKey,
+		PrivateCommitment:       &privateCommitment,
+		LastTxHash:              &lastTxHash,
+		LastTxInsufficientFlags: *lastTxInsufficientFlags,
+		PublicState:             publicState,
+	}, nil
 }

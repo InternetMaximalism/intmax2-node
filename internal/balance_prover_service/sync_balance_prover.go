@@ -7,25 +7,25 @@ import (
 	"sort"
 )
 
-type BalanceProverService struct {
+type SyncBalanceProver struct {
 	LastBlockNumber  uint32
 	LastBalanceProof *intMaxTypes.Plonky2Proof
 }
 
-func NewBalanceProverService() *BalanceProverService {
-	return &BalanceProverService{
+func NewSyncBalanceProver() *SyncBalanceProver {
+	return &SyncBalanceProver{
 		LastBlockNumber:  0,
 		LastBalanceProof: nil,
 	}
 }
 
-func (s *BalanceProverService) SyncSend(
+func (s *SyncBalanceProver) SyncSend(
 	syncValidityProver *SyncValidityProver,
 	wallet *MockWallet,
 	balanceProcessor *BalanceProcessor,
-	blockBuilder *MockBlockBuilder,
+	blockBuilder MockBlockBuilder,
 ) error {
-	syncValidityProver.Sync(blockBuilder) // sync validity proofs
+	syncValidityProver.Sync() // sync validity proofs
 	allBlockNumbers := wallet.GetAllBlockNumbers()
 	notSyncedBlockNumbers := []uint32{}
 	for _, blockNumber := range allBlockNumbers {
@@ -81,13 +81,13 @@ func (s *BalanceProverService) SyncSend(
 
 // Sync balance proof public state to the latest block
 // assuming that there is no un-synced send tx.
-func (s *BalanceProverService) SyncNoSend(
+func (s *SyncBalanceProver) SyncNoSend(
 	syncValidityProver *SyncValidityProver,
 	wallet *MockWallet,
 	balanceProcessor *BalanceProcessor,
-	blockBuilder *MockBlockBuilder,
+	blockBuilder MockBlockBuilder,
 ) error {
-	syncValidityProver.Sync(blockBuilder) // sync validity proofs
+	syncValidityProver.Sync() // sync validity proofs
 	allBlockNumbers := wallet.GetAllBlockNumbers()
 	notSyncedBlockNumbers := []uint32{}
 	for _, blockNumber := range allBlockNumbers {
@@ -103,11 +103,11 @@ func (s *BalanceProverService) SyncNoSend(
 	if len(notSyncedBlockNumbers) > 0 {
 		return errors.New("sync send tx first")
 	}
-	currentBlockNumber := blockBuilder.LastBlockNumber()
+	currentBlockNumber := blockBuilder.LatestIntMaxBlockNumber()
 	updateWitness, err := syncValidityProver.FetchUpdateWitness(
 		blockBuilder,
 		wallet.PublicKey(),
-		blockBuilder.LastBlockNumber(),
+		currentBlockNumber,
 		s.LastBlockNumber,
 		false,
 	)
@@ -135,24 +135,31 @@ func (s *BalanceProverService) SyncNoSend(
 	return nil
 }
 
-func (s *BalanceProverService) SyncAll(
+func (s *SyncBalanceProver) SyncAll(
 	syncValidityProver *SyncValidityProver,
 	wallet *MockWallet,
 	balanceProcessor *BalanceProcessor,
-	blockBuilder *MockBlockBuilder,
-) {
-	s.SyncSend(syncValidityProver, wallet, balanceProcessor, blockBuilder)
-	s.SyncNoSend(syncValidityProver, wallet, balanceProcessor, blockBuilder)
+	blockBuilder MockBlockBuilder,
+) (err error) {
+	err = s.SyncSend(syncValidityProver, wallet, balanceProcessor, blockBuilder)
+	if err != nil {
+		return err
+	}
+	err = s.SyncNoSend(syncValidityProver, wallet, balanceProcessor, blockBuilder)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (s *BalanceProverService) ReceiveDeposit(
-	rng *rand.Rand,
+func (s *SyncBalanceProver) ReceiveDeposit(
 	wallet *MockWallet,
 	balanceProcessor *BalanceProcessor,
-	blockBuilder *MockBlockBuilder,
+	blockBuilder MockBlockBuilder,
 	depositIndex uint32,
 ) error {
-	receiveDepositWitness, err := wallet.ReceiveDepositAndUpdate(rng, blockBuilder, depositIndex)
+	receiveDepositWitness, err := wallet.ReceiveDepositAndUpdate(blockBuilder, depositIndex)
 	if err != nil {
 		return err
 	}
@@ -169,11 +176,11 @@ func (s *BalanceProverService) ReceiveDeposit(
 	return nil
 }
 
-func (s *BalanceProverService) ReceiveTransfer(
+func (s *SyncBalanceProver) ReceiveTransfer(
 	rng *rand.Rand,
 	wallet *MockWallet,
 	balanceProcessor *BalanceProcessor,
-	blockBuilder *MockBlockBuilder,
+	blockBuilder MockBlockBuilder,
 	transferWitness *TransferWitness,
 	senderBalanceProof *intMaxTypes.Plonky2Proof,
 ) error {

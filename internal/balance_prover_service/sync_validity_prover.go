@@ -1,42 +1,63 @@
 package balance_prover_service
 
 import (
+	"context"
 	"errors"
 
 	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/block_synchronizer"
+	"intmax2-node/internal/block_validity_prover"
+	"intmax2-node/internal/logger"
 	intMaxTypes "intmax2-node/internal/types"
+
+	"intmax2-node/configs"
 )
 
-type SyncValidityProver struct {
-	ValidityProcessor ValidityProcessor
-	LastBlockNumber   uint32
-	ValidityProofs    map[uint32]*intMaxTypes.Plonky2Proof
+type ValidityProcessor struct{}
+
+func (s *ValidityProcessor) Prove(
+	prevValidityProof *intMaxTypes.Plonky2Proof,
+	validityWitness *block_validity_prover.ValidityWitness,
+) (*intMaxTypes.Plonky2Proof, error) {
+	return nil, errors.New("not implemented")
 }
 
-func (s *SyncValidityProver) Sync(blockBuilder *MockBlockBuilder) error {
-	currentBlockNumber := blockBuilder.LastBlockNumber()
-	for blockNumber := s.LastBlockNumber + 1; blockNumber <= currentBlockNumber; blockNumber++ {
-		prevValidityProof := s.ValidityProofs[blockNumber-1]
-		if prevValidityProof == nil && blockNumber != 1 {
-			return errors.New("prev validity proof is nil")
-		}
-		auxInfo, ok := blockBuilder.GetAuxInfo(blockNumber)
-		if !ok {
-			return errors.New("aux info not found")
-		}
-		validityProof, err := s.ValidityProcessor.Prove(prevValidityProof, auxInfo.ValidityWitness)
-		if err != nil {
-			return errors.New("validity proof is nil")
-		}
-		s.ValidityProofs[blockNumber] = validityProof
-	}
-	s.LastBlockNumber = currentBlockNumber
+type SyncValidityProver struct {
+	ValidityProcessor block_validity_prover.BlockValidityProver
+	blockSynchronizer block_validity_prover.BlockSynchronizer
+}
 
-	return nil
+func NewSyncValidityProver(
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
+	sb block_validity_prover.ServiceBlockchain,
+) (*SyncValidityProver, error) {
+	synchronizer, err := block_synchronizer.NewBlockSynchronizer(
+		ctx, cfg, log,
+	)
+	if err != nil {
+		return nil, err
+	}
+	validityProver, err := block_validity_prover.NewBlockValidityProver(ctx, cfg, log, sb)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SyncValidityProver{
+		ValidityProcessor: validityProver,
+		blockSynchronizer: synchronizer,
+	}, nil
+}
+
+func (s *SyncValidityProver) Sync() error {
+	err := s.ValidityProcessor.SyncBlockTree(s.blockSynchronizer)
+
+	return err
 }
 
 func (s *SyncValidityProver) FetchUpdateWitness(
-	blockBuilder *MockBlockBuilder,
+	blockBuilder MockBlockBuilder,
 	publicKey *intMaxAcc.PublicKey,
 	blockNumber uint32,
 	prevBlockNumber uint32,
