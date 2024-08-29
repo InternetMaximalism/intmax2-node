@@ -25,12 +25,12 @@ import (
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/holiman/uint256"
 )
 
 const (
-	MyTransferIndex = 0 // TODO: 1
-	base10Key       = 10
-	uint64Key       = 64
+	base10Key = 10
+	uint64Key = 64
 )
 
 func TransferTransaction(
@@ -84,13 +84,54 @@ func TransferTransaction(
 		return fmt.Errorf("insufficient balance: %s", balance)
 	}
 
+	var dataBlockInfo *BlockInfoResponseData
+	dataBlockInfo, err = GetBlockInfo(ctx, cfg)
+	if err != nil {
+		return fmt.Errorf("failed to get the block info data: %w", err)
+	}
+
+	zeroTransfer := new(intMaxTypes.Transfer).SetZero()
+	var initialLeaves []*intMaxTypes.Transfer
+
+	gasFee, gasOK := dataBlockInfo.TransferFee[new(big.Int).SetUint64(uint64(tokenIndex)).String()]
+	if gasOK {
+		// Send transfer transaction
+		var recipient *intMaxAcc.PublicKey
+		recipient, err = intMaxAcc.NewPublicKeyFromAddressHex(dataBlockInfo.IntMaxAddress)
+		if err != nil {
+			return fmt.Errorf("failed to parse recipient address: %v", err)
+		}
+
+		var recipientAddress *intMaxTypes.GenericAddress
+		recipientAddress, err = intMaxTypes.NewINTMAXAddress(recipient.ToAddress().Bytes())
+		if err != nil {
+			return fmt.Errorf("failed to create recipient address: %v", err)
+		}
+
+		var amountGasFee uint256.Int
+		err = amountGasFee.Scan(gasFee)
+		if err != nil {
+			return fmt.Errorf("failed to convert string to uint256.Int: %w", err)
+		}
+
+		transfer := intMaxTypes.NewTransferWithRandomSalt(
+			recipientAddress,
+			tokenIndex,
+			amountGasFee.ToBig(),
+		)
+
+		initialLeaves = append(initialLeaves, transfer)
+	}
+
 	// Send transfer transaction
-	recipient, err := intMaxAcc.NewPublicKeyFromAddressHex(recipientAddressStr)
+	var recipient *intMaxAcc.PublicKey
+	recipient, err = intMaxAcc.NewPublicKeyFromAddressHex(recipientAddressStr)
 	if err != nil {
 		return fmt.Errorf("failed to parse recipient address: %v", err)
 	}
 
-	recipientAddress, err := intMaxTypes.NewINTMAXAddress(recipient.ToAddress().Bytes())
+	var recipientAddress *intMaxTypes.GenericAddress
+	recipientAddress, err = intMaxTypes.NewINTMAXAddress(recipient.ToAddress().Bytes())
 	if err != nil {
 		return fmt.Errorf("failed to create recipient address: %v", err)
 	}
@@ -101,11 +142,10 @@ func TransferTransaction(
 		amount,
 	)
 
-	zeroTransfer := new(intMaxTypes.Transfer).SetZero()
-	initialLeaves := make([]*intMaxTypes.Transfer, 1)
-	initialLeaves[MyTransferIndex] = transfer
+	initialLeaves = append(initialLeaves, transfer)
 
-	transferTree, err := intMaxTree.NewTransferTree(intMaxTree.TRANSFER_TREE_HEIGHT, initialLeaves, zeroTransfer.Hash())
+	var transferTree *intMaxTree.TransferTree
+	transferTree, err = intMaxTree.NewTransferTree(intMaxTree.TRANSFER_TREE_HEIGHT, initialLeaves, zeroTransfer.Hash())
 	if err != nil {
 		return fmt.Errorf("failed to create transfer tree: %v", err)
 	}
@@ -117,12 +157,9 @@ func TransferTransaction(
 	err = SendTransferTransaction(
 		ctx,
 		cfg,
-		// log,
 		userAccount,
 		transfersHash,
 		nonce,
-		// &backupTx,
-		// backupTransfers,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to send transaction: %v", err)
@@ -131,7 +168,8 @@ func TransferTransaction(
 	fmt.Println("The transaction request has been successfully sent. Please wait for the server's response.")
 
 	// Get proposed block
-	proposedBlock, err := GetBlockProposed(
+	var proposedBlock *BlockProposedResponseData
+	proposedBlock, err = GetBlockProposed(
 		ctx, cfg, userAccount, transfersHash, nonce,
 	)
 	if err != nil {
@@ -140,7 +178,8 @@ func TransferTransaction(
 
 	fmt.Println("The proposed block has been successfully received.")
 
-	tx, err := intMaxTypes.NewTx(
+	var tx *intMaxTypes.Tx
+	tx, err = intMaxTypes.NewTx(
 		&transfersHash,
 		nonce,
 	)
@@ -159,7 +198,8 @@ func TransferTransaction(
 	}
 
 	encodedTx := txDetails.Marshal()
-	encryptedTx, err := intMaxAcc.EncryptECIES(
+	var encryptedTx []byte
+	encryptedTx, err = intMaxAcc.EncryptECIES(
 		rand.Reader,
 		userAccount.Public(),
 		encodedTx,

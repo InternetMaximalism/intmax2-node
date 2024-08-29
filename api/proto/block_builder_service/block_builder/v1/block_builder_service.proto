@@ -262,10 +262,12 @@ message InfoRequest {}
 message DataInfoResponse {
   // the block builder's Scroll address
   string scroll_address = 10 [json_name="scrollAddress", (tagger.tags)="json:\"scrollAddress,omitempty\""];
+  // the block builder's IntMax address
+  string int_max_address = 20 [json_name="intMaxAddress", (tagger.tags)="json:\"intMaxAddress,omitempty\""];
   // the mapping of token addresses in INTMAX to fees payable in those tokens
-  map<string,string> transfer_fee = 20 [json_name="transferFee", (tagger.tags)="json:\"transferFee,omitempty\""];
+  map<string,string> transfer_fee = 30 [json_name="transferFee", (tagger.tags)="json:\"transferFee,omitempty\""];
   // the PoW difficulty value
-  uint32 difficulty = 30 [json_name="difficulty", (tagger.tags)="json:\"difficulty,omitempty\""];
+  uint32 difficulty = 40 [json_name="difficulty", (tagger.tags)="json:\"difficulty,omitempty\""];
 }
 
 // InfoResponse describes response about retrieves the block builder's Scroll address, transaction fee, and difficulty

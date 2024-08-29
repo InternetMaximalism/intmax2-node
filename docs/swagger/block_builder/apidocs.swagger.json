@@ -507,6 +507,10 @@
           "type": "string",
           "title": "the block builder's Scroll address"
         },
+        "intMaxAddress": {
+          "type": "string",
+          "title": "the block builder's IntMax address"
+        },
         "transferFee": {
           "type": "object",
           "additionalProperties": {
