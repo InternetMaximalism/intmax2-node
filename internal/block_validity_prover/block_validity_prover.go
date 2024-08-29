@@ -26,10 +26,10 @@ type blockValidityProver struct {
 	scrollClient *ethclient.Client
 	liquidity    *bindings.Liquidity
 	rollup       *bindings.Rollup
-	blockBuilder SQLDriverApp
+	blockBuilder BlockBuilderStorage
 }
 
-func NewBlockValidityProver(ctx context.Context, cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) (*blockValidityProver, error) {
+func NewBlockValidityProver(ctx context.Context, cfg *configs.Config, log logger.Logger, sb ServiceBlockchain, db SQLDriverApp) (*blockValidityProver, error) {
 	ethClient, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
 	if err != nil {
 		return nil, errors.Join(ErrNewEthereumClientFail, err)
@@ -65,7 +65,7 @@ func NewBlockValidityProver(ctx context.Context, cfg *configs.Config, log logger
 		return nil, errors.Join(ErrInstantiateRollupContractFail, err)
 	}
 
-	blockBuilder := NewMockBlockBuilder(cfg)
+	blockBuilder := NewMockBlockBuilder(cfg, db)
 
 	return &blockValidityProver{
 		ctx:          ctx,

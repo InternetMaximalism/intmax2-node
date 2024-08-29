@@ -61,28 +61,47 @@ func (ai *mockBlockBuilder) AccountBySenderAddress(_ string) (*uint256.Int, erro
 	return nil, fmt.Errorf("AccountBySenderAddress not implemented")
 }
 
-func (p *blockValidityProver) BlockBuilder() SQLDriverApp {
+func (p *blockValidityProver) BlockBuilder() BlockBuilderStorage {
 	return p.blockBuilder
 }
 
-func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer) (err error) {
-	blockNumber, err := p.blockBuilder.LastSeenBlockPostedEventBlockNumber()
+func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer) (endBlock uint64, err error) {
+	startBlock, err := p.blockBuilder.LastSeenBlockPostedEventBlockNumber()
 	if err != nil {
-		return errors.Join(ErrLastSeenBlockPostedEventBlockNumberFail, err)
+		return 0, errors.Join(ErrLastSeenBlockPostedEventBlockNumberFail, err)
 	}
 
+	endBlock, err = p.syncBlockTree(bps, startBlock)
+	if err != nil {
+		return 0, err
+	}
+
+	err = p.blockBuilder.SetLastSeenBlockPostedEventBlockNumber(endBlock)
+	if err != nil {
+		var ErrSetLastSeenBlockPostedEventBlockNumberFail = errors.New("set last seen block posted event block number fail")
+		return 0, errors.Join(ErrSetLastSeenBlockPostedEventBlockNumberFail, err)
+	}
+
+	fmt.Printf("Block %d is searched\n", endBlock)
+
+	return endBlock, nil
+}
+
+func (p *blockValidityProver) syncBlockTree(bps BlockSynchronizer, startBlock uint64) (lastEventSeenBlockNumber uint64, err error) {
 	var (
 		events []*bindings.RollupBlockPosted
 		nextBN *big.Int
 	)
 
-	events, nextBN, err = bps.FetchNewPostedBlocks(blockNumber)
+	const int5000Key = 5000
+	endBlock := startBlock + int5000Key
+	events, nextBN, err = bps.FetchNewPostedBlocks(startBlock, &endBlock)
 	if err != nil {
-		return errors.Join(ErrFetchNewPostedBlocksFail, err)
+		return startBlock, errors.Join(ErrFetchNewPostedBlocksFail, err)
 	}
 
 	if len(events) == 0 {
-		return nil
+		return endBlock, nil
 	}
 
 	tickerEventWatcher := time.NewTicker(p.cfg.BlockValidityProver.TimeoutForEventWatcher)
@@ -91,11 +110,12 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer) (err error) {
 			tickerEventWatcher.Stop()
 		}
 	}()
+
 	for key := range events {
 		select {
 		case <-p.ctx.Done():
 			p.log.Warnf("Received cancel signal from context, stopping...")
-			return p.ctx.Err()
+			return startBlock, p.ctx.Err()
 		case <-tickerEventWatcher.C:
 			fmt.Println("tickerEventWatcher.C")
 			var blN uint256.Int
@@ -106,7 +126,7 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer) (err error) {
 			var cd []byte
 			cd, err = bps.FetchScrollCalldataByHash(events[key].Raw.TxHash)
 			if err != nil {
-				return errors.Join(ErrFetchScrollCalldataByHashFail, err)
+				return startBlock, errors.Join(ErrFetchScrollCalldataByHashFail, err)
 			}
 
 			postedBlock := block_post_service.NewPostedBlock(
@@ -138,7 +158,7 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer) (err error) {
 				const msg = "processing of block %q error occurred"
 				p.log.Debugf(msg, intMaxBlockNumber.String())
 			} else {
-				const msg = "block %q is valid (Scroll block number: %s)"
+				const msg = "block %q is found (Scroll block number: %s)"
 				p.log.Debugf(msg, intMaxBlockNumber.String(), blN.String())
 			}
 
@@ -178,17 +198,10 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer) (err error) {
 			if err := p.blockBuilder.SetValidityWitness(validityWitness.BlockWitness.Block.BlockNumber, validityWitness); err != nil {
 				panic(err)
 			}
-			{
-				validityWitness, err := p.blockBuilder.LastValidityWitness()
-				if err != nil {
-					panic(err)
-				}
-				fmt.Printf("blockNumber: %d\n", validityWitness.BlockWitness.Block.BlockNumber)
-			}
 
 			validityProof, err := p.requestAndFetchBlockValidityProof(validityWitness)
 			if err != nil {
-				return errors.Join(ErrRequestAndFetchBlockValidityProofFail, err)
+				return startBlock, errors.Join(ErrRequestAndFetchBlockValidityProofFail, err)
 			}
 
 			err = p.blockBuilder.SetValidityProof(validityWitness.BlockWitness.Block.BlockNumber, validityProof)
@@ -200,13 +213,7 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer) (err error) {
 		}
 	}
 
-	err = p.blockBuilder.SetLastSeenBlockPostedEventBlockNumber(nextBN.Uint64())
-	if err != nil {
-		var ErrSetLastSeenBlockPostedEventBlockNumberFail = errors.New("set last seen block posted event block number fail")
-		return errors.Join(ErrSetLastSeenBlockPostedEventBlockNumberFail, err)
-	}
-
-	return nil
+	return nextBN.Uint64(), nil
 }
 
 func (p *blockValidityProver) requestAndFetchBlockValidityProof(validityWitness *ValidityWitness) (validityProof string, err error) {

@@ -18,9 +18,19 @@ import (
 
 type SQLDriverApp interface {
 	GenericCommandsApp
+	// AccountInfo
+	// DepositTreeBuilder
+	// BlockContents
+	EventBlockNumbersForValidityProver
+	Deposits
+}
+
+type BlockBuilderStorage interface {
+	GenericCommandsApp
 	AccountInfo
 	DepositTreeBuilder
 	BlockContents
+	EventBlockNumbersForValidityProver
 }
 
 type GenericCommandsApp interface {
@@ -65,7 +75,7 @@ type DepositTreeBuilder interface {
 	SetLastSeenProcessDepositsEventBlockNumber(blockNumber uint64) error
 	LastDepositTreeRoot() (common.Hash, error)
 	AppendDepositTreeRoot(depositTreeRoot common.Hash) error
-	AppendDepositTreeLeaf(depositHash common.Hash) error
+	AppendDepositTreeLeaf(depositHash common.Hash) (root common.Hash, err error)
 
 	DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, error)
 	AppendDeposit(depositIndex uint32, depositLeaf *intMaxTree.DepositLeaf) error
@@ -75,6 +85,11 @@ type EventBlockNumbers interface {
 	UpsertEventBlockNumber(eventName string, blockNumber uint64) (*mDBApp.EventBlockNumber, error)
 	EventBlockNumberByEventName(eventName string) (*mDBApp.EventBlockNumber, error)
 	EventBlockNumbersByEventNames(eventNames []string) ([]*mDBApp.EventBlockNumber, error)
+}
+
+type EventBlockNumbersForValidityProver interface {
+	UpsertEventBlockNumberForValidityProver(eventName string, blockNumber uint64) (*mDBApp.EventBlockNumberForValidityProver, error)
+	EventBlockNumberByEventNameForValidityProver(eventName string) (*mDBApp.EventBlockNumberForValidityProver, error)
 }
 
 type CtrlEventBlockNumbersJobs interface {
@@ -110,4 +125,10 @@ type Accounts interface {
 	AccountByAccountID(accountID *uint256.Int) (*mDBApp.Account, error)
 	ResetSequenceByAccounts() error
 	DelAllAccounts() error
+}
+
+type Deposits interface {
+	CreateDeposit(deposit DepositLeafWithId) (*mDBApp.Deposit, error)
+	Deposit(ID string) (*mDBApp.Deposit, error)
+	DepositByDepositID(depositID uint32) (*mDBApp.Deposit, error)
 }

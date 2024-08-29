@@ -57,7 +57,6 @@ func (s *SyncBalanceProver) SyncSend(
 		}
 
 		balanceProof, err := balanceProcessor.ProveSend(
-			syncValidityProver.ValidityVerifierData(),
 			wallet.PublicKey(),
 			sendWitness,
 			updateWitness,
@@ -115,7 +114,6 @@ func (s *SyncBalanceProver) SyncNoSend(
 		return err
 	}
 	balanceProof, err := balanceProcessor.ProveUpdate(
-		syncValidityProver.ValidityVerifierData(),
 		wallet.PublicKey(),
 		updateWitness,
 		s.LastBalanceProof,

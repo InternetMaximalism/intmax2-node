@@ -10,14 +10,15 @@ import (
 )
 
 type BlockValidityProver interface {
-	SyncDepositTree() error
-	SyncBlockTree(_ BlockSynchronizer) error
-	BlockBuilder() SQLDriverApp
+	SyncDepositedEvents() error
+	SyncDepositTree(endBlock *uint64) error
+	SyncBlockTree(_ BlockSynchronizer) (endBlock uint64, err error)
+	BlockBuilder() BlockBuilderStorage
 }
 
 type BlockSynchronizer interface {
 	FetchLatestBlockNumber(ctx context.Context) (uint64, error)
-	FetchNewPostedBlocks(startBlock uint64) ([]*bindings.RollupBlockPosted, *big.Int, error)
+	FetchNewPostedBlocks(startBlock uint64, endBlock *uint64) ([]*bindings.RollupBlockPosted, *big.Int, error)
 	FetchScrollCalldataByHash(txHash common.Hash) ([]byte, error)
 	BackupTransaction(
 		sender intMaxAcc.Address,

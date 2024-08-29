@@ -87,12 +87,15 @@ func (d *blockSynchronizer) FetchLatestBlockNumber(ctx context.Context) (uint64,
 	return blockNumber, nil
 }
 
-func (d *blockSynchronizer) FetchNewPostedBlocks(startBlock uint64) ([]*bindings.RollupBlockPosted, *big.Int, error) {
+func (d *blockSynchronizer) FetchNewPostedBlocks(startBlock uint64, endBlock *uint64) ([]*bindings.RollupBlockPosted, *big.Int, error) {
 	nextBlock := startBlock + int1Key
+	if endBlock != nil && nextBlock > *endBlock {
+		return nil, nil, nil
+	}
 
 	iterator, err := d.rollup.FilterBlockPosted(&bind.FilterOpts{
 		Start:   nextBlock,
-		End:     nil,
+		End:     endBlock,
 		Context: d.ctx,
 	}, [][int32Key]byte{}, []common.Address{})
 	if err != nil {

@@ -32,6 +32,7 @@ func NewSyncValidityProver(
 	cfg *configs.Config,
 	log logger.Logger,
 	sb block_validity_prover.ServiceBlockchain,
+	db block_validity_prover.SQLDriverApp,
 ) (*SyncValidityProver, error) {
 	synchronizer, err := block_synchronizer.NewBlockSynchronizer(
 		ctx, cfg, log,
@@ -39,7 +40,7 @@ func NewSyncValidityProver(
 	if err != nil {
 		return nil, err
 	}
-	validityProver, err := block_validity_prover.NewBlockValidityProver(ctx, cfg, log, sb)
+	validityProver, err := block_validity_prover.NewBlockValidityProver(ctx, cfg, log, sb, db)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +52,7 @@ func NewSyncValidityProver(
 }
 
 func (s *SyncValidityProver) Sync() error {
-	err := s.ValidityProcessor.SyncBlockTree(s.blockSynchronizer)
+	_, err := s.ValidityProcessor.SyncBlockTree(s.blockSynchronizer)
 
 	return err
 }
@@ -65,8 +66,4 @@ func (s *SyncValidityProver) FetchUpdateWitness(
 ) (*UpdateWitness, error) {
 	// request validity prover
 	return nil, errors.New("not implemented")
-}
-
-func (s *SyncValidityProver) ValidityVerifierData() *ValidityVerifierData {
-	return nil
 }

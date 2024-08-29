@@ -9,7 +9,6 @@ import (
 type BalanceProcessor struct{}
 
 func (s *BalanceProcessor) ProveSend(
-	validityVerifierData *ValidityVerifierData,
 	publicKey *intMaxAcc.PublicKey,
 	sendWitness *SendWitness,
 	updateWitness *UpdateWitness,
@@ -20,7 +19,6 @@ func (s *BalanceProcessor) ProveSend(
 }
 
 func (s *BalanceProcessor) ProveUpdate(
-	validityVerifierData *ValidityVerifierData,
 	publicKey *intMaxAcc.PublicKey,
 	updateWitness *UpdateWitness,
 	lastBalanceProof *intMaxTypes.Plonky2Proof,

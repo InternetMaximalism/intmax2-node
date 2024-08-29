@@ -3,6 +3,7 @@ package pgx
 import (
 	"context"
 	"encoding/json"
+	"intmax2-node/internal/block_validity_prover"
 	mFL "intmax2-node/internal/sql_filter/models"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
@@ -26,9 +27,11 @@ type PGX interface {
 	BackupDeposits
 	CtrlEventBlockNumbersJobs
 	EventBlockNumbersErrors
+	EventBlockNumbersForValidityProver
 	Senders
 	Accounts
 	BackupBalances
+	Deposits
 }
 
 type GenericCommands interface {
@@ -179,6 +182,11 @@ type EventBlockNumbersErrors interface {
 	) (*mDBApp.EventBlockNumbersErrors, error)
 }
 
+type EventBlockNumbersForValidityProver interface {
+	UpsertEventBlockNumberForValidityProver(eventName string, blockNumber uint64) (*mDBApp.EventBlockNumberForValidityProver, error)
+	EventBlockNumberByEventNameForValidityProver(eventName string) (*mDBApp.EventBlockNumberForValidityProver, error)
+}
+
 type Senders interface {
 	CreateSenders(
 		address, publicKey string,
@@ -204,4 +212,10 @@ type BackupBalances interface {
 	) (*mDBApp.BackupBalance, error)
 	GetBackupBalance(conditions []string, values []interface{}) (*mDBApp.BackupBalance, error)
 	GetBackupBalances(condition string, value interface{}) ([]*mDBApp.BackupBalance, error)
+}
+
+type Deposits interface {
+	CreateDeposit(deposit block_validity_prover.DepositLeafWithId) (*mDBApp.Deposit, error)
+	Deposit(ID string) (*mDBApp.Deposit, error)
+	DepositByDepositID(depositID uint32) (*mDBApp.Deposit, error)
 }

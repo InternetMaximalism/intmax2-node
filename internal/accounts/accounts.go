@@ -549,3 +549,7 @@ func GetPublicKeySaltHash(intmaxAddress *big.Int, salt *goldenposeidon.PoseidonH
 
 	return hashBytes
 }
+
+func (pk *PublicKey) HashWithSalt(salt *goldenposeidon.PoseidonHashOut) [int32Key]byte {
+	return GetPublicKeySaltHash(pk.Pk.X.BigInt(new(big.Int)), salt)
+}

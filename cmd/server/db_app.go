@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"intmax2-node/internal/block_validity_prover"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 
@@ -19,10 +20,12 @@ type SQLDriverApp interface {
 	Signatures
 	TxMerkleProofs
 	EventBlockNumbers
+	EventBlockNumbersForValidityProver
 	CtrlEventBlockNumbersJobs
 	EventBlockNumbersErrors
 	Senders
 	Accounts
+	Deposits
 }
 
 type GenericCommandsApp interface {
@@ -68,6 +71,11 @@ type EventBlockNumbers interface {
 	EventBlockNumbersByEventNames(eventNames []string) ([]*mDBApp.EventBlockNumber, error)
 }
 
+type EventBlockNumbersForValidityProver interface {
+	UpsertEventBlockNumberForValidityProver(eventName string, blockNumber uint64) (*mDBApp.EventBlockNumberForValidityProver, error)
+	EventBlockNumberByEventNameForValidityProver(eventName string) (*mDBApp.EventBlockNumberForValidityProver, error)
+}
+
 type CtrlEventBlockNumbersJobs interface {
 	CreateCtrlEventBlockNumbersJobs(eventName string) error
 	CtrlEventBlockNumbersJobs(eventName string) (*mDBApp.CtrlEventBlockNumbersJobs, error)
@@ -101,4 +109,10 @@ type Accounts interface {
 	AccountByAccountID(accountID *uint256.Int) (*mDBApp.Account, error)
 	ResetSequenceByAccounts() error
 	DelAllAccounts() error
+}
+
+type Deposits interface {
+	CreateDeposit(deposit block_validity_prover.DepositLeafWithId) (*mDBApp.Deposit, error)
+	Deposit(ID string) (*mDBApp.Deposit, error)
+	DepositByDepositID(depositID uint32) (*mDBApp.Deposit, error)
 }

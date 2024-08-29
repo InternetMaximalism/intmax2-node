@@ -2,13 +2,16 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
 	"intmax2-node/docs/swagger"
+	"intmax2-node/internal/balance_prover_service"
 	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/logger"
+	"intmax2-node/internal/mnemonic_wallet"
 	"intmax2-node/internal/network_service"
 	"intmax2-node/internal/pb/gateway"
 	"intmax2-node/internal/pb/gateway/consts"
@@ -230,7 +233,7 @@ func NewServerCmd(s *Server) *cobra.Command {
 
 				s.Log.Infof("Start Block Validity Prover")
 				var blockValidityProver block_validity_prover.BlockValidityProver
-				blockValidityProver, err = block_validity_prover.NewBlockValidityProver(s.Context, s.Config, s.Log, s.SB)
+				blockValidityProver, err = block_validity_prover.NewBlockValidityProver(s.Context, s.Config, s.Log, s.SB, s.DbApp)
 				if err != nil {
 					const msg = "failed to start Block Validity Prover: %+v"
 					s.Log.Fatalf(msg, err.Error())
@@ -243,16 +246,49 @@ func NewServerCmd(s *Server) *cobra.Command {
 					s.Log.Fatalf(msg, err.Error())
 				}
 
-				err = blockValidityProver.SyncBlockTree(blockSynchronizer)
+				blockBuilderWallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(s.Config.Blockchain.BuilderPrivateKeyHex)
 				if err != nil {
-					const msg = "failed to sync block tree: %+v"
+					const msg = "failed to get Block Builder IntMax Address: %+v"
 					s.Log.Fatalf(msg, err.Error())
 				}
 
-				err = blockValidityProver.SyncDepositTree()
+				balanceProverService := balance_prover_service.NewBalanceProverService(s.Context, s.Config, s.Log, blockBuilderWallet)
+				userAllData, err := balanceProverService.DecodeUserData()
 				if err != nil {
-					const msg = "failed to sync deposit tree: %+v"
+					const msg = "failed to start Balance Prover Service: %+v"
 					s.Log.Fatalf(msg, err.Error())
+				}
+				fmt.Printf("deposits in userAllData: %+v\n", len(userAllData.Deposits))
+
+				timeout := 1 * time.Second
+				ticker := time.NewTicker(timeout)
+				for {
+					select {
+					case <-s.Context.Done():
+						ticker.Stop()
+						return
+					case <-ticker.C:
+						fmt.Println("balance validity ticker.C")
+						err = blockValidityProver.SyncDepositedEvents()
+						if err != nil {
+							const msg = "failed to sync deposited events: %+v"
+							s.Log.Fatalf(msg, err.Error())
+						}
+
+						endBlock, err := blockValidityProver.SyncBlockTree(blockSynchronizer)
+						if err != nil {
+							const msg = "failed to sync block tree: %+v"
+							s.Log.Fatalf(msg, err.Error())
+						}
+
+						err = blockValidityProver.SyncDepositTree(&endBlock)
+						if err != nil {
+							const msg = "failed to sync deposit tree: %+v"
+							s.Log.Fatalf(msg, err.Error())
+						}
+
+						// blockValidityProver.BlockBuilder().DepositLeaves()
+					}
 				}
 			}()
 

@@ -232,7 +232,7 @@ func (s *MockWallet) updateOnReceive(witness *PrivateWitness) error {
 	return nil
 }
 
-type MockBlockBuilder = block_validity_prover.SQLDriverApp
+type MockBlockBuilder = block_validity_prover.BlockBuilderStorage
 
 func (s *MockWallet) ReceiveDepositAndUpdate(
 	blockBuilder MockBlockBuilder,

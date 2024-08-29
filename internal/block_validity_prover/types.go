@@ -1253,11 +1253,13 @@ type AuxInfo struct {
 }
 
 type mockBlockBuilder struct {
+	db                                      SQLDriverApp
 	LastBlockNumber                         uint32
 	AccountTree                             *intMaxTree.AccountTree      // current account tree
 	BlockTree                               *intMaxTree.BlockHashTree    // current block hash tree
 	DepositTree                             *intMaxTree.KeccakMerkleTree // current deposit tree
 	DepositLeaves                           []*intMaxTree.DepositLeaf
+	DepositLeavesByHash                     map[common.Hash]*DepositLeafWithId
 	DepositTreeRoots                        []common.Hash
 	lastSeenProcessDepositsEventBlockNumber uint64
 	lastSeenBlockPostedEventBlockNumber     uint64
@@ -1276,7 +1278,7 @@ func NewBlockHashTree(height uint8) (*intMaxTree.BlockHashTree, error) {
 	return intMaxTree.NewBlockHashTreeWithInitialLeaves(height, initialLeaves)
 }
 
-func NewMockBlockBuilder(cfg *configs.Config) SQLDriverApp {
+func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) BlockBuilderStorage {
 	accountTree, err := intMaxTree.NewAccountTree(intMaxTree.ACCOUNT_TREE_HEIGHT)
 	if err != nil {
 		panic(err)
@@ -1306,12 +1308,14 @@ func NewMockBlockBuilder(cfg *configs.Config) SQLDriverApp {
 	validityWitness := new(ValidityWitness).Genesis()
 	auxInfo := make(map[uint32]*mDBApp.BlockContent)
 	return &mockBlockBuilder{
+		db:                                      db,
 		lastValidityWitness:                     validityWitness,
 		ValidityProofs:                          make([]string, 1),
 		AccountTree:                             accountTree,
 		BlockTree:                               blockTree,
 		DepositTree:                             depositTree,
 		DepositLeaves:                           make([]*intMaxTree.DepositLeaf, 0),
+		DepositLeavesByHash:                     make(map[common.Hash]*DepositLeafWithId),
 		DepositTreeRoots:                        []common.Hash{depositTreeRoot},
 		lastSeenProcessDepositsEventBlockNumber: cfg.Blockchain.RollupContractDeployedBlockNumber,
 		lastSeenBlockPostedEventBlockNumber:     cfg.Blockchain.RollupContractDeployedBlockNumber,
@@ -1319,8 +1323,8 @@ func NewMockBlockBuilder(cfg *configs.Config) SQLDriverApp {
 	}
 }
 
-func (b *mockBlockBuilder) Exec(_ context.Context, _ interface{}, _ func(d interface{}, _ interface{}) error) (err error) {
-	return nil
+func (b *mockBlockBuilder) Exec(ctx context.Context, input interface{}, executor func(d interface{}, input interface{}) error) (err error) {
+	return b.db.Exec(ctx, input, executor)
 }
 
 type DepositLeafWithId struct {
@@ -1552,7 +1556,7 @@ func (db *mockBlockBuilder) GetAccountTreeLeaf(sender *big.Int) (*intMaxTree.Ind
 	return prevLeaf, nil
 }
 
-func generateValidityWitness(db SQLDriverApp, blockWitness *BlockWitness) (*ValidityWitness, error) {
+func generateValidityWitness(db BlockBuilderStorage, blockWitness *BlockWitness) (*ValidityWitness, error) {
 	if blockWitness.Block.BlockNumber != db.LatestIntMaxBlockNumber()+1 {
 		return nil, errors.New("block number is not equal to the last block number + 1")
 	}
@@ -1775,7 +1779,7 @@ func (b *mockBlockBuilder) BlockContent(blockNumber uint32) (*mDBApp.BlockConten
 	return auxInfo, true
 }
 
-func BlockAuxInfo(db SQLDriverApp, blockNumber uint32) (*AuxInfo, bool) {
+func BlockAuxInfo(db BlockBuilderStorage, blockNumber uint32) (*AuxInfo, bool) {
 	auxInfo, ok := db.BlockContent(blockNumber)
 	if !ok {
 		return nil, false
@@ -1841,7 +1845,7 @@ func BlockAuxInfo(db SQLDriverApp, blockNumber uint32) (*AuxInfo, bool) {
 }
 
 func setAuxInfo(
-	db SQLDriverApp,
+	db BlockBuilderStorage,
 	postedBlock *block_post_service.PostedBlock,
 	blockContent *intMaxTypes.BlockContent,
 ) error {
@@ -1922,7 +1926,15 @@ func (b *mockBlockBuilder) NextAccountID() (uint64, error) {
 	return uint64(b.AccountTree.Count()), nil
 }
 
-func (b *SyncValidityProver) Sync(blockBuilder SQLDriverApp) {
+func (b *mockBlockBuilder) EventBlockNumberByEventNameForValidityProver(eventName string) (*mDBApp.EventBlockNumberForValidityProver, error) {
+	return b.db.EventBlockNumberByEventNameForValidityProver("DepositsProcessed")
+}
+
+func (b *mockBlockBuilder) UpsertEventBlockNumberForValidityProver(eventName string, blockNumber uint64) (*mDBApp.EventBlockNumberForValidityProver, error) {
+	return b.db.UpsertEventBlockNumberForValidityProver(eventName, blockNumber)
+}
+
+func (b *SyncValidityProver) Sync(blockBuilder BlockBuilderStorage) {
 	currentBlockNumber := blockBuilder.LatestIntMaxBlockNumber()
 	for blockNumber := b.LastBlockNumber + 1; blockNumber <= currentBlockNumber; blockNumber++ {
 		prevValidityProof, ok := b.ValidityProofs[blockNumber-1]

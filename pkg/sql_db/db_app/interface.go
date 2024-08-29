@@ -3,6 +3,7 @@ package db_app
 import (
 	"context"
 	"encoding/json"
+	"intmax2-node/internal/block_validity_prover"
 	mFL "intmax2-node/internal/sql_filter/models"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/pkg/sql_db/db_app/models"
@@ -26,9 +27,11 @@ type SQLDb interface {
 	BackupDeposits
 	CtrlEventBlockNumbersJobs
 	EventBlockNumbersErrors
+	EventBlockNumbersForValidityProver
 	Senders
 	Accounts
 	BackupBalances
+	Deposits
 }
 
 type GenericCommands interface {
@@ -85,6 +88,11 @@ type EventBlockNumbers interface {
 	UpsertEventBlockNumber(eventName string, blockNumber uint64) (*models.EventBlockNumber, error)
 	EventBlockNumberByEventName(eventName string) (*models.EventBlockNumber, error)
 	EventBlockNumbersByEventNames(eventNames []string) ([]*models.EventBlockNumber, error)
+}
+
+type EventBlockNumbersForValidityProver interface {
+	UpsertEventBlockNumberForValidityProver(eventName string, blockNumber uint64) (*models.EventBlockNumberForValidityProver, error)
+	EventBlockNumberByEventNameForValidityProver(eventName string) (*models.EventBlockNumberForValidityProver, error)
 }
 
 type Balances interface {
@@ -204,4 +212,10 @@ type BackupBalances interface {
 	) (*models.BackupBalance, error)
 	GetBackupBalance(conditions []string, values []interface{}) (*models.BackupBalance, error)
 	GetBackupBalances(condition string, value interface{}) ([]*models.BackupBalance, error)
+}
+
+type Deposits interface {
+	CreateDeposit(deposit block_validity_prover.DepositLeafWithId) (*models.Deposit, error)
+	Deposit(ID string) (*models.Deposit, error)
+	DepositByDepositID(depositID uint32) (*models.Deposit, error)
 }
