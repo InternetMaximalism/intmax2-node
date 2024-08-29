@@ -204,9 +204,25 @@ type AccountRegistrationProofs struct {
 	IsValid bool                               `json:"isValid"`
 }
 
+func (arp *AccountRegistrationProofs) Set(other *AccountRegistrationProofs) *AccountRegistrationProofs {
+	arp.IsValid = other.IsValid
+	arp.Proofs = make([]intMaxTree.IndexedInsertionProof, len(other.Proofs))
+	copy(arp.Proofs, other.Proofs)
+
+	return arp
+}
+
 type AccountUpdateProofs struct {
 	Proofs  []intMaxTree.IndexedUpdateProof `json:"proofs"`
 	IsValid bool                            `json:"isValid"`
+}
+
+func (arp *AccountUpdateProofs) Set(other *AccountUpdateProofs) *AccountUpdateProofs {
+	arp.IsValid = other.IsValid
+	arp.Proofs = make([]intMaxTree.IndexedUpdateProof, len(other.Proofs))
+	copy(arp.Proofs, other.Proofs)
+
+	return arp
 }
 
 type ValidityTransitionWitness struct {
@@ -214,6 +230,16 @@ type ValidityTransitionWitness struct {
 	BlockMerkleProof          intMaxTree.MerkleProof    `json:"blockMerkleProof"`
 	AccountRegistrationProofs AccountRegistrationProofs `json:"accountRegistrationProofs"`
 	AccountUpdateProofs       AccountUpdateProofs       `json:"accountUpdateProofs"`
+}
+
+func (vtw *ValidityTransitionWitness) Set(other *ValidityTransitionWitness) *ValidityTransitionWitness {
+	vtw.SenderLeaves = make([]SenderLeaf, len(other.SenderLeaves))
+	copy(vtw.SenderLeaves, other.SenderLeaves)
+	vtw.BlockMerkleProof.Set(&other.BlockMerkleProof)
+	vtw.AccountRegistrationProofs.Set(&other.AccountRegistrationProofs)
+	vtw.AccountUpdateProofs.Set(&other.AccountUpdateProofs)
+
+	return vtw
 }
 
 type AccountRegistrationProofOrDummy struct {
@@ -389,6 +415,19 @@ const (
 )
 
 type AccountIdPacked [numAccountIDPackedBytes]uint32
+
+func (b *AccountIdPacked) Set(other *AccountIdPacked) *AccountIdPacked {
+	if other == nil {
+		b = nil
+		return nil
+	}
+
+	for i := 0; i < numAccountIDPackedBytes; i++ {
+		b[i] = other[i]
+	}
+
+	return b
+}
 
 func (b *AccountIdPacked) FromBytes(bytes []byte) {
 	if len(bytes) > numAccountIDPackedBytes*numUint32Bytes {
@@ -640,6 +679,27 @@ type CompressedBlockWitness struct {
 	SignificantAccountMerkleProofs     *[]AccountMerkleProof                `json:"significantAccountMerkleProofs,omitempty"`     // in account id case
 	SignificantAccountMembershipProofs *[]intMaxTree.IndexedMembershipProof `json:"significantAccountMembershipProofs,omitempty"` // in pubkey case
 	CommonAccountMerkleProof           []*intMaxGP.PoseidonHashOut          `json:"commonAccountMerkleProof"`
+}
+
+func (bw *BlockWitness) Set(blockWitness *BlockWitness) *BlockWitness {
+	bw.Block = new(block_post_service.PostedBlock).Set(blockWitness.Block)
+	bw.Signature.Set(&blockWitness.Signature)
+	bw.PublicKeys = make([]intMaxTypes.Uint256, len(blockWitness.PublicKeys))
+	copy(bw.PublicKeys, blockWitness.PublicKeys)
+
+	bw.PrevAccountTreeRoot = new(intMaxGP.PoseidonHashOut).Set(blockWitness.PrevAccountTreeRoot)
+	bw.PrevBlockTreeRoot = new(intMaxGP.PoseidonHashOut).Set(blockWitness.PrevBlockTreeRoot)
+	bw.AccountIdPacked = new(AccountIdPacked).Set(blockWitness.AccountIdPacked)
+	if blockWitness.AccountMerkleProofs != nil {
+		bw.AccountMerkleProofs = new([]AccountMerkleProof)
+		copy(*bw.AccountMerkleProofs, *blockWitness.AccountMerkleProofs)
+	}
+	if blockWitness.AccountMembershipProofs != nil {
+		bw.AccountMembershipProofs = new([]intMaxTree.IndexedMembershipProof)
+		copy(*bw.AccountMembershipProofs, *blockWitness.AccountMembershipProofs)
+	}
+
+	return bw
 }
 
 func (bw *BlockWitness) Genesis() *BlockWitness {
@@ -1058,6 +1118,13 @@ type ValidityWitness struct {
 	ValidityTransitionWitness *ValidityTransitionWitness `json:"validityTransitionWitness"`
 }
 
+func (vw *ValidityWitness) Set(validityWitness *ValidityWitness) *ValidityWitness {
+	vw.BlockWitness = new(BlockWitness).Set(validityWitness.BlockWitness)
+	vw.ValidityTransitionWitness = new(ValidityTransitionWitness).Set(validityWitness.ValidityTransitionWitness)
+
+	return vw
+}
+
 func (vw *ValidityWitness) Genesis() *ValidityWitness {
 	return &ValidityWitness{
 		BlockWitness:              new(BlockWitness).Genesis(),
@@ -1093,6 +1160,7 @@ func (vw *ValidityWitness) ValidityPublicInputs() *ValidityPublicInputs {
 	// Check transition block tree root
 	block := vw.BlockWitness.Block
 	defaultLeaf := new(intMaxTree.BlockHashLeaf).SetDefault()
+	fmt.Printf("old block root: %s\n", prevBlockTreeRoot.String())
 	err := vw.ValidityTransitionWitness.BlockMerkleProof.Verify(
 		defaultLeaf.Hash(),
 		int(block.BlockNumber),
@@ -1104,6 +1172,7 @@ func (vw *ValidityWitness) ValidityPublicInputs() *ValidityPublicInputs {
 	}
 	blockHashLeaf := intMaxTree.NewBlockHashLeaf(block.Hash())
 	blockTreeRoot := vw.ValidityTransitionWitness.BlockMerkleProof.GetRoot(blockHashLeaf.Hash(), int(block.BlockNumber))
+	fmt.Printf("new block root: %s\n", blockTreeRoot.String())
 
 	mainValidationPis := vw.BlockWitness.MainValidationPublicInputs()
 
@@ -1377,7 +1446,16 @@ func getSenderLeaves(publicKeys []intMaxTypes.Uint256, senderFlag intMaxTypes.By
 	return senderLeaves
 }
 
+func (db *mockBlockBuilder) SetValidityWitness(_ uint32, witness *ValidityWitness) error {
+	db.lastValidityWitness = new(ValidityWitness).Set(witness)
+	fmt.Printf("SetValidityWitness: %v\n", witness.BlockWitness.PrevBlockTreeRoot)
+
+	return nil
+}
+
 func (db *mockBlockBuilder) LastValidityWitness() (*ValidityWitness, error) {
+	fmt.Printf("LastValidityWitness: %v\n", db.lastValidityWitness.BlockWitness.PrevBlockTreeRoot)
+
 	return db.lastValidityWitness, nil
 }
 
@@ -1432,11 +1510,13 @@ func (db *mockBlockBuilder) AppendBlockTreeLeaf(block *block_post_service.Posted
 		return errors.New("block number is not equal to the current block number")
 	}
 
-	_, err := db.BlockTree.AddLeaf(count, blockHashLeaf)
+	fmt.Printf("old block root: %s\n", db.BlockTree.GetRoot().String())
+	newRoot, err := db.BlockTree.AddLeaf(count, blockHashLeaf)
 	if err != nil {
 		var ErrBlockTreeAddLeaf = errors.New("block tree add leaf error")
 		return errors.Join(ErrBlockTreeAddLeaf, err)
 	}
+	fmt.Printf("new block root: %s\n", newRoot.String())
 
 	return nil
 }
@@ -1495,6 +1575,12 @@ func generateValidityWitness(db SQLDriverApp, blockWitness *BlockWitness) (*Vali
 	if err != nil {
 		return nil, errors.New("block tree root error")
 	}
+	if prevPis.IsValidBlock {
+		fmt.Printf("block number %d is valid\n", prevPis.PublicState.BlockNumber)
+	} else {
+		fmt.Printf("block number %d is invalid\n", prevPis.PublicState.BlockNumber)
+	}
+	fmt.Printf("blockTreeRoot: %s\n", blockTreeRoot.String())
 	if !prevPis.PublicState.BlockTreeRoot.Equal(blockTreeRoot) {
 		fmt.Printf("prevPis.PublicState.BlockTreeRoot is not the same with blockTreeRoot, %s != %s", prevPis.PublicState.BlockTreeRoot.String(), blockTreeRoot.String())
 		return nil, errors.New("block tree root is not equal to the last block tree root")
@@ -1853,9 +1939,21 @@ func (b *SyncValidityProver) Sync(blockBuilder SQLDriverApp) {
 			panic(err)
 		}
 
+		fmt.Printf("generateValidityWitness blockNumber: %d\n", blockWitness.Block.BlockNumber)
 		validityWitness, err := generateValidityWitness(blockBuilder, blockWitness)
 		if err != nil {
 			panic(err)
+		}
+
+		if err := blockBuilder.SetValidityWitness(blockNumber, validityWitness); err != nil {
+			panic(err)
+		}
+		{
+			validityWitness, err := blockBuilder.LastValidityWitness()
+			if err != nil {
+				panic(err)
+			}
+			fmt.Printf("blockNumber: %d\n", validityWitness.BlockWitness.Block.BlockNumber)
 		}
 
 		validityProof, err := b.ValidityProcessor.Prove(prevValidityProof, validityWitness)

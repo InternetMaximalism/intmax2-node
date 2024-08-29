@@ -97,6 +97,7 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer) (err error) {
 			p.log.Warnf("Received cancel signal from context, stopping...")
 			return p.ctx.Err()
 		case <-tickerEventWatcher.C:
+			fmt.Println("tickerEventWatcher.C")
 			var blN uint256.Int
 			_ = blN.SetFromBig(new(big.Int).SetUint64(events[key].Raw.BlockNumber))
 
@@ -158,7 +159,8 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer) (err error) {
 				blockContent,
 			)
 			if err != nil {
-				return errors.Join(ErrCreateBlockContentFail, err)
+				panic(err)
+				// return errors.Join(ErrCreateBlockContentFail, err)
 			}
 
 			// TODO: Separate another worker
@@ -173,16 +175,36 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer) (err error) {
 				panic(err)
 			}
 
+			if err := p.blockBuilder.SetValidityWitness(validityWitness.BlockWitness.Block.BlockNumber, validityWitness); err != nil {
+				panic(err)
+			}
+			{
+				validityWitness, err := p.blockBuilder.LastValidityWitness()
+				if err != nil {
+					panic(err)
+				}
+				fmt.Printf("blockNumber: %d\n", validityWitness.BlockWitness.Block.BlockNumber)
+			}
+
 			validityProof, err := p.requestAndFetchBlockValidityProof(validityWitness)
 			if err != nil {
 				return errors.Join(ErrRequestAndFetchBlockValidityProofFail, err)
 			}
 
-			p.blockBuilder.SetValidityProof(validityWitness.BlockWitness.Block.BlockNumber, validityProof)
+			err = p.blockBuilder.SetValidityProof(validityWitness.BlockWitness.Block.BlockNumber, validityProof)
+			if err != nil {
+				panic(err)
+			}
+
+			fmt.Printf("Block %d is reflected\n", validityWitness.BlockWitness.Block.BlockNumber)
 		}
 	}
 
-	p.blockBuilder.SetLastSeenBlockPostedEventBlockNumber(nextBN.Uint64())
+	err = p.blockBuilder.SetLastSeenBlockPostedEventBlockNumber(nextBN.Uint64())
+	if err != nil {
+		var ErrSetLastSeenBlockPostedEventBlockNumberFail = errors.New("set last seen block posted event block number fail")
+		return errors.Join(ErrSetLastSeenBlockPostedEventBlockNumberFail, err)
+	}
 
 	return nil
 }

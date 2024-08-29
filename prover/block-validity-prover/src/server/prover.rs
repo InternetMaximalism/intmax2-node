@@ -99,7 +99,7 @@ async fn generate_proof(
     if old_proof.is_some() {
         let response = ProofResponse {
             success: true,
-            proof: None,
+            proof: old_proof.clone(),
             error_message: Some("validity proof already exists".to_string()),
         };
 

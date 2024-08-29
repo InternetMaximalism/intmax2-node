@@ -58,5 +58,9 @@ func (p *blockValidityProver) fetchBlockValidityProof(blockHash common.Hash) (st
 		return "", fmt.Errorf("failed to get verify deposit confirmation response: %v", response)
 	}
 
+	if response.Proof == nil {
+		return "", fmt.Errorf("failed to get verify deposit confirmation response: %v", response)
+	}
+
 	return *response.Proof, nil
 }

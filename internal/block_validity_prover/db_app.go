@@ -40,6 +40,7 @@ type BlockContents interface {
 	LastSeenBlockPostedEventBlockNumber() (blockNumber uint64, err error)
 	SetValidityProof(blockNumber uint32, proof string) error
 	LastValidityProof() (*string, error)
+	SetValidityWitness(blockNumber uint32, witness *ValidityWitness) error
 	LastValidityWitness() (*ValidityWitness, error)
 	CreateBlockContent(
 		blockNumber uint32,

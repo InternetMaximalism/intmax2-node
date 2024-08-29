@@ -14,9 +14,9 @@ import (
 const DEPOSIT_TREE_HEIGHT uint8 = 32
 
 type DepositLeaf struct {
-	RecipientSaltHash [numHashBytes]byte `json:"recipientSaltHash`
+	RecipientSaltHash [numHashBytes]byte `json:"recipientSaltHash"`
 	TokenIndex        uint32             `json:"tokenIndex"`
-	Amount            *big.Int
+	Amount            *big.Int           `json:"amount"`
 }
 
 func (dd *DepositLeaf) Set(deposit *DepositLeaf) *DepositLeaf {

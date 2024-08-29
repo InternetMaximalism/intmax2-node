@@ -250,6 +250,12 @@ type MerkleProof struct {
 	Siblings []*goldenposeidon.PoseidonHashOut
 }
 
+func (proof *MerkleProof) Set(other *MerkleProof) *MerkleProof {
+	proof.Siblings = make([]*goldenposeidon.PoseidonHashOut, len(other.Siblings))
+	copy(proof.Siblings, other.Siblings)
+	return proof
+}
+
 func (proof *MerkleProof) MarshalJSON() ([]byte, error) {
 	return json.Marshal(proof.Siblings)
 }
