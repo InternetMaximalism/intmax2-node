@@ -1,2 +1,2 @@
-hostname = 'localhost'
+hostname = '0.0.0.0'
 proof_expiration = 600
