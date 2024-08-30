@@ -7,6 +7,7 @@ import (
 type Deposit struct {
 	ID                string
 	DepositID         uint32
+	DepositIndex      *uint32
 	DepositHash       string
 	RecipientSaltHash string
 	TokenIndex        uint32

@@ -155,9 +155,9 @@ func (s *SyncBalanceProver) ReceiveDeposit(
 	wallet *MockWallet,
 	balanceProcessor *BalanceProcessor,
 	blockBuilder MockBlockBuilder,
-	depositIndex uint32,
+	depositId uint32,
 ) error {
-	receiveDepositWitness, err := wallet.ReceiveDepositAndUpdate(blockBuilder, depositIndex)
+	receiveDepositWitness, err := wallet.ReceiveDepositAndUpdate(blockBuilder, depositId)
 	if err != nil {
 		return err
 	}

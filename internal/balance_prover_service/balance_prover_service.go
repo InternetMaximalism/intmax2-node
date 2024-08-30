@@ -15,15 +15,18 @@ import (
 	intMaxTypes "intmax2-node/internal/types"
 	"log"
 	"math/big"
+	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
 )
 
 type balanceProverService struct {
-	ctx    context.Context
-	cfg    *configs.Config
-	log    logger.Logger
-	wallet *models.Wallet
+	ctx               context.Context
+	cfg               *configs.Config
+	log               logger.Logger
+	wallet            *models.Wallet
+	BalanceProcessor  *BalanceProcessor
+	SyncBalanceProver *SyncBalanceProver
 }
 
 func NewBalanceProverService(
@@ -32,11 +35,15 @@ func NewBalanceProverService(
 	log logger.Logger,
 	wallet *models.Wallet,
 ) *balanceProverService {
+	balanceProcessor := &BalanceProcessor{}
+	syncBalanceProver := NewSyncBalanceProver()
 	return &balanceProverService{
 		ctx,
 		cfg,
 		log,
 		wallet,
+		balanceProcessor,
+		syncBalanceProver,
 	}
 }
 
@@ -67,11 +74,13 @@ func (s *balanceProverService) DecodeUserData() (*DecodedUserData, error) {
 }
 
 type DepositDetails struct {
-	Recipient   *intMaxAcc.PublicKey
-	TokenIndex  uint32
-	Amount      *big.Int
-	Salt        *intMaxGP.PoseidonHashOut
-	DepositHash common.Hash
+	Recipient         *intMaxAcc.PublicKey
+	TokenIndex        uint32
+	Amount            *big.Int
+	Salt              *intMaxGP.PoseidonHashOut
+	RecipientSaltHash common.Hash
+	DepositID         uint32
+	DepositHash       common.Hash
 }
 
 type DecodedUserData struct {
@@ -114,11 +123,16 @@ func DecodeBackupData(
 		}
 
 		// Request data store vault if deposit is valid
-		depositID := deposit.BlockNumber
+		depositIDStr := deposit.BlockNumber
+		depositID, err := strconv.ParseUint(depositIDStr, 10, 32)
+		for err != nil {
+			log.Printf("failed to parse deposit ID: %v", err)
+		}
+
 		ok, err := balance_service.GetDepositValidityRawRequest(
 			ctx,
 			cfg,
-			depositID,
+			depositIDStr,
 		)
 		if err != nil {
 			return nil, errors.Join(balance_service.ErrDepositValidity, err)
@@ -141,11 +155,13 @@ func DecodeBackupData(
 		}
 		depositHash := depositLeaf.Hash()
 		deposit := DepositDetails{
-			Recipient:   recipient,
-			TokenIndex:  decodedDeposit.TokenIndex,
-			Amount:      decodedDeposit.Amount,
-			Salt:        decodedDeposit.Salt,
-			DepositHash: depositHash,
+			Recipient:         recipient,
+			TokenIndex:        decodedDeposit.TokenIndex,
+			Amount:            decodedDeposit.Amount,
+			Salt:              decodedDeposit.Salt,
+			RecipientSaltHash: recipientSaltHash,
+			DepositID:         uint32(depositID),
+			DepositHash:       depositHash,
 		}
 
 		receivedDeposits = append(receivedDeposits, &deposit)

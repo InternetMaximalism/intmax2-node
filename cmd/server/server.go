@@ -6,6 +6,7 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
 	"intmax2-node/docs/swagger"
+	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_prover_service"
 	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/block_validity_prover"
@@ -18,6 +19,7 @@ import (
 	"intmax2-node/internal/pb/gateway/http_response_modifier"
 	node "intmax2-node/internal/pb/gen/block_builder_service/node"
 	"intmax2-node/internal/pb/listener"
+	intMaxTree "intmax2-node/internal/tree"
 	"intmax2-node/pkg/grpc_server/server"
 	"intmax2-node/third_party"
 	"strings"
@@ -275,19 +277,56 @@ func NewServerCmd(s *Server) *cobra.Command {
 							s.Log.Fatalf(msg, err.Error())
 						}
 
-						endBlock, err := blockValidityProver.SyncBlockTree(blockSynchronizer)
-						if err != nil {
-							const msg = "failed to sync block tree: %+v"
-							s.Log.Fatalf(msg, err.Error())
-						}
-
-						err = blockValidityProver.SyncDepositTree(&endBlock)
+						err = blockValidityProver.SyncDepositTree(nil)
 						if err != nil {
 							const msg = "failed to sync deposit tree: %+v"
 							s.Log.Fatalf(msg, err.Error())
 						}
 
-						// blockValidityProver.BlockBuilder().DepositLeaves()
+						_, err := blockValidityProver.SyncBlockTree(blockSynchronizer)
+						if err != nil {
+							const msg = "failed to sync block tree: %+v"
+							s.Log.Fatalf(msg, err.Error())
+						}
+
+						intMaxPrivateKey, err := intMaxAcc.NewPrivateKeyFromString(blockBuilderWallet.IntMaxPrivateKey)
+						if err != nil {
+							const msg = "failed to get IntMax Private Key: %+v"
+							s.Log.Fatalf(msg, err.Error())
+						}
+						mockWallet, err := balance_prover_service.NewMockWallet(intMaxPrivateKey)
+						if err != nil {
+							const msg = "failed to get Mock Wallet: %+v"
+							s.Log.Fatalf(msg, err.Error())
+						}
+
+						for _, deposit := range userAllData.Deposits {
+							fmt.Printf("deposit ID: %d\n", deposit.DepositID)
+							depositIndex, _, err := blockValidityProver.BlockBuilder().GetDepositIndexAndIDByHash(deposit.DepositHash)
+							if err != nil {
+								const msg = "failed to get Deposit Index by Hash: %+v"
+								s.Log.Warnf(msg, err.Error())
+								continue
+							}
+							fmt.Printf("deposit index: %d\n", depositIndex)
+
+							depositCase := balance_prover_service.DepositCase{
+								Deposit: intMaxTree.DepositLeaf{
+									RecipientSaltHash: deposit.RecipientSaltHash,
+									TokenIndex:        deposit.TokenIndex,
+									Amount:            deposit.Amount,
+								},
+								DepositIndex: depositIndex,
+								DepositSalt:  *deposit.Salt,
+							}
+							mockWallet.AddDepositCase(deposit.DepositID, &depositCase)
+							balanceProverService.SyncBalanceProver.ReceiveDeposit(
+								mockWallet,
+								balanceProverService.BalanceProcessor,
+								blockValidityProver.BlockBuilder(),
+								deposit.DepositID,
+							)
+						}
 					}
 				}
 			}()

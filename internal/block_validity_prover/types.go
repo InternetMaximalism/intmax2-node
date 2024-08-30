@@ -1253,20 +1253,21 @@ type AuxInfo struct {
 }
 
 type mockBlockBuilder struct {
-	db                                      SQLDriverApp
-	LastBlockNumber                         uint32
-	AccountTree                             *intMaxTree.AccountTree      // current account tree
-	BlockTree                               *intMaxTree.BlockHashTree    // current block hash tree
-	DepositTree                             *intMaxTree.KeccakMerkleTree // current deposit tree
-	DepositLeaves                           []*intMaxTree.DepositLeaf
-	DepositLeavesByHash                     map[common.Hash]*DepositLeafWithId
-	DepositTreeRoots                        []common.Hash
-	lastSeenProcessDepositsEventBlockNumber uint64
-	lastSeenBlockPostedEventBlockNumber     uint64
-	LastSeenProcessedDepositId              uint64
-	lastValidityWitness                     *ValidityWitness
-	ValidityProofs                          []string
-	AuxInfo                                 map[uint32]*mDBApp.BlockContent
+	db                SQLDriverApp
+	LastBlockNumber   uint32
+	AccountTree       *intMaxTree.AccountTree      // current account tree
+	BlockTree         *intMaxTree.BlockHashTree    // current block hash tree
+	DepositTree       *intMaxTree.KeccakMerkleTree // current deposit tree
+	DepositLeaves     []*intMaxTree.DepositLeaf
+	DepositLeafHashes []common.Hash
+	// DepositLeavesByHash map[common.Hash]*DepositLeafWithId
+	DepositTreeRoots []common.Hash
+	// lastSeenProcessDepositsEventBlockNumber uint64
+	lastSeenBlockPostedEventBlockNumber uint64
+	LastSeenProcessedDepositId          uint64
+	lastValidityWitness                 *ValidityWitness
+	ValidityProofs                      []string
+	AuxInfo                             map[uint32]*mDBApp.BlockContent
 }
 
 // NewBlockHashTree is a Merkle tree that includes the genesis block in the 0th leaf from the beginning.
@@ -1308,18 +1309,18 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) BlockBuilderStora
 	validityWitness := new(ValidityWitness).Genesis()
 	auxInfo := make(map[uint32]*mDBApp.BlockContent)
 	return &mockBlockBuilder{
-		db:                                      db,
-		lastValidityWitness:                     validityWitness,
-		ValidityProofs:                          make([]string, 1),
-		AccountTree:                             accountTree,
-		BlockTree:                               blockTree,
-		DepositTree:                             depositTree,
-		DepositLeaves:                           make([]*intMaxTree.DepositLeaf, 0),
-		DepositLeavesByHash:                     make(map[common.Hash]*DepositLeafWithId),
-		DepositTreeRoots:                        []common.Hash{depositTreeRoot},
-		lastSeenProcessDepositsEventBlockNumber: cfg.Blockchain.RollupContractDeployedBlockNumber,
-		lastSeenBlockPostedEventBlockNumber:     cfg.Blockchain.RollupContractDeployedBlockNumber,
-		AuxInfo:                                 auxInfo,
+		db:                  db,
+		lastValidityWitness: validityWitness,
+		ValidityProofs:      make([]string, 1),
+		AccountTree:         accountTree,
+		BlockTree:           blockTree,
+		DepositTree:         depositTree,
+		DepositLeaves:       make([]*intMaxTree.DepositLeaf, 0),
+		// DepositLeavesByHash: make(map[common.Hash]*DepositLeafWithId),
+		DepositTreeRoots: []common.Hash{depositTreeRoot},
+		// lastSeenProcessDepositsEventBlockNumber: cfg.Blockchain.RollupContractDeployedBlockNumber,
+		lastSeenBlockPostedEventBlockNumber: cfg.Blockchain.RollupContractDeployedBlockNumber,
+		AuxInfo:                             auxInfo,
 	}
 }
 
@@ -1329,7 +1330,7 @@ func (b *mockBlockBuilder) Exec(ctx context.Context, input interface{}, executor
 
 type DepositLeafWithId struct {
 	DepositLeaf *intMaxTree.DepositLeaf
-	DepositId   uint64
+	DepositId   uint32
 }
 
 func (b *mockBlockBuilder) GenerateBlock(
@@ -1493,20 +1494,6 @@ func (db *mockBlockBuilder) DepositTreeProof(blockNumber uint32) (*intMaxTree.Ke
 	return proof, nil
 }
 
-func (db *mockBlockBuilder) AppendDeposit(blockNumber uint32, depositLeaf *intMaxTree.DepositLeaf) error {
-	leafHash := depositLeaf.Hash()
-	_, err := db.DepositTree.AddLeaf(blockNumber, [32]byte(leafHash))
-	if err != nil {
-		return errors.New("deposit tree add leaf error")
-	}
-
-	// db.DepositLeaves = append(db.DepositLeaves, &depositLeaf)
-	// depositTreeRoot, _, _ := db.DepositTree.GetCurrentRootCountAndSiblings()
-	// db.DepositTreeRoots = append(db.DepositTreeRoots, depositTreeRoot)
-
-	return nil
-}
-
 func (db *mockBlockBuilder) AppendBlockTreeLeaf(block *block_post_service.PostedBlock) error {
 	blockHashLeaf := intMaxTree.NewBlockHashLeaf(block.Hash())
 	_, count, _ := db.BlockTree.GetCurrentRootCountAndSiblings()
@@ -1580,9 +1567,9 @@ func generateValidityWitness(db BlockBuilderStorage, blockWitness *BlockWitness)
 		return nil, errors.New("block tree root error")
 	}
 	if prevPis.IsValidBlock {
-		fmt.Printf("block number %d is valid\n", prevPis.PublicState.BlockNumber)
+		fmt.Printf("block number %d is valid\n", prevPis.PublicState.BlockNumber+1)
 	} else {
-		fmt.Printf("block number %d is invalid\n", prevPis.PublicState.BlockNumber)
+		fmt.Printf("block number %d is invalid\n", prevPis.PublicState.BlockNumber+1)
 	}
 	fmt.Printf("blockTreeRoot: %s\n", blockTreeRoot.String())
 	if !prevPis.PublicState.BlockTreeRoot.Equal(blockTreeRoot) {
@@ -1932,6 +1919,26 @@ func (b *mockBlockBuilder) EventBlockNumberByEventNameForValidityProver(eventNam
 
 func (b *mockBlockBuilder) UpsertEventBlockNumberForValidityProver(eventName string, blockNumber uint64) (*mDBApp.EventBlockNumberForValidityProver, error) {
 	return b.db.UpsertEventBlockNumberForValidityProver(eventName, blockNumber)
+}
+
+func (b *mockBlockBuilder) GetDepositIndexAndIDByHash(depositHash common.Hash) (depositID uint32, depositIndex *uint32, err error) {
+	fmt.Printf("GetDepositIndexByHash deposit hash: %s\n", depositHash.String())
+	deposit, err := b.db.DepositByDepositHash(depositHash)
+	if err != nil {
+		return 0, new(uint32), err
+	}
+
+	fmt.Printf("GetDepositIndexByHash deposit index: %v\n", deposit.DepositIndex)
+	return deposit.DepositID, deposit.DepositIndex, nil
+}
+
+func (b *mockBlockBuilder) UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error {
+	err := b.db.UpdateDepositIndexByDepositHash(depositHash, depositIndex)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (b *SyncValidityProver) Sync(blockBuilder BlockBuilderStorage) {

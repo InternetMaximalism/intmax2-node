@@ -7,10 +7,12 @@ CREATE TABLE deposits (
     recipient_salt_hash   varchar(255) not null,
     token_index           bigint not null,
     amount                varchar(255) not null,
+    deposit_index         bigint,
     created_at            timestamptz not null default now(),
-    PRIMARY KEY (id)
+    PRIMARY KEY (id),
+    UNIQUE (deposit_id)
 );
 
 -- +migrate Down
 
-DROP SEQUENCE deposits;
+DROP TABLE deposits;

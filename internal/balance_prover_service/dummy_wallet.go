@@ -23,6 +23,11 @@ type MockWallet struct {
 	transferWitnesses map[uint32][]*ReceiveTransferWitness
 }
 
+func (w *MockWallet) AddDepositCase(depositIndex uint32, depositCase *DepositCase) error {
+	w.depositCases[depositIndex] = depositCase
+	return nil
+}
+
 // pub fn new_rand<R: Rng>(rng: &mut R) -> Self {
 // 	Self {
 // 		key_set: KeySet::rand(rng),
@@ -57,7 +62,7 @@ func NewMockWallet(privateKey *intMaxAcc.PrivateKey) (*MockWallet, error) {
 		salt:              Salt{},
 		publicState:       new(block_validity_prover.PublicState).Genesis(),
 		sendWitnesses:     make(map[uint32]*SendWitness),
-		depositCases:      make(map[uint32]*DepositCase),
+		depositCases:      make(map[uint32]*DepositCase), // depositId => DepositCase
 		transferWitnesses: make(map[uint32][]*ReceiveTransferWitness),
 	}, nil
 }
@@ -236,9 +241,9 @@ type MockBlockBuilder = block_validity_prover.BlockBuilderStorage
 
 func (s *MockWallet) ReceiveDepositAndUpdate(
 	blockBuilder MockBlockBuilder,
-	depositIndex uint32,
+	depositId uint32,
 ) (*ReceiveDepositWitness, error) {
-	depositCase, ok := s.depositCases[depositIndex]
+	depositCase, ok := s.depositCases[depositId]
 	if !ok {
 		return nil, errors.New("deposit not found")
 	}
@@ -269,7 +274,7 @@ func (s *MockWallet) ReceiveDepositAndUpdate(
 	}
 
 	// delete deposit
-	delete(s.depositCases, depositIndex)
+	delete(s.depositCases, depositId)
 
 	// update
 	s.updateOnReceive(privateWitness)
@@ -407,7 +412,7 @@ func (s *MockWallet) GenerateReceiveTransferWitness(
 // 		DepositIndex: depositIndex,
 // 		Deposit:      deposit,
 // 	}
-// 	w.depositCases[depositIndex] = &depositCase
+// 	w.depositCases[depositId] = &depositCase
 
 // 	return depositIndex
 // }

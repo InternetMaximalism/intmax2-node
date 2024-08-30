@@ -91,6 +91,10 @@ func (mt *KeccakMerkleTree) ComputeMerkleProof(gerIndex uint32, leaves [][numHas
 	if len(leaves) == 0 {
 		leaves = append(leaves, mt.zeroHashes[0])
 	}
+	if gerIndex >= uint32(len(leaves)) {
+		return nil, common.Hash{}, fmt.Errorf("error: index out of bounds: %d", gerIndex)
+	}
+
 	var siblings [][numHashBytes]byte
 	index := gerIndex
 	for h := uint8(0); h < mt.height; h++ {

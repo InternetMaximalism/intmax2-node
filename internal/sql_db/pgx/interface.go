@@ -3,12 +3,13 @@ package pgx
 import (
 	"context"
 	"encoding/json"
-	"intmax2-node/internal/block_validity_prover"
 	mFL "intmax2-node/internal/sql_filter/models"
+	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 
 	"github.com/dimiro1/health"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
 )
 
@@ -215,7 +216,10 @@ type BackupBalances interface {
 }
 
 type Deposits interface {
-	CreateDeposit(deposit block_validity_prover.DepositLeafWithId) (*mDBApp.Deposit, error)
+	CreateDeposit(depositLeaf intMaxTree.DepositLeaf, depositID uint32) (*mDBApp.Deposit, error)
+	UpdateDepositIndexByDepositHash(depositHash common.Hash, tokenIndex uint32) error
 	Deposit(ID string) (*mDBApp.Deposit, error)
 	DepositByDepositID(depositID uint32) (*mDBApp.Deposit, error)
+	DepositByDepositHash(depositHash common.Hash) (*mDBApp.Deposit, error)
+	ScanDeposits() ([]*mDBApp.Deposit, error)
 }
