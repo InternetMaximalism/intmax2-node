@@ -111,109 +111,143 @@ func (p *blockValidityProver) syncBlockTree(bps BlockSynchronizer, startBlock ui
 		}
 	}()
 
-	for key := range events {
-		select {
-		case <-p.ctx.Done():
-			p.log.Warnf("Received cancel signal from context, stopping...")
-			return startBlock, p.ctx.Err()
-		case <-tickerEventWatcher.C:
-			fmt.Println("tickerEventWatcher.C")
-			var blN uint256.Int
-			_ = blN.SetFromBig(new(big.Int).SetUint64(events[key].Raw.BlockNumber))
-
-			time.Sleep(1 * time.Second)
-
-			var cd []byte
-			cd, err = bps.FetchScrollCalldataByHash(events[key].Raw.TxHash)
-			if err != nil {
-				return startBlock, errors.Join(ErrFetchScrollCalldataByHashFail, err)
-			}
-
-			postedBlock := block_post_service.NewPostedBlock(
-				events[key].PrevBlockHash,
-				events[key].DepositTreeRoot,
-				uint32(events[key].BlockNumber.Uint64()),
-				events[key].SignatureHash,
-			)
-
-			intMaxBlockNumber := events[key].BlockNumber
-
-			// Update account tree
-			var blockContent *intMaxTypes.BlockContent
-			blockContent, err = FetchIntMaxBlockContentByCalldata(cd, postedBlock, p.blockBuilder)
-			if err != nil {
-				err = errors.Join(ErrFetchIntMaxBlockContentByCalldataFail, err)
-				switch {
-				case errors.Is(err, ErrUnknownAccountID):
-					const msg = "block %q is ErrUnknownAccountID"
-					p.log.WithError(err).Errorf(msg, intMaxBlockNumber.String())
-				case errors.Is(err, ErrCannotDecodeAddress):
-					const msg = "block %q is ErrCannotDecodeAddress"
-					p.log.WithError(err).Errorf(msg, intMaxBlockNumber.String())
-				default:
-					const msg = "block %q processing error occurred"
-					p.log.WithError(err).Errorf(msg, intMaxBlockNumber.String())
-				}
-
-				const msg = "processing of block %q error occurred"
-				p.log.Debugf(msg, intMaxBlockNumber.String())
-			} else {
-				const msg = "block %q is found (Scroll block number: %s)"
-				p.log.Debugf(msg, intMaxBlockNumber.String(), blN.String())
-			}
-
-			// TODO: Update block hash tree
-
-			senders := make([]intMaxTypes.ColumnSender, len(blockContent.Senders))
-			for i, sender := range blockContent.Senders {
-				senders[i] = intMaxTypes.ColumnSender{
-					PublicKey: hex.EncodeToString(sender.PublicKey.ToAddress().Bytes()),
-					AccountID: sender.AccountID,
-					IsSigned:  sender.IsSigned,
-				}
-			}
-
-			err := setAuxInfo(
-				p.blockBuilder,
-				postedBlock,
-				blockContent,
-			)
-			if err != nil {
-				panic(err)
-				// return errors.Join(ErrCreateBlockContentFail, err)
-			}
-
-			// TODO: Separate another worker
-
-			blockWitness, err := p.blockBuilder.GenerateBlock(blockContent, postedBlock)
-			if err != nil {
-				panic(err)
-			}
-
-			validityWitness, err := generateValidityWitness(p.blockBuilder, blockWitness)
-			if err != nil {
-				panic(err)
-			}
-
-			if err := p.blockBuilder.SetValidityWitness(validityWitness.BlockWitness.Block.BlockNumber, validityWitness); err != nil {
-				panic(err)
-			}
-
-			validityProof, err := p.requestAndFetchBlockValidityProof(validityWitness)
-			if err != nil {
-				return startBlock, errors.Join(ErrRequestAndFetchBlockValidityProofFail, err)
-			}
-
-			err = p.blockBuilder.SetValidityProof(validityWitness.BlockWitness.Block.BlockNumber, validityProof)
-			if err != nil {
-				panic(err)
-			}
-
-			fmt.Printf("Block %d is reflected\n", validityWitness.BlockWitness.Block.BlockNumber)
-		}
+	type A struct {
+		blockContent *intMaxTypes.BlockContent
+		postedBlock  *block_post_service.PostedBlock
 	}
 
-	return nextBN.Uint64(), nil
+	blockContentChannel := make(chan A, len(events))
+	go func() (uint64, error) {
+		for key := range events {
+			select {
+			case <-p.ctx.Done():
+				p.log.Warnf("Received cancel signal from context, stopping...")
+				return startBlock, p.ctx.Err()
+			case <-tickerEventWatcher.C:
+				fmt.Println("tickerEventWatcher.C")
+				var blN uint256.Int
+				_ = blN.SetFromBig(new(big.Int).SetUint64(events[key].Raw.BlockNumber))
+
+				time.Sleep(1 * time.Second)
+
+				var cd []byte
+				cd, err = bps.FetchScrollCalldataByHash(events[key].Raw.TxHash)
+				if err != nil {
+					return startBlock, errors.Join(ErrFetchScrollCalldataByHashFail, err)
+				}
+
+				postedBlock := block_post_service.NewPostedBlock(
+					events[key].PrevBlockHash,
+					events[key].DepositTreeRoot,
+					uint32(events[key].BlockNumber.Uint64()),
+					events[key].SignatureHash,
+				)
+
+				intMaxBlockNumber := events[key].BlockNumber
+
+				// Update account tree
+				var blockContent *intMaxTypes.BlockContent
+				blockContent, err = FetchIntMaxBlockContentByCalldata(cd, postedBlock, p.blockBuilder)
+				if err != nil {
+					err = errors.Join(ErrFetchIntMaxBlockContentByCalldataFail, err)
+					switch {
+					case errors.Is(err, ErrUnknownAccountID):
+						const msg = "block %q is ErrUnknownAccountID"
+						p.log.WithError(err).Errorf(msg, intMaxBlockNumber.String())
+					case errors.Is(err, ErrCannotDecodeAddress):
+						const msg = "block %q is ErrCannotDecodeAddress"
+						p.log.WithError(err).Errorf(msg, intMaxBlockNumber.String())
+					default:
+						const msg = "block %q processing error occurred"
+						p.log.WithError(err).Errorf(msg, intMaxBlockNumber.String())
+					}
+
+					const msg = "processing of block %q error occurred"
+					p.log.Debugf(msg, intMaxBlockNumber.String())
+				} else {
+					const msg = "block %q is found (Scroll block number: %s)"
+					p.log.Debugf(msg, intMaxBlockNumber.String(), blN.String())
+				}
+
+				blockContentChannel <- A{blockContent, postedBlock}
+			}
+		}
+
+		return nextBN.Uint64(), nil
+	}()
+
+	go func() error {
+		for {
+			select {
+			case <-p.ctx.Done():
+				p.log.Warnf("Received cancel signal from context, stopping...")
+				return nil
+			case result := <-blockContentChannel:
+				// TODO: Update block hash tree
+				blockContent := result.blockContent
+				postedBlock := result.postedBlock
+
+				senders := make([]intMaxTypes.ColumnSender, len(blockContent.Senders))
+				for i, sender := range blockContent.Senders {
+					senders[i] = intMaxTypes.ColumnSender{
+						PublicKey: hex.EncodeToString(sender.PublicKey.ToAddress().Bytes()),
+						AccountID: sender.AccountID,
+						IsSigned:  sender.IsSigned,
+					}
+				}
+
+				err := setAuxInfo(
+					p.blockBuilder,
+					postedBlock,
+					blockContent,
+				)
+				if err != nil {
+					panic(err)
+					// return errors.Join(ErrCreateBlockContentFail, err)
+				}
+
+				// TODO: Separate another worker
+
+				blockWitness, err := p.blockBuilder.GenerateBlock(blockContent, postedBlock)
+				if err != nil {
+					panic(err)
+				}
+
+				latestValidityWitness, err := p.blockBuilder.LastValidityWitness()
+				if err != nil {
+					panic("last validity witness error")
+				}
+
+				validityWitness, err := generateValidityWitness(p.blockBuilder, blockWitness, latestValidityWitness)
+				if err != nil {
+					panic(err)
+				}
+
+				if err := p.blockBuilder.SetValidityWitness(validityWitness.BlockWitness.Block.BlockNumber, validityWitness); err != nil {
+					panic(err)
+				}
+
+				validityProof, err := p.requestAndFetchBlockValidityProof(validityWitness)
+				if err != nil {
+					return errors.Join(ErrRequestAndFetchBlockValidityProofFail, err)
+				}
+
+				err = p.blockBuilder.SetValidityProof(validityWitness.BlockWitness.Block.BlockNumber, validityProof)
+				if err != nil {
+					panic(err)
+				}
+
+				fmt.Printf("Block %d is reflected\n", validityWitness.BlockWitness.Block.BlockNumber)
+			}
+		}
+	}()
+
+	select {
+	case <-p.ctx.Done():
+		return startBlock, p.ctx.Err()
+	case nextBN := <-blockContentChannel:
+		return nextBN.Uint64(), nil
+	}
 }
 
 func (p *blockValidityProver) requestAndFetchBlockValidityProof(validityWitness *ValidityWitness) (validityProof string, err error) {

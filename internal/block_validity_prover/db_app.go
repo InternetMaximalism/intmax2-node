@@ -20,7 +20,8 @@ type SQLDriverApp interface {
 	GenericCommandsApp
 	// AccountInfo
 	// DepositTreeBuilder
-	// BlockContents
+	// BlockHistory
+	BlockContents
 	EventBlockNumbersForValidityProver
 	Deposits
 }
@@ -29,6 +30,7 @@ type BlockBuilderStorage interface {
 	GenericCommandsApp
 	AccountInfo
 	DepositTreeBuilder
+	BlockHistory
 	BlockContents
 	EventBlockNumbersForValidityProver
 }
@@ -44,14 +46,6 @@ type AccountInfo interface {
 }
 
 type BlockContents interface {
-	GenerateBlock(blockContent *intMaxTypes.BlockContent, postedBlock *block_post_service.PostedBlock) (*BlockWitness, error)
-	LatestIntMaxBlockNumber() uint32
-	SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error
-	LastSeenBlockPostedEventBlockNumber() (blockNumber uint64, err error)
-	SetValidityProof(blockNumber uint32, proof string) error
-	LastValidityProof() (*string, error)
-	SetValidityWitness(blockNumber uint32, witness *ValidityWitness) error
-	LastValidityWitness() (*ValidityWitness, error)
 	CreateBlockContent(
 		blockNumber uint32,
 		blockHash, prevBlockHash, depositRoot, txRoot, aggregatedSignature, aggregatedPublicKey, messagePoint string,
@@ -59,6 +53,18 @@ type BlockContents interface {
 		senders []intMaxTypes.ColumnSender,
 	) (*mDBApp.BlockContent, error)
 	BlockContent(blockNumber uint32) (*mDBApp.BlockContent, bool)
+	SetValidityWitness(blockNumber uint32, witness *ValidityWitness) error
+	LastValidityWitness() (*ValidityWitness, error)
+}
+
+type BlockHistory interface {
+	GenerateBlock(blockContent *intMaxTypes.BlockContent, postedBlock *block_post_service.PostedBlock) (*BlockWitness, error)
+	LatestIntMaxBlockNumber() uint32
+	SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error
+	LastSeenBlockPostedEventBlockNumber() (blockNumber uint64, err error)
+	SetValidityProof(blockNumber uint32, proof string) error
+	LastValidityProof() (*string, error)
+
 	// GenerateValidityWitness(blockWitness *BlockWitness) (*ValidityWitness, error)
 	NextAccountID() (uint64, error)
 	AppendAccountTreeLeaf(sender *big.Int, lastBlockNumber uint64) (*intMaxTree.IndexedInsertionProof, error)

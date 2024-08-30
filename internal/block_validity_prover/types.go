@@ -16,13 +16,11 @@ import (
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"math/big"
-	"time"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/google/uuid"
 	"github.com/iden3/go-iden3-crypto/ffg"
 )
 
@@ -1451,17 +1449,19 @@ func getSenderLeaves(publicKeys []intMaxTypes.Uint256, senderFlag intMaxTypes.By
 	return senderLeaves
 }
 
-func (db *mockBlockBuilder) SetValidityWitness(_ uint32, witness *ValidityWitness) error {
-	db.lastValidityWitness = new(ValidityWitness).Set(witness)
-	fmt.Printf("SetValidityWitness: %v\n", witness.BlockWitness.PrevBlockTreeRoot)
+func (db *mockBlockBuilder) SetValidityWitness(blockNumber uint32, witness *ValidityWitness) error {
+	return db.db.SetValidityWitness(blockNumber, witness)
+	// db.lastValidityWitness = new(ValidityWitness).Set(witness)
+	// fmt.Printf("SetValidityWitness: %v\n", witness.BlockWitness.PrevBlockTreeRoot)
 
-	return nil
+	// return nil
 }
 
 func (db *mockBlockBuilder) LastValidityWitness() (*ValidityWitness, error) {
-	fmt.Printf("LastValidityWitness: %v\n", db.lastValidityWitness.BlockWitness.PrevBlockTreeRoot)
+	return db.db.LastValidityWitness()
+	// fmt.Printf("LastValidityWitness: %v\n", db.lastValidityWitness.BlockWitness.PrevBlockTreeRoot)
 
-	return db.lastValidityWitness, nil
+	// return db.lastValidityWitness, nil
 }
 
 func (db *mockBlockBuilder) AccountTreeRoot() (*intMaxGP.PoseidonHashOut, error) {
@@ -1543,16 +1543,12 @@ func (db *mockBlockBuilder) GetAccountTreeLeaf(sender *big.Int) (*intMaxTree.Ind
 	return prevLeaf, nil
 }
 
-func generateValidityWitness(db BlockBuilderStorage, blockWitness *BlockWitness) (*ValidityWitness, error) {
+func generateValidityWitness(db BlockBuilderStorage, blockWitness *BlockWitness, prevValidityWitness *ValidityWitness) (*ValidityWitness, error) {
 	if blockWitness.Block.BlockNumber != db.LatestIntMaxBlockNumber()+1 {
 		return nil, errors.New("block number is not equal to the last block number + 1")
 	}
 
-	latestValidityWitness, err := db.LastValidityWitness()
-	if err != nil {
-		return nil, errors.New("last validity witness error")
-	}
-	prevPis := latestValidityWitness.ValidityPublicInputs()
+	prevPis := prevValidityWitness.ValidityPublicInputs()
 	accountTreeRoot, err := db.AccountTreeRoot()
 	if err != nil {
 		return nil, errors.New("account tree root error")
@@ -1758,12 +1754,14 @@ func (b *mockBlockBuilder) SetValidityProof(blockNumber uint32, proof string) er
 }
 
 func (b *mockBlockBuilder) BlockContent(blockNumber uint32) (*mDBApp.BlockContent, bool) {
-	auxInfo, ok := b.AuxInfo[blockNumber]
-	if !ok {
-		return nil, false
-	}
+	return b.db.BlockContent(blockNumber)
 
-	return auxInfo, true
+	// auxInfo, ok := b.AuxInfo[blockNumber]
+	// if !ok {
+	// 	return nil, false
+	// }
+
+	// return auxInfo, true
 }
 
 func BlockAuxInfo(db BlockBuilderStorage, blockNumber uint32) (*AuxInfo, bool) {
@@ -1884,29 +1882,35 @@ func (b *mockBlockBuilder) CreateBlockContent(
 	isRegistrationBlock bool,
 	senders []intMaxTypes.ColumnSender,
 ) (*mDBApp.BlockContent, error) {
-	sendersJSON, err := json.Marshal(senders)
-	if err != nil {
-		return nil, err
-	}
+	return b.db.CreateBlockContent(
+		blockNumber,
+		blockHash, prevBlockHash, depositRoot, txRoot, aggregatedSignature, aggregatedPublicKey, messagePoint,
+		isRegistrationBlock, senders,
+	)
 
-	s := mDBApp.BlockContent{
-		BlockContentID:      uuid.New().String(),
-		BlockNumber:         blockNumber,
-		BlockHash:           blockHash,
-		PrevBlockHash:       prevBlockHash,
-		DepositRoot:         depositRoot,
-		TxRoot:              txRoot,
-		AggregatedSignature: aggregatedSignature,
-		AggregatedPublicKey: aggregatedPublicKey,
-		MessagePoint:        messagePoint,
-		Senders:             sendersJSON,
-		IsRegistrationBlock: isRegistrationBlock,
-		CreatedAt:           time.Now().UTC(),
-	}
+	// sendersJSON, err := json.Marshal(senders)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	b.AuxInfo[blockNumber] = &s
+	// s := mDBApp.BlockContent{
+	// 	BlockContentID:      uuid.New().String(),
+	// 	BlockNumber:         blockNumber,
+	// 	BlockHash:           blockHash,
+	// 	PrevBlockHash:       prevBlockHash,
+	// 	DepositRoot:         depositRoot,
+	// 	TxRoot:              txRoot,
+	// 	AggregatedSignature: aggregatedSignature,
+	// 	AggregatedPublicKey: aggregatedPublicKey,
+	// 	MessagePoint:        messagePoint,
+	// 	Senders:             sendersJSON,
+	// 	IsRegistrationBlock: isRegistrationBlock,
+	// 	CreatedAt:           time.Now().UTC(),
+	// }
 
-	return &s, nil
+	// b.AuxInfo[blockNumber] = &s
+
+	// return &s, nil
 }
 
 func (b *mockBlockBuilder) NextAccountID() (uint64, error) {
@@ -1958,8 +1962,13 @@ func (b *SyncValidityProver) Sync(blockBuilder BlockBuilderStorage) {
 			panic(err)
 		}
 
+		prevValidityWitness, err := blockBuilder.LastValidityWitness()
+		if err != nil {
+			panic("last validity witness error")
+		}
+
 		fmt.Printf("generateValidityWitness blockNumber: %d\n", blockWitness.Block.BlockNumber)
-		validityWitness, err := generateValidityWitness(blockBuilder, blockWitness)
+		validityWitness, err := generateValidityWitness(blockBuilder, blockWitness, prevValidityWitness)
 		if err != nil {
 			panic(err)
 		}
@@ -1967,13 +1976,13 @@ func (b *SyncValidityProver) Sync(blockBuilder BlockBuilderStorage) {
 		if err := blockBuilder.SetValidityWitness(blockNumber, validityWitness); err != nil {
 			panic(err)
 		}
-		{
-			validityWitness, err := blockBuilder.LastValidityWitness()
-			if err != nil {
-				panic(err)
-			}
-			fmt.Printf("blockNumber: %d\n", validityWitness.BlockWitness.Block.BlockNumber)
-		}
+		// {
+		// 	validityWitness, err := blockBuilder.LastValidityWitness()
+		// 	if err != nil {
+		// 		panic(err)
+		// 	}
+		// 	fmt.Printf("blockNumber: %d\n", validityWitness.BlockWitness.Block.BlockNumber)
+		// }
 
 		validityProof, err := b.ValidityProcessor.Prove(prevValidityProof, validityWitness)
 		if err != nil {
