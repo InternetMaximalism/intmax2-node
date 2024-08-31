@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	verifierCircuit "example.com/m/circuit"
-	"example.com/m/trusted_setup"
+	verifierCircuit "gnark-server/circuit"
+	"gnark-server/trusted_setup"
+
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark-crypto/kzg"
 	"github.com/consensys/gnark/backend/plonk"
@@ -35,10 +36,10 @@ func loadCircuit(circuitName string) constraint.ConstraintSystem {
 	return ccs
 }
 
-func main() { 
+func main() {
 	circuitName := flag.String("circuit", "", "circuit name")
 	flag.Parse()
-	
+
 	if *circuitName == "" {
 		fmt.Println("Please provide circuit name")
 		os.Exit(1)
@@ -64,7 +65,6 @@ func main() {
 			panic(err)
 		}
 
-
 		_, err = srs.ReadFrom(fSRS)
 
 		fSRS.Close()
@@ -84,20 +84,20 @@ func main() {
 		VerifierOnlyCircuitData: verifierOnlyCircuitData,
 	}
 	witness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
-	if err != nil{
+	if err != nil {
 		panic(err)
 	}
 	proof, err := plonk.Prove(r1cs, pk, witness)
-	if err != nil{
+	if err != nil {
 		panic(err)
 	}
 	// 3. Proof verification
 	witnessPublic, err := witness.Public()
-	if err != nil{
+	if err != nil {
 		panic(err)
 	}
 	err = plonk.Verify(proof, vk, witnessPublic)
-	if err != nil{
+	if err != nil {
 		panic(err)
 	}
 	{
