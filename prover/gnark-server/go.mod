@@ -1,4 +1,4 @@
-module example.com/m
+module gnark-server
 
 go 1.21.7
 

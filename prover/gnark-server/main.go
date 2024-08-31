@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"os"
 
-	"example.com/m/context"
-	"example.com/m/handlers"
+	"gnark-server/context"
+	"gnark-server/handlers"
 )
 
 func main() {
