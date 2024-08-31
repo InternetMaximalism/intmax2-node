@@ -10,6 +10,7 @@ import (
 	"intmax2-node/internal/use_cases/backup_balance"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/iden3/go-iden3-crypto/ffg"
 )
 
@@ -218,6 +219,130 @@ type PrivateWitness struct {
 type ReceiveDepositWitness struct {
 	DepositWitness *DepositWitness `json:"depositWitness"`
 	PrivateWitness *PrivateWitness `json:"privateWitness"`
+}
+
+type KeccakMerkleProofInput = []string
+
+type DepositLeafInput struct {
+	RecipientSaltHash string `json:"pubkeySaltHash"`
+	TokenIndex        uint32 `json:"tokenIndex"`
+	Amount            string `json:"amount"`
+}
+
+type DepositWitnessInput struct {
+	DepositSalt        string                  `json:"depositSalt"`
+	DepositIndex       uint                    `json:"depositIndex"`
+	Deposit            *DepositLeafInput       `json:"deposit"`
+	DepositMerkleProof *KeccakMerkleProofInput `json:"depositMerkleProof"`
+}
+
+type IndexedMerkleProofInput = []*poseidonHashOut
+
+type IndexedMerkleLeafInput struct {
+	Key       string `json:"key"`
+	Value     uint64 `json:"value"`
+	NextIndex int    `json:"nextIndex"`
+	NextKey   string `json:"nextKey"`
+}
+
+type LeafIndexInput = int
+
+type IndexedInsertionProofInput struct {
+	Index        LeafIndexInput           `json:"index"`
+	LowLeafProof *IndexedMerkleProofInput `json:"lowLeafProof"`
+	LeafProof    *IndexedMerkleProofInput `json:"leafProof"`
+	LowLeafIndex LeafIndexInput           `json:"lowLeafIndex"`
+	PrevLowLeaf  *IndexedMerkleLeafInput  `json:"prevLowLeaf"`
+}
+
+type AmountInput = string
+
+type AssetLeafInput struct {
+	IsInsufficient bool        `json:"isInsufficient"`
+	Amount         AmountInput `json:"amount"`
+}
+
+type AssetMerkleProofInput = []*poseidonHashOut
+
+type SaltInput = string
+
+type PrivateStateInput struct {
+	AssetTreeRoot     *poseidonHashOut `json:"assetTreeRoot"`
+	NullifierTreeRoot *poseidonHashOut `json:"nullifierTreeRoot"`
+	Nonce             uint32           `json:"nonce"`
+	Salt              SaltInput        `json:"salt"`
+}
+
+type PrivateWitnessInput struct {
+	TokenIndex       uint32                      `json:"tokenIndex"`
+	Amount           AmountInput                 `json:"amount"`
+	Nullifier        intMaxTypes.Bytes32         `json:"nullifier"`
+	NewSalt          string                      `json:"newSalt"`
+	PrevPrivateState *PrivateStateInput          `json:"prevPrivateState"`
+	NullifierProof   *IndexedInsertionProofInput `json:"nullifierProof"`
+	PrevAssetLeaf    *AssetLeafInput             `json:"prevAssetLeaf"`
+	AssetMerkleProof *AssetMerkleProofInput      `json:"assetMerkleProof"`
+}
+
+func (input *PrivateWitnessInput) FromPrivateWitness(value *PrivateWitness) *PrivateWitnessInput {
+	input = &PrivateWitnessInput{
+		TokenIndex: value.TokenIndex,
+		Amount:     value.Amount.String(),
+		Nullifier:  value.Nullifier,
+		NewSalt:    value.NewSalt.String(),
+		// PrevPrivateState: value.PrevPrivateState,
+		PrevPrivateState: &PrivateStateInput{
+			AssetTreeRoot:     value.PrevPrivateState.AssetTreeRoot,
+			NullifierTreeRoot: value.PrevPrivateState.NullifierTreeRoot,
+			Nonce:             value.PrevPrivateState.Nonce,
+			Salt:              value.PrevPrivateState.Salt.String(),
+		},
+		NullifierProof: &IndexedInsertionProofInput{
+			Index:        value.NullifierProof.Index,
+			LowLeafProof: &value.NullifierProof.LowLeafProof.Siblings,
+			LeafProof:    &value.NullifierProof.LeafProof.Siblings,
+			LowLeafIndex: value.NullifierProof.LowLeafIndex,
+			PrevLowLeaf: &IndexedMerkleLeafInput{
+				Key:       value.NullifierProof.PrevLowLeaf.Key.String(),
+				Value:     value.NullifierProof.PrevLowLeaf.Value,
+				NextIndex: value.NullifierProof.PrevLowLeaf.NextIndex,
+				NextKey:   value.NullifierProof.PrevLowLeaf.NextKey.String(),
+			},
+		},
+		PrevAssetLeaf: &AssetLeafInput{
+			IsInsufficient: value.PrevAssetLeaf.IsInsufficient,
+			Amount:         value.PrevAssetLeaf.Amount.BigInt().String(),
+		},
+		AssetMerkleProof: &value.AssetMerkleProof.Siblings,
+	}
+
+	return input
+}
+
+type ReceiveDepositWitnessInput struct {
+	DepositWitness *DepositWitnessInput `json:"depositWitness"`
+	PrivateWitness *PrivateWitnessInput `json:"privateWitness"`
+}
+
+func (input *ReceiveDepositWitnessInput) FromPrivateWitness(value *ReceiveDepositWitness) *ReceiveDepositWitnessInput {
+	depositMerkleProofSiblings := make([]string, 0, len(value.DepositWitness.DepositMerkleProof.Siblings))
+	for _, sibling := range value.DepositWitness.DepositMerkleProof.Siblings {
+		depositMerkleProofSiblings = append(depositMerkleProofSiblings, hexutil.Encode(sibling[:]))
+	}
+	input.DepositWitness = &DepositWitnessInput{
+		DepositSalt:  value.DepositWitness.DepositSalt.String(),
+		DepositIndex: value.DepositWitness.DepositIndex,
+		Deposit: &DepositLeafInput{
+			RecipientSaltHash: hexutil.Encode(value.DepositWitness.Deposit.RecipientSaltHash[:]),
+			TokenIndex:        value.DepositWitness.Deposit.TokenIndex,
+			Amount:            value.DepositWitness.Deposit.Amount.String(),
+		},
+		DepositMerkleProof: &depositMerkleProofSiblings,
+	}
+
+	input.PrivateWitness = new(PrivateWitnessInput).FromPrivateWitness(value.PrivateWitness)
+
+	return input
 }
 
 type TransferWitness struct {

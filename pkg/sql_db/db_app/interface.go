@@ -3,6 +3,7 @@ package db_app
 import (
 	"context"
 	"encoding/json"
+	"intmax2-node/internal/block_post_service"
 	mFL "intmax2-node/internal/sql_filter/models"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
@@ -33,6 +34,7 @@ type SQLDb interface {
 	Accounts
 	BackupBalances
 	Deposits
+	BlockContents
 }
 
 type GenericCommands interface {
@@ -222,4 +224,22 @@ type Deposits interface {
 	DepositByDepositID(depositID uint32) (*models.Deposit, error)
 	DepositByDepositHash(depositHash common.Hash) (*models.Deposit, error)
 	ScanDeposits() ([]*models.Deposit, error)
+}
+
+type BlockContents interface {
+	// CreateBlockContent(
+	// 	blockNumber uint32,
+	// 	blockHash, prevBlockHash, depositRoot, txRoot, aggregatedSignature, aggregatedPublicKey, messagePoint string,
+	// 	isRegistrationBlock bool,
+	// 	senders []intMaxTypes.ColumnSender,
+	// ) (*models.BlockContent, error)
+	CreateBlockContent(
+		postedBlock *block_post_service.PostedBlock,
+		blockContent *intMaxTypes.BlockContent,
+	) (*models.BlockContent, error)
+	BlockContentByBlockNumber(blockNumber uint32) (*models.BlockContent, error)
+	// SetValidityWitness(blockNumber uint32, witness *block_validity_prover.ValidityWitness) error
+	// LastValidityWitness() (*block_validity_prover.ValidityWitness, error)
+	// SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error
+	// LastSeenBlockPostedEventBlockNumber() (blockNumber uint64, err error)
 }

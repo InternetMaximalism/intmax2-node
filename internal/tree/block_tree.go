@@ -89,7 +89,7 @@ func (t *BlockHashTree) AddLeaf(index uint32, leaf *BlockHashLeaf) (root *Poseid
 	}
 
 	if int(index) != len(t.Leaves) {
-		return nil, errors.New("index is not equal to the length of leaves")
+		return nil, errors.New("index is not equal to the length of block leaves")
 	}
 
 	t.Leaves = append(t.Leaves, leaf)

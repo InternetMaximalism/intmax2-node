@@ -117,7 +117,7 @@ func (t *DepositTree) AddLeaf(index uint32, leaf DepositLeaf) (root [numHashByte
 	}
 
 	if int(index) != len(t.Leaves) {
-		return [numHashBytes]byte{}, errors.New("index is not equal to the length of leaves")
+		return [numHashBytes]byte{}, errors.New("index is not equal to the length of deposit leaves")
 	}
 
 	t.Leaves = append(t.Leaves, new(DepositLeaf).Set(&leaf))

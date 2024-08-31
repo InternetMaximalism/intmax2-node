@@ -2,6 +2,7 @@ package tree
 
 import (
 	"errors"
+	"fmt"
 	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	intMaxTypes "intmax2-node/internal/types"
 	"math/big"
@@ -172,7 +173,7 @@ func (t *AssetTree) AddLeaf(index uint32, leaf *AssetLeaf) (root *PoseidonHashOu
 	}
 
 	if int(index) != len(t.Leaves) {
-		return nil, ErrLeafInputIndexInvalid
+		return nil, errors.Join(ErrLeafInputIndexInvalid, errors.New("asset tree AddLeaf"))
 	}
 	t.Leaves = append(t.Leaves, new(AssetLeaf).Set(leaf))
 
@@ -208,7 +209,8 @@ func (t *AssetTree) GetRoot() *PoseidonHashOut {
 
 func (t *AssetTree) UpdateLeaf(index uint32, leaf *AssetLeaf) (root *PoseidonHashOut, err error) {
 	if index >= uint32(len(t.Leaves)) {
-		return nil, ErrLeafInputIndexInvalid
+		fmt.Printf("index: %d, len(t.Leaves): %d\n", index, len(t.Leaves))
+		return nil, errors.Join(ErrLeafInputIndexInvalid, errors.New("asset tree UpdateLeaf"))
 	}
 
 	t.Leaves[index] = leaf

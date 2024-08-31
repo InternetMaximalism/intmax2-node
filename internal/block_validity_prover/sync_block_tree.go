@@ -65,29 +65,48 @@ func (p *blockValidityProver) BlockBuilder() BlockBuilderStorage {
 	return p.blockBuilder
 }
 
-func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer) (endBlock uint64, err error) {
-	startBlock, err := p.blockBuilder.LastSeenBlockPostedEventBlockNumber()
-	if err != nil {
-		return 0, errors.Join(ErrLastSeenBlockPostedEventBlockNumberFail, err)
-	}
+// func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer) {
+// 	blockContentChannel := make(chan A)
 
-	endBlock, err = p.syncBlockTree(bps, startBlock)
-	if err != nil {
-		return 0, err
-	}
+// 	go func() {
+// 		for {
+// 			startBlock, err := p.blockBuilder.LastSeenBlockPostedEventBlockNumber()
+// 			if err != nil {
+// 				panic(errors.Join(ErrLastSeenBlockPostedEventBlockNumberFail, err))
+// 			}
 
-	err = p.blockBuilder.SetLastSeenBlockPostedEventBlockNumber(endBlock)
-	if err != nil {
-		var ErrSetLastSeenBlockPostedEventBlockNumberFail = errors.New("set last seen block posted event block number fail")
-		return 0, errors.Join(ErrSetLastSeenBlockPostedEventBlockNumberFail, err)
-	}
+// 			endBlock, err := p.syncBlockTree(bps, startBlock, blockContentChannel)
+// 			if err != nil {
+// 				panic(err)
+// 			}
 
-	fmt.Printf("Block %d is searched\n", endBlock)
+// 			err = p.blockBuilder.SetLastSeenBlockPostedEventBlockNumber(endBlock)
+// 			if err != nil {
+// 				var ErrSetLastSeenBlockPostedEventBlockNumberFail = errors.New("set last seen block posted event block number fail")
+// 				panic(errors.Join(ErrSetLastSeenBlockPostedEventBlockNumberFail, err))
+// 			}
 
-	return endBlock, nil
-}
+// 			fmt.Printf("Block %d is searched\n", endBlock)
+// 		}
+// 	}()
 
-func (p *blockValidityProver) syncBlockTree(bps BlockSynchronizer, startBlock uint64) (lastEventSeenBlockNumber uint64, err error) {
+// 	go func() {
+// 		for {
+// 			select {
+// 			case <-p.ctx.Done():
+// 				p.log.Warnf("Received cancel signal from context, stopping...")
+// 				return
+// 			case result := <-blockContentChannel:
+// 				blockContent := result.blockContent
+// 				postedBlock := result.postedBlock
+
+// 				errChan <- p.syncBlockProver(blockContent, postedBlock)
+// 			}
+// 		}
+// 	}()
+// }
+
+func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, startBlock uint64) (lastEventSeenBlockNumber uint64, err error) {
 	var (
 		events []*bindings.RollupBlockPosted
 		nextBN *big.Int
@@ -111,143 +130,121 @@ func (p *blockValidityProver) syncBlockTree(bps BlockSynchronizer, startBlock ui
 		}
 	}()
 
-	type A struct {
-		blockContent *intMaxTypes.BlockContent
-		postedBlock  *block_post_service.PostedBlock
-	}
+	for key := range events {
+		select {
+		case <-p.ctx.Done():
+			p.log.Warnf("Received cancel signal from context, stopping...")
+			return startBlock, p.ctx.Err()
+		case <-tickerEventWatcher.C:
+			fmt.Println("tickerEventWatcher.C")
+			var blN uint256.Int
+			_ = blN.SetFromBig(new(big.Int).SetUint64(events[key].Raw.BlockNumber))
 
-	blockContentChannel := make(chan A, len(events))
-	go func() (uint64, error) {
-		for key := range events {
-			select {
-			case <-p.ctx.Done():
-				p.log.Warnf("Received cancel signal from context, stopping...")
-				return startBlock, p.ctx.Err()
-			case <-tickerEventWatcher.C:
-				fmt.Println("tickerEventWatcher.C")
-				var blN uint256.Int
-				_ = blN.SetFromBig(new(big.Int).SetUint64(events[key].Raw.BlockNumber))
+			time.Sleep(1 * time.Second)
 
-				time.Sleep(1 * time.Second)
+			var cd []byte
+			cd, err = bps.FetchScrollCalldataByHash(events[key].Raw.TxHash)
+			if err != nil {
+				return startBlock, errors.Join(ErrFetchScrollCalldataByHashFail, err)
+			}
 
-				var cd []byte
-				cd, err = bps.FetchScrollCalldataByHash(events[key].Raw.TxHash)
-				if err != nil {
-					return startBlock, errors.Join(ErrFetchScrollCalldataByHashFail, err)
+			postedBlock := block_post_service.NewPostedBlock(
+				events[key].PrevBlockHash,
+				events[key].DepositTreeRoot,
+				uint32(events[key].BlockNumber.Uint64()),
+				events[key].SignatureHash,
+			)
+
+			intMaxBlockNumber := events[key].BlockNumber
+
+			// Update account tree
+			var blockContent *intMaxTypes.BlockContent
+			blockContent, err = FetchIntMaxBlockContentByCalldata(cd, postedBlock, p.blockBuilder)
+			if err != nil {
+				err = errors.Join(ErrFetchIntMaxBlockContentByCalldataFail, err)
+				switch {
+				case errors.Is(err, ErrUnknownAccountID):
+					const msg = "block %q is ErrUnknownAccountID"
+					p.log.WithError(err).Errorf(msg, intMaxBlockNumber.String())
+				case errors.Is(err, ErrCannotDecodeAddress):
+					const msg = "block %q is ErrCannotDecodeAddress"
+					p.log.WithError(err).Errorf(msg, intMaxBlockNumber.String())
+				default:
+					const msg = "block %q processing error occurred"
+					p.log.WithError(err).Errorf(msg, intMaxBlockNumber.String())
 				}
 
-				postedBlock := block_post_service.NewPostedBlock(
-					events[key].PrevBlockHash,
-					events[key].DepositTreeRoot,
-					uint32(events[key].BlockNumber.Uint64()),
-					events[key].SignatureHash,
-				)
+				const msg = "processing of block %q error occurred"
+				p.log.Debugf(msg, intMaxBlockNumber.String())
+			} else {
+				const msg = "block %q is found (Scroll block number: %s)"
+				p.log.Debugf(msg, intMaxBlockNumber.String(), blN.String())
+			}
 
-				intMaxBlockNumber := events[key].BlockNumber
-
-				// Update account tree
-				var blockContent *intMaxTypes.BlockContent
-				blockContent, err = FetchIntMaxBlockContentByCalldata(cd, postedBlock, p.blockBuilder)
-				if err != nil {
-					err = errors.Join(ErrFetchIntMaxBlockContentByCalldataFail, err)
-					switch {
-					case errors.Is(err, ErrUnknownAccountID):
-						const msg = "block %q is ErrUnknownAccountID"
-						p.log.WithError(err).Errorf(msg, intMaxBlockNumber.String())
-					case errors.Is(err, ErrCannotDecodeAddress):
-						const msg = "block %q is ErrCannotDecodeAddress"
-						p.log.WithError(err).Errorf(msg, intMaxBlockNumber.String())
-					default:
-						const msg = "block %q processing error occurred"
-						p.log.WithError(err).Errorf(msg, intMaxBlockNumber.String())
-					}
-
-					const msg = "processing of block %q error occurred"
-					p.log.Debugf(msg, intMaxBlockNumber.String())
-				} else {
-					const msg = "block %q is found (Scroll block number: %s)"
-					p.log.Debugf(msg, intMaxBlockNumber.String(), blN.String())
+			senders := make([]intMaxTypes.ColumnSender, len(blockContent.Senders))
+			for i, sender := range blockContent.Senders {
+				senders[i] = intMaxTypes.ColumnSender{
+					PublicKey: hex.EncodeToString(sender.PublicKey.ToAddress().Bytes()),
+					AccountID: sender.AccountID,
+					IsSigned:  sender.IsSigned,
 				}
+			}
 
-				blockContentChannel <- A{blockContent, postedBlock}
+			err := setAuxInfo(
+				p.blockBuilder,
+				postedBlock,
+				blockContent,
+			)
+			if err != nil {
+				panic(err)
+				// return errors.Join(ErrCreateBlockContentFail, err)
 			}
 		}
-
-		return nextBN.Uint64(), nil
-	}()
-
-	go func() error {
-		for {
-			select {
-			case <-p.ctx.Done():
-				p.log.Warnf("Received cancel signal from context, stopping...")
-				return nil
-			case result := <-blockContentChannel:
-				// TODO: Update block hash tree
-				blockContent := result.blockContent
-				postedBlock := result.postedBlock
-
-				senders := make([]intMaxTypes.ColumnSender, len(blockContent.Senders))
-				for i, sender := range blockContent.Senders {
-					senders[i] = intMaxTypes.ColumnSender{
-						PublicKey: hex.EncodeToString(sender.PublicKey.ToAddress().Bytes()),
-						AccountID: sender.AccountID,
-						IsSigned:  sender.IsSigned,
-					}
-				}
-
-				err := setAuxInfo(
-					p.blockBuilder,
-					postedBlock,
-					blockContent,
-				)
-				if err != nil {
-					panic(err)
-					// return errors.Join(ErrCreateBlockContentFail, err)
-				}
-
-				// TODO: Separate another worker
-
-				blockWitness, err := p.blockBuilder.GenerateBlock(blockContent, postedBlock)
-				if err != nil {
-					panic(err)
-				}
-
-				latestValidityWitness, err := p.blockBuilder.LastValidityWitness()
-				if err != nil {
-					panic("last validity witness error")
-				}
-
-				validityWitness, err := generateValidityWitness(p.blockBuilder, blockWitness, latestValidityWitness)
-				if err != nil {
-					panic(err)
-				}
-
-				if err := p.blockBuilder.SetValidityWitness(validityWitness.BlockWitness.Block.BlockNumber, validityWitness); err != nil {
-					panic(err)
-				}
-
-				validityProof, err := p.requestAndFetchBlockValidityProof(validityWitness)
-				if err != nil {
-					return errors.Join(ErrRequestAndFetchBlockValidityProofFail, err)
-				}
-
-				err = p.blockBuilder.SetValidityProof(validityWitness.BlockWitness.Block.BlockNumber, validityProof)
-				if err != nil {
-					panic(err)
-				}
-
-				fmt.Printf("Block %d is reflected\n", validityWitness.BlockWitness.Block.BlockNumber)
-			}
-		}
-	}()
-
-	select {
-	case <-p.ctx.Done():
-		return startBlock, p.ctx.Err()
-	case nextBN := <-blockContentChannel:
-		return nextBN.Uint64(), nil
 	}
+
+	return nextBN.Uint64(), nil
+}
+
+func (p *blockValidityProver) SyncBlockProver(
+	blockContent *intMaxTypes.BlockContent,
+	postedBlock *block_post_service.PostedBlock,
+) error {
+	// TODO: Update block hash tree
+
+	// TODO: Separate another worker
+
+	blockWitness, err := p.blockBuilder.GenerateBlock(blockContent, postedBlock)
+	if err != nil {
+		panic(err)
+	}
+
+	latestValidityWitness, err := p.blockBuilder.LastValidityWitness()
+	if err != nil {
+		panic("last validity witness error")
+	}
+
+	validityWitness, err := generateValidityWitness(p.blockBuilder, blockWitness, latestValidityWitness)
+	if err != nil {
+		panic(err)
+	}
+
+	if err := p.blockBuilder.SetValidityWitness(validityWitness.BlockWitness.Block.BlockNumber, validityWitness); err != nil {
+		panic(err)
+	}
+
+	validityProof, err := p.requestAndFetchBlockValidityProof(validityWitness)
+	if err != nil {
+		return errors.Join(ErrRequestAndFetchBlockValidityProofFail, err)
+	}
+
+	err = p.blockBuilder.SetValidityProof(validityWitness.BlockWitness.Block.BlockNumber, validityProof)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Block %d is reflected\n", validityWitness.BlockWitness.Block.BlockNumber)
+
+	return nil
 }
 
 func (p *blockValidityProver) requestAndFetchBlockValidityProof(validityWitness *ValidityWitness) (validityProof string, err error) {

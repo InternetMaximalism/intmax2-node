@@ -10,7 +10,9 @@ use crate::{
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
 use intmax2_zkp::{
-    circuits::validity::validity_pis::ValidityPublicInputs,
+    circuits::{
+        balance::balance_pis::BalancePublicInputs, validity::validity_pis::ValidityPublicInputs,
+    },
     common::witness::update_witness::UpdateWitness,
     ethereum_types::{u256::U256, u32limb_trait::U32LimbTrait},
 };
@@ -19,6 +21,7 @@ use intmax2_zkp::{
 async fn get_proof(
     query_params: web::Path<(String, String)>,
     redis: web::Data<redis::Client>,
+    state: web::Data<AppState>,
 ) -> Result<impl Responder> {
     let mut conn = redis
         .get_async_connection()
@@ -36,9 +39,35 @@ async fn get_proof(
     .await
     .map_err(error::ErrorInternalServerError)?;
 
+    if proof.is_none() {
+        let response = ProofResponse {
+            success: false,
+            proof: None,
+            public_inputs: None,
+            error_message: Some(format!(
+                "balance proof is not generated (block_hash: {})",
+                block_hash
+            )),
+        };
+    
+        return Ok(HttpResponse::Ok().json(response));
+    }
+
+    let balance_circuit_data = state
+        .balance_processor
+        .get()
+        .ok_or_else(|| error::ErrorInternalServerError("balance processor not initialized"))?
+        .balance_circuit
+        .data
+        .verifier_data();
+    let decompress_proof = decode_plonky2_proof(&proof.clone().unwrap(), &balance_circuit_data)
+        .map_err(error::ErrorInternalServerError)?;
+    let public_inputs = BalancePublicInputs::from_pis(&decompress_proof.public_inputs);
+
     let response = ProofResponse {
         success: true,
         proof,
+        public_inputs: Some(public_inputs),
         error_message: None,
     };
 
@@ -136,10 +165,22 @@ async fn generate_proof(
         .query_async::<_, Option<String>>(&mut redis_conn)
         .await
         .map_err(actix_web::error::ErrorInternalServerError)?;
-    if old_proof.is_some() {
+    if let Some(old_proof) = old_proof {
+        let balance_circuit_data = state
+            .balance_processor
+            .get()
+            .ok_or_else(|| error::ErrorInternalServerError("balance processor not initialized"))?
+            .balance_circuit
+            .data
+            .verifier_data();
+        let decompress_proof = decode_plonky2_proof(&old_proof, &balance_circuit_data)
+            .map_err(error::ErrorInternalServerError)?;
+        let public_inputs = BalancePublicInputs::from_pis(&decompress_proof.public_inputs);
+
         let response = ProofResponse {
             success: true,
-            proof: None,
+            proof: Some(old_proof),
+            public_inputs: Some(public_inputs),
             error_message: Some("balance proof already requested".to_string()),
         };
 
@@ -204,6 +245,7 @@ async fn generate_proof(
     let response = ProofResponse {
         success: true,
         proof: None,
+        public_inputs: None,
         error_message: Some(format!(
             "balance proof (block_hash: {}) is generating",
             block_hash

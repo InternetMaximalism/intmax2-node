@@ -78,6 +78,10 @@ func NewBlockSynchronizer(ctx context.Context, cfg *configs.Config, log logger.L
 	}, nil
 }
 
+func (d *blockSynchronizer) RollupContractDeployedBlockNumber() uint64 {
+	return d.cfg.Blockchain.RollupContractDeployedBlockNumber
+}
+
 func (d *blockSynchronizer) FetchLatestBlockNumber(ctx context.Context) (uint64, error) {
 	blockNumber, err := d.scrollClient.BlockNumber(ctx)
 	if err != nil {

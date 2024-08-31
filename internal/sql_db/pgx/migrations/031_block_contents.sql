@@ -15,6 +15,7 @@ CREATE TABLE block_contents (
     block_hash            varchar(64) not null,
     prev_block_hash       varchar(64) not null,
     deposit_root          varchar(64) not null,
+    signature_hash        varchar(64) not null,
     is_registration_block boolean not null,
     senders               jsonb not null,
     tx_tree_root          varchar(64) not null,

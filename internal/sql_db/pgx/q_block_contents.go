@@ -21,12 +21,22 @@ func (p *pgx) CreateBlockContent(
 	blockHash := postedBlock.Hash().Hex()[2:]
 	prevBlockHash := postedBlock.PrevBlockHash.Hex()[2:]
 	depositRoot := postedBlock.DepositRoot.Hex()[2:]
+	signatureHash := postedBlock.SignatureHash.Hex()[2:]
 	txRoot := blockContent.TxTreeRoot.Hex()[2:]
 	aggregatedSignature := hex.EncodeToString(blockContent.AggregatedSignature.Marshal())
 	aggregatedPublicKey := hex.EncodeToString(blockContent.AggregatedPublicKey.Marshal())
 	messagePoint := hex.EncodeToString(blockContent.MessagePoint.Marshal())
 	isRegistrationBlock := blockContent.SenderType == intMaxTypes.PublicKeySenderType
-	sendersJSON, err := json.Marshal(blockContent.Senders)
+
+	senders := make([]intMaxTypes.ColumnSender, len(blockContent.Senders))
+	for i, sender := range blockContent.Senders {
+		senders[i] = intMaxTypes.ColumnSender{
+			AccountID: sender.AccountID,
+			PublicKey: sender.PublicKey.ToAddress().String(),
+			IsSigned:  sender.IsSigned,
+		}
+	}
+	sendersJSON, err := json.Marshal(senders)
 	if err != nil {
 		return nil, err
 	}
@@ -37,6 +47,7 @@ func (p *pgx) CreateBlockContent(
 		BlockHash:           blockHash,
 		PrevBlockHash:       prevBlockHash,
 		DepositRoot:         depositRoot,
+		SignatureHash:       signatureHash,
 		IsRegistrationBlock: isRegistrationBlock,
 		Senders:             sendersJSON,
 		TxRoot:              txRoot,
@@ -48,14 +59,14 @@ func (p *pgx) CreateBlockContent(
 
 	const (
 		q = `INSERT INTO block_contents (
-             id ,block_hash ,prev_block_hash ,deposit_root
+             id ,block_hash ,prev_block_hash ,deposit_root ,signature_hash
 			 ,is_registration_block ,senders ,tx_tree_root ,aggregated_public_key
 			 ,aggregated_signature ,message_point ,created_at ,block_number
-             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) `
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) `
 	)
 
 	_, err = p.exec(p.ctx, q,
-		s.BlockContentID, s.BlockHash, s.PrevBlockHash, s.DepositRoot,
+		s.BlockContentID, s.BlockHash, s.PrevBlockHash, s.DepositRoot, s.SignatureHash,
 		s.IsRegistrationBlock, s.Senders, s.TxRoot, s.AggregatedPublicKey,
 		s.AggregatedSignature, s.MessagePoint, s.CreatedAt, s.BlockNumber)
 	if err != nil {
@@ -74,7 +85,7 @@ func (p *pgx) CreateBlockContent(
 func (p *pgx) BlockContent(blockContentID string) (*mDBApp.BlockContent, error) {
 	const (
 		q = `SELECT
-             id ,block_hash ,prev_block_hash ,deposit_root
+             id ,block_hash ,prev_block_hash ,deposit_root ,signature_hash
 			 ,is_registration_block ,senders ,tx_tree_root ,aggregated_public_key
 			 ,aggregated_signature ,message_point ,created_at ,block_number
              FROM block_contents WHERE id = $1`
@@ -87,6 +98,42 @@ func (p *pgx) BlockContent(blockContentID string) (*mDBApp.BlockContent, error) 
 			&tmp.BlockHash,
 			&tmp.PrevBlockHash,
 			&tmp.DepositRoot,
+			&tmp.SignatureHash,
+			&tmp.IsRegistrationBlock,
+			&tmp.Senders,
+			&tmp.TxRoot,
+			&tmp.AggregatedPublicKey,
+			&tmp.AggregatedSignature,
+			&tmp.MessagePoint,
+			&tmp.CreatedAt,
+			&tmp.BlockNumber,
+		))
+	if err != nil {
+		return nil, err
+	}
+
+	bDBApp := p.blockContentToDBApp(&tmp)
+
+	return bDBApp, nil
+}
+
+func (p *pgx) BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContent, error) {
+	const (
+		q = `SELECT
+             id ,block_hash ,prev_block_hash ,deposit_root ,signature_hash
+			 ,is_registration_block ,senders ,tx_tree_root ,aggregated_public_key
+			 ,aggregated_signature ,message_point ,created_at ,block_number
+             FROM block_contents WHERE block_number = $1`
+	)
+
+	var tmp models.BlockContent
+	err := errPgx.Err(p.queryRow(p.ctx, q, blockNumber).
+		Scan(
+			&tmp.BlockContentID,
+			&tmp.BlockHash,
+			&tmp.PrevBlockHash,
+			&tmp.DepositRoot,
+			&tmp.SignatureHash,
 			&tmp.IsRegistrationBlock,
 			&tmp.Senders,
 			&tmp.TxRoot,
@@ -113,6 +160,7 @@ func (p *pgx) blockContentToDBApp(tmp *models.BlockContent) *mDBApp.BlockContent
 		BlockHash:           tmp.BlockHash,
 		PrevBlockHash:       tmp.PrevBlockHash,
 		DepositRoot:         tmp.DepositRoot,
+		SignatureHash:       tmp.SignatureHash,
 		IsRegistrationBlock: tmp.IsRegistrationBlock,
 		Senders:             tmp.Senders,
 		TxRoot:              tmp.TxRoot,

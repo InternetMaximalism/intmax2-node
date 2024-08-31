@@ -3,7 +3,6 @@ package block_validity_prover
 import (
 	"context"
 	"encoding/binary"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +15,7 @@ import (
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"math/big"
+	"time"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common"
@@ -144,6 +144,24 @@ func (vpi *ValidityPublicInputs) Genesis() *ValidityPublicInputs {
 		SenderTreeRoot: senderTreeRoot,
 		IsValidBlock:   isValidBlock,
 	}
+}
+
+func (vpi *ValidityPublicInputs) FromPublicInputs(publicInputs []ffg.Element) *ValidityPublicInputs {
+	const (
+		txTreeRootOffset     = PublicStateLimbSize
+		senderTreeRootOffset = txTreeRootOffset + int8Key
+		isValidBlockOffset   = senderTreeRootOffset + intMaxGP.NUM_HASH_OUT_ELTS
+		end                  = isValidBlockOffset + 1
+	)
+
+	vpi.PublicState = new(PublicState).FromFieldElementSlice(publicInputs[:txTreeRootOffset])
+	txTreeRoot := intMaxTypes.Bytes32{}
+	copy(txTreeRoot[:], FieldElementSliceToUint32Slice(publicInputs[txTreeRootOffset:senderTreeRootOffset]))
+	vpi.TxTreeRoot = txTreeRoot
+	vpi.SenderTreeRoot = new(intMaxGP.PoseidonHashOut).FromPartial(publicInputs[senderTreeRootOffset:isValidBlockOffset])
+	vpi.IsValidBlock = publicInputs[isValidBlockOffset].ToUint64Regular() == 1
+
+	return vpi
 }
 
 type SenderLeaf struct {
@@ -1261,11 +1279,11 @@ type mockBlockBuilder struct {
 	// DepositLeavesByHash map[common.Hash]*DepositLeafWithId
 	DepositTreeRoots []common.Hash
 	// lastSeenProcessDepositsEventBlockNumber uint64
-	lastSeenBlockPostedEventBlockNumber uint64
-	LastSeenProcessedDepositId          uint64
-	lastValidityWitness                 *ValidityWitness
-	ValidityProofs                      []string
-	AuxInfo                             map[uint32]*mDBApp.BlockContent
+	// lastSeenBlockPostedEventBlockNumber uint64
+	LastSeenProcessedDepositId uint64
+	lastValidityWitness        *ValidityWitness
+	ValidityProofs             []string
+	AuxInfo                    map[uint32]*mDBApp.BlockContent
 }
 
 // NewBlockHashTree is a Merkle tree that includes the genesis block in the 0th leaf from the beginning.
@@ -1306,6 +1324,39 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) BlockBuilderStora
 
 	validityWitness := new(ValidityWitness).Genesis()
 	auxInfo := make(map[uint32]*mDBApp.BlockContent)
+
+	deposits, err := db.ScanDeposits()
+	if err != nil {
+		panic(err)
+	}
+
+	depositLeaves := make([]*intMaxTree.DepositLeaf, 0)
+	for i, deposit := range deposits {
+		recipientSaltHashByte, err := hexutil.Decode("0x" + deposit.RecipientSaltHash)
+		if err != nil {
+			panic(err)
+		}
+
+		recipientSaltHash := [int32Key]byte{}
+		copy(recipientSaltHash[:], recipientSaltHashByte)
+		amount, ok := new(big.Int).SetString(deposit.Amount, base10)
+		if !ok {
+			panic("invalid amount")
+		}
+
+		depositLeaf := intMaxTree.DepositLeaf{
+			RecipientSaltHash: recipientSaltHash,
+			TokenIndex:        deposit.TokenIndex,
+			Amount:            amount,
+		}
+		_, err = depositTree.AddLeaf(uint32(i), depositLeaf.Hash())
+		if err != nil {
+			panic(err)
+		}
+
+		depositLeaves = append(depositLeaves, &depositLeaf)
+	}
+
 	return &mockBlockBuilder{
 		db:                  db,
 		lastValidityWitness: validityWitness,
@@ -1313,12 +1364,12 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) BlockBuilderStora
 		AccountTree:         accountTree,
 		BlockTree:           blockTree,
 		DepositTree:         depositTree,
-		DepositLeaves:       make([]*intMaxTree.DepositLeaf, 0),
+		DepositLeaves:       depositLeaves,
 		// DepositLeavesByHash: make(map[common.Hash]*DepositLeafWithId),
 		DepositTreeRoots: []common.Hash{depositTreeRoot},
 		// lastSeenProcessDepositsEventBlockNumber: cfg.Blockchain.RollupContractDeployedBlockNumber,
-		lastSeenBlockPostedEventBlockNumber: cfg.Blockchain.RollupContractDeployedBlockNumber,
-		AuxInfo:                             auxInfo,
+		// lastSeenBlockPostedEventBlockNumber: cfg.Blockchain.RollupContractDeployedBlockNumber,
+		AuxInfo: auxInfo,
 	}
 }
 
@@ -1450,18 +1501,18 @@ func getSenderLeaves(publicKeys []intMaxTypes.Uint256, senderFlag intMaxTypes.By
 }
 
 func (db *mockBlockBuilder) SetValidityWitness(blockNumber uint32, witness *ValidityWitness) error {
-	return db.db.SetValidityWitness(blockNumber, witness)
-	// db.lastValidityWitness = new(ValidityWitness).Set(witness)
+	// return db.db.SetValidityWitness(blockNumber, witness)
+	db.lastValidityWitness = new(ValidityWitness).Set(witness)
 	// fmt.Printf("SetValidityWitness: %v\n", witness.BlockWitness.PrevBlockTreeRoot)
 
-	// return nil
+	return nil
 }
 
 func (db *mockBlockBuilder) LastValidityWitness() (*ValidityWitness, error) {
-	return db.db.LastValidityWitness()
+	// return db.db.LastValidityWitness()
 	// fmt.Printf("LastValidityWitness: %v\n", db.lastValidityWitness.BlockWitness.PrevBlockTreeRoot)
 
-	// return db.lastValidityWitness, nil
+	return db.lastValidityWitness, nil
 }
 
 func (db *mockBlockBuilder) AccountTreeRoot() (*intMaxGP.PoseidonHashOut, error) {
@@ -1488,7 +1539,7 @@ func (db *mockBlockBuilder) DepositTreeProof(blockNumber uint32) (*intMaxTree.Ke
 	}
 	proof, _, err := db.DepositTree.ComputeMerkleProof(blockNumber, leaves)
 	if err != nil {
-		return nil, errors.New("block tree proof error")
+		return nil, errors.New("deposit block tree proof error")
 	}
 
 	return proof, nil
@@ -1545,6 +1596,8 @@ func (db *mockBlockBuilder) GetAccountTreeLeaf(sender *big.Int) (*intMaxTree.Ind
 
 func generateValidityWitness(db BlockBuilderStorage, blockWitness *BlockWitness, prevValidityWitness *ValidityWitness) (*ValidityWitness, error) {
 	if blockWitness.Block.BlockNumber != db.LatestIntMaxBlockNumber()+1 {
+		fmt.Printf("blockWitness.Block.BlockNumber: %d\n", blockWitness.Block.BlockNumber)
+		fmt.Printf("db.LatestIntMaxBlockNumber(): %d\n", db.LatestIntMaxBlockNumber())
 		return nil, errors.New("block number is not equal to the last block number + 1")
 	}
 
@@ -1726,13 +1779,20 @@ func (b *mockBlockBuilder) LatestIntMaxBlockNumber() uint32 {
 }
 
 func (b *mockBlockBuilder) LastSeenBlockPostedEventBlockNumber() (uint64, error) {
-	return b.lastSeenBlockPostedEventBlockNumber, nil
+	event, err := b.db.EventBlockNumberByEventNameForValidityProver("BlockPosted")
+	if err != nil {
+		return 0, err
+	}
+
+	return event.LastProcessedBlockNumber, err
 }
 
 func (b *mockBlockBuilder) SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error {
-	b.lastSeenBlockPostedEventBlockNumber = blockNumber
+	_, err := b.db.UpsertEventBlockNumberForValidityProver("BlockPosted", blockNumber)
 
-	return nil
+	// b.lastSeenBlockPostedEventBlockNumber = blockNumber
+
+	return err
 }
 
 func (b *mockBlockBuilder) LastValidityProof() (*string, error) {
@@ -1753,8 +1813,8 @@ func (b *mockBlockBuilder) SetValidityProof(blockNumber uint32, proof string) er
 	return nil
 }
 
-func (b *mockBlockBuilder) BlockContent(blockNumber uint32) (*mDBApp.BlockContent, bool) {
-	return b.db.BlockContent(blockNumber)
+func (b *mockBlockBuilder) BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContent, error) {
+	return b.db.BlockContentByBlockNumber(blockNumber)
 
 	// auxInfo, ok := b.AuxInfo[blockNumber]
 	// if !ok {
@@ -1764,35 +1824,63 @@ func (b *mockBlockBuilder) BlockContent(blockNumber uint32) (*mDBApp.BlockConten
 	// return auxInfo, true
 }
 
-func BlockAuxInfo(db BlockBuilderStorage, blockNumber uint32) (*AuxInfo, bool) {
-	auxInfo, ok := db.BlockContent(blockNumber)
-	if !ok {
-		return nil, false
+func BlockAuxInfo(db BlockBuilderStorage, blockNumber uint32) (*AuxInfo, error) {
+	auxInfo, err := db.BlockContentByBlockNumber(blockNumber)
+	if err != nil {
+		return nil, errors.New("block content by block number error")
 	}
 
-	aggregatedPublicKeyPoint := new(bn254.G1Affine)
-	err := aggregatedPublicKeyPoint.Unmarshal([]byte(auxInfo.AggregatedPublicKey))
+	decodedAggregatedPublicKeyPoint, err := hexutil.Decode("0x" + auxInfo.AggregatedPublicKey)
 	if err != nil {
-		return nil, false
+		return nil, fmt.Errorf("aggregated public key hex decode error: %w", err)
+	}
+	aggregatedPublicKeyPoint := new(bn254.G1Affine)
+	err = aggregatedPublicKeyPoint.Unmarshal(decodedAggregatedPublicKeyPoint)
+	if err != nil {
+		return nil, fmt.Errorf("aggregated public key unmarshal error: %w", err)
 	}
 	aggregatedPublicKey, err := intMaxAcc.NewPublicKey(aggregatedPublicKeyPoint)
 	if err != nil {
-		return nil, false
+		return nil, fmt.Errorf("aggregated public key error: %w", err)
+	}
+
+	decodedAggregatedSignature, err := hexutil.Decode("0x" + auxInfo.AggregatedSignature)
+	if err != nil {
+		return nil, fmt.Errorf("aggregated signature hex decode error: %w", err)
 	}
 	aggregatedSignature := new(bn254.G2Affine)
-	err = aggregatedSignature.Unmarshal([]byte(auxInfo.AggregatedSignature))
+	err = aggregatedSignature.Unmarshal([]byte(decodedAggregatedSignature))
 	if err != nil {
-		return nil, false
+		return nil, fmt.Errorf("aggregated signature unmarshal error: %w", err)
+	}
+
+	decodedMessagePoint, err := hexutil.Decode("0x" + auxInfo.MessagePoint)
+	if err != nil {
+		return nil, fmt.Errorf("aggregated message point hex decode error: %w", err)
 	}
 	messagePoint := new(bn254.G2Affine)
-	err = messagePoint.Unmarshal([]byte(auxInfo.MessagePoint))
+	err = messagePoint.Unmarshal([]byte(decodedMessagePoint))
 	if err != nil {
-		return nil, false
+		return nil, fmt.Errorf("message point unmarshal error: %w", err)
 	}
-	var senders []intMaxTypes.Sender
-	err = json.Unmarshal([]byte(auxInfo.Senders), &senders)
+
+	var columnSenders []intMaxTypes.ColumnSender
+	err = json.Unmarshal([]byte(auxInfo.Senders), &columnSenders)
 	if err != nil {
-		return nil, false
+		return nil, fmt.Errorf("senders unmarshal error: %w", err)
+	}
+	senders := make([]intMaxTypes.Sender, len(columnSenders))
+	for i, sender := range columnSenders {
+		publicKey, err := intMaxAcc.NewPublicKeyFromAddressHex(sender.PublicKey)
+		if err != nil {
+			return nil, fmt.Errorf("public key unmarshal decode error: %w", err)
+		}
+
+		senders[i] = intMaxTypes.Sender{
+			AccountID: sender.AccountID,
+			PublicKey: publicKey,
+			IsSigned:  sender.IsSigned,
+		}
 	}
 
 	var senderType string
@@ -1815,17 +1903,19 @@ func BlockAuxInfo(db BlockBuilderStorage, blockNumber uint32) (*AuxInfo, bool) {
 		BlockNumber:   auxInfo.BlockNumber,
 		PrevBlockHash: common.HexToHash("0x" + auxInfo.PrevBlockHash),
 		DepositRoot:   common.HexToHash("0x" + auxInfo.DepositRoot),
-		SignatureHash: blockContent.Hash(),
+		SignatureHash: common.HexToHash("0x" + auxInfo.SignatureHash), // TODO: Calculate from blockContent
 	}
 
 	if blockHash := postedBlock.Hash(); blockHash.Hex() != "0x"+auxInfo.BlockHash {
+		fmt.Printf("postedBlock: %v\n", postedBlock)
+		fmt.Printf("blockHash: %s != %s\n", blockHash.Hex(), auxInfo.BlockHash)
 		panic("block hash mismatch")
 	}
 
 	return &AuxInfo{
 		PostedBlock:  &postedBlock,
 		BlockContent: &blockContent,
-	}, true
+	}, nil
 
 }
 
@@ -1834,35 +1924,9 @@ func setAuxInfo(
 	postedBlock *block_post_service.PostedBlock,
 	blockContent *intMaxTypes.BlockContent,
 ) error {
-	blockNumber := postedBlock.BlockNumber
-	blockHash := postedBlock.Hash().Hex()[2:]
-	prevBlockHash := postedBlock.PrevBlockHash.Hex()[2:]
-	depositRoot := postedBlock.DepositRoot.Hex()[2:]
-	txRoot := blockContent.TxTreeRoot.Hex()[2:]
-	aggregatedSignature := hex.EncodeToString(blockContent.AggregatedSignature.Marshal())
-	aggregatedPublicKey := hex.EncodeToString(blockContent.AggregatedPublicKey.Marshal())
-	messagePoint := hex.EncodeToString(blockContent.MessagePoint.Marshal())
-	isRegistrationBlock := blockContent.SenderType == intMaxTypes.PublicKeySenderType
-	senders := make([]intMaxTypes.ColumnSender, len(blockContent.Senders))
-	for i, sender := range blockContent.Senders {
-		senders[i] = intMaxTypes.ColumnSender{
-			AccountID: sender.AccountID,
-			PublicKey: hex.EncodeToString(sender.PublicKey.Marshal()),
-			IsSigned:  sender.IsSigned,
-		}
-	}
-
 	storedBlockContent, err := db.CreateBlockContent(
-		blockNumber,
-		blockHash,
-		prevBlockHash,
-		depositRoot,
-		txRoot,
-		aggregatedSignature,
-		aggregatedPublicKey,
-		messagePoint,
-		isRegistrationBlock,
-		senders,
+		postedBlock,
+		blockContent,
 	)
 	if err != nil {
 		return err
@@ -1877,40 +1941,13 @@ func setAuxInfo(
 }
 
 func (b *mockBlockBuilder) CreateBlockContent(
-	blockNumber uint32,
-	blockHash, prevBlockHash, depositRoot, txRoot, aggregatedSignature, aggregatedPublicKey, messagePoint string,
-	isRegistrationBlock bool,
-	senders []intMaxTypes.ColumnSender,
+	postedBlock *block_post_service.PostedBlock,
+	blockContent *intMaxTypes.BlockContent,
 ) (*mDBApp.BlockContent, error) {
 	return b.db.CreateBlockContent(
-		blockNumber,
-		blockHash, prevBlockHash, depositRoot, txRoot, aggregatedSignature, aggregatedPublicKey, messagePoint,
-		isRegistrationBlock, senders,
+		postedBlock,
+		blockContent,
 	)
-
-	// sendersJSON, err := json.Marshal(senders)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// s := mDBApp.BlockContent{
-	// 	BlockContentID:      uuid.New().String(),
-	// 	BlockNumber:         blockNumber,
-	// 	BlockHash:           blockHash,
-	// 	PrevBlockHash:       prevBlockHash,
-	// 	DepositRoot:         depositRoot,
-	// 	TxRoot:              txRoot,
-	// 	AggregatedSignature: aggregatedSignature,
-	// 	AggregatedPublicKey: aggregatedPublicKey,
-	// 	MessagePoint:        messagePoint,
-	// 	Senders:             sendersJSON,
-	// 	IsRegistrationBlock: isRegistrationBlock,
-	// 	CreatedAt:           time.Now().UTC(),
-	// }
-
-	// b.AuxInfo[blockNumber] = &s
-
-	// return &s, nil
 }
 
 func (b *mockBlockBuilder) NextAccountID() (uint64, error) {
@@ -1932,7 +1969,6 @@ func (b *mockBlockBuilder) GetDepositIndexAndIDByHash(depositHash common.Hash) (
 		return 0, new(uint32), err
 	}
 
-	fmt.Printf("GetDepositIndexByHash deposit index: %v\n", deposit.DepositIndex)
 	return deposit.DepositID, deposit.DepositIndex, nil
 }
 
@@ -1947,13 +1983,19 @@ func (b *mockBlockBuilder) UpdateDepositIndexByDepositHash(depositHash common.Ha
 
 func (b *SyncValidityProver) Sync(blockBuilder BlockBuilderStorage) {
 	currentBlockNumber := blockBuilder.LatestIntMaxBlockNumber()
-	for blockNumber := b.LastBlockNumber + 1; blockNumber <= currentBlockNumber; blockNumber++ {
+	fmt.Printf("currentBlockNumber: %d\n", currentBlockNumber)
+	blockNumber := b.LastBlockNumber + 1
+	for blockNumber <= currentBlockNumber {
 		prevValidityProof, ok := b.ValidityProofs[blockNumber-1]
 		if !ok && blockNumber != 1 {
 			panic("prev validity proof not found")
 		}
-		auxInfo, ok := BlockAuxInfo(blockBuilder, blockNumber)
-		if !ok {
+		auxInfo, err := BlockAuxInfo(blockBuilder, blockNumber)
+		if err != nil {
+			if err.Error() == "block content by block number error" {
+				time.Sleep(1 * time.Second)
+				continue
+			}
 			panic("aux info not found")
 		}
 
@@ -1976,13 +2018,6 @@ func (b *SyncValidityProver) Sync(blockBuilder BlockBuilderStorage) {
 		if err := blockBuilder.SetValidityWitness(blockNumber, validityWitness); err != nil {
 			panic(err)
 		}
-		// {
-		// 	validityWitness, err := blockBuilder.LastValidityWitness()
-		// 	if err != nil {
-		// 		panic(err)
-		// 	}
-		// 	fmt.Printf("blockNumber: %d\n", validityWitness.BlockWitness.Block.BlockNumber)
-		// }
 
 		validityProof, err := b.ValidityProcessor.Prove(prevValidityProof, validityWitness)
 		if err != nil {
@@ -1990,6 +2025,8 @@ func (b *SyncValidityProver) Sync(blockBuilder BlockBuilderStorage) {
 		}
 
 		b.ValidityProofs[blockNumber] = validityProof
+
+		blockNumber++
 	}
 
 	b.LastBlockNumber = currentBlockNumber

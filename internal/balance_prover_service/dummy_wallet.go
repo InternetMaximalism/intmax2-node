@@ -169,9 +169,16 @@ func (s *MockWallet) GeneratePrivateWitness(
 		return nil, err
 	}
 	newAssetLeaf := prevAssetLeaf.Add(amount)
-	_, err = assetTree.UpdateLeaf(tokenIndex, newAssetLeaf)
-	if err != nil {
-		return nil, err
+	if tokenIndex < uint32(len(assetTree.Leaves)) {
+		_, err = assetTree.UpdateLeaf(tokenIndex, newAssetLeaf)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		_, err = assetTree.AddLeaf(tokenIndex, newAssetLeaf)
+		if err != nil {
+			return nil, err
+		}
 	}
 	nullifierProof, err := nullifierTree.Insert(nullifier)
 	if err != nil {

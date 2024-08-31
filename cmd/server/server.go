@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
@@ -10,7 +11,7 @@ import (
 	"intmax2-node/internal/balance_prover_service"
 	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/block_validity_prover"
-	"intmax2-node/internal/blockchain/errors"
+	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
 	"intmax2-node/internal/network_service"
@@ -88,8 +89,8 @@ func NewServerCmd(s *Server) *cobra.Command {
 				errURL := s.BBR.UpdateBlockBuilder(s.Context, network_service.NodeExternalAddress.Address.Address())
 				if errURL != nil {
 					const msg = "update the Block Builder URL in blockchain error occurred: %v"
-					if strings.Contains(errURL.Error(), errors.ErrInsufficientStakeAmountStr) {
-						s.Log.Fatalf(msg, errors.ErrInsufficientStakeAmountStr)
+					if strings.Contains(errURL.Error(), errorsB.ErrInsufficientStakeAmountStr) {
+						s.Log.Fatalf(msg, errorsB.ErrInsufficientStakeAmountStr)
 					}
 					s.Log.Fatalf(msg, errURL.Error())
 				}
@@ -225,6 +226,14 @@ func NewServerCmd(s *Server) *cobra.Command {
 			// 	}
 			// }()
 
+			s.Log.Infof("Start Block Validity Prover")
+			var blockValidityProver block_validity_prover.BlockValidityProver
+			blockValidityProver, err = block_validity_prover.NewBlockValidityProver(s.Context, s.Config, s.Log, s.SB, s.DbApp)
+			if err != nil {
+				const msg = "failed to start Block Validity Prover: %+v"
+				s.Log.Fatalf(msg, err.Error())
+			}
+
 			wg.Add(1)
 			s.WG.Add(1)
 			go func() {
@@ -233,34 +242,12 @@ func NewServerCmd(s *Server) *cobra.Command {
 					s.WG.Done()
 				}()
 
-				s.Log.Infof("Start Block Validity Prover")
-				var blockValidityProver block_validity_prover.BlockValidityProver
-				blockValidityProver, err = block_validity_prover.NewBlockValidityProver(s.Context, s.Config, s.Log, s.SB, s.DbApp)
-				if err != nil {
-					const msg = "failed to start Block Validity Prover: %+v"
-					s.Log.Fatalf(msg, err.Error())
-				}
-
 				var blockSynchronizer block_synchronizer.BlockSynchronizer
 				blockSynchronizer, err = block_synchronizer.NewBlockSynchronizer(s.Context, s.Config, s.Log)
 				if err != nil {
 					const msg = "failed to start Block Synchronizer: %+v"
 					s.Log.Fatalf(msg, err.Error())
 				}
-
-				blockBuilderWallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(s.Config.Blockchain.BuilderPrivateKeyHex)
-				if err != nil {
-					const msg = "failed to get Block Builder IntMax Address: %+v"
-					s.Log.Fatalf(msg, err.Error())
-				}
-
-				balanceProverService := balance_prover_service.NewBalanceProverService(s.Context, s.Config, s.Log, blockBuilderWallet)
-				userAllData, err := balanceProverService.DecodeUserData()
-				if err != nil {
-					const msg = "failed to start Balance Prover Service: %+v"
-					s.Log.Fatalf(msg, err.Error())
-				}
-				fmt.Printf("deposits in userAllData: %+v\n", len(userAllData.Deposits))
 
 				timeout := 1 * time.Second
 				ticker := time.NewTicker(timeout)
@@ -283,17 +270,87 @@ func NewServerCmd(s *Server) *cobra.Command {
 							s.Log.Fatalf(msg, err.Error())
 						}
 
-						_, err := blockValidityProver.SyncBlockTree(blockSynchronizer)
+						// sync block content
+						startBlock, err := blockValidityProver.BlockBuilder().LastSeenBlockPostedEventBlockNumber()
 						if err != nil {
-							const msg = "failed to sync block tree: %+v"
+							startBlock = s.Config.Blockchain.RollupContractDeployedBlockNumber
+							// var ErrLastSeenBlockPostedEventBlockNumberFail = errors.New("last seen block posted event block number fail")
+							// panic(errors.Join(ErrLastSeenBlockPostedEventBlockNumberFail, err))
+						}
+
+						endBlock, err := blockValidityProver.SyncBlockTree(blockSynchronizer, startBlock)
+						if err != nil {
+							panic(err)
+						}
+
+						err = blockValidityProver.BlockBuilder().SetLastSeenBlockPostedEventBlockNumber(endBlock)
+						if err != nil {
+							var ErrSetLastSeenBlockPostedEventBlockNumberFail = errors.New("set last seen block posted event block number fail")
+							panic(errors.Join(ErrSetLastSeenBlockPostedEventBlockNumberFail, err))
+						}
+
+						fmt.Printf("Block %d is searched\n", endBlock)
+
+					}
+				}
+			}()
+
+			wg.Add(1)
+			s.WG.Add(1)
+			go func() {
+				defer func() {
+					wg.Done()
+					s.WG.Done()
+				}()
+
+				blockBuilderWallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(s.Config.Blockchain.BuilderPrivateKeyHex)
+				if err != nil {
+					const msg = "failed to get Block Builder IntMax Address: %+v"
+					s.Log.Fatalf(msg, err.Error())
+				}
+
+				timeout := 1 * time.Second
+				ticker := time.NewTicker(timeout)
+				blockNumber := 1
+				for {
+					select {
+					case <-s.Context.Done():
+						ticker.Stop()
+						s.Log.Warnf("Received cancel signal from context, stopping...")
+						return
+					case <-ticker.C:
+						result, err := block_validity_prover.BlockAuxInfo(blockValidityProver.BlockBuilder(), uint32(blockNumber))
+						// result, err := blockValidityProver.BlockBuilder().BlockContentByBlockNumber(uint32(blockNumber))
+						if err != nil {
+							if err.Error() == "block content by block number error" {
+								time.Sleep(1 * time.Second)
+								continue
+							}
+
+							const msg = "failed to fetch new posted blocks: %+v"
 							s.Log.Fatalf(msg, err.Error())
 						}
+
+						err = blockValidityProver.SyncBlockProver(result.BlockContent, result.PostedBlock)
+						if err != nil {
+							const msg = "failed to sync block prover: %+v"
+							s.Log.Fatalf(msg, err.Error())
+						}
+
+						balanceProverService := balance_prover_service.NewBalanceProverService(s.Context, s.Config, s.Log, blockBuilderWallet)
+						userAllData, err := balanceProverService.DecodeUserData()
+						if err != nil {
+							const msg = "failed to start Balance Prover Service: %+v"
+							s.Log.Fatalf(msg, err.Error())
+						}
+						fmt.Printf("deposits in userAllData: %+v\n", len(userAllData.Deposits))
 
 						intMaxPrivateKey, err := intMaxAcc.NewPrivateKeyFromString(blockBuilderWallet.IntMaxPrivateKey)
 						if err != nil {
 							const msg = "failed to get IntMax Private Key: %+v"
 							s.Log.Fatalf(msg, err.Error())
 						}
+
 						mockWallet, err := balance_prover_service.NewMockWallet(intMaxPrivateKey)
 						if err != nil {
 							const msg = "failed to get Mock Wallet: %+v"
@@ -320,14 +377,20 @@ func NewServerCmd(s *Server) *cobra.Command {
 								DepositSalt:  *deposit.Salt,
 							}
 							mockWallet.AddDepositCase(deposit.DepositID, &depositCase)
-							balanceProverService.SyncBalanceProver.ReceiveDeposit(
+							err = balanceProverService.SyncBalanceProver.ReceiveDeposit(
 								mockWallet,
 								balanceProverService.BalanceProcessor,
 								blockValidityProver.BlockBuilder(),
 								deposit.DepositID,
 							)
+							if err != nil {
+								const msg = "failed to receive deposit: %+v"
+								s.Log.Fatalf(msg, err.Error())
+							}
 						}
 					}
+
+					blockNumber++
 				}
 			}()
 

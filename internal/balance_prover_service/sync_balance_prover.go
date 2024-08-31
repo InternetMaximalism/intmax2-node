@@ -9,7 +9,7 @@ import (
 
 type SyncBalanceProver struct {
 	LastBlockNumber  uint32
-	LastBalanceProof *intMaxTypes.Plonky2Proof
+	LastBalanceProof *string
 }
 
 func NewSyncBalanceProver() *SyncBalanceProver {
@@ -66,13 +66,14 @@ func (s *SyncBalanceProver) SyncSend(
 			return err
 		}
 
-		balancePublicInputs, err := new(BalancePublicInputs).FromPublicInputs(balanceProof.PublicInputs)
-		if err != nil {
-			return err
-		}
+		// balancePublicInputs, err := new(BalancePublicInputs).FromPublicInputs(balanceProof.PublicInputs)
+		// if err != nil {
+		// 	return err
+		// }
+
 		s.LastBlockNumber = blockNumber
-		s.LastBalanceProof = balanceProof
-		wallet.UpdatePublicState(balancePublicInputs.PublicState)
+		s.LastBalanceProof = &balanceProof.Proof
+		wallet.UpdatePublicState(balanceProof.PublicInputs.PublicState)
 	}
 
 	return nil
@@ -121,14 +122,15 @@ func (s *SyncBalanceProver) SyncNoSend(
 	if err != nil {
 		return err
 	}
-	balancePublicInputs, err := new(BalancePublicInputs).FromPublicInputs(balanceProof.PublicInputs)
-	if err != nil {
-		return err
-	}
+
+	// balancePublicInputs, err := new(BalancePublicInputs).FromPublicInputs(balanceProof.PublicInputs)
+	// if err != nil {
+	// 	return err
+	// }
 
 	s.LastBlockNumber = currentBlockNumber
-	s.LastBalanceProof = balanceProof
-	wallet.UpdatePublicState(balancePublicInputs.PublicState)
+	s.LastBalanceProof = &balanceProof.Proof
+	wallet.UpdatePublicState(balanceProof.PublicInputs.PublicState)
 
 	return nil
 }
@@ -169,7 +171,8 @@ func (s *SyncBalanceProver) ReceiveDeposit(
 	if err != nil {
 		return err
 	}
-	s.LastBalanceProof = balanceProof
+
+	s.LastBalanceProof = &balanceProof.Proof
 
 	return nil
 }
@@ -200,7 +203,8 @@ func (s *SyncBalanceProver) ReceiveTransfer(
 	if err != nil {
 		return err
 	}
-	s.LastBalanceProof = balanceProof
+
+	s.LastBalanceProof = &balanceProof.Proof
 
 	return nil
 }

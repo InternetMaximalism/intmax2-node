@@ -51,10 +51,33 @@ func NewSyncValidityProver(
 	}, nil
 }
 
-func (s *SyncValidityProver) Sync() error {
-	_, err := s.ValidityProcessor.SyncBlockTree(s.blockSynchronizer)
+// check synchronization of INTMAX blocks
+func (s *SyncValidityProver) Sync() (err error) {
+	// s.blockSynchronizer.SyncBlockTree(blockProverService)
+	startBlock, err := s.ValidityProcessor.BlockBuilder().LastSeenBlockPostedEventBlockNumber()
+	if err != nil {
+		var ErrNotFound = errors.New("not found")
+		if !errors.Is(err, ErrNotFound) {
+			var ErrLastSeenBlockPostedEventBlockNumberFail = errors.New("last seen block posted event block number fail")
+			panic(errors.Join(ErrLastSeenBlockPostedEventBlockNumberFail, err))
+		}
 
-	return err
+		startBlock = s.blockSynchronizer.RollupContractDeployedBlockNumber()
+	}
+
+	const int5000Key = 5000
+	endBlock := startBlock + int5000Key
+	events, _, err := s.blockSynchronizer.FetchNewPostedBlocks(startBlock, &endBlock)
+	if err != nil {
+		var ErrFetchNewPostedBlocksFail = errors.New("fetch new posted blocks fail")
+		return errors.Join(ErrFetchNewPostedBlocksFail, err)
+	}
+
+	if len(events) != 0 {
+		return errors.New("not synchronized")
+	}
+
+	return nil
 }
 
 func (s *SyncValidityProver) FetchUpdateWitness(

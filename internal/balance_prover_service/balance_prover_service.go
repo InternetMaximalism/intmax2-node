@@ -35,7 +35,11 @@ func NewBalanceProverService(
 	log logger.Logger,
 	wallet *models.Wallet,
 ) *balanceProverService {
-	balanceProcessor := &BalanceProcessor{}
+	balanceProcessor := NewBalanceProcessor(
+		ctx,
+		cfg,
+		log,
+	)
 	syncBalanceProver := NewSyncBalanceProver()
 	return &balanceProverService{
 		ctx,

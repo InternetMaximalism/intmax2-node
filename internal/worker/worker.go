@@ -943,6 +943,7 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 			}
 
 			senders := make([]intMaxTypes.ColumnSender, 0)
+			fmt.Printf("len(bc.Senders): %v\n", len(bc.Senders))
 			for i := range bc.Senders {
 				senders = append(senders, intMaxTypes.ColumnSender{
 					PublicKey: bc.Senders[i].PublicKey.ToAddress().String(),
@@ -1001,6 +1002,7 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 			}
 
 			senders := make([]intMaxTypes.ColumnSender, 0)
+			fmt.Printf("len(bc.Senders): %v\n", len(bc.Senders))
 			for i := range bc.Senders {
 				senders = append(senders, intMaxTypes.ColumnSender{
 					PublicKey: bc.Senders[i].PublicKey.ToAddress().String(),
