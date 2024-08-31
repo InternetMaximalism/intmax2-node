@@ -2,6 +2,7 @@ package balance_prover_service
 
 import (
 	"errors"
+	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_validity_prover"
 	intMaxTree "intmax2-node/internal/tree"
@@ -267,6 +268,9 @@ func (s *MockWallet) ReceiveDepositAndUpdate(
 	}
 	deposit := depositWitness.Deposit
 	nullifier := deposit.Hash()
+	fmt.Printf("depositId: %v\n", depositId)
+	fmt.Printf("deposit: %v\n", deposit)
+	fmt.Printf("deposit (nullifier): %v\n", nullifier)
 
 	newSalt, err := new(poseidonHashOut).SetRandom()
 	if err != nil {

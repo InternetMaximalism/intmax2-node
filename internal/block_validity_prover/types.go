@@ -1269,17 +1269,13 @@ type AuxInfo struct {
 }
 
 type mockBlockBuilder struct {
-	db                SQLDriverApp
-	LastBlockNumber   uint32
-	AccountTree       *intMaxTree.AccountTree      // current account tree
-	BlockTree         *intMaxTree.BlockHashTree    // current block hash tree
-	DepositTree       *intMaxTree.KeccakMerkleTree // current deposit tree
-	DepositLeaves     []*intMaxTree.DepositLeaf
-	DepositLeafHashes []common.Hash
-	// DepositLeavesByHash map[common.Hash]*DepositLeafWithId
-	DepositTreeRoots []common.Hash
-	// lastSeenProcessDepositsEventBlockNumber uint64
-	// lastSeenBlockPostedEventBlockNumber uint64
+	db                         SQLDriverApp
+	LastBlockNumber            uint32
+	AccountTree                *intMaxTree.AccountTree      // current account tree
+	BlockTree                  *intMaxTree.BlockHashTree    // current block hash tree
+	DepositTree                *intMaxTree.KeccakMerkleTree // current deposit tree
+	DepositLeaves              []*intMaxTree.DepositLeaf
+	DepositTreeRoots           []common.Hash
 	LastSeenProcessedDepositId uint64
 	lastValidityWitness        *ValidityWitness
 	ValidityProofs             []string
@@ -1332,22 +1328,10 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) BlockBuilderStora
 
 	depositLeaves := make([]*intMaxTree.DepositLeaf, 0)
 	for i, deposit := range deposits {
-		recipientSaltHashByte, err := hexutil.Decode("0x" + deposit.RecipientSaltHash)
-		if err != nil {
-			panic(err)
-		}
-
-		recipientSaltHash := [int32Key]byte{}
-		copy(recipientSaltHash[:], recipientSaltHashByte)
-		amount, ok := new(big.Int).SetString(deposit.Amount, base10)
-		if !ok {
-			panic("invalid amount")
-		}
-
 		depositLeaf := intMaxTree.DepositLeaf{
-			RecipientSaltHash: recipientSaltHash,
+			RecipientSaltHash: deposit.RecipientSaltHash,
 			TokenIndex:        deposit.TokenIndex,
-			Amount:            amount,
+			Amount:            deposit.Amount,
 		}
 		_, err = depositTree.AddLeaf(uint32(i), depositLeaf.Hash())
 		if err != nil {
@@ -1533,13 +1517,19 @@ func (db *mockBlockBuilder) BlockTreeProof(blockNumber uint32) (*intMaxTree.Merk
 }
 
 func (db *mockBlockBuilder) DepositTreeProof(blockNumber uint32) (*intMaxTree.KeccakMerkleProof, error) {
+	if blockNumber >= uint32(len(db.DepositLeaves)) {
+		fmt.Printf("leaves: %v\n", db.DepositLeaves)
+		return nil, errors.New("block number is out of range")
+	}
+
 	leaves := make([][32]byte, 0)
 	for _, depositLeaf := range db.DepositLeaves {
 		leaves = append(leaves, [32]byte(depositLeaf.Hash()))
 	}
 	proof, _, err := db.DepositTree.ComputeMerkleProof(blockNumber, leaves)
 	if err != nil {
-		return nil, errors.New("deposit block tree proof error")
+		var ErrDepositTreeProof = errors.New("deposit tree proof error")
+		return nil, errors.Join(ErrDepositTreeProof, err)
 	}
 
 	return proof, nil
@@ -1962,14 +1952,23 @@ func (b *mockBlockBuilder) UpsertEventBlockNumberForValidityProver(eventName str
 	return b.db.UpsertEventBlockNumberForValidityProver(eventName, blockNumber)
 }
 
-func (b *mockBlockBuilder) GetDepositIndexAndIDByHash(depositHash common.Hash) (depositID uint32, depositIndex *uint32, err error) {
+func (b *mockBlockBuilder) GetDepositLeafAndIndexByHash(depositHash common.Hash) (depositLeafWithId *DepositLeafWithId, depositIndex *uint32, err error) {
 	fmt.Printf("GetDepositIndexByHash deposit hash: %s\n", depositHash.String())
 	deposit, err := b.db.DepositByDepositHash(depositHash)
 	if err != nil {
-		return 0, new(uint32), err
+		return nil, new(uint32), err
 	}
 
-	return deposit.DepositID, deposit.DepositIndex, nil
+	depositLeaf := intMaxTree.DepositLeaf{
+		RecipientSaltHash: deposit.RecipientSaltHash,
+		TokenIndex:        deposit.TokenIndex,
+		Amount:            deposit.Amount,
+	}
+
+	return &DepositLeafWithId{
+		DepositId:   deposit.DepositID,
+		DepositLeaf: &depositLeaf,
+	}, deposit.DepositIndex, nil
 }
 
 func (b *mockBlockBuilder) UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error {

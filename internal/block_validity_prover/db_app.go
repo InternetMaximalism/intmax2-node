@@ -82,16 +82,15 @@ type BlockHistory interface {
 }
 
 type DepositTreeBuilder interface {
-	// LastSeenProcessDepositsEventBlockNumber() (uint64, error)
-	// SetLastSeenProcessDepositsEventBlockNumber(blockNumber uint64) error
 	LastDepositTreeRoot() (common.Hash, error)
 	AppendDepositTreeRoot(depositTreeRoot common.Hash) error
-	AppendDepositTreeLeaf(depositHash common.Hash) (root common.Hash, err error)
+	AppendDepositTreeLeaf(depositHash common.Hash, depositLeaf *intMaxTree.DepositLeaf) (root common.Hash, err error)
 
 	DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, error)
-	// AppendDeposit(depositId uint32, depositLeaf *intMaxTree.DepositLeaf) error
-	GetDepositIndexAndIDByHash(depositHash common.Hash) (depositIndex uint32, depositID *uint32, err error)
-	UpdateDepositIndexByDepositHash(depositHash common.Hash, tokenIndex uint32) error
+	GetDepositLeafAndIndexByHash(depositHash common.Hash) (depositLeafWithId *DepositLeafWithId, depositIndex *uint32, err error)
+	UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error
+
+	FetchLastDepositIndex() (uint32, error)
 }
 
 type EventBlockNumbers interface {
@@ -142,9 +141,10 @@ type Accounts interface {
 
 type Deposits interface {
 	CreateDeposit(depositLeaf intMaxTree.DepositLeaf, depositID uint32) (*mDBApp.Deposit, error)
-	UpdateDepositIndexByDepositHash(depositHash common.Hash, tokenIndex uint32) error
+	UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error
 	Deposit(ID string) (*mDBApp.Deposit, error)
 	DepositByDepositID(depositID uint32) (*mDBApp.Deposit, error)
 	DepositByDepositHash(depositHash common.Hash) (*mDBApp.Deposit, error)
 	ScanDeposits() ([]*mDBApp.Deposit, error)
+	FetchLastDepositIndex() (uint32, error)
 }

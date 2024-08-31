@@ -2,10 +2,12 @@ package pgx
 
 import (
 	"encoding/hex"
+	"fmt"
 	errPgx "intmax2-node/internal/sql_db/pgx/errors"
 	"intmax2-node/internal/sql_db/pgx/models"
 	intMaxTree "intmax2-node/internal/tree"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
+	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -54,12 +56,12 @@ func (p *pgx) CreateDeposit(
 	return bDBApp, nil
 }
 
-func (b *pgx) UpdateDepositIndexByDepositHash(depositHash common.Hash, tokenIndex uint32) error {
+func (b *pgx) UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error {
 	const (
-		q = `UPDATE deposits SET token_index = $1 WHERE deposit_hash = $2`
+		q = `UPDATE deposits SET deposit_index = $1 WHERE deposit_hash = $2`
 	)
 
-	_, err := b.exec(b.ctx, q, tokenIndex, depositHash.Hex())
+	_, err := b.exec(b.ctx, q, depositIndex, depositHash.Hex())
 	if err != nil {
 		return errPgx.Err(err)
 	}
@@ -191,19 +193,52 @@ func (p *pgx) DepositByDepositHash(depositHash common.Hash) (*mDBApp.Deposit, er
 	return bDBApp, nil
 }
 
+func (p *pgx) FetchLastDepositIndex() (uint32, error) {
+	const (
+		q = `SELECT MAX(deposit_index) FROM deposits`
+	)
+
+	var lastDepositIndex *uint32
+	err := errPgx.Err(p.queryRow(p.ctx, q).Scan(&lastDepositIndex))
+	if err != nil {
+		// if errors.Is(err, pgxV5.ErrNoRows) {
+		// 	return 0, nil
+		// }
+
+		fmt.Printf("FetchLastDepositIndex error: %v\n", err)
+
+		return 0, err
+	}
+
+	if lastDepositIndex == nil {
+		return 0, nil
+	}
+
+	return *lastDepositIndex, nil
+}
+
+const int32Key = 32
+
 func (p *pgx) depositToDBApp(tmp *models.Deposit) *mDBApp.Deposit {
 	depositIndex := new(uint32)
 	if tmp.DepositIndex != nil {
 		*depositIndex = uint32(*tmp.DepositIndex)
 	}
+
+	amount, ok := new(big.Int).SetString(tmp.Amount, 10)
+	if !ok {
+		// Fatal error
+		panic("depositToDBApp: invalid number string")
+	}
+
 	m := mDBApp.Deposit{
 		ID:                tmp.ID,
 		DepositID:         uint32(tmp.DepositID),
 		DepositIndex:      depositIndex,
-		DepositHash:       tmp.DepositHash,
-		RecipientSaltHash: tmp.RecipientSaltHash,
+		DepositHash:       common.HexToHash("0x" + tmp.DepositHash),
+		RecipientSaltHash: [int32Key]byte(common.HexToHash("0x" + tmp.RecipientSaltHash)),
 		TokenIndex:        uint32(tmp.TokenIndex),
-		Amount:            tmp.Amount,
+		Amount:            amount,
 		CreatedAt:         tmp.CreatedAt,
 	}
 

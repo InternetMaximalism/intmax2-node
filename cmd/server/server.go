@@ -249,6 +249,12 @@ func NewServerCmd(s *Server) *cobra.Command {
 					s.Log.Fatalf(msg, err.Error())
 				}
 
+				latestSynchronizedDepositIndex, err := blockValidityProver.BlockBuilder().FetchLastDepositIndex()
+				if err != nil {
+					const msg = "failed to fetch last deposit index: %+v"
+					s.Log.Fatalf(msg, err.Error())
+				}
+
 				timeout := 1 * time.Second
 				ticker := time.NewTicker(timeout)
 				for {
@@ -264,7 +270,7 @@ func NewServerCmd(s *Server) *cobra.Command {
 							s.Log.Fatalf(msg, err.Error())
 						}
 
-						err = blockValidityProver.SyncDepositTree(nil)
+						err = blockValidityProver.SyncDepositTree(nil, latestSynchronizedDepositIndex)
 						if err != nil {
 							const msg = "failed to sync deposit tree: %+v"
 							s.Log.Fatalf(msg, err.Error())
@@ -359,13 +365,19 @@ func NewServerCmd(s *Server) *cobra.Command {
 
 						for _, deposit := range userAllData.Deposits {
 							fmt.Printf("deposit ID: %d\n", deposit.DepositID)
-							depositIndex, _, err := blockValidityProver.BlockBuilder().GetDepositIndexAndIDByHash(deposit.DepositHash)
+							_, depositIndex, err := blockValidityProver.BlockBuilder().GetDepositLeafAndIndexByHash(deposit.DepositHash)
 							if err != nil {
 								const msg = "failed to get Deposit Index by Hash: %+v"
 								s.Log.Warnf(msg, err.Error())
 								continue
 							}
-							fmt.Printf("deposit index: %d\n", depositIndex)
+							if depositIndex == nil {
+								const msg = "failed to get Deposit Index by Hash: %+v"
+								s.Log.Warnf(msg, "depositIndex is nil")
+								continue
+							}
+
+							fmt.Printf("deposit index: %d\n", *depositIndex)
 
 							depositCase := balance_prover_service.DepositCase{
 								Deposit: intMaxTree.DepositLeaf{
@@ -373,7 +385,7 @@ func NewServerCmd(s *Server) *cobra.Command {
 									TokenIndex:        deposit.TokenIndex,
 									Amount:            deposit.Amount,
 								},
-								DepositIndex: depositIndex,
+								DepositIndex: *depositIndex,
 								DepositSalt:  *deposit.Salt,
 							}
 							mockWallet.AddDepositCase(deposit.DepositID, &depositCase)

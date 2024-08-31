@@ -31,16 +31,6 @@ type ProcessDepositsInput struct {
 	DepositHashes          [][int32Key]byte
 }
 
-// func (b *mockBlockBuilder) LastSeenProcessDepositsEventBlockNumber() (uint64, error) {
-// 	return b.lastSeenProcessDepositsEventBlockNumber, nil
-// }
-
-// func (b *mockBlockBuilder) SetLastSeenProcessDepositsEventBlockNumber(blockNumber uint64) error {
-// 	b.lastSeenProcessDepositsEventBlockNumber = blockNumber
-
-// 	return nil
-// }
-
 func (b *mockBlockBuilder) LastDepositTreeRoot() (common.Hash, error) {
 	return b.DepositTreeRoots[len(b.DepositTreeRoots)-1], nil
 }
@@ -51,40 +41,17 @@ func (b *mockBlockBuilder) AppendDepositTreeRoot(root common.Hash) error {
 	return nil
 }
 
-// func (b *mockBlockBuilder) GetDepositsByHash(depositHashes []common.Hash) ([]*DepositLeafWithId, error) {
-// 	var result []*DepositLeafWithId
-// 	for _, depositHash := range depositHashes {
-// 		if leaf, ok := b.DepositLeavesByHash[depositHash]; ok {
-// 			result = append(result, leaf)
-// 		}
-// 	}
-
-// 	return result, nil
-// }
-
-func (b *mockBlockBuilder) AppendDepositTreeLeaf(depositHash common.Hash) (root common.Hash, err error) {
+func (b *mockBlockBuilder) AppendDepositTreeLeaf(depositHash common.Hash, depositLeaf *intMaxTree.DepositLeaf) (root common.Hash, err error) {
 	_, count, _ := b.DepositTree.GetCurrentRootCountAndSiblings()
-	b.DepositLeafHashes = append(b.DepositLeafHashes, depositHash)
+	b.DepositLeaves = append(b.DepositLeaves, depositLeaf)
 	return b.DepositTree.AddLeaf(count, depositHash)
 }
 
-// func (b *mockBlockBuilder) AppendDeposit(depositId uint32, depositLeaf *intMaxTree.DepositLeaf) error {
-// 	for _, depositHash := range b.DepositLeafHashes {
-// 		if depositHash == depositLeaf.Hash() {
-// 			b.DepositLeaves = append(b.DepositLeaves, depositLeaf)
-// 			b.DepositLeavesByHash[depositHash] = &DepositLeafWithId{
-// 				DepositLeaf: depositLeaf,
-// 				DepositId:   depositId,
-// 			}
+func (b *mockBlockBuilder) FetchLastDepositIndex() (uint32, error) {
+	return b.db.FetchLastDepositIndex()
+}
 
-// 			return nil
-// 		}
-// 	}
-
-// 	return errors.New("deposit leaf not found")
-// }
-
-func (p *blockValidityProver) SyncDepositTree(latestBlock *uint64) error {
+func (p *blockValidityProver) SyncDepositTree(latestBlock *uint64, depositIndex uint32) error {
 	var latestBlockNumber uint64
 	if latestBlock == nil {
 		var err error
@@ -151,15 +118,27 @@ func (p *blockValidityProver) SyncDepositTree(latestBlock *uint64) error {
 				for i := range processDepositsCalldata.DepositHashes {
 					depositHash := processDepositsCalldata.DepositHashes[i]
 
-					lastDepositRoot, err = b.AppendDepositTreeLeaf(common.Hash(depositHash))
+					depositLeafWithId, _, err := b.GetDepositLeafAndIndexByHash(common.Hash(depositHash))
+					if err != nil {
+						return fmt.Errorf("failed to get deposit leaf by hash: %v", err.Error())
+					}
+
+					if depositLeafWithId.DepositLeaf.Hash() != common.Hash(depositHash) {
+						return fmt.Errorf("DepositLeaf hash mismatch: expected %v, got %v", depositLeafWithId.DepositLeaf.Hash(), common.Hash(depositHash))
+					}
+
+					lastDepositRoot, err = b.AppendDepositTreeLeaf(common.Hash(depositHash), depositLeafWithId.DepositLeaf)
 					if err != nil {
 						return fmt.Errorf("failed to add deposit leaf: %v", err.Error())
 					}
 
-					err := b.UpdateDepositIndexByDepositHash(common.Hash(depositHash), uint32(i))
+					fmt.Printf("deposit index by deposit hash: %d, %v\n", depositIndex, common.Hash(depositHash))
+					err = b.UpdateDepositIndexByDepositHash(common.Hash(depositHash), depositIndex)
 					if err != nil {
 						return fmt.Errorf("failed to update deposit index: %v", err.Error())
 					}
+
+					depositIndex++
 				}
 
 				if lastDepositRoot != common.Hash(deposit.DepositTreeRoot) {

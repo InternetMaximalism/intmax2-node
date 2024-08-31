@@ -13,7 +13,7 @@ import (
 
 type BlockValidityProver interface {
 	SyncDepositedEvents() error
-	SyncDepositTree(endBlock *uint64) error
+	SyncDepositTree(endBlock *uint64, depositIndex uint32) error
 	// SyncBlockTree(_ BlockSynchronizer) (endBlock uint64, err error)
 	SyncBlockTree(
 		bps BlockSynchronizer,
@@ -24,6 +24,7 @@ type BlockValidityProver interface {
 		postedBlock *block_post_service.PostedBlock,
 	) error
 	BlockBuilder() BlockBuilderStorage
+	FetchLastDepositIndex() (uint32, error)
 }
 
 type BlockSynchronizer interface {

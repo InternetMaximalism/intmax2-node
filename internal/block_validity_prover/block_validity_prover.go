@@ -93,3 +93,7 @@ func (d *blockValidityProver) FetchScrollCalldataByHash(txHash common.Hash) ([]b
 
 	return calldata, nil
 }
+
+func (d *blockValidityProver) FetchLastDepositIndex() (uint32, error) {
+	return d.blockBuilder.FetchLastDepositIndex()
+}

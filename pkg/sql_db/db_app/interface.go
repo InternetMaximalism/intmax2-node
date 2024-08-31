@@ -219,11 +219,12 @@ type BackupBalances interface {
 
 type Deposits interface {
 	CreateDeposit(depositLeaf intMaxTree.DepositLeaf, depositID uint32) (*models.Deposit, error)
-	UpdateDepositIndexByDepositHash(depositHash common.Hash, tokenIndex uint32) error
+	UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error
 	Deposit(ID string) (*models.Deposit, error)
 	DepositByDepositID(depositID uint32) (*models.Deposit, error)
 	DepositByDepositHash(depositHash common.Hash) (*models.Deposit, error)
 	ScanDeposits() ([]*models.Deposit, error)
+	FetchLastDepositIndex() (uint32, error)
 }
 
 type BlockContents interface {
