@@ -1,5 +1,4 @@
 use anyhow::Context as _;
-use base64::prelude::*;
 use intmax2_zkp::{
     circuits::{
         balance::balance_processor::BalanceProcessor, validity::validity_circuit::ValidityCircuit,
@@ -24,7 +23,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::app::{
     config,
-    encode::{decode_plonky2_proof, decode_plonky2_proof_original, encode_plonky2_proof},
+    encode::{decode_plonky2_proof, encode_plonky2_proof},
 };
 
 const D: usize = 2;
@@ -44,12 +43,7 @@ impl SerializableUpdateWitness {
         &self,
         balance_circuit_data: &VerifierCircuitData<F, C, D>,
     ) -> anyhow::Result<UpdateWitness<F, C, D>> {
-        // let validity_proof = decode_plonky2_proof(&self.validity_proof, balance_circuit_data)?;
-        let validity_proof =
-            decode_plonky2_proof_original(&self.validity_proof, balance_circuit_data)?;
-        let encoded_validity_proof =
-            encode_plonky2_proof(validity_proof.clone(), balance_circuit_data)?;
-        println!("encoded_validity_proof: {}", encoded_validity_proof);
+        let validity_proof = decode_plonky2_proof(&self.validity_proof, balance_circuit_data)?;
         Ok(UpdateWitness {
             validity_proof,
             block_merkle_proof: self.block_merkle_proof.clone(),
@@ -72,7 +66,8 @@ impl SerializableReceiveTransferWitness {
         &self,
         balance_circuit_data: &VerifierCircuitData<F, C, D>,
     ) -> anyhow::Result<ReceiveTransferWitness<F, C, D>> {
-        let balance_proof = decode_plonky2_proof(&self.balance_proof, balance_circuit_data)?;
+        let balance_proof = decode_plonky2_proof(&self.balance_proof, balance_circuit_data)
+            .map_err(|e| anyhow::anyhow!("Failed to decode balance proof: {:?}", e))?;
         Ok(ReceiveTransferWitness {
             transfer_witness: self.transfer_witness.clone(),
             private_witness: self.private_witness.clone(),
@@ -99,16 +94,8 @@ pub async fn generate_receive_deposit_proof_job(
         &prev_balance_proof,
     );
 
-    let compressed_balance_proof = balance_proof
-        .clone()
-        .compress(
-            &balance_circuit_data.verifier_only.circuit_digest,
-            &balance_circuit_data.common,
-        )
-        .with_context(|| "Failed to compress proof")?;
-
     let encoded_compressed_balance_proof =
-        BASE64_STANDARD.encode(&compressed_balance_proof.to_bytes());
+        encode_plonky2_proof(balance_proof.clone(), &balance_circuit_data)?;
 
     let opts = SetOptions::default()
         .conditional_set(ExistenceCheck::NX)
@@ -143,16 +130,8 @@ pub async fn generate_balance_update_proof_job(
         &prev_balance_proof,
     );
 
-    let compressed_balance_proof = balance_proof
-        .clone()
-        .compress(
-            &balance_circuit_data.verifier_only.circuit_digest,
-            &balance_circuit_data.common,
-        )
-        .with_context(|| "Failed to compress proof")?;
-
     let encoded_compressed_balance_proof =
-        BASE64_STANDARD.encode(&compressed_balance_proof.to_bytes());
+        encode_plonky2_proof(balance_proof.clone(), &balance_circuit_data)?;
 
     let opts = SetOptions::default()
         .conditional_set(ExistenceCheck::NX)
@@ -185,16 +164,8 @@ pub async fn generate_balance_transfer_proof_job(
         &prev_balance_proof,
     );
 
-    let compressed_balance_proof = balance_proof
-        .clone()
-        .compress(
-            &balance_circuit_data.verifier_only.circuit_digest,
-            &balance_circuit_data.common,
-        )
-        .with_context(|| "Failed to compress proof")?;
-
     let encoded_compressed_balance_proof =
-        BASE64_STANDARD.encode(&compressed_balance_proof.to_bytes());
+        encode_plonky2_proof(balance_proof.clone(), &balance_circuit_data)?;
 
     let opts = SetOptions::default()
         .conditional_set(ExistenceCheck::NX)
@@ -232,7 +203,8 @@ pub async fn generate_balance_send_proof_job(
     );
 
     let encoded_compressed_balance_proof =
-        encode_plonky2_proof(balance_proof, &balance_circuit_data)?;
+        encode_plonky2_proof(balance_proof, &balance_circuit_data)
+            .map_err(|e| anyhow::anyhow!("Failed to encode balance proof: {:?}", e))?;
 
     let opts = SetOptions::default()
         .conditional_set(ExistenceCheck::NX)

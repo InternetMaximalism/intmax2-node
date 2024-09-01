@@ -1,4 +1,3 @@
-use intmax2_zkp::circuits::balance::balance_pis::BalancePublicInputs;
 use intmax2_zkp::common::witness::receive_deposit_witness::ReceiveDepositWitness;
 use intmax2_zkp::common::witness::send_witness::SendWitness;
 use serde::Deserialize;
@@ -25,8 +24,7 @@ pub struct ErrorResponse {
 #[serde(rename_all = "camelCase")]
 pub struct ProofResponse {
     pub success: bool,
-    pub proof: Option<String>, // includes public inputs
-    pub public_inputs: Option<BalancePublicInputs>,
+    pub proof: Option<String>,
     pub error_message: Option<String>,
 }
 

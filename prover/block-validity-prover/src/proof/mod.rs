@@ -30,7 +30,8 @@ pub async fn generate_block_validity_proof_job(
         .with_context(|| "Failed to prove block validity")?;
 
     let encoded_compressed_validity_proof =
-        encode_plonky2_proof(validity_proof, &validity_circuit_data)?;
+        encode_plonky2_proof(validity_proof, &validity_circuit_data)
+            .map_err(|e| anyhow::anyhow!("Failed to encode validity proof: {:?}", e))?;
 
     let opts = SetOptions::default()
         .conditional_set(ExistenceCheck::NX)

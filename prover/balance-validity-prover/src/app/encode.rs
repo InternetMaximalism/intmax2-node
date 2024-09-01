@@ -23,10 +23,10 @@ pub(crate) fn encode_plonky2_proof(
             &circuit_data.verifier_only.circuit_digest,
             &circuit_data.common,
         )
-        .map_err(|e| anyhow::anyhow!(e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to compress proof: {}", e))?;
 
-    let proof_bytes =
-        compressed_proof_to_bytes(&compressed_proof).map_err(|e| anyhow::anyhow!(e))?;
+    let proof_bytes = compressed_proof_to_bytes(&compressed_proof)
+        .map_err(|e| anyhow::anyhow!("Failed to serialize proof: {}", e))?;
 
     Ok(BASE64_STANDARD.encode(&proof_bytes))
 }
@@ -38,20 +38,6 @@ pub(crate) fn decode_plonky2_proof(
     let decoded_proof = BASE64_STANDARD.decode(&encoded_proof)?;
     let compressed_proof = compressed_proof_from_bytes(decoded_proof, &circuit_data.common)
         .map_err(|e| anyhow::anyhow!(e))?;
-
-    compressed_proof.decompress(
-        &circuit_data.verifier_only.circuit_digest,
-        &circuit_data.common,
-    )
-}
-
-pub(crate) fn decode_plonky2_proof_original(
-    encoded_proof: &str,
-    circuit_data: &VerifierCircuitData<F, C, D>,
-) -> anyhow::Result<ProofWithPublicInputs<F, C, D>> {
-    let decoded_proof = BASE64_STANDARD.decode(&encoded_proof)?;
-    let compressed_proof =
-        CompressedProofWithPublicInputs::from_bytes(decoded_proof, &circuit_data.common)?;
 
     compressed_proof.decompress(
         &circuit_data.verifier_only.circuit_digest,

@@ -24,7 +24,6 @@ use intmax2_zkp::{
 async fn get_proof(
     query_params: web::Path<(String, String)>,
     redis: web::Data<redis::Client>,
-    state: web::Data<AppState>,
 ) -> Result<impl Responder> {
     let mut conn = redis
         .get_async_connection()
@@ -49,7 +48,6 @@ async fn get_proof(
         let response = ProofResponse {
             success: false,
             proof: None,
-            public_inputs: None,
             error_message: Some(format!(
                 "balance proof is not generated (deposit_index: {})",
                 deposit_index
@@ -58,21 +56,9 @@ async fn get_proof(
         return Ok(HttpResponse::Ok().json(response));
     }
 
-    let balance_circuit_data = state
-        .balance_processor
-        .get()
-        .ok_or_else(|| error::ErrorInternalServerError("balance processor not initialized"))?
-        .balance_circuit
-        .data
-        .verifier_data();
-    let decompress_proof = decode_plonky2_proof(&proof.clone().unwrap(), &balance_circuit_data)
-        .map_err(error::ErrorInternalServerError)?;
-    let public_inputs = BalancePublicInputs::from_pis(&decompress_proof.public_inputs);
-
     let response = ProofResponse {
         success: true,
         proof,
-        public_inputs: Some(public_inputs),
         error_message: None,
     };
 
@@ -153,21 +139,9 @@ async fn generate_proof(
         .await
         .map_err(actix_web::error::ErrorInternalServerError)?;
     if let Some(old_proof) = old_proof {
-        let balance_circuit_data = state
-            .balance_processor
-            .get()
-            .ok_or_else(|| error::ErrorInternalServerError("balance processor not initialized"))?
-            .balance_circuit
-            .data
-            .verifier_data();
-        let decompress_proof = decode_plonky2_proof(&old_proof, &balance_circuit_data)
-            .map_err(error::ErrorInternalServerError)?;
-        let public_inputs = BalancePublicInputs::from_pis(&decompress_proof.public_inputs);
-
         let response = ProofResponse {
             success: true,
             proof: Some(old_proof),
-            public_inputs: Some(public_inputs),
             error_message: Some("balance proof already requested".to_string()),
         };
 
@@ -183,29 +157,29 @@ async fn generate_proof(
         .verifier_data();
     let prev_balance_proof = if let Some(req_prev_balance_proof) = &req.prev_balance_proof {
         log::debug!("requested proof size: {}", req_prev_balance_proof.len());
-        let prev_validity_proof =
+        let prev_balance_proof =
             decode_plonky2_proof(req_prev_balance_proof, &balance_circuit_data)
                 .map_err(error::ErrorInternalServerError)?;
         balance_circuit_data
-            .verify(prev_validity_proof.clone())
+            .verify(prev_balance_proof.clone())
             .map_err(error::ErrorInternalServerError)?;
 
-        Some(prev_validity_proof)
+        Some(prev_balance_proof)
     } else {
         None
     };
 
     let receive_deposit_witness = req.receive_deposit_witness.clone();
-    // let public_state = if let Some(prev_balance_proof) = &prev_balance_proof {
-    //     println!("not genesis");
-    //     BalancePublicInputs::from_pis(&prev_balance_proof.public_inputs).public_state
-    // } else {
-    //     println!("genesis");
-    //     PublicState::genesis()
-    // };
+    let public_state = if let Some(prev_balance_proof) = &prev_balance_proof {
+        println!("not genesis");
+        BalancePublicInputs::from_pis(&prev_balance_proof.public_inputs).public_state
+    } else {
+        println!("genesis");
+        PublicState::genesis()
+    };
 
-    // validate_witness(public_key, &public_state, &receive_deposit_witness)
-    //     .map_err(error::ErrorInternalServerError)?;
+    validate_witness(public_key, &public_state, &receive_deposit_witness)
+        .map_err(error::ErrorInternalServerError)?;
 
     // Spawn a new task to generate the proof
     actix_web::rt::spawn(async move {
@@ -238,7 +212,6 @@ async fn generate_proof(
     let response = ProofResponse {
         success: true,
         proof: None,
-        public_inputs: None,
         error_message: Some(format!(
             "balance proof (deposit_index: {}) is generating",
             deposit_index
@@ -272,10 +245,10 @@ fn validate_witness(
         public_state.deposit_tree_root.to_hex()
     );
 
-    let pubkey_salt_hash = get_pubkey_salt_hash(pubkey, deposit_salt);
-    if pubkey_salt_hash != deposit.pubkey_salt_hash {
-        anyhow::bail!("pubkey_salt_hash not match");
-    }
+    // let pubkey_salt_hash = get_pubkey_salt_hash(pubkey, deposit_salt);
+    // if pubkey_salt_hash != deposit.pubkey_salt_hash {
+    //     anyhow::bail!("pubkey_salt_hash not match");
+    // }
 
     let result =
         deposit_merkle_proof.verify(&deposit, deposit_index, public_state.deposit_tree_root);
