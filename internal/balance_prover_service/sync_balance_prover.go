@@ -2,7 +2,6 @@ package balance_prover_service
 
 import (
 	"errors"
-	intMaxTypes "intmax2-node/internal/types"
 	"math/rand"
 	"sort"
 )
@@ -20,7 +19,7 @@ func NewSyncBalanceProver() *SyncBalanceProver {
 }
 
 func (s *SyncBalanceProver) SyncSend(
-	syncValidityProver *SyncValidityProver,
+	syncValidityProver *syncValidityProver,
 	wallet *MockWallet,
 	balanceProcessor *BalanceProcessor,
 	blockBuilder MockBlockBuilder,
@@ -82,7 +81,7 @@ func (s *SyncBalanceProver) SyncSend(
 // Sync balance proof public state to the latest block
 // assuming that there is no un-synced send tx.
 func (s *SyncBalanceProver) SyncNoSend(
-	syncValidityProver *SyncValidityProver,
+	syncValidityProver *syncValidityProver,
 	wallet *MockWallet,
 	balanceProcessor *BalanceProcessor,
 	blockBuilder MockBlockBuilder,
@@ -136,7 +135,7 @@ func (s *SyncBalanceProver) SyncNoSend(
 }
 
 func (s *SyncBalanceProver) SyncAll(
-	syncValidityProver *SyncValidityProver,
+	syncValidityProver *syncValidityProver,
 	wallet *MockWallet,
 	balanceProcessor *BalanceProcessor,
 	blockBuilder MockBlockBuilder,
@@ -183,7 +182,7 @@ func (s *SyncBalanceProver) ReceiveTransfer(
 	balanceProcessor *BalanceProcessor,
 	blockBuilder MockBlockBuilder,
 	transferWitness *TransferWitness,
-	senderBalanceProof *intMaxTypes.Plonky2Proof,
+	senderBalanceProof string,
 ) error {
 	receiveTransferWitness, err := wallet.ReceiveTransferAndUpdate(
 		rng,

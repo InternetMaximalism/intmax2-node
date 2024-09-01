@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"intmax2-node/internal/finite_field"
+	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	intMaxTypes "intmax2-node/internal/types"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/iden3/go-iden3-crypto/ffg"
 )
 
 const DEPOSIT_TREE_HEIGHT uint8 = 32
@@ -68,6 +71,36 @@ func (dd *DepositLeaf) Equal(other *DepositLeaf) bool {
 	default:
 		return true
 	}
+}
+
+// pub fn to_u32_vec(&self) -> Vec<u32> {
+// 	let vec = vec![
+// 		self.pubkey_salt_hash.to_u32_vec(),
+// 		vec![self.token_index],
+// 		self.amount.to_u32_vec(),
+// 	]
+// 	.concat();
+// 	vec
+// }
+
+// pub fn poseidon_hash(&self) -> PoseidonHashOut {
+// 	PoseidonHashOut::hash_inputs_u32(&self.to_u32_vec())
+// }
+
+func (dd *DepositLeaf) ToFieldElementSlice() []ffg.Element {
+	buf := finite_field.NewBuffer(make([]ffg.Element, 0))
+
+	const int32Key = 32
+	finite_field.WriteFixedSizeBytes(buf, dd.RecipientSaltHash[:], int32Key)
+	finite_field.WriteUint32(buf, dd.TokenIndex)
+	amountUint256 := new(intMaxTypes.Uint256).FromBigInt(dd.Amount)
+	finite_field.WriteFixedSizeBytes(buf, amountUint256.Bytes(), int32Key)
+
+	return buf.Inner()
+}
+
+func (dd *DepositLeaf) Nullifier() *PoseidonHashOut {
+	return intMaxGP.HashNoPad(dd.ToFieldElementSlice())
 }
 
 type DepositTree struct {

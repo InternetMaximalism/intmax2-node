@@ -133,17 +133,16 @@ func (b *Bytes32) FromFieldElementSlice(value []ffg.Element) *Bytes32 {
 }
 
 func (b *Bytes32) FromPoseidonHashOut(value *PoseidonHashOut) *Bytes32 {
-	limbs := new(Bytes32)
 	for i, e := range value.Elements {
 		rawValue := e.ToUint64Regular()
 		low := uint32(rawValue)
 		high := uint32(rawValue >> 32)
 
-		limbs[i*2] = high
-		limbs[i*2+1] = low
+		b[i*2] = high
+		b[i*2+1] = low
 	}
 
-	return limbs
+	return b
 }
 
 func Uint32SliceToBytes(v []uint32) []byte {

@@ -15,7 +15,6 @@ import (
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"math/big"
-	"time"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common"
@@ -112,14 +111,16 @@ const (
 )
 
 func (ps *PublicState) FromFieldElementSlice(value []ffg.Element) *PublicState {
-	copy(ps.BlockTreeRoot.Elements[:], value[:intMaxGP.NUM_HASH_OUT_ELTS])
-	copy(ps.PrevAccountTreeRoot.Elements[:], value[prevAccountTreeRootOffset:accountTreeRootOffset])
-	copy(ps.AccountTreeRoot.Elements[:], value[accountTreeRootOffset:depositTreeRootOffset])
+	ps.BlockTreeRoot = new(intMaxGP.PoseidonHashOut).FromPartial(value[:intMaxGP.NUM_HASH_OUT_ELTS])
+	ps.PrevAccountTreeRoot = new(intMaxGP.PoseidonHashOut).FromPartial(value[prevAccountTreeRootOffset:accountTreeRootOffset])
+	ps.AccountTreeRoot = new(intMaxGP.PoseidonHashOut).FromPartial(value[accountTreeRootOffset:depositTreeRootOffset])
 	depositTreeRoot := intMaxTypes.Bytes32{}
 	copy(depositTreeRoot[:], FieldElementSliceToUint32Slice(value[depositTreeRootOffset:blockHashOffset]))
+	ps.DepositTreeRoot = common.Hash{}
 	copy(ps.DepositTreeRoot[:], depositTreeRoot.Bytes())
 	blockHash := intMaxTypes.Bytes32{}
 	copy(blockHash[:], FieldElementSliceToUint32Slice(value[blockHashOffset:blockNumberOffset]))
+	ps.BlockHash = common.Hash{}
 	copy(ps.BlockHash[:], blockHash.Bytes())
 	ps.BlockNumber = uint32(value[blockNumberOffset].ToUint64Regular())
 
@@ -1269,13 +1270,13 @@ type AuxInfo struct {
 }
 
 type mockBlockBuilder struct {
-	db                         SQLDriverApp
-	LastBlockNumber            uint32
-	AccountTree                *intMaxTree.AccountTree      // current account tree
-	BlockTree                  *intMaxTree.BlockHashTree    // current block hash tree
-	DepositTree                *intMaxTree.KeccakMerkleTree // current deposit tree
-	DepositLeaves              []*intMaxTree.DepositLeaf
-	DepositTreeRoots           []common.Hash
+	db              SQLDriverApp
+	LastBlockNumber uint32
+	AccountTree     *intMaxTree.AccountTree      // current account tree
+	BlockTree       *intMaxTree.BlockHashTree    // current block hash tree
+	DepositTree     *intMaxTree.KeccakMerkleTree // current deposit tree
+	DepositLeaves   []*intMaxTree.DepositLeaf
+	// DepositTreeRoots           []common.Hash
 	LastSeenProcessedDepositId uint64
 	lastValidityWitness        *ValidityWitness
 	ValidityProofs             []string
@@ -1316,7 +1317,7 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) BlockBuilderStora
 	if err != nil {
 		panic(err)
 	}
-	depositTreeRoot, _, _ := depositTree.GetCurrentRootCountAndSiblings()
+	// depositTreeRoot, _, _ := depositTree.GetCurrentRootCountAndSiblings()
 
 	validityWitness := new(ValidityWitness).Genesis()
 	auxInfo := make(map[uint32]*mDBApp.BlockContent)
@@ -1327,13 +1328,16 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) BlockBuilderStora
 	}
 
 	depositLeaves := make([]*intMaxTree.DepositLeaf, 0)
-	for i, deposit := range deposits {
+	for _, deposit := range deposits {
 		depositLeaf := intMaxTree.DepositLeaf{
 			RecipientSaltHash: deposit.RecipientSaltHash,
 			TokenIndex:        deposit.TokenIndex,
 			Amount:            deposit.Amount,
 		}
-		_, err = depositTree.AddLeaf(uint32(i), depositLeaf.Hash())
+		if deposit.DepositIndex == nil {
+			panic("deposit index should not be nil")
+		}
+		_, err = depositTree.AddLeaf(*deposit.DepositIndex, depositLeaf.Hash())
 		if err != nil {
 			panic(err)
 		}
@@ -1350,7 +1354,7 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) BlockBuilderStora
 		DepositTree:         depositTree,
 		DepositLeaves:       depositLeaves,
 		// DepositLeavesByHash: make(map[common.Hash]*DepositLeafWithId),
-		DepositTreeRoots: []common.Hash{depositTreeRoot},
+		// DepositTreeRoots: []common.Hash{depositTreeRoot},
 		// lastSeenProcessDepositsEventBlockNumber: cfg.Blockchain.RollupContractDeployedBlockNumber,
 		// lastSeenBlockPostedEventBlockNumber: cfg.Blockchain.RollupContractDeployedBlockNumber,
 		AuxInfo: auxInfo,
@@ -1503,6 +1507,15 @@ func (db *mockBlockBuilder) AccountTreeRoot() (*intMaxGP.PoseidonHashOut, error)
 	return db.AccountTree.GetRoot(), nil
 }
 
+func (db *mockBlockBuilder) GetAccountMembershipProof(_ uint32, publicKey *big.Int) (*intMaxTree.IndexedMembershipProof, error) {
+	proof, _, err := db.AccountTree.ProveMembership(publicKey)
+	if err != nil {
+		return nil, errors.New("account membership proof error")
+	}
+
+	return proof, nil
+}
+
 func (db *mockBlockBuilder) BlockTreeRoot() (*intMaxGP.PoseidonHashOut, error) {
 	return db.BlockTree.GetRoot(), nil
 }
@@ -1516,21 +1529,23 @@ func (db *mockBlockBuilder) BlockTreeProof(blockNumber uint32) (*intMaxTree.Merk
 	return &proof, nil
 }
 
-func (db *mockBlockBuilder) DepositTreeProof(blockNumber uint32) (*intMaxTree.KeccakMerkleProof, error) {
-	if blockNumber >= uint32(len(db.DepositLeaves)) {
-		fmt.Printf("leaves: %v\n", db.DepositLeaves)
+func (db *mockBlockBuilder) DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, error) {
+	if depositIndex >= uint32(len(db.DepositLeaves)) {
 		return nil, errors.New("block number is out of range")
 	}
 
 	leaves := make([][32]byte, 0)
-	for _, depositLeaf := range db.DepositLeaves {
+	for i, depositLeaf := range db.DepositLeaves {
+		fmt.Printf("leaves[%d]: %v\n", i, depositLeaf.Hash())
 		leaves = append(leaves, [32]byte(depositLeaf.Hash()))
 	}
-	proof, _, err := db.DepositTree.ComputeMerkleProof(blockNumber, leaves)
+	fmt.Printf("target leaves[%d]: %v\n", depositIndex, common.Hash(leaves[depositIndex]))
+	proof, root, err := db.DepositTree.ComputeMerkleProof(depositIndex, leaves)
 	if err != nil {
 		var ErrDepositTreeProof = errors.New("deposit tree proof error")
 		return nil, errors.Join(ErrDepositTreeProof, err)
 	}
+	fmt.Printf("DepositTreeProof deposit tree root: %s\n", root.String())
 
 	return proof, nil
 }
@@ -1733,35 +1748,6 @@ func generateValidityWitness(db BlockBuilderStorage, blockWitness *BlockWitness,
 			AccountUpdateProofs:       accountUpdateProofsWitness,
 		},
 	}, nil
-}
-
-type ValidityProcessor interface {
-	Prove(prevValidityProof *intMaxTypes.Plonky2Proof, validityWitness *ValidityWitness) (*intMaxTypes.Plonky2Proof, error)
-}
-
-type ExternalValidityProcessor struct {
-}
-
-func NewExternalValidityProcessor() *ExternalValidityProcessor {
-	return nil
-}
-
-func (p *ExternalValidityProcessor) Prove(prevValidityProof *intMaxTypes.Plonky2Proof, validityWitness *ValidityWitness) (*intMaxTypes.Plonky2Proof, error) {
-	return nil, nil
-}
-
-type SyncValidityProver struct {
-	ValidityProcessor ValidityProcessor
-	LastBlockNumber   uint32
-	ValidityProofs    map[uint32]*intMaxTypes.Plonky2Proof
-}
-
-func NewSyncValidityProver() *SyncValidityProver {
-	return &SyncValidityProver{
-		ValidityProcessor: NewExternalValidityProcessor(),
-		LastBlockNumber:   0,
-		ValidityProofs:    make(map[uint32]*intMaxTypes.Plonky2Proof),
-	}
 }
 
 func (b *mockBlockBuilder) LatestIntMaxBlockNumber() uint32 {
@@ -1978,57 +1964,6 @@ func (b *mockBlockBuilder) UpdateDepositIndexByDepositHash(depositHash common.Ha
 	}
 
 	return nil
-}
-
-func (b *SyncValidityProver) Sync(blockBuilder BlockBuilderStorage) {
-	currentBlockNumber := blockBuilder.LatestIntMaxBlockNumber()
-	fmt.Printf("currentBlockNumber: %d\n", currentBlockNumber)
-	blockNumber := b.LastBlockNumber + 1
-	for blockNumber <= currentBlockNumber {
-		prevValidityProof, ok := b.ValidityProofs[blockNumber-1]
-		if !ok && blockNumber != 1 {
-			panic("prev validity proof not found")
-		}
-		auxInfo, err := BlockAuxInfo(blockBuilder, blockNumber)
-		if err != nil {
-			if err.Error() == "block content by block number error" {
-				time.Sleep(1 * time.Second)
-				continue
-			}
-			panic("aux info not found")
-		}
-
-		blockWitness, err := blockBuilder.GenerateBlock(auxInfo.BlockContent, auxInfo.PostedBlock)
-		if err != nil {
-			panic(err)
-		}
-
-		prevValidityWitness, err := blockBuilder.LastValidityWitness()
-		if err != nil {
-			panic("last validity witness error")
-		}
-
-		fmt.Printf("generateValidityWitness blockNumber: %d\n", blockWitness.Block.BlockNumber)
-		validityWitness, err := generateValidityWitness(blockBuilder, blockWitness, prevValidityWitness)
-		if err != nil {
-			panic(err)
-		}
-
-		if err := blockBuilder.SetValidityWitness(blockNumber, validityWitness); err != nil {
-			panic(err)
-		}
-
-		validityProof, err := b.ValidityProcessor.Prove(prevValidityProof, validityWitness)
-		if err != nil {
-			panic(err)
-		}
-
-		b.ValidityProofs[blockNumber] = validityProof
-
-		blockNumber++
-	}
-
-	b.LastBlockNumber = currentBlockNumber
 }
 
 type CircuitData interface{}

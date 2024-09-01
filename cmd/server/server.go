@@ -363,6 +363,24 @@ func NewServerCmd(s *Server) *cobra.Command {
 							s.Log.Fatalf(msg, err.Error())
 						}
 
+						syncValidityProver, err := balance_prover_service.NewSyncValidityProver(
+							s.Context, s.Config, s.Log, s.SB, s.DbApp,
+						)
+						if err != nil {
+							const msg = "failed to get Sync Validity Prover: %+v"
+							s.Log.Fatalf(msg, err.Error())
+						}
+						err = balanceProverService.SyncBalanceProver.SyncNoSend(
+							syncValidityProver,
+							mockWallet,
+							balanceProverService.BalanceProcessor,
+							blockValidityProver.BlockBuilder(),
+						)
+						if err != nil {
+							const msg = "failed to sync balance prover: %+v"
+							s.Log.Fatalf(msg, err.Error())
+						}
+
 						for _, deposit := range userAllData.Deposits {
 							fmt.Printf("deposit ID: %d\n", deposit.DepositID)
 							_, depositIndex, err := blockValidityProver.BlockBuilder().GetDepositLeafAndIndexByHash(deposit.DepositHash)

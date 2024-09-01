@@ -338,6 +338,10 @@ func (td *Transfer) Hash() *PoseidonHashOut {
 	return goldenposeidon.HashNoPad(inputs)
 }
 
+func (td *Transfer) Nullifier() *PoseidonHashOut {
+	return td.Hash()
+}
+
 func (td *Transfer) Equal(other *Transfer) bool {
 	switch {
 	case !td.Recipient.Equal(other.Recipient),

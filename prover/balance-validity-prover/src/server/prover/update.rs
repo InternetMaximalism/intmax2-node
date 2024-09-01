@@ -1,6 +1,6 @@
 use crate::{
     app::{
-        encode::decode_plonky2_proof,
+        encode::{decode_plonky2_proof, decode_plonky2_proof_original, encode_plonky2_proof},
         interface::{
             ProofResponse, ProofUpdateRequest, ProofUpdateValue, ProofsUpdateResponse,
             UpdateIdQuery,
@@ -50,7 +50,7 @@ async fn get_proof(
                 block_hash
             )),
         };
-    
+
         return Ok(HttpResponse::Ok().json(response));
     }
 
@@ -61,8 +61,15 @@ async fn get_proof(
         .balance_circuit
         .data
         .verifier_data();
-    let decompress_proof = decode_plonky2_proof(&proof.clone().unwrap(), &balance_circuit_data)
-        .map_err(error::ErrorInternalServerError)?;
+    // let decompress_proof = decode_plonky2_proof(&proof.clone().unwrap(), &balance_circuit_data)
+    //     .map_err(error::ErrorInternalServerError)?;
+    let decompress_proof =
+        decode_plonky2_proof_original(&proof.clone().unwrap(), &balance_circuit_data)
+            .map_err(error::ErrorInternalServerError)?;
+    let encoded_decompress_proof =
+        encode_plonky2_proof(decompress_proof.clone(), &balance_circuit_data)
+            .map_err(error::ErrorInternalServerError)?;
+    println!("encoded_decompress_proof: {:?}", encoded_decompress_proof);
     let public_inputs = BalancePublicInputs::from_pis(&decompress_proof.public_inputs);
 
     let response = ProofResponse {

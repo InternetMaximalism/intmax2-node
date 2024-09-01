@@ -10,6 +10,8 @@ import (
 	"intmax2-node/internal/use_cases/backup_balance"
 	"math/big"
 	"math/rand"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 type MockWallet struct {
@@ -181,8 +183,11 @@ func (s *MockWallet) GeneratePrivateWitness(
 			return nil, err
 		}
 	}
+
+	fmt.Printf("inserting nullifier: %v\n", nullifier)
 	nullifierProof, err := nullifierTree.Insert(nullifier)
 	if err != nil {
+		fmt.Printf("insert nullifier error: %v\n", err)
 		return nil, errors.New("nullifier already exists")
 	}
 
@@ -221,8 +226,11 @@ func (s *MockWallet) updateOnReceive(witness *PrivateWitness) error {
 
 	newAssetLeaf := witness.PrevAssetLeaf.Add(witness.Amount)
 	newAssetTreeRoot := witness.AssetMerkleProof.GetRoot(newAssetLeaf, witness.TokenIndex)
+
+	fmt.Printf("inserting nullifier: %v\n", witness.Nullifier)
 	_, err = nullifierTree.Insert(witness.Nullifier)
 	if err != nil {
+		fmt.Printf("insert nullifier error: %v\n", err)
 		return errors.New("nullifier already exists")
 	}
 	_, err = assetTree.UpdateLeaf(witness.TokenIndex, newAssetLeaf)
@@ -251,6 +259,11 @@ func (s *MockWallet) ReceiveDepositAndUpdate(
 	blockBuilder MockBlockBuilder,
 	depositId uint32,
 ) (*ReceiveDepositWitness, error) {
+	for i, depositCase := range s.depositCases {
+		fmt.Printf("depositCase[%d]: %v\n", i, depositCase)
+		fmt.Printf("depositHash[%d]: %v\n", i, depositCase.Deposit.Hash())
+	}
+
 	depositCase, ok := s.depositCases[depositId]
 	if !ok {
 		return nil, errors.New("deposit not found")
@@ -260,6 +273,22 @@ func (s *MockWallet) ReceiveDepositAndUpdate(
 	if err != nil {
 		return nil, err
 	}
+	depositTreeRoot, err := blockBuilder.LastDepositTreeRoot()
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("ReceiveDepositAndUpdate deposit tree root: %s\n", depositTreeRoot.String())
+	fmt.Printf("depositCase.Deposit: %v\n", depositCase.Deposit)
+	fmt.Printf("depositCase.Deposit hash: %v\n", depositCase.Deposit.Hash())
+	for i, sibling := range depositMerkleProof.Siblings {
+		fmt.Printf("depositCase.Deposit Merkle proof: siblings[%d] = %s\n", i, common.Hash(sibling))
+	}
+	err = depositMerkleProof.Verify(depositTreeRoot, int(depositCase.DepositIndex), depositCase.Deposit.Hash())
+	if err != nil {
+		fmt.Printf("deposit Merkle proof verify error: %v\n", err)
+		return nil, err
+	}
+
 	depositWitness := DepositWitness{
 		DepositMerkleProof: depositMerkleProof,
 		DepositSalt:        depositCase.DepositSalt,
@@ -267,7 +296,7 @@ func (s *MockWallet) ReceiveDepositAndUpdate(
 		Deposit:            depositCase.Deposit,
 	}
 	deposit := depositWitness.Deposit
-	nullifier := deposit.Hash()
+	nullifier := deposit.Nullifier()
 	fmt.Printf("depositId: %v\n", depositId)
 	fmt.Printf("deposit: %v\n", deposit)
 	fmt.Printf("deposit (nullifier): %v\n", nullifier)
@@ -278,7 +307,7 @@ func (s *MockWallet) ReceiveDepositAndUpdate(
 	}
 
 	nullifierBytes32 := intMaxTypes.Bytes32{}
-	nullifierBytes32.FromBytes(nullifier[:])
+	nullifierBytes32.FromPoseidonHashOut(nullifier)
 	privateWitness, err := s.GeneratePrivateWitness(Salt(*newSalt), deposit.TokenIndex, deposit.Amount, nullifierBytes32)
 	if err != nil {
 		return nil, err
@@ -301,7 +330,7 @@ func (s *MockWallet) ReceiveTransferAndUpdate(
 	blockBuilder MockBlockBuilder,
 	lastBlockNumber uint32,
 	transferWitness *TransferWitness,
-	senderBalanceProof *intMaxTypes.Plonky2Proof,
+	senderBalanceProof string,
 ) (*ReceiveTransferWitness, error) {
 	receiveTransferWitness, err := s.GenerateReceiveTransferWitness(
 		rng,
@@ -328,7 +357,7 @@ func (s *MockWallet) GenerateReceiveTransferWitness(
 	blockBuilder MockBlockBuilder,
 	receiverBlockNumber uint32,
 	transferWitness *TransferWitness,
-	senderBalanceProof *intMaxTypes.Plonky2Proof,
+	senderBalanceProof string,
 	skipInsufficientCheck bool,
 ) (*ReceiveTransferWitness, error) {
 	transfer := transferWitness.Transfer
@@ -340,7 +369,12 @@ func (s *MockWallet) GenerateReceiveTransferWitness(
 		return nil, errors.New("invalid recipient address")
 	}
 
-	balancePis, err := new(BalancePublicInputs).FromPublicInputs(senderBalanceProof.PublicInputs)
+	senderBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(senderBalanceProof)
+	if err != nil {
+		return nil, err
+	}
+
+	balancePis, err := new(BalancePublicInputs).FromPublicInputs(senderBalanceProofWithPis.PublicInputs)
 	if err != nil {
 		return nil, err
 	}
@@ -359,7 +393,7 @@ func (s *MockWallet) GenerateReceiveTransferWitness(
 		}
 	}
 
-	nullifier := transfer.Hash()
+	nullifier := transfer.Nullifier()
 	nullifierBytes32 := intMaxTypes.Bytes32{}
 	nullifierBytes32.FromPoseidonHashOut(nullifier)
 	privateWitness, err := s.GeneratePrivateWitness(Salt(*new(poseidonHashOut)), transfer.TokenIndex, transfer.Amount, nullifierBytes32)

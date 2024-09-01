@@ -446,6 +446,8 @@ func (t *IndexedMerkleTree) Insert(key *big.Int, value uint64) (*IndexedInsertio
 	lowIndex := t.GetLowIndex(key)
 
 	prevLowLeaf := new(IndexedMerkleLeaf).Set(t.GetLeaf(lowIndex))
+	fmt.Printf("lowIndex: %d\n", lowIndex)
+	fmt.Printf("prevLowLeaf.Key: %v, key: %s\n", prevLowLeaf, key)
 	if prevLowLeaf.Key.Cmp(key) == 0 {
 		return nil, errors.New("key already exists")
 	}

@@ -9,6 +9,7 @@ import (
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/logger"
+	intMaxTypes "intmax2-node/internal/types"
 	"net/http"
 	"strconv"
 	"strings"
@@ -52,8 +53,6 @@ func (s *BalanceProcessor) ProveUpdate(
 	// request balance prover
 	fmt.Println("ProveUpdate")
 	fmt.Printf("publicKey: %v\n", publicKey)
-	fmt.Printf("updateWitness: %v\n", updateWitness)
-	fmt.Printf("lastBalanceProof: %v\n", lastBalanceProof)
 	requestID, err := s.requestUpdateBalanceValidityProof(publicKey, updateWitness, lastBalanceProof)
 	if err != nil {
 		return nil, err
@@ -206,11 +205,46 @@ type BalanceValidityResponse struct {
 	Message string `json:"message"`
 }
 
+type MerkleProofInput = []string
+
+type IndexedMembershipProofInput struct {
+	IsIncluded bool                    `json:"isIncluded"`
+	LeafProof  IndexedMerkleProofInput `json:"leafProof"`
+	LeafIndex  LeafIndexInput          `json:"leafIndex"`
+	Leaf       IndexedMerkleLeafInput  `json:"leaf"`
+}
+
+type UpdateWitnessInput struct {
+	ValidityProof          string                      `json:"validityProof"`
+	BlockMerkleProof       MerkleProofInput            `json:"blockMerkleProof"`
+	AccountMembershipProof IndexedMembershipProofInput `json:"accountMembershipProof"`
+}
+
 type UpdateBalanceValidityInput struct {
-	UpdateWitness *UpdateWitness `json:"updateWitness"`
+	UpdateWitness *UpdateWitnessInput `json:"balanceUpdateWitness"`
 
 	// base64 encoded string
 	PrevBalanceProof *string `json:"prevBalanceProof,omitempty"`
+}
+
+func (input *UpdateWitnessInput) FromUpdateWitness(updateWitness *UpdateWitness) *UpdateWitnessInput {
+	input.ValidityProof = updateWitness.ValidityProof
+	input.BlockMerkleProof = make(MerkleProofInput, len(updateWitness.BlockMerkleProof.Siblings))
+	for i := range updateWitness.BlockMerkleProof.Siblings {
+		input.BlockMerkleProof[i] = updateWitness.BlockMerkleProof.Siblings[i].String()
+	}
+
+	input.AccountMembershipProof.IsIncluded = updateWitness.AccountMembershipProof.IsIncluded
+	input.AccountMembershipProof.LeafProof = make(IndexedMerkleProofInput, len(updateWitness.AccountMembershipProof.LeafProof.Siblings))
+	for i := range updateWitness.AccountMembershipProof.LeafProof.Siblings {
+		input.AccountMembershipProof.LeafProof[i] = new(poseidonHashOut).Set(updateWitness.AccountMembershipProof.LeafProof.Siblings[i])
+	}
+	input.AccountMembershipProof.LeafIndex = updateWitness.AccountMembershipProof.LeafIndex
+	input.AccountMembershipProof.Leaf = IndexedMerkleLeafInput{}
+	fmt.Printf("updateWitness.AccountMembershipProof.Leaf: %v\n", updateWitness.AccountMembershipProof.Leaf)
+	input.AccountMembershipProof.Leaf.FromIndexedMerkleLeaf(&updateWitness.AccountMembershipProof.Leaf)
+
+	return input
 }
 
 type ReceiveDepositBalanceValidityInput struct {
@@ -221,15 +255,15 @@ type ReceiveDepositBalanceValidityInput struct {
 }
 
 type SendBalanceValidityInput struct {
-	SendWitness   *SendWitness   `json:"sendWitness"`
-	UpdateWitness *UpdateWitness `json:"updateWitness"`
+	SendWitness   *SendWitnessInput   `json:"sendWitness"`
+	UpdateWitness *UpdateWitnessInput `json:"updateWitness"`
 
 	// base64 encoded string
 	PrevBalanceProof *string `json:"prevBalanceProof,omitempty"`
 }
 
 type ReceiveTransferBalanceValidityInput struct {
-	ReceiveTransferWitness *ReceiveTransferWitness `json:"receiveTransferWitness"`
+	ReceiveTransferWitness *ReceiveTransferWitnessInput `json:"receiveTransferWitness"`
 
 	// base64 encoded string
 	PrevBalanceProof *string `json:"prevBalanceProof,omitempty"`
@@ -246,9 +280,13 @@ func (p *BalanceProcessor) requestUpdateBalanceValidityProof(
 	prevBalanceProof *string,
 ) (string, error) {
 	requestBody := UpdateBalanceValidityInput{
-		UpdateWitness:    updateWitness,
+		UpdateWitness:    new(UpdateWitnessInput).FromUpdateWitness(updateWitness),
 		PrevBalanceProof: prevBalanceProof,
 	}
+
+	// bd2, _ := json.Marshal(requestBody.UpdateWitness)
+	// fmt.Printf("requestBody: %s\n", bd2)
+
 	bd, err := json.Marshal(requestBody)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal JSON request body: %w", err)
@@ -297,7 +335,12 @@ func (p *BalanceProcessor) requestUpdateBalanceValidityProof(
 		return "", fmt.Errorf("failed to send the balance proof request for SendWitness: %s", response.Message)
 	}
 
-	requestID := new(block_validity_prover.ValidityPublicInputs).FromPublicInputs(updateWitness.ValidityProof.PublicInputs).PublicState.BlockHash.Hex()
+	validityProofWithPlonky2Proof, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(updateWitness.ValidityProof)
+	if err != nil {
+		return "", err
+	}
+
+	requestID := new(block_validity_prover.ValidityPublicInputs).FromPublicInputs(validityProofWithPlonky2Proof.PublicInputs).PublicState.BlockHash.Hex()
 
 	return requestID, nil
 }
@@ -311,7 +354,7 @@ func (p *BalanceProcessor) requestReceiveDepositBalanceValidityProof(
 	prevBalanceProof *string,
 ) (string, error) {
 	requestBody := ReceiveDepositBalanceValidityInput{
-		ReceiveDepositWitness: new(ReceiveDepositWitnessInput).FromPrivateWitness(receiveDepositWitness),
+		ReceiveDepositWitness: new(ReceiveDepositWitnessInput).FromReceiveDepositWitness(receiveDepositWitness),
 		PrevBalanceProof:      prevBalanceProof,
 	}
 	bd, err := json.Marshal(requestBody)
@@ -379,8 +422,8 @@ func (p *BalanceProcessor) requestSendBalanceValidityProof(
 	prevBalanceProof *string,
 ) (string, error) {
 	requestBody := SendBalanceValidityInput{
-		SendWitness:      sendWitness,
-		UpdateWitness:    updateWitness,
+		SendWitness:      new(SendWitnessInput).FromSendWitness(sendWitness),
+		UpdateWitness:    new(UpdateWitnessInput).FromUpdateWitness(updateWitness),
 		PrevBalanceProof: prevBalanceProof,
 	}
 	bd, err := json.Marshal(requestBody)
@@ -446,7 +489,7 @@ func (p *BalanceProcessor) requestReceiveTransferBalanceValidityProof(
 	prevBalanceProof *string,
 ) (string, error) {
 	requestBody := ReceiveTransferBalanceValidityInput{
-		ReceiveTransferWitness: receiveTransferWitness,
+		ReceiveTransferWitness: new(ReceiveTransferWitnessInput).FromReceiveTransferWitness(receiveTransferWitness),
 		PrevBalanceProof:       prevBalanceProof,
 	}
 	bd, err := json.Marshal(requestBody)

@@ -1,8 +1,12 @@
 package types
 
 import (
+	"bufio"
+	"bytes"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"os"
 
 	"github.com/iden3/go-iden3-crypto/ffg"
@@ -45,6 +49,59 @@ func (p *Plonky2Proof) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+func NewCompressedPlonky2ProofFromBytes(proof []byte) (*Plonky2Proof, error) {
+	reader := bufio.NewReader(bytes.NewReader(proof))
+	numPublicInputs := uint32(0)
+	err := binary.Read(reader, binary.LittleEndian, &numPublicInputs)
+	if err != nil {
+		return nil, err
+	}
+
+	publicInputs := make([]ffg.Element, numPublicInputs)
+	for i := 0; i < int(numPublicInputs); i++ {
+		v := uint64(0)
+		binary.Read(reader, binary.LittleEndian, &v)
+		publicInputs[i].SetUint64(v)
+	}
+
+	return &Plonky2Proof{
+		PublicInputs: publicInputs,
+		Proof:        proof,
+	}, nil
+}
+
+func NewCompressedPlonky2ProofFromBase64String(proof string) (*Plonky2Proof, error) {
+	decodedProof, err := base64.StdEncoding.DecodeString(proof)
+	if err != nil {
+		return nil, errors.New("failed to decode transaction")
+	}
+
+	reader := bufio.NewReader(bytes.NewReader(decodedProof))
+	numPublicInputs := uint32(0)
+	err = binary.Read(reader, binary.LittleEndian, &numPublicInputs)
+	if err != nil {
+		return nil, err
+	}
+
+	publicInputs := make([]ffg.Element, numPublicInputs)
+	for i := 0; i < int(numPublicInputs); i++ {
+		v := uint64(0)
+		binary.Read(reader, binary.LittleEndian, &v)
+		publicInputs[i].SetUint64(v)
+	}
+
+	proofBytes := []byte{}
+	_, err = reader.Read(proofBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Plonky2Proof{
+		PublicInputs: publicInputs,
+		Proof:        proofBytes,
+	}, nil
 }
 
 func MakeSamplePlonky2Proof() (*Plonky2Proof, error) {

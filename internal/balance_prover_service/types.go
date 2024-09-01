@@ -2,6 +2,7 @@ package balance_prover_service
 
 import (
 	"errors"
+	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_validity_prover"
 	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
@@ -43,6 +44,89 @@ func (w *TxWitness) GetSenderTree() (*intMaxTree.SenderTree, error) {
 	return senderTree, nil
 }
 
+type TransferInput struct {
+	Recipient  string      `json:"recipient"`
+	TokenIndex uint32      `json:"tokenIndex"`
+	Amount     AmountInput `json:"amount"`
+	Salt       SaltInput   `json:"salt"`
+}
+
+func (input *TransferInput) FromTransfer(value *intMaxTypes.Transfer) *TransferInput {
+	input.Recipient = hexutil.Encode(value.Recipient.Address[:])
+	input.TokenIndex = value.TokenIndex
+	input.Amount = value.Amount.String()
+	input.Salt = value.Salt.String()
+
+	return input
+}
+
+type SenderLeafInput struct {
+	Sender  string `json:"sender"`
+	IsValid bool   `json:"isValid"`
+}
+
+type PublicStateInput struct {
+	BlockTreeRoot       *poseidonHashOut `json:"blockTreeRoot"`
+	PrevAccountTreeRoot *poseidonHashOut `json:"prevAccountTreeRoot"`
+	AccountTreeRoot     *poseidonHashOut `json:"accountTreeRoot"`
+	DepositTreeRoot     string           `json:"depositTreeRoot"`
+	BlockHash           string           `json:"blockHash"`
+	BlockNumber         uint32           `json:"blockNumber"`
+}
+
+func (input *PublicStateInput) FromPublicState(value *block_validity_prover.PublicState) *PublicStateInput {
+	input.BlockTreeRoot = value.BlockTreeRoot
+	input.PrevAccountTreeRoot = value.PrevAccountTreeRoot
+	input.AccountTreeRoot = value.AccountTreeRoot
+	input.DepositTreeRoot = value.DepositTreeRoot.String()
+	input.BlockHash = value.BlockHash.String()
+	input.BlockNumber = value.BlockNumber
+
+	return input
+}
+
+type ValidityPublicInputsInput struct {
+	PublicState    *PublicStateInput
+	TxTreeRoot     string
+	SenderTreeRoot string
+	IsValidBlock   bool
+}
+
+type TxInput struct {
+	TransferTreeRoot string
+	Nonce            uint64
+}
+
+type TxWitnessInput struct {
+	ValidityPis   ValidityPublicInputsInput `json:"validityPis"`
+	SenderLeaves  []*SenderLeafInput        `json:"senderLeaves"`
+	Tx            TxInput                   `json:"tx"`
+	TxIndex       uint32                    `json:"txIndex"`
+	TxMerkleProof []string                  `json:"txMerkleProof"`
+}
+
+type InsufficientFlagsInput = string
+
+type PoseidonHashOutInput = string
+
+type BalancePublicInputsInput struct {
+	PublicKey               PoseidonHashOutInput   `json:"pubkey"`
+	PrivateCommitment       PoseidonHashOutInput   `json:"privateCommitment"`
+	LastTxHash              PoseidonHashOutInput   `json:"lastTxHash"`
+	LastTxInsufficientFlags InsufficientFlagsInput `json:"lastTxInsufficientFlags"`
+	PublicState             *PublicStateInput      `json:"publicState"`
+}
+
+func (input *BalancePublicInputsInput) FromBalancePublicInputs(value *BalancePublicInputs) *BalancePublicInputsInput {
+	input.PublicKey = value.PubKey.String()
+	input.PrivateCommitment = value.PrivateCommitment.String()
+	input.LastTxHash = value.LastTxHash.String()
+	input.LastTxInsufficientFlags = hexutil.Encode(value.LastTxInsufficientFlags.Bytes())
+	input.PublicState = new(PublicStateInput).FromPublicState(value.PublicState)
+
+	return input
+}
+
 // Information needed to prove that a balance has been sent
 type SendWitness struct {
 	PrevBalancePis      *BalancePublicInputs             `json:"prevBalancePis"`
@@ -53,6 +137,42 @@ type SendWitness struct {
 	Transfers           []*intMaxTypes.Transfer          `json:"transfers"`
 	TxWitness           TxWitness                        `json:"txWitness"`
 	NewPrivateStateSalt Salt                             `json:"newPrivateStateSalt"`
+}
+
+type SendWitnessInput struct {
+	PrevBalancePis      *BalancePublicInputsInput `json:"prevBalancePis"`
+	PrevPrivateState    *PrivateStateInput        `json:"prevPrivateState"`
+	PrevBalances        []*AssetLeafInput         `json:"prevBalances"`
+	AssetMerkleProofs   []AssetMerkleProofInput   `json:"assetMerkleProofs"`
+	InsufficientFlags   InsufficientFlagsInput    `json:"insufficientFlags"`
+	Transfers           []*TransferInput          `json:"transfers"`
+	TxWitness           TxWitnessInput            `json:"txWitness"`
+	NewPrivateStateSalt SaltInput                 `json:"newPrivateStateSalt"`
+}
+
+func (input *SendWitnessInput) FromSendWitness(value *SendWitness) *SendWitnessInput {
+	input.PrevBalancePis = new(BalancePublicInputsInput).FromBalancePublicInputs(value.PrevBalancePis)
+	input.PrevPrivateState = &PrivateStateInput{
+		AssetTreeRoot:     value.PrevPrivateState.AssetTreeRoot,
+		NullifierTreeRoot: value.PrevPrivateState.NullifierTreeRoot,
+		Nonce:             value.PrevPrivateState.Nonce,
+		Salt:              value.PrevPrivateState.Salt.String(),
+	}
+	input.PrevBalances = make([]*AssetLeafInput, len(value.PrevBalances))
+	for i, balance := range value.PrevBalances {
+		input.PrevBalances[i] = &AssetLeafInput{
+			IsInsufficient: balance.IsInsufficient,
+			Amount:         balance.Amount.BigInt().String(),
+		}
+	}
+	input.AssetMerkleProofs = make([]AssetMerkleProofInput, len(value.AssetMerkleProofs))
+	for i, proof := range value.AssetMerkleProofs {
+		input.AssetMerkleProofs[i] = make([]*poseidonHashOut, len(proof.Siblings))
+		copy(input.AssetMerkleProofs[i], proof.Siblings)
+	}
+	input.InsufficientFlags = hexutil.Encode(value.InsufficientFlags.Bytes())
+
+	return input
 }
 
 func (w *SendWitness) GetIncludedBlockNumber() uint32 {
@@ -193,9 +313,9 @@ func (w *SendWitness) GetNextLastTx() (*SendWitnessResult, error) {
 }
 
 type UpdateWitness struct {
-	ValidityProof          intMaxTypes.Plonky2Proof          `json:"validityProof"`
-	BlockMerkleProof       intMaxTree.BlockHashMerkleProof   `json:"blockMerkleProof"`
-	AccountMembershipProof intMaxTree.IndexedMembershipProof `json:"accountMembershipProof"`
+	ValidityProof          string                             `json:"validityProof"`
+	BlockMerkleProof       intMaxTree.BlockHashMerkleProof    `json:"blockMerkleProof"`
+	AccountMembershipProof *intMaxTree.IndexedMembershipProof `json:"accountMembershipProof"`
 }
 
 type DepositWitness struct {
@@ -243,6 +363,17 @@ type IndexedMerkleLeafInput struct {
 	Value     uint64 `json:"value"`
 	NextIndex int    `json:"nextIndex"`
 	NextKey   string `json:"nextKey"`
+}
+
+func (input *IndexedMerkleLeafInput) FromIndexedMerkleLeaf(value *intMaxTree.IndexedMerkleLeaf) *IndexedMerkleLeafInput {
+	fmt.Printf("input: %v\n", input)
+	fmt.Printf("value.Key: %v\n", value)
+	input.Key = value.Key.String()
+	input.Value = value.Value
+	input.NextIndex = value.NextIndex
+	input.NextKey = value.NextKey.String()
+
+	return input
 }
 
 type LeafIndexInput = int
@@ -324,7 +455,7 @@ type ReceiveDepositWitnessInput struct {
 	PrivateWitness *PrivateWitnessInput `json:"privateWitness"`
 }
 
-func (input *ReceiveDepositWitnessInput) FromPrivateWitness(value *ReceiveDepositWitness) *ReceiveDepositWitnessInput {
+func (input *ReceiveDepositWitnessInput) FromReceiveDepositWitness(value *ReceiveDepositWitness) *ReceiveDepositWitnessInput {
 	depositMerkleProofSiblings := make([]string, 0, len(value.DepositWitness.DepositMerkleProof.Siblings))
 	for _, sibling := range value.DepositWitness.DepositMerkleProof.Siblings {
 		depositMerkleProofSiblings = append(depositMerkleProofSiblings, hexutil.Encode(sibling[:]))
@@ -352,14 +483,62 @@ type TransferWitness struct {
 	TransferMerkleProof *intMaxTree.MerkleProof `json:"transferMerkleProof"`
 }
 
+type TransferWitnessInput struct {
+	Tx                  TxInput          `json:"tx"`
+	Transfer            TransferInput    `json:"transfer"`
+	TransferIndex       uint32           `json:"transferIndex"`
+	TransferMerkleProof MerkleProofInput `json:"transferMerkleProof"`
+}
+
+func (input *TransferWitnessInput) FromTransferWitness(value *TransferWitness) *TransferWitnessInput {
+	input.Tx = TxInput{
+		TransferTreeRoot: value.Tx.TransferTreeRoot.String(),
+		Nonce:            value.Tx.Nonce,
+	}
+	input.Transfer = TransferInput{
+		Recipient:  hexutil.Encode(value.Transfer.Recipient.Address[:]),
+		TokenIndex: value.Transfer.TokenIndex,
+		Amount:     value.Transfer.Amount.String(),
+		Salt:       value.Transfer.Salt.String(),
+	}
+	input.TransferIndex = value.TransferIndex
+	input.TransferMerkleProof = make([]string, len(value.TransferMerkleProof.Siblings))
+	for i := 0; i < len(value.TransferMerkleProof.Siblings); i++ {
+		input.TransferMerkleProof[i] = value.TransferMerkleProof.Siblings[i].String()
+	}
+
+	return input
+}
+
 type ReceiveTransferWitness struct {
 	TransferWitness  *TransferWitness                 `json:"transferWitness"`
 	PrivateWitness   *PrivateWitness                  `json:"privateWitness"`
-	BalanceProof     *intMaxTypes.Plonky2Proof        `json:"balanceProof"`
+	BalanceProof     string                           `json:"balanceProof"`
 	BlockMerkleProof *intMaxTree.BlockHashMerkleProof `json:"blockMerkleProof"`
 }
 
-type ValidityVerifierData struct{}
+type ReceiveTransferWitnessInput struct {
+	TransferWitness  *TransferWitnessInput `json:"transferWitness"`
+	PrivateWitness   *PrivateWitnessInput  `json:"privateWitness"`
+	BalanceProof     string                `json:"balanceProof"`
+	BlockMerkleProof MerkleProofInput      `json:"blockMerkleProof"`
+}
+
+func (input *ReceiveTransferWitnessInput) FromReceiveTransferWitness(value *ReceiveTransferWitness) *ReceiveTransferWitnessInput {
+	transferMerkleProof := make([]string, len(value.TransferWitness.TransferMerkleProof.Siblings))
+	for i, sibling := range value.TransferWitness.TransferMerkleProof.Siblings {
+		transferMerkleProof[i] = sibling.String()
+	}
+	input.TransferWitness = new(TransferWitnessInput).FromTransferWitness(value.TransferWitness)
+	input.PrivateWitness = new(PrivateWitnessInput).FromPrivateWitness(value.PrivateWitness)
+	input.BalanceProof = value.BalanceProof
+	input.BlockMerkleProof = make([]string, len(value.BlockMerkleProof.Siblings))
+	for i, sibling := range value.BlockMerkleProof.Siblings {
+		input.BlockMerkleProof[i] = sibling.String()
+	}
+
+	return input
+}
 
 type DepositCase struct {
 	DepositSalt  Salt                   `json:"depositSalt"`

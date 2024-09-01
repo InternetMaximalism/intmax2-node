@@ -103,7 +103,7 @@ func (p *pgx) ScanDeposits() ([]*mDBApp.Deposit, error) {
 		q = `SELECT
 			 id ,deposit_index ,deposit_hash ,recipient_salt_hash
 			 ,token_index ,amount ,created_at ,deposit_id
-			 FROM deposits`
+			 FROM deposits WHERE deposit_index IS NOT NULL ORDER BY deposit_index ASC`
 	)
 
 	rows, err := p.query(p.ctx, q)

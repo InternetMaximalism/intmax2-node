@@ -32,14 +32,16 @@ type ProcessDepositsInput struct {
 }
 
 func (b *mockBlockBuilder) LastDepositTreeRoot() (common.Hash, error) {
-	return b.DepositTreeRoots[len(b.DepositTreeRoots)-1], nil
+	root, _, _ := b.DepositTree.GetCurrentRootCountAndSiblings()
+	return root, nil
+	// return b.DepositTreeRoots[len(b.DepositTreeRoots)-1], nil
 }
 
-func (b *mockBlockBuilder) AppendDepositTreeRoot(root common.Hash) error {
-	b.DepositTreeRoots = append(b.DepositTreeRoots, root)
+// func (b *mockBlockBuilder) AppendDepositTreeRoot(root common.Hash) error {
+// 	b.DepositTreeRoots = append(b.DepositTreeRoots, root)
 
-	return nil
-}
+// 	return nil
+// }
 
 func (b *mockBlockBuilder) AppendDepositTreeLeaf(depositHash common.Hash, depositLeaf *intMaxTree.DepositLeaf) (root common.Hash, err error) {
 	_, count, _ := b.DepositTree.GetCurrentRootCountAndSiblings()
@@ -145,10 +147,10 @@ func (p *blockValidityProver) SyncDepositTree(latestBlock *uint64, depositIndex 
 					return fmt.Errorf("DepositTreeRoot mismatch: expected %v, got %v", common.Hash(deposit.DepositTreeRoot), lastDepositRoot)
 				}
 
-				err := b.AppendDepositTreeRoot(lastDepositRoot)
-				if err != nil {
-					return fmt.Errorf("failed to append deposit tree root: %v", err.Error())
-				}
+				// err := b.AppendDepositTreeRoot(lastDepositRoot)
+				// if err != nil {
+				// 	return fmt.Errorf("failed to append deposit tree root: %v", err.Error())
+				// }
 			}
 		}
 

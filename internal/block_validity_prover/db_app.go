@@ -76,6 +76,7 @@ type BlockHistory interface {
 	AccountTreeRoot() (*intMaxGP.PoseidonHashOut, error)
 	GetAccountTreeLeaf(sender *big.Int) (*intMaxTree.IndexedMerkleLeaf, error)
 	UpdateAccountTreeLeaf(sender *big.Int, lastBlockNumber uint64) (*intMaxTree.IndexedUpdateProof, error)
+	GetAccountMembershipProof(currentBlockNumber uint32, publicKey *big.Int) (*intMaxTree.IndexedMembershipProof, error)
 	AppendBlockTreeLeaf(block *block_post_service.PostedBlock) error
 	BlockTreeRoot() (*intMaxGP.PoseidonHashOut, error)
 	BlockTreeProof(blockNumber uint32) (*intMaxTree.MerkleProof, error)
@@ -83,7 +84,7 @@ type BlockHistory interface {
 
 type DepositTreeBuilder interface {
 	LastDepositTreeRoot() (common.Hash, error)
-	AppendDepositTreeRoot(depositTreeRoot common.Hash) error
+	// AppendDepositTreeRoot(depositTreeRoot common.Hash) error
 	AppendDepositTreeLeaf(depositHash common.Hash, depositLeaf *intMaxTree.DepositLeaf) (root common.Hash, err error)
 
 	DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, error)

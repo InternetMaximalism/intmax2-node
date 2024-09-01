@@ -2,6 +2,7 @@ package backup_balance
 
 import (
 	"context"
+	"encoding/binary"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/finite_field"
@@ -63,6 +64,15 @@ func (flags *InsufficientFlags) RandomAccess(index int) bool {
 	bitIndex := index % 32
 
 	return flags.Limbs[limbIndex]&(1<<bitIndex) != 0
+}
+
+func (flags *InsufficientFlags) Bytes() []byte {
+	buf := make([]byte, InsufficientFlagsLen*4)
+	for i, limb := range flags.Limbs {
+		binary.BigEndian.PutUint32(buf[i*4:], limb)
+	}
+
+	return buf
 }
 
 type BalancePublicInputs struct {

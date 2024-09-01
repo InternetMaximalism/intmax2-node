@@ -4,8 +4,8 @@ use intmax2_zkp::common::witness::send_witness::SendWitness;
 use serde::Deserialize;
 use serde::Serialize;
 
-use super::encode::SerializableReceiveTransferWitness;
-use super::encode::SerializableUpdateWitness;
+use crate::proof::SerializableReceiveTransferWitness;
+use crate::proof::SerializableUpdateWitness;
 
 #[derive(Debug, Serialize)]
 pub struct HealthCheckResponse {
