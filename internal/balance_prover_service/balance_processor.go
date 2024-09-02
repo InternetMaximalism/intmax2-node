@@ -73,9 +73,19 @@ func (s *BalanceProcessor) ProveUpdate(
 				return nil, err
 			}
 
+			balanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*proof.Proof)
+			if err != nil {
+				return nil, err
+			}
+
+			balancePublicInputs, err := new(BalancePublicInputs).FromPublicInputs(balanceProofWithPis.PublicInputs)
+			if err != nil {
+				return nil, err
+			}
+
 			return &BalanceProofWithPublicInputs{
 				Proof:        *proof.Proof,
-				PublicInputs: proof.PublicInputs,
+				PublicInputs: balancePublicInputs,
 			}, nil
 		}
 	}
@@ -112,9 +122,19 @@ func (s *BalanceProcessor) ProveReceiveDeposit(
 				return nil, err
 			}
 
+			balanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*proof.Proof)
+			if err != nil {
+				return nil, err
+			}
+
+			balancePublicInputs, err := new(BalancePublicInputs).FromPublicInputs(balanceProofWithPis.PublicInputs)
+			if err != nil {
+				return nil, err
+			}
+
 			return &BalanceProofWithPublicInputs{
 				Proof:        *proof.Proof,
-				PublicInputs: proof.PublicInputs,
+				PublicInputs: balancePublicInputs,
 			}, nil
 		}
 	}
@@ -152,9 +172,19 @@ func (s *BalanceProcessor) ProveSend(
 				return nil, err
 			}
 
+			balanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*proof.Proof)
+			if err != nil {
+				return nil, err
+			}
+
+			balancePublicInputs, err := new(BalancePublicInputs).FromPublicInputs(balanceProofWithPis.PublicInputs)
+			if err != nil {
+				return nil, err
+			}
+
 			return &BalanceProofWithPublicInputs{
 				Proof:        *proof.Proof,
-				PublicInputs: proof.PublicInputs,
+				PublicInputs: balancePublicInputs,
 			}, nil
 		}
 	}
@@ -191,9 +221,19 @@ func (s *BalanceProcessor) ProveReceiveTransfer(
 				return nil, err
 			}
 
+			balanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*proof.Proof)
+			if err != nil {
+				return nil, err
+			}
+
+			balancePublicInputs, err := new(BalancePublicInputs).FromPublicInputs(balanceProofWithPis.PublicInputs)
+			if err != nil {
+				return nil, err
+			}
+
 			return &BalanceProofWithPublicInputs{
 				Proof:        *proof.Proof,
-				PublicInputs: proof.PublicInputs,
+				PublicInputs: balancePublicInputs,
 			}, nil
 		}
 	}
@@ -546,10 +586,9 @@ func (p *BalanceProcessor) requestReceiveTransferBalanceValidityProof(
 }
 
 type BalanceValidityProofResponse struct {
-	Success      bool                 `json:"success"`
-	Proof        *string              `json:"proof,omitempty"`
-	PublicInputs *BalancePublicInputs `json:"publicInputs,omitempty"`
-	ErrorMessage *string              `json:"errorMessage,omitempty"`
+	Success      bool    `json:"success"`
+	Proof        *string `json:"proof,omitempty"`
+	ErrorMessage *string `json:"errorMessage,omitempty"`
 }
 
 // Execute the following request:

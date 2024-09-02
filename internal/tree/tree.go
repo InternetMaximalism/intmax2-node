@@ -14,6 +14,18 @@ type PoseidonMerkleTree struct {
 	nodeHashes map[int]*PoseidonHashOut
 }
 
+func (t *PoseidonMerkleTree) Set(other *PoseidonMerkleTree) *PoseidonMerkleTree {
+	t.height = other.height
+	t.zeroHashes = make([]*PoseidonHashOut, len(other.zeroHashes))
+	copy(t.zeroHashes, other.zeroHashes)
+	t.nodeHashes = make(map[int]*PoseidonHashOut)
+	for k, v := range other.nodeHashes {
+		t.nodeHashes[k] = v
+	}
+
+	return t
+}
+
 func (t *PoseidonMerkleTree) ClearCache() {
 	t.nodeHashes = make(map[int]*PoseidonHashOut)
 }

@@ -29,6 +29,8 @@ type balanceProverService struct {
 	SyncBalanceProver *SyncBalanceProver
 }
 
+type BalanceProverService = balanceProverService
+
 func NewBalanceProverService(
 	ctx context.Context,
 	cfg *configs.Config,
@@ -51,7 +53,7 @@ func NewBalanceProverService(
 	}
 }
 
-func (s *balanceProverService) DecodeUserData() (*DecodedUserData, error) {
+func (s *balanceProverService) DecodedUserData() (*DecodedUserData, error) {
 	fmt.Printf("Starting balance prover service: %s\n", s.wallet.IntMaxWalletAddress)
 
 	userAllData, err := balance_service.GetUserBalancesRawRequest(s.ctx, s.cfg, s.wallet.IntMaxWalletAddress)

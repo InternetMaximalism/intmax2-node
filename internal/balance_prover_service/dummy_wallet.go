@@ -105,7 +105,7 @@ func (s *MockWallet) GetAllBlockNumbers() []uint32 {
 }
 
 func (s *MockWallet) UpdatePublicState(publicState *block_validity_prover.PublicState) {
-	s.publicState = publicState
+	s.publicState = new(block_validity_prover.PublicState).Set(publicState)
 }
 
 func (s *MockWallet) GetLastSendWitness() *SendWitness {
@@ -269,7 +269,9 @@ func (s *MockWallet) ReceiveDepositAndUpdate(
 		return nil, errors.New("deposit not found")
 	}
 
-	depositMerkleProof, err := blockBuilder.DepositTreeProof(depositCase.DepositIndex)
+	lastValidityWitness, err := blockBuilder.LastValidityWitness()
+	blockNumber := lastValidityWitness.BlockWitness.Block.BlockNumber
+	depositMerkleProof, err := blockBuilder.DepositTreeProof(blockNumber, depositCase.DepositIndex)
 	if err != nil {
 		return nil, err
 	}
@@ -402,7 +404,7 @@ func (s *MockWallet) GenerateReceiveTransferWitness(
 	}
 
 	// blockMerkleProof, err := blockBuilder.GetBlockMerkleProof(receiverBlockNumber, balancePis.PublicState.BlockNumber)
-	blockMerkleProof, err := blockBuilder.BlockTreeProof(balancePis.PublicState.BlockNumber)
+	blockMerkleProof, err := blockBuilder.BlockTreeProof(receiverBlockNumber, balancePis.PublicState.BlockNumber)
 	if err != nil {
 		return nil, err
 	}

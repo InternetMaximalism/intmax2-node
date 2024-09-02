@@ -15,6 +15,18 @@ type PoseidonIncrementalMerkleTree struct {
 	currentRoot PoseidonHashOut
 }
 
+func (mt *PoseidonIncrementalMerkleTree) Set(other *PoseidonIncrementalMerkleTree) *PoseidonIncrementalMerkleTree {
+	mt.height = other.height
+	mt.zeroHashes = make([]*PoseidonHashOut, len(other.zeroHashes))
+	copy(mt.zeroHashes, other.zeroHashes)
+	mt.count = other.count
+	mt.siblings = make([]*PoseidonHashOut, len(other.siblings))
+	copy(mt.siblings, other.siblings)
+	mt.currentRoot = *new(PoseidonHashOut).Set(&other.currentRoot)
+
+	return mt
+}
+
 // NewPoseidonIncrementalMerkleTree creates new PoseidonIncrementalMerkleTree by giving leaf nodes.
 func NewPoseidonIncrementalMerkleTree(
 	height uint8,

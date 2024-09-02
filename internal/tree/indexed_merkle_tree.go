@@ -292,6 +292,17 @@ type IndexedMerkleTree struct {
 	inner  *PoseidonMerkleTree
 }
 
+func (t *IndexedMerkleTree) Set(other *IndexedMerkleTree) *IndexedMerkleTree {
+	t.Leaves = make([]*IndexedMerkleLeaf, len(other.Leaves))
+	for i, leaf := range other.Leaves {
+		t.Leaves[i] = new(IndexedMerkleLeaf).Set(leaf)
+	}
+
+	t.inner = new(PoseidonMerkleTree).Set(other.inner)
+
+	return t
+}
+
 type IndexedMembershipProof struct {
 	IsIncluded bool               `json:"isIncluded"`
 	LeafProof  IndexedMerkleProof `json:"leafProof"`

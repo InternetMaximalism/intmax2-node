@@ -173,7 +173,7 @@ func (s *syncValidityProver) FetchUpdateWitness(
 	}
 
 	// blockMerkleProof := blockBuilder.GetBlockMerkleProof(currentBlockNumber, targetBlockNumber)
-	blockMerkleProof, err := blockBuilder.BlockTreeProof(targetBlockNumber)
+	blockMerkleProof, err := blockBuilder.BlockTreeProof(currentBlockNumber, targetBlockNumber)
 	if err != nil {
 		return nil, err
 	}

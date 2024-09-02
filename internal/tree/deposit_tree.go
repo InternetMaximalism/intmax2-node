@@ -108,6 +108,14 @@ type DepositTree struct {
 	inner  *KeccakMerkleTree
 }
 
+func (t *DepositTree) Set(other *DepositTree) *DepositTree {
+	t.Leaves = make([]*DepositLeaf, len(other.Leaves))
+	copy(t.Leaves, other.Leaves)
+	t.inner = new(KeccakMerkleTree).Set(other.inner)
+
+	return t
+}
+
 func NewDepositTree(height uint8) (*DepositTree, error) {
 	return NewDepositTreeWithInitialLeaves(height, nil)
 }
@@ -158,6 +166,15 @@ func (t *DepositTree) AddLeaf(index uint32, leaf DepositLeaf) (root [numHashByte
 	return root, nil
 }
 
-func (t *DepositTree) ComputeMerkleProof(index uint32, leaves [][numHashBytes]byte) (siblings *KeccakMerkleProof, root common.Hash, err error) {
+func (t *DepositTree) ComputeMerkleProof(index uint32, leaves [][numHashBytes]byte) (proof *KeccakMerkleProof, root common.Hash, err error) {
+	return t.inner.ComputeMerkleProof(index, leaves)
+}
+
+func (t *DepositTree) Prove(index uint32) (proof *KeccakMerkleProof, root common.Hash, err error) {
+	leaves := make([][32]byte, 0)
+	for _, depositLeaf := range t.Leaves {
+		leaves = append(leaves, [32]byte(depositLeaf.Hash()))
+	}
+
 	return t.inner.ComputeMerkleProof(index, leaves)
 }

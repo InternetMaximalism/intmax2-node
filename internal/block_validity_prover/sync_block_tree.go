@@ -228,7 +228,10 @@ func (p *blockValidityProver) SyncBlockProver(
 		panic(err)
 	}
 
-	if err := p.blockBuilder.SetValidityWitness(validityWitness.BlockWitness.Block.BlockNumber, validityWitness); err != nil {
+	if err := p.blockBuilder.SetValidityWitness(
+		validityWitness.BlockWitness.Block.BlockNumber,
+		validityWitness,
+	); err != nil {
 		panic(err)
 	}
 

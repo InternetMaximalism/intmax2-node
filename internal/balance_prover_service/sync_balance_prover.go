@@ -2,6 +2,7 @@ package balance_prover_service
 
 import (
 	"errors"
+	"fmt"
 	"math/rand"
 	"sort"
 )
@@ -127,6 +128,8 @@ func (s *SyncBalanceProver) SyncNoSend(
 	// 	return err
 	// }
 
+	fmt.Printf("PublicInputs: %v\n", balanceProof.PublicInputs)
+	fmt.Printf("PublicState: %v\n", balanceProof.PublicInputs.PublicState)
 	s.LastBlockNumber = currentBlockNumber
 	s.LastBalanceProof = &balanceProof.Proof
 	wallet.UpdatePublicState(balanceProof.PublicInputs.PublicState)

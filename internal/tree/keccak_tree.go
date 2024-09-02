@@ -26,6 +26,18 @@ type KeccakMerkleTree struct {
 	currentRoot common.Hash
 }
 
+func (mt *KeccakMerkleTree) Set(other *KeccakMerkleTree) *KeccakMerkleTree {
+	mt.height = other.height
+	mt.zeroHashes = make([][32]byte, len(other.zeroHashes))
+	copy(mt.zeroHashes, other.zeroHashes)
+	mt.count = other.count
+	mt.siblings = make([][32]byte, len(other.siblings))
+	copy(mt.siblings, other.siblings)
+	mt.currentRoot = other.currentRoot
+
+	return mt
+}
+
 // NewKeccakMerkleTree creates new KeccakMerkleTree.
 func NewKeccakMerkleTree(height uint8, initialLeaves [][numHashBytes]byte, zeroHash common.Hash) (*KeccakMerkleTree, error) {
 	mt := &KeccakMerkleTree{
