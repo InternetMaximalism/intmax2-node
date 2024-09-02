@@ -15,6 +15,7 @@ import (
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"math/big"
+	"sort"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common"
@@ -509,10 +510,16 @@ func (b *AccountIdPacked) UnmarshalJSON(data []byte) error {
 }
 
 func (accountIDsPacked *AccountIdPacked) Pack(accountIDs []uint64) *AccountIdPacked {
-	accountIDsBytes := make([]byte, numAccountIDBytes*len(accountIDs))
+	accountIDsBytes := make([]byte, numAccountIDBytes*numOfSenders)
 	for i, accountID := range accountIDs {
 		chunkBytes := make([]byte, int8Key)
 		binary.BigEndian.PutUint64(chunkBytes, accountID)
+		copy(accountIDsBytes[i*numAccountIDBytes:(i+1)*numAccountIDBytes], chunkBytes[int8Key-numAccountIDBytes:])
+	}
+	const defaultAccountID = uint64(1)
+	for i := len(accountIDs); i < numOfSenders; i++ {
+		chunkBytes := make([]byte, int8Key)
+		binary.BigEndian.PutUint64(chunkBytes, defaultAccountID)
 		copy(accountIDsBytes[i*numAccountIDBytes:(i+1)*numAccountIDBytes], chunkBytes[int8Key-numAccountIDBytes:])
 	}
 
@@ -613,6 +620,13 @@ func (s *SignatureContent) Commitment() *intMaxGP.PoseidonHashOut {
 	commitment := intMaxGP.HashNoPad(flattenSignatureContent)
 
 	return commitment
+}
+
+func (s *SignatureContent) Hash() common.Hash {
+	commitment := s.Commitment()
+	result := new(intMaxTypes.Bytes32).FromPoseidonHashOut(commitment)
+
+	return common.Hash(result.Bytes())
 }
 
 func (s *SignatureContent) IsValidFormat(publicKeys []intMaxTypes.Uint256) error {
@@ -1303,6 +1317,8 @@ type mockBlockBuilder struct {
 	DepositTreeHistory         map[string]*intMaxTree.KeccakMerkleTree // deposit hash -> deposit tree
 }
 
+type MockBlockBuilderMemory = mockBlockBuilder
+
 // NewBlockHashTree is a Merkle tree that includes the genesis block in the 0th leaf from the beginning.
 func NewBlockHashTree(height uint8) (*intMaxTree.BlockHashTree, error) {
 	genesisBlock := new(block_post_service.PostedBlock).Genesis()
@@ -1312,7 +1328,7 @@ func NewBlockHashTree(height uint8) (*intMaxTree.BlockHashTree, error) {
 	return intMaxTree.NewBlockHashTreeWithInitialLeaves(height, initialLeaves)
 }
 
-func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) BlockBuilderStorage {
+func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilderMemory {
 	accountTree, err := intMaxTree.NewAccountTree(intMaxTree.ACCOUNT_TREE_HEIGHT)
 	if err != nil {
 		panic(err)
@@ -1583,6 +1599,19 @@ func (db *mockBlockBuilder) GetAccountMembershipProof(blockNumber uint32, public
 	return proof, nil
 }
 
+func (db *mockBlockBuilder) ProveInclusion(accountId uint64) (*AccountMerkleProof, error) {
+	leaf := db.AccountTree.GetLeaf(accountId)
+	proof, _, err := db.AccountTree.Prove(accountId)
+	if err != nil {
+		return nil, err
+	}
+
+	return &AccountMerkleProof{
+		MerkleProof: *proof,
+		Leaf:        *leaf,
+	}, nil
+}
+
 func (db *mockBlockBuilder) BlockTreeRoot() (*intMaxGP.PoseidonHashOut, error) {
 	return db.BlockTree.GetRoot(), nil
 }
@@ -1694,6 +1723,230 @@ func (db *mockBlockBuilder) GetAccountTreeLeaf(sender *big.Int) (*intMaxTree.Ind
 	prevLeaf := db.AccountTree.GetLeaf(accountID)
 
 	return prevLeaf, nil
+}
+
+func (db *mockBlockBuilder) ConstructSignature(
+	txTreeRoot intMaxTypes.Bytes32,
+	publicKeysHash intMaxTypes.Bytes32,
+	accountIDHash intMaxTypes.Bytes32,
+	isRegistrationBlock bool,
+	sortedTxs []*MockTxRequest,
+) (*SignatureContent, error) {
+	senderFlagBytes := [int16Key]byte{}
+	for i, tx := range sortedTxs {
+		var flag uint8 = 0
+		if tx.WillReturnSignature {
+			flag = 1
+		}
+		senderFlagBytes[i/int8Key] |= flag << (int8Key - 1 - i%int8Key)
+	}
+	senderFlag := intMaxTypes.Bytes16{}
+	senderFlag.FromBytes(senderFlagBytes[:])
+
+	flattenTxTreeRoot := finite_field.BytesToFieldElementSlice(txTreeRoot.Bytes())
+
+	signatures := make([]*bn254.G2Affine, len(sortedTxs))
+	for i, keyPair := range sortedTxs {
+		signature, err := keyPair.Sender.WeightByHash(publicKeysHash.Bytes()).Sign(flattenTxTreeRoot)
+		if err != nil {
+			return nil, err
+		}
+		signatures[i] = signature
+	}
+
+	messagePoint := intMaxGP.HashToG2(flattenTxTreeRoot)
+
+	aggregatedSignature := new(bn254.G2Affine)
+	for _, signature := range signatures {
+		aggregatedSignature.Add(aggregatedSignature, signature)
+	}
+
+	fmt.Printf("sortedTxs: %v\n", sortedTxs)
+	aggregatedPublicKey := new(intMaxAcc.PublicKey)
+	for _, keyPair := range sortedTxs {
+		weightedPublicKey := keyPair.Sender.Public().WeightByHash(publicKeysHash.Bytes())
+		aggregatedPublicKey.Add(aggregatedPublicKey, weightedPublicKey)
+	}
+
+	if aggregatedPublicKey.Pk == nil {
+		aggregatedPublicKey.Pk = new(bn254.G1Affine)
+		aggregatedPublicKey.Pk.X.SetZero()
+		aggregatedPublicKey.Pk.Y.SetZero()
+	}
+
+	fmt.Printf("aggregatedPublicKey: %v\n", aggregatedPublicKey)
+	return &SignatureContent{
+		IsRegistrationBlock: isRegistrationBlock,
+		TxTreeRoot:          txTreeRoot,
+		SenderFlag:          senderFlag,
+		PublicKeyHash:       publicKeysHash,
+		AccountIDHash:       accountIDHash,
+		AggPublicKey:        intMaxTypes.FlattenG1Affine(aggregatedPublicKey.Pk),
+		AggSignature:        intMaxTypes.FlattenG2Affine(aggregatedSignature),
+		MessagePoint:        intMaxTypes.FlattenG2Affine(&messagePoint),
+	}, nil
+}
+
+func (db *mockBlockBuilder) GenerateBlockWithTxTree(
+	isRegistrationBlock bool,
+	txs []*MockTxRequest,
+) (*BlockWitness, *intMaxTree.TxTree, error) {
+	const numOfSenders = 128
+	if len(txs) > numOfSenders {
+		panic("too many txs")
+	}
+
+	// sort and pad txs
+	sortedTxs := make([]*MockTxRequest, len(txs))
+	copy(sortedTxs, txs)
+	sort.Slice(sortedTxs, func(i, j int) bool {
+		return sortedTxs[j].Sender.PublicKey.BigInt().Cmp(sortedTxs[i].Sender.PublicKey.BigInt()) == 1
+	})
+
+	publicKeys := make([]intMaxTypes.Uint256, len(sortedTxs))
+	for i, tx := range sortedTxs {
+		fmt.Printf("tx: %v\n", tx)
+		publicKeys[i] = *new(intMaxTypes.Uint256).FromBigInt(tx.Sender.Public().BigInt())
+	}
+
+	dummyPublicKey := intMaxAcc.NewDummyPublicKey()
+	publicKeys = append(publicKeys, make([]intMaxTypes.Uint256, numOfSenders-len(publicKeys))...)
+	for i := len(publicKeys); i < numOfSenders; i++ {
+		publicKeys[i] = *new(intMaxTypes.Uint256).FromBigInt(dummyPublicKey.BigInt())
+	}
+
+	blockNumber := db.lastValidityWitness.BlockWitness.Block.BlockNumber
+
+	var accountIDPacked *AccountIdPacked
+	var accountMerkleProofs []AccountMerkleProof
+	var accountMembershipProofs []intMaxTree.IndexedMembershipProof
+	accountIDs := make([]uint64, 0)
+	if isRegistrationBlock {
+		accountMembershipProofs = make([]intMaxTree.IndexedMembershipProof, 0)
+		for _, publicKey := range publicKeys {
+			isDummy := publicKey.BigInt().Cmp(intMaxAcc.NewDummyPublicKey().BigInt()) == 0
+			if !isDummy {
+				proof, err := db.GetAccountMembershipProof(blockNumber, publicKey.BigInt())
+				if err != nil {
+					panic("account membership proof error")
+				}
+
+				accountMembershipProofs = append(accountMembershipProofs, *proof)
+			}
+		}
+	} else {
+		accountMerkleProofs = make([]AccountMerkleProof, 0)
+		for _, publicKey := range publicKeys {
+			accountID, ok := db.AccountTree.GetAccountID(publicKey.BigInt())
+			if !ok {
+				panic("account id not found")
+			}
+			proof, err := db.ProveInclusion(accountID)
+			if err != nil {
+				panic("account inclusion proof error")
+			}
+
+			accountIDs = append(accountIDs, accountID)
+			accountMerkleProofs = append(accountMerkleProofs, AccountMerkleProof{
+				MerkleProof: proof.MerkleProof,
+				Leaf:        proof.Leaf,
+			})
+		}
+
+		accountIDPacked = new(AccountIdPacked).Pack(accountIDs)
+	}
+
+	zeroTx := new(intMaxTypes.Tx).SetZero()
+	txTree, err := intMaxTree.NewTxTree(uint8(intMaxTree.TX_TREE_HEIGHT), nil, zeroTx.Hash())
+	if err != nil {
+		panic(err)
+	}
+
+	for _, tx := range txs {
+		_, index, _ := txTree.GetCurrentRootCountAndSiblings()
+		txTree.AddLeaf(index, tx.Tx)
+	}
+
+	txTreeRoot, _, _ := txTree.GetCurrentRootCountAndSiblings()
+	signature, err := db.ConstructSignature(
+		*new(intMaxTypes.Bytes32).FromPoseidonHashOut(&txTreeRoot),
+		GetPublicKeysHash(publicKeys),
+		GetAccountIDsHash(accountIDs),
+		isRegistrationBlock,
+		sortedTxs,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	depositRoot, _, _ := db.DepositTree.GetCurrentRootCountAndSiblings()
+	block := &block_post_service.PostedBlock{
+		PrevBlockHash: db.lastValidityWitness.BlockWitness.Block.Hash(),
+		DepositRoot:   depositRoot,
+		SignatureHash: signature.Hash(),
+		BlockNumber:   blockNumber + 1,
+	}
+
+	prevAccountTreeRoot := db.AccountTree.GetRoot()
+	prevBlockTreeRoot := db.BlockTree.GetRoot()
+	blockWitness := &BlockWitness{
+		Block:                   block,
+		Signature:               *signature,
+		PublicKeys:              publicKeys,
+		PrevAccountTreeRoot:     prevAccountTreeRoot,
+		PrevBlockTreeRoot:       prevBlockTreeRoot,
+		AccountIdPacked:         accountIDPacked,
+		AccountMerkleProofs:     &accountMerkleProofs,
+		AccountMembershipProofs: &accountMembershipProofs,
+	}
+
+	if !blockWitness.MainValidationPublicInputs().IsValid && len(txs) > 0 {
+		panic("should be valid block")
+	}
+
+	return blockWitness, txTree, nil
+}
+
+type MockTxRequest struct {
+	Sender              *intMaxAcc.PrivateKey
+	Tx                  *intMaxTypes.Tx
+	WillReturnSignature bool
+}
+
+func (db *mockBlockBuilder) PostBlock(
+	isRegistrationBlock bool,
+	txs []*MockTxRequest,
+) (*ValidityWitness, error) {
+	blockWitness, _, err := db.GenerateBlockWithTxTree(
+		isRegistrationBlock,
+		txs,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	prevValidityWitness, err := db.LastValidityWitness()
+	if err != nil {
+		panic(err)
+	}
+	validityWitness, err := generateValidityWitness(
+		db,
+		blockWitness,
+		prevValidityWitness,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	db.lastValidityWitness = new(ValidityWitness).Set(validityWitness)
+	db.MerkleTreeHistory[blockWitness.Block.BlockNumber] = &MerkleTrees{
+		AccountTree:   db.AccountTree,
+		BlockHashTree: db.BlockTree,
+		DepositLeaves: db.DepositLeaves,
+		// TxTree:        txTree,
+	}
+
+	return validityWitness, nil
 }
 
 func generateValidityWitness(db BlockBuilderStorage, blockWitness *BlockWitness, prevValidityWitness *ValidityWitness) (*ValidityWitness, error) {

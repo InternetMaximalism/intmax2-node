@@ -313,12 +313,14 @@ func NewServerCmd(s *Server) *cobra.Command {
 					s.Log.Fatalf(msg, err.Error())
 				}
 
-				synchronizer := balance_prover_service.NewSynchronizer(s.Context, s.Config, s.Log, s.SB, s.DbApp)
-				err = synchronizer.Sync(blockValidityProver, blockBuilderWallet)
-				if err != nil {
-					const msg = "failed to sync: %+v"
-					s.Log.Fatalf(msg, err.Error())
-				}
+				synchronizer := balance_prover_service.NewSynchronizerDummy(s.Context, s.Config, s.Log, s.SB, s.DbApp)
+				synchronizer.TestE2E(blockValidityProver, blockBuilderWallet)
+				// synchronizer := balance_prover_service.NewSynchronizer(s.Context, s.Config, s.Log, s.SB, s.DbApp)
+				// err = synchronizer.Sync(blockValidityProver, blockBuilderWallet)
+				// if err != nil {
+				// 	const msg = "failed to sync: %+v"
+				// 	s.Log.Fatalf(msg, err.Error())
+				// }
 			}()
 
 			/*

@@ -156,6 +156,73 @@ func (s *balanceSynchronizer) Sync(blockValidityProver block_validity_prover.Blo
 					s.log.Fatalf(msg, err.Error())
 				}
 			}
+
+			// for _, transfer := range userAllData.Transfers {
+			// 	fmt.Printf("transfer hash: %d\n", transfer.Hash())
+			// 	_, depositIndex, err := blockValidityProver.BlockBuilder().GetDepositLeafAndIndexByHash(transfer.Hash())
+			// 	if err != nil {
+			// 		const msg = "failed to get Deposit Index by Hash: %+v"
+			// 		s.log.Warnf(msg, err.Error())
+			// 		// return errors.New("failed to get Deposit Index by Hash")
+			// 		continue
+			// 	}
+			// 	if depositIndex == nil {
+			// 		const msg = "failed to get Deposit Index by Hash: %+v"
+			// 		s.log.Warnf(msg, "depositIndex is nil")
+			// 		// return errors.New("block content by block number error")
+			// 		continue
+			// 	}
+
+			// 	IsSynchronizedDepositIndex, err := blockValidityProver.BlockBuilder().IsSynchronizedDepositIndex(*depositIndex)
+			// 	if err != nil {
+			// 		const msg = "failed to check IsSynchronizedDepositIndex: %+v"
+			// 		s.log.Warnf(msg, err.Error())
+			// 		// return errors.New("failed to check IsSynchronizedDepositIndex")
+			// 		continue
+			// 	}
+			// 	if !IsSynchronizedDepositIndex {
+			// 		const msg = "deposit index %d is not synchronized"
+			// 		s.log.Warnf(msg, *depositIndex)
+			// 		// return errors.New("deposit index is not synchronized")
+			// 		continue
+			// 	}
+
+			// 	fmt.Printf("deposit index: %d\n", *depositIndex)
+
+			// 	depositCase := DepositCase{
+			// 		Deposit: intMaxTree.DepositLeaf{
+			// 			RecipientSaltHash: deposit.RecipientSaltHash,
+			// 			TokenIndex:        deposit.TokenIndex,
+			// 			Amount:            deposit.Amount,
+			// 		},
+			// 		DepositIndex: *depositIndex,
+			// 		DepositSalt:  *deposit.Salt,
+			// 	}
+			// 	mockWallet.AddDepositCase(deposit.DepositID, &depositCase)
+			// 	err = balanceProverService.SyncBalanceProver.ReceiveTransfer(
+			// 		mockWallet,
+			// 		balanceProverService.BalanceProcessor,
+			// 		blockValidityProver.BlockBuilder(),
+			// 		deposit.DepositID,
+			// 	)
+			// 	if err != nil {
+			// 		const msg = "failed to receive deposit: %+v"
+			// 		s.log.Fatalf(msg, err.Error())
+			// 	}
+			// }
+
+			// for _, tx := range userAllData.Transactions {
+			// 	err = balanceProverService.SyncBalanceProver.SyncSend(
+			// 		syncValidityProver,
+			// 		mockWallet,
+			// 		balanceProverService.BalanceProcessor,
+			// 		blockValidityProver.BlockBuilder(),
+			// 	)
+			// 	if err != nil {
+			// 		const msg = "failed to send transaction: %+v"
+			// 		s.log.Fatalf(msg, err.Error())
+			// 	}
+			// }
 		}
 
 		blockNumber++

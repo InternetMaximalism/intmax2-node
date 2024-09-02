@@ -3,7 +3,7 @@ package balance_prover_service
 import (
 	"errors"
 	"fmt"
-	"math/rand"
+	intMaxTypes "intmax2-node/internal/types"
 	"sort"
 )
 
@@ -17,6 +17,24 @@ func NewSyncBalanceProver() *SyncBalanceProver {
 		LastBlockNumber:  0,
 		LastBalanceProof: nil,
 	}
+}
+
+func (s *SyncBalanceProver) BalancePublicInputs() (*BalancePublicInputs, error) {
+	if s.LastBalanceProof == nil {
+		return nil, errors.New("last balance proof is nil")
+	}
+
+	balanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*s.LastBalanceProof)
+	if err != nil {
+		return nil, err
+	}
+
+	balancePublicInputs, err := new(BalancePublicInputs).FromPublicInputs(balanceProofWithPis.PublicInputs)
+	if err != nil {
+		return nil, err
+	}
+
+	return balancePublicInputs, nil
 }
 
 func (s *SyncBalanceProver) SyncSend(
@@ -180,7 +198,6 @@ func (s *SyncBalanceProver) ReceiveDeposit(
 }
 
 func (s *SyncBalanceProver) ReceiveTransfer(
-	rng *rand.Rand,
 	wallet *MockWallet,
 	balanceProcessor *BalanceProcessor,
 	blockBuilder MockBlockBuilder,
@@ -188,7 +205,6 @@ func (s *SyncBalanceProver) ReceiveTransfer(
 	senderBalanceProof string,
 ) error {
 	receiveTransferWitness, err := wallet.ReceiveTransferAndUpdate(
-		rng,
 		blockBuilder,
 		s.LastBlockNumber,
 		transferWitness,
