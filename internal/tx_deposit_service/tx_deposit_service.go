@@ -10,7 +10,9 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/bindings"
+	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/hash/goldenposeidon"
+	"intmax2-node/internal/mnemonic_wallet"
 	node "intmax2-node/internal/pb/gen/store_vault_service/node"
 	intMaxTypes "intmax2-node/internal/types"
 	postBackupDeposit "intmax2-node/internal/use_cases/post_backup_deposit"
@@ -36,6 +38,9 @@ var ErrInsufficientERC20Balance = errors.New("the specified ERC20 is not owned b
 var ErrInsufficientERC721Balance = errors.New("the specified ERC721 is not owned by the account")
 var ErrFailedToApproveERC20Transaction = errors.New("failed to send ERC20.Approve transaction")
 var ErrFailedToApproveERC721Transaction = errors.New("failed to send ERC721.Approve transaction")
+var ErrFailedToDecodeFromBase64 = errors.New("failed to decode from base64")
+var ErrFailedToDecrypt = errors.New("failed to decrypt")
+var ErrFailedToUnmarshal = errors.New("failed to unmarshal")
 
 type TxDepositService struct {
 	ctx       context.Context
@@ -540,4 +545,49 @@ func backupDepositRawRequest(
 	}
 
 	return nil
+}
+
+func DepositsListIncoming(
+	ctx context.Context,
+	cfg *configs.Config,
+	input *GetDepositsListInput,
+	userEthPrivateKey string,
+) (json.RawMessage, error) {
+	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
+	if err != nil {
+		return nil, errors.Join(errorsB.ErrWalletAddressNotRecognized, err)
+	}
+
+	userAccount, err := intMaxAcc.NewPrivateKeyFromString(wallet.IntMaxPrivateKey)
+	if err != nil {
+		return nil, errors.Join(ErrRecoverWalletFromPrivateKey, err)
+	}
+
+	fmt.Printf("User's INTMAX Address: %s\n", userAccount.ToAddress().String())
+
+	return GetDepositsListWithRawRequest(ctx, cfg, input, userAccount)
+}
+
+func GetDepositFromBackupData(
+	encryptedDeposit *GetDepositData,
+	senderAccount *intMaxAcc.PrivateKey,
+) (*intMaxTypes.Deposit, error) {
+	ciphertext, err := base64.StdEncoding.DecodeString(encryptedDeposit.EncryptedDeposit)
+	if err != nil {
+		return nil, errors.Join(ErrFailedToDecodeFromBase64, err)
+	}
+
+	var message []byte
+	message, err = senderAccount.DecryptECIES(ciphertext)
+	if err != nil {
+		return nil, errors.Join(ErrFailedToDecrypt, err)
+	}
+
+	var deposit intMaxTypes.Deposit
+	err = deposit.Unmarshal(message)
+	if err != nil {
+		return nil, errors.Join(ErrFailedToUnmarshal, err)
+	}
+
+	return &deposit, nil
 }

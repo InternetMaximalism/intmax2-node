@@ -1034,7 +1034,7 @@
           "$ref": "#/definitions/v1GetBackupDepositsListRequestPagination",
           "title": "the pagination value"
         },
-        "sender": {
+        "recipient": {
           "type": "string"
         },
         "sorting": {

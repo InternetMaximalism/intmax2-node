@@ -32,7 +32,7 @@ func (s *StoreVaultServer) GetBackupDepositsList(
 	defer span.End()
 
 	input := getBackupDepositsList.UCGetBackupDepositsListInput{
-		Recipient: req.Sender,
+		Recipient: req.Recipient,
 		OrderBy:   mFL.OrderBy(req.OrderBy),
 		Sorting:   mFL.Sorting(req.Sorting),
 	}

@@ -811,7 +811,7 @@ message GetBackupDepositsResponse {
 message GetBackupDepositsListRequest {
   // the pagination value
   Pagination pagination = 5;
-  string sender = 1;
+  string recipient = 1;
   // order by sorting (asc or desc)
   string sorting = 20;
   // order by (example: date_start)
