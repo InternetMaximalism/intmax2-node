@@ -3,6 +3,7 @@ package types_test
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/tree"
@@ -169,4 +170,18 @@ func TestEncryptTxDetails(t *testing.T) {
 		t, txDetails.Tx.Equal(&decryptedTx.Tx),
 		"recipients should be equal: %+v != %+v", txDetails, decryptedTx,
 	)
+}
+
+func TestXxx(t *testing.T) {
+	value := big.NewInt(1234565432)
+	const numOfSenders = 128
+	publicKeys := make([]intMaxTypes.Uint256, 1)
+	publicKeys[0].FromBigInt(value)
+	dummyPublicKey := intMaxAcc.NewDummyPublicKey()
+	fmt.Printf("dummyPublicKey = %v\n", dummyPublicKey.BigInt())
+	fmt.Printf("len(publicKeys) = %v\n", len(publicKeys))
+	for i := len(publicKeys); i < numOfSenders; i++ {
+		publicKeys = append(publicKeys, *new(intMaxTypes.Uint256).FromBigInt(dummyPublicKey.BigInt()))
+	}
+	fmt.Printf("publicKeys[127] = %v\n", publicKeys[127].BigInt())
 }

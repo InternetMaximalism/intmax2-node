@@ -3,6 +3,7 @@ package balance_prover_service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_synchronizer"
@@ -131,7 +132,7 @@ func NewSyncValidityProver(
 // }
 
 // check synchronization of INTMAX blocks
-func (s *syncValidityProver) Sync() (err error) {
+func (s *syncValidityProver) Check() (err error) {
 	// s.blockSynchronizer.SyncBlockTree(blockProverService)
 	startBlock, err := s.ValidityProcessor.BlockBuilder().LastSeenBlockPostedEventBlockNumber()
 	if err != nil {
@@ -159,6 +160,12 @@ func (s *syncValidityProver) Sync() (err error) {
 	return nil
 }
 
+// func (s *syncValidityProver) Sync() (err error) {
+// 	err = s.ValidityProcessor.SyncBlockProver()
+
+// 	return err
+// }
+
 func (s *syncValidityProver) FetchUpdateWitness(
 	blockBuilder MockBlockBuilder,
 	publicKey *intMaxAcc.PublicKey,
@@ -166,6 +173,8 @@ func (s *syncValidityProver) FetchUpdateWitness(
 	targetBlockNumber uint32,
 	isPrevAccountTree bool,
 ) (*UpdateWitness, error) {
+	fmt.Printf("FetchUpdateWitness currentBlockNumber: %d\n", currentBlockNumber)
+	fmt.Printf("FetchUpdateWitness targetBlockNumber: %d\n", targetBlockNumber)
 	// request validity prover
 	latestValidityProof, err := blockBuilder.LastValidityProof()
 	if err != nil {

@@ -663,7 +663,9 @@ func (s *SignatureContent) IsValidFormat(publicKeys []intMaxTypes.Uint256) error
 	txTreeRoot := s.TxTreeRoot.ToFieldElementSlice()
 	messagePointExpected := intMaxGP.HashToG2(txTreeRoot)
 	messagePoint := intMaxTypes.NewG2AffineFromFlatG2(&s.MessagePoint)
-	if messagePointExpected.Equal(messagePoint) {
+	fmt.Printf("messagePointExpected: %v\n", messagePointExpected)
+	fmt.Printf("messagePoint: %v\n", messagePoint)
+	if !messagePointExpected.Equal(messagePoint) {
 		return errors.New("message point check failed")
 	}
 
@@ -782,53 +784,63 @@ func (bw *BlockWitness) Compress(maxAccountID uint64) (compressed *CompressedBlo
 	significantHeight := effectiveBits(uint(maxAccountID))
 
 	if bw.AccountMerkleProofs != nil {
-		accountMerkleProofs := *bw.AccountMerkleProofs
-		compressed.CommonAccountMerkleProof = accountMerkleProofs[0].MerkleProof.Siblings[significantHeight:]
-		significantAccountMerkleProofs := make([]AccountMerkleProof, 0)
-		for _, proof := range accountMerkleProofs {
-			for i := 0; i < int(intMaxTree.ACCOUNT_TREE_HEIGHT)-int(significantHeight); i++ {
-				if !proof.MerkleProof.Siblings[int(significantHeight)+i].Equal(compressed.CommonAccountMerkleProof[i]) {
-					panic("invalid common account merkle proof")
+		if len(*bw.AccountMerkleProofs) == 0 {
+			significantAccountMerkleProofs := make([]AccountMerkleProof, 0)
+			compressed.SignificantAccountMerkleProofs = &significantAccountMerkleProofs
+		} else {
+			accountMerkleProofs := *bw.AccountMerkleProofs
+			compressed.CommonAccountMerkleProof = accountMerkleProofs[0].MerkleProof.Siblings[significantHeight:]
+			significantAccountMerkleProofs := make([]AccountMerkleProof, 0)
+			for _, proof := range accountMerkleProofs {
+				for i := 0; i < int(intMaxTree.ACCOUNT_TREE_HEIGHT)-int(significantHeight); i++ {
+					if !proof.MerkleProof.Siblings[int(significantHeight)+i].Equal(compressed.CommonAccountMerkleProof[i]) {
+						panic("invalid common account merkle proof")
+					}
 				}
+
+				significantMerkleProof := proof.MerkleProof.Siblings[:significantHeight]
+				significantAccountMerkleProofs = append(significantAccountMerkleProofs, AccountMerkleProof{
+					MerkleProof: intMaxTree.IndexedMerkleProof(
+						intMaxTree.MerkleProof{
+							Siblings: significantMerkleProof,
+						},
+					),
+					Leaf: proof.Leaf,
+				})
 			}
 
-			significantMerkleProof := proof.MerkleProof.Siblings[:significantHeight]
-			significantAccountMerkleProofs = append(significantAccountMerkleProofs, AccountMerkleProof{
-				MerkleProof: intMaxTree.IndexedMerkleProof(
-					intMaxTree.MerkleProof{
-						Siblings: significantMerkleProof,
-					},
-				),
-				Leaf: proof.Leaf,
-			})
+			compressed.SignificantAccountMerkleProofs = &significantAccountMerkleProofs
 		}
-
-		compressed.SignificantAccountMerkleProofs = &significantAccountMerkleProofs
 	}
 
 	if bw.AccountMembershipProofs != nil {
-		accountMembershipProofs := *bw.AccountMembershipProofs
-		compressed.CommonAccountMerkleProof = accountMembershipProofs[0].LeafProof.Siblings[significantHeight:]
-		significantAccountMembershipProofs := make([]intMaxTree.IndexedMembershipProof, 0)
-		for _, proof := range accountMembershipProofs {
-			for i := 0; i < int(intMaxTree.ACCOUNT_TREE_HEIGHT)-int(significantHeight); i++ {
-				if !proof.LeafProof.Siblings[int(significantHeight)+i].Equal(compressed.CommonAccountMerkleProof[i]) {
-					panic("invalid common account merkle proof")
+		if len(*bw.AccountMerkleProofs) == 0 {
+			significantAccountMembershipProofs := make([]intMaxTree.IndexedMembershipProof, 0)
+			compressed.SignificantAccountMembershipProofs = &significantAccountMembershipProofs
+		} else {
+			accountMembershipProofs := *bw.AccountMembershipProofs
+			compressed.CommonAccountMerkleProof = accountMembershipProofs[0].LeafProof.Siblings[significantHeight:]
+			significantAccountMembershipProofs := make([]intMaxTree.IndexedMembershipProof, 0)
+			for _, proof := range accountMembershipProofs {
+				for i := 0; i < int(intMaxTree.ACCOUNT_TREE_HEIGHT)-int(significantHeight); i++ {
+					if !proof.LeafProof.Siblings[int(significantHeight)+i].Equal(compressed.CommonAccountMerkleProof[i]) {
+						panic("invalid common account merkle proof")
+					}
 				}
+
+				significantMerkleProof := proof.LeafProof.Siblings[:significantHeight]
+				significantAccountMembershipProofs = append(significantAccountMembershipProofs, intMaxTree.IndexedMembershipProof{
+					LeafProof: intMaxTree.IndexedMerkleProof{
+						Siblings: significantMerkleProof,
+					},
+					LeafIndex:  proof.LeafIndex,
+					Leaf:       proof.Leaf,
+					IsIncluded: proof.IsIncluded,
+				})
 			}
 
-			significantMerkleProof := proof.LeafProof.Siblings[:significantHeight]
-			significantAccountMembershipProofs = append(significantAccountMembershipProofs, intMaxTree.IndexedMembershipProof{
-				LeafProof: intMaxTree.IndexedMerkleProof{
-					Siblings: significantMerkleProof,
-				},
-				LeafIndex:  proof.LeafIndex,
-				Leaf:       proof.Leaf,
-				IsIncluded: proof.IsIncluded,
-			})
+			compressed.SignificantAccountMembershipProofs = &significantAccountMembershipProofs
 		}
-
-		compressed.SignificantAccountMembershipProofs = &significantAccountMembershipProofs
 	}
 
 	return compressed, nil
@@ -917,9 +929,13 @@ func NewAccountExclusionValue(
 		}
 
 		isDummy := publicKeys[i].IsDummyPublicKey()
+		fmt.Printf("proof.IsIncluded: %v\n", proof.IsIncluded)
+		fmt.Printf("isDummy: %v\n", isDummy)
 		isExcluded := !proof.IsIncluded || isDummy
+		fmt.Printf("isExcluded: %v\n", isExcluded)
 		result = result && isExcluded
 	}
+	fmt.Printf("publicKeys[127] = %v\n", publicKeys[127])
 
 	publicKeyCommitment := getPublicKeyCommitment(publicKeys)
 
@@ -995,6 +1011,9 @@ func NewFormatValidationValue(
 	pubkeyCommitment := getPublicKeyCommitment(publicKeys)
 	signatureCommitment := signature.Commitment()
 	err := signature.IsValidFormat(publicKeys)
+	if err != nil {
+		fmt.Printf("NewFormatValidationValue err: %v\n", err)
+	}
 
 	return &FormatValidationValue{
 		PublicKeys:          publicKeys,
@@ -1085,6 +1104,7 @@ func (w *BlockWitness) MainValidationPublicInputs() *MainValidationPublicInputs 
 			panic("pubkey hash mismatch")
 		}
 	} else {
+		fmt.Printf("isPubkeyEq: %v\n", isPubkeyEq)
 		result = result && isPubkeyEq
 	}
 	if isRegistrationBlock {
@@ -1102,6 +1122,7 @@ func (w *BlockWitness) MainValidationPublicInputs() *MainValidationPublicInputs 
 			panic("account exclusion value is invalid: " + err.Error())
 		}
 
+		fmt.Printf("accountExclusionValue.IsValid (registration): %v\n", accountExclusionValue.IsValid)
 		result = result && accountExclusionValue.IsValid
 	} else {
 		if w.AccountIdPacked != nil {
@@ -1123,16 +1144,21 @@ func (w *BlockWitness) MainValidationPublicInputs() *MainValidationPublicInputs 
 			panic("account inclusion value is invalid: " + err.Error())
 		}
 
+		fmt.Printf("accountInclusionValue.IsValid (non registration): %v\n", accountInclusionValue.IsValid)
 		result = result && accountInclusionValue.IsValid
 	}
+
+	fmt.Printf("result: %v\n", result)
 
 	// Format validation
 	formatValidationValue :=
 		NewFormatValidationValue(publicKeys, signature)
+	fmt.Printf("formatValidationValue.IsValid: %v\n", formatValidationValue.IsValid)
 	result = result && formatValidationValue.IsValid
 
 	if result {
 		aggregationValue := NewAggregationValue(publicKeys, signature)
+		fmt.Printf("aggregationValue.IsValid: %v\n", aggregationValue.IsValid)
 		result = result && aggregationValue.IsValid
 	}
 
@@ -1364,7 +1390,7 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 	}
 
 	depositLeaves := make([]*intMaxTree.DepositLeaf, 0)
-	for _, deposit := range deposits {
+	for depositIndex, deposit := range deposits {
 		depositLeaf := intMaxTree.DepositLeaf{
 			RecipientSaltHash: deposit.RecipientSaltHash,
 			TokenIndex:        deposit.TokenIndex,
@@ -1373,7 +1399,9 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 		if deposit.DepositIndex == nil {
 			panic("deposit index should not be nil")
 		}
-		_, err = depositTree.AddLeaf(*deposit.DepositIndex, depositLeaf.Hash())
+
+		// depositIndex := *deposit.DepositIndex
+		_, err = depositTree.AddLeaf(uint32(depositIndex), depositLeaf.Hash())
 		if err != nil {
 			panic(err)
 		}
@@ -1810,9 +1838,8 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTree(
 	}
 
 	dummyPublicKey := intMaxAcc.NewDummyPublicKey()
-	publicKeys = append(publicKeys, make([]intMaxTypes.Uint256, numOfSenders-len(publicKeys))...)
 	for i := len(publicKeys); i < numOfSenders; i++ {
-		publicKeys[i] = *new(intMaxTypes.Uint256).FromBigInt(dummyPublicKey.BigInt())
+		publicKeys = append(publicKeys, *new(intMaxTypes.Uint256).FromBigInt(dummyPublicKey.BigInt()))
 	}
 
 	blockNumber := db.lastValidityWitness.BlockWitness.Block.BlockNumber
@@ -1900,8 +1927,9 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTree(
 		AccountMembershipProofs: &accountMembershipProofs,
 	}
 
+	fmt.Printf("blockWitness.PublicKeys[127] = %v\n", blockWitness.PublicKeys[127].BigInt())
 	if !blockWitness.MainValidationPublicInputs().IsValid && len(txs) > 0 {
-		panic("should be valid block")
+		panic("should be valid block") // XXX
 	}
 
 	return blockWitness, txTree, nil
@@ -2122,7 +2150,11 @@ func (b *mockBlockBuilder) SetLastSeenBlockPostedEventBlockNumber(blockNumber ui
 }
 
 func (b *mockBlockBuilder) LastValidityProof() (*string, error) {
+	fmt.Printf("len(b.ValidityProofs) (LastValidityProof): %d\n", len(b.ValidityProofs))
 	if len(b.ValidityProofs) <= 1 {
+		for i := range b.ValidityProofs {
+			fmt.Printf("b.ValidityProofs[%d]: %s\n", i, b.ValidityProofs[i])
+		}
 		return nil, ErrNoLastValidityProof
 	}
 
@@ -2130,11 +2162,13 @@ func (b *mockBlockBuilder) LastValidityProof() (*string, error) {
 }
 
 func (b *mockBlockBuilder) SetValidityProof(blockNumber uint32, proof string) error {
+	fmt.Printf("blockNumber (SetValidityProof): %d\n", blockNumber)
 	if blockNumber != uint32(len(b.ValidityProofs)) {
 		return errors.New("block number should be equal to the last block number + 1")
 	}
 
 	b.ValidityProofs = append(b.ValidityProofs, proof)
+	fmt.Printf("after len(b.ValidityProofs) = %d\n", len(b.ValidityProofs))
 
 	return nil
 }

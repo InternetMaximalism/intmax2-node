@@ -41,9 +41,10 @@ func (s *SyncBalanceProver) SyncSend(
 	syncValidityProver *syncValidityProver,
 	wallet *MockWallet,
 	balanceProcessor *BalanceProcessor,
-	blockBuilder MockBlockBuilder,
+	// blockBuilder MockBlockBuilder,
 ) error {
-	syncValidityProver.Sync() // sync validity proofs
+	blockBuilder := syncValidityProver.ValidityProcessor.BlockBuilder()
+	// syncValidityProver.Sync() // sync validity proofs
 	allBlockNumbers := wallet.GetAllBlockNumbers()
 	notSyncedBlockNumbers := []uint32{}
 	for _, blockNumber := range allBlockNumbers {
@@ -103,9 +104,13 @@ func (s *SyncBalanceProver) SyncNoSend(
 	syncValidityProver *syncValidityProver,
 	wallet *MockWallet,
 	balanceProcessor *BalanceProcessor,
-	blockBuilder MockBlockBuilder,
+	// blockBuilder MockBlockBuilder,
 ) error {
-	syncValidityProver.Sync() // sync validity proofs
+	blockBuilder := syncValidityProver.ValidityProcessor.BlockBuilder()
+	// err := syncValidityProver.Check() // sync validity proofs
+	// if err != nil {
+	// 	fmt.Printf("WARNING: not synced: %v\n", err)
+	// }
 	allBlockNumbers := wallet.GetAllBlockNumbers()
 	notSyncedBlockNumbers := []uint32{}
 	for _, blockNumber := range allBlockNumbers {
@@ -159,13 +164,14 @@ func (s *SyncBalanceProver) SyncAll(
 	syncValidityProver *syncValidityProver,
 	wallet *MockWallet,
 	balanceProcessor *BalanceProcessor,
-	blockBuilder MockBlockBuilder,
 ) (err error) {
-	err = s.SyncSend(syncValidityProver, wallet, balanceProcessor, blockBuilder)
+	fmt.Printf("len(b.ValidityProofs) before SyncSend: %d\n", len(syncValidityProver.ValidityProcessor.BlockBuilder().ValidityProofs))
+
+	err = s.SyncSend(syncValidityProver, wallet, balanceProcessor)
 	if err != nil {
 		return err
 	}
-	err = s.SyncNoSend(syncValidityProver, wallet, balanceProcessor, blockBuilder)
+	err = s.SyncNoSend(syncValidityProver, wallet, balanceProcessor)
 	if err != nil {
 		return err
 	}
@@ -183,6 +189,7 @@ func (s *SyncBalanceProver) ReceiveDeposit(
 	if err != nil {
 		return err
 	}
+	fmt.Println("start ProveReceiveDeposit")
 	balanceProof, err := balanceProcessor.ProveReceiveDeposit(
 		wallet.PublicKey(),
 		receiveDepositWitness,
@@ -191,6 +198,7 @@ func (s *SyncBalanceProver) ReceiveDeposit(
 	if err != nil {
 		return err
 	}
+	fmt.Println("finish ProveReceiveDeposit")
 
 	s.LastBalanceProof = &balanceProof.Proof
 

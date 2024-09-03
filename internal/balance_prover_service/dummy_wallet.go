@@ -108,15 +108,16 @@ func (w *MockWallet) SendTx(
 	}
 
 	transferWitnesses := make([]*TransferWitness, len(transfers))
-	for transfer_index, transfer := range transfers {
-		transferMerkleProof, _, _ := transferTree.ComputeMerkleProof(uint64(transfer_index))
-		transferWitness := &TransferWitness{
+	for transferIndex, transfer := range transfers {
+		transferMerkleProof, _, _ := transferTree.ComputeMerkleProof(uint64(transferIndex))
+		transferWitness := TransferWitness{
 			Tx:                  tx,
 			Transfer:            *transfer,
-			TransferIndex:       uint32(transfer_index),
+			TransferIndex:       uint32(transferIndex),
 			TransferMerkleProof: &intMaxTree.MerkleProof{Siblings: transferMerkleProof},
 		}
-		transferWitnesses = append(transferWitnesses, transferWitness)
+		fmt.Printf("transferWitnesses[%d]: %v\n", transferIndex, transferWitness)
+		transferWitnesses[transferIndex] = &transferWitness
 	}
 
 	return txWitness, transferWitnesses, nil
@@ -143,6 +144,10 @@ func (w *MockWallet) UpdateOnSendTx(salt Salt, txWitness *TxWitness, transferWit
 	insufficientFlags := new(backup_balance.InsufficientFlags)
 	// insufficientBits := make([]bool, 0, len(transferWitnesses))
 	for i, transferWitness := range transferWitnesses {
+		if transferWitness == nil {
+			return nil, fmt.Errorf("transferWitness[%d] is nil", i)
+		}
+
 		transfer := transferWitness.Transfer
 		tokenIndex := transfer.TokenIndex
 		prevBalance := w.assetTree.GetLeaf(tokenIndex)
@@ -188,12 +193,14 @@ func (w *MockWallet) SendTxAndUpdate(blockBuilder *block_validity_prover.MockBlo
 
 func NewMockWallet(privateKey *intMaxAcc.PrivateKey) (*MockWallet, error) {
 	zeroAsset := new(intMaxTree.AssetLeaf).SetDefault()
-	assetTree, err := intMaxTree.NewAssetTree(7, nil, zeroAsset.Hash())
+	const assetTreeHeight = 32
+	const nullifierTreeHeight = 32
+	assetTree, err := intMaxTree.NewAssetTree(assetTreeHeight, nil, zeroAsset.Hash())
 	if err != nil {
 		return nil, err
 	}
 
-	nullifierTree, err := intMaxTree.NewNullifierTree(32)
+	nullifierTree, err := intMaxTree.NewNullifierTree(nullifierTreeHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -220,11 +227,9 @@ func (s *MockWallet) GenericAddress() (*intMaxTypes.GenericAddress, error) {
 }
 
 func (s *MockWallet) PrivateState() *PrivateState {
-	result := new(PrivateState).SetDefault()
-
 	return &PrivateState{
-		AssetTreeRoot:     result.AssetTreeRoot,
-		NullifierTreeRoot: result.NullifierTreeRoot,
+		AssetTreeRoot:     s.assetTree.GetRoot(),
+		NullifierTreeRoot: s.nullifierTree.GetRoot(),
 		Nonce:             s.nonce,
 		Salt:              s.salt,
 	}
@@ -303,15 +308,29 @@ func (s *MockWallet) GeneratePrivateWitness(
 	amount *big.Int,
 	nullifier intMaxTypes.Bytes32,
 ) (*PrivateWitness, error) {
-	assetTree := s.assetTree
-	nullifierTree := s.nullifierTree
 	prevPrivateState := s.PrivateState()
+
+	fmt.Printf("s.assetTree: %v\n", s.assetTree)
+	assetTree := new(intMaxTree.AssetTree).Set(&s.assetTree)             // clone
+	nullifierTree := new(intMaxTree.NullifierTree).Set(&s.nullifierTree) // clone
 
 	prevAssetLeaf := assetTree.GetLeaf(tokenIndex)
 	assetMerkleProof, _, err := assetTree.Prove(tokenIndex)
 	if err != nil {
 		return nil, err
 	}
+
+	assetRoot := assetTree.GetRoot()
+	fmt.Printf("prev asset leaf isInsufficient: %v\n", prevAssetLeaf.IsInsufficient)
+	fmt.Printf("prev asset leaf amount: %v\n", prevAssetLeaf.Amount)
+	fmt.Printf("prev asset leaf hash: %v\n", prevAssetLeaf.Hash())
+	fmt.Printf("prev asset root hash: %s\n", assetRoot.String())
+	// fmt.Printf("prev asset root hash: %s\n", assetRoot.String())
+	fmt.Printf("prev asset index: %d\n", tokenIndex)
+	for i, sibling := range assetMerkleProof.Siblings {
+		fmt.Printf("asset Merkle proof: siblings[%d] = %s\n", i, sibling)
+	}
+
 	newAssetLeaf := prevAssetLeaf.Add(amount)
 	if tokenIndex < uint32(len(assetTree.Leaves)) {
 		_, err = assetTree.UpdateLeaf(tokenIndex, newAssetLeaf)
@@ -325,12 +344,30 @@ func (s *MockWallet) GeneratePrivateWitness(
 		}
 	}
 
-	fmt.Printf("inserting nullifier: %v\n", nullifier)
+	oldNullifierTreeRoot := nullifierTree.GetRoot()
+	// fmt.Printf("old nullifier tree root: %v\n", oldNullifierTreeRoot)
+	// fmt.Printf("inserting nullifier: %v\n", nullifier)
 	nullifierProof, err := nullifierTree.Insert(nullifier)
 	if err != nil {
 		fmt.Printf("insert nullifier error: %v\n", err)
 		return nil, errors.New("nullifier already exists")
 	}
+	// expectedNewNullifierTreeRoot := nullifierTree.GetRoot()
+	// fmt.Printf("expected new nullifier tree root: %v\n", expectedNewNullifierTreeRoot)
+
+	// for i, sibling := range nullifierProof.LeafProof.Siblings {
+	// 	fmt.Printf("nullifier leaf Merkle proof: siblings[%d] = %s\n", i, sibling.String())
+	// }
+	// for i, sibling := range nullifierProof.LowLeafProof.Siblings {
+	// 	fmt.Printf("nullifier low leaf Merkle proof: siblings[%d] = %s\n", i, sibling.String())
+	// }
+
+	nullifierInt := new(intMaxTypes.Uint256).FromFieldElementSlice(nullifier.ToFieldElementSlice())
+	newNullifierTreeRoot, err := nullifierProof.GetNewRoot(nullifierInt.BigInt(), 0, oldNullifierTreeRoot)
+	if err != nil {
+		return nil, errors.Join(errors.New("fail to GetNewRoot"), err)
+	}
+	fmt.Printf("actual new nullifier tree root: %v\n", newNullifierTreeRoot)
 
 	return &PrivateWitness{
 		TokenIndex:       tokenIndex,
@@ -345,21 +382,28 @@ func (s *MockWallet) GeneratePrivateWitness(
 }
 
 func (s *MockWallet) updateOnReceive(witness *PrivateWitness) error {
-	nullifierTree := s.nullifierTree
-	assetTree := s.assetTree
+	fmt.Printf("s.assetTree: %v\n", s.assetTree)
 
 	nullifier := new(intMaxTypes.Uint256).FromFieldElementSlice(witness.Nullifier.ToFieldElementSlice())
-	oldNullifierTreeRoot := nullifierTree.GetRoot()
+	oldNullifierTreeRoot := s.nullifierTree.GetRoot()
+	// fmt.Printf("old nullifier tree root: %v\n", oldNullifierTreeRoot)
+	// fmt.Printf("nullifier: %v\n", nullifier)
+	// for i, sibling := range witness.NullifierProof.LeafProof.Siblings {
+	// 	fmt.Printf("nullifier leaf Merkle proof: siblings[%d] = %s\n", i, sibling.String())
+	// }
+	// for i, sibling := range witness.NullifierProof.LowLeafProof.Siblings {
+	// 	fmt.Printf("nullifier low leaf Merkle proof: siblings[%d] = %s\n", i, sibling.String())
+	// }
 	newNullifierTreeRoot, err := witness.NullifierProof.GetNewRoot(nullifier.BigInt(), 0, oldNullifierTreeRoot)
 	if err != nil {
-		return errors.New("invalid nullifier proof")
+		return errors.Join(errors.New("invalid nullifier proof"), err)
 	}
 
 	assetMerkleProof := witness.AssetMerkleProof
 	err = assetMerkleProof.Verify(
 		witness.PrevAssetLeaf,
 		witness.TokenIndex,
-		assetTree.GetRoot(),
+		s.assetTree.GetRoot(),
 	)
 	if err != nil {
 		return errors.New("invalid asset merkle proof")
@@ -368,25 +412,37 @@ func (s *MockWallet) updateOnReceive(witness *PrivateWitness) error {
 	newAssetLeaf := witness.PrevAssetLeaf.Add(witness.Amount)
 	newAssetTreeRoot := witness.AssetMerkleProof.GetRoot(newAssetLeaf, witness.TokenIndex)
 
-	fmt.Printf("inserting nullifier: %v\n", witness.Nullifier)
-	_, err = nullifierTree.Insert(witness.Nullifier)
+	fmt.Printf("nullifier tree root before Insert: %v\n", s.nullifierTree.GetRoot())
+	fmt.Printf("inserting nullifier: %s\n", witness.Nullifier.Hex())
+	_, err = s.nullifierTree.Insert(witness.Nullifier)
 	if err != nil {
 		fmt.Printf("insert nullifier error: %v\n", err)
 		return errors.New("nullifier already exists")
 	}
-	_, err = assetTree.UpdateLeaf(witness.TokenIndex, newAssetLeaf)
-	if err != nil {
-		return err
+	fmt.Printf("nullifier tree root after Insert: %v\n", s.nullifierTree.GetRoot())
+
+	if witness.TokenIndex < uint32(len(s.assetTree.Leaves)) {
+		_, err = s.assetTree.UpdateLeaf(witness.TokenIndex, newAssetLeaf)
+		if err != nil {
+			return err
+		}
+	} else {
+		_, err = s.assetTree.AddLeaf(witness.TokenIndex, newAssetLeaf)
+		if err != nil {
+			return err
+		}
 	}
 
-	nullifierTreeRoot := nullifierTree.GetRoot()
+	nullifierTreeRoot := s.nullifierTree.GetRoot()
 	if !nullifierTreeRoot.Equal(newNullifierTreeRoot) {
-		return errors.New("nullifier tree root not equal")
+		return fmt.Errorf("nullifier tree root not equal: %s != %s", nullifierTreeRoot, newNullifierTreeRoot)
 	}
 
-	assetTreeRoot := assetTree.GetRoot()
-	if assetTreeRoot.Equal(newAssetTreeRoot) {
-		return errors.New("asset tree root not equal")
+	assetTreeRoot := s.assetTree.GetRoot()
+	fmt.Printf("expected asset tree root: %s\n", assetTreeRoot.String())
+	fmt.Printf("actual asset tree root: %s\n", newAssetTreeRoot.String())
+	if !assetTreeRoot.Equal(newAssetTreeRoot) {
+		return fmt.Errorf("asset tree root not equal: %s != %s", assetTreeRoot.String(), newAssetTreeRoot)
 	}
 
 	s.salt = witness.NewSalt
@@ -445,7 +501,7 @@ func (s *MockWallet) ReceiveDepositAndUpdate(
 	deposit := depositWitness.Deposit
 	nullifier := deposit.Nullifier()
 	fmt.Printf("deposit: %v\n", deposit)
-	fmt.Printf("deposit (nullifier): %v\n", nullifier)
+	fmt.Printf("deposit (nullifier) dummy: %v\n", nullifier)
 
 	newSalt, err := new(poseidonHashOut).SetRandom()
 	if err != nil {
@@ -463,7 +519,12 @@ func (s *MockWallet) ReceiveDepositAndUpdate(
 	delete(s.depositCases, depositIndex)
 
 	// update
-	s.updateOnReceive(privateWitness)
+	err = s.updateOnReceive(privateWitness)
+	if err != nil {
+		fmt.Printf("updateOnReceive error: %v\n", err)
+		return nil, err
+	}
+	fmt.Println("finish updateOnReceive")
 
 	return &ReceiveDepositWitness{
 		DepositWitness: &depositWitness,

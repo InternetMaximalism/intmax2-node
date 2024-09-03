@@ -164,7 +164,7 @@ func (mt *PoseidonIncrementalMerkleTree) ComputeMerkleProof(index uint64, leaves
 // AddLeaf adds new leaves to the tree and computes the new root
 func (mt *PoseidonIncrementalMerkleTree) AddLeaf(index uint64, leaf *PoseidonHashOut) (*PoseidonHashOut, error) {
 	if index != mt.count {
-		const msg = "mismatched leaf count: %d, expected: %d"
+		const msg = "mismatched PoseidonIncrementalMerkleTree leaf count: %d, expected: %d"
 		return nil, fmt.Errorf(msg, index, mt.count)
 	}
 	cur := new(PoseidonHashOut).Set(leaf)

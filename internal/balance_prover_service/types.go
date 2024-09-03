@@ -118,7 +118,7 @@ type BalancePublicInputsInput struct {
 }
 
 func (input *BalancePublicInputsInput) FromBalancePublicInputs(value *BalancePublicInputs) *BalancePublicInputsInput {
-	input.PublicKey = value.PubKey.String()
+	input.PublicKey = value.PubKey.BigInt().String()
 	input.PrivateCommitment = value.PrivateCommitment.String()
 	input.LastTxHash = value.LastTxHash.String()
 	input.LastTxInsufficientFlags = hexutil.Encode(value.LastTxInsufficientFlags.Bytes())
@@ -558,12 +558,16 @@ func (s *PrivateState) SetDefault() *PrivateState {
 		IsInsufficient: false,
 		Amount:         new(intMaxTypes.Uint256).FromBigInt(big.NewInt(0)),
 	}
-	assetTree, err := intMaxTree.NewAssetTree(intMaxTree.TX_TREE_HEIGHT, nil, zeroAsset.Hash())
+	const (
+		assetTreeHeight     = 32
+		nullifierTreeHeight = 32
+	)
+
+	assetTree, err := intMaxTree.NewAssetTree(assetTreeHeight, nil, zeroAsset.Hash())
 	if err != nil {
 		panic(err)
 	}
 
-	const nullifierTreeHeight = 32
 	nullifierTree, err := intMaxTree.NewNullifierTree(nullifierTreeHeight)
 	if err != nil {
 		panic(err)

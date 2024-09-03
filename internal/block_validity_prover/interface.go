@@ -19,11 +19,14 @@ type BlockValidityProver interface {
 		bps BlockSynchronizer,
 		startBlock uint64,
 	) (lastEventSeenBlockNumber uint64, err error)
-	SyncBlockProver(
+	SyncBlockProverWithAuxInfo(
 		blockContent *intMaxTypes.BlockContent,
 		postedBlock *block_post_service.PostedBlock,
 	) error
-	BlockBuilder() BlockBuilderStorage
+	SyncBlockProver(
+		validityWitness *ValidityWitness,
+	) error
+	BlockBuilder() *mockBlockBuilder
 	FetchLastDepositIndex() (uint32, error)
 }
 

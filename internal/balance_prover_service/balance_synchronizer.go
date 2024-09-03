@@ -47,23 +47,6 @@ func (s *balanceSynchronizer) Sync(blockValidityProver block_validity_prover.Blo
 			s.log.Warnf("Received cancel signal from context, stopping...")
 			return nil
 		case <-ticker.C:
-			result, err := block_validity_prover.BlockAuxInfo(blockValidityProver.BlockBuilder(), blockNumber)
-			if err != nil {
-				if err.Error() == "block content by block number error" {
-					time.Sleep(1 * time.Second)
-					// return errors.New("block content by block number error")
-					continue
-				}
-
-				const msg = "failed to fetch new posted blocks: %+v"
-				s.log.Fatalf(msg, err.Error())
-			}
-
-			err = blockValidityProver.SyncBlockProver(result.BlockContent, result.PostedBlock)
-			if err != nil {
-				const msg = "failed to sync block prover: %+v"
-				s.log.Fatalf(msg, err.Error())
-			}
 
 			balanceProverService := NewBalanceProverService(s.ctx, s.cfg, s.log, blockBuilderWallet)
 			userAllData, err := balanceProverService.DecodedUserData()
@@ -92,11 +75,28 @@ func (s *balanceSynchronizer) Sync(blockValidityProver block_validity_prover.Blo
 				const msg = "failed to get Sync Validity Prover: %+v"
 				s.log.Fatalf(msg, err.Error())
 			}
+
+			result, err := block_validity_prover.BlockAuxInfo(blockValidityProver.BlockBuilder(), blockNumber)
+			if err != nil {
+				if err.Error() == "block content by block number error" {
+					time.Sleep(1 * time.Second)
+					// return errors.New("block content by block number error")
+					continue
+				}
+
+				const msg = "failed to fetch new posted blocks: %+v"
+				s.log.Fatalf(msg, err.Error())
+			}
+			err = blockValidityProver.SyncBlockProverWithAuxInfo(result.BlockContent, result.PostedBlock)
+			if err != nil {
+				const msg = "failed to sync block prover: %+v"
+				s.log.Fatalf(msg, err.Error())
+			}
 			err = balanceProverService.SyncBalanceProver.SyncNoSend(
 				syncValidityProver,
 				mockWallet,
 				balanceProverService.BalanceProcessor,
-				blockValidityProver.BlockBuilder(),
+				// blockValidityProver.BlockBuilder(),
 			)
 			if err != nil {
 				const msg = "failed to sync balance prover: %+v"
@@ -212,6 +212,7 @@ func (s *balanceSynchronizer) Sync(blockValidityProver block_validity_prover.Blo
 			// }
 
 			// for _, tx := range userAllData.Transactions {
+			// 	syncValidityProver.Sync() // sync validity proofs
 			// 	err = balanceProverService.SyncBalanceProver.SyncSend(
 			// 		syncValidityProver,
 			// 		mockWallet,

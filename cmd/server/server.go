@@ -7,12 +7,10 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
 	"intmax2-node/docs/swagger"
-	"intmax2-node/internal/balance_prover_service"
 	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/block_validity_prover"
 	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/logger"
-	"intmax2-node/internal/mnemonic_wallet"
 	"intmax2-node/internal/network_service"
 	"intmax2-node/internal/pb/gateway"
 	"intmax2-node/internal/pb/gateway/consts"
@@ -297,30 +295,6 @@ func NewServerCmd(s *Server) *cobra.Command {
 
 					}
 				}
-			}()
-
-			wg.Add(1)
-			s.WG.Add(1)
-			go func() {
-				defer func() {
-					wg.Done()
-					s.WG.Done()
-				}()
-
-				blockBuilderWallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(s.Config.Blockchain.BuilderPrivateKeyHex)
-				if err != nil {
-					const msg = "failed to get Block Builder IntMax Address: %+v"
-					s.Log.Fatalf(msg, err.Error())
-				}
-
-				synchronizer := balance_prover_service.NewSynchronizerDummy(s.Context, s.Config, s.Log, s.SB, s.DbApp)
-				synchronizer.TestE2E(blockValidityProver, blockBuilderWallet)
-				// synchronizer := balance_prover_service.NewSynchronizer(s.Context, s.Config, s.Log, s.SB, s.DbApp)
-				// err = synchronizer.Sync(blockValidityProver, blockBuilderWallet)
-				// if err != nil {
-				// 	const msg = "failed to sync: %+v"
-				// 	s.Log.Fatalf(msg, err.Error())
-				// }
 			}()
 
 			/*

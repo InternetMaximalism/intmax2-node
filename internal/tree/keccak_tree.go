@@ -149,7 +149,7 @@ func (mt *KeccakMerkleTree) ComputeMerkleProof(gerIndex uint32, leaves [][numHas
 // AddLeaf adds new leaves to the tree and computes the new root
 func (mt *KeccakMerkleTree) AddLeaf(index uint32, leaf [numHashBytes]byte) (common.Hash, error) {
 	if index != mt.count {
-		return common.Hash{}, fmt.Errorf("mismatched leaf count: %d, expected: %d", index, mt.count)
+		return common.Hash{}, fmt.Errorf("mismatched KeccakMerkleTree leaf count: %d, expected: %d", index, mt.count)
 	}
 	cur := leaf
 	isFilledSubTree := true

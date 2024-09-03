@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"intmax2-node/cmd/balance_checker"
+	balance_synchronizer "intmax2-node/cmd/balance_synchronizer"
 	"intmax2-node/cmd/block_builder"
 	"intmax2-node/cmd/deposit"
 	"intmax2-node/cmd/ethereum_private_key_wallet"
@@ -107,6 +108,20 @@ func main() {
 			Worker:              w,
 			DepositSynchronizer: depositSynchronizer,
 			BlockPostService:    blockPostService,
+		}),
+		balance_synchronizer.NewSynchronizerCmd(&balance_synchronizer.Synchronizer{
+			Context:          ctx,
+			Cancel:           cancel,
+			Config:           cfg,
+			Log:              log,
+			DbApp:            dbApp,
+			WG:               &wg,
+			BBR:              bbr,
+			SB:               bc,
+			NS:               ns,
+			HC:               &hc,
+			PoW:              pwNonce,
+			BlockPostService: blockPostService,
 		}),
 		migrator.NewMigratorCmd(ctx, log, dbApp),
 		deposit.NewDepositCmd(&deposit.Deposit{

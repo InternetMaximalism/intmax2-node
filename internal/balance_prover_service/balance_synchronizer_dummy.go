@@ -7,6 +7,7 @@ import (
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/logger"
+	"intmax2-node/internal/mnemonic_wallet"
 	"intmax2-node/internal/mnemonic_wallet/models"
 	intMaxTypes "intmax2-node/internal/types"
 	"math/big"
@@ -156,12 +157,13 @@ func NewSynchronizerDummy(
 }
 
 func (s *balanceSynchronizerDummy) TestE2E(blockValidityProver block_validity_prover.BlockValidityProver, blockBuilderWallet *models.Wallet) {
-	blockBuilder := block_validity_prover.NewMockBlockBuilder(s.cfg, s.db)
+	// blockBuilder := block_validity_prover.NewMockBlockBuilder(s.cfg, s.db)
 	syncValidityProver, err := NewSyncValidityProver(s.ctx, s.cfg, s.log, s.sb, s.db)
 	if err != nil {
 		s.log.Fatalf("failed to create sync validity prover: %+v", err)
 	}
 	balanceProcessor := NewBalanceProcessor(s.ctx, s.cfg, s.log)
+	blockBuilder := syncValidityProver.ValidityProcessor.BlockBuilder()
 
 	alicePrivateKey, err := intMaxAcc.NewPrivateKey(big.NewInt(2))
 	if err != nil {
@@ -183,13 +185,19 @@ func (s *balanceSynchronizerDummy) TestE2E(blockValidityProver block_validity_pr
 	depositIndex := aliceWallet.Deposit(blockBuilder, *salt, 0, big.NewInt(100))
 
 	// post dummy block to reflect the deposit tree
-	_, err = blockBuilder.PostBlock(true, []*block_validity_prover.MockTxRequest{})
+	validityWitness, err := blockBuilder.PostBlock(true, []*block_validity_prover.MockTxRequest{})
 	if err != nil {
 		s.log.Fatalf("failed to post block: %+v", err)
 	}
+	err = syncValidityProver.ValidityProcessor.SyncBlockProver(validityWitness)
+	if err != nil {
+		s.log.Fatalf("failed to sync block prover: %+v", err)
+	}
+
+	fmt.Printf("len(b.ValidityProofs) after SetValidityProof: %d\n", len(syncValidityProver.ValidityProcessor.BlockBuilder().ValidityProofs))
 
 	// sync alice wallet to the latest block, which includes the deposit
-	err = aliceProver.SyncAll(syncValidityProver, aliceWallet, balanceProcessor, blockBuilder)
+	err = aliceProver.SyncAll(syncValidityProver, aliceWallet, balanceProcessor)
 	if err != nil {
 		s.log.Fatalf("failed to sync all: %+v", err)
 	}
@@ -250,7 +258,7 @@ func (s *balanceSynchronizerDummy) TestE2E(blockValidityProver block_validity_pr
 	transferWitness := transferWitnesses[0]
 
 	// update alice balance proof
-	err = aliceProver.SyncAll(syncValidityProver, aliceWallet, balanceProcessor, blockBuilder)
+	err = aliceProver.SyncAll(syncValidityProver, aliceWallet, balanceProcessor)
 	if err != nil {
 		s.log.Fatalf("failed to sync all: %+v", err)
 	}
@@ -263,7 +271,7 @@ func (s *balanceSynchronizerDummy) TestE2E(blockValidityProver block_validity_pr
 
 	// sync bob wallet to the latest block
 
-	err = bobProver.SyncAll(syncValidityProver, bobWallet, balanceProcessor, blockBuilder)
+	err = bobProver.SyncAll(syncValidityProver, bobWallet, balanceProcessor)
 	if err != nil {
 		s.log.Fatalf("failed to sync all: %+v", err)
 	}
@@ -279,7 +287,18 @@ func (s *balanceSynchronizerDummy) TestE2E(blockValidityProver block_validity_pr
 	}
 
 	// bob withdraw 10wei ETH
-	bobGenericEthAddress, err := intMaxTypes.NewEthereumAddress([]byte{2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21})
+	const (
+		mnPassword = ""
+		derivation = "m/44'/60'/0'/0/0"
+	)
+
+	bobEthPrivateKey, err := mnemonic_wallet.New().WalletGenerator(
+		derivation, mnPassword,
+	)
+	if err != nil {
+		s.log.Fatalf("failed to generate wallet: %+v", err)
+	}
+	bobGenericEthAddress, err := intMaxTypes.NewEthereumAddress(bobEthPrivateKey.WalletAddress[:])
 	if err != nil {
 		s.log.Fatalf("failed to create generic eth address: %+v", err)
 	}
@@ -303,7 +322,7 @@ func (s *balanceSynchronizerDummy) TestE2E(blockValidityProver block_validity_pr
 	fmt.Printf("size of withdrawalTransferWitnesses: %v\n", len(withdrawalTransferWitnesses))
 
 	// update bob balance proof
-	err = bobProver.SyncAll(syncValidityProver, bobWallet, balanceProcessor, blockBuilder)
+	err = bobProver.SyncAll(syncValidityProver, bobWallet, balanceProcessor)
 	if err != nil {
 		s.log.Fatalf("failed to sync all: %+v", err)
 	}
@@ -352,6 +371,8 @@ func (s *balanceSynchronizerDummy) TestE2E(blockValidityProver block_validity_pr
 func GetAssetBalance(wallet *MockWallet, tokenIndex uint32) *big.Int {
 	privateState := wallet.PrivateState()
 	if !privateState.AssetTreeRoot.Equal(wallet.assetTree.GetRoot()) {
+		fmt.Printf("assetTree (wallet): %v\n", wallet.assetTree.GetRoot()) // XXX
+		fmt.Printf("assetTreeRoot (privateState): %v\n", privateState.AssetTreeRoot.String())
 		panic("asset tree root mismatch")
 	}
 	assetLeaf := wallet.assetTree.GetLeaf(tokenIndex)

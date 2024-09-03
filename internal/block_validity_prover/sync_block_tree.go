@@ -61,7 +61,7 @@ func (ai *mockBlockBuilder) AccountBySenderAddress(_ string) (*uint256.Int, erro
 	return nil, fmt.Errorf("AccountBySenderAddress not implemented")
 }
 
-func (p *blockValidityProver) BlockBuilder() BlockBuilderStorage {
+func (p *blockValidityProver) BlockBuilder() *mockBlockBuilder {
 	return p.blockBuilder
 }
 
@@ -205,7 +205,7 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, startBlock ui
 	return nextBN.Uint64(), nil
 }
 
-func (p *blockValidityProver) SyncBlockProver(
+func (p *blockValidityProver) SyncBlockProverWithAuxInfo(
 	blockContent *intMaxTypes.BlockContent,
 	postedBlock *block_post_service.PostedBlock,
 ) error {
@@ -235,6 +235,20 @@ func (p *blockValidityProver) SyncBlockProver(
 		panic(err)
 	}
 
+	return p.SyncBlockProver(validityWitness)
+}
+
+func (p *blockValidityProver) SyncBlockProver(
+	validityWitness *ValidityWitness,
+) error {
+	fmt.Printf("len(b.ValidityProofs) before requestAndFetchBlockValidityProof: %d\n", len(p.BlockBuilder().ValidityProofs))
+
+	fmt.Printf("IMPORTANT: Block %d proof is processing\n", validityWitness.BlockWitness.Block.BlockNumber)
+	// validityWitness, err := p.blockBuilder.LastValidityWitness()
+	// if err != nil {
+	// 	panic("last validity witness error")
+	// }
+
 	validityProof, err := p.requestAndFetchBlockValidityProof(validityWitness)
 	if err != nil {
 		return errors.Join(ErrRequestAndFetchBlockValidityProofFail, err)
@@ -252,8 +266,9 @@ func (p *blockValidityProver) SyncBlockProver(
 
 func (p *blockValidityProver) requestAndFetchBlockValidityProof(validityWitness *ValidityWitness) (validityProof string, err error) {
 	blockHash := validityWitness.BlockWitness.Block.Hash()
+	fmt.Printf("len(b.ValidityProofs) before LastValidityProof: %d\n", len(p.BlockBuilder().ValidityProofs))
 	lastValidityProof, err := p.blockBuilder.LastValidityProof()
-	if err != nil && !errors.Is(err, ErrNoLastValidityProof) {
+	if err != nil && err.Error() != ErrNoLastValidityProof.Error() {
 		var ErrLastValidityProofFail = errors.New("last validity proof fail")
 		return "", errors.Join(ErrLastValidityProofFail, err)
 	}
