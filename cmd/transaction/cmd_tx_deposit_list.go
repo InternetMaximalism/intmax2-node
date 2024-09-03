@@ -5,7 +5,7 @@ import "github.com/spf13/cobra"
 func txDepositListCmd(b *Transaction) *cobra.Command {
 	const (
 		use   = "list"
-		short = "Get deposit list"
+		short = "Manage deposit list"
 	)
 
 	depositListCmd := cobra.Command{

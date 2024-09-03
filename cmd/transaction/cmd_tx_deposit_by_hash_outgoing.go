@@ -5,7 +5,7 @@ import "github.com/spf13/cobra"
 func txDepositByHashOutgoingCmd(b *Transaction) *cobra.Command {
 	const (
 		use   = "outgoing"
-		short = "Get deposit by hash (outgoing)"
+		short = "Get deposit by hash (outgoing); coming soon"
 	)
 
 	cmd := cobra.Command{

@@ -5,7 +5,7 @@ import "github.com/spf13/cobra"
 func txDepositByHashCmd(b *Transaction) *cobra.Command {
 	const (
 		use   = "info"
-		short = "Get deposit by hash"
+		short = "Manage deposit by hash"
 	)
 
 	depositByHashCmd := cobra.Command{
