@@ -201,6 +201,50 @@
         ]
       }
     },
+    "/v1/backups/deposit/{depositHash}": {
+      "get": {
+        "summary": "GetBackupTransactionByHash processes a request for backup transaction by hash",
+        "description": "## This method handles the backup transaction by hash.",
+        "operationId": "StoreVaultService_GetBackupDepositByHash",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetBackupDepositByHashResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "depositHash",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "recipient",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      }
+    },
     "/v1/backups/deposits/list": {
       "post": {
         "summary": "GetBackupDepositsList processes a request for backup deposits list with pagination and filters",
@@ -1024,6 +1068,47 @@
         "endBlockNumber": {
           "type": "string",
           "format": "uint64"
+        }
+      }
+    },
+    "v1GetBackupDepositByHashResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "data": {
+          "$ref": "#/definitions/v1GetBackupDepositByHashResponseData"
+        }
+      }
+    },
+    "v1GetBackupDepositByHashResponseData": {
+      "type": "object",
+      "properties": {
+        "deposit": {
+          "$ref": "#/definitions/v1GetBackupDepositByHashResponseDeposit"
+        }
+      }
+    },
+    "v1GetBackupDepositByHashResponseDeposit": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "recipient": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "encryptedDeposit": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
         }
       }
     },

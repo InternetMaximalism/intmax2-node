@@ -71,7 +71,7 @@ func txDepositListIncomingCmd(b *Transaction) *cobra.Command {
 	cmd.PersistentFlags().StringVar(&userEthPrivateKey, userPrivateKeyKey, emptyKey, userPrivateDesc)
 
 	cmd.Run = func(cmd *cobra.Command, args []string) {
-		resp, err := newCommands().ReceiverDepositsList(
+		resp, err := newCommands().ReceiverDepositsListIncoming(
 			b.Config, b.Log, b.SB,
 		).Do(
 			b.Context, &txDepositListIncoming.UCTxDepositsListIncomingInput{

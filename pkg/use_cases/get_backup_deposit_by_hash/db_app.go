@@ -1,11 +1,11 @@
-package get_balances
+package get_backup_deposit_by_hash
 
 import (
 	"context"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 )
 
-//go:generate mockgen -destination=mock_db_app_test.go -package=get_balances_test -source=db_app.go
+//go:generate mockgen -destination=mock_db_app_test.go -package=get_backup_deposit_by_hash_test -source=db_app.go
 
 type SQLDriverApp interface {
 	GenericCommandsApp
@@ -43,7 +43,9 @@ type BackupDeposits interface {
 		recipient, depositHash, encryptedDeposit string,
 		blockNumber int64,
 	) (*mDBApp.BackupDeposit, error)
-	GetBackupDepositByRecipientAndDepositDoubleHash(recipient, depositDoubleHash string) (*mDBApp.BackupDeposit, error)
+	GetBackupDepositByRecipientAndDepositDoubleHash(
+		recipient, depositDoubleHash string,
+	) (*mDBApp.BackupDeposit, error)
 	GetBackupDeposit(conditions []string, values []interface{}) (*mDBApp.BackupDeposit, error)
 	GetBackupDeposits(condition string, value interface{}) ([]*mDBApp.BackupDeposit, error)
 }

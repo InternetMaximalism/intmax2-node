@@ -2,6 +2,7 @@ package tx_deposit_service
 
 import (
 	"encoding/json"
+	intMaxTypes "intmax2-node/internal/types"
 	"math/big"
 )
 
@@ -11,6 +12,14 @@ type GetDepositData struct {
 	BlockNumber      string `json:"blockNumber"`
 	EncryptedDeposit string `json:"encryptedDeposit"`
 	CreatedAt        string `json:"createdAt"`
+}
+
+type GetDepositTxData struct {
+	ID          string               `json:"id"`
+	Recipient   string               `json:"recipient"`
+	BlockNumber string               `json:"blockNumber"`
+	Deposit     *intMaxTypes.Deposit `json:"deposit"`
+	CreatedAt   string               `json:"createdAt"`
 }
 
 type GetTransactionByHashData struct {
@@ -37,4 +46,13 @@ type Deposit struct {
 
 type GetDepositsList struct {
 	Deposits []*Deposit `json:"deposits"`
+}
+
+type GetDepositByHashIncomingData struct {
+	Deposit *GetDepositData `json:"deposit"`
+}
+
+type GetDepositByHashIncomingResponse struct {
+	Success bool                          `json:"success"`
+	Data    *GetDepositByHashIncomingData `json:"data"`
 }

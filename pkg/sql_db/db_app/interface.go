@@ -149,6 +149,9 @@ type BackupDeposits interface {
 		recipient, depositHash, encryptedDeposit string,
 		blockNumber int64,
 	) (*models.BackupDeposit, error)
+	GetBackupDepositByRecipientAndDepositDoubleHash(
+		recipient, depositDoubleHash string,
+	) (*models.BackupDeposit, error)
 	GetBackupDeposit(conditions []string, values []interface{}) (*models.BackupDeposit, error)
 	GetBackupDeposits(condition string, value interface{}) ([]*models.BackupDeposit, error)
 	GetBackupDepositsByRecipient(

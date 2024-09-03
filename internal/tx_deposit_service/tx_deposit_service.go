@@ -591,3 +591,22 @@ func GetDepositFromBackupData(
 
 	return &deposit, nil
 }
+
+func DepositByHashIncoming(
+	ctx context.Context,
+	cfg *configs.Config,
+	depositHash string,
+	userEthPrivateKey string,
+) (json.RawMessage, error) {
+	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
+	if err != nil {
+		return nil, errors.Join(errorsB.ErrWalletAddressNotRecognized, err)
+	}
+
+	userAccount, err := intMaxAcc.NewPrivateKeyFromString(wallet.IntMaxPrivateKey)
+	if err != nil {
+		return nil, errors.Join(ErrRecoverWalletFromPrivateKey, err)
+	}
+
+	return GetDepositByHashIncomingWithRawRequest(ctx, cfg, depositHash, userAccount)
+}

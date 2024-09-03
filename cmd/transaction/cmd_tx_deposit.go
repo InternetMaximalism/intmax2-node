@@ -25,6 +25,7 @@ func txDepositCmd(b *Transaction) *cobra.Command {
 	depositCmd.AddCommand(txDepositTokenCmd(b, erc721TokenType))
 	depositCmd.AddCommand(txDepositTokenCmd(b, erc1155TokenType))
 	depositCmd.AddCommand(txDepositListCmd(b))
+	depositCmd.AddCommand(txDepositByHashCmd(b))
 
 	return &depositCmd
 }
