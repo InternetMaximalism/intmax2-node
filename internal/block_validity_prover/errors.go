@@ -134,3 +134,6 @@ var ErrGenesisValidityProof = errors.New("genesis validity proof error")
 
 // ErrNoLastValidityWitness error: no validity proof by block number.
 var ErrNoValidityProofByBlockNumber = errors.New("no validity proof by block number")
+
+// ErrAccountTreeGetAccountID error: account id not found in the account tree.
+var ErrAccountTreeGetAccountID = errors.New("account id not found in the account tree")

@@ -279,31 +279,31 @@ type ValidityTransitionWitness struct {
 	AccountUpdateProofs       AccountUpdateProofs       `json:"accountUpdateProofs"`
 }
 
-type ValidityTransitionWitnessFlatten struct {
-	SenderLeaves              []SenderLeaf                       `json:"senderLeaves"`
-	BlockMerkleProof          intMaxTree.MerkleProof             `json:"blockMerkleProof"`
-	AccountRegistrationProofs []intMaxTree.IndexedInsertionProof `json:"accountRegistrationProofs,omitempty"`
-	AccountUpdateProofs       []intMaxTree.IndexedUpdateProof    `json:"accountUpdateProofs,omitempty"`
-}
+// type ValidityTransitionWitnessFlatten struct {
+// 	SenderLeaves              []SenderLeaf                       `json:"senderLeaves"`
+// 	BlockMerkleProof          intMaxTree.MerkleProof             `json:"blockMerkleProof"`
+// 	AccountRegistrationProofs []intMaxTree.IndexedInsertionProof `json:"accountRegistrationProofs,omitempty"`
+// 	AccountUpdateProofs       []intMaxTree.IndexedUpdateProof    `json:"accountUpdateProofs,omitempty"`
+// }
 
-func (w *ValidityTransitionWitness) MarshalJSON() ([]byte, error) {
-	result := ValidityTransitionWitnessFlatten{
-		SenderLeaves:              w.SenderLeaves,
-		BlockMerkleProof:          w.BlockMerkleProof,
-		AccountRegistrationProofs: make([]intMaxTree.IndexedInsertionProof, 0),
-		AccountUpdateProofs:       make([]intMaxTree.IndexedUpdateProof, 0),
-	}
+// func (w *ValidityTransitionWitness) MarshalJSON() ([]byte, error) {
+// 	result := ValidityTransitionWitnessFlatten{
+// 		SenderLeaves:              w.SenderLeaves,
+// 		BlockMerkleProof:          w.BlockMerkleProof,
+// 		AccountRegistrationProofs: make([]intMaxTree.IndexedInsertionProof, 0),
+// 		AccountUpdateProofs:       make([]intMaxTree.IndexedUpdateProof, 0),
+// 	}
 
-	if w.AccountRegistrationProofs.IsValid {
-		result.AccountRegistrationProofs = w.AccountRegistrationProofs.Proofs
-	}
+// 	if w.AccountRegistrationProofs.IsValid {
+// 		result.AccountRegistrationProofs = w.AccountRegistrationProofs.Proofs
+// 	}
 
-	if w.AccountUpdateProofs.IsValid {
-		result.AccountUpdateProofs = w.AccountUpdateProofs.Proofs
-	}
+// 	if w.AccountUpdateProofs.IsValid {
+// 		result.AccountUpdateProofs = w.AccountUpdateProofs.Proofs
+// 	}
 
-	return json.Marshal(&result)
-}
+// 	return json.Marshal(&result)
+// }
 
 func (vtw *ValidityTransitionWitness) Set(other *ValidityTransitionWitness) *ValidityTransitionWitness {
 	vtw.SenderLeaves = make([]SenderLeaf, len(other.SenderLeaves))
@@ -757,38 +757,38 @@ type BlockWitness struct {
 	AccountMembershipProofs *[]intMaxTree.IndexedMembershipProof `json:"accountMembershipProofs,omitempty"` // in pubkey case
 }
 
-type BlockWitnessFlatten struct {
-	Block                   *block_post_service.PostedBlock     `json:"block"`
-	Signature               SignatureContent                    `json:"signature"`
-	PublicKeys              []intMaxTypes.Uint256               `json:"pubkeys"`
-	PrevAccountTreeRoot     *intMaxTree.PoseidonHashOut         `json:"prevAccountTreeRoot"`
-	PrevBlockTreeRoot       *intMaxTree.PoseidonHashOut         `json:"prevBlockTreeRoot"`
-	AccountIdPacked         *AccountIdPacked                    `json:"accountIdPacked,omitempty"` // in account id case
-	AccountMerkleProofs     []AccountMerkleProof                `json:"accountMerkleProofs"`       // in account id case
-	AccountMembershipProofs []intMaxTree.IndexedMembershipProof `json:"accountMembershipProofs"`   // in pubkey case
-}
+// type BlockWitnessFlatten struct {
+// 	Block                   *block_post_service.PostedBlock     `json:"block"`
+// 	Signature               SignatureContent                    `json:"signature"`
+// 	PublicKeys              []intMaxTypes.Uint256               `json:"pubkeys"`
+// 	PrevAccountTreeRoot     *intMaxTree.PoseidonHashOut         `json:"prevAccountTreeRoot"`
+// 	PrevBlockTreeRoot       *intMaxTree.PoseidonHashOut         `json:"prevBlockTreeRoot"`
+// 	AccountIdPacked         *AccountIdPacked                    `json:"accountIdPacked,omitempty"` // in account id case
+// 	AccountMerkleProofs     []AccountMerkleProof                `json:"accountMerkleProofs"`       // in account id case
+// 	AccountMembershipProofs []intMaxTree.IndexedMembershipProof `json:"accountMembershipProofs"`   // in pubkey case
+// }
 
-func (bw *BlockWitness) MarshalJSON() ([]byte, error) {
-	result := BlockWitnessFlatten{
-		Block:                   bw.Block,
-		Signature:               bw.Signature,
-		PublicKeys:              bw.PublicKeys,
-		PrevAccountTreeRoot:     bw.PrevAccountTreeRoot,
-		PrevBlockTreeRoot:       bw.PrevBlockTreeRoot,
-		AccountIdPacked:         bw.AccountIdPacked,
-		AccountMerkleProofs:     make([]AccountMerkleProof, 0),
-		AccountMembershipProofs: make([]intMaxTree.IndexedMembershipProof, 0),
-	}
+// func (bw *BlockWitness) MarshalJSON() ([]byte, error) {
+// 	result := BlockWitnessFlatten{
+// 		Block:                   bw.Block,
+// 		Signature:               bw.Signature,
+// 		PublicKeys:              bw.PublicKeys,
+// 		PrevAccountTreeRoot:     bw.PrevAccountTreeRoot,
+// 		PrevBlockTreeRoot:       bw.PrevBlockTreeRoot,
+// 		AccountIdPacked:         bw.AccountIdPacked,
+// 		AccountMerkleProofs:     make([]AccountMerkleProof, 0),
+// 		AccountMembershipProofs: make([]intMaxTree.IndexedMembershipProof, 0),
+// 	}
 
-	if bw.AccountMembershipProofs != nil {
-		result.AccountMembershipProofs = *bw.AccountMembershipProofs
-	}
-	if bw.AccountMerkleProofs != nil {
-		result.AccountMerkleProofs = *bw.AccountMerkleProofs
-	}
+// 	if bw.AccountMembershipProofs != nil {
+// 		result.AccountMembershipProofs = *bw.AccountMembershipProofs
+// 	}
+// 	if bw.AccountMerkleProofs != nil {
+// 		result.AccountMerkleProofs = *bw.AccountMerkleProofs
+// 	}
 
-	return json.Marshal(&result)
-}
+// 	return json.Marshal(&result)
+// }
 
 type CompressedBlockWitness struct {
 	Block                              *block_post_service.PostedBlock      `json:"block"`
@@ -812,12 +812,14 @@ func (bw *BlockWitness) Set(blockWitness *BlockWitness) *BlockWitness {
 	bw.PrevBlockTreeRoot = new(intMaxGP.PoseidonHashOut).Set(blockWitness.PrevBlockTreeRoot)
 	bw.AccountIdPacked = new(AccountIdPacked).Set(blockWitness.AccountIdPacked)
 	if blockWitness.AccountMerkleProofs != nil {
-		bw.AccountMerkleProofs = new([]AccountMerkleProof)
-		copy(*bw.AccountMerkleProofs, *blockWitness.AccountMerkleProofs)
+		accountMerkleProofs := make([]AccountMerkleProof, len(*blockWitness.AccountMerkleProofs))
+		copy(accountMerkleProofs, *blockWitness.AccountMerkleProofs)
+		bw.AccountMerkleProofs = &accountMerkleProofs
 	}
 	if blockWitness.AccountMembershipProofs != nil {
-		bw.AccountMembershipProofs = new([]intMaxTree.IndexedMembershipProof)
-		copy(*bw.AccountMembershipProofs, *blockWitness.AccountMembershipProofs)
+		accountMembershipProofs := make([]intMaxTree.IndexedMembershipProof, len(*blockWitness.AccountMembershipProofs))
+		copy(accountMembershipProofs, *blockWitness.AccountMembershipProofs)
+		bw.AccountMembershipProofs = &accountMembershipProofs
 	}
 
 	return bw
@@ -860,6 +862,7 @@ func (bw *BlockWitness) Compress(maxAccountID uint64) (compressed *CompressedBlo
 
 	significantHeight := effectiveBits(uint(maxAccountID))
 
+	fmt.Printf("bw.AccountMerkleProofs: %v\n", bw.AccountMerkleProofs)
 	if bw.AccountMerkleProofs != nil {
 		if len(*bw.AccountMerkleProofs) == 0 {
 			significantAccountMerkleProofs := make([]AccountMerkleProof, 0)
@@ -890,14 +893,16 @@ func (bw *BlockWitness) Compress(maxAccountID uint64) (compressed *CompressedBlo
 		}
 	}
 
+	fmt.Printf("bw.AccountMembershipProofs: %v\n", bw.AccountMembershipProofs)
 	if bw.AccountMembershipProofs != nil {
-		if len(*bw.AccountMerkleProofs) == 0 {
+		if len(*bw.AccountMembershipProofs) == 0 {
 			significantAccountMembershipProofs := make([]intMaxTree.IndexedMembershipProof, 0)
 			compressed.SignificantAccountMembershipProofs = &significantAccountMembershipProofs
 		} else {
 			accountMembershipProofs := *bw.AccountMembershipProofs
 			compressed.CommonAccountMerkleProof = accountMembershipProofs[0].LeafProof.Siblings[significantHeight:]
 			significantAccountMembershipProofs := make([]intMaxTree.IndexedMembershipProof, 0)
+			fmt.Printf("accountMembershipProofs: %v\n", accountMembershipProofs)
 			for _, proof := range accountMembershipProofs {
 				for i := 0; i < int(intMaxTree.ACCOUNT_TREE_HEIGHT)-int(significantHeight); i++ {
 					if !proof.LeafProof.Siblings[int(significantHeight)+i].Equal(compressed.CommonAccountMerkleProof[i]) {
@@ -916,8 +921,15 @@ func (bw *BlockWitness) Compress(maxAccountID uint64) (compressed *CompressedBlo
 				})
 			}
 
+			fmt.Printf("size of significantAccountMembershipProofs: %d\n", len(significantAccountMembershipProofs))
 			compressed.SignificantAccountMembershipProofs = &significantAccountMembershipProofs
 		}
+	}
+
+	if compressed.SignificantAccountMembershipProofs != nil {
+		fmt.Printf("size of compressed.SignificantAccountMembershipProofs: %d\n", len(*compressed.SignificantAccountMembershipProofs))
+	} else {
+		fmt.Printf("compressed.SignificantAccountMembershipProofs is nil\n")
 	}
 
 	return compressed, nil
@@ -1526,6 +1538,7 @@ func (b *mockBlockBuilder) GenerateBlock(
 	blockContent *intMaxTypes.BlockContent,
 	postedBlock *block_post_service.PostedBlock,
 ) (*BlockWitness, error) {
+	fmt.Println("-----------GenerateBlock------------------")
 	isRegistrationBlock := blockContent.SenderType == intMaxTypes.PublicKeySenderType
 
 	publicKeys := make([]intMaxTypes.Uint256, len(blockContent.Senders))
@@ -1833,7 +1846,7 @@ func (db *mockBlockBuilder) UpdateAccountTreeLeaf(sender *big.Int, lastBlockNumb
 func (db *mockBlockBuilder) GetAccountTreeLeaf(sender *big.Int) (*intMaxTree.IndexedMerkleLeaf, error) {
 	accountID, ok := db.AccountTree.GetAccountID(sender)
 	if !ok {
-		return nil, errors.New("account id not found")
+		return nil, ErrAccountTreeGetAccountID
 	}
 	prevLeaf := db.AccountTree.GetLeaf(accountID)
 
@@ -1904,6 +1917,7 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTree(
 	isRegistrationBlock bool,
 	txs []*MockTxRequest,
 ) (*BlockWitness, *intMaxTree.TxTree, error) {
+	fmt.Println("-----------GenerateBlockWithTxTree------------------")
 	const numOfSenders = 128
 	if len(txs) > numOfSenders {
 		panic("too many txs")
@@ -1935,40 +1949,64 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTree(
 	var accountIDPacked *AccountIdPacked
 	var accountMerkleProofs []AccountMerkleProof
 	var accountMembershipProofs []intMaxTree.IndexedMembershipProof
-	accountIDs := make([]uint64, 0)
+	accountIDHash := intMaxTypes.Bytes32{}
 	if isRegistrationBlock {
-		accountMembershipProofs = make([]intMaxTree.IndexedMembershipProof, 0)
-		for _, publicKey := range publicKeys {
-			isDummy := publicKey.BigInt().Cmp(intMaxAcc.NewDummyPublicKey().BigInt()) == 0
-			if !isDummy {
-				proof, err := db.GetAccountMembershipProof(blockNumber, publicKey.BigInt())
-				if err != nil {
-					panic("account membership proof error")
-				}
+		accountMembershipProofs = make([]intMaxTree.IndexedMembershipProof, len(publicKeys))
+		fmt.Printf("size of publicKeys: %d\n", len(publicKeys))
+		for i, publicKey := range publicKeys {
+			// for pubkey in pubkeys.iter() {
+			// 	let is_dummy = pubkey.is_dummy_pubkey();
+			// 	assert!(
+			// 		self.account_tree.index(*pubkey).is_none() || is_dummy,
+			// 		"account already exists"
+			// 	);
+			// 	let proof = self.account_tree.prove_membership(*pubkey);
+			// 	account_membership_proofs.push(proof);
+			// }
 
-				accountMembershipProofs = append(accountMembershipProofs, *proof)
+			isDummy := publicKey.BigInt().Cmp(intMaxAcc.NewDummyPublicKey().BigInt()) == 0
+			fmt.Printf("isDummy: %v, ", isDummy)
+
+			leaf, err := db.GetAccountTreeLeaf(publicKey.BigInt())
+			if err != nil {
+				if err.Error() != ErrAccountTreeGetAccountID.Error() {
+					return nil, nil, errors.Join(errors.New("account tree leaf error"), err)
+				}
 			}
+
+			if !isDummy && leaf != nil {
+				return nil, nil, errors.New("account already exists")
+			}
+
+			proof, err := db.GetAccountMembershipProof(blockNumber, publicKey.BigInt())
+			if err != nil {
+				return nil, nil, errors.Join(errors.New("account membership proof error"), err)
+			}
+
+			accountMembershipProofs[i] = *proof
 		}
 	} else {
-		accountMerkleProofs = make([]AccountMerkleProof, 0)
-		for _, publicKey := range publicKeys {
+		accountIDs := make([]uint64, len(publicKeys))
+		accountMerkleProofs = make([]AccountMerkleProof, len(publicKeys))
+		for i, publicKey := range publicKeys {
 			accountID, ok := db.AccountTree.GetAccountID(publicKey.BigInt())
 			if !ok {
-				panic("account id not found")
+				return nil, nil, errors.New("account id not found")
 			}
 			proof, err := db.ProveInclusion(accountID)
 			if err != nil {
-				panic("account inclusion proof error")
+				return nil, nil, errors.New("account inclusion proof error")
 			}
 
-			accountIDs = append(accountIDs, accountID)
-			accountMerkleProofs = append(accountMerkleProofs, AccountMerkleProof{
+			accountIDs[i] = accountID
+			accountMerkleProofs[i] = AccountMerkleProof{
 				MerkleProof: proof.MerkleProof,
 				Leaf:        proof.Leaf,
-			})
+			}
 		}
 
 		accountIDPacked = new(AccountIdPacked).Pack(accountIDs)
+		accountIDHash = GetAccountIDsHash(accountIDs)
 	}
 
 	zeroTx := new(intMaxTypes.Tx).SetZero()
@@ -1986,7 +2024,7 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTree(
 	signature, err := db.ConstructSignature(
 		*new(intMaxTypes.Bytes32).FromPoseidonHashOut(&txTreeRoot),
 		GetPublicKeysHash(publicKeys),
-		GetAccountIDsHash(accountIDs),
+		accountIDHash,
 		isRegistrationBlock,
 		sortedTxs,
 	)
@@ -2057,6 +2095,20 @@ func (db *mockBlockBuilder) PostBlock(
 	if err != nil {
 		panic(err)
 	}
+	encodedBlockWitness, err := json.Marshal(validityWitness.BlockWitness)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("blockNumber: %d\n", blockWitness.Block.BlockNumber)
+	fmt.Printf("blockNumber: %d\n", validityWitness.BlockWitness.Block.BlockNumber)
+	fmt.Printf("validityWitness.BlockWitness after generateValidityWitness: %s\n", encodedBlockWitness)
+
+	validityPis := validityWitness.ValidityPublicInputs()
+	encodedValidityPis, err := json.Marshal(validityPis)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("validityPis (PostBlock): %s\n", encodedValidityPis)
 
 	db.SetValidityWitness(blockWitness.Block.BlockNumber, validityWitness)
 

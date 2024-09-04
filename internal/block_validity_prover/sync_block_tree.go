@@ -2,6 +2,7 @@ package block_validity_prover
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
@@ -257,16 +258,22 @@ func (p *blockValidityProver) SyncBlockProver() error {
 	// }
 
 	for blockNumber := lastGeneratedBlockNumber + 1; blockNumber <= currentBlockNumber; blockNumber++ {
-		validityWitnessBlockNumber := p.blockBuilder.LatestIntMaxBlockNumber()
-		validityWitness, err := p.blockBuilder.ValidityWitnessByBlockNumber(validityWitnessBlockNumber)
+		// validityWitnessBlockNumber := p.blockBuilder.LatestIntMaxBlockNumber()
+		validityWitness, err := p.blockBuilder.ValidityWitnessByBlockNumber(blockNumber)
 		// validityWitnessBlockNumber := validityWitness.BlockWitness.Block.BlockNumber
 		fmt.Printf("IMPORTANT: Block %d proof is processing\n", validityWitness.BlockWitness.Block.BlockNumber)
-		fmt.Printf("IMPORTANT: Block %d proof is processing\n", validityWitnessBlockNumber)
+		fmt.Printf("IMPORTANT: Block %d proof is processing\n", blockNumber)
 		if err != nil {
 			panic("last validity witness error")
 		}
 
-		lastValidityProof, err := p.blockBuilder.ValidityProofByBlockNumber(validityWitnessBlockNumber - 1)
+		encodedBlockWitness, err := json.Marshal(validityWitness.BlockWitness)
+		if err != nil {
+			panic("marshal validity witness error")
+		}
+		fmt.Printf("encodedBlockWitness (SyncBlockProver): %s\n", encodedBlockWitness)
+
+		lastValidityProof, err := p.blockBuilder.ValidityProofByBlockNumber(blockNumber - 1)
 		if err != nil && err.Error() != ErrGenesisValidityProof.Error() {
 			var ErrLastValidityProofFail = errors.New("last validity proof fail")
 			return errors.Join(ErrLastValidityProofFail, err)

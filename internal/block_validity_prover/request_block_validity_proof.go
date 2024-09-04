@@ -49,6 +49,25 @@ func (p *blockValidityProver) requestBlockValidityProof(blockHash common.Hash, v
 		return fmt.Errorf("failed to marshal JSON request body: %w", err)
 	}
 
+	encodedValidityWitness, err := json.Marshal(validityWitness)
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON request body: %w", err)
+	}
+	fmt.Printf("encodedValidityWitness: %s\n", encodedValidityWitness)
+
+	encodedCompressedValidityWitness, err := json.Marshal(compressedValidityWitness)
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON request body: %w", err)
+	}
+	fmt.Printf("encodedCompressedValidityWitness: %s\n", encodedCompressedValidityWitness)
+
+	newValidityPis := validityWitness.ValidityPublicInputs()
+	encodedValidityPis, err := json.Marshal(newValidityPis)
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON request body: %w", err)
+	}
+	fmt.Printf("validityPis (requestBlockValidityProof): %s\n", encodedValidityPis)
+
 	const (
 		httpKey     = "http"
 		httpsKey    = "https"
