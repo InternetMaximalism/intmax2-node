@@ -266,6 +266,8 @@ func getDepositByHashIncomingRawRequest(
 	}
 
 	if resp.StatusCode() == http.StatusBadRequest {
+		return nil, fmt.Errorf("request must be valid")
+	} else if resp.StatusCode() == http.StatusNotFound {
 		return nil, fmt.Errorf("not found")
 	} else if resp.StatusCode() != http.StatusOK {
 		return nil, fmt.Errorf("failed to get response")
