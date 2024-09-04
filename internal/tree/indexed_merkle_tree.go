@@ -24,10 +24,10 @@ type IndexedMerkleLeaf struct {
 }
 
 type SerializableIndexedMerkleLeaf struct {
-	Key       string    `json:"key"`
-	Value     uint64    `json:"value"`
 	NextIndex LeafIndex `json:"nextIndex"`
+	Key       string    `json:"key"`
 	NextKey   string    `json:"nextKey"`
+	Value     uint64    `json:"value"`
 }
 
 func (leaf *IndexedMerkleLeaf) MarshalJSON() ([]byte, error) {

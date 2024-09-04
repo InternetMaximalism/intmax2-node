@@ -279,31 +279,31 @@ type ValidityTransitionWitness struct {
 	AccountUpdateProofs       AccountUpdateProofs       `json:"accountUpdateProofs"`
 }
 
-// type ValidityTransitionWitnessFlatten struct {
-// 	SenderLeaves              []SenderLeaf                       `json:"senderLeaves"`
-// 	BlockMerkleProof          intMaxTree.MerkleProof             `json:"blockMerkleProof"`
-// 	AccountRegistrationProofs []intMaxTree.IndexedInsertionProof `json:"accountRegistrationProofs,omitempty"`
-// 	AccountUpdateProofs       []intMaxTree.IndexedUpdateProof    `json:"accountUpdateProofs,omitempty"`
-// }
+type ValidityTransitionWitnessFlatten struct {
+	SenderLeaves              []SenderLeaf                       `json:"senderLeaves"`
+	BlockMerkleProof          intMaxTree.MerkleProof             `json:"blockMerkleProof"`
+	AccountRegistrationProofs []intMaxTree.IndexedInsertionProof `json:"accountRegistrationProofs,omitempty"`
+	AccountUpdateProofs       []intMaxTree.IndexedUpdateProof    `json:"accountUpdateProofs,omitempty"`
+}
 
-// func (w *ValidityTransitionWitness) MarshalJSON() ([]byte, error) {
-// 	result := ValidityTransitionWitnessFlatten{
-// 		SenderLeaves:              w.SenderLeaves,
-// 		BlockMerkleProof:          w.BlockMerkleProof,
-// 		AccountRegistrationProofs: make([]intMaxTree.IndexedInsertionProof, 0),
-// 		AccountUpdateProofs:       make([]intMaxTree.IndexedUpdateProof, 0),
-// 	}
+func (w *ValidityTransitionWitness) MarshalJSON() ([]byte, error) {
+	result := ValidityTransitionWitnessFlatten{
+		SenderLeaves:              w.SenderLeaves,
+		BlockMerkleProof:          w.BlockMerkleProof,
+		AccountRegistrationProofs: make([]intMaxTree.IndexedInsertionProof, 0),
+		AccountUpdateProofs:       make([]intMaxTree.IndexedUpdateProof, 0),
+	}
 
-// 	if w.AccountRegistrationProofs.IsValid {
-// 		result.AccountRegistrationProofs = w.AccountRegistrationProofs.Proofs
-// 	}
+	if w.AccountRegistrationProofs.IsValid {
+		result.AccountRegistrationProofs = w.AccountRegistrationProofs.Proofs
+	}
 
-// 	if w.AccountUpdateProofs.IsValid {
-// 		result.AccountUpdateProofs = w.AccountUpdateProofs.Proofs
-// 	}
+	if w.AccountUpdateProofs.IsValid {
+		result.AccountUpdateProofs = w.AccountUpdateProofs.Proofs
+	}
 
-// 	return json.Marshal(&result)
-// }
+	return json.Marshal(&result)
+}
 
 func (vtw *ValidityTransitionWitness) Set(other *ValidityTransitionWitness) *ValidityTransitionWitness {
 	vtw.SenderLeaves = make([]SenderLeaf, len(other.SenderLeaves))
@@ -752,43 +752,46 @@ type BlockWitness struct {
 	PublicKeys              []intMaxTypes.Uint256                `json:"pubkeys"`
 	PrevAccountTreeRoot     *intMaxTree.PoseidonHashOut          `json:"prevAccountTreeRoot"`
 	PrevBlockTreeRoot       *intMaxTree.PoseidonHashOut          `json:"prevBlockTreeRoot"`
-	AccountIdPacked         *AccountIdPacked                     `json:"accountIdPacked,omitempty"`         // in account id case
-	AccountMerkleProofs     *[]AccountMerkleProof                `json:"accountMerkleProofs,omitempty"`     // in account id case
-	AccountMembershipProofs *[]intMaxTree.IndexedMembershipProof `json:"accountMembershipProofs,omitempty"` // in pubkey case
+	AccountIdPacked         *AccountIdPacked                     `json:"accountIdPacked,omitempty"` // in account id case
+	AccountMerkleProofs     *[]AccountMerkleProof                `json:"accountMerkleProofs"`       // in account id case
+	AccountMembershipProofs *[]intMaxTree.IndexedMembershipProof `json:"accountMembershipProofs"`   // in pubkey case
 }
 
-// type BlockWitnessFlatten struct {
-// 	Block                   *block_post_service.PostedBlock     `json:"block"`
-// 	Signature               SignatureContent                    `json:"signature"`
-// 	PublicKeys              []intMaxTypes.Uint256               `json:"pubkeys"`
-// 	PrevAccountTreeRoot     *intMaxTree.PoseidonHashOut         `json:"prevAccountTreeRoot"`
-// 	PrevBlockTreeRoot       *intMaxTree.PoseidonHashOut         `json:"prevBlockTreeRoot"`
-// 	AccountIdPacked         *AccountIdPacked                    `json:"accountIdPacked,omitempty"` // in account id case
-// 	AccountMerkleProofs     []AccountMerkleProof                `json:"accountMerkleProofs"`       // in account id case
-// 	AccountMembershipProofs []intMaxTree.IndexedMembershipProof `json:"accountMembershipProofs"`   // in pubkey case
-// }
+type BlockWitnessFlatten struct {
+	Block                   *block_post_service.PostedBlock     `json:"block"`
+	Signature               SignatureContent                    `json:"signature"`
+	PublicKeys              []intMaxTypes.Uint256               `json:"pubkeys"`
+	PrevAccountTreeRoot     *intMaxTree.PoseidonHashOut         `json:"prevAccountTreeRoot"`
+	PrevBlockTreeRoot       *intMaxTree.PoseidonHashOut         `json:"prevBlockTreeRoot"`
+	AccountIdPacked         *AccountIdPacked                    `json:"accountIdPacked,omitempty"` // in account id case
+	AccountMerkleProofs     []AccountMerkleProof                `json:"accountMerkleProofs"`       // in account id case
+	AccountMembershipProofs []intMaxTree.IndexedMembershipProof `json:"accountMembershipProofs"`   // in pubkey case
+}
 
-// func (bw *BlockWitness) MarshalJSON() ([]byte, error) {
-// 	result := BlockWitnessFlatten{
-// 		Block:                   bw.Block,
-// 		Signature:               bw.Signature,
-// 		PublicKeys:              bw.PublicKeys,
-// 		PrevAccountTreeRoot:     bw.PrevAccountTreeRoot,
-// 		PrevBlockTreeRoot:       bw.PrevBlockTreeRoot,
-// 		AccountIdPacked:         bw.AccountIdPacked,
-// 		AccountMerkleProofs:     make([]AccountMerkleProof, 0),
-// 		AccountMembershipProofs: make([]intMaxTree.IndexedMembershipProof, 0),
-// 	}
+func (bw *BlockWitness) MarshalJSON() ([]byte, error) {
+	result := BlockWitnessFlatten{
+		Block:                   bw.Block,
+		Signature:               bw.Signature,
+		PublicKeys:              bw.PublicKeys,
+		PrevAccountTreeRoot:     bw.PrevAccountTreeRoot,
+		PrevBlockTreeRoot:       bw.PrevBlockTreeRoot,
+		AccountIdPacked:         bw.AccountIdPacked,
+		AccountMerkleProofs:     make([]AccountMerkleProof, 0),
+		AccountMembershipProofs: make([]intMaxTree.IndexedMembershipProof, 0),
+	}
+	fmt.Printf("result.AccountMerkleProofs: %v\n", result.AccountMerkleProofs)
 
-// 	if bw.AccountMembershipProofs != nil {
-// 		result.AccountMembershipProofs = *bw.AccountMembershipProofs
-// 	}
-// 	if bw.AccountMerkleProofs != nil {
-// 		result.AccountMerkleProofs = *bw.AccountMerkleProofs
-// 	}
+	if bw.AccountMembershipProofs != nil {
+		fmt.Printf("bw.AccountMembershipProofs: %v\n", bw.AccountMembershipProofs)
+		result.AccountMembershipProofs = *bw.AccountMembershipProofs
+	}
+	if bw.AccountMerkleProofs != nil {
+		result.AccountMerkleProofs = *bw.AccountMerkleProofs
+	}
+	fmt.Printf("result.AccountMembershipProofs: %v\n", result.AccountMembershipProofs)
 
-// 	return json.Marshal(&result)
-// }
+	return json.Marshal(&result)
+}
 
 type CompressedBlockWitness struct {
 	Block                              *block_post_service.PostedBlock      `json:"block"`

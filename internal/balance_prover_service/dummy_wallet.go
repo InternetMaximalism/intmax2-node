@@ -154,7 +154,18 @@ func (w *MockWallet) UpdateOnSendTx(salt Salt, txWitness *TxWitness, transferWit
 		prevBalance := w.assetTree.GetLeaf(tokenIndex)
 		assetMerkleProof, _, _ := w.assetTree.Prove(tokenIndex)
 		newBalance := prevBalance.Sub(transfer.Amount)
-		_, err = w.assetTree.UpdateLeaf(tokenIndex, newBalance)
+		// _, err = w.assetTree.UpdateLeaf(tokenIndex, newBalance)
+		if tokenIndex < uint32(len(w.assetTree.Leaves)) {
+			_, err = w.assetTree.UpdateLeaf(tokenIndex, newBalance)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			_, err = w.assetTree.AddLeaf(tokenIndex, newBalance)
+			if err != nil {
+				return nil, err
+			}
+		}
 		if err != nil {
 			panic(err)
 		}

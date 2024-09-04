@@ -181,6 +181,50 @@ async fn generate_proof(
     validate_witness(public_key, &public_state, &receive_deposit_witness)
         .map_err(error::ErrorInternalServerError)?;
 
+    println!(
+        "asset Merkle proof: siblings = {:?}",
+        receive_deposit_witness.private_witness.asset_merkle_proof
+    );
+    // for (i, sibling) in receive_deposit_witness
+    //     .private_witness
+    //     .asset_merkle_proof
+    //     .0
+    //     .siblings
+    //     .iter()
+    //     .enumerate()
+    // {
+    //     println!(
+    //         "asset Merkle proof: siblings[{}] = {:?}",
+    //         i,
+    //         sibling.to_string()
+    //     );
+    // }
+
+    println!(
+        "prev asset leaf: {:?}",
+        receive_deposit_witness.private_witness.prev_asset_leaf
+    );
+    println!(
+        "prev asset leaf hash: {:?}",
+        receive_deposit_witness
+            .private_witness
+            .prev_asset_leaf
+            .hash()
+            .to_string()
+    );
+    println!(
+        "token index: {}",
+        receive_deposit_witness.private_witness.token_index
+    );
+    println!(
+        "asset tree root: {}",
+        receive_deposit_witness
+            .private_witness
+            .prev_private_state
+            .asset_tree_root
+            .to_string()
+    );
+
     // Spawn a new task to generate the proof
     actix_web::rt::spawn(async move {
         let response = generate_receive_deposit_proof_job(

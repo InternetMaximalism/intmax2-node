@@ -17,8 +17,9 @@ type ProveBlockValidity struct {
 }
 
 type ProveBlockValidityInput struct {
-	BlockHash       string                     `json:"blockHash"`
-	ValidityWitness *CompressedValidityWitness `json:"validityWitness"`
+	BlockHash            string                     `json:"blockHash"`
+	ValidityWitness      *CompressedValidityWitness `json:"validityWitness"`
+	PlainValidityWitness *ValidityWitness           `json:"plainValidityWitness"`
 
 	// base64 encoded string
 	PrevValidityProof *string `json:"prevValidityProof,omitempty"`
@@ -38,11 +39,25 @@ func (p *blockValidityProver) requestBlockValidityProof(blockHash common.Hash, v
 		return fmt.Errorf("failed to compress validity witness: %w", err)
 	}
 	fmt.Printf("compressedValidityWitness SignificantAccountRegistrationProofs: %v\n", compressedValidityWitness.ValidityTransitionWitness.SignificantAccountRegistrationProofs)
+	// if validityWitness.BlockWitness.AccountMembershipProofs == nil || len(*validityWitness.BlockWitness.AccountMembershipProofs) == 0 {
+	// 	accountMembershipProofs := make([]intMaxTree.IndexedMembershipProof, 0)
+	// 	validityWitness.BlockWitness.AccountMembershipProofs = &accountMembershipProofs
+	// }
+	// if validityWitness.BlockWitness.AccountMerkleProofs == nil || len(*validityWitness.BlockWitness.AccountMerkleProofs) == 0 {
+	// 	accountMerkleProofs := make([]AccountMerkleProof, 0)
+	// 	validityWitness.BlockWitness.AccountMerkleProofs = &accountMerkleProofs
+	// }
+
+	nextValidityPis := validityWitness.ValidityPublicInputs()
+	fmt.Printf("nextValidityPis block_proof block number: %d\n", nextValidityPis.PublicState.BlockNumber)
+	fmt.Printf("nextValidityPis block_proof prev account tree root: %s\n", nextValidityPis.PublicState.PrevAccountTreeRoot.String())
+	fmt.Printf("nextValidityPis block_proof account tree root: %s\n", nextValidityPis.PublicState.AccountTreeRoot.String())
 
 	requestBody := ProveBlockValidityInput{
-		BlockHash:         blockHash.String(),
-		ValidityWitness:   compressedValidityWitness,
-		PrevValidityProof: prevValidityProof,
+		BlockHash: blockHash.String(),
+		// ValidityWitness:      compressedValidityWitness,
+		PlainValidityWitness: validityWitness,
+		PrevValidityProof:    prevValidityProof,
 	}
 	bd, err := json.Marshal(requestBody)
 	if err != nil {
@@ -54,19 +69,6 @@ func (p *blockValidityProver) requestBlockValidityProof(blockHash common.Hash, v
 		return fmt.Errorf("failed to marshal JSON request body: %w", err)
 	}
 	fmt.Printf("encodedValidityWitness: %s\n", encodedValidityWitness)
-
-	encodedCompressedValidityWitness, err := json.Marshal(compressedValidityWitness)
-	if err != nil {
-		return fmt.Errorf("failed to marshal JSON request body: %w", err)
-	}
-	fmt.Printf("encodedCompressedValidityWitness: %s\n", encodedCompressedValidityWitness)
-
-	newValidityPis := validityWitness.ValidityPublicInputs()
-	encodedValidityPis, err := json.Marshal(newValidityPis)
-	if err != nil {
-		return fmt.Errorf("failed to marshal JSON request body: %w", err)
-	}
-	fmt.Printf("validityPis (requestBlockValidityProof): %s\n", encodedValidityPis)
 
 	const (
 		httpKey     = "http"
