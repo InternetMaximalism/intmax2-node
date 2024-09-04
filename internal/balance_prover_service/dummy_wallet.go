@@ -66,6 +66,7 @@ func (w *MockWallet) SendTx(
 	}
 	txRequests := []*block_validity_prover.MockTxRequest{&txRequest0}
 
+	fmt.Printf("IMPORTANT PostBlock")
 	validityWitness, err := blockBuilder.PostBlock(
 		w.nonce == 0,
 		txRequests,

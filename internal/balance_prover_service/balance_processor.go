@@ -104,7 +104,6 @@ func (s *BalanceProcessor) ProveReceiveDeposit(
 		return nil, err
 	}
 	fmt.Printf("receiveDepositWitness: %s\n", db)
-	fmt.Printf("lastBalanceProof: %v\n", lastBalanceProof)
 	requestID, err := s.requestReceiveDepositBalanceValidityProof(publicKey, receiveDepositWitness, lastBalanceProof)
 	if err != nil {
 		return nil, err

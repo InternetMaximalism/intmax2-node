@@ -165,6 +165,7 @@ func (s *balanceSynchronizerDummy) TestE2E(syncValidityProver *syncValidityProve
 	if err != nil {
 		s.log.Fatalf("failed to create private key: %+v", err)
 	}
+	fmt.Printf("alice public key: %v\n", alicePrivateKey.Public().ToAddress().String())
 
 	aliceWallet, err := NewMockWallet(alicePrivateKey)
 	if err != nil {
@@ -210,6 +211,7 @@ func (s *balanceSynchronizerDummy) TestE2E(syncValidityProver *syncValidityProve
 	}
 
 	// receive deposit and update alice balance proof
+	fmt.Printf("-----------------ReceiveDeposit----------------------")
 	err = aliceProver.ReceiveDeposit(aliceWallet, balanceProcessor, blockBuilder, depositIndex)
 	if err != nil {
 		s.log.Fatalf("failed to receive deposit: %+v", err)
@@ -223,6 +225,8 @@ func (s *balanceSynchronizerDummy) TestE2E(syncValidityProver *syncValidityProve
 	if err != nil {
 		s.log.Fatalf("failed to create private key: %+v", err)
 	}
+	fmt.Printf("bob public key: %v\n", bobPrivateKey.Public().ToAddress().String())
+
 	bobWallet, err := NewMockWallet(bobPrivateKey)
 	if err != nil {
 		s.log.Fatalf("failed to create mock wallet: %+v", err)
@@ -245,6 +249,7 @@ func (s *balanceSynchronizerDummy) TestE2E(syncValidityProver *syncValidityProve
 		Salt:       salt,
 	}
 
+	fmt.Printf("-----------------SendTxAndUpdate----------------------")
 	sendWitness, err := aliceWallet.SendTxAndUpdate(blockBuilder, []*intMaxTypes.Transfer{&transferToBob})
 	if err != nil {
 		s.log.Fatalf("failed to send tx and update: %+v", err)
@@ -256,6 +261,7 @@ func (s *balanceSynchronizerDummy) TestE2E(syncValidityProver *syncValidityProve
 	transferWitness := transferWitnesses[0]
 
 	// update alice balance proof
+	fmt.Printf("-----------------SyncAll alice----------------------")
 	err = aliceProver.SyncAll(syncValidityProver, aliceWallet, balanceProcessor)
 	if err != nil {
 		s.log.Fatalf("failed to sync all: %+v", err)
@@ -269,12 +275,14 @@ func (s *balanceSynchronizerDummy) TestE2E(syncValidityProver *syncValidityProve
 
 	// sync bob wallet to the latest block
 
+	fmt.Printf("-----------------SyncAll bob----------------------")
 	err = bobProver.SyncAll(syncValidityProver, bobWallet, balanceProcessor)
 	if err != nil {
 		s.log.Fatalf("failed to sync all: %+v", err)
 	}
 
 	// receive transfer and update bob balance proof
+	fmt.Printf("-----------------ReceiveTransfer----------------------")
 	err = bobProver.ReceiveTransfer(bobWallet, balanceProcessor, blockBuilder, transferWitness, aliceBalanceProof)
 	if err != nil {
 		s.log.Fatalf("failed to receive transfer: %+v", err)

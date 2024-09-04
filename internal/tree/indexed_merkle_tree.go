@@ -246,9 +246,9 @@ func (proof *IndexedInsertionProof) ConditionalGetNewRoot(condition bool, key *b
 }
 
 type IndexedUpdateProof struct {
-	LeafProof IndexedMerkleProof
-	LeafIndex LeafIndex
-	PrevLeaf  IndexedMerkleLeaf
+	LeafProof IndexedMerkleProof `json:"leafProof"`
+	LeafIndex LeafIndex          `json:"leafIndex"`
+	PrevLeaf  IndexedMerkleLeaf  `json:"prevLeaf"`
 }
 
 func (proof *IndexedUpdateProof) GetNewRoot(key *big.Int, prevValue, newValue uint64, prevRoot *PoseidonHashOut) (*PoseidonHashOut, error) {

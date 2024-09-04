@@ -192,11 +192,13 @@ func (s *syncValidityProver) FetchUpdateWitness(
 
 	var accountMembershipProof *intMaxTree.IndexedMembershipProof
 	if isPrevAccountTree {
+		fmt.Printf("is PrevAccountTree %d\n", currentBlockNumber-1)
 		accountMembershipProof, err = blockBuilder.GetAccountMembershipProof(currentBlockNumber-1, publicKey.BigInt())
 		if err != nil {
 			return nil, err
 		}
 	} else {
+		fmt.Printf("is not PrevAccountTree %d\n", currentBlockNumber)
 		accountMembershipProof, err = blockBuilder.GetAccountMembershipProof(currentBlockNumber, publicKey.BigInt())
 		if err != nil {
 			return nil, err

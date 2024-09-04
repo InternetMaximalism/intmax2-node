@@ -37,6 +37,7 @@ func (p *blockValidityProver) requestBlockValidityProof(blockHash common.Hash, v
 	if err != nil {
 		return fmt.Errorf("failed to compress validity witness: %w", err)
 	}
+	fmt.Printf("compressedValidityWitness SignificantAccountRegistrationProofs: %v\n", compressedValidityWitness.ValidityTransitionWitness.SignificantAccountRegistrationProofs)
 
 	requestBody := ProveBlockValidityInput{
 		BlockHash:         blockHash.String(),

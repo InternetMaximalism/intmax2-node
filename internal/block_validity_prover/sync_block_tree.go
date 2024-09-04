@@ -246,7 +246,6 @@ func (p *blockValidityProver) SyncBlockProverWithAuxInfo(
 // : balance proof generated
 
 func (p *blockValidityProver) SyncBlockProver() error {
-
 	currentBlockNumber := p.blockBuilder.LatestIntMaxBlockNumber()
 	lastGeneratedBlockNumber := p.blockBuilder.LastGeneratedProofBlockNumber
 	// if lastGeneratedBlockNumber >= currentBlockNumber {
@@ -258,8 +257,10 @@ func (p *blockValidityProver) SyncBlockProver() error {
 	// }
 
 	for blockNumber := lastGeneratedBlockNumber + 1; blockNumber <= currentBlockNumber; blockNumber++ {
-		validityWitness, err := p.blockBuilder.LastValidityWitness()
-		validityWitnessBlockNumber := validityWitness.BlockWitness.Block.BlockNumber
+		validityWitnessBlockNumber := p.blockBuilder.LatestIntMaxBlockNumber()
+		validityWitness, err := p.blockBuilder.ValidityWitnessByBlockNumber(validityWitnessBlockNumber)
+		// validityWitnessBlockNumber := validityWitness.BlockWitness.Block.BlockNumber
+		fmt.Printf("IMPORTANT: Block %d proof is processing\n", validityWitness.BlockWitness.Block.BlockNumber)
 		fmt.Printf("IMPORTANT: Block %d proof is processing\n", validityWitnessBlockNumber)
 		if err != nil {
 			panic("last validity witness error")
@@ -271,10 +272,22 @@ func (p *blockValidityProver) SyncBlockProver() error {
 			return errors.Join(ErrLastValidityProofFail, err)
 		}
 
+		fmt.Printf("validityWitness AccountRegistrationProofs: %v\n", validityWitness.ValidityTransitionWitness.AccountRegistrationProofs)
+
 		validityProof, err := p.requestAndFetchBlockValidityProof(validityWitness, lastValidityProof)
 		if err != nil {
 			return errors.Join(ErrRequestAndFetchBlockValidityProofFail, err)
 		}
+
+		validityProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(validityProof)
+		if err != nil {
+			var ErrNewCompressedPlonky2ProofFromBase64StringFail = errors.New("new compressed plonky2 proof from base64 string fail")
+			return errors.Join(ErrNewCompressedPlonky2ProofFromBase64StringFail, err)
+		}
+		validityPubicInputs := new(ValidityPublicInputs).FromPublicInputs(validityProofWithPis.PublicInputs)
+		fmt.Printf("SyncBlockProver block_proof block number: %d\n", validityPubicInputs.PublicState.BlockNumber)
+		fmt.Printf("SyncBlockProver block_proof prev account tree root: %s\n", validityPubicInputs.PublicState.PrevAccountTreeRoot.String())
+		fmt.Printf("SyncBlockProver block_proof account tree root: %s\n", validityPubicInputs.PublicState.AccountTreeRoot.String())
 
 		err = p.blockBuilder.SetValidityProof(validityWitness.BlockWitness.Block.BlockNumber, validityProof)
 		if err != nil {

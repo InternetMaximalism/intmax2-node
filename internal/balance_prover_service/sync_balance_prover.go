@@ -43,6 +43,7 @@ func (s *SyncBalanceProver) SyncSend(
 	wallet *MockWallet,
 	balanceProcessor *BalanceProcessor,
 ) error {
+	fmt.Println("-----SyncSend------")
 	err := syncValidityProver.ValidityProver.SyncBlockProver() // sync validity proofs
 	if err != nil {
 		return err
@@ -87,11 +88,16 @@ func (s *SyncBalanceProver) SyncSend(
 		updateWitnessValidityPis := new(block_validity_prover.ValidityPublicInputs).FromPublicInputs(validityProofWithPis.PublicInputs)
 
 		sendWitnessValidityPis := sendWitness.TxWitness.ValidityPis
+		fmt.Printf("--------CHECK-------------")
 		if !updateWitnessValidityPis.Equal(&sendWitnessValidityPis) {
 			fmt.Printf("update witness validity proof: %v\n", updateWitnessValidityPis)
-			fmt.Printf("update witness public state: %v\n", updateWitnessValidityPis.PublicState) // 1
+			fmt.Printf("update witness public state: %v\n", updateWitnessValidityPis.PublicState)
+			fmt.Printf("update witness account tree root: %v\n", updateWitnessValidityPis.PublicState.PrevAccountTreeRoot) // 0x32
+			fmt.Printf("update witness account tree root: %v\n", updateWitnessValidityPis.PublicState.AccountTreeRoot)     // XXX: 0x32adcd085f3953448a528b510df7a30499a6fe6ba144865da4cd23c94f3a4e15
 			fmt.Printf("send witness validity proof: %v\n", sendWitnessValidityPis)
-			fmt.Printf("send witness public state: %v\n", sendWitnessValidityPis.PublicState) // 2
+			fmt.Printf("send witness public state: %v\n", sendWitnessValidityPis.PublicState)
+			fmt.Printf("send witness account tree root: %v\n", sendWitnessValidityPis.PublicState.PrevAccountTreeRoot) // 0x32
+			fmt.Printf("send witness account tree root: %v\n", sendWitnessValidityPis.PublicState.AccountTreeRoot)     // 0x06350dc0d3599f02b51e6ca00c055df6661a0c6e783a6599fca46fe0a88a5257
 			return errors.New("update witness validity proof is not equal to send witness validity proof")
 		}
 
@@ -127,7 +133,7 @@ func (s *SyncBalanceProver) SyncNoSend(
 	wallet *MockWallet,
 	balanceProcessor *BalanceProcessor,
 ) error {
-
+	fmt.Println("-----SyncNoSend------")
 	blockBuilder := syncValidityProver.ValidityProver.BlockBuilder()
 	err := syncValidityProver.ValidityProver.SyncBlockProver()
 	if err != nil {
