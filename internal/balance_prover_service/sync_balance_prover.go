@@ -3,19 +3,20 @@ package balance_prover_service
 import (
 	"errors"
 	"fmt"
+	"intmax2-node/internal/block_validity_prover"
 	intMaxTypes "intmax2-node/internal/types"
 	"sort"
 )
 
 type SyncBalanceProver struct {
-	LastBlockNumber  uint32
-	LastBalanceProof *string
+	LastUpdatedBlockNumber uint32
+	LastBalanceProof       *string
 }
 
 func NewSyncBalanceProver() *SyncBalanceProver {
 	return &SyncBalanceProver{
-		LastBlockNumber:  0,
-		LastBalanceProof: nil,
+		LastUpdatedBlockNumber: 0,
+		LastBalanceProof:       nil,
 	}
 }
 
@@ -41,14 +42,16 @@ func (s *SyncBalanceProver) SyncSend(
 	syncValidityProver *syncValidityProver,
 	wallet *MockWallet,
 	balanceProcessor *BalanceProcessor,
-	// blockBuilder MockBlockBuilder,
 ) error {
-	blockBuilder := syncValidityProver.ValidityProcessor.BlockBuilder()
-	// syncValidityProver.Sync() // sync validity proofs
+	err := syncValidityProver.ValidityProver.SyncBlockProver() // sync validity proofs
+	if err != nil {
+		return err
+	}
 	allBlockNumbers := wallet.GetAllBlockNumbers()
 	notSyncedBlockNumbers := []uint32{}
 	for _, blockNumber := range allBlockNumbers {
-		if s.LastBlockNumber < blockNumber {
+		fmt.Printf("s.LastUpdatedBlockNumber after GetAllBlockNumbers: %d\n", s.LastUpdatedBlockNumber)
+		if s.LastUpdatedBlockNumber < blockNumber {
 			notSyncedBlockNumbers = append(notSyncedBlockNumbers, blockNumber)
 		}
 	}
@@ -57,22 +60,39 @@ func (s *SyncBalanceProver) SyncSend(
 		return notSyncedBlockNumbers[i] < notSyncedBlockNumbers[j]
 	})
 
+	blockBuilder := syncValidityProver.ValidityProver.BlockBuilder()
 	for _, blockNumber := range notSyncedBlockNumbers {
 		sendWitness, err := wallet.GetSendWitness(blockNumber)
 		if err != nil {
 			return errors.New("send witness not found")
 		}
 		blockNumber := sendWitness.GetIncludedBlockNumber()
-		prevBlockNumber := sendWitness.GetPrevBlockNumber()
+		prevBalancePisBlockNumber := sendWitness.GetPrevBalancePisBlockNumber()
+		fmt.Printf("FetchUpdateWitness blockNumber: %d\n", blockNumber)
 		updateWitness, err := syncValidityProver.FetchUpdateWitness(
 			blockBuilder,
 			wallet.PublicKey(),
 			blockNumber,
-			prevBlockNumber,
+			prevBalancePisBlockNumber,
 			true,
 		)
 		if err != nil {
 			return err
+		}
+
+		validityProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(updateWitness.ValidityProof)
+		if err != nil {
+			return err
+		}
+		updateWitnessValidityPis := new(block_validity_prover.ValidityPublicInputs).FromPublicInputs(validityProofWithPis.PublicInputs)
+
+		sendWitnessValidityPis := sendWitness.TxWitness.ValidityPis
+		if !updateWitnessValidityPis.Equal(&sendWitnessValidityPis) {
+			fmt.Printf("update witness validity proof: %v\n", updateWitnessValidityPis)
+			fmt.Printf("update witness public state: %v\n", updateWitnessValidityPis.PublicState) // 1
+			fmt.Printf("send witness validity proof: %v\n", sendWitnessValidityPis)
+			fmt.Printf("send witness public state: %v\n", sendWitnessValidityPis.PublicState) // 2
+			return errors.New("update witness validity proof is not equal to send witness validity proof")
 		}
 
 		balanceProof, err := balanceProcessor.ProveSend(
@@ -90,7 +110,9 @@ func (s *SyncBalanceProver) SyncSend(
 		// 	return err
 		// }
 
-		s.LastBlockNumber = blockNumber
+		fmt.Printf("s.LastUpdatedBlockNumber before SyncSend: %d\n", s.LastUpdatedBlockNumber)
+		s.LastUpdatedBlockNumber = blockNumber
+		fmt.Printf("s.LastUpdatedBlockNumber after SyncSend: %d\n", s.LastUpdatedBlockNumber)
 		s.LastBalanceProof = &balanceProof.Proof
 		wallet.UpdatePublicState(balanceProof.PublicInputs.PublicState)
 	}
@@ -104,17 +126,18 @@ func (s *SyncBalanceProver) SyncNoSend(
 	syncValidityProver *syncValidityProver,
 	wallet *MockWallet,
 	balanceProcessor *BalanceProcessor,
-	// blockBuilder MockBlockBuilder,
 ) error {
-	blockBuilder := syncValidityProver.ValidityProcessor.BlockBuilder()
-	// err := syncValidityProver.Check() // sync validity proofs
-	// if err != nil {
-	// 	fmt.Printf("WARNING: not synced: %v\n", err)
-	// }
+
+	blockBuilder := syncValidityProver.ValidityProver.BlockBuilder()
+	err := syncValidityProver.ValidityProver.SyncBlockProver()
+	if err != nil {
+		return err
+	}
 	allBlockNumbers := wallet.GetAllBlockNumbers()
 	notSyncedBlockNumbers := []uint32{}
 	for _, blockNumber := range allBlockNumbers {
-		if s.LastBlockNumber < blockNumber {
+		fmt.Printf("s.LastUpdatedBlockNumber after GetAllBlockNumbers: %d\n", s.LastUpdatedBlockNumber)
+		if s.LastUpdatedBlockNumber < blockNumber {
 			notSyncedBlockNumbers = append(notSyncedBlockNumbers, blockNumber)
 		}
 	}
@@ -126,12 +149,14 @@ func (s *SyncBalanceProver) SyncNoSend(
 	if len(notSyncedBlockNumbers) > 0 {
 		return errors.New("sync send tx first")
 	}
-	currentBlockNumber := blockBuilder.LatestIntMaxBlockNumber()
+	currentBlockNumber := blockBuilder.LatestWitnessBlockNumber
+	fmt.Printf("currentBlockNumber before FetchUpdateWitness: %d\n", currentBlockNumber)
+	fmt.Printf("s.LastUpdatedBlockNumber before FetchUpdateWitness: %d\n", s.LastUpdatedBlockNumber)
 	updateWitness, err := syncValidityProver.FetchUpdateWitness(
 		blockBuilder,
 		wallet.PublicKey(),
 		currentBlockNumber,
-		s.LastBlockNumber,
+		s.LastUpdatedBlockNumber,
 		false,
 	)
 	if err != nil {
@@ -153,7 +178,9 @@ func (s *SyncBalanceProver) SyncNoSend(
 
 	fmt.Printf("PublicInputs: %v\n", balanceProof.PublicInputs)
 	fmt.Printf("PublicState: %v\n", balanceProof.PublicInputs.PublicState)
-	s.LastBlockNumber = currentBlockNumber
+	fmt.Printf("s.LastUpdatedBlockNumber before SyncNoSend: %d\n", s.LastUpdatedBlockNumber)
+	s.LastUpdatedBlockNumber = currentBlockNumber
+	fmt.Printf("s.LastUpdatedBlockNumber after SyncNoSend: %d\n", s.LastUpdatedBlockNumber)
 	s.LastBalanceProof = &balanceProof.Proof
 	wallet.UpdatePublicState(balanceProof.PublicInputs.PublicState)
 
@@ -165,7 +192,7 @@ func (s *SyncBalanceProver) SyncAll(
 	wallet *MockWallet,
 	balanceProcessor *BalanceProcessor,
 ) (err error) {
-	fmt.Printf("len(b.ValidityProofs) before SyncSend: %d\n", len(syncValidityProver.ValidityProcessor.BlockBuilder().ValidityProofs))
+	fmt.Printf("LatestWitnessNumber before SyncSend: %d\n", syncValidityProver.ValidityProver.BlockBuilder().LatestIntMaxBlockNumber())
 
 	err = s.SyncSend(syncValidityProver, wallet, balanceProcessor)
 	if err != nil {
@@ -212,9 +239,10 @@ func (s *SyncBalanceProver) ReceiveTransfer(
 	transferWitness *TransferWitness,
 	senderBalanceProof string,
 ) error {
+	fmt.Printf("ReceiveTransfer s.LastUpdatedBlockNumber: %d\n", s.LastUpdatedBlockNumber)
 	receiveTransferWitness, err := wallet.ReceiveTransferAndUpdate(
 		blockBuilder,
-		s.LastBlockNumber,
+		s.LastUpdatedBlockNumber,
 		transferWitness,
 		senderBalanceProof,
 	)

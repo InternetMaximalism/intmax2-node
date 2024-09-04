@@ -96,7 +96,6 @@ func (s *balanceSynchronizer) Sync(blockValidityProver block_validity_prover.Blo
 				syncValidityProver,
 				mockWallet,
 				balanceProverService.BalanceProcessor,
-				// blockValidityProver.BlockBuilder(),
 			)
 			if err != nil {
 				const msg = "failed to sync balance prover: %+v"

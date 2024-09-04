@@ -68,6 +68,16 @@ func (b *Bytes16) UnmarshalJSON(data []byte) error {
 
 type Bytes32 [int32Key / numUint32Bytes]uint32
 
+func (b *Bytes32) Equal(other *Bytes32) bool {
+	for i := 0; i < int32Key/numUint32Bytes; i++ {
+		if b[i] != other[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (b *Bytes32) FromBytes(bytes []byte) {
 	for i := 0; i < int32Key/numUint32Bytes; i++ {
 		b[i] = binary.BigEndian.Uint32(bytes[i*numUint32Bytes : (i+1)*numUint32Bytes])

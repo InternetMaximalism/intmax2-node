@@ -23,9 +23,7 @@ type BlockValidityProver interface {
 		blockContent *intMaxTypes.BlockContent,
 		postedBlock *block_post_service.PostedBlock,
 	) error
-	SyncBlockProver(
-		validityWitness *ValidityWitness,
-	) error
+	SyncBlockProver() error
 	BlockBuilder() *mockBlockBuilder
 	FetchLastDepositIndex() (uint32, error)
 }

@@ -63,7 +63,7 @@ type BlockHistory interface {
 	GenerateBlock(blockContent *intMaxTypes.BlockContent, postedBlock *block_post_service.PostedBlock) (*BlockWitness, error)
 	LatestIntMaxBlockNumber() uint32
 	SetValidityProof(blockNumber uint32, proof string) error
-	LastValidityProof() (*string, error)
+	ValidityProofByBlockNumber(blockNumber uint32) (*string, error)
 
 	SetValidityWitness(blockNumber uint32, witness *ValidityWitness) error
 	LastValidityWitness() (*ValidityWitness, error)

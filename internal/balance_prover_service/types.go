@@ -44,6 +44,11 @@ func (w *TxWitness) GetSenderTree() (*intMaxTree.SenderTree, error) {
 	return senderTree, nil
 }
 
+type GenericAddressInput struct {
+	IsPublicKey bool   `json:"isPubkey"`
+	Data        string `json:"data"`
+}
+
 type TransferInput struct {
 	Recipient  string      `json:"recipient"`
 	TokenIndex uint32      `json:"tokenIndex"`
@@ -55,7 +60,7 @@ func (input *TransferInput) FromTransfer(value *intMaxTypes.Transfer) *TransferI
 	input.Recipient = hexutil.Encode(value.Recipient.Address[:])
 	input.TokenIndex = value.TokenIndex
 	input.Amount = value.Amount.String()
-	input.Salt = value.Salt.String()
+	input.Salt = *value.Salt
 
 	return input
 }
@@ -86,15 +91,24 @@ func (input *PublicStateInput) FromPublicState(value *block_validity_prover.Publ
 }
 
 type ValidityPublicInputsInput struct {
-	PublicState    *PublicStateInput
-	TxTreeRoot     string
-	SenderTreeRoot string
-	IsValidBlock   bool
+	PublicState    *PublicStateInput `json:"publicState"`
+	TxTreeRoot     string            `json:"txTreeRoot"`
+	SenderTreeRoot poseidonHashOut   `json:"senderTreeRoot"`
+	IsValidBlock   bool              `json:"isValidBlock"`
+}
+
+func (input *ValidityPublicInputsInput) FromValidityPublicInputs(value *block_validity_prover.ValidityPublicInputs) *ValidityPublicInputsInput {
+	input.PublicState = new(PublicStateInput).FromPublicState(value.PublicState)
+	input.TxTreeRoot = hexutil.Encode(value.TxTreeRoot.Bytes())
+	input.SenderTreeRoot = *value.SenderTreeRoot
+	input.IsValidBlock = value.IsValidBlock
+
+	return input
 }
 
 type TxInput struct {
-	TransferTreeRoot string
-	Nonce            uint64
+	TransferTreeRoot poseidonHashOut `json:"transferTreeRoot"`
+	Nonce            uint64          `json:"nonce"`
 }
 
 type TxWitnessInput struct {
@@ -102,10 +116,33 @@ type TxWitnessInput struct {
 	SenderLeaves  []*SenderLeafInput        `json:"senderLeaves"`
 	Tx            TxInput                   `json:"tx"`
 	TxIndex       uint32                    `json:"txIndex"`
-	TxMerkleProof []string                  `json:"txMerkleProof"`
+	TxMerkleProof []*poseidonHashOut        `json:"txMerkleProof"`
 }
 
-type InsufficientFlagsInput = string
+func (input *TxWitnessInput) FromTxWitness(value *TxWitness) *TxWitnessInput {
+	input.ValidityPis = *new(ValidityPublicInputsInput).FromValidityPublicInputs(&value.ValidityPis)
+	input.SenderLeaves = make([]*SenderLeafInput, len(value.SenderLeaves))
+	for i, leaf := range value.SenderLeaves {
+		input.SenderLeaves[i] = &SenderLeafInput{
+			Sender:  leaf.Sender.BigInt().String(),
+			IsValid: leaf.IsValid,
+		}
+	}
+
+	input.Tx = TxInput{
+		TransferTreeRoot: *value.Tx.TransferTreeRoot,
+		Nonce:            value.Tx.Nonce,
+	}
+	input.TxIndex = value.TxIndex
+	input.TxMerkleProof = make([]*poseidonHashOut, len(value.TxMerkleProof))
+	copy(input.TxMerkleProof, value.TxMerkleProof)
+
+	return input
+}
+
+type InsufficientFlagsInput struct {
+	Limbs [backup_balance.InsufficientFlagsLen]uint32 `json:"limbs"`
+}
 
 type PoseidonHashOutInput = string
 
@@ -121,7 +158,8 @@ func (input *BalancePublicInputsInput) FromBalancePublicInputs(value *BalancePub
 	input.PublicKey = value.PubKey.BigInt().String()
 	input.PrivateCommitment = value.PrivateCommitment.String()
 	input.LastTxHash = value.LastTxHash.String()
-	input.LastTxInsufficientFlags = hexutil.Encode(value.LastTxInsufficientFlags.Bytes())
+	// input.LastTxInsufficientFlags = hexutil.Encode(value.LastTxInsufficientFlags.Bytes())
+	input.LastTxInsufficientFlags.Limbs = value.LastTxInsufficientFlags.Limbs
 	input.PublicState = new(PublicStateInput).FromPublicState(value.PublicState)
 
 	return input
@@ -146,7 +184,7 @@ type SendWitnessInput struct {
 	AssetMerkleProofs   []AssetMerkleProofInput   `json:"assetMerkleProofs"`
 	InsufficientFlags   InsufficientFlagsInput    `json:"insufficientFlags"`
 	Transfers           []*TransferInput          `json:"transfers"`
-	TxWitness           TxWitnessInput            `json:"txWitness"`
+	TxWitness           *TxWitnessInput           `json:"txWitness"`
 	NewPrivateStateSalt SaltInput                 `json:"newPrivateStateSalt"`
 }
 
@@ -156,7 +194,7 @@ func (input *SendWitnessInput) FromSendWitness(value *SendWitness) *SendWitnessI
 		AssetTreeRoot:     value.PrevPrivateState.AssetTreeRoot,
 		NullifierTreeRoot: value.PrevPrivateState.NullifierTreeRoot,
 		Nonce:             value.PrevPrivateState.Nonce,
-		Salt:              value.PrevPrivateState.Salt.String(),
+		Salt:              value.PrevPrivateState.Salt,
 	}
 	input.PrevBalances = make([]*AssetLeafInput, len(value.PrevBalances))
 	for i, balance := range value.PrevBalances {
@@ -170,7 +208,14 @@ func (input *SendWitnessInput) FromSendWitness(value *SendWitness) *SendWitnessI
 		input.AssetMerkleProofs[i] = make([]*poseidonHashOut, len(proof.Siblings))
 		copy(input.AssetMerkleProofs[i], proof.Siblings)
 	}
-	input.InsufficientFlags = hexutil.Encode(value.InsufficientFlags.Bytes())
+	// input.InsufficientFlags = hexutil.Encode(value.InsufficientFlags.Bytes())
+	input.InsufficientFlags.Limbs = value.InsufficientFlags.Limbs
+	input.Transfers = make([]*TransferInput, len(value.Transfers))
+	for i, transfer := range value.Transfers {
+		input.Transfers[i] = new(TransferInput).FromTransfer(transfer)
+	}
+	input.TxWitness = new(TxWitnessInput).FromTxWitness(&value.TxWitness)
+	input.NewPrivateStateSalt = value.NewPrivateStateSalt
 
 	return input
 }
@@ -179,19 +224,11 @@ func (w *SendWitness) GetIncludedBlockNumber() uint32 {
 	return w.TxWitness.ValidityPis.PublicState.BlockNumber
 }
 
-func (w *SendWitness) GetPrevBlockNumber() uint32 {
+func (w *SendWitness) GetPrevBalancePisBlockNumber() uint32 {
 	return w.PrevBalancePis.PublicState.BlockNumber
 }
 
 type Salt = poseidonHashOut
-
-// func (s *Salt) SetRandom() *Salt {
-// 	for _, e := range s.Elements {
-// 		e.SetRandom()
-// 	}
-
-// 	return s
-// }
 
 type SpentValue struct {
 	PrevPrivateState      *PrivateState                    `json:"prevPrivateState"`
@@ -395,7 +432,7 @@ type AssetLeafInput struct {
 
 type AssetMerkleProofInput = []*poseidonHashOut
 
-type SaltInput = string
+type SaltInput = poseidonHashOut
 
 type PrivateStateInput struct {
 	AssetTreeRoot     *poseidonHashOut `json:"assetTreeRoot"`
@@ -426,7 +463,7 @@ func (input *PrivateWitnessInput) FromPrivateWitness(value *PrivateWitness) *Pri
 			AssetTreeRoot:     value.PrevPrivateState.AssetTreeRoot,
 			NullifierTreeRoot: value.PrevPrivateState.NullifierTreeRoot,
 			Nonce:             value.PrevPrivateState.Nonce,
-			Salt:              value.PrevPrivateState.Salt.String(),
+			Salt:              value.PrevPrivateState.Salt,
 		},
 		NullifierProof: &IndexedInsertionProofInput{
 			Index:        value.NullifierProof.Index,
@@ -492,14 +529,14 @@ type TransferWitnessInput struct {
 
 func (input *TransferWitnessInput) FromTransferWitness(value *TransferWitness) *TransferWitnessInput {
 	input.Tx = TxInput{
-		TransferTreeRoot: value.Tx.TransferTreeRoot.String(),
+		TransferTreeRoot: *value.Tx.TransferTreeRoot,
 		Nonce:            value.Tx.Nonce,
 	}
 	input.Transfer = TransferInput{
 		Recipient:  hexutil.Encode(value.Transfer.Recipient.Address[:]),
 		TokenIndex: value.Transfer.TokenIndex,
 		Amount:     value.Transfer.Amount.String(),
-		Salt:       value.Transfer.Salt.String(),
+		Salt:       *value.Transfer.Salt,
 	}
 	input.TransferIndex = value.TransferIndex
 	input.TransferMerkleProof = make([]string, len(value.TransferMerkleProof.Siblings))

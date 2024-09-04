@@ -297,7 +297,7 @@ type ReceiveDepositBalanceValidityInput struct {
 
 type SendBalanceValidityInput struct {
 	SendWitness   *SendWitnessInput   `json:"sendWitness"`
-	UpdateWitness *UpdateWitnessInput `json:"updateWitness"`
+	UpdateWitness *UpdateWitnessInput `json:"balanceUpdateWitness"`
 
 	// base64 encoded string
 	PrevBalanceProof *string `json:"prevBalanceProof,omitempty"`

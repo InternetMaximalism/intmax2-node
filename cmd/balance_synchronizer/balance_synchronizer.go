@@ -6,7 +6,6 @@ import (
 	"intmax2-node/configs/buildvars"
 	"intmax2-node/docs/swagger"
 	"intmax2-node/internal/balance_prover_service"
-	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
 	"intmax2-node/internal/pb/gateway"
@@ -68,12 +67,16 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 
 			wg := sync.WaitGroup{}
 
-			s.Log.Infof("Start Block Validity Prover")
-			var blockValidityProver block_validity_prover.BlockValidityProver
-			blockValidityProver, err = block_validity_prover.NewBlockValidityProver(s.Context, s.Config, s.Log, s.SB, s.DbApp)
+			// s.Log.Infof("Start Block Validity Prover")
+			// var blockValidityProver block_validity_prover.BlockValidityProver
+			// blockValidityProver, err = block_validity_prover.NewBlockValidityProver(s.Context, s.Config, s.Log, s.SB, s.DbApp)
+			// if err != nil {
+			// 	const msg = "failed to start Block Validity Prover: %+v"
+			// 	s.Log.Fatalf(msg, err.Error())
+			// }
+			syncValidityProver, err := balance_prover_service.NewSyncValidityProver(s.Context, s.Config, s.Log, s.SB, s.DbApp)
 			if err != nil {
-				const msg = "failed to start Block Validity Prover: %+v"
-				s.Log.Fatalf(msg, err.Error())
+				s.Log.Fatalf("failed to create sync validity prover: %+v", err)
 			}
 
 			wg.Add(1)
@@ -91,7 +94,7 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 				}
 
 				synchronizer := balance_prover_service.NewSynchronizerDummy(s.Context, s.Config, s.Log, s.SB, s.DbApp)
-				synchronizer.TestE2E(blockValidityProver, blockBuilderWallet)
+				synchronizer.TestE2E(syncValidityProver, blockBuilderWallet)
 				// synchronizer := balance_prover_service.NewSynchronizer(s.Context, s.Config, s.Log, s.SB, s.DbApp)
 				// err = synchronizer.Sync(blockValidityProver, blockBuilderWallet)
 				// if err != nil {

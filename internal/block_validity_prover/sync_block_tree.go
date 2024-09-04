@@ -209,6 +209,8 @@ func (p *blockValidityProver) SyncBlockProverWithAuxInfo(
 	blockContent *intMaxTypes.BlockContent,
 	postedBlock *block_post_service.PostedBlock,
 ) error {
+	fmt.Printf("IMPORTANT: Block %d proof is synchronizing\n", postedBlock.BlockNumber)
+
 	// TODO: Update block hash tree
 
 	// TODO: Separate another worker
@@ -235,49 +237,67 @@ func (p *blockValidityProver) SyncBlockProverWithAuxInfo(
 		panic(err)
 	}
 
-	return p.SyncBlockProver(validityWitness)
+	return p.SyncBlockProver()
 }
 
-func (p *blockValidityProver) SyncBlockProver(
-	validityWitness *ValidityWitness,
-) error {
-	fmt.Printf("len(b.ValidityProofs) before requestAndFetchBlockValidityProof: %d\n", len(p.BlockBuilder().ValidityProofs))
+// lastPostedBlockNumber: block content generated
+// lastBlockNumber: validity witness generated
+// lastGeneratedBlockNumber: validity proof generated
+// : balance proof generated
 
-	fmt.Printf("IMPORTANT: Block %d proof is processing\n", validityWitness.BlockWitness.Block.BlockNumber)
-	// validityWitness, err := p.blockBuilder.LastValidityWitness()
-	// if err != nil {
-	// 	panic("last validity witness error")
+func (p *blockValidityProver) SyncBlockProver() error {
+
+	currentBlockNumber := p.blockBuilder.LatestIntMaxBlockNumber()
+	lastGeneratedBlockNumber := p.blockBuilder.LastGeneratedProofBlockNumber
+	// if lastGeneratedBlockNumber >= currentBlockNumber {
+	// 	fmt.Printf("Block %d is already done\n", lastGeneratedBlockNumber)
+	// 	fmt.Printf("prepared witness\n", currentBlockNumber)
+	// 	lastPostedBlockNumber := p.BlockBuilder().LastPostedBlockNumber
+	// 	fmt.Printf("last posted number is %d\n", lastPostedBlockNumber)
+	// 	return nil
 	// }
 
-	validityProof, err := p.requestAndFetchBlockValidityProof(validityWitness)
-	if err != nil {
-		return errors.Join(ErrRequestAndFetchBlockValidityProofFail, err)
-	}
+	for blockNumber := lastGeneratedBlockNumber + 1; blockNumber <= currentBlockNumber; blockNumber++ {
+		validityWitness, err := p.blockBuilder.LastValidityWitness()
+		validityWitnessBlockNumber := validityWitness.BlockWitness.Block.BlockNumber
+		fmt.Printf("IMPORTANT: Block %d proof is processing\n", validityWitnessBlockNumber)
+		if err != nil {
+			panic("last validity witness error")
+		}
 
-	err = p.blockBuilder.SetValidityProof(validityWitness.BlockWitness.Block.BlockNumber, validityProof)
-	if err != nil {
-		panic(err)
-	}
+		lastValidityProof, err := p.blockBuilder.ValidityProofByBlockNumber(validityWitnessBlockNumber - 1)
+		if err != nil && err.Error() != ErrGenesisValidityProof.Error() {
+			var ErrLastValidityProofFail = errors.New("last validity proof fail")
+			return errors.Join(ErrLastValidityProofFail, err)
+		}
 
-	fmt.Printf("Block %d is reflected\n", validityWitness.BlockWitness.Block.BlockNumber)
+		validityProof, err := p.requestAndFetchBlockValidityProof(validityWitness, lastValidityProof)
+		if err != nil {
+			return errors.Join(ErrRequestAndFetchBlockValidityProofFail, err)
+		}
+
+		err = p.blockBuilder.SetValidityProof(validityWitness.BlockWitness.Block.BlockNumber, validityProof)
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Printf("Block %d is reflected\n", validityWitness.BlockWitness.Block.BlockNumber)
+	}
 
 	return nil
 }
 
-func (p *blockValidityProver) requestAndFetchBlockValidityProof(validityWitness *ValidityWitness) (validityProof string, err error) {
+func (p *blockValidityProver) requestAndFetchBlockValidityProof(validityWitness *ValidityWitness, lastValidityProof *string) (validityProof string, err error) {
 	blockHash := validityWitness.BlockWitness.Block.Hash()
-	fmt.Printf("len(b.ValidityProofs) before LastValidityProof: %d\n", len(p.BlockBuilder().ValidityProofs))
-	lastValidityProof, err := p.blockBuilder.LastValidityProof()
-	if err != nil && err.Error() != ErrNoLastValidityProof.Error() {
-		var ErrLastValidityProofFail = errors.New("last validity proof fail")
-		return "", errors.Join(ErrLastValidityProofFail, err)
-	}
+	blockNumber := validityWitness.BlockWitness.Block.BlockNumber
+	fmt.Printf("Block %d is requested\n", blockNumber)
+
 	err = p.requestBlockValidityProof(blockHash, validityWitness, lastValidityProof)
 	if err != nil {
 		var ErrRequestBlockValidityProofFail = errors.New("request block validity proof fail")
 		return "", errors.Join(ErrRequestBlockValidityProofFail, err)
 	}
-
+	// last validity proof fail
 	tickerBlockValidityProof := time.NewTicker(p.cfg.BlockValidityProver.TimeoutForFetchingBlockValidityProof)
 	defer func() {
 		if tickerBlockValidityProof != nil {

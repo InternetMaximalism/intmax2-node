@@ -156,14 +156,10 @@ func NewSynchronizerDummy(
 	}
 }
 
-func (s *balanceSynchronizerDummy) TestE2E(blockValidityProver block_validity_prover.BlockValidityProver, blockBuilderWallet *models.Wallet) {
+func (s *balanceSynchronizerDummy) TestE2E(syncValidityProver *syncValidityProver, blockBuilderWallet *models.Wallet) {
 	// blockBuilder := block_validity_prover.NewMockBlockBuilder(s.cfg, s.db)
-	syncValidityProver, err := NewSyncValidityProver(s.ctx, s.cfg, s.log, s.sb, s.db)
-	if err != nil {
-		s.log.Fatalf("failed to create sync validity prover: %+v", err)
-	}
 	balanceProcessor := NewBalanceProcessor(s.ctx, s.cfg, s.log)
-	blockBuilder := syncValidityProver.ValidityProcessor.BlockBuilder()
+	blockBuilder := syncValidityProver.ValidityProver.BlockBuilder()
 
 	alicePrivateKey, err := intMaxAcc.NewPrivateKey(big.NewInt(2))
 	if err != nil {
@@ -185,16 +181,18 @@ func (s *balanceSynchronizerDummy) TestE2E(blockValidityProver block_validity_pr
 	depositIndex := aliceWallet.Deposit(blockBuilder, *salt, 0, big.NewInt(100))
 
 	// post dummy block to reflect the deposit tree
-	validityWitness, err := blockBuilder.PostBlock(true, []*block_validity_prover.MockTxRequest{})
+	_, err = blockBuilder.PostBlock(true, []*block_validity_prover.MockTxRequest{})
 	if err != nil {
 		s.log.Fatalf("failed to post block: %+v", err)
 	}
-	err = syncValidityProver.ValidityProcessor.SyncBlockProver(validityWitness)
-	if err != nil {
-		s.log.Fatalf("failed to sync block prover: %+v", err)
-	}
 
-	fmt.Printf("len(b.ValidityProofs) after SetValidityProof: %d\n", len(syncValidityProver.ValidityProcessor.BlockBuilder().ValidityProofs))
+	// fmt.Printf("SyncBlockProver")
+	// err = syncValidityProver.ValidityProver.SyncBlockProver()
+	// if err != nil {
+	// 	s.log.Fatalf("failed to sync block prover: %+v", err)
+	// }
+
+	// fmt.Printf("len(b.ValidityProofs) after SetValidityProof: %d\n", len(syncValidityProver.ValidityProver.BlockBuilder().ValidityProofs))
 
 	// sync alice wallet to the latest block, which includes the deposit
 	err = aliceProver.SyncAll(syncValidityProver, aliceWallet, balanceProcessor)
