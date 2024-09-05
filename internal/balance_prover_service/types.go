@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
+	intMaxAccTypes "intmax2-node/internal/accounts/types"
 	"intmax2-node/internal/block_validity_prover"
 	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	intMaxTree "intmax2-node/internal/tree"
@@ -50,14 +51,19 @@ type GenericAddressInput struct {
 }
 
 type TransferInput struct {
-	Recipient  string      `json:"recipient"`
-	TokenIndex uint32      `json:"tokenIndex"`
-	Amount     AmountInput `json:"amount"`
-	Salt       SaltInput   `json:"salt"`
+	Recipient  GenericAddressInput `json:"recipient"`
+	TokenIndex uint32              `json:"tokenIndex"`
+	Amount     AmountInput         `json:"amount"`
+	Salt       SaltInput           `json:"salt"`
 }
 
 func (input *TransferInput) FromTransfer(value *intMaxTypes.Transfer) *TransferInput {
-	input.Recipient = hexutil.Encode(value.Recipient.Address[:])
+	// input.Recipient = hexutil.Encode(value.Recipient.Address[:])
+	data := new(big.Int).SetBytes(value.Recipient.Address[:])
+	input.Recipient = GenericAddressInput{
+		IsPublicKey: value.Recipient.TypeOfAddress == intMaxAccTypes.INTMAXAddressType,
+		Data:        data.String(),
+	}
 	input.TokenIndex = value.TokenIndex
 	input.Amount = value.Amount.String()
 	input.Salt = *value.Salt
@@ -251,7 +257,7 @@ func NewSpentValue(
 	assetMerkleProofs []*intMaxTree.AssetMerkleProof,
 	txNonce uint64,
 ) (*SpentValue, error) {
-	const numTransfers = 64
+	const numTransfers = 1 << intMaxTree.TRANSFER_TREE_HEIGHT
 	if len(prevBalances) != numTransfers {
 		return nil, errors.New("prevBalances length is not equal to numTransfers")
 	}
@@ -533,7 +539,10 @@ func (input *TransferWitnessInput) FromTransferWitness(value *TransferWitness) *
 		Nonce:            value.Tx.Nonce,
 	}
 	input.Transfer = TransferInput{
-		Recipient:  hexutil.Encode(value.Transfer.Recipient.Address[:]),
+		Recipient: GenericAddressInput{
+			IsPublicKey: value.Transfer.Recipient.TypeOfAddress == intMaxAccTypes.INTMAXAddressType,
+			Data:        hexutil.Encode(value.Transfer.Recipient.Address[:]),
+		},
 		TokenIndex: value.Transfer.TokenIndex,
 		Amount:     value.Transfer.Amount.String(),
 		Salt:       *value.Transfer.Salt,
@@ -696,4 +705,102 @@ func (s *BalancePublicInputs) FromPublicInputs(publicInputs []ffg.Element) (*Bal
 		LastTxInsufficientFlags: *lastTxInsufficientFlags,
 		PublicState:             publicState,
 	}, nil
+}
+
+func ValidateTxInclusionValue(
+	publicKey *intMaxAcc.PublicKey,
+	prevPublicState *block_validity_prover.PublicState,
+	validityProof string,
+	blockMerkleProof *intMaxTree.BlockHashMerkleProof,
+	prevAccountMembershipProof *intMaxTree.IndexedMembershipProof,
+	senderIndex uint32,
+	tx intMaxTypes.Tx,
+	txMerkleProof *intMaxTree.MerkleProof,
+	// senderLeaf *intMaxTree.SenderLeaf,
+	// senderMerkleProof *intMaxTree.MerkleProof,
+	// newPublicState             *block_validity_prover.PublicState,
+	// isValid                    bool,
+) (bool, error) {
+	// let validity_pis = ValidityPublicInputs::from_u64_slice(
+	// 	&validity_proof.public_inputs[0..VALIDITY_PUBLIC_INPUTS_LEN].to_u64_vec(),
+	// );
+	// block_merkle_proof
+	// 	.verify(
+	// 		&prev_public_state.block_hash,
+	// 		prev_public_state.block_number as usize,
+	// 		validity_pis.public_state.block_tree_root,
+	// 	)
+	// 	.expect("block merkle proof is invalid");
+	// prev_account_membership_proof
+	// 	.verify(pubkey, validity_pis.public_state.prev_account_tree_root)
+	// 	.expect("prev account membership proof is invalid");
+	// let last_block_number = prev_account_membership_proof.get_value() as u32;
+	// assert!(last_block_number <= prev_public_state.block_number); // no send tx till one before the last block
+
+	// let tx_tree_root: PoseidonHashOut = validity_pis
+	// 	.tx_tree_root
+	// 	.try_into()
+	// 	.expect("tx tree root is invalid");
+	// tx_merkle_proof
+	// 	.verify(tx, sender_index, tx_tree_root)
+	// 	.expect("tx merkle proof is invalid");
+	// sender_merkle_proof
+	// 	.verify(sender_leaf, sender_index, validity_pis.sender_tree_root)
+	// 	.expect("sender merkle proof is invalid");
+
+	// assert_eq!(sender_leaf.sender, pubkey);
+	// let is_valid = sender_leaf.is_valid && validity_pis.is_valid_block;
+
+	validityProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(validityProof)
+	if err != nil {
+		return false, err
+	}
+	validityPis := new(block_validity_prover.ValidityPublicInputs).FromPublicInputs(validityProofWithPis.PublicInputs)
+	err = blockMerkleProof.Verify(
+		intMaxTree.NewBlockHashLeaf(prevPublicState.BlockHash).Hash(),
+		int(prevPublicState.BlockNumber),
+		validityPis.PublicState.BlockTreeRoot,
+	)
+	if err != nil {
+		// block merkle proof is invalid
+		return false, err
+	}
+
+	fmt.Printf("prevAccountMembershipProof: %v\n", prevAccountMembershipProof)
+	fmt.Printf("publicKey: %v\n", publicKey.BigInt())
+	fmt.Printf("prevPublicState.PrevAccountTreeRoot: %v\n", prevPublicState.PrevAccountTreeRoot)
+	err = prevAccountMembershipProof.Verify(publicKey.BigInt(), prevPublicState.PrevAccountTreeRoot)
+	if err != nil {
+		// prev account membership proof is invalid
+		var ErrInvalidMembershipProof = errors.New("prev account membership proof is invalid")
+		return false, errors.Join(ErrInvalidMembershipProof, err)
+	}
+
+	lastBlockNumber := prevAccountMembershipProof.Leaf.Value
+	if lastBlockNumber > uint64(prevPublicState.BlockNumber) {
+		return false, errors.New("no send tx till one before the last block")
+	}
+
+	txTreeRoot := validityPis.TxTreeRoot
+	err = txMerkleProof.Verify(tx.Hash(), int(senderIndex), txTreeRoot.PoseidonHashOut())
+	if err != nil {
+		// tx merkle proof is invalid
+		return false, err
+	}
+
+	// err = senderMerkleProof.Verify(senderLeaf.Hash(), int(senderIndex), validityPis.SenderTreeRoot)
+	// if err != nil {
+	// 	// sender merkle proof is invalid
+	// 	return false, err
+	// }
+
+	// if senderLeaf.Sender.BigInt().Cmp(publicKey.BigInt()) != 0 {
+	// 	return false, errors.New("sender leaf sender is not equal to pubkey")
+	// }
+
+	// isValid := senderLeaf.IsValid && validityPis.IsValidBlock
+
+	// return isValid, nil
+
+	return true, nil
 }

@@ -155,6 +155,16 @@ func (b *Bytes32) FromPoseidonHashOut(value *PoseidonHashOut) *Bytes32 {
 	return b
 }
 
+func (b *Bytes32) PoseidonHashOut() *PoseidonHashOut {
+	elements := [4]ffg.Element{}
+	for i := 0; i < len(elements); i++ {
+		value := uint64(b[i*2])<<32 + uint64(b[i*2+1])
+		elements[i].SetUint64(value)
+	}
+
+	return &PoseidonHashOut{Elements: elements}
+}
+
 func Uint32SliceToBytes(v []uint32) []byte {
 	buf := make([]byte, len(v)*int4Key)
 	for i, n := range v {

@@ -260,6 +260,8 @@ func (p *blockValidityProver) SyncBlockProver() error {
 	for blockNumber := lastGeneratedBlockNumber + 1; blockNumber <= currentBlockNumber; blockNumber++ {
 		// validityWitnessBlockNumber := p.blockBuilder.LatestIntMaxBlockNumber()
 		validityWitness, err := p.blockBuilder.ValidityWitnessByBlockNumber(blockNumber)
+		fmt.Printf("SenderFlag: %v\n", validityWitness.BlockWitness.Signature.SenderFlag)
+
 		// validityWitnessBlockNumber := validityWitness.BlockWitness.Block.BlockNumber
 		fmt.Printf("IMPORTANT: Block %d proof is processing\n", validityWitness.BlockWitness.Block.BlockNumber)
 		fmt.Printf("IMPORTANT: Block %d proof is processing\n", blockNumber)

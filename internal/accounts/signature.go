@@ -1,6 +1,7 @@
 package accounts
 
 import (
+	"encoding/binary"
 	"errors"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"math/big"
@@ -9,6 +10,8 @@ import (
 	"github.com/consensys/gnark-crypto/ecc/bn254/fp"
 	"github.com/iden3/go-iden3-crypto/ffg"
 )
+
+const int4Key = 4
 
 // Sign is calculate the signature of the message using the private key as follows:
 // messagePoint = hashToG2(message)
@@ -96,9 +99,10 @@ func hashToWeight(myPublicKey *fp.Element, hash []byte) *big.Int {
 	flatten = append(flatten, p[:]...)
 	flatten = append(flatten, hash...)
 
-	flatten2 := make([]ffg.Element, len(flatten))
-	for i, v := range flatten {
-		flatten2[i].SetUint64(uint64(uint32(v)))
+	flatten2 := make([]ffg.Element, len(flatten)/int4Key)
+	for i := 0; i < len(flatten)/int4Key; i++ {
+		v := binary.BigEndian.Uint32(flatten[i*int4Key : (i+1)*int4Key])
+		flatten2[i].SetUint64(uint64(v))
 	}
 	challenger := goldenposeidon.NewChallenger()
 	challenger.ObserveElements(flatten2)
@@ -109,6 +113,5 @@ func hashToWeight(myPublicKey *fp.Element, hash []byte) *big.Int {
 	)
 	output := challenger.GetNChallenges(bn254OrderByteSize / uint32ByteSize)
 
-	a := goldenposeidon.FieldElementSliceToBigInt(output)
-	return a.BigInt(new(big.Int))
+	return goldenposeidon.FieldElementSliceToBigInt(output)
 }

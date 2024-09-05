@@ -1678,17 +1678,21 @@ func (db *mockBlockBuilder) SetValidityWitness(blockNumber uint32, witness *Vali
 			}
 
 			depositTreeRoot, _, _ = depositTree.GetCurrentRootCountAndSiblings()
+			fmt.Printf("SetValidityWitness depositTreeRoot: %s\n", depositTreeRoot.String())
 			if depositTreeRoot == witness.BlockWitness.Block.DepositRoot {
 				break
 			}
 		}
 	}
 
+	fmt.Printf("blockNumber: %d\n", blockNumber)
+	fmt.Printf("GetAccountMembershipProof root: %s\n", db.AccountTree.GetRoot().String())
+
 	db.LatestWitnessBlockNumber = blockNumber
 	db.validityWitnesses[blockNumber] = new(ValidityWitness).Set(witness)
 	db.MerkleTreeHistory[blockNumber] = &MerkleTrees{
-		AccountTree:   db.AccountTree,
-		BlockHashTree: db.BlockTree,
+		AccountTree:   new(intMaxTree.AccountTree).Set(db.AccountTree),
+		BlockHashTree: new(intMaxTree.BlockHashTree).Set(db.BlockTree),
 		DepositLeaves: depositTree.Leaves,
 		// TxTree:        txTree,
 	}
@@ -1700,8 +1704,11 @@ func (db *mockBlockBuilder) LastValidityWitness() (*ValidityWitness, error) {
 	// return db.db.LastValidityWitness()
 	// fmt.Printf("LastValidityWitness: %v\n", db.lastValidityWitness.BlockWitness.PrevBlockTreeRoot)
 
-	fmt.Printf("=============WARNING LastValidityWitness: %d\n", len(db.validityWitnesses))
-	return db.validityWitnesses[uint32(len(db.validityWitnesses)-1)], nil
+	data, ok := db.validityWitnesses[uint32(len(db.validityWitnesses)-1)]
+	if !ok {
+		return nil, errors.New("last validity witness not found")
+	}
+	return data, nil
 }
 
 func (db *mockBlockBuilder) ValidityWitnessByBlockNumber(blockNumber uint32) (*ValidityWitness, error) {
@@ -1717,7 +1724,9 @@ func (db *mockBlockBuilder) GetAccountMembershipProof(blockNumber uint32, public
 	if !ok {
 		return nil, fmt.Errorf("current block number %d not found", blockNumber)
 	}
-	proof, _, err := blockHistory.AccountTree.ProveMembership(publicKey)
+	proof, root, err := blockHistory.AccountTree.ProveMembership(publicKey)
+	fmt.Printf("blockNumber: %d\n", blockNumber)
+	fmt.Printf("GetAccountMembershipProof root: %s\n", root.String())
 	// proof, _, err := db.AccountTree.ProveMembership(publicKey)
 	if err != nil {
 		return nil, errors.New("account membership proof error")
@@ -1873,6 +1882,7 @@ func (db *mockBlockBuilder) ConstructSignature(
 	}
 	senderFlag := intMaxTypes.Bytes16{}
 	senderFlag.FromBytes(senderFlagBytes[:])
+	fmt.Printf("Bytes16: %v\n", senderFlag)
 
 	flattenTxTreeRoot := finite_field.BytesToFieldElementSlice(txTreeRoot.Bytes())
 
@@ -1892,16 +1902,25 @@ func (db *mockBlockBuilder) ConstructSignature(
 		aggregatedSignature.Add(aggregatedSignature, signature)
 	}
 
+	fmt.Printf("publicKeysHash: %v\n", hexutil.Encode(publicKeysHash.Bytes()))
 	aggregatedPublicKey := new(intMaxAcc.PublicKey)
 	for _, keyPair := range sortedTxs {
 		weightedPublicKey := keyPair.Sender.Public().WeightByHash(publicKeysHash.Bytes())
 		aggregatedPublicKey.Add(aggregatedPublicKey, weightedPublicKey)
+		fmt.Printf("weightedPublicKey: %v\n", weightedPublicKey.BigInt().String())
+		fmt.Printf("aggregatedPublicKey: %v\n", aggregatedPublicKey.BigInt().String())
 	}
 
 	if aggregatedPublicKey.Pk == nil {
 		aggregatedPublicKey.Pk = new(bn254.G1Affine)
 		aggregatedPublicKey.Pk.X.SetZero()
 		aggregatedPublicKey.Pk.Y.SetZero()
+	}
+
+	err := intMaxAcc.VerifySignature(aggregatedSignature, aggregatedPublicKey, flattenTxTreeRoot)
+	if err != nil {
+		// debug assertion
+		return nil, fmt.Errorf("fail to verify aggregatedPublicKey: %s", aggregatedPublicKey.BigInt().String())
 	}
 
 	return &SignatureContent{
@@ -2060,7 +2079,9 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTree(
 		AccountMembershipProofs: &accountMembershipProofs,
 	}
 
-	if !blockWitness.MainValidationPublicInputs().IsValid && len(txs) > 0 {
+	validationPis := blockWitness.MainValidationPublicInputs()
+	fmt.Printf("validationPis: %v\n", validationPis)
+	if !validationPis.IsValid && len(txs) > 0 {
 		panic("should be valid block") // XXX
 	}
 
@@ -2106,6 +2127,7 @@ func (db *mockBlockBuilder) PostBlock(
 	fmt.Printf("blockNumber: %d\n", validityWitness.BlockWitness.Block.BlockNumber)
 	fmt.Printf("validityWitness.BlockWitness after generateValidityWitness: %s\n", encodedBlockWitness)
 
+	fmt.Printf("SenderFlag 1: %v\n", validityWitness.BlockWitness.Signature.SenderFlag)
 	validityPis := validityWitness.ValidityPublicInputs()
 	encodedValidityPis, err := json.Marshal(validityPis)
 	if err != nil {
@@ -2113,6 +2135,7 @@ func (db *mockBlockBuilder) PostBlock(
 	}
 	fmt.Printf("validityPis (PostBlock): %s\n", encodedValidityPis)
 
+	fmt.Printf("SenderFlag 2: %v\n", validityWitness.BlockWitness.Signature.SenderFlag)
 	db.SetValidityWitness(blockWitness.Block.BlockNumber, validityWitness)
 
 	fmt.Printf("post block #%d\n", validityWitness.BlockWitness.Block.BlockNumber)

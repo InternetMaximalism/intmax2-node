@@ -13,6 +13,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+const numTransfersInTx = 1 << intMaxTree.TRANSFER_TREE_HEIGHT
+
 type MockWallet struct {
 	privateKey        intMaxAcc.PrivateKey
 	assetTree         intMaxTree.AssetTree
@@ -34,10 +36,14 @@ func (w *MockWallet) SendTx(
 	blockBuilder *block_validity_prover.MockBlockBuilderMemory,
 	transfers []*intMaxTypes.Transfer,
 ) (*TxWitness, []*TransferWitness, error) {
-	numTransfersInTx := 4
+	fmt.Printf("-----SendTx-----")
 	if len(transfers) >= numTransfersInTx {
 		return nil, nil, errors.New("transfers length must be less than numTransfersInTx")
 	}
+	for len(transfers) < numTransfersInTx {
+		transfers = append(transfers, new(intMaxTypes.Transfer).SetZero())
+	}
+	fmt.Printf("SendTx transfers: %v\n", transfers)
 
 	zeroTransfer := new(intMaxTypes.Transfer).SetZero()
 	transferTree, err := intMaxTree.NewTransferTree(intMaxTree.TRANSFER_TREE_HEIGHT, nil, zeroTransfer.Hash())
@@ -144,6 +150,7 @@ func (w *MockWallet) UpdateOnSendTx(salt Salt, txWitness *TxWitness, transferWit
 	prevBalances := make([]*intMaxTree.AssetLeaf, 0, len(transferWitnesses))
 	insufficientFlags := new(backup_balance.InsufficientFlags)
 	// insufficientBits := make([]bool, 0, len(transferWitnesses))
+	fmt.Printf("transferWitnesses: %v\n", transferWitnesses)
 	for i, transferWitness := range transferWitnesses {
 		if transferWitness == nil {
 			return nil, fmt.Errorf("transferWitness[%d] is nil", i)
@@ -169,6 +176,7 @@ func (w *MockWallet) UpdateOnSendTx(salt Salt, txWitness *TxWitness, transferWit
 		if err != nil {
 			panic(err)
 		}
+		transfers = append(transfers, &transfer)
 		prevBalances = append(prevBalances, prevBalance)
 		assetMerkleProofs = append(assetMerkleProofs, assetMerkleProof)
 		insufficientFlags.SetBit(i, newBalance.IsInsufficient)

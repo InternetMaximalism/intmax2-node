@@ -196,10 +196,8 @@ func (s *BalanceProcessor) ProveReceiveTransfer(
 	lastBalanceProof *string,
 ) (*BalanceProofWithPublicInputs, error) {
 	// request balance prover
-	fmt.Printf("ProveReceiveTransfer")
+	fmt.Println("ProveReceiveTransfer")
 	fmt.Printf("publicKey: %v", publicKey)
-	fmt.Printf("receiveTransferWitness: %v", receiveTransferWitness)
-	fmt.Printf("lastBalanceProof: %v", lastBalanceProof)
 	requestID, err := s.requestReceiveTransferBalanceValidityProof(publicKey, receiveTransferWitness, lastBalanceProof)
 	if err != nil {
 		return nil, err
@@ -470,7 +468,7 @@ func (p *BalanceProcessor) requestSendBalanceValidityProof(
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal JSON request body: %w", err)
 	}
-	fmt.Printf("requestSendBalanceValidityProof: %s\n", bd)
+	fmt.Printf("size of requestSendBalanceValidityProof: %d\n", len(bd))
 
 	const (
 		httpKey     = "http"
@@ -515,7 +513,15 @@ func (p *BalanceProcessor) requestSendBalanceValidityProof(
 		return "", fmt.Errorf("failed to send the balance proof request for SendWitness: %s", response.Message)
 	}
 
-	requestID := sendWitness.PrevBalancePis.PublicState.BlockHash.Hex()
+	validityProofWithPlonky2Proof, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(updateWitness.ValidityProof)
+	if err != nil {
+		return "", err
+	}
+
+	validityPublicInputs := new(block_validity_prover.ValidityPublicInputs).FromPublicInputs(validityProofWithPlonky2Proof.PublicInputs)
+
+	requestID := validityPublicInputs.PublicState.BlockHash.Hex()
+	fmt.Printf("requestID: %s\n", requestID)
 
 	return requestID, nil
 }
@@ -537,6 +543,7 @@ func (p *BalanceProcessor) requestReceiveTransferBalanceValidityProof(
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal JSON request body: %w", err)
 	}
+	fmt.Printf("requestReceiveTransferBalanceValidityProof: %s\n", bd)
 
 	const (
 		httpKey     = "http"

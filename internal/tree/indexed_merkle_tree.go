@@ -177,7 +177,7 @@ func (proof *IndexedMerkleProof) GetRoot(leaf *IndexedMerkleLeaf, index LeafInde
 func (proof *IndexedMerkleProof) Verify(leaf *IndexedMerkleLeaf, index LeafIndex, root *goldenposeidon.PoseidonHashOut) error {
 	computedRoot := proof.GetRoot(leaf, index)
 	if !computedRoot.Equal(root) {
-		return errors.New("invalid root")
+		return fmt.Errorf("invalid root: %s != %s", computedRoot.String(), root.String())
 	}
 
 	return nil
@@ -375,6 +375,9 @@ func (t *IndexedMerkleTree) ProveMembership(key *big.Int) (membership_proof *Ind
 	lowIndex := t.GetLowIndex(key)
 	lowLeaf := t.GetLeaf(lowIndex)
 	leafProof, root, err := t.Prove(lowIndex)
+	fmt.Printf("lowIndex: %d\n", lowIndex)
+	fmt.Printf("lowLeaf.Key: %v, key: %s\n", lowLeaf.Key, key)
+	fmt.Printf("leafProof: %v\n", leafProof)
 	if err != nil {
 		return nil, nil, err
 	}
