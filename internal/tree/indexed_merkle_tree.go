@@ -24,10 +24,10 @@ type IndexedMerkleLeaf struct {
 }
 
 type SerializableIndexedMerkleLeaf struct {
-	Key       string    `json:"key"`
-	Value     uint64    `json:"value"`
 	NextIndex LeafIndex `json:"nextIndex"`
+	Key       string    `json:"key"`
 	NextKey   string    `json:"nextKey"`
+	Value     uint64    `json:"value"`
 }
 
 func (leaf *IndexedMerkleLeaf) MarshalJSON() ([]byte, error) {
@@ -177,7 +177,7 @@ func (proof *IndexedMerkleProof) GetRoot(leaf *IndexedMerkleLeaf, index LeafInde
 func (proof *IndexedMerkleProof) Verify(leaf *IndexedMerkleLeaf, index LeafIndex, root *goldenposeidon.PoseidonHashOut) error {
 	computedRoot := proof.GetRoot(leaf, index)
 	if !computedRoot.Equal(root) {
-		return errors.New("invalid root")
+		return fmt.Errorf("invalid root: %s != %s", computedRoot.String(), root.String())
 	}
 
 	return nil
@@ -246,9 +246,9 @@ func (proof *IndexedInsertionProof) ConditionalGetNewRoot(condition bool, key *b
 }
 
 type IndexedUpdateProof struct {
-	LeafProof IndexedMerkleProof
-	LeafIndex LeafIndex
-	PrevLeaf  IndexedMerkleLeaf
+	LeafProof IndexedMerkleProof `json:"leafProof"`
+	LeafIndex LeafIndex          `json:"leafIndex"`
+	PrevLeaf  IndexedMerkleLeaf  `json:"prevLeaf"`
 }
 
 func (proof *IndexedUpdateProof) GetNewRoot(key *big.Int, prevValue, newValue uint64, prevRoot *PoseidonHashOut) (*PoseidonHashOut, error) {
@@ -290,6 +290,17 @@ func (proof *IndexedUpdateProof) Verify(key *big.Int, prevValue, newValue uint64
 type IndexedMerkleTree struct {
 	Leaves []*IndexedMerkleLeaf
 	inner  *PoseidonMerkleTree
+}
+
+func (t *IndexedMerkleTree) Set(other *IndexedMerkleTree) *IndexedMerkleTree {
+	t.Leaves = make([]*IndexedMerkleLeaf, len(other.Leaves))
+	for i, leaf := range other.Leaves {
+		t.Leaves[i] = new(IndexedMerkleLeaf).Set(leaf)
+	}
+
+	t.inner = new(PoseidonMerkleTree).Set(other.inner)
+
+	return t
 }
 
 type IndexedMembershipProof struct {
@@ -364,6 +375,9 @@ func (t *IndexedMerkleTree) ProveMembership(key *big.Int) (membership_proof *Ind
 	lowIndex := t.GetLowIndex(key)
 	lowLeaf := t.GetLeaf(lowIndex)
 	leafProof, root, err := t.Prove(lowIndex)
+	fmt.Printf("lowIndex: %d\n", lowIndex)
+	fmt.Printf("lowLeaf.Key: %v, key: %s\n", lowLeaf.Key, key)
+	fmt.Printf("leafProof: %v\n", leafProof)
 	if err != nil {
 		return nil, nil, err
 	}

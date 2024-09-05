@@ -37,34 +37,12 @@ func (l *AssetLeaf) ToFieldElementSlice() []ffg.Element {
 		isInsufficient = new(ffg.Element).SetUint64(1)
 	}
 
-	return append([]ffg.Element{*isInsufficient}, l.Amount.ToFieldElementSlice()[:]...)
+	return append([]ffg.Element{*isInsufficient}, l.Amount.ToFieldElementSlice()...)
 }
 
 func (l *AssetLeaf) Hash() *PoseidonHashOut {
 	return intMaxGP.HashNoPad(l.ToFieldElementSlice())
 }
-
-// /// Substracts the given amount from the balance. If the balance is insufficient, the balance
-// /// becomes zero and the `is_insufficient` flag is set to true.
-// pub fn sub(&self, amount: U256) -> Self {
-//     let is_insufficient = (self.amount < amount) || self.is_insufficient;
-//     // If the balance is insufficient, substract the entire balance to prevent
-//     // underflow.
-//     let substract_amount = if is_insufficient { self.amount } else { amount };
-//     let amount = self.amount - substract_amount;
-//     Self {
-//         is_insufficient,
-//         amount,
-//     }
-// }
-
-// /// Adds the given amount to the balance. `is_insufficient` flag is not changed.
-// pub fn add(&self, amount: U256) -> Self {
-//     Self {
-//         is_insufficient: self.is_insufficient,
-//         amount: self.amount + amount,
-//     }
-// }
 
 func (l *AssetLeaf) Add(amount *big.Int) *AssetLeaf {
 	return &AssetLeaf{
@@ -151,6 +129,17 @@ func NewAssetTree(
 	}, nil
 }
 
+func (t *AssetTree) Set(other *AssetTree) *AssetTree {
+	t.Leaves = make([]*AssetLeaf, len(other.Leaves))
+	for key := range other.Leaves {
+		t.Leaves[key] = new(AssetLeaf).Set(other.Leaves[key])
+	}
+
+	t.inner = new(PoseidonIncrementalMerkleTree).Set(other.inner)
+
+	return t
+}
+
 func (t *AssetTree) BuildMerkleRoot(leaves []*AssetLeaf) (root *PoseidonHashOut, err error) {
 	leafHashes := make([]*PoseidonHashOut, len(leaves))
 	for key := range leaves {
@@ -173,7 +162,7 @@ func (t *AssetTree) AddLeaf(index uint32, leaf *AssetLeaf) (root *PoseidonHashOu
 	}
 
 	if int(index) != len(t.Leaves) {
-		return nil, errors.Join(ErrLeafInputIndexInvalid, errors.New("asset tree AddLeaf"))
+		return nil, errors.Join(ErrAssetLeafInputIndexInvalid, errors.New("asset tree AddLeaf"))
 	}
 	t.Leaves = append(t.Leaves, new(AssetLeaf).Set(leaf))
 
@@ -183,13 +172,13 @@ func (t *AssetTree) AddLeaf(index uint32, leaf *AssetLeaf) (root *PoseidonHashOu
 func (t *AssetTree) ComputeMerkleProof(
 	index uint32,
 ) (siblings []*PoseidonHashOut, root PoseidonHashOut, err error) {
-	leaves := make([]*PoseidonHashOut, 1<<t.inner.height)
+	leaves := make([]*PoseidonHashOut, len(t.Leaves))
 	for i, leaf := range t.Leaves {
 		leaves[i] = leaf.Hash()
 	}
-	for i := len(t.Leaves); i < len(leaves); i++ {
-		leaves[i] = t.inner.zeroHashes[0]
-	}
+	// for i := len(t.Leaves); i < len(leaves); i++ {
+	// 	leaves[i] = t.inner.zeroHashes[0]
+	// }
 
 	return t.inner.ComputeMerkleProof(uint64(index), leaves)
 }
@@ -210,7 +199,7 @@ func (t *AssetTree) GetRoot() *PoseidonHashOut {
 func (t *AssetTree) UpdateLeaf(index uint32, leaf *AssetLeaf) (root *PoseidonHashOut, err error) {
 	if index >= uint32(len(t.Leaves)) {
 		fmt.Printf("index: %d, len(t.Leaves): %d\n", index, len(t.Leaves))
-		return nil, errors.Join(ErrLeafInputIndexInvalid, errors.New("asset tree UpdateLeaf"))
+		return nil, errors.Join(ErrAssetLeafInputIndexInvalid, errors.New("asset tree UpdateLeaf"))
 	}
 
 	t.Leaves[index] = leaf

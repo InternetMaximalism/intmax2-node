@@ -7,20 +7,16 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
 	"intmax2-node/docs/swagger"
-	intMaxAcc "intmax2-node/internal/accounts"
-	"intmax2-node/internal/balance_prover_service"
 	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/block_validity_prover"
 	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/logger"
-	"intmax2-node/internal/mnemonic_wallet"
 	"intmax2-node/internal/network_service"
 	"intmax2-node/internal/pb/gateway"
 	"intmax2-node/internal/pb/gateway/consts"
 	"intmax2-node/internal/pb/gateway/http_response_modifier"
 	node "intmax2-node/internal/pb/gen/block_builder_service/node"
 	"intmax2-node/internal/pb/listener"
-	intMaxTree "intmax2-node/internal/tree"
 	"intmax2-node/pkg/grpc_server/server"
 	"intmax2-node/third_party"
 	"strings"
@@ -296,131 +292,7 @@ func NewServerCmd(s *Server) *cobra.Command {
 						}
 
 						fmt.Printf("Block %d is searched\n", endBlock)
-
 					}
-				}
-			}()
-
-			wg.Add(1)
-			s.WG.Add(1)
-			go func() {
-				defer func() {
-					wg.Done()
-					s.WG.Done()
-				}()
-
-				blockBuilderWallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(s.Config.Blockchain.BuilderPrivateKeyHex)
-				if err != nil {
-					const msg = "failed to get Block Builder IntMax Address: %+v"
-					s.Log.Fatalf(msg, err.Error())
-				}
-
-				timeout := 1 * time.Second
-				ticker := time.NewTicker(timeout)
-				blockNumber := 1
-				for {
-					select {
-					case <-s.Context.Done():
-						ticker.Stop()
-						s.Log.Warnf("Received cancel signal from context, stopping...")
-						return
-					case <-ticker.C:
-						result, err := block_validity_prover.BlockAuxInfo(blockValidityProver.BlockBuilder(), uint32(blockNumber))
-						// result, err := blockValidityProver.BlockBuilder().BlockContentByBlockNumber(uint32(blockNumber))
-						if err != nil {
-							if err.Error() == "block content by block number error" {
-								time.Sleep(1 * time.Second)
-								continue
-							}
-
-							const msg = "failed to fetch new posted blocks: %+v"
-							s.Log.Fatalf(msg, err.Error())
-						}
-
-						err = blockValidityProver.SyncBlockProver(result.BlockContent, result.PostedBlock)
-						if err != nil {
-							const msg = "failed to sync block prover: %+v"
-							s.Log.Fatalf(msg, err.Error())
-						}
-
-						balanceProverService := balance_prover_service.NewBalanceProverService(s.Context, s.Config, s.Log, blockBuilderWallet)
-						userAllData, err := balanceProverService.DecodeUserData()
-						if err != nil {
-							const msg = "failed to start Balance Prover Service: %+v"
-							s.Log.Fatalf(msg, err.Error())
-						}
-						fmt.Printf("deposits in userAllData: %+v\n", len(userAllData.Deposits))
-
-						intMaxPrivateKey, err := intMaxAcc.NewPrivateKeyFromString(blockBuilderWallet.IntMaxPrivateKey)
-						if err != nil {
-							const msg = "failed to get IntMax Private Key: %+v"
-							s.Log.Fatalf(msg, err.Error())
-						}
-
-						mockWallet, err := balance_prover_service.NewMockWallet(intMaxPrivateKey)
-						if err != nil {
-							const msg = "failed to get Mock Wallet: %+v"
-							s.Log.Fatalf(msg, err.Error())
-						}
-
-						syncValidityProver, err := balance_prover_service.NewSyncValidityProver(
-							s.Context, s.Config, s.Log, s.SB, s.DbApp,
-						)
-						if err != nil {
-							const msg = "failed to get Sync Validity Prover: %+v"
-							s.Log.Fatalf(msg, err.Error())
-						}
-						err = balanceProverService.SyncBalanceProver.SyncNoSend(
-							syncValidityProver,
-							mockWallet,
-							balanceProverService.BalanceProcessor,
-							blockValidityProver.BlockBuilder(),
-						)
-						if err != nil {
-							const msg = "failed to sync balance prover: %+v"
-							s.Log.Fatalf(msg, err.Error())
-						}
-
-						for _, deposit := range userAllData.Deposits {
-							fmt.Printf("deposit ID: %d\n", deposit.DepositID)
-							_, depositIndex, err := blockValidityProver.BlockBuilder().GetDepositLeafAndIndexByHash(deposit.DepositHash)
-							if err != nil {
-								const msg = "failed to get Deposit Index by Hash: %+v"
-								s.Log.Warnf(msg, err.Error())
-								continue
-							}
-							if depositIndex == nil {
-								const msg = "failed to get Deposit Index by Hash: %+v"
-								s.Log.Warnf(msg, "depositIndex is nil")
-								continue
-							}
-
-							fmt.Printf("deposit index: %d\n", *depositIndex)
-
-							depositCase := balance_prover_service.DepositCase{
-								Deposit: intMaxTree.DepositLeaf{
-									RecipientSaltHash: deposit.RecipientSaltHash,
-									TokenIndex:        deposit.TokenIndex,
-									Amount:            deposit.Amount,
-								},
-								DepositIndex: *depositIndex,
-								DepositSalt:  *deposit.Salt,
-							}
-							mockWallet.AddDepositCase(deposit.DepositID, &depositCase)
-							err = balanceProverService.SyncBalanceProver.ReceiveDeposit(
-								mockWallet,
-								balanceProverService.BalanceProcessor,
-								blockValidityProver.BlockBuilder(),
-								deposit.DepositID,
-							)
-							if err != nil {
-								const msg = "failed to receive deposit: %+v"
-								s.Log.Fatalf(msg, err.Error())
-							}
-						}
-					}
-
-					blockNumber++
 				}
 			}()
 

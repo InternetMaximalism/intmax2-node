@@ -63,7 +63,7 @@ type BlockHistory interface {
 	GenerateBlock(blockContent *intMaxTypes.BlockContent, postedBlock *block_post_service.PostedBlock) (*BlockWitness, error)
 	LatestIntMaxBlockNumber() uint32
 	SetValidityProof(blockNumber uint32, proof string) error
-	LastValidityProof() (*string, error)
+	ValidityProofByBlockNumber(blockNumber uint32) (*string, error)
 
 	SetValidityWitness(blockNumber uint32, witness *ValidityWitness) error
 	LastValidityWitness() (*ValidityWitness, error)
@@ -79,7 +79,8 @@ type BlockHistory interface {
 	GetAccountMembershipProof(currentBlockNumber uint32, publicKey *big.Int) (*intMaxTree.IndexedMembershipProof, error)
 	AppendBlockTreeLeaf(block *block_post_service.PostedBlock) error
 	BlockTreeRoot() (*intMaxGP.PoseidonHashOut, error)
-	BlockTreeProof(blockNumber uint32) (*intMaxTree.MerkleProof, error)
+	BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.MerkleProof, error)
+	CurrentBlockTreeProof(leafBlockNumber uint32) (*intMaxTree.MerkleProof, error)
 }
 
 type DepositTreeBuilder interface {
@@ -87,7 +88,8 @@ type DepositTreeBuilder interface {
 	// AppendDepositTreeRoot(depositTreeRoot common.Hash) error
 	AppendDepositTreeLeaf(depositHash common.Hash, depositLeaf *intMaxTree.DepositLeaf) (root common.Hash, err error)
 
-	DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, error)
+	IsSynchronizedDepositIndex(depositIndex uint32) (bool, error)
+	DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, error)
 	GetDepositLeafAndIndexByHash(depositHash common.Hash) (depositLeafWithId *DepositLeafWithId, depositIndex *uint32, err error)
 	UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error
 

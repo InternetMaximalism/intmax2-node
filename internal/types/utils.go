@@ -68,6 +68,16 @@ func (b *Bytes16) UnmarshalJSON(data []byte) error {
 
 type Bytes32 [int32Key / numUint32Bytes]uint32
 
+func (b *Bytes32) Equal(other *Bytes32) bool {
+	for i := 0; i < int32Key/numUint32Bytes; i++ {
+		if b[i] != other[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (b *Bytes32) FromBytes(bytes []byte) {
 	for i := 0; i < int32Key/numUint32Bytes; i++ {
 		b[i] = binary.BigEndian.Uint32(bytes[i*numUint32Bytes : (i+1)*numUint32Bytes])
@@ -143,6 +153,16 @@ func (b *Bytes32) FromPoseidonHashOut(value *PoseidonHashOut) *Bytes32 {
 	}
 
 	return b
+}
+
+func (b *Bytes32) PoseidonHashOut() *PoseidonHashOut {
+	elements := [4]ffg.Element{}
+	for i := 0; i < len(elements); i++ {
+		value := uint64(b[i*2])<<32 + uint64(b[i*2+1])
+		elements[i].SetUint64(value)
+	}
+
+	return &PoseidonHashOut{Elements: elements}
 }
 
 func Uint32SliceToBytes(v []uint32) []byte {
@@ -255,27 +275,6 @@ func (v *Uint256) FromBytes(bytes []byte) *Uint256 {
 	return v
 }
 
-// fn sub(self, rhs: Self) -> Self::Output {
-// 	let mut result_limbs = vec![];
-
-// 	let mut borrow = 0i64;
-// 	for (a, b) in self.limbs.iter().rev().zip(rhs.limbs.iter().rev()) {
-// 		let c = a as i64 - b as i64 + borrow;
-// 		let result = c as u32;
-// 		borrow = (c >> 32) as i32 as i64;
-// 		result_limbs.push(result);
-// 	}
-
-// 	// Borrow should be zero here.
-// 	assert_eq!(borrow, 0, "U256 sub underflow occured");
-
-// 	result_limbs.reverse();
-
-// 	Self {
-// 		limbs: result_limbs.try_into().unwrap(),
-// 	}
-// }
-
 func (v *Uint256) Add(other *Uint256) *Uint256 {
 	result := new(big.Int).Add(v.BigInt(), other.BigInt())
 	return new(Uint256).FromBigInt(result)
@@ -285,7 +284,7 @@ func (v *Uint256) Sub(other *Uint256) *Uint256 {
 	result := new(big.Int).Sub(v.BigInt(), other.BigInt())
 
 	if result.Cmp(big.NewInt(0)) < 0 {
-		panic("U256 sub underflow occured")
+		panic("U256 sub underflow occurred")
 	}
 
 	return new(Uint256).FromBigInt(result)

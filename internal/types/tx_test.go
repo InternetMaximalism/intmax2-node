@@ -15,6 +15,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestPoseidonHashOutBytes32(t *testing.T) {
+	hashOut := new(goldenposeidon.PoseidonHashOut)
+	err := hashOut.FromString("0x030644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd3")
+	require.NoError(t, err)
+
+	bytes32 := new(intMaxTypes.Bytes32).FromPoseidonHashOut(hashOut)
+	assert.Equal(t, "0x030644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd3", bytes32.PoseidonHashOut().String())
+}
+
 // {
 // 	"nonce": 2,
 // 	"powNonce": "0xc1",

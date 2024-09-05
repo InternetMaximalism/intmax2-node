@@ -26,11 +26,10 @@ async fn get_proof(
         .map_err(actix_web::error::ErrorInternalServerError)?;
 
     let public_key = U256::from_hex(&query_params.0).expect("failed to parse public key");
-
-    let private_commitment = &query_params.1;
+    let request_id = &query_params.1;
     let proof = redis::Cmd::get(&get_balance_transfer_request_id(
         &public_key.to_hex(),
-        &private_commitment,
+        request_id,
     ))
     .query_async::<_, Option<String>>(&mut conn)
     .await
@@ -39,10 +38,10 @@ async fn get_proof(
     if proof.is_none() {
         let response = ProofResponse {
             success: false,
+            request_id: request_id.clone(),
             proof: None,
             error_message: Some(format!(
-                "balance proof is not generated (private_commitment: {})",
-                private_commitment
+                "balance proof is not generated (private_commitment: {request_id})",
             )),
         };
 
@@ -51,6 +50,7 @@ async fn get_proof(
 
     let response = ProofResponse {
         success: true,
+        request_id: request_id.clone(),
         proof,
         error_message: None,
     };
@@ -87,11 +87,13 @@ async fn get_proofs(
 
     let mut proofs: Vec<ProofTransferValue> = Vec::new();
     for private_commitment in &private_commitments {
-        let request_id = get_balance_transfer_request_id(&public_key.to_hex(), private_commitment);
-        let some_proof = redis::Cmd::get(&request_id)
-            .query_async::<_, Option<String>>(&mut conn)
-            .await
-            .map_err(actix_web::error::ErrorInternalServerError)?;
+        let some_proof = redis::Cmd::get(&get_balance_transfer_request_id(
+            &public_key.to_hex(),
+            private_commitment,
+        ))
+        .query_async::<_, Option<String>>(&mut conn)
+        .await
+        .map_err(actix_web::error::ErrorInternalServerError)?;
         if let Some(proof) = some_proof {
             proofs.push(ProofTransferValue {
                 private_commitment: (*private_commitment).to_string(),
@@ -142,17 +144,17 @@ async fn generate_proof(
         BalancePublicInputs::from_pis(&receive_transfer_witness.balance_proof.public_inputs);
 
     // let block_hash = balance_public_inputs.public_state.block_hash;
-    let private_commitment = balance_public_inputs.private_commitment;
-    let request_id =
-        get_balance_transfer_request_id(&public_key.to_hex(), &private_commitment.to_string());
-    log::debug!("request ID: {:?}", request_id);
-    let old_proof = redis::Cmd::get(&request_id)
+    let request_id = balance_public_inputs.private_commitment.to_string();
+    let full_request_id = get_balance_transfer_request_id(&public_key.to_hex(), &request_id);
+    log::debug!("request ID: {:?}", full_request_id);
+    let old_proof = redis::Cmd::get(&full_request_id)
         .query_async::<_, Option<String>>(&mut redis_conn)
         .await
         .map_err(actix_web::error::ErrorInternalServerError)?;
     if let Some(old_proof) = old_proof {
         let response = ProofResponse {
             success: true,
+            request_id,
             proof: Some(old_proof),
             error_message: Some("balance proof already requested".to_string()),
         };
@@ -176,10 +178,20 @@ async fn generate_proof(
 
     // TODO: Validation check of balance_witness
 
+    let response = ProofResponse {
+        success: true,
+        request_id: request_id.clone(),
+        proof: None,
+        error_message: Some(format!(
+            "balance proof (request ID: {}) is generating",
+            request_id
+        )),
+    };
+
     // Spawn a new task to generate the proof
     actix_web::rt::spawn(async move {
         let response = generate_balance_transfer_proof_job(
-            request_id,
+            full_request_id,
             public_key,
             prev_balance_proof,
             &receive_transfer_witness,
@@ -193,7 +205,7 @@ async fn generate_proof(
 
         match response {
             Ok(v) => {
-                log::info!("Proof generation completed");
+                log::info!("Proof generation completed (request ID: {request_id})");
                 Ok(v)
             }
             Err(e) => {
@@ -202,15 +214,6 @@ async fn generate_proof(
             }
         }
     });
-
-    let response = ProofResponse {
-        success: true,
-        proof: None,
-        error_message: Some(format!(
-            "balance proof (private_commitment: {}) is generating",
-            private_commitment
-        )),
-    };
 
     Ok(HttpResponse::Ok().json(response))
 }

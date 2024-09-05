@@ -2,6 +2,7 @@ package block_validity_prover
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"intmax2-node/internal/logger"
 	"net/http"
@@ -17,8 +18,9 @@ type ProveBlockValidity struct {
 }
 
 type ProveBlockValidityInput struct {
-	BlockHash       string                     `json:"blockHash"`
-	ValidityWitness *CompressedValidityWitness `json:"validityWitness"`
+	BlockHash            string                     `json:"blockHash"`
+	ValidityWitness      *CompressedValidityWitness `json:"validityWitness"`
+	PlainValidityWitness *ValidityWitness           `json:"plainValidityWitness"`
 
 	// base64 encoded string
 	PrevValidityProof *string `json:"prevValidityProof,omitempty"`
@@ -38,15 +40,28 @@ func (p *blockValidityProver) requestBlockValidityProof(blockHash common.Hash, v
 		return fmt.Errorf("failed to compress validity witness: %w", err)
 	}
 
+	nextValidityPis := validityWitness.ValidityPublicInputs()
+	p.log.Debugf("nextValidityPis block_proof block number: %d\n", nextValidityPis.PublicState.BlockNumber)
+	p.log.Debugf("nextValidityPis block_proof prev account tree root: %s\n", nextValidityPis.PublicState.PrevAccountTreeRoot.String())
+	p.log.Debugf("nextValidityPis block_proof account tree root: %s\n", nextValidityPis.PublicState.AccountTreeRoot.String())
+
 	requestBody := ProveBlockValidityInput{
-		BlockHash:         blockHash.String(),
-		ValidityWitness:   compressedValidityWitness,
+		BlockHash:       blockHash.String(),
+		ValidityWitness: compressedValidityWitness,
+		// PlainValidityWitness: validityWitness,
 		PrevValidityProof: prevValidityProof,
 	}
 	bd, err := json.Marshal(requestBody)
 	if err != nil {
 		return fmt.Errorf("failed to marshal JSON request body: %w", err)
 	}
+	p.log.Debugf("size of requestBlockValidityProof: %d bytes\n", len(bd))
+
+	encodedValidityWitness, err := json.Marshal(validityWitness)
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON request body: %w", err)
+	}
+	p.log.Debugf("encodedValidityWitness: %s\n", encodedValidityWitness)
 
 	const (
 		httpKey     = "http"
@@ -69,7 +84,7 @@ func (p *blockValidityProver) requestBlockValidityProof(blockHash common.Hash, v
 
 	if resp == nil {
 		const msg = "send request error occurred"
-		return fmt.Errorf(msg)
+		return errors.New(msg)
 	}
 
 	if resp.StatusCode() != http.StatusOK {

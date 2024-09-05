@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use crate::{
     app::{
         encode::decode_plonky2_proof,
@@ -137,7 +139,37 @@ async fn generate_proof(
         None
     };
 
-    let validity_witness = ValidityWitness::decompress(&req.validity_witness);
+    let validity_witness = if let Some(req_plain_validity_witness) = &req.plain_validity_witness {
+        req_plain_validity_witness.clone()
+    } else {
+        ValidityWitness::decompress(&req.validity_witness.clone().unwrap())
+    };
+
+    let encoded_validity_witness =
+        serde_json::to_string(&validity_witness).map_err(error::ErrorInternalServerError)?;
+    let mut file = std::fs::File::create("encoded_validity_witness.json").unwrap();
+    file.write_all(encoded_validity_witness.as_bytes()).unwrap();
+    let encoded_compressed_validity_witness =
+        serde_json::to_string(&req.validity_witness).map_err(error::ErrorInternalServerError)?;
+    let mut file = std::fs::File::create("encoded_compressed_validity_witness.json").unwrap();
+    file.write_all(encoded_compressed_validity_witness.as_bytes())
+        .unwrap();
+
+    let new_pis = validity_witness.to_validity_pis();
+    println!(
+        "new_pis block_number: {}",
+        new_pis.public_state.block_number
+    );
+    println!(
+        "new_pis prev_account_tree_root: {}",
+        new_pis.public_state.prev_account_tree_root
+    );
+    println!(
+        "new_pis account_tree_root: {}",
+        new_pis.public_state.account_tree_root
+    );
+    println!("new_pis is_valid: {}", new_pis.is_valid_block);
+
     let request_id = get_request_id(&block_hash);
 
     // TODO: Validation check of validity_witness

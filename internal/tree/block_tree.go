@@ -44,6 +44,14 @@ type BlockHashTree struct {
 	inner  *PoseidonIncrementalMerkleTree
 }
 
+func (t *BlockHashTree) Set(other *BlockHashTree) *BlockHashTree {
+	t.Leaves = make([]*BlockHashLeaf, len(other.Leaves))
+	copy(t.Leaves, other.Leaves)
+	t.inner = new(PoseidonIncrementalMerkleTree).Set(other.inner)
+
+	return t
+}
+
 func NewBlockHashTreeWithInitialLeaves(height uint8, initialLeaves []*BlockHashLeaf) (*BlockHashTree, error) {
 	initialLeafHashes := make([]*PoseidonHashOut, len(initialLeaves))
 	for i, leaf := range initialLeaves {

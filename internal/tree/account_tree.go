@@ -10,6 +10,12 @@ type AccountTree struct {
 	inner *IndexedMerkleTree
 }
 
+func (t *AccountTree) Set(other *AccountTree) *AccountTree {
+	t.inner = new(IndexedMerkleTree).Set(other.inner)
+
+	return t
+}
+
 func NewAccountTree(height uint8) (*AccountTree, error) {
 	zeroHash := new(IndexedMerkleLeaf).EmptyLeaf().Hash()
 	t, err := NewIndexedMerkleTree(height, zeroHash)

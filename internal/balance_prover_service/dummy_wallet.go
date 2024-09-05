@@ -9,10 +9,11 @@ import (
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/backup_balance"
 	"math/big"
-	"math/rand"
 
 	"github.com/ethereum/go-ethereum/common"
 )
+
+const numTransfersInTx = 1 << intMaxTree.TRANSFER_TREE_HEIGHT
 
 type MockWallet struct {
 	privateKey        intMaxAcc.PrivateKey
@@ -23,7 +24,7 @@ type MockWallet struct {
 	publicState       *block_validity_prover.PublicState
 	sendWitnesses     map[uint32]*SendWitness
 	depositCases      map[uint32]*DepositCase
-	transferWitnesses map[uint32][]*ReceiveTransferWitness
+	transferWitnesses map[uint32][]*TransferWitness
 }
 
 func (w *MockWallet) AddDepositCase(depositIndex uint32, depositCase *DepositCase) error {
@@ -31,28 +32,195 @@ func (w *MockWallet) AddDepositCase(depositIndex uint32, depositCase *DepositCas
 	return nil
 }
 
-// pub fn new_rand<R: Rng>(rng: &mut R) -> Self {
-// 	Self {
-// 		key_set: KeySet::rand(rng),
-// 		asset_tree: AssetTree::new(ASSET_TREE_HEIGHT),
-// 		nullifier_tree: NullifierTree::new(),
-// 		nonce: 0,
-// 		salt: Salt::default(),
-// 		public_state: PublicState::genesis(),
-// 		send_witnesses: Vec::new(),
-// 		deposit_cases: HashMap::new(),
-// 		transfer_witnesses: HashMap::new(),
-// 	}
-// }
+func (w *MockWallet) SendTx(
+	blockBuilder *block_validity_prover.MockBlockBuilderMemory,
+	transfers []*intMaxTypes.Transfer,
+) (*TxWitness, []*TransferWitness, error) {
+	fmt.Printf("-----SendTx-----")
+	if len(transfers) >= numTransfersInTx {
+		return nil, nil, errors.New("transfers length must be less than numTransfersInTx")
+	}
+	for len(transfers) < numTransfersInTx {
+		transfers = append(transfers, new(intMaxTypes.Transfer).SetZero())
+	}
+	fmt.Printf("SendTx transfers: %v\n", transfers)
 
-func NewMockWallet(privateKey *intMaxAcc.PrivateKey) (*MockWallet, error) {
-	zeroAsset := new(intMaxTree.AssetLeaf).SetDefault()
-	assetTree, err := intMaxTree.NewAssetTree(7, nil, zeroAsset.Hash())
+	zeroTransfer := new(intMaxTypes.Transfer).SetZero()
+	transferTree, err := intMaxTree.NewTransferTree(intMaxTree.TRANSFER_TREE_HEIGHT, nil, zeroTransfer.Hash())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for _, transfer := range transfers {
+		_, index, _ := transferTree.GetCurrentRootCountAndSiblings()
+		_, err := transferTree.AddLeaf(index, transfer)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	transferTreeRoot, _, _ := transferTree.GetCurrentRootCountAndSiblings()
+	tx := intMaxTypes.Tx{
+		TransferTreeRoot: &transferTreeRoot,
+		Nonce:            uint64(w.nonce),
+	}
+
+	txRequest0 := block_validity_prover.MockTxRequest{
+		Tx:                  &tx,
+		Sender:              &w.privateKey,
+		WillReturnSignature: true,
+	}
+	txRequests := []*block_validity_prover.MockTxRequest{&txRequest0}
+
+	fmt.Printf("IMPORTANT PostBlock")
+	validityWitness, err := blockBuilder.PostBlock(
+		w.nonce == 0,
+		txRequests,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	txLeaves := make([]*intMaxTypes.Tx, len(txRequests))
+	for i, tx := range txRequests {
+		txLeaves[i] = tx.Tx
+	}
+
+	zeroTx := new(intMaxTypes.Tx).SetZero()
+	txTree, err := intMaxTree.NewTxTree(7, txLeaves, zeroTx.Hash())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	txIndex := uint32(0)
+	txMerkleProof, _, err := txTree.ComputeMerkleProof(uint64(txIndex))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	senderWitness := make([]*intMaxTree.SenderLeaf, 0)
+	for _, sender := range validityWitness.ValidityTransitionWitness.SenderLeaves {
+		senderWitness = append(senderWitness, &intMaxTree.SenderLeaf{
+			Sender:  new(intMaxTypes.Uint256).FromBigInt(sender.Sender),
+			IsValid: sender.IsValid,
+		})
+	}
+
+	txWitness := &TxWitness{
+		ValidityPis:   *validityWitness.ValidityPublicInputs(),
+		SenderLeaves:  senderWitness,
+		Tx:            tx,
+		TxIndex:       txIndex,
+		TxMerkleProof: txMerkleProof,
+	}
+
+	transferWitnesses := make([]*TransferWitness, len(transfers))
+	for transferIndex, transfer := range transfers {
+		transferMerkleProof, _, _ := transferTree.ComputeMerkleProof(uint64(transferIndex))
+		transferWitness := TransferWitness{
+			Tx:                  tx,
+			Transfer:            *transfer,
+			TransferIndex:       uint32(transferIndex),
+			TransferMerkleProof: &intMaxTree.MerkleProof{Siblings: transferMerkleProof},
+		}
+		fmt.Printf("transferWitnesses[%d]: %v\n", transferIndex, transferWitness)
+		transferWitnesses[transferIndex] = &transferWitness
+	}
+
+	return txWitness, transferWitnesses, nil
+}
+
+func (w *MockWallet) UpdateOnSendTx(salt Salt, txWitness *TxWitness, transferWitnesses []*TransferWitness) (*SendWitness, error) {
+	prevPrivateState := w.PrivateState()
+	prevBalancePis, err := w.GetBalancePublicInputs()
 	if err != nil {
 		return nil, err
 	}
 
-	nullifierTree, err := intMaxTree.NewNullifierTree(32)
+	if txWitness.Tx.Nonce != uint64(w.nonce) {
+		panic("nonce mismatch")
+	}
+
+	w.nonce += 1
+	w.salt = salt
+	w.publicState = txWitness.ValidityPis.PublicState
+
+	transfers := make([]*intMaxTypes.Transfer, 0, len(transferWitnesses))
+	assetMerkleProofs := make([]*intMaxTree.AssetMerkleProof, 0, len(transferWitnesses))
+	prevBalances := make([]*intMaxTree.AssetLeaf, 0, len(transferWitnesses))
+	insufficientFlags := new(backup_balance.InsufficientFlags)
+	// insufficientBits := make([]bool, 0, len(transferWitnesses))
+	fmt.Printf("transferWitnesses: %v\n", transferWitnesses)
+	for i, transferWitness := range transferWitnesses {
+		if transferWitness == nil {
+			return nil, fmt.Errorf("transferWitness[%d] is nil", i)
+		}
+
+		transfer := transferWitness.Transfer
+		tokenIndex := transfer.TokenIndex
+		prevBalance := w.assetTree.GetLeaf(tokenIndex)
+		assetMerkleProof, _, _ := w.assetTree.Prove(tokenIndex)
+		newBalance := prevBalance.Sub(transfer.Amount)
+		// _, err = w.assetTree.UpdateLeaf(tokenIndex, newBalance)
+		if tokenIndex < uint32(len(w.assetTree.Leaves)) {
+			_, err = w.assetTree.UpdateLeaf(tokenIndex, newBalance)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			_, err = w.assetTree.AddLeaf(tokenIndex, newBalance)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if err != nil {
+			panic(err)
+		}
+		transfers = append(transfers, &transfer)
+		prevBalances = append(prevBalances, prevBalance)
+		assetMerkleProofs = append(assetMerkleProofs, assetMerkleProof)
+		insufficientFlags.SetBit(i, newBalance.IsInsufficient)
+	}
+
+	sendWitness := SendWitness{
+		PrevBalancePis:      prevBalancePis,
+		PrevPrivateState:    prevPrivateState,
+		PrevBalances:        prevBalances,
+		AssetMerkleProofs:   assetMerkleProofs,
+		InsufficientFlags:   *insufficientFlags,
+		Transfers:           transfers,
+		TxWitness:           *txWitness,
+		NewPrivateStateSalt: salt,
+	}
+
+	w.sendWitnesses[sendWitness.GetIncludedBlockNumber()] = &sendWitness
+	w.transferWitnesses[sendWitness.GetIncludedBlockNumber()] = transferWitnesses
+
+	return &sendWitness, nil
+}
+
+func (w *MockWallet) SendTxAndUpdate(blockBuilder *block_validity_prover.MockBlockBuilderMemory, transfers []*intMaxTypes.Transfer) (*SendWitness, error) {
+	txWitness, transferWitnesses, err := w.SendTx(blockBuilder, transfers)
+	if err != nil {
+		return nil, err
+	}
+	newSalt, err := new(Salt).SetRandom()
+	if err != nil {
+		return nil, err
+	}
+	return w.UpdateOnSendTx(*newSalt, txWitness, transferWitnesses)
+}
+
+func NewMockWallet(privateKey *intMaxAcc.PrivateKey) (*MockWallet, error) {
+	zeroAsset := new(intMaxTree.AssetLeaf).SetDefault()
+	const assetTreeHeight = 32
+	const nullifierTreeHeight = 32
+	assetTree, err := intMaxTree.NewAssetTree(assetTreeHeight, nil, zeroAsset.Hash())
+	if err != nil {
+		return nil, err
+	}
+
+	nullifierTree, err := intMaxTree.NewNullifierTree(nullifierTreeHeight)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +234,7 @@ func NewMockWallet(privateKey *intMaxAcc.PrivateKey) (*MockWallet, error) {
 		publicState:       new(block_validity_prover.PublicState).Genesis(),
 		sendWitnesses:     make(map[uint32]*SendWitness),
 		depositCases:      make(map[uint32]*DepositCase), // depositId => DepositCase
-		transferWitnesses: make(map[uint32][]*ReceiveTransferWitness),
+		transferWitnesses: make(map[uint32][]*TransferWitness),
 	}, nil
 }
 
@@ -79,11 +247,9 @@ func (s *MockWallet) GenericAddress() (*intMaxTypes.GenericAddress, error) {
 }
 
 func (s *MockWallet) PrivateState() *PrivateState {
-	result := new(PrivateState).SetDefault()
-
 	return &PrivateState{
-		AssetTreeRoot:     result.AssetTreeRoot,
-		NullifierTreeRoot: result.NullifierTreeRoot,
+		AssetTreeRoot:     s.assetTree.GetRoot(),
+		NullifierTreeRoot: s.nullifierTree.GetRoot(),
 		Nonce:             s.nonce,
 		Salt:              s.salt,
 	}
@@ -105,7 +271,7 @@ func (s *MockWallet) GetAllBlockNumbers() []uint32 {
 }
 
 func (s *MockWallet) UpdatePublicState(publicState *block_validity_prover.PublicState) {
-	s.publicState = publicState
+	s.publicState = new(block_validity_prover.PublicState).Set(publicState)
 }
 
 func (s *MockWallet) GetLastSendWitness() *SendWitness {
@@ -162,15 +328,29 @@ func (s *MockWallet) GeneratePrivateWitness(
 	amount *big.Int,
 	nullifier intMaxTypes.Bytes32,
 ) (*PrivateWitness, error) {
-	assetTree := s.assetTree
-	nullifierTree := s.nullifierTree
 	prevPrivateState := s.PrivateState()
+
+	fmt.Printf("s.assetTree: %v\n", s.assetTree)
+	assetTree := new(intMaxTree.AssetTree).Set(&s.assetTree)             // clone
+	nullifierTree := new(intMaxTree.NullifierTree).Set(&s.nullifierTree) // clone
 
 	prevAssetLeaf := assetTree.GetLeaf(tokenIndex)
 	assetMerkleProof, _, err := assetTree.Prove(tokenIndex)
 	if err != nil {
 		return nil, err
 	}
+
+	assetRoot := assetTree.GetRoot()
+	fmt.Printf("prev asset leaf isInsufficient: %v\n", prevAssetLeaf.IsInsufficient)
+	fmt.Printf("prev asset leaf amount: %v\n", prevAssetLeaf.Amount)
+	fmt.Printf("prev asset leaf hash: %v\n", prevAssetLeaf.Hash())
+	fmt.Printf("prev asset root hash: %s\n", assetRoot.String())
+	// fmt.Printf("prev asset root hash: %s\n", assetRoot.String())
+	fmt.Printf("prev asset index: %d\n", tokenIndex)
+	for i, sibling := range assetMerkleProof.Siblings {
+		fmt.Printf("asset Merkle proof: siblings[%d] = %s\n", i, sibling)
+	}
+
 	newAssetLeaf := prevAssetLeaf.Add(amount)
 	if tokenIndex < uint32(len(assetTree.Leaves)) {
 		_, err = assetTree.UpdateLeaf(tokenIndex, newAssetLeaf)
@@ -184,12 +364,30 @@ func (s *MockWallet) GeneratePrivateWitness(
 		}
 	}
 
-	fmt.Printf("inserting nullifier: %v\n", nullifier)
+	oldNullifierTreeRoot := nullifierTree.GetRoot()
+	// fmt.Printf("old nullifier tree root: %v\n", oldNullifierTreeRoot)
+	// fmt.Printf("inserting nullifier: %v\n", nullifier)
 	nullifierProof, err := nullifierTree.Insert(nullifier)
 	if err != nil {
 		fmt.Printf("insert nullifier error: %v\n", err)
 		return nil, errors.New("nullifier already exists")
 	}
+	// expectedNewNullifierTreeRoot := nullifierTree.GetRoot()
+	// fmt.Printf("expected new nullifier tree root: %v\n", expectedNewNullifierTreeRoot)
+
+	// for i, sibling := range nullifierProof.LeafProof.Siblings {
+	// 	fmt.Printf("nullifier leaf Merkle proof: siblings[%d] = %s\n", i, sibling.String())
+	// }
+	// for i, sibling := range nullifierProof.LowLeafProof.Siblings {
+	// 	fmt.Printf("nullifier low leaf Merkle proof: siblings[%d] = %s\n", i, sibling.String())
+	// }
+
+	nullifierInt := new(intMaxTypes.Uint256).FromFieldElementSlice(nullifier.ToFieldElementSlice())
+	newNullifierTreeRoot, err := nullifierProof.GetNewRoot(nullifierInt.BigInt(), 0, oldNullifierTreeRoot)
+	if err != nil {
+		return nil, errors.Join(errors.New("fail to GetNewRoot"), err)
+	}
+	fmt.Printf("actual new nullifier tree root: %v\n", newNullifierTreeRoot)
 
 	return &PrivateWitness{
 		TokenIndex:       tokenIndex,
@@ -204,21 +402,28 @@ func (s *MockWallet) GeneratePrivateWitness(
 }
 
 func (s *MockWallet) updateOnReceive(witness *PrivateWitness) error {
-	nullifierTree := s.nullifierTree
-	assetTree := s.assetTree
+	fmt.Printf("s.assetTree: %v\n", s.assetTree)
 
 	nullifier := new(intMaxTypes.Uint256).FromFieldElementSlice(witness.Nullifier.ToFieldElementSlice())
-	oldNullifierTreeRoot := nullifierTree.GetRoot()
+	oldNullifierTreeRoot := s.nullifierTree.GetRoot()
+	// fmt.Printf("old nullifier tree root: %v\n", oldNullifierTreeRoot)
+	// fmt.Printf("nullifier: %v\n", nullifier)
+	// for i, sibling := range witness.NullifierProof.LeafProof.Siblings {
+	// 	fmt.Printf("nullifier leaf Merkle proof: siblings[%d] = %s\n", i, sibling.String())
+	// }
+	// for i, sibling := range witness.NullifierProof.LowLeafProof.Siblings {
+	// 	fmt.Printf("nullifier low leaf Merkle proof: siblings[%d] = %s\n", i, sibling.String())
+	// }
 	newNullifierTreeRoot, err := witness.NullifierProof.GetNewRoot(nullifier.BigInt(), 0, oldNullifierTreeRoot)
 	if err != nil {
-		return errors.New("invalid nullifier proof")
+		return errors.Join(errors.New("invalid nullifier proof"), err)
 	}
 
 	assetMerkleProof := witness.AssetMerkleProof
 	err = assetMerkleProof.Verify(
 		witness.PrevAssetLeaf,
 		witness.TokenIndex,
-		assetTree.GetRoot(),
+		s.assetTree.GetRoot(),
 	)
 	if err != nil {
 		return errors.New("invalid asset merkle proof")
@@ -227,25 +432,37 @@ func (s *MockWallet) updateOnReceive(witness *PrivateWitness) error {
 	newAssetLeaf := witness.PrevAssetLeaf.Add(witness.Amount)
 	newAssetTreeRoot := witness.AssetMerkleProof.GetRoot(newAssetLeaf, witness.TokenIndex)
 
-	fmt.Printf("inserting nullifier: %v\n", witness.Nullifier)
-	_, err = nullifierTree.Insert(witness.Nullifier)
+	fmt.Printf("nullifier tree root before Insert: %v\n", s.nullifierTree.GetRoot())
+	fmt.Printf("inserting nullifier: %s\n", witness.Nullifier.Hex())
+	_, err = s.nullifierTree.Insert(witness.Nullifier)
 	if err != nil {
 		fmt.Printf("insert nullifier error: %v\n", err)
 		return errors.New("nullifier already exists")
 	}
-	_, err = assetTree.UpdateLeaf(witness.TokenIndex, newAssetLeaf)
-	if err != nil {
-		return err
+	fmt.Printf("nullifier tree root after Insert: %v\n", s.nullifierTree.GetRoot())
+
+	if witness.TokenIndex < uint32(len(s.assetTree.Leaves)) {
+		_, err = s.assetTree.UpdateLeaf(witness.TokenIndex, newAssetLeaf)
+		if err != nil {
+			return err
+		}
+	} else {
+		_, err = s.assetTree.AddLeaf(witness.TokenIndex, newAssetLeaf)
+		if err != nil {
+			return err
+		}
 	}
 
-	nullifierTreeRoot := nullifierTree.GetRoot()
+	nullifierTreeRoot := s.nullifierTree.GetRoot()
 	if !nullifierTreeRoot.Equal(newNullifierTreeRoot) {
-		return errors.New("nullifier tree root not equal")
+		return fmt.Errorf("nullifier tree root not equal: %s != %s", nullifierTreeRoot, newNullifierTreeRoot)
 	}
 
-	assetTreeRoot := assetTree.GetRoot()
-	if assetTreeRoot.Equal(newAssetTreeRoot) {
-		return errors.New("asset tree root not equal")
+	assetTreeRoot := s.assetTree.GetRoot()
+	fmt.Printf("expected asset tree root: %s\n", assetTreeRoot.String())
+	fmt.Printf("actual asset tree root: %s\n", newAssetTreeRoot.String())
+	if !assetTreeRoot.Equal(newAssetTreeRoot) {
+		return fmt.Errorf("asset tree root not equal: %s != %s", assetTreeRoot.String(), newAssetTreeRoot)
 	}
 
 	s.salt = witness.NewSalt
@@ -257,19 +474,25 @@ type MockBlockBuilder = block_validity_prover.BlockBuilderStorage
 
 func (s *MockWallet) ReceiveDepositAndUpdate(
 	blockBuilder MockBlockBuilder,
-	depositId uint32,
+	depositIndex uint32,
+	// depositId uint32,
 ) (*ReceiveDepositWitness, error) {
-	for i, depositCase := range s.depositCases {
-		fmt.Printf("depositCase[%d]: %v\n", i, depositCase)
-		fmt.Printf("depositHash[%d]: %v\n", i, depositCase.Deposit.Hash())
+	for index, depositCase := range s.depositCases {
+		fmt.Printf("depositCase[%d]: %v\n", index, depositCase)
+		fmt.Printf("depositHash[%d]: %v\n", index, depositCase.Deposit.Hash())
 	}
 
-	depositCase, ok := s.depositCases[depositId]
+	depositCase, ok := s.depositCases[depositIndex]
 	if !ok {
 		return nil, errors.New("deposit not found")
 	}
 
-	depositMerkleProof, err := blockBuilder.DepositTreeProof(depositCase.DepositIndex)
+	lastValidityWitness, err := blockBuilder.LastValidityWitness()
+	if err != nil {
+		return nil, errors.New("last validity witness not found")
+	}
+	blockNumber := lastValidityWitness.BlockWitness.Block.BlockNumber
+	depositMerkleProof, err := blockBuilder.DepositTreeProof(blockNumber, depositCase.DepositIndex)
 	if err != nil {
 		return nil, err
 	}
@@ -297,9 +520,8 @@ func (s *MockWallet) ReceiveDepositAndUpdate(
 	}
 	deposit := depositWitness.Deposit
 	nullifier := deposit.Nullifier()
-	fmt.Printf("depositId: %v\n", depositId)
 	fmt.Printf("deposit: %v\n", deposit)
-	fmt.Printf("deposit (nullifier): %v\n", nullifier)
+	fmt.Printf("deposit (nullifier) dummy: %v\n", nullifier)
 
 	newSalt, err := new(poseidonHashOut).SetRandom()
 	if err != nil {
@@ -314,10 +536,15 @@ func (s *MockWallet) ReceiveDepositAndUpdate(
 	}
 
 	// delete deposit
-	delete(s.depositCases, depositId)
+	delete(s.depositCases, depositIndex)
 
 	// update
-	s.updateOnReceive(privateWitness)
+	err = s.updateOnReceive(privateWitness)
+	if err != nil {
+		fmt.Printf("updateOnReceive error: %v\n", err)
+		return nil, err
+	}
+	fmt.Println("finish updateOnReceive")
 
 	return &ReceiveDepositWitness{
 		DepositWitness: &depositWitness,
@@ -326,14 +553,12 @@ func (s *MockWallet) ReceiveDepositAndUpdate(
 }
 
 func (s *MockWallet) ReceiveTransferAndUpdate(
-	rng *rand.Rand,
 	blockBuilder MockBlockBuilder,
 	lastBlockNumber uint32,
 	transferWitness *TransferWitness,
 	senderBalanceProof string,
 ) (*ReceiveTransferWitness, error) {
 	receiveTransferWitness, err := s.GenerateReceiveTransferWitness(
-		rng,
 		blockBuilder,
 		lastBlockNumber,
 		transferWitness,
@@ -353,7 +578,6 @@ func (s *MockWallet) ReceiveTransferAndUpdate(
 }
 
 func (s *MockWallet) GenerateReceiveTransferWitness(
-	rng *rand.Rand,
 	blockBuilder MockBlockBuilder,
 	receiverBlockNumber uint32,
 	transferWitness *TransferWitness,
@@ -402,7 +626,7 @@ func (s *MockWallet) GenerateReceiveTransferWitness(
 	}
 
 	// blockMerkleProof, err := blockBuilder.GetBlockMerkleProof(receiverBlockNumber, balancePis.PublicState.BlockNumber)
-	blockMerkleProof, err := blockBuilder.BlockTreeProof(balancePis.PublicState.BlockNumber)
+	blockMerkleProof, err := blockBuilder.BlockTreeProof(receiverBlockNumber, balancePis.PublicState.BlockNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -443,21 +667,30 @@ func (s *MockWallet) GenerateReceiveTransferWitness(
 //     deposit_index
 // }
 
-// func (w *MockWallet) Deposit(salt Salt, blockBuilder MockBlockBuilder, tokenIndex uint32, amount *big.Int) uint32 {
-// 	recipientSaltHash := intMaxAcc.GetPublicKeySaltHash(w.PublicKey().BigInt(), &salt)
-// 	deposit := intMaxTree.DepositLeaf{
-// 		RecipientSaltHash: recipientSaltHash,
-// 		TokenIndex:        tokenIndex,
-// 		Amount:            amount,
-// 	}
-// 	depositIndex := blockBuilder.Deposit(deposit)
+func (w *MockWallet) Deposit(b *block_validity_prover.MockBlockBuilderMemory, salt Salt, tokenIndex uint32, amount *big.Int) uint32 {
+	recipientSaltHash := intMaxAcc.GetPublicKeySaltHash(w.PublicKey().BigInt(), &salt)
+	depositLeaf := intMaxTree.DepositLeaf{
+		RecipientSaltHash: recipientSaltHash,
+		TokenIndex:        tokenIndex,
+		Amount:            amount,
+	}
+	// depositIndex, err := blockBuilder.Deposit(depositLeaf)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	b.DepositLeaves = append(b.DepositLeaves, &depositLeaf)
+	_, depositIndex, _ := b.DepositTree.GetCurrentRootCountAndSiblings()
+	_, err := b.DepositTree.AddLeaf(depositIndex, depositLeaf.Hash())
+	if err != nil {
+		panic(err)
+	}
 
-// 	depositCase := DepositCase{
-// 		DepositSalt:  salt,
-// 		DepositIndex: depositIndex,
-// 		Deposit:      deposit,
-// 	}
-// 	w.depositCases[depositId] = &depositCase
+	depositCase := DepositCase{
+		DepositSalt:  salt,
+		DepositIndex: depositIndex,
+		Deposit:      depositLeaf,
+	}
+	w.AddDepositCase(depositIndex, &depositCase)
 
-// 	return depositIndex
-// }
+	return depositIndex
+}

@@ -1,7 +1,8 @@
 use anyhow::Context as _;
 use intmax2_zkp::{
     circuits::{
-        balance::balance_processor::BalanceProcessor, validity::validity_circuit::ValidityCircuit,
+        balance::{balance_pis::BalancePublicInputs, balance_processor::BalanceProcessor},
+        validity::validity_circuit::ValidityCircuit,
     },
     common::{
         trees::{account_tree::AccountMembershipProof, block_hash_tree::BlockHashMerkleProof},
@@ -78,7 +79,7 @@ impl SerializableReceiveTransferWitness {
 }
 
 pub async fn generate_receive_deposit_proof_job(
-    request_id: String,
+    full_request_id: String,
     public_key: U256,
     prev_balance_proof: Option<ProofWithPublicInputs<F, C, D>>,
     receive_deposit_witness: &ReceiveDepositWitness,
@@ -87,11 +88,33 @@ pub async fn generate_receive_deposit_proof_job(
 ) -> anyhow::Result<()> {
     let balance_circuit_data = balance_processor.balance_circuit.data.verifier_data();
 
+    if let Some(prev_balance_proof) = &prev_balance_proof {
+        let prev_balance_proof = BalancePublicInputs::from_pis(&prev_balance_proof.public_inputs);
+        println!(
+            "prev_balance_proof: {}",
+            prev_balance_proof
+                .public_state
+                .account_tree_root
+                .to_string()
+        );
+    }
+
     log::debug!("Proving...");
     let balance_proof = balance_processor.prove_receive_deposit(
         public_key,
         &receive_deposit_witness,
         &prev_balance_proof,
+    );
+
+    let balance_pis = BalancePublicInputs::from_pis(&balance_proof.public_inputs);
+    println!("balance_proof: {:?}", balance_pis);
+    println!(
+        "balance_proof account_tree_root: {}",
+        balance_pis.public_state.account_tree_root.to_string()
+    );
+    println!(
+        "balance_proof prev_account_tree_root: {}",
+        balance_pis.public_state.prev_account_tree_root.to_string()
     );
 
     let encoded_compressed_balance_proof =
@@ -102,10 +125,14 @@ pub async fn generate_receive_deposit_proof_job(
         .get(true)
         .with_expiration(SetExpiry::EX(config::get("proof_expiration")));
 
-    let _ = redis::Cmd::set_options(&request_id, encoded_compressed_balance_proof.clone(), opts)
-        .query_async::<_, Option<String>>(conn)
-        .await
-        .with_context(|| "Failed to set proof")?;
+    let _ = redis::Cmd::set_options(
+        &full_request_id,
+        encoded_compressed_balance_proof.clone(),
+        opts,
+    )
+    .query_async::<_, Option<String>>(conn)
+    .await
+    .with_context(|| "Failed to set proof")?;
 
     Ok(())
 }
@@ -181,7 +208,7 @@ pub async fn generate_balance_transfer_proof_job(
 }
 
 pub async fn generate_balance_send_proof_job(
-    request_id: String,
+    full_request_id: String,
     public_key: U256,
     prev_balance_proof: Option<ProofWithPublicInputs<F, C, D>>,
     send_witness: &SendWitness,
@@ -193,6 +220,17 @@ pub async fn generate_balance_send_proof_job(
     let balance_circuit_data = balance_processor.balance_circuit.data.verifier_data();
     // let validity_circuit_data = validity_circuit_data.verifier_data();
 
+    if let Some(prev_balance_proof) = &prev_balance_proof {
+        let prev_balance_proof = BalancePublicInputs::from_pis(&prev_balance_proof.public_inputs);
+        println!(
+            "prev_balance_proof: {}",
+            prev_balance_proof
+                .public_state
+                .account_tree_root
+                .to_string()
+        );
+    }
+
     log::debug!("Proving...");
     let balance_proof = balance_processor.prove_send(
         &validity_circuit,
@@ -200,6 +238,17 @@ pub async fn generate_balance_send_proof_job(
         &send_witness,
         &balance_update_witness,
         &prev_balance_proof,
+    );
+
+    let balance_pis = BalancePublicInputs::from_pis(&balance_proof.public_inputs);
+    println!("balance_proof: {:?}", balance_pis);
+    println!(
+        "balance_proof account_tree_root: {}",
+        balance_pis.public_state.account_tree_root.to_string()
+    );
+    println!(
+        "balance_proof prev_account_tree_root: {}",
+        balance_pis.public_state.prev_account_tree_root.to_string()
     );
 
     let encoded_compressed_balance_proof =
@@ -211,10 +260,14 @@ pub async fn generate_balance_send_proof_job(
         .get(true)
         .with_expiration(SetExpiry::EX(config::get("proof_expiration")));
 
-    let _ = redis::Cmd::set_options(&request_id, encoded_compressed_balance_proof.clone(), opts)
-        .query_async::<_, Option<String>>(conn)
-        .await
-        .with_context(|| "Failed to set proof")?;
+    let _ = redis::Cmd::set_options(
+        &full_request_id,
+        encoded_compressed_balance_proof.clone(),
+        opts,
+    )
+    .query_async::<_, Option<String>>(conn)
+    .await
+    .with_context(|| "Failed to set proof")?;
 
     Ok(())
 }

@@ -25,6 +25,12 @@ func NewNullifierTree(height uint8) (*NullifierTree, error) {
 	}, nil
 }
 
+func (t *NullifierTree) Set(other *NullifierTree) *NullifierTree {
+	t.inner = new(IndexedMerkleTree).Set(other.inner)
+
+	return t
+}
+
 func (t *NullifierTree) GetRoot() *PoseidonHashOut {
 	root := t.inner.GetRoot()
 

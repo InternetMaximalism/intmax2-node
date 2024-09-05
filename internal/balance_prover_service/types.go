@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
+	intMaxAccTypes "intmax2-node/internal/accounts/types"
 	"intmax2-node/internal/block_validity_prover"
 	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	intMaxTree "intmax2-node/internal/tree"
@@ -44,18 +45,28 @@ func (w *TxWitness) GetSenderTree() (*intMaxTree.SenderTree, error) {
 	return senderTree, nil
 }
 
+type GenericAddressInput struct {
+	IsPublicKey bool   `json:"isPubkey"`
+	Data        string `json:"data"`
+}
+
 type TransferInput struct {
-	Recipient  string      `json:"recipient"`
-	TokenIndex uint32      `json:"tokenIndex"`
-	Amount     AmountInput `json:"amount"`
-	Salt       SaltInput   `json:"salt"`
+	Recipient  GenericAddressInput `json:"recipient"`
+	TokenIndex uint32              `json:"tokenIndex"`
+	Amount     AmountInput         `json:"amount"`
+	Salt       SaltInput           `json:"salt"`
 }
 
 func (input *TransferInput) FromTransfer(value *intMaxTypes.Transfer) *TransferInput {
-	input.Recipient = hexutil.Encode(value.Recipient.Address[:])
+	// input.Recipient = hexutil.Encode(value.Recipient.Address[:])
+	data := new(big.Int).SetBytes(value.Recipient.Address)
+	input.Recipient = GenericAddressInput{
+		IsPublicKey: value.Recipient.TypeOfAddress == intMaxAccTypes.INTMAXAddressType,
+		Data:        data.String(),
+	}
 	input.TokenIndex = value.TokenIndex
 	input.Amount = value.Amount.String()
-	input.Salt = value.Salt.String()
+	input.Salt = *value.Salt
 
 	return input
 }
@@ -86,15 +97,24 @@ func (input *PublicStateInput) FromPublicState(value *block_validity_prover.Publ
 }
 
 type ValidityPublicInputsInput struct {
-	PublicState    *PublicStateInput
-	TxTreeRoot     string
-	SenderTreeRoot string
-	IsValidBlock   bool
+	PublicState    *PublicStateInput `json:"publicState"`
+	TxTreeRoot     string            `json:"txTreeRoot"`
+	SenderTreeRoot poseidonHashOut   `json:"senderTreeRoot"`
+	IsValidBlock   bool              `json:"isValidBlock"`
+}
+
+func (input *ValidityPublicInputsInput) FromValidityPublicInputs(value *block_validity_prover.ValidityPublicInputs) *ValidityPublicInputsInput {
+	input.PublicState = new(PublicStateInput).FromPublicState(value.PublicState)
+	input.TxTreeRoot = hexutil.Encode(value.TxTreeRoot.Bytes())
+	input.SenderTreeRoot = *value.SenderTreeRoot
+	input.IsValidBlock = value.IsValidBlock
+
+	return input
 }
 
 type TxInput struct {
-	TransferTreeRoot string
-	Nonce            uint64
+	TransferTreeRoot poseidonHashOut `json:"transferTreeRoot"`
+	Nonce            uint64          `json:"nonce"`
 }
 
 type TxWitnessInput struct {
@@ -102,10 +122,33 @@ type TxWitnessInput struct {
 	SenderLeaves  []*SenderLeafInput        `json:"senderLeaves"`
 	Tx            TxInput                   `json:"tx"`
 	TxIndex       uint32                    `json:"txIndex"`
-	TxMerkleProof []string                  `json:"txMerkleProof"`
+	TxMerkleProof []*poseidonHashOut        `json:"txMerkleProof"`
 }
 
-type InsufficientFlagsInput = string
+func (input *TxWitnessInput) FromTxWitness(value *TxWitness) *TxWitnessInput {
+	input.ValidityPis = *new(ValidityPublicInputsInput).FromValidityPublicInputs(&value.ValidityPis)
+	input.SenderLeaves = make([]*SenderLeafInput, len(value.SenderLeaves))
+	for i, leaf := range value.SenderLeaves {
+		input.SenderLeaves[i] = &SenderLeafInput{
+			Sender:  leaf.Sender.BigInt().String(),
+			IsValid: leaf.IsValid,
+		}
+	}
+
+	input.Tx = TxInput{
+		TransferTreeRoot: *value.Tx.TransferTreeRoot,
+		Nonce:            value.Tx.Nonce,
+	}
+	input.TxIndex = value.TxIndex
+	input.TxMerkleProof = make([]*poseidonHashOut, len(value.TxMerkleProof))
+	copy(input.TxMerkleProof, value.TxMerkleProof)
+
+	return input
+}
+
+type InsufficientFlagsInput struct {
+	Limbs [backup_balance.InsufficientFlagsLen]uint32 `json:"limbs"`
+}
 
 type PoseidonHashOutInput = string
 
@@ -118,10 +161,11 @@ type BalancePublicInputsInput struct {
 }
 
 func (input *BalancePublicInputsInput) FromBalancePublicInputs(value *BalancePublicInputs) *BalancePublicInputsInput {
-	input.PublicKey = value.PubKey.String()
+	input.PublicKey = value.PubKey.BigInt().String()
 	input.PrivateCommitment = value.PrivateCommitment.String()
 	input.LastTxHash = value.LastTxHash.String()
-	input.LastTxInsufficientFlags = hexutil.Encode(value.LastTxInsufficientFlags.Bytes())
+	// input.LastTxInsufficientFlags = hexutil.Encode(value.LastTxInsufficientFlags.Bytes())
+	input.LastTxInsufficientFlags.Limbs = value.LastTxInsufficientFlags.Limbs
 	input.PublicState = new(PublicStateInput).FromPublicState(value.PublicState)
 
 	return input
@@ -146,7 +190,7 @@ type SendWitnessInput struct {
 	AssetMerkleProofs   []AssetMerkleProofInput   `json:"assetMerkleProofs"`
 	InsufficientFlags   InsufficientFlagsInput    `json:"insufficientFlags"`
 	Transfers           []*TransferInput          `json:"transfers"`
-	TxWitness           TxWitnessInput            `json:"txWitness"`
+	TxWitness           *TxWitnessInput           `json:"txWitness"`
 	NewPrivateStateSalt SaltInput                 `json:"newPrivateStateSalt"`
 }
 
@@ -156,7 +200,7 @@ func (input *SendWitnessInput) FromSendWitness(value *SendWitness) *SendWitnessI
 		AssetTreeRoot:     value.PrevPrivateState.AssetTreeRoot,
 		NullifierTreeRoot: value.PrevPrivateState.NullifierTreeRoot,
 		Nonce:             value.PrevPrivateState.Nonce,
-		Salt:              value.PrevPrivateState.Salt.String(),
+		Salt:              value.PrevPrivateState.Salt,
 	}
 	input.PrevBalances = make([]*AssetLeafInput, len(value.PrevBalances))
 	for i, balance := range value.PrevBalances {
@@ -170,7 +214,14 @@ func (input *SendWitnessInput) FromSendWitness(value *SendWitness) *SendWitnessI
 		input.AssetMerkleProofs[i] = make([]*poseidonHashOut, len(proof.Siblings))
 		copy(input.AssetMerkleProofs[i], proof.Siblings)
 	}
-	input.InsufficientFlags = hexutil.Encode(value.InsufficientFlags.Bytes())
+	// input.InsufficientFlags = hexutil.Encode(value.InsufficientFlags.Bytes())
+	input.InsufficientFlags.Limbs = value.InsufficientFlags.Limbs
+	input.Transfers = make([]*TransferInput, len(value.Transfers))
+	for i, transfer := range value.Transfers {
+		input.Transfers[i] = new(TransferInput).FromTransfer(transfer)
+	}
+	input.TxWitness = new(TxWitnessInput).FromTxWitness(&value.TxWitness)
+	input.NewPrivateStateSalt = value.NewPrivateStateSalt
 
 	return input
 }
@@ -179,19 +230,11 @@ func (w *SendWitness) GetIncludedBlockNumber() uint32 {
 	return w.TxWitness.ValidityPis.PublicState.BlockNumber
 }
 
-func (w *SendWitness) GetPrevBlockNumber() uint32 {
+func (w *SendWitness) GetPrevBalancePisBlockNumber() uint32 {
 	return w.PrevBalancePis.PublicState.BlockNumber
 }
 
 type Salt = poseidonHashOut
-
-// func (s *Salt) SetRandom() *Salt {
-// 	for _, e := range s.Elements {
-// 		e.SetRandom()
-// 	}
-
-// 	return s
-// }
 
 type SpentValue struct {
 	PrevPrivateState      *PrivateState                    `json:"prevPrivateState"`
@@ -214,7 +257,7 @@ func NewSpentValue(
 	assetMerkleProofs []*intMaxTree.AssetMerkleProof,
 	txNonce uint64,
 ) (*SpentValue, error) {
-	const numTransfers = 64
+	const numTransfers = 1 << intMaxTree.TRANSFER_TREE_HEIGHT
 	if len(prevBalances) != numTransfers {
 		return nil, errors.New("prevBalances length is not equal to numTransfers")
 	}
@@ -395,7 +438,7 @@ type AssetLeafInput struct {
 
 type AssetMerkleProofInput = []*poseidonHashOut
 
-type SaltInput = string
+type SaltInput = poseidonHashOut
 
 type PrivateStateInput struct {
 	AssetTreeRoot     *poseidonHashOut `json:"assetTreeRoot"`
@@ -426,7 +469,7 @@ func (input *PrivateWitnessInput) FromPrivateWitness(value *PrivateWitness) *Pri
 			AssetTreeRoot:     value.PrevPrivateState.AssetTreeRoot,
 			NullifierTreeRoot: value.PrevPrivateState.NullifierTreeRoot,
 			Nonce:             value.PrevPrivateState.Nonce,
-			Salt:              value.PrevPrivateState.Salt.String(),
+			Salt:              value.PrevPrivateState.Salt,
 		},
 		NullifierProof: &IndexedInsertionProofInput{
 			Index:        value.NullifierProof.Index,
@@ -492,15 +535,10 @@ type TransferWitnessInput struct {
 
 func (input *TransferWitnessInput) FromTransferWitness(value *TransferWitness) *TransferWitnessInput {
 	input.Tx = TxInput{
-		TransferTreeRoot: value.Tx.TransferTreeRoot.String(),
+		TransferTreeRoot: *value.Tx.TransferTreeRoot,
 		Nonce:            value.Tx.Nonce,
 	}
-	input.Transfer = TransferInput{
-		Recipient:  hexutil.Encode(value.Transfer.Recipient.Address[:]),
-		TokenIndex: value.Transfer.TokenIndex,
-		Amount:     value.Transfer.Amount.String(),
-		Salt:       value.Transfer.Salt.String(),
-	}
+	input.Transfer = *new(TransferInput).FromTransfer(&value.Transfer)
 	input.TransferIndex = value.TransferIndex
 	input.TransferMerkleProof = make([]string, len(value.TransferMerkleProof.Siblings))
 	for i := 0; i < len(value.TransferMerkleProof.Siblings); i++ {
@@ -558,12 +596,16 @@ func (s *PrivateState) SetDefault() *PrivateState {
 		IsInsufficient: false,
 		Amount:         new(intMaxTypes.Uint256).FromBigInt(big.NewInt(0)),
 	}
-	assetTree, err := intMaxTree.NewAssetTree(intMaxTree.TX_TREE_HEIGHT, nil, zeroAsset.Hash())
+	const (
+		assetTreeHeight     = 32
+		nullifierTreeHeight = 32
+	)
+
+	assetTree, err := intMaxTree.NewAssetTree(assetTreeHeight, nil, zeroAsset.Hash())
 	if err != nil {
 		panic(err)
 	}
 
-	const nullifierTreeHeight = 32
 	nullifierTree, err := intMaxTree.NewNullifierTree(nullifierTreeHeight)
 	if err != nil {
 		panic(err)
@@ -655,4 +697,102 @@ func (s *BalancePublicInputs) FromPublicInputs(publicInputs []ffg.Element) (*Bal
 		LastTxInsufficientFlags: *lastTxInsufficientFlags,
 		PublicState:             publicState,
 	}, nil
+}
+
+func ValidateTxInclusionValue(
+	publicKey *intMaxAcc.PublicKey,
+	prevPublicState *block_validity_prover.PublicState,
+	validityProof string,
+	blockMerkleProof *intMaxTree.BlockHashMerkleProof,
+	prevAccountMembershipProof *intMaxTree.IndexedMembershipProof,
+	senderIndex uint32,
+	tx intMaxTypes.Tx,
+	txMerkleProof *intMaxTree.MerkleProof,
+	// senderLeaf *intMaxTree.SenderLeaf,
+	// senderMerkleProof *intMaxTree.MerkleProof,
+	// newPublicState             *block_validity_prover.PublicState,
+	// isValid                    bool,
+) (bool, error) {
+	// let validity_pis = ValidityPublicInputs::from_u64_slice(
+	// 	&validity_proof.public_inputs[0..VALIDITY_PUBLIC_INPUTS_LEN].to_u64_vec(),
+	// );
+	// block_merkle_proof
+	// 	.verify(
+	// 		&prev_public_state.block_hash,
+	// 		prev_public_state.block_number as usize,
+	// 		validity_pis.public_state.block_tree_root,
+	// 	)
+	// 	.expect("block merkle proof is invalid");
+	// prev_account_membership_proof
+	// 	.verify(pubkey, validity_pis.public_state.prev_account_tree_root)
+	// 	.expect("prev account membership proof is invalid");
+	// let last_block_number = prev_account_membership_proof.get_value() as u32;
+	// assert!(last_block_number <= prev_public_state.block_number); // no send tx till one before the last block
+
+	// let tx_tree_root: PoseidonHashOut = validity_pis
+	// 	.tx_tree_root
+	// 	.try_into()
+	// 	.expect("tx tree root is invalid");
+	// tx_merkle_proof
+	// 	.verify(tx, sender_index, tx_tree_root)
+	// 	.expect("tx merkle proof is invalid");
+	// sender_merkle_proof
+	// 	.verify(sender_leaf, sender_index, validity_pis.sender_tree_root)
+	// 	.expect("sender merkle proof is invalid");
+
+	// assert_eq!(sender_leaf.sender, pubkey);
+	// let is_valid = sender_leaf.is_valid && validity_pis.is_valid_block;
+
+	validityProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(validityProof)
+	if err != nil {
+		return false, err
+	}
+	validityPis := new(block_validity_prover.ValidityPublicInputs).FromPublicInputs(validityProofWithPis.PublicInputs)
+	err = blockMerkleProof.Verify(
+		intMaxTree.NewBlockHashLeaf(prevPublicState.BlockHash).Hash(),
+		int(prevPublicState.BlockNumber),
+		validityPis.PublicState.BlockTreeRoot,
+	)
+	if err != nil {
+		// block merkle proof is invalid
+		return false, err
+	}
+
+	fmt.Printf("prevAccountMembershipProof: %v\n", prevAccountMembershipProof)
+	fmt.Printf("publicKey: %v\n", publicKey.BigInt())
+	fmt.Printf("prevPublicState.PrevAccountTreeRoot: %v\n", prevPublicState.PrevAccountTreeRoot)
+	err = prevAccountMembershipProof.Verify(publicKey.BigInt(), prevPublicState.PrevAccountTreeRoot)
+	if err != nil {
+		// prev account membership proof is invalid
+		var ErrInvalidMembershipProof = errors.New("prev account membership proof is invalid")
+		return false, errors.Join(ErrInvalidMembershipProof, err)
+	}
+
+	lastBlockNumber := prevAccountMembershipProof.Leaf.Value
+	if lastBlockNumber > uint64(prevPublicState.BlockNumber) {
+		return false, errors.New("no send tx till one before the last block")
+	}
+
+	txTreeRoot := validityPis.TxTreeRoot
+	err = txMerkleProof.Verify(tx.Hash(), int(senderIndex), txTreeRoot.PoseidonHashOut())
+	if err != nil {
+		// tx merkle proof is invalid
+		return false, err
+	}
+
+	// err = senderMerkleProof.Verify(senderLeaf.Hash(), int(senderIndex), validityPis.SenderTreeRoot)
+	// if err != nil {
+	// 	// sender merkle proof is invalid
+	// 	return false, err
+	// }
+
+	// if senderLeaf.Sender.BigInt().Cmp(publicKey.BigInt()) != 0 {
+	// 	return false, errors.New("sender leaf sender is not equal to pubkey")
+	// }
+
+	// isValid := senderLeaf.IsValid && validityPis.IsValidBlock
+
+	// return isValid, nil
+
+	return true, nil
 }
