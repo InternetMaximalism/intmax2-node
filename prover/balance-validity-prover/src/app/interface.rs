@@ -24,6 +24,7 @@ pub struct ErrorResponse {
 #[serde(rename_all = "camelCase")]
 pub struct ProofResponse {
     pub success: bool,
+    pub request_id: String,
     pub proof: Option<String>,
     pub error_message: Option<String>,
 }
@@ -37,14 +38,14 @@ pub struct ProofDepositRequest {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DepositIndexQuery {
-    pub deposit_indices: Vec<String>,
+pub struct DepositHashQuery {
+    pub deposit_hashes: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProofDepositValue {
-    pub deposit_index: String,
+    pub deposit_hash: String,
     pub proof: String,
 }
 

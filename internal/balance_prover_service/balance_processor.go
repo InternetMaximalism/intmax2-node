@@ -11,7 +11,6 @@ import (
 	"intmax2-node/internal/logger"
 	intMaxTypes "intmax2-node/internal/types"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -51,8 +50,8 @@ func (s *BalanceProcessor) ProveUpdate(
 	lastBalanceProof *string,
 ) (*BalanceProofWithPublicInputs, error) {
 	// request balance prover
-	fmt.Println("ProveUpdate")
-	fmt.Printf("publicKey: %v\n", publicKey)
+	s.log.Debugf("ProveUpdate\n")
+	s.log.Debugf("publicKey: %v\n", publicKey)
 	requestID, err := s.requestUpdateBalanceValidityProof(publicKey, updateWitness, lastBalanceProof)
 	if err != nil {
 		return nil, err
@@ -97,13 +96,8 @@ func (s *BalanceProcessor) ProveReceiveDeposit(
 	lastBalanceProof *string,
 ) (*BalanceProofWithPublicInputs, error) {
 	// request balance prover
-	fmt.Println("ProveReceiveDeposit")
-	fmt.Printf("publicKey: %v\n", publicKey)
-	db, err := json.Marshal(receiveDepositWitness)
-	if err != nil {
-		return nil, err
-	}
-	fmt.Printf("receiveDepositWitness: %s\n", db)
+	s.log.Debugf("ProveReceiveDeposit\n")
+	s.log.Debugf("publicKey: %v\n", publicKey)
 	requestID, err := s.requestReceiveDepositBalanceValidityProof(publicKey, receiveDepositWitness, lastBalanceProof)
 	if err != nil {
 		return nil, err
@@ -150,8 +144,8 @@ func (s *BalanceProcessor) ProveSend(
 	lastBalanceProof *string,
 ) (*BalanceProofWithPublicInputs, error) {
 	// request balance prover
-	fmt.Printf("ProveSend")
-	fmt.Printf("publicKey: %v", publicKey)
+	s.log.Debugf("ProveSend\n")
+	s.log.Debugf("publicKey: %v\n", publicKey)
 	requestID, err := s.requestSendBalanceValidityProof(publicKey, sendWitness, updateWitness, lastBalanceProof)
 	if err != nil {
 		return nil, err
@@ -196,8 +190,8 @@ func (s *BalanceProcessor) ProveReceiveTransfer(
 	lastBalanceProof *string,
 ) (*BalanceProofWithPublicInputs, error) {
 	// request balance prover
-	fmt.Println("ProveReceiveTransfer")
-	fmt.Printf("publicKey: %v", publicKey)
+	s.log.Debugf("ProveReceiveTransfer\n")
+	s.log.Debugf("publicKey: %v\n", publicKey)
 	requestID, err := s.requestReceiveTransferBalanceValidityProof(publicKey, receiveTransferWitness, lastBalanceProof)
 	if err != nil {
 		return nil, err
@@ -329,6 +323,7 @@ func (p *BalanceProcessor) requestUpdateBalanceValidityProof(
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal JSON request body: %w", err)
 	}
+	p.log.Debugf("size of requestUpdateBalanceValidityProof: %d bytes\n", len(bd))
 
 	const (
 		httpKey     = "http"
@@ -399,7 +394,7 @@ func (p *BalanceProcessor) requestReceiveDepositBalanceValidityProof(
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal JSON request body: %w", err)
 	}
-	fmt.Printf("size of requestBody: %d bytes\n", len(bd))
+	p.log.Debugf("size of requestReceiveDepositBalanceValidityProof: %d bytes\n", len(bd))
 
 	const (
 		httpKey     = "http"
@@ -444,7 +439,7 @@ func (p *BalanceProcessor) requestReceiveDepositBalanceValidityProof(
 		return "", fmt.Errorf("failed to send the balance proof request for ReceiveDepositWitness: %s", response.Message)
 	}
 
-	requestID := strconv.FormatUint(uint64(receiveDepositWitness.DepositWitness.DepositIndex), 10)
+	requestID := receiveDepositWitness.DepositWitness.Deposit.Hash().String()
 
 	return requestID, nil
 }
@@ -468,7 +463,7 @@ func (p *BalanceProcessor) requestSendBalanceValidityProof(
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal JSON request body: %w", err)
 	}
-	fmt.Printf("size of requestSendBalanceValidityProof: %d\n", len(bd))
+	p.log.Debugf("size of requestSendBalanceValidityProof: %d bytes\n", len(bd))
 
 	const (
 		httpKey     = "http"
@@ -543,7 +538,7 @@ func (p *BalanceProcessor) requestReceiveTransferBalanceValidityProof(
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal JSON request body: %w", err)
 	}
-	fmt.Printf("requestReceiveTransferBalanceValidityProof: %s\n", bd)
+	p.log.Debugf("size of requestReceiveTransferBalanceValidityProof: %d bytes\n", len(bd))
 
 	const (
 		httpKey     = "http"

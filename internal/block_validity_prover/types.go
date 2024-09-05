@@ -48,7 +48,7 @@ func (ps *PublicState) Genesis() *PublicState {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("genesis accountTreeRoot: %s\n", accountTree.GetRoot().String())
+	// fmt.Printf("genesis accountTreeRoot: %s\n", accountTree.GetRoot().String())
 	depositTree, err := intMaxTree.NewDepositTree(intMaxTree.DEPOSIT_TREE_HEIGHT)
 	if err != nil {
 		panic(err)
@@ -708,8 +708,8 @@ func (s *SignatureContent) IsValidFormat(publicKeys []intMaxTypes.Uint256) error
 	messagePointExpected := intMaxGP.HashToG2(txTreeRoot)
 	messagePoint := intMaxTypes.NewG2AffineFromFlatG2(&s.MessagePoint)
 	if !messagePointExpected.Equal(messagePoint) {
-		fmt.Printf("messagePointExpected: %v\n", messagePointExpected)
-		fmt.Printf("messagePoint: %v\n", messagePoint)
+		// fmt.Printf("messagePointExpected: %v\n", messagePointExpected)
+		// fmt.Printf("messagePoint: %v\n", messagePoint)
 		return errors.New("message point check failed")
 	}
 
@@ -779,16 +779,13 @@ func (bw *BlockWitness) MarshalJSON() ([]byte, error) {
 		AccountMerkleProofs:     make([]AccountMerkleProof, 0),
 		AccountMembershipProofs: make([]intMaxTree.IndexedMembershipProof, 0),
 	}
-	fmt.Printf("result.AccountMerkleProofs: %v\n", result.AccountMerkleProofs)
 
 	if bw.AccountMembershipProofs != nil {
-		fmt.Printf("bw.AccountMembershipProofs: %v\n", bw.AccountMembershipProofs)
 		result.AccountMembershipProofs = *bw.AccountMembershipProofs
 	}
 	if bw.AccountMerkleProofs != nil {
 		result.AccountMerkleProofs = *bw.AccountMerkleProofs
 	}
-	fmt.Printf("result.AccountMembershipProofs: %v\n", result.AccountMembershipProofs)
 
 	return json.Marshal(&result)
 }
@@ -865,7 +862,6 @@ func (bw *BlockWitness) Compress(maxAccountID uint64) (compressed *CompressedBlo
 
 	significantHeight := effectiveBits(uint(maxAccountID))
 
-	fmt.Printf("bw.AccountMerkleProofs: %v\n", bw.AccountMerkleProofs)
 	if bw.AccountMerkleProofs != nil {
 		if len(*bw.AccountMerkleProofs) == 0 {
 			significantAccountMerkleProofs := make([]AccountMerkleProof, 0)
@@ -896,7 +892,6 @@ func (bw *BlockWitness) Compress(maxAccountID uint64) (compressed *CompressedBlo
 		}
 	}
 
-	fmt.Printf("bw.AccountMembershipProofs: %v\n", bw.AccountMembershipProofs)
 	if bw.AccountMembershipProofs != nil {
 		if len(*bw.AccountMembershipProofs) == 0 {
 			significantAccountMembershipProofs := make([]intMaxTree.IndexedMembershipProof, 0)
@@ -905,7 +900,6 @@ func (bw *BlockWitness) Compress(maxAccountID uint64) (compressed *CompressedBlo
 			accountMembershipProofs := *bw.AccountMembershipProofs
 			compressed.CommonAccountMerkleProof = accountMembershipProofs[0].LeafProof.Siblings[significantHeight:]
 			significantAccountMembershipProofs := make([]intMaxTree.IndexedMembershipProof, 0)
-			fmt.Printf("accountMembershipProofs: %v\n", accountMembershipProofs)
 			for _, proof := range accountMembershipProofs {
 				for i := 0; i < int(intMaxTree.ACCOUNT_TREE_HEIGHT)-int(significantHeight); i++ {
 					if !proof.LeafProof.Siblings[int(significantHeight)+i].Equal(compressed.CommonAccountMerkleProof[i]) {
@@ -924,15 +918,8 @@ func (bw *BlockWitness) Compress(maxAccountID uint64) (compressed *CompressedBlo
 				})
 			}
 
-			fmt.Printf("size of significantAccountMembershipProofs: %d\n", len(significantAccountMembershipProofs))
 			compressed.SignificantAccountMembershipProofs = &significantAccountMembershipProofs
 		}
-	}
-
-	if compressed.SignificantAccountMembershipProofs != nil {
-		fmt.Printf("size of compressed.SignificantAccountMembershipProofs: %d\n", len(*compressed.SignificantAccountMembershipProofs))
-	} else {
-		fmt.Printf("compressed.SignificantAccountMembershipProofs is nil\n")
 	}
 
 	return compressed, nil
@@ -1099,9 +1086,9 @@ func NewFormatValidationValue(
 	pubkeyCommitment := getPublicKeyCommitment(publicKeys)
 	signatureCommitment := signature.Commitment()
 	err := signature.IsValidFormat(publicKeys)
-	if err != nil {
-		fmt.Printf("NewFormatValidationValue err: %v\n", err)
-	}
+	// if err != nil {
+	// 	fmt.Printf("WARNING: NewFormatValidationValue err: %v\n", err)
+	// }
 
 	return &FormatValidationValue{
 		PublicKeys:          publicKeys,
@@ -1518,13 +1505,8 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 		BlockTree:                     blockTree,
 		DepositTree:                   depositTree,
 		DepositLeaves:                 depositLeaves,
-		// DepositLeavesByHash: make(map[common.Hash]*DepositLeafWithId),
-		// DepositTreeRoots: []common.Hash{depositTreeRoot},
-		// lastSeenProcessDepositsEventBlockNumber: cfg.Blockchain.RollupContractDeployedBlockNumber,
-		// lastSeenBlockPostedEventBlockNumber: cfg.Blockchain.RollupContractDeployedBlockNumber,
-		AuxInfo:           auxInfo,
-		MerkleTreeHistory: merkleTreeHistory,
-		// DepositTreeHistory: make(map[string]*intMaxTree.KeccakMerkleTree),
+		AuxInfo:                       auxInfo,
+		MerkleTreeHistory:             merkleTreeHistory,
 	}
 }
 
@@ -1541,7 +1523,6 @@ func (b *mockBlockBuilder) GenerateBlock(
 	blockContent *intMaxTypes.BlockContent,
 	postedBlock *block_post_service.PostedBlock,
 ) (*BlockWitness, error) {
-	fmt.Println("-----------GenerateBlock------------------")
 	isRegistrationBlock := blockContent.SenderType == intMaxTypes.PublicKeySenderType
 
 	publicKeys := make([]intMaxTypes.Uint256, len(blockContent.Senders))
@@ -1657,7 +1638,6 @@ func getSenderLeaves(publicKeys []intMaxTypes.Uint256, senderFlag intMaxTypes.By
 }
 
 func (db *mockBlockBuilder) SetValidityWitness(blockNumber uint32, witness *ValidityWitness) error {
-	fmt.Printf("---------------------- SetValidityWitness ----------------------\n")
 	depositTree, err := intMaxTree.NewDepositTree(int32Key)
 	if err != nil {
 		return err
@@ -1802,16 +1782,14 @@ func (db *mockBlockBuilder) DepositTreeProof(blockNumber uint32, depositIndex ui
 	}
 
 	leaves := make([][32]byte, 0)
-	for i, depositLeaf := range depositLeaves {
-		fmt.Printf("leaves[%d]: %v\n", i, depositLeaf.Hash())
+	for _, depositLeaf := range depositLeaves {
 		leaves = append(leaves, [32]byte(depositLeaf.Hash()))
 	}
-	proof, root, err := db.DepositTree.ComputeMerkleProof(depositIndex, leaves)
+	proof, _, err := db.DepositTree.ComputeMerkleProof(depositIndex, leaves)
 	if err != nil {
 		var ErrDepositTreeProof = errors.New("deposit tree proof error")
 		return nil, errors.Join(ErrDepositTreeProof, err)
 	}
-	fmt.Printf("DepositTreeProof deposit tree root: %s\n", root.String())
 
 	return proof, nil
 }
@@ -1882,7 +1860,7 @@ func (db *mockBlockBuilder) ConstructSignature(
 	}
 	senderFlag := intMaxTypes.Bytes16{}
 	senderFlag.FromBytes(senderFlagBytes[:])
-	fmt.Printf("Bytes16: %v\n", senderFlag)
+	// fmt.Printf("senderFlag: %v\n", senderFlag)
 
 	flattenTxTreeRoot := finite_field.BytesToFieldElementSlice(txTreeRoot.Bytes())
 

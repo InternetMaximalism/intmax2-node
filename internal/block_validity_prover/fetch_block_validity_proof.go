@@ -2,6 +2,7 @@ package block_validity_prover
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -42,7 +43,7 @@ func (p *blockValidityProver) fetchBlockValidityProof(blockHash common.Hash) (st
 
 	if resp == nil {
 		const msg = "send request error occurred"
-		return "", fmt.Errorf(msg)
+		return "", errors.New(msg)
 	}
 
 	if resp.StatusCode() != http.StatusOK {

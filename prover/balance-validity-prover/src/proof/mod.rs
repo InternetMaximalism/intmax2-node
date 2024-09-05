@@ -79,7 +79,7 @@ impl SerializableReceiveTransferWitness {
 }
 
 pub async fn generate_receive_deposit_proof_job(
-    request_id: String,
+    full_request_id: String,
     public_key: U256,
     prev_balance_proof: Option<ProofWithPublicInputs<F, C, D>>,
     receive_deposit_witness: &ReceiveDepositWitness,
@@ -125,10 +125,14 @@ pub async fn generate_receive_deposit_proof_job(
         .get(true)
         .with_expiration(SetExpiry::EX(config::get("proof_expiration")));
 
-    let _ = redis::Cmd::set_options(&request_id, encoded_compressed_balance_proof.clone(), opts)
-        .query_async::<_, Option<String>>(conn)
-        .await
-        .with_context(|| "Failed to set proof")?;
+    let _ = redis::Cmd::set_options(
+        &full_request_id,
+        encoded_compressed_balance_proof.clone(),
+        opts,
+    )
+    .query_async::<_, Option<String>>(conn)
+    .await
+    .with_context(|| "Failed to set proof")?;
 
     Ok(())
 }
@@ -204,7 +208,7 @@ pub async fn generate_balance_transfer_proof_job(
 }
 
 pub async fn generate_balance_send_proof_job(
-    request_id: String,
+    full_request_id: String,
     public_key: U256,
     prev_balance_proof: Option<ProofWithPublicInputs<F, C, D>>,
     send_witness: &SendWitness,
@@ -256,10 +260,14 @@ pub async fn generate_balance_send_proof_job(
         .get(true)
         .with_expiration(SetExpiry::EX(config::get("proof_expiration")));
 
-    let _ = redis::Cmd::set_options(&request_id, encoded_compressed_balance_proof.clone(), opts)
-        .query_async::<_, Option<String>>(conn)
-        .await
-        .with_context(|| "Failed to set proof")?;
+    let _ = redis::Cmd::set_options(
+        &full_request_id,
+        encoded_compressed_balance_proof.clone(),
+        opts,
+    )
+    .query_async::<_, Option<String>>(conn)
+    .await
+    .with_context(|| "Failed to set proof")?;
 
     Ok(())
 }

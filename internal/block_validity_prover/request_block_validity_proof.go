@@ -2,6 +2,7 @@ package block_validity_prover
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"intmax2-node/internal/logger"
 	"net/http"
@@ -38,37 +39,29 @@ func (p *blockValidityProver) requestBlockValidityProof(blockHash common.Hash, v
 	if err != nil {
 		return fmt.Errorf("failed to compress validity witness: %w", err)
 	}
-	fmt.Printf("compressedValidityWitness SignificantAccountRegistrationProofs: %v\n", compressedValidityWitness.ValidityTransitionWitness.SignificantAccountRegistrationProofs)
-	// if validityWitness.BlockWitness.AccountMembershipProofs == nil || len(*validityWitness.BlockWitness.AccountMembershipProofs) == 0 {
-	// 	accountMembershipProofs := make([]intMaxTree.IndexedMembershipProof, 0)
-	// 	validityWitness.BlockWitness.AccountMembershipProofs = &accountMembershipProofs
-	// }
-	// if validityWitness.BlockWitness.AccountMerkleProofs == nil || len(*validityWitness.BlockWitness.AccountMerkleProofs) == 0 {
-	// 	accountMerkleProofs := make([]AccountMerkleProof, 0)
-	// 	validityWitness.BlockWitness.AccountMerkleProofs = &accountMerkleProofs
-	// }
 
 	nextValidityPis := validityWitness.ValidityPublicInputs()
-	fmt.Printf("nextValidityPis block_proof block number: %d\n", nextValidityPis.PublicState.BlockNumber)
-	fmt.Printf("nextValidityPis block_proof prev account tree root: %s\n", nextValidityPis.PublicState.PrevAccountTreeRoot.String())
-	fmt.Printf("nextValidityPis block_proof account tree root: %s\n", nextValidityPis.PublicState.AccountTreeRoot.String())
+	p.log.Debugf("nextValidityPis block_proof block number: %d\n", nextValidityPis.PublicState.BlockNumber)
+	p.log.Debugf("nextValidityPis block_proof prev account tree root: %s\n", nextValidityPis.PublicState.PrevAccountTreeRoot.String())
+	p.log.Debugf("nextValidityPis block_proof account tree root: %s\n", nextValidityPis.PublicState.AccountTreeRoot.String())
 
 	requestBody := ProveBlockValidityInput{
-		BlockHash: blockHash.String(),
-		// ValidityWitness:      compressedValidityWitness,
-		PlainValidityWitness: validityWitness,
-		PrevValidityProof:    prevValidityProof,
+		BlockHash:       blockHash.String(),
+		ValidityWitness: compressedValidityWitness,
+		// PlainValidityWitness: validityWitness,
+		PrevValidityProof: prevValidityProof,
 	}
 	bd, err := json.Marshal(requestBody)
 	if err != nil {
 		return fmt.Errorf("failed to marshal JSON request body: %w", err)
 	}
+	p.log.Debugf("size of requestBlockValidityProof: %d bytes\n", len(bd))
 
 	encodedValidityWitness, err := json.Marshal(validityWitness)
 	if err != nil {
 		return fmt.Errorf("failed to marshal JSON request body: %w", err)
 	}
-	fmt.Printf("encodedValidityWitness: %s\n", encodedValidityWitness)
+	p.log.Debugf("encodedValidityWitness: %s\n", encodedValidityWitness)
 
 	const (
 		httpKey     = "http"
@@ -91,7 +84,7 @@ func (p *blockValidityProver) requestBlockValidityProof(blockHash common.Hash, v
 
 	if resp == nil {
 		const msg = "send request error occurred"
-		return fmt.Errorf(msg)
+		return errors.New(msg)
 	}
 
 	if resp.StatusCode() != http.StatusOK {

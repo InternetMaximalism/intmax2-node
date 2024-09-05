@@ -3,7 +3,6 @@ package balance_prover_service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_synchronizer"
@@ -52,6 +51,7 @@ type syncExternalValidityProver struct {
 // }
 
 type syncValidityProver struct {
+	log               logger.Logger
 	ValidityProver    block_validity_prover.BlockValidityProver
 	blockSynchronizer block_validity_prover.BlockSynchronizer
 }
@@ -75,61 +75,11 @@ func NewSyncValidityProver(
 	}
 
 	return &syncValidityProver{
+		log:               log,
 		ValidityProver:    validityProver,
 		blockSynchronizer: synchronizer,
 	}, nil
 }
-
-// func (b *syncValidityProver) Sync(blockBuilder BlockBuilderStorage) {
-// 	currentBlockNumber := blockBuilder.LatestIntMaxBlockNumber()
-// 	fmt.Printf("currentBlockNumber: %d\n", currentBlockNumber)
-// 	blockNumber := b.LastBlockNumber + 1
-// 	for blockNumber <= currentBlockNumber {
-// 		prevValidityProof, ok := b.ValidityProofs[blockNumber-1]
-// 		if !ok && blockNumber != 1 {
-// 			panic("prev validity proof not found")
-// 		}
-// 		auxInfo, err := BlockAuxInfo(blockBuilder, blockNumber)
-// 		if err != nil {
-// 			if err.Error() == "block content by block number error" {
-// 				time.Sleep(1 * time.Second)
-// 				continue
-// 			}
-// 			panic("aux info not found")
-// 		}
-
-// 		blockWitness, err := blockBuilder.GenerateBlock(auxInfo.BlockContent, auxInfo.PostedBlock)
-// 		if err != nil {
-// 			panic(err)
-// 		}
-
-// 		prevValidityWitness, err := blockBuilder.LastValidityWitness()
-// 		if err != nil {
-// 			panic("last validity witness error")
-// 		}
-
-// 		fmt.Printf("generateValidityWitness blockNumber: %d\n", blockWitness.Block.BlockNumber)
-// 		validityWitness, err := generateValidityWitness(blockBuilder, blockWitness, prevValidityWitness)
-// 		if err != nil {
-// 			panic(err)
-// 		}
-
-// 		if err := blockBuilder.SetValidityWitness(blockNumber, validityWitness); err != nil {
-// 			panic(err)
-// 		}
-
-// 		validityProof, err := b.ValidityProcessor.Prove(prevValidityProof, validityWitness)
-// 		if err != nil {
-// 			panic(err)
-// 		}
-
-// 		b.ValidityProofs[blockNumber] = validityProof
-
-// 		blockNumber++
-// 	}
-
-// 	b.LastBlockNumber = currentBlockNumber
-// }
 
 // check synchronization of INTMAX blocks
 func (s *syncValidityProver) Check() (err error) {
@@ -176,8 +126,8 @@ func (s *syncValidityProver) FetchUpdateWitness(
 	targetBlockNumber uint32,
 	isPrevAccountTree bool,
 ) (*UpdateWitness, error) {
-	fmt.Printf("====FetchUpdateWitness currentBlockNumber: %d\n", currentBlockNumber)
-	fmt.Printf("====FetchUpdateWitness targetBlockNumber: %d\n", targetBlockNumber)
+	s.log.Debugf("FetchUpdateWitness currentBlockNumber: %d\n", currentBlockNumber)
+	s.log.Debugf("FetchUpdateWitness targetBlockNumber: %d\n", targetBlockNumber)
 	// request validity prover
 	latestValidityProof, err := blockBuilder.ValidityProofByBlockNumber(currentBlockNumber)
 	if err != nil {
@@ -192,13 +142,13 @@ func (s *syncValidityProver) FetchUpdateWitness(
 
 	var accountMembershipProof *intMaxTree.IndexedMembershipProof
 	if isPrevAccountTree {
-		fmt.Printf("is PrevAccountTree %d\n", currentBlockNumber-1)
+		s.log.Debugf("is PrevAccountTree %d\n", currentBlockNumber-1)
 		accountMembershipProof, err = blockBuilder.GetAccountMembershipProof(currentBlockNumber-1, publicKey.BigInt())
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		fmt.Printf("is not PrevAccountTree %d\n", currentBlockNumber)
+		s.log.Debugf("is not PrevAccountTree %d\n", currentBlockNumber)
 		accountMembershipProof, err = blockBuilder.GetAccountMembershipProof(currentBlockNumber, publicKey.BigInt())
 		if err != nil {
 			return nil, err
