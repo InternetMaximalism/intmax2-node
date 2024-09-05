@@ -275,27 +275,6 @@ func (v *Uint256) FromBytes(bytes []byte) *Uint256 {
 	return v
 }
 
-// fn sub(self, rhs: Self) -> Self::Output {
-// 	let mut result_limbs = vec![];
-
-// 	let mut borrow = 0i64;
-// 	for (a, b) in self.limbs.iter().rev().zip(rhs.limbs.iter().rev()) {
-// 		let c = a as i64 - b as i64 + borrow;
-// 		let result = c as u32;
-// 		borrow = (c >> 32) as i32 as i64;
-// 		result_limbs.push(result);
-// 	}
-
-// 	// Borrow should be zero here.
-// 	assert_eq!(borrow, 0, "U256 sub underflow occured");
-
-// 	result_limbs.reverse();
-
-// 	Self {
-// 		limbs: result_limbs.try_into().unwrap(),
-// 	}
-// }
-
 func (v *Uint256) Add(other *Uint256) *Uint256 {
 	result := new(big.Int).Add(v.BigInt(), other.BigInt())
 	return new(Uint256).FromBigInt(result)
@@ -305,7 +284,7 @@ func (v *Uint256) Sub(other *Uint256) *Uint256 {
 	result := new(big.Int).Sub(v.BigInt(), other.BigInt())
 
 	if result.Cmp(big.NewInt(0)) < 0 {
-		panic("U256 sub underflow occured")
+		panic("U256 sub underflow occurred")
 	}
 
 	return new(Uint256).FromBigInt(result)

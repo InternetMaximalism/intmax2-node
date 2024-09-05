@@ -186,7 +186,7 @@ async fn generate_proof(
     // Spawn a new task to generate the proof
     actix_web::rt::spawn(async move {
         let response = generate_balance_update_proof_job(
-            request_id,
+            request_id.clone(),
             public_key,
             prev_balance_proof,
             &balance_update_witness,
@@ -204,7 +204,7 @@ async fn generate_proof(
 
         match response {
             Ok(v) => {
-                log::info!("Proof generation completed");
+                log::info!("Proof generation completed (request ID: {request_id})");
                 Ok(v)
             }
             Err(e) => {

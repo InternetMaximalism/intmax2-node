@@ -2461,7 +2461,6 @@ func BlockAuxInfo(db BlockBuilderStorage, blockNumber uint32) (*AuxInfo, error) 
 		PostedBlock:  &postedBlock,
 		BlockContent: &blockContent,
 	}, nil
-
 }
 
 func setAuxInfo(

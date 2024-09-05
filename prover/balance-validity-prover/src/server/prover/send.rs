@@ -12,6 +12,7 @@ use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Res
 use intmax2_zkp::{
     circuits::validity::validity_pis::ValidityPublicInputs,
     common::witness::update_witness::UpdateWitness,
+    constants::NUM_TRANSFERS_IN_TX,
     ethereum_types::{u256::U256, u32limb_trait::U32LimbTrait},
 };
 
@@ -180,15 +181,37 @@ async fn generate_proof(
         None
     };
 
-    // TODO: Validation check of balance_witness
+    // Validation check of balance_witness
+    let send_witness = req.send_witness.clone();
+    if send_witness.transfers.len() != NUM_TRANSFERS_IN_TX {
+        println!(
+            "Invalid number of transfers: {}",
+            send_witness.transfers.len()
+        );
+        return Err(error::ErrorBadRequest("Invalid number of transfers"));
+    }
+    if send_witness.prev_balances.len() != NUM_TRANSFERS_IN_TX {
+        println!(
+            "Invalid number of prev_balances: {}",
+            send_witness.prev_balances.len()
+        );
+        return Err(error::ErrorBadRequest("Invalid number of transfers"));
+    }
+    if send_witness.asset_merkle_proofs.len() != NUM_TRANSFERS_IN_TX {
+        println!(
+            "Invalid number of asset_merkle_proofs: {}",
+            send_witness.asset_merkle_proofs.len()
+        );
+        return Err(error::ErrorBadRequest("Invalid number of transfers"));
+    }
 
     // Spawn a new task to generate the proof
     actix_web::rt::spawn(async move {
         let response = generate_balance_send_proof_job(
-            request_id,
+            request_id.clone(),
             public_key,
             prev_balance_proof,
-            &req.send_witness,
+            &send_witness,
             &balance_update_witness,
             state
                 .balance_processor
@@ -204,7 +227,7 @@ async fn generate_proof(
 
         match response {
             Ok(v) => {
-                log::info!("Proof generation completed");
+                log::info!("Proof generation completed (request ID: {request_id})");
                 Ok(v)
             }
             Err(e) => {

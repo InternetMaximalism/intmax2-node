@@ -59,7 +59,7 @@ type TransferInput struct {
 
 func (input *TransferInput) FromTransfer(value *intMaxTypes.Transfer) *TransferInput {
 	// input.Recipient = hexutil.Encode(value.Recipient.Address[:])
-	data := new(big.Int).SetBytes(value.Recipient.Address[:])
+	data := new(big.Int).SetBytes(value.Recipient.Address)
 	input.Recipient = GenericAddressInput{
 		IsPublicKey: value.Recipient.TypeOfAddress == intMaxAccTypes.INTMAXAddressType,
 		Data:        data.String(),
@@ -538,15 +538,7 @@ func (input *TransferWitnessInput) FromTransferWitness(value *TransferWitness) *
 		TransferTreeRoot: *value.Tx.TransferTreeRoot,
 		Nonce:            value.Tx.Nonce,
 	}
-	input.Transfer = TransferInput{
-		Recipient: GenericAddressInput{
-			IsPublicKey: value.Transfer.Recipient.TypeOfAddress == intMaxAccTypes.INTMAXAddressType,
-			Data:        hexutil.Encode(value.Transfer.Recipient.Address[:]),
-		},
-		TokenIndex: value.Transfer.TokenIndex,
-		Amount:     value.Transfer.Amount.String(),
-		Salt:       *value.Transfer.Salt,
-	}
+	input.Transfer = *new(TransferInput).FromTransfer(&value.Transfer)
 	input.TransferIndex = value.TransferIndex
 	input.TransferMerkleProof = make([]string, len(value.TransferMerkleProof.Siblings))
 	for i := 0; i < len(value.TransferMerkleProof.Siblings); i++ {

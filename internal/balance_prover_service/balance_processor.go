@@ -352,7 +352,7 @@ func (p *BalanceProcessor) requestUpdateBalanceValidityProof(
 
 	if resp == nil {
 		const msg = "send request error occurred"
-		return "", fmt.Errorf(msg)
+		return "", errors.New(msg)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
@@ -423,7 +423,7 @@ func (p *BalanceProcessor) requestReceiveDepositBalanceValidityProof(
 
 	if resp == nil {
 		const msg = "send request error occurred"
-		return "", fmt.Errorf(msg)
+		return "", errors.New(msg)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
@@ -492,7 +492,7 @@ func (p *BalanceProcessor) requestSendBalanceValidityProof(
 
 	if resp == nil {
 		const msg = "send request error occurred"
-		return "", fmt.Errorf(msg)
+		return "", errors.New(msg)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
@@ -567,7 +567,7 @@ func (p *BalanceProcessor) requestReceiveTransferBalanceValidityProof(
 
 	if resp == nil {
 		const msg = "send request error occurred"
-		return "", fmt.Errorf(msg)
+		return "", errors.New(msg)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
@@ -588,7 +588,17 @@ func (p *BalanceProcessor) requestReceiveTransferBalanceValidityProof(
 		return "", fmt.Errorf("failed to send the balance proof request for ReceiveTransferWitness: %s", response.Message)
 	}
 
-	requestID := receiveTransferWitness.PrivateWitness.PrevPrivateState.Commitment().String()
+	balanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(receiveTransferWitness.BalanceProof)
+	if err != nil {
+		return "", err
+	}
+
+	balancePublicInputs, err := new(BalancePublicInputs).FromPublicInputs(balanceProofWithPis.PublicInputs)
+	if err != nil {
+		return "", err
+	}
+	requestID := balancePublicInputs.PrivateCommitment.String()
+	p.log.Debugf("request ID: %s\n", requestID)
 
 	return requestID, nil
 }
@@ -623,7 +633,7 @@ func (p *BalanceProcessor) fetchUpdateBalanceValidityProof(publicKey *intMaxAcc.
 
 	if resp == nil {
 		const msg = "send request error occurred"
-		return nil, fmt.Errorf(msg)
+		return nil, errors.New(msg)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
@@ -675,7 +685,7 @@ func (p *BalanceProcessor) fetchReceiveDepositBalanceValidityProof(publicKey *in
 
 	if resp == nil {
 		const msg = "send request error occurred"
-		return nil, fmt.Errorf(msg)
+		return nil, errors.New(msg)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
@@ -727,7 +737,7 @@ func (p *BalanceProcessor) fetchSendBalanceValidityProof(publicKey *intMaxAcc.Pu
 
 	if resp == nil {
 		const msg = "send request error occurred"
-		return nil, fmt.Errorf(msg)
+		return nil, errors.New(msg)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
@@ -779,7 +789,7 @@ func (p *BalanceProcessor) fetchReceiveTransferBalanceValidityProof(publicKey *i
 
 	if resp == nil {
 		const msg = "send request error occurred"
-		return nil, fmt.Errorf(msg)
+		return nil, errors.New(msg)
 	}
 
 	if resp.StatusCode() != http.StatusOK {

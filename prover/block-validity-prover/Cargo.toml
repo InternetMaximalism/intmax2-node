@@ -16,8 +16,7 @@ actix-web-validator = "5.0.1"
 rand = "0.8.5"
 serde_qs = "0.13.0"
 base64 = "0.22.1"
-# intmax2-zkp = { git = "https://github.com/InternetMaximalism/intmax2-zkp", branch = "dev" }
-intmax2-zkp = { path = "../../../intmax2-zkp" }
+intmax2-zkp = { git = "https://github.com/InternetMaximalism/intmax2-zkp", branch = "dev" }
 plonky2 = { git = "https://github.com/InternetMaximalism/polygon-plonky2.git", branch = "intmax2-dev" }
 tokio = "1.39.2"
 hex = "0.4.3"

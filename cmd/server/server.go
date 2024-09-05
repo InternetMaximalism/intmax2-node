@@ -292,7 +292,6 @@ func NewServerCmd(s *Server) *cobra.Command {
 						}
 
 						fmt.Printf("Block %d is searched\n", endBlock)
-
 					}
 				}
 			}()

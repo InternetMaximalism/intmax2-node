@@ -168,6 +168,7 @@ async fn generate_proof(
         "new_pis account_tree_root: {}",
         new_pis.public_state.account_tree_root
     );
+    println!("new_pis is_valid: {}", new_pis.is_valid_block);
 
     let request_id = get_request_id(&block_hash);
 

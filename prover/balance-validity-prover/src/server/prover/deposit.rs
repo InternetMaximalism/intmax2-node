@@ -12,10 +12,7 @@ use crate::{
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
 use intmax2_zkp::{
     circuits::balance::balance_pis::BalancePublicInputs,
-    common::{
-        deposit::get_pubkey_salt_hash, public_state::PublicState,
-        witness::receive_deposit_witness::ReceiveDepositWitness,
-    },
+    common::{public_state::PublicState, witness::receive_deposit_witness::ReceiveDepositWitness},
     ethereum_types::{bytes32::Bytes32, u256::U256, u32limb_trait::U32LimbTrait},
     utils::leafable::Leafable,
 };
@@ -228,7 +225,7 @@ async fn generate_proof(
     // Spawn a new task to generate the proof
     actix_web::rt::spawn(async move {
         let response = generate_receive_deposit_proof_job(
-            request_id,
+            request_id.clone(),
             public_key,
             prev_balance_proof,
             &receive_deposit_witness,
@@ -243,7 +240,7 @@ async fn generate_proof(
 
         match response {
             Ok(v) => {
-                log::info!("Proof generation completed");
+                log::info!("Proof generation completed (request ID: {request_id})");
                 Ok(v)
             }
             Err(e) => {
@@ -270,14 +267,14 @@ fn get_receive_deposit_request_id(public_key: &str, deposit_index: usize) -> Str
 }
 
 fn validate_witness(
-    pubkey: U256,
+    _pubkey: U256,
     public_state: &PublicState,
     receive_deposit_witness: &ReceiveDepositWitness,
 ) -> anyhow::Result<()> {
     let deposit_witness = receive_deposit_witness.deposit_witness.clone();
     let private_transition_witness = receive_deposit_witness.private_witness.clone();
 
-    let deposit_salt = receive_deposit_witness.deposit_witness.deposit_salt;
+    let _deposit_salt = receive_deposit_witness.deposit_witness.deposit_salt;
     let deposit_index = receive_deposit_witness.deposit_witness.deposit_index;
     let deposit = &receive_deposit_witness.deposit_witness.deposit;
     let deposit_merkle_proof = &receive_deposit_witness.deposit_witness.deposit_merkle_proof;

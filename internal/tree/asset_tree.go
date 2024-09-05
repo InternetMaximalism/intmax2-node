@@ -37,34 +37,12 @@ func (l *AssetLeaf) ToFieldElementSlice() []ffg.Element {
 		isInsufficient = new(ffg.Element).SetUint64(1)
 	}
 
-	return append([]ffg.Element{*isInsufficient}, l.Amount.ToFieldElementSlice()[:]...)
+	return append([]ffg.Element{*isInsufficient}, l.Amount.ToFieldElementSlice()...)
 }
 
 func (l *AssetLeaf) Hash() *PoseidonHashOut {
 	return intMaxGP.HashNoPad(l.ToFieldElementSlice())
 }
-
-// /// Substracts the given amount from the balance. If the balance is insufficient, the balance
-// /// becomes zero and the `is_insufficient` flag is set to true.
-// pub fn sub(&self, amount: U256) -> Self {
-//     let is_insufficient = (self.amount < amount) || self.is_insufficient;
-//     // If the balance is insufficient, substract the entire balance to prevent
-//     // underflow.
-//     let substract_amount = if is_insufficient { self.amount } else { amount };
-//     let amount = self.amount - substract_amount;
-//     Self {
-//         is_insufficient,
-//         amount,
-//     }
-// }
-
-// /// Adds the given amount to the balance. `is_insufficient` flag is not changed.
-// pub fn add(&self, amount: U256) -> Self {
-//     Self {
-//         is_insufficient: self.is_insufficient,
-//         amount: self.amount + amount,
-//     }
-// }
 
 func (l *AssetLeaf) Add(amount *big.Int) *AssetLeaf {
 	return &AssetLeaf{

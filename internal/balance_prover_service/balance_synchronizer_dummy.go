@@ -218,7 +218,7 @@ func (s *balanceSynchronizerDummy) TestE2E(syncValidityProver *syncValidityProve
 	}
 
 	if GetAssetBalance(aliceWallet, 0).Cmp(big.NewInt(100)) != 0 {
-		s.log.Fatalf("ETH balance")
+		s.log.Fatalf("ETH balance 1")
 	}
 
 	bobPrivateKey, err := intMaxAcc.NewPrivateKey(big.NewInt(4))
@@ -268,7 +268,7 @@ func (s *balanceSynchronizerDummy) TestE2E(syncValidityProver *syncValidityProve
 	}
 
 	if GetAssetBalance(aliceWallet, 0).Cmp(big.NewInt(50)) != 0 {
-		s.log.Fatalf("ETH balance")
+		s.log.Fatalf("ETH balance 2")
 	}
 
 	aliceBalanceProof := *aliceProver.LastBalanceProof
@@ -289,7 +289,7 @@ func (s *balanceSynchronizerDummy) TestE2E(syncValidityProver *syncValidityProve
 	}
 
 	if GetAssetBalance(bobWallet, 0).Cmp(big.NewInt(50)) != 0 {
-		s.log.Fatalf("ETH balance")
+		s.log.Fatalf("ETH balance 3")
 	}
 
 	// bob withdraw 10wei ETH
@@ -333,11 +333,9 @@ func (s *balanceSynchronizerDummy) TestE2E(syncValidityProver *syncValidityProve
 		s.log.Fatalf("failed to sync all: %+v", err)
 	}
 
-	if GetAssetBalance(bobWallet, 0) != big.NewInt(40) {
-		s.log.Fatalf("ETH balance")
+	if GetAssetBalance(bobWallet, 0).Cmp(big.NewInt(40)) != 0 {
+		s.log.Fatalf("ETH balance 4")
 	}
-
-	// bobBalanceProof := bobProver.GetBalanceProof()
 
 	// // prove withdrawal
 	// withdrawalTransferWitness := withdrawalTransferWitnesses[0]

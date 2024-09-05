@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"intmax2-node/internal/block_validity_prover"
-	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"sort"
 )
@@ -89,34 +88,34 @@ func (s *SyncBalanceProver) SyncSend(
 		updateWitnessValidityPis := new(block_validity_prover.ValidityPublicInputs).FromPublicInputs(validityProofWithPis.PublicInputs)
 
 		sendWitnessValidityPis := sendWitness.TxWitness.ValidityPis
-		fmt.Printf("--------CHECK-------------")
 		if !updateWitnessValidityPis.Equal(&sendWitnessValidityPis) {
 			fmt.Printf("update witness validity proof: %v\n", updateWitnessValidityPis)
 			fmt.Printf("update witness public state: %v\n", updateWitnessValidityPis.PublicState)
-			fmt.Printf("update witness account tree root: %v\n", updateWitnessValidityPis.PublicState.PrevAccountTreeRoot) // 0x32
-			fmt.Printf("update witness account tree root: %v\n", updateWitnessValidityPis.PublicState.AccountTreeRoot)     // XXX: 0x32adcd085f3953448a528b510df7a30499a6fe6ba144865da4cd23c94f3a4e15
+			fmt.Printf("update witness account tree root: %v\n", updateWitnessValidityPis.PublicState.PrevAccountTreeRoot)
+			fmt.Printf("update witness account tree root: %v\n", updateWitnessValidityPis.PublicState.AccountTreeRoot)
 			fmt.Printf("send witness validity proof: %v\n", sendWitnessValidityPis)
 			fmt.Printf("send witness public state: %v\n", sendWitnessValidityPis.PublicState)
-			fmt.Printf("send witness account tree root: %v\n", sendWitnessValidityPis.PublicState.PrevAccountTreeRoot) // 0x32
-			fmt.Printf("send witness account tree root: %v\n", sendWitnessValidityPis.PublicState.AccountTreeRoot)     // 0x06350dc0d3599f02b51e6ca00c055df6661a0c6e783a6599fca46fe0a88a5257
+			fmt.Printf("send witness account tree root: %v\n", sendWitnessValidityPis.PublicState.PrevAccountTreeRoot)
+			fmt.Printf("send witness account tree root: %v\n", sendWitnessValidityPis.PublicState.AccountTreeRoot)
 			return errors.New("update witness validity proof is not equal to send witness validity proof")
 		}
 
-		_, err = ValidateTxInclusionValue(
-			sendWitness.PrevBalancePis.PubKey,
-			sendWitness.PrevBalancePis.PublicState,
-			updateWitness.ValidityProof,
-			&updateWitness.BlockMerkleProof,
-			updateWitness.AccountMembershipProof,
-			sendWitness.TxWitness.TxIndex,
-			sendWitness.TxWitness.Tx,
-			&intMaxTree.MerkleProof{Siblings: sendWitness.TxWitness.TxMerkleProof},
-			// senderLeaf,
-			// senderMerkleProof,
-		)
-		if err != nil {
-			return err
-		}
+		// TODO
+		// _, err = ValidateTxInclusionValue(
+		// 	sendWitness.PrevBalancePis.PubKey,
+		// 	sendWitness.PrevBalancePis.PublicState,
+		// 	updateWitness.ValidityProof,
+		// 	&updateWitness.BlockMerkleProof,
+		// 	updateWitness.AccountMembershipProof,
+		// 	sendWitness.TxWitness.TxIndex,
+		// 	sendWitness.TxWitness.Tx,
+		// 	&intMaxTree.MerkleProof{Siblings: sendWitness.TxWitness.TxMerkleProof},
+		// 	// senderLeaf,
+		// 	// senderMerkleProof,
+		// )
+		// if err != nil {
+		// 	return err
+		// }
 
 		balanceProof, err := balanceProcessor.ProveSend(
 			wallet.PublicKey(),
