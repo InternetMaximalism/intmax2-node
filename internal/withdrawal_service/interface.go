@@ -1,9 +1,14 @@
 package withdrawal_service
 
+type ProofResponse struct {
+	Success      bool    `json:"success"`
+	Proof        *string `json:"proof,omitempty"`
+	ErrorMessage *string `json:"error_message,omitempty"`
+}
+
 type GenerateProofResponse struct {
-	Success      bool   `json:"success"`
-	Value        int    `json:"value"`
-	ErrorMessage string `json:"error_message"`
+	Success bool   `json:"success"`
+	Message string `json:"message"`
 }
 
 type ProofValue struct {
@@ -13,7 +18,7 @@ type ProofValue struct {
 
 type ProofsResponse struct {
 	Success      bool         `json:"success"`
-	Values       []ProofValue `json:"values"`
+	Proofs       []ProofValue `json:"proofs"`
 	ErrorMessage string       `json:"error_message,omitempty"`
 }
 
@@ -68,4 +73,22 @@ type WithdrawalProverParameters struct {
 	Amount     string `json:"amount"`
 	Salt       string `json:"salt"`
 	BlockHash  string `json:"block_hash"`
+}
+
+type GnarkStartProofResponse struct {
+	// example: "306a20df-e359-4b3c-b6c6-8a1049b90fde"
+	JobID string `json:"jobId"`
+}
+
+type GnarkGetProofResponseResult struct {
+	// example: ["4079990473","4258702484","2081910035","2691585329","2841914472","799830807","2306176734","3986480224"]
+	PublicInputs bool `json:"publicInputs"`
+	// example: "1437b9568....9693"
+	Proof string `json:"proof"`
+}
+
+type GnarkGetProofResponse struct {
+	// example: "done"
+	Status string                      `json:"success"`
+	Result GnarkGetProofResponseResult `json:"result"`
 }
