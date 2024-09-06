@@ -29,6 +29,7 @@ type SQLDriverApp interface {
 	Accounts
 	Deposits
 	BlockContents
+	Withdrawals
 }
 
 type GenericCommandsApp interface {
@@ -140,4 +141,22 @@ type BlockContents interface {
 	// LastValidityWitness() (*block_validity_prover.ValidityWitness, error)
 	// SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error
 	// LastSeenBlockPostedEventBlockNumber() (blockNumber uint64, err error)
+}
+
+type Withdrawals interface {
+	CreateWithdrawal(
+		id string,
+		transferData *mDBApp.TransferData,
+		transferMerkleProof *mDBApp.TransferMerkleProof,
+		transaction *mDBApp.Transaction,
+		txMerkleProof *mDBApp.TxMerkleProof,
+		transferHash string,
+		blockNumber int64,
+		blockHash string,
+		enoughBalanceProof *mDBApp.EnoughBalanceProof,
+	) (*mDBApp.Withdrawal, error)
+	UpdateWithdrawalsStatus(ids []string, status mDBApp.WithdrawalStatus) error
+	WithdrawalByID(id string) (*mDBApp.Withdrawal, error)
+	WithdrawalsByHashes(transferHashes []string) (*[]mDBApp.Withdrawal, error)
+	WithdrawalsByStatus(status mDBApp.WithdrawalStatus, limit *int) (*[]mDBApp.Withdrawal, error)
 }

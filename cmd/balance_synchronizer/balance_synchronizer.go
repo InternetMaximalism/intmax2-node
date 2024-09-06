@@ -12,6 +12,7 @@ import (
 	"intmax2-node/internal/pb/gateway/consts"
 	"intmax2-node/internal/pb/gateway/http_response_modifier"
 	node "intmax2-node/internal/pb/gen/block_builder_service/node"
+	"intmax2-node/internal/withdrawal_service"
 	"intmax2-node/third_party"
 	"sync"
 	"time"
@@ -93,8 +94,16 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 					s.Log.Fatalf(msg, err.Error())
 				}
 
+				withdrawalAggregator, err := withdrawal_service.NewWithdrawalAggregatorService(
+					s.Context, s.Config, s.Log, s.DbApp, s.SB,
+				)
+				if err != nil {
+					const msg = "failed to create withdrawal aggregator service: %+v"
+					s.Log.Fatalf(msg, err.Error())
+				}
+
 				synchronizer := balance_prover_service.NewSynchronizerDummy(s.Context, s.Config, s.Log, s.SB, s.DbApp)
-				synchronizer.TestE2E(syncValidityProver, blockBuilderWallet)
+				synchronizer.TestE2E(syncValidityProver, blockBuilderWallet, withdrawalAggregator)
 				// synchronizer := balance_prover_service.NewSynchronizer(s.Context, s.Config, s.Log, s.SB, s.DbApp)
 				// err = synchronizer.Sync(blockValidityProver, blockBuilderWallet)
 				// if err != nil {

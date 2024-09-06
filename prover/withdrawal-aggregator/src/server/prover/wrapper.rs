@@ -27,6 +27,15 @@ async fn get_proof(
         .query_async::<_, Option<String>>(&mut conn)
         .await
         .map_err(error::ErrorInternalServerError)?;
+    if proof.is_none() {
+        let response = ProofResponse {
+            success: false,
+            proof: None,
+            error_message: None,
+        };
+
+        return Ok(HttpResponse::Ok().json(response));
+    }
 
     let response = ProofResponse {
         success: true,

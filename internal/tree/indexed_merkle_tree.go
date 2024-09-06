@@ -375,9 +375,9 @@ func (t *IndexedMerkleTree) ProveMembership(key *big.Int) (membership_proof *Ind
 	lowIndex := t.GetLowIndex(key)
 	lowLeaf := t.GetLeaf(lowIndex)
 	leafProof, root, err := t.Prove(lowIndex)
-	fmt.Printf("lowIndex: %d\n", lowIndex)
-	fmt.Printf("lowLeaf.Key: %v, key: %s\n", lowLeaf.Key, key)
-	fmt.Printf("leafProof: %v\n", leafProof)
+	// fmt.Printf("lowIndex: %d\n", lowIndex)
+	// fmt.Printf("lowLeaf.Key: %v, key: %s\n", lowLeaf.Key, key)
+	// fmt.Printf("leafProof: %v\n", leafProof)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -460,8 +460,8 @@ func (t *IndexedMerkleTree) Insert(key *big.Int, value uint64) (*IndexedInsertio
 	lowIndex := t.GetLowIndex(key)
 
 	prevLowLeaf := new(IndexedMerkleLeaf).Set(t.GetLeaf(lowIndex))
-	fmt.Printf("lowIndex: %d\n", lowIndex)
-	fmt.Printf("prevLowLeaf.Key: %v, key: %s\n", prevLowLeaf, key)
+	// fmt.Printf("lowIndex: %d\n", lowIndex)
+	// fmt.Printf("prevLowLeaf.Key: %v, key: %s\n", prevLowLeaf, key)
 	if prevLowLeaf.Key.Cmp(key) == 0 {
 		return nil, errors.New("key already exists")
 	}

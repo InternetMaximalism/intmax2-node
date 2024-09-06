@@ -2,6 +2,7 @@ package balance_prover_service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
@@ -12,6 +13,8 @@ import (
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/withdrawal_service"
 	"math/big"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 type balanceSynchronizerDummy struct {
@@ -38,7 +41,38 @@ func NewSynchronizerDummy(
 	}
 }
 
-func (s *balanceSynchronizerDummy) TestE2E(syncValidityProver *syncValidityProver, blockBuilderWallet *models.Wallet) {
+func (s *balanceSynchronizerDummy) TestE2E(
+	syncValidityProver *syncValidityProver,
+	blockBuilderWallet *models.Wallet,
+	withdrawalAggregator *withdrawal_service.WithdrawalAggregatorService,
+) {
+	// withdrawalWitness, err := s.TestE2EWithoutWithdrawal(syncValidityProver, blockBuilderWallet, withdrawalAggregator)
+	// if err != nil {
+	// 	s.log.Fatalf("failed to test e2e: %+v", err)
+	// 	return
+	// }
+
+	withdrawalWitness := new(withdrawal_service.WithdrawalWitnessInput)
+	err := json.Unmarshal([]byte(EncodedWithdrawalWitness), &withdrawalWitness)
+	if err != nil {
+		s.log.Fatalf("failed to unmarshal withdrawal witness: %+v", err)
+	}
+
+	withdrawalProcessor := NewWithdrawalProcessor(withdrawalAggregator)
+	withdrawalProof, err := withdrawalProcessor.Prove(withdrawalWitness, nil)
+	if err != nil {
+		s.log.Fatalf("failed to prove withdrawal: %+v", err)
+	}
+	fmt.Printf("withdrawal proof: %x\n", withdrawalProof)
+
+	fmt.Println("Done")
+}
+
+func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
+	syncValidityProver *syncValidityProver,
+	blockBuilderWallet *models.Wallet,
+	withdrawalAggregator *withdrawal_service.WithdrawalAggregatorService,
+) (*withdrawal_service.WithdrawalWitness, error) {
 	// blockBuilder := block_validity_prover.NewMockBlockBuilder(s.cfg, s.db)
 	balanceProcessor := NewBalanceProcessor(s.ctx, s.cfg, s.log)
 	blockBuilder := syncValidityProver.ValidityProver.BlockBuilder()
@@ -211,80 +245,90 @@ func (s *balanceSynchronizerDummy) TestE2E(syncValidityProver *syncValidityProve
 		s.log.Fatalf("ETH balance 4")
 	}
 
-	//     // prove withdrawal
-	//     let withdrawal_processor = WithdrawalProcessor::new(&balance_processor.balance_circuit);
-	//     let withdrawal_witness = WithdrawalWitness {
-	//         transfer_witness: withdrawal_transfer_witness,
-	//         balance_proof: bob_balance_proof,
-	//     };
-	//     let withdrawal = withdrawal_witness.to_withdrawal();
-	//     assert_eq!(withdrawal.amount, 10.into()); // check withdrawal amount
-	//     let _withdrawal_proof = withdrawal_processor
-	//         .prove(&withdrawal_witness, &None)
-	//         .unwrap();
-
 	// prove withdrawal
 	withdrawalTransferWitness := withdrawalTransferWitnesses[0]
-	withdrawalProcessor := NewWithdrawalProcessor(balanceProcessor.BalanceCircuit)
-	withdrawalWitness := WithdrawalWitness{
-		TransferWitness: withdrawalTransferWitness,
-		BalanceProof:    bobBalanceProof,
+	// bobBalanceProof, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*bobProver.LastBalanceProof)
+	// if err != nil {
+	// 	s.log.Fatalf("failed to create balance proof: %+v", err)
+	// }
+
+	withdrawalWitness := withdrawal_service.WithdrawalWitness{
+		TransferWitness: &withdrawal_service.TransferWitness{
+			Tx:                  withdrawalTransferWitness.Tx,
+			Transfer:            withdrawalTransferWitness.Transfer,
+			TransferIndex:       withdrawalTransferWitness.TransferIndex,
+			TransferMerkleProof: withdrawalTransferWitness.TransferMerkleProof,
+		},
+		BalanceProof: bobProver.LastBalanceProof,
 	}
 
-	if withdrawalWitness.ToWithdrawal().Amount != 10 {
-		s.log.Fatalf("withdrawal amount")
+	// if withdrawalWitness.ToWithdrawal().Amount != 10 {
+	// 	s.log.Fatalf("withdrawal amount")
+	// }
+
+	return &withdrawalWitness, nil
+}
+
+type WithdrawalProcessor struct {
+	withdrawalAggregator *withdrawal_service.WithdrawalAggregatorService
+}
+
+func NewWithdrawalProcessor(
+	withdrawalAggregator *withdrawal_service.WithdrawalAggregatorService,
+) *WithdrawalProcessor {
+	return &WithdrawalProcessor{withdrawalAggregator}
+}
+
+func BuildSubmitWithdrawalProofData(w *withdrawal_service.WithdrawalAggregatorService, pendingWithdrawals []withdrawal_service.WithdrawalWitnessInput, withdrawalAggregator common.Address) ([]byte, error) {
+	prevWithdrawalProof := new(string)
+
+	if len(pendingWithdrawals) == 0 {
+		return nil, fmt.Errorf("no pending withdrawals")
 	}
 
-	withdrawalProof, err := withdrawalProcessor.Prove(withdrawalWitness, nil)
+	for i := range pendingWithdrawals {
+		// withdrawalWitness := new(withdrawal_service.WithdrawalWitnessInput).FromWithdrawalWitness(&pendingWithdrawals[i])
+		withdrawalProof, err := w.RequestWithdrawalProofToProver(&pendingWithdrawals[i], prevWithdrawalProof)
+		if err != nil {
+			return nil, fmt.Errorf("failed to request withdrawal proof to prover: %w", err)
+		}
+
+		prevWithdrawalProof = withdrawalProof
+	}
+
+	withdrawalWrapperProof, err := w.RequestWithdrawalWrapperProofToProver(*prevWithdrawalProof, withdrawalAggregator)
 	if err != nil {
-		s.log.Fatalf("failed to prove withdrawal: %+v", err)
+		return nil, fmt.Errorf("failed to request withdrawal wrapper proof to prover: %w", err)
 	}
+
+	return withdrawalWrapperProof, nil
 }
 
-// pub fn prove(
-// 	&self,
-// 	withdrawal_witness: &WithdrawalWitness<F, C, D>,
-// 	prev_withdrawal_proof: &Option<ProofWithPublicInputs<F, C, D>>,
-// ) -> Result<ProofWithPublicInputs<F, C, D>> {
-
-type WithfrawalProcessor struct {
-	ctx context.Context
-	cfg *configs.Config
-	log logger.Logger
-}
-
-func NewWithfrawalProcessor(
-	ctx context.Context,
-	cfg *configs.Config,
-	log logger.Logger,
-) *WithfrawalProcessor {
-	return &WithfrawalProcessor{ctx, cfg, log}
-}
-
-// WithdrawalRequestRequest
-//
-
-func (p *WithfrawalProcessor) Prove(withdrawalWitness WithdrawalWitness, prevWithdrawalProof *ProofWithPublicInputs) (string, error) {
-	WithdrawalRequestRequest
-	withdrawalAggregator, err := withdrawal_service.NewWithdrawalAggregatorService(
-		p.ctx,
-		p.cfg,
-		p.log,
-		p.db,
-		p.sb,
-	)
+func (p *WithdrawalProcessor) Prove(withdrawalWitness *withdrawal_service.WithdrawalWitnessInput, prevWithdrawalProof *string) ([]byte, error) {
+	encodedWithdrawalWitness, err := json.Marshal(withdrawalWitness)
 	if err != nil {
-		return "", err
+		return nil, fmt.Errorf("failed to marshal withdrawal witness: %w", err)
 	}
+	fmt.Printf("encodedWithdrawalWitness: %s\n", encodedWithdrawalWitness)
 
-	withdrawalAggregator.RequestWithdrawalWrapperProofToProver
+	aggregator := common.Address{}
+	pendingWithdrawals := []withdrawal_service.WithdrawalWitnessInput{*withdrawalWitness}
+	withdrawalWrapperProof, err := BuildSubmitWithdrawalProofData(p.withdrawalAggregator, pendingWithdrawals, aggregator)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build submit withdrawal proof data: %w", err)
+	}
+	fmt.Printf("withdrawalWrapperProof: %d\n", len(withdrawalWrapperProof))
 
-	return nil, nil
-}
+	// withdrawalWrapperProof :=
+	// p.withdrawalAggregator.RequestWithdrawalProofToProver(
+	// 	withdrawalWitness.TransferWitness, withdrawalWitness.BalanceProof,
+	// )
 
-type WithdrawalWitness struct {
-	transferWitness TransferWitness
-	balanceProof    string
+	// wrappedProof, err := p.withdrawalAggregator.RequestWithdrawalWrapperProofToProver(
+	// 	withdrawalProof, withdrawalAggregator,
+	// )
+
+	return withdrawalWrapperProof, nil
 }
 
 func GetAssetBalance(wallet *MockWallet, tokenIndex uint32) *big.Int {

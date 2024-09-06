@@ -4,16 +4,17 @@ package withdrawal_service
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
+	intMaxAccTypes "intmax2-node/internal/accounts/types"
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
+	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"intmax2-node/pkg/utils"
@@ -29,7 +30,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/google/uuid"
-	"github.com/iden3/go-iden3-crypto/ffg"
 )
 
 const (
@@ -105,7 +105,7 @@ func WithdrawalAggregator(ctx context.Context, cfg *configs.Config, log logger.L
 	// 	panic(fmt.Sprintf("Failed to fetch withdrawal proofs %v", err.Error()))
 	// }
 
-	// withdrawalInfo, err := service.buildSubmitWithdrawalProofData(*pendingWithdrawals, proofs)
+	// withdrawalInfo, err := service.BuildSubmitWithdrawalProofData(*pendingWithdrawals, proofs)
 	// if err != nil {
 	// 	panic("NEED_TO_BE_IMPLEMENTED")
 	// }
@@ -312,97 +312,108 @@ type MerkleProof struct {
 	Siblings []*goldenposeidon.PoseidonHashOut `json:"siblings"`
 }
 
+type GenericAddressInput struct {
+	IsPublicKey bool   `json:"isPubkey"`
+	Data        string `json:"data"`
+}
+
+type AmountInput = string
+type SaltInput = goldenposeidon.PoseidonHashOut
+
+type TransferInput struct {
+	Recipient  GenericAddressInput `json:"recipient"`
+	TokenIndex uint32              `json:"tokenIndex"`
+	Amount     AmountInput         `json:"amount"`
+	Salt       SaltInput           `json:"salt"`
+}
+
+func (input *TransferInput) FromTransfer(value *intMaxTypes.Transfer) *TransferInput {
+	// input.Recipient = hexutil.Encode(value.Recipient.Address[:])
+	data := new(big.Int).SetBytes(value.Recipient.Address)
+	input.Recipient = GenericAddressInput{
+		IsPublicKey: value.Recipient.TypeOfAddress == intMaxAccTypes.INTMAXAddressType,
+		Data:        data.String(),
+	}
+	input.TokenIndex = value.TokenIndex
+	input.Amount = value.Amount.String()
+	input.Salt = *value.Salt
+
+	return input
+}
+
+type TxInput struct {
+	TransferTreeRoot goldenposeidon.PoseidonHashOut `json:"transferTreeRoot"`
+	Nonce            uint64                         `json:"nonce"`
+}
+
+type MerkleProofInput = []string
+
+type TransferWitnessInput struct {
+	Tx                  TxInput          `json:"tx"`
+	Transfer            TransferInput    `json:"transfer"`
+	TransferIndex       uint             `json:"transferIndex"`
+	TransferMerkleProof MerkleProofInput `json:"transferMerkleProof"`
+}
+
+func (input *TransferWitnessInput) FromTransferWitness(value *TransferWitness) *TransferWitnessInput {
+	input.Tx.TransferTreeRoot = *value.Tx.TransferTreeRoot
+	input.Tx.Nonce = value.Tx.Nonce
+	input.Transfer = *new(TransferInput).FromTransfer(&value.Transfer)
+	input.TransferIndex = uint(value.TransferIndex)
+	input.TransferMerkleProof = make([]string, len(value.TransferMerkleProof.Siblings))
+	for i, sibling := range value.TransferMerkleProof.Siblings {
+		input.TransferMerkleProof[i] = sibling.String()
+	}
+
+	return input
+}
+
+type WithdrawalWitnessInput struct {
+	TransferWitness *TransferWitnessInput `json:"transferWitness"`
+	BalanceProof    string                `json:"balanceProof"`
+}
+
 type TransferWitness struct {
-	Tx                  intMaxTypes.Tx       `json:"tx"`
-	Transfer            intMaxTypes.Transfer `json:"transfer"`
-	TransferIndex       uint                 `json:"transferIndex"`
-	TransferMerkleProof MerkleProof          `json:"transferMerkleProof"`
+	Tx                  intMaxTypes.Tx          `json:"tx"`
+	Transfer            intMaxTypes.Transfer    `json:"transfer"`
+	TransferIndex       uint32                  `json:"transferIndex"`
+	TransferMerkleProof *intMaxTree.MerkleProof `json:"transferMerkleProof"`
 }
 
 type WithdrawalWitness struct {
-	TransferWitness TransferWitness          `json:"transferWitness"`
-	BalanceProof    intMaxTypes.Plonky2Proof `json:"balanceProof"`
+	TransferWitness *TransferWitness
+	BalanceProof    *string
 }
 
-func (w *WithdrawalAggregatorService) buildSubmitWithdrawalProofData(pendingWithdrawals []mDBApp.Withdrawal, withdrawalAggregator common.Address) ([]byte, error) {
+func (input *WithdrawalWitnessInput) FromWithdrawalWitness(value *WithdrawalWitness) *WithdrawalWitnessInput {
+	input.TransferWitness = new(TransferWitnessInput).FromTransferWitness(value.TransferWitness)
+	input.BalanceProof = *value.BalanceProof
+
+	return input
+}
+
+// WithdrawalWitness{
+// 	TransferWitness: &withdrawal_service.TransferWitness{
+// 		Tx:            withdrawalTransferWitness.Tx,
+// 		Transfer:      withdrawalTransferWitness.Transfer,
+// 		TransferIndex: uint(withdrawalTransferWitness.TransferIndex),
+// 		TransferMerkleProof: withdrawal_service.MerkleProof{
+// 			Siblings: withdrawalTransferWitness.TransferMerkleProof.Siblings,
+// 		},
+// 	},
+// 	BalanceProof: *bobBalanceProof,
+// }
+
+func (w *WithdrawalAggregatorService) BuildSubmitWithdrawalProofData(pendingWithdrawals []WithdrawalWitnessInput, withdrawalAggregator common.Address) ([]byte, error) {
 	prevWithdrawalProof := new(string)
 
+	if len(pendingWithdrawals) == 0 {
+		return nil, fmt.Errorf("no pending withdrawals")
+	}
+
 	for i := range pendingWithdrawals {
-		transferTreeRoot := new(goldenposeidon.PoseidonHashOut)
-		transferTreeRoot.FromString(pendingWithdrawals[i].Transaction.TransferTreeRoot)
-
-		salt := new(goldenposeidon.PoseidonHashOut)
-		salt.FromString(pendingWithdrawals[i].TransferData.Salt)
-
-		transferMerkleSiblings := make([]*goldenposeidon.PoseidonHashOut, 0, len(pendingWithdrawals[i].TransferMerkleProof.Siblings))
-		for _, sibling := range pendingWithdrawals[i].TransferMerkleProof.Siblings {
-			s := new(goldenposeidon.PoseidonHashOut)
-			err := s.FromString(sibling)
-			if err != nil {
-				return nil, fmt.Errorf("failed to unmarshal transfer merkle sibling: %w", err)
-			}
-			transferMerkleSiblings = append(transferMerkleSiblings, s)
-		}
-
-		recipientBytes, err := hexutil.Decode(pendingWithdrawals[i].TransferData.Recipient)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode recipient address: %w", err)
-		}
-		recipient, err := intMaxTypes.NewEthereumAddress(recipientBytes)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert recipient address: %w", err)
-		}
-
-		amount, ok := new(big.Int).SetString(pendingWithdrawals[i].TransferData.Amount, base10)
-		if !ok {
-			return nil, fmt.Errorf("failed to set amount")
-		}
-
-		balanceProof, err := base64.StdEncoding.DecodeString(pendingWithdrawals[i].EnoughBalanceProof.Proof)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode balance proof: %w", err)
-		}
-
-		decodedBalancePublicInputs, err := base64.StdEncoding.DecodeString(pendingWithdrawals[i].EnoughBalanceProof.PublicInputs)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode balance public inputs: %w", err)
-		}
-
-		const numGoldilocksFieldBytes = 8
-		if len(decodedBalancePublicInputs)%numGoldilocksFieldBytes != 0 {
-			return nil, fmt.Errorf("balance public inputs length is not multiple of %d", numGoldilocksFieldBytes)
-		}
-
-		balancePublicInputs := make([]ffg.Element, 0, len(decodedBalancePublicInputs))
-		for i := 0; i < len(balancePublicInputs); i += numGoldilocksFieldBytes {
-			e := binary.BigEndian.Uint64(decodedBalancePublicInputs[i : i+numGoldilocksFieldBytes])
-			balancePublicInputs = append(balancePublicInputs, *new(ffg.Element).SetUint64(e))
-		}
-
-		withdrawalWitness := WithdrawalWitness{
-			TransferWitness: TransferWitness{
-				Tx: intMaxTypes.Tx{
-					TransferTreeRoot: transferTreeRoot,
-					Nonce:            uint64(pendingWithdrawals[i].Transaction.Nonce),
-				},
-				Transfer: intMaxTypes.Transfer{
-					Recipient:  recipient,
-					TokenIndex: uint32(pendingWithdrawals[i].TransferData.TokenIndex),
-					Amount:     amount,
-					Salt:       salt,
-				},
-				TransferIndex: uint(pendingWithdrawals[i].TransferMerkleProof.Index),
-				TransferMerkleProof: MerkleProof{
-					Siblings: transferMerkleSiblings,
-				},
-			},
-			BalanceProof: intMaxTypes.Plonky2Proof{
-				Proof:        balanceProof,
-				PublicInputs: balancePublicInputs,
-			},
-		}
-
-		withdrawalProof, err := w.RequestWithdrawalProofToProver(&withdrawalWitness, prevWithdrawalProof)
+		// withdrawalWitness := new(withdrawal_service.WithdrawalWitnessInput).FromWithdrawalWitness(&pendingWithdrawals[i])
+		withdrawalProof, err := w.RequestWithdrawalProofToProver(&pendingWithdrawals[i], prevWithdrawalProof)
 		if err != nil {
 			return nil, fmt.Errorf("failed to request withdrawal proof to prover: %w", err)
 		}
@@ -417,6 +428,102 @@ func (w *WithdrawalAggregatorService) buildSubmitWithdrawalProofData(pendingWith
 
 	return withdrawalWrapperProof, nil
 }
+
+// func (w *WithdrawalAggregatorService) BuildSubmitWithdrawalProofData(pendingWithdrawals []mDBApp.Withdrawal, withdrawalAggregator common.Address) ([]byte, error) {
+// 	prevWithdrawalProof := new(string)
+
+// 	for i := range pendingWithdrawals {
+// 		transferTreeRoot := new(goldenposeidon.PoseidonHashOut)
+// 		transferTreeRoot.FromString(pendingWithdrawals[i].Transaction.TransferTreeRoot)
+
+// 		salt := new(goldenposeidon.PoseidonHashOut)
+// 		salt.FromString(pendingWithdrawals[i].TransferData.Salt)
+
+// 		// transferMerkleSiblings := make([]string, 0, len(pendingWithdrawals[i].TransferMerkleProof.Siblings))
+// 		// for _, sibling := range pendingWithdrawals[i].TransferMerkleProof.Siblings {
+// 		// 	s := new(goldenposeidon.PoseidonHashOut)
+// 		// 	err := s.FromString(sibling)
+// 		// 	if err != nil {
+// 		// 		return nil, fmt.Errorf("failed to unmarshal transfer merkle sibling: %w", err)
+// 		// 	}
+// 		// 	transferMerkleSiblings = append(transferMerkleSiblings, s.String())
+// 		// }
+
+// 		recipientBytes, err := hexutil.Decode(pendingWithdrawals[i].TransferData.Recipient)
+// 		if err != nil {
+// 			return nil, fmt.Errorf("failed to decode recipient address: %w", err)
+// 		}
+// 		recipient, err := intMaxTypes.NewEthereumAddress(recipientBytes)
+// 		if err != nil {
+// 			return nil, fmt.Errorf("failed to convert recipient address: %w", err)
+// 		}
+
+// 		amount, ok := new(big.Int).SetString(pendingWithdrawals[i].TransferData.Amount, base10)
+// 		if !ok {
+// 			return nil, fmt.Errorf("failed to set amount")
+// 		}
+
+// 		balanceProof := pendingWithdrawals[i].EnoughBalanceProof.Proof
+// 		// balanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(balanceProof)
+// 		// if err != nil {
+// 		// 	return nil, fmt.Errorf("failed to create balance proof with pis: %w", err)
+// 		// }
+// 		// balancePublicInputs := balanceProofWithPis.PublicInputs
+
+// 		// balanceProof, err := base64.StdEncoding.DecodeString(pendingWithdrawals[i].EnoughBalanceProof.Proof)
+// 		// if err != nil {
+// 		// 	return nil, fmt.Errorf("failed to decode balance proof: %w", err)
+// 		// }
+
+// 		// decodedBalancePublicInputs, err := base64.StdEncoding.DecodeString(pendingWithdrawals[i].EnoughBalanceProof.PublicInputs)
+// 		// if err != nil {
+// 		// 	return nil, fmt.Errorf("failed to decode balance public inputs: %w", err)
+// 		// }
+
+// 		// const numGoldilocksFieldBytes = 8
+// 		// if len(decodedBalancePublicInputs)%numGoldilocksFieldBytes != 0 {
+// 		// 	return nil, fmt.Errorf("balance public inputs length is not multiple of %d", numGoldilocksFieldBytes)
+// 		// }
+
+// 		// balancePublicInputs := make([]ffg.Element, 0, len(decodedBalancePublicInputs))
+// 		// for i := 0; i < len(balancePublicInputs); i += numGoldilocksFieldBytes {
+// 		// 	e := binary.BigEndian.Uint64(decodedBalancePublicInputs[i : i+numGoldilocksFieldBytes])
+// 		// 	balancePublicInputs = append(balancePublicInputs, *new(ffg.Element).SetUint64(e))
+// 		// }
+
+// 		withdrawalWitness := WithdrawalWitnessInput{
+// 			TransferWitness: &TransferWitnessInput{
+// 				Tx: TxInput{
+// 					TransferTreeRoot: *transferTreeRoot,
+// 					Nonce:            uint64(pendingWithdrawals[i].Transaction.Nonce),
+// 				},
+// 				Transfer: *new(TransferInput).FromTransfer(&intMaxTypes.Transfer{
+// 					Recipient:  recipient,
+// 					TokenIndex: uint32(pendingWithdrawals[i].TransferData.TokenIndex),
+// 					Amount:     amount,
+// 					Salt:       salt,
+// 				}),
+// 				TransferIndex:       uint(pendingWithdrawals[i].TransferMerkleProof.Index),
+// 				TransferMerkleProof: pendingWithdrawals[i].TransferMerkleProof.Siblings,
+// 			},
+// 			BalanceProof: balanceProof,
+// 		}
+
+// 		withdrawalProof, err := w.RequestWithdrawalProofToProver(&withdrawalWitness, prevWithdrawalProof)
+// 		if err != nil {
+// 			return nil, fmt.Errorf("failed to request withdrawal proof to prover: %w", err)
+// 		}
+
+// 		prevWithdrawalProof = withdrawalProof
+// 	}
+
+// 	withdrawalWrapperProof, err := w.RequestWithdrawalWrapperProofToProver(*prevWithdrawalProof, withdrawalAggregator)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to request withdrawal wrapper proof to prover: %w", err)
+// 	}
+
+// 	return withdrawalWrapperProof, nil
+// }
 
 func (w *WithdrawalAggregatorService) buildMockSubmitWithdrawalProofData(pendingWithdrawals []mDBApp.Withdrawal) (*WithdrawalInfo, error) {
 	// private key to address
@@ -483,7 +590,88 @@ func (w *WithdrawalAggregatorService) buildMockSubmitWithdrawalProofData(pending
 		withdrawals = append(withdrawals, singleWithdrawal)
 	}
 
-	withdrawalWrapperProof, err := w.buildSubmitWithdrawalProofData(pendingWithdrawals, aggregator)
+	withdrawalWitnesses := make([]WithdrawalWitnessInput, 0, len(pendingWithdrawals))
+	for i := range pendingWithdrawals {
+		transferTreeRoot := new(goldenposeidon.PoseidonHashOut)
+		transferTreeRoot.FromString(pendingWithdrawals[i].Transaction.TransferTreeRoot)
+
+		salt := new(goldenposeidon.PoseidonHashOut)
+		salt.FromString(pendingWithdrawals[i].TransferData.Salt)
+
+		// transferMerkleSiblings := make([]string, 0, len(pendingWithdrawals[i].TransferMerkleProof.Siblings))
+		// for _, sibling := range pendingWithdrawals[i].TransferMerkleProof.Siblings {
+		// 	s := new(goldenposeidon.PoseidonHashOut)
+		// 	err := s.FromString(sibling)
+		// 	if err != nil {
+		// 		return nil, fmt.Errorf("failed to unmarshal transfer merkle sibling: %w", err)
+		// 	}
+		// 	transferMerkleSiblings = append(transferMerkleSiblings, s.String())
+		// }
+
+		recipientBytes, err := hexutil.Decode(pendingWithdrawals[i].TransferData.Recipient)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode recipient address: %w", err)
+		}
+		recipient, err := intMaxTypes.NewEthereumAddress(recipientBytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert recipient address: %w", err)
+		}
+
+		amount, ok := new(big.Int).SetString(pendingWithdrawals[i].TransferData.Amount, base10)
+		if !ok {
+			return nil, fmt.Errorf("failed to set amount")
+		}
+
+		balanceProof := pendingWithdrawals[i].EnoughBalanceProof.Proof
+		// balanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(balanceProof)
+		// if err != nil {
+		// 	return nil, fmt.Errorf("failed to create balance proof with pis: %w", err)
+		// }
+		// balancePublicInputs := balanceProofWithPis.PublicInputs
+
+		// balanceProof, err := base64.StdEncoding.DecodeString(pendingWithdrawals[i].EnoughBalanceProof.Proof)
+		// if err != nil {
+		// 	return nil, fmt.Errorf("failed to decode balance proof: %w", err)
+		// }
+
+		// decodedBalancePublicInputs, err := base64.StdEncoding.DecodeString(pendingWithdrawals[i].EnoughBalanceProof.PublicInputs)
+		// if err != nil {
+		// 	return nil, fmt.Errorf("failed to decode balance public inputs: %w", err)
+		// }
+
+		// const numGoldilocksFieldBytes = 8
+		// if len(decodedBalancePublicInputs)%numGoldilocksFieldBytes != 0 {
+		// 	return nil, fmt.Errorf("balance public inputs length is not multiple of %d", numGoldilocksFieldBytes)
+		// }
+
+		// balancePublicInputs := make([]ffg.Element, 0, len(decodedBalancePublicInputs))
+		// for i := 0; i < len(balancePublicInputs); i += numGoldilocksFieldBytes {
+		// 	e := binary.BigEndian.Uint64(decodedBalancePublicInputs[i : i+numGoldilocksFieldBytes])
+		// 	balancePublicInputs = append(balancePublicInputs, *new(ffg.Element).SetUint64(e))
+		// }
+
+		withdrawalWitness := WithdrawalWitnessInput{
+			TransferWitness: &TransferWitnessInput{
+				Tx: TxInput{
+					TransferTreeRoot: *transferTreeRoot,
+					Nonce:            uint64(pendingWithdrawals[i].Transaction.Nonce),
+				},
+				Transfer: *new(TransferInput).FromTransfer(&intMaxTypes.Transfer{
+					Recipient:  recipient,
+					TokenIndex: uint32(pendingWithdrawals[i].TransferData.TokenIndex),
+					Amount:     amount,
+					Salt:       salt,
+				}),
+				TransferIndex:       uint(pendingWithdrawals[i].TransferMerkleProof.Index),
+				TransferMerkleProof: pendingWithdrawals[i].TransferMerkleProof.Siblings,
+			},
+			BalanceProof: balanceProof,
+		}
+
+		withdrawalWitnesses = append(withdrawalWitnesses, withdrawalWitness)
+	}
+
+	withdrawalWrapperProof, err := w.BuildSubmitWithdrawalProofData(withdrawalWitnesses, aggregator)
 	if err != nil {
 		return nil, err
 	}
@@ -539,46 +727,57 @@ func extractIds(withdrawas []mDBApp.Withdrawal) []string {
 	return ids
 }
 
-func (w *WithdrawalAggregatorService) RequestWithdrawalProofToProver(witness *WithdrawalWitness, prevProof *string) (*string, error) {
+func (w *WithdrawalAggregatorService) RequestWithdrawalProofToProver(witness *WithdrawalWitnessInput, prevProof *string) (*string, error) {
 	requestID := uuid.New().String()
 	resGeneration, err := w.requestWithdrawalProofToProver(requestID, witness, prevProof)
 	if err != nil {
-		ticker := time.NewTicker(10 * time.Second)
-		for {
-			select {
-			case <-w.ctx.Done():
-				return nil, err
-			case <-ticker.C:
-				resFetching, errFetching := w.fetchWithdrawalProofToProver(requestID)
-				if errFetching != nil {
-					var ErrWrappedWithdrawalProofFetching = errors.New("failed to fetch wrapper withdrawal proof")
-					err = errors.Join(ErrWrappedWithdrawalProofFetching, errFetching)
-
-					time.Sleep(10 * time.Second)
-
-					continue
-				}
-
-				return resFetching, nil
-			}
-		}
+		return nil, err
 	}
 
-	return resGeneration, nil
+	if resGeneration != nil {
+		fmt.Printf("Request Withdrawal Proof to Prover: %s\n", *resGeneration)
+		return resGeneration, nil
+	}
+
+	ticker := time.NewTicker(5 * time.Second)
+	for {
+		select {
+		case <-w.ctx.Done():
+			return nil, err
+		case <-ticker.C:
+			resFetching, errFetching := w.fetchWithdrawalProofToProver(requestID)
+			if errFetching != nil {
+				var ErrWrappedWithdrawalProofFetching = errors.New("failed to fetch wrapper withdrawal proof")
+				err = errors.Join(ErrWrappedWithdrawalProofFetching, errFetching)
+
+				time.Sleep(10 * time.Second)
+
+				continue
+			}
+
+			return resFetching, nil
+		}
+	}
 }
 
-func (w *WithdrawalAggregatorService) requestWithdrawalProofToProver(requestID string, witness *WithdrawalWitness, prevProof *string) (*string, error) {
-	requestBody := map[string]interface{}{
-		"id":                  requestID,
-		"prevWithdrawalProof": prevProof,
-		"withdrawalWitness":   witness,
+type WithdrawalProofRequest struct {
+	ID                  string                  `json:"id"`
+	PrevWithdrawalProof *string                 `json:"prevWithdrawalProof,omitempty"`
+	WithdrawalWitness   *WithdrawalWitnessInput `json:"withdrawalWitness"`
+}
+
+func (w *WithdrawalAggregatorService) requestWithdrawalProofToProver(requestID string, witness *WithdrawalWitnessInput, prevProof *string) (*string, error) {
+	requestBody := WithdrawalProofRequest{
+		ID:                  requestID,
+		PrevWithdrawalProof: prevProof,
+		WithdrawalWitness:   witness,
 	}
 	jsonBody, err := json.Marshal(requestBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal JSON request body: %w", err)
 	}
 
-	apiUrl := fmt.Sprintf("%s/proof",
+	apiUrl := fmt.Sprintf("%s/proof/withdrawal",
 		w.cfg.API.WithdrawalProverUrl,
 	)
 	resp, err := http.Post(apiUrl, "application/json", bytes.NewBuffer(jsonBody)) // nolint:gosec
@@ -602,19 +801,19 @@ func (w *WithdrawalAggregatorService) requestWithdrawalProofToProver(requestID s
 }
 
 func (w *WithdrawalAggregatorService) fetchWithdrawalProofToProver(requestID string) (*string, error) {
-	requestBody := map[string]interface{}{
-		"id": requestID,
-	}
-	jsonBody, err := json.Marshal(requestBody)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal JSON request body: %w", err)
-	}
+	// requestBody := map[string]interface{}{
+	// 	"id": requestID,
+	// }
+	// jsonBody, err := json.Marshal(requestBody)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to marshal JSON request body: %w", err)
+	// }
 
-	apiUrl := fmt.Sprintf("%s/proof/%s",
+	apiUrl := fmt.Sprintf("%s/proof/withdrawal/%s",
 		w.cfg.API.WithdrawalProverUrl,
 		requestID,
 	)
-	resp, err := http.Post(apiUrl, "application/json", bytes.NewBuffer(jsonBody)) // nolint:gosec
+	resp, err := http.Get(apiUrl) // nolint:gosec
 	if err != nil {
 		return nil, fmt.Errorf("failed to request API: %w", err)
 	}
@@ -646,25 +845,30 @@ func (w *WithdrawalAggregatorService) RequestWithdrawalWrapperProofToProver(with
 	requestID := uuid.New().String()
 	resGeneration, err := w.requestWithdrawalWrapperProofToProver(requestID, withdrawalProof, withdrawalAggregator)
 	if err != nil {
-		ticker := time.NewTicker(10 * time.Second)
-		for {
-			select {
-			case <-w.ctx.Done():
-				return nil, err
-			case <-ticker.C:
-				resFetching, errFetching := w.fetchWithdrawalWrapperProofToProver(requestID)
-				if errFetching != nil {
-					var ErrWrappedWithdrawalProofFetching = errors.New("failed to fetch wrapper withdrawal proof")
-					err = errors.Join(ErrWrappedWithdrawalProofFetching, errFetching)
-					continue
-				}
-
-				return []byte(*resFetching), nil
-			}
-		}
+		return nil, err
 	}
 
-	return []byte(*resGeneration), nil
+	if resGeneration != nil {
+		fmt.Printf("Request Withdrawal Proof to Prover: %s\n", *resGeneration)
+		return []byte(*resGeneration), nil
+	}
+
+	ticker := time.NewTicker(10 * time.Second)
+	for {
+		select {
+		case <-w.ctx.Done():
+			return nil, err
+		case <-ticker.C:
+			resFetching, errFetching := w.fetchWithdrawalWrapperProofToProver(requestID)
+			if errFetching != nil {
+				var ErrWrappedWithdrawalProofFetching = errors.New("failed to fetch wrapper withdrawal proof")
+				err = errors.Join(ErrWrappedWithdrawalProofFetching, errFetching)
+				continue
+			}
+
+			return []byte(*resFetching), nil
+		}
+	}
 }
 
 func (w *WithdrawalAggregatorService) requestWithdrawalWrapperProofToProver(requestID string, withdrawalProof string, withdrawalAggregator common.Address) (wrappedProof *string, err error) {
@@ -710,7 +914,7 @@ func (w *WithdrawalAggregatorService) requestWithdrawalWrapperProofToProver(requ
 }
 
 func (w *WithdrawalAggregatorService) fetchWithdrawalWrapperProofToProver(requestID string) (wrappedProof *string, err error) {
-	apiUrl := fmt.Sprintf("%s/proof/wrapper?id=%s",
+	apiUrl := fmt.Sprintf("%s/proof/wrapper/%s",
 		w.cfg.API.WithdrawalProverUrl,
 		requestID,
 	)
@@ -767,8 +971,10 @@ func (w *WithdrawalAggregatorService) RequestWithdrawalGnarkProofToProver(wrappe
 }
 
 func (w *WithdrawalAggregatorService) requestWithdrawalGnarkProofToProver(wrappedProofJSON []byte) (string, error) {
+	// withdrawalGnarkProverUrl :=  w.cfg.API.WithdrawalGnarkProverUrl
+	withdrawalGnarkProverUrl := "http://localhost:8100"
 	apiUrl := fmt.Sprintf("%s/start-proof",
-		w.cfg.API.WithdrawalGnarkProverUrl,
+		withdrawalGnarkProverUrl,
 	)
 	resp, err := http.Post(apiUrl, "application/json", bytes.NewBuffer(wrappedProofJSON)) // nolint:gosec
 	if err != nil {
@@ -791,8 +997,10 @@ func (w *WithdrawalAggregatorService) requestWithdrawalGnarkProofToProver(wrappe
 }
 
 func (w *WithdrawalAggregatorService) fetchWithdrawalGnarkProofToProver(jobID string) (wrappedProof *GnarkGetProofResponseResult, err error) {
+	// withdrawalGnarkProverUrl :=  w.cfg.API.WithdrawalGnarkProverUrl
+	withdrawalGnarkProverUrl := "http://localhost:8100"
 	apiUrl := fmt.Sprintf("%s/get-proof?jobId=%s",
-		w.cfg.API.WithdrawalGnarkProverUrl,
+		withdrawalGnarkProverUrl,
 		jobID,
 	)
 	resp, err := http.Get(apiUrl) // nolint:gosec
