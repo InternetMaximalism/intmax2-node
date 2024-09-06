@@ -50,6 +50,8 @@ func TestHandlerTransaction(t *testing.T) {
 	dbApp := NewMockSQLDriverApp(ctrl)
 	wrk := NewMockWorker(ctrl)
 	hc := health.NewHandler()
+	sb := NewMockServiceBlockchain(ctrl)
+	storageGPO := NewMockGPOStorage(ctrl)
 
 	pw := pow.New(cfg.PoW.Difficulty)
 	pWorker := pow.NewWorker(cfg.PoW.Workers, pw)
@@ -168,7 +170,7 @@ func TestHandlerTransaction(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	grpcServerStop, gwServer := Start(cmd, ctx, cfg, log, dbApp, &hc, pwNonce, wrk)
+	grpcServerStop, gwServer := Start(cmd, ctx, cfg, log, dbApp, &hc, pwNonce, wrk, sb, storageGPO)
 	defer grpcServerStop()
 
 	cases := []struct {

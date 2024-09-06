@@ -62,8 +62,6 @@ type Worker interface {
 		tickerCurrentFile, tickerSignaturesAvailableFiles *time.Ticker,
 	) error
 	Receiver(input *ReceiverWorker) error
-	CurrentDir() string
-	CurrentFileName() string
 	AvailableFiles() (list []*os.File, err error)
 	TrHash(trHash string) (*TransactionHashesWithSenderAndFile, error)
 	TxTreeByAvailableFile(sf *TransactionHashesWithSenderAndFile) (txTreeRoot *TxTree, err error)

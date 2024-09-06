@@ -1,8 +1,7 @@
 package models
 
 const (
-	DepositsAnalyzedEvent = "DepositsAnalyzed"
-	DepositsRelayedEvent  = "DepositsRelayed"
+	DepositsAndAnalyzedReleyedEvent = "DepositsAndAnalyzedReleyedEvent"
 )
 
 type EventBlockNumber struct {

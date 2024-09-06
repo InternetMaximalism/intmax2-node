@@ -27,7 +27,6 @@ func NewDepositCmd(d *Deposit) *cobra.Command {
 		Short: short,
 	}
 	depositCmd.AddCommand(analyzerCmd(d))
-	depositCmd.AddCommand(relayerCmd(d))
 
 	return depositCmd
 }

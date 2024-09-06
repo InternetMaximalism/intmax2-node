@@ -16,6 +16,8 @@ type Server struct {
 	hc               *health.Handler
 	pow              PoWNonce
 	worker           Worker
+	sb               ServiceBlockchain
+	storageGPO       GPOStorage
 }
 
 // New initializes a new Server struct.
@@ -28,6 +30,8 @@ func New(
 	hc *health.Handler,
 	pow PoWNonce,
 	worker Worker,
+	sb ServiceBlockchain,
+	storageGPO GPOStorage,
 ) *Server {
 	const (
 		srv  = "server"
@@ -43,6 +47,8 @@ func New(
 		hc:               hc,
 		pow:              pow,
 		worker:           worker,
+		sb:               sb,
+		storageGPO:       storageGPO,
 	}
 }
 

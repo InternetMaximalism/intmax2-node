@@ -275,31 +275,33 @@ func (w *worker) newTempFile(dir string) error {
 	return nil
 }
 
-func (w *worker) CurrentDir() string {
-	return w.files.CurrentDir
-}
-
-func (w *worker) CurrentFileName() string {
-	return w.files.CurrentFile.Name()
-}
-
 func (w *worker) AvailableFiles() (list []*os.File, err error) {
 	for key := range w.files.FilesList {
+		w.files.Lock()
 		cond1 := w.files.CurrentFile.Name() != key.Name()
 		cond2 := atomic.LoadInt32(&w.files.FilesList[key].TransactionsCounter) == 0
-		if cond1 && cond2 && !w.files.FilesList[key].Processing {
-			if !w.files.FilesList[key].Delivered {
+		cond3 := !w.files.FilesList[key].Processing
+		w.files.Unlock()
+		if cond1 && cond2 && cond3 {
+			w.files.Lock()
+			condIsDelivered := !w.files.FilesList[key].Delivered
+			w.files.Unlock()
+			if condIsDelivered {
 				err = w.leafsProcessing(key)
 				if err != nil {
 					return nil, errors.Join(ErrLeafsProcessing, err)
 				}
 
+				w.files.Lock()
 				w.files.FilesList[key].CtxCancel()
+				w.files.Unlock()
 				continue
 			}
 			list = append(list, key)
 		}
 	}
+	w.files.Lock()
+	defer w.files.Unlock()
 	sort.Slice(list, func(i, j int) bool {
 		b, _ := list[i].Stat()
 		b2, _ := list[j].Stat()
@@ -310,6 +312,9 @@ func (w *worker) AvailableFiles() (list []*os.File, err error) {
 }
 
 func (w *worker) TxTreeByAvailableFile(sf *TransactionHashesWithSenderAndFile) (txTreeRoot *TxTree, err error) {
+	w.files.Lock()
+	defer w.files.Unlock()
+
 	f, ok := w.files.FilesList[sf.File]
 	if !ok {
 		// transfersHash not found
@@ -419,15 +424,17 @@ func (w *worker) Start(
 			tickerCurrentFile.Stop()
 			return nil
 		case <-tickerCurrentFile.C:
+			w.files.Lock()
 			st, err := w.files.CurrentFile.Stat()
 			if err != nil {
+				w.files.Unlock()
 				return errors.Join(ErrStatCurrentFileFail, err)
 			}
-
 			// cond1 - current file lifetime expired
 			cond1 := st.ModTime().UTC().Add(w.cfg.Worker.CurrentFileLifetime).UnixNano()-time.Now().UTC().UnixNano() <= 0
 			// cond2 - the number of users exceeded the limit
 			cond2 := len(w.files.FilesList[w.files.CurrentFile].UsersCounter) > w.cfg.Worker.MaxCounterOfUsers
+			w.files.Unlock()
 			if cond1 || cond2 {
 				err = w.newTempFile(w.files.CurrentDir)
 				if err != nil {
@@ -441,6 +448,7 @@ func (w *worker) Start(
 			}
 
 			for key := range list {
+				w.files.Lock()
 				// cond1 - all transactions are processed
 				cond1 := w.files.FilesList[list[key]].Delivered
 				// cond2 - transaction collection for tx tree completed
@@ -448,10 +456,13 @@ func (w *worker) Start(
 					w.files.FilesList[list[key]].Timestamp.UTC().Add(
 						w.cfg.Worker.TimeoutForSignaturesAvailableFiles,
 					).UnixNano() < time.Now().UTC().UnixNano()
+				w.files.Unlock()
 				if cond1 && cond2 {
 					if atomic.LoadInt32(&w.numWorkers) < w.maxWorkers {
+						w.files.Lock()
 						// Change status to processing
 						w.files.FilesList[list[key]].Processing = true
+						w.files.Unlock()
 						atomic.AddInt32(&w.numWorkers, 1)
 						go func(f *os.File) {
 							if err = w.postProcessing(ctx, f); err != nil {
@@ -504,11 +515,13 @@ func (w *worker) Receiver(input *ReceiverWorker) error {
 
 	input.TxHash = currTx
 
+	w.files.Lock()
 	w.trHashes.Hashes[currTx.Hash().String()] = &TransactionHashesWithSenderAndFile{
 		Sender: input.Sender,
 		TxHash: currTx.Hash().String(),
 		File:   w.files.CurrentFile,
 	}
+	w.files.Unlock()
 
 	err = w.registerReceiver(input)
 	if err != nil {
@@ -523,13 +536,14 @@ func (w *worker) registerReceiver(input *ReceiverWorker) (err error) {
 		return ErrReceiverWorkerEmpty
 	}
 
+	w.files.Lock()
+	defer w.files.Unlock()
+
 	current := w.files.CurrentFile
 
-	w.files.Lock()
 	atomic.AddInt32(&w.files.FilesList[current].TransactionsCounter, 1)
 	w.files.FilesList[current].UsersCounter[input.Sender] = input.Sender
 	w.files.FilesList[current].Hashes[input.TxHash.Hash().String()] = nil
-	w.files.Unlock()
 
 	w.files.FilesList[current].Receiver <- func() error {
 		w.files.Lock()
@@ -591,6 +605,9 @@ func (w *worker) registerReceiver(input *ReceiverWorker) (err error) {
 }
 
 func (w *worker) leafsProcessing(f *os.File) (err error) {
+	w.files.Lock()
+	defer w.files.Unlock()
+
 	defer atomic.AddInt32(&w.numWorkers, -1)
 
 	var txTreePublicKeys *intMaxTree.TxTree
@@ -720,9 +737,7 @@ func (w *worker) leafsProcessing(f *os.File) (err error) {
 					})
 				}
 
-				w.files.Lock()
 				w.files.FilesList[f].Hashes[info.TxsList[key].TxHash.Hash().String()] = &lfh
-				w.files.Unlock()
 
 				if isAcc {
 					numberAccountIDs++
@@ -758,7 +773,6 @@ func (w *worker) leafsProcessing(f *os.File) (err error) {
 
 		txRoot, count, sb := txTreePublicKeys.GetCurrentRootCountAndSiblings()
 
-		w.files.FilesList[f].Lock()
 		w.files.FilesList[f].LeafsTreePublicKeys = &LeafsTree{
 			TxTree:                 txTreePublicKeys,
 			TxRoot:                 &txRoot,
@@ -769,7 +783,6 @@ func (w *worker) leafsProcessing(f *os.File) (err error) {
 			Signatures:             make([]*signaturesByLeafIndex, len(senderPublicKeys)),
 			SignaturesByLeafIndex:  lfhPubKey,
 		}
-		w.files.FilesList[f].Unlock()
 	}
 
 	if numberAccountIDs > 0 {
@@ -794,7 +807,6 @@ func (w *worker) leafsProcessing(f *os.File) (err error) {
 
 		txRoot, count, sb := txTreePublicKeys.GetCurrentRootCountAndSiblings()
 
-		w.files.FilesList[f].Lock()
 		w.files.FilesList[f].LeafsTreeAccounts = &LeafsTree{
 			TxTree:                 txTreeAccountIDs,
 			TxRoot:                 &txRoot,
@@ -806,7 +818,6 @@ func (w *worker) leafsProcessing(f *os.File) (err error) {
 			Signatures:             make([]*signaturesByLeafIndex, len(senderPublicKeys)),
 			SignaturesByLeafIndex:  lfhAccIDs,
 		}
-		w.files.FilesList[f].Unlock()
 	}
 
 	return nil
@@ -875,15 +886,16 @@ func funcLFT(q SQLDriverApp, block *mDBApp.Block, lft *LeafsTree) (err error) {
 func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 	defer atomic.AddInt32(&w.numWorkers, -1)
 
+	w.files.Lock()
 	if len(w.files.FilesList[f].Hashes) == 0 {
-		w.files.Lock()
-		defer w.files.Unlock()
 		delete(w.files.FilesList, f)
 		w.files.Cleaner <- func() {
 			_ = os.Remove(f.Name())
 		}
+		w.files.Unlock()
 		return nil
 	}
+	w.files.Unlock()
 
 	defer func() {
 		w.files.Lock()
@@ -899,13 +911,16 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 		w.files.FilesList[f].Processing = false
 	}()
 
+	w.files.Lock()
 	const int0Key = 0
 	if (w.files.FilesList[f].LeafsTreePublicKeys == nil ||
 		w.files.FilesList[f].LeafsTreePublicKeys.SignaturesCounter <= int0Key) &&
 		(w.files.FilesList[f].LeafsTreeAccounts == nil ||
 			w.files.FilesList[f].LeafsTreeAccounts.SignaturesCounter <= int0Key) {
+		w.files.Unlock()
 		return nil
 	}
+	w.files.Unlock()
 
 	var mw *modelsMW.Wallet
 	mw, err = mnemonic_wallet.New().WalletFromPrivateKeyHex(w.cfg.Blockchain.BuilderPrivateKeyHex)
@@ -917,9 +932,14 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 		q := d.(SQLDriverApp)
 
 		var lft *LeafsTree
-		if w.files.FilesList[f].LeafsTreePublicKeys != nil &&
-			w.files.FilesList[f].LeafsTreePublicKeys.SignaturesCounter > int0Key {
+		w.files.Lock()
+		cond1 := w.files.FilesList[f].LeafsTreePublicKeys != nil &&
+			w.files.FilesList[f].LeafsTreePublicKeys.SignaturesCounter > int0Key
+		w.files.Unlock()
+		if cond1 {
+			w.files.Lock()
 			lft = w.files.FilesList[f].LeafsTreePublicKeys
+			w.files.Unlock()
 
 			var bytesLfsTree []byte
 			bytesLfsTree, err = json.Marshal(&lft)
@@ -969,9 +989,14 @@ func (w *worker) postProcessing(ctx context.Context, f *os.File) (err error) {
 			return funcLFT(q, block, lft)
 		}
 
-		if w.files.FilesList[f].LeafsTreeAccounts != nil &&
-			w.files.FilesList[f].LeafsTreeAccounts.SignaturesCounter > int0Key {
+		w.files.Lock()
+		cond2 := w.files.FilesList[f].LeafsTreeAccounts != nil &&
+			w.files.FilesList[f].LeafsTreeAccounts.SignaturesCounter > int0Key
+		w.files.Unlock()
+		if cond2 {
+			w.files.Lock()
 			lft = w.files.FilesList[f].LeafsTreeAccounts
+			w.files.Unlock()
 
 			var bytesLfsTree []byte
 			bytesLfsTree, err = json.Marshal(&lft)
@@ -1054,6 +1079,9 @@ func (w *worker) SignTxTreeByAvailableFile(
 	sf *TransactionHashesWithSenderAndFile,
 	leafIndex uint64,
 ) error {
+	w.files.Lock()
+	defer w.files.Unlock()
+
 	f, ok := w.files.FilesList[sf.File]
 	if !ok {
 		// transfersHash not found
@@ -1093,9 +1121,6 @@ func (w *worker) SignTxTreeByAvailableFile(
 			}
 		}
 	}
-
-	w.files.Lock()
-	defer w.files.Unlock()
 
 	tm := time.Now().UTC().UnixNano()
 	if w.files.FilesList[sf.File].Hashes[sf.TxHash].AccountID != nil &&

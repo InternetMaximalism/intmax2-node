@@ -35,6 +35,8 @@ type PGX interface {
 	BackupBalances
 	Deposits
 	BlockContents
+	CtrlProcessingJobs
+	GasPriceOracle
 }
 
 type GenericCommands interface {
@@ -242,4 +244,14 @@ type BlockContents interface {
 	// LastValidityWitness() (*block_validity_prover.ValidityWitness, error)
 	// SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error
 	// LastSeenBlockPostedEventBlockNumber() (blockNumber uint64, err error)
+}
+
+type CtrlProcessingJobs interface {
+	CreateCtrlProcessingJobs(name string) error
+	CtrlProcessingJobs(name string) (*mDBApp.CtrlProcessingJobs, error)
+}
+
+type GasPriceOracle interface {
+	CreateGasPriceOracle(name string, value *uint256.Int) error
+	GasPriceOracle(name string) (*mDBApp.GasPriceOracle, error)
 }

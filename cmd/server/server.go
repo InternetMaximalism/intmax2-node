@@ -10,6 +10,7 @@ import (
 	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/block_validity_prover"
 	errorsB "intmax2-node/internal/blockchain/errors"
+	"intmax2-node/internal/gas_price_oracle"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/network_service"
 	"intmax2-node/internal/pb/gateway"
@@ -44,6 +45,7 @@ type Server struct {
 	Worker              Worker
 	DepositSynchronizer DepositSynchronizer
 	BlockPostService    BlockPostService
+	GPOStorage          GPOStorage
 }
 
 func NewServerCmd(s *Server) *cobra.Command {
@@ -72,6 +74,18 @@ func NewServerCmd(s *Server) *cobra.Command {
 			err = s.SB.CheckScrollPrivateKey(s.Context)
 			if err != nil {
 				const msg = "check private key error occurred: %v"
+				s.Log.Fatalf(msg, err.Error())
+			}
+
+			err = s.GPOStorage.Init(s.Context)
+			if err != nil {
+				const msg = "init the gas price oracle storage error occurred: %v"
+				s.Log.Fatalf(msg, err.Error())
+			}
+
+			err = s.GPOStorage.UpdValues(s.Context, gas_price_oracle.ScrollEthGPO)
+			if err != nil {
+				const msg = "failed to update values of the gas price oracle storage: %+v"
 				s.Log.Fatalf(msg, err.Error())
 			}
 
@@ -179,6 +193,33 @@ func NewServerCmd(s *Server) *cobra.Command {
 				if err = s.Worker.Start(s.Context, tickerCurrentFile, tickerSignaturesAvailableFiles); err != nil {
 					const msg = "failed to start worker: %+v"
 					s.Log.Fatalf(msg, err.Error())
+				}
+			}()
+
+			wg.Add(1)
+			s.WG.Add(1)
+			go func() {
+				defer func() {
+					wg.Done()
+					s.WG.Done()
+				}()
+				tickerGasPriceOracle := time.NewTicker(s.Config.GasPriceOracle.Timeout)
+				defer func() {
+					if tickerGasPriceOracle != nil {
+						tickerGasPriceOracle.Stop()
+					}
+				}()
+				for {
+					select {
+					case <-s.Context.Done():
+						return
+					case <-tickerGasPriceOracle.C:
+						err = s.GPOStorage.UpdValues(s.Context, gas_price_oracle.ScrollEthGPO)
+						if err != nil {
+							const msg = "failed to update values of the gas price oracle storage: %+v"
+							s.Log.Fatalf(msg, err.Error())
+						}
+					}
 				}
 			}()
 
@@ -354,7 +395,16 @@ func (s *Server) Init() error {
 	}
 
 	srv := server.New(
-		s.Log, s.Config, s.DbApp, server.NewCommands(), s.Config.HTTP.CookieForAuthUse, s.HC, s.PoW, s.Worker,
+		s.Log,
+		s.Config,
+		s.DbApp,
+		server.NewCommands(),
+		s.Config.HTTP.CookieForAuthUse,
+		s.HC,
+		s.PoW,
+		s.Worker,
+		s.SB,
+		s.GPOStorage,
 	)
 	ctx := context.WithValue(s.Context, consts.AppConfigs, s.Config)
 

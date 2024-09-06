@@ -28,6 +28,7 @@ type Config struct {
 	DepositSynchronizer DepositSynchronizer
 	BlockPostService    BlockPostService
 	BlockValidityProver BlockValidityProver
+	GasPriceOracle      GasPriceOracle
 	Blockchain          Blockchain
 	Network             Network
 	StunServer          StunServer
@@ -53,6 +54,9 @@ func New() *Config {
 		}
 		config.HTTP.Timeout = config.HTTP.CORSMaxAge
 		config.Swagger.Prepare()
+		if config.GasPriceOracle.Delimiter <= intValue0 {
+			config.GasPriceOracle.Delimiter = gasPriceOracleDelimiterDef
+		}
 		if config.APP.PrintConfig {
 			config.print()
 		}

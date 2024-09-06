@@ -3,12 +3,14 @@ package server
 import (
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
+	blockInfo "intmax2-node/internal/use_cases/block_info"
 	blockProposed "intmax2-node/internal/use_cases/block_proposed"
 	blockSignature "intmax2-node/internal/use_cases/block_signature"
 	blockStatus "intmax2-node/internal/use_cases/block_status"
 	getVersion "intmax2-node/internal/use_cases/get_version"
 	healthCheck "intmax2-node/internal/use_cases/health_check"
 	"intmax2-node/internal/use_cases/transaction"
+	ucBlockInfo "intmax2-node/pkg/use_cases/block_info"
 	ucBlockProposed "intmax2-node/pkg/use_cases/block_proposed"
 	ucBlockSignature "intmax2-node/pkg/use_cases/block_signature"
 	ucBlockStatus "intmax2-node/pkg/use_cases/block_status"
@@ -35,6 +37,10 @@ type Commands interface {
 		log logger.Logger,
 		worker Worker,
 	) blockSignature.UseCaseBlockSignature
+	BlockInfo(
+		cfg *configs.Config,
+		storageGPO GPOStorage,
+	) blockInfo.UseCaseBlockInfo
 	BlockStatusByTxTreeRoot(
 		cfg *configs.Config,
 		log logger.Logger,
@@ -75,6 +81,13 @@ func (c *commands) BlockSignature(
 	worker Worker,
 ) blockSignature.UseCaseBlockSignature {
 	return ucBlockSignature.New(cfg, log, worker)
+}
+
+func (c *commands) BlockInfo(
+	cfg *configs.Config,
+	storageGPO GPOStorage,
+) blockInfo.UseCaseBlockInfo {
+	return ucBlockInfo.New(cfg, storageGPO)
 }
 
 func (c *commands) BlockStatusByTxTreeRoot(

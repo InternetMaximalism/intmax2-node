@@ -500,6 +500,32 @@
       },
       "title": "DataBlockSignatureResponse describes the data of response about sends the signature to approve the proposed block by signing the tx tree root"
     },
+    "v1DataInfoResponse": {
+      "type": "object",
+      "properties": {
+        "scrollAddress": {
+          "type": "string",
+          "title": "the block builder's Scroll address"
+        },
+        "intMaxAddress": {
+          "type": "string",
+          "title": "the block builder's IntMax address"
+        },
+        "transferFee": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "the mapping of token addresses in INTMAX to fees payable in those tokens"
+        },
+        "difficulty": {
+          "type": "integer",
+          "format": "int64",
+          "title": "the PoW difficulty value"
+        }
+      },
+      "title": "DataInfoResponse describes the data of response about retrieves the block builder's Scroll address, transaction fee, and difficulty"
+    },
     "v1DataTransactionResponse": {
       "type": "object",
       "properties": {
@@ -537,20 +563,13 @@
     "v1InfoResponse": {
       "type": "object",
       "properties": {
-        "scrollAddress": {
-          "type": "string",
-          "title": "the block builder's Scroll address"
+        "success": {
+          "type": "boolean",
+          "title": "the success flag"
         },
-        "transferFee": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          },
-          "title": "the mapping of token addresses in INTMAX to fees payable in those tokens"
-        },
-        "difficulty": {
-          "type": "string",
-          "title": "the PoW difficulty value"
+        "data": {
+          "$ref": "#/definitions/v1DataInfoResponse",
+          "title": "the info about the request's result"
         }
       },
       "title": "InfoResponse describes response about retrieves the block builder's Scroll address, transaction fee, and difficulty"
