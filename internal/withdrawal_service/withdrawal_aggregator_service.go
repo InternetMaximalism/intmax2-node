@@ -951,6 +951,7 @@ func (w *WithdrawalAggregatorService) RequestWithdrawalGnarkProofToProver(wrappe
 	if err != nil {
 		return nil, err
 	}
+	w.log.Infof("Request Withdrawal Gnark Proof to Prover: %s\n", JobID)
 
 	ticker := time.NewTicker(10 * time.Second)
 	for {
@@ -962,6 +963,7 @@ func (w *WithdrawalAggregatorService) RequestWithdrawalGnarkProofToProver(wrappe
 			if errFetching != nil {
 				var ErrWrappedWithdrawalProofFetching = errors.New("failed to fetch wrapper withdrawal proof")
 				err = errors.Join(ErrWrappedWithdrawalProofFetching, errFetching)
+				w.log.Debugf("Failed to fetch withdrawal gnark proof: %s\n", err)
 				continue
 			}
 
@@ -971,10 +973,8 @@ func (w *WithdrawalAggregatorService) RequestWithdrawalGnarkProofToProver(wrappe
 }
 
 func (w *WithdrawalAggregatorService) requestWithdrawalGnarkProofToProver(wrappedProofJSON []byte) (string, error) {
-	// withdrawalGnarkProverUrl :=  w.cfg.API.WithdrawalGnarkProverUrl
-	withdrawalGnarkProverUrl := "http://localhost:8100"
 	apiUrl := fmt.Sprintf("%s/start-proof",
-		withdrawalGnarkProverUrl,
+		w.cfg.API.WithdrawalGnarkProverUrl,
 	)
 	resp, err := http.Post(apiUrl, "application/json", bytes.NewBuffer(wrappedProofJSON)) // nolint:gosec
 	if err != nil {
@@ -997,10 +997,8 @@ func (w *WithdrawalAggregatorService) requestWithdrawalGnarkProofToProver(wrappe
 }
 
 func (w *WithdrawalAggregatorService) fetchWithdrawalGnarkProofToProver(jobID string) (wrappedProof *GnarkGetProofResponseResult, err error) {
-	// withdrawalGnarkProverUrl :=  w.cfg.API.WithdrawalGnarkProverUrl
-	withdrawalGnarkProverUrl := "http://localhost:8100"
 	apiUrl := fmt.Sprintf("%s/get-proof?jobId=%s",
-		withdrawalGnarkProverUrl,
+		w.cfg.API.WithdrawalGnarkProverUrl,
 		jobID,
 	)
 	resp, err := http.Get(apiUrl) // nolint:gosec

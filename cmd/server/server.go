@@ -292,7 +292,7 @@ func NewServerCmd(s *Server) *cobra.Command {
 					s.Log.Fatalf(msg, err.Error())
 				}
 
-				timeout := 1 * time.Second
+				timeout := 5 * time.Second
 				ticker := time.NewTicker(timeout)
 				for {
 					select {

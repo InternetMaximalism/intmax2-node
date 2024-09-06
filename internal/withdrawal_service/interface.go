@@ -82,13 +82,13 @@ type GnarkStartProofResponse struct {
 
 type GnarkGetProofResponseResult struct {
 	// example: ["4079990473","4258702484","2081910035","2691585329","2841914472","799830807","2306176734","3986480224"]
-	PublicInputs bool `json:"publicInputs"`
+	PublicInputs []string `json:"publicInputs"`
 	// example: "1437b9568....9693"
 	Proof string `json:"proof"`
 }
 
 type GnarkGetProofResponse struct {
 	// example: "done"
-	Status string                      `json:"success"`
+	Status string                      `json:"status"`
 	Result GnarkGetProofResponseResult `json:"result"`
 }

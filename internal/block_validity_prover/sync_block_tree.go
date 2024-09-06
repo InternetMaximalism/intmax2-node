@@ -113,8 +113,14 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, startBlock ui
 		nextBN *big.Int
 	)
 
+	latestScrollBlockNumber, err := bps.FetchLatestBlockNumber(p.ctx)
+
 	const int5000Key = 5000
 	endBlock := startBlock + int5000Key
+	if endBlock > latestScrollBlockNumber {
+		endBlock = latestScrollBlockNumber
+	}
+
 	events, nextBN, err = bps.FetchNewPostedBlocks(startBlock, &endBlock)
 	if err != nil {
 		return startBlock, errors.Join(ErrFetchNewPostedBlocksFail, err)

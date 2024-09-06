@@ -72,7 +72,7 @@ func (p *blockValidityProver) SyncDepositTree(latestBlock *uint64, depositIndex 
 	if err != nil {
 		if err.Error() == "not found" {
 			lastSeenProcessDepositsEvent = &mDBApp.EventBlockNumberForValidityProver{
-				EventName:                mDBApp.DepositsAnalyzedEvent,
+				EventName:                mDBApp.DepositsAndAnalyzedReleyedEvent,
 				LastProcessedBlockNumber: p.cfg.Blockchain.RollupContractDeployedBlockNumber,
 			}
 		} else {
@@ -172,7 +172,7 @@ func (p *blockValidityProver) SyncDepositedEvents() error {
 		if err != nil {
 			if errors.Is(err, errorsDB.ErrNotFound) {
 				event = &mDBApp.EventBlockNumberForValidityProver{
-					EventName:                mDBApp.DepositsAnalyzedEvent,
+					EventName:                mDBApp.DepositsAndAnalyzedReleyedEvent,
 					LastProcessedBlockNumber: p.cfg.Blockchain.LiquidityContractDeployedBlockNumber,
 				}
 			} else {
@@ -180,7 +180,7 @@ func (p *blockValidityProver) SyncDepositedEvents() error {
 			}
 		} else if event == nil {
 			event = &mDBApp.EventBlockNumberForValidityProver{
-				EventName:                mDBApp.DepositsAnalyzedEvent,
+				EventName:                mDBApp.DepositsAndAnalyzedReleyedEvent,
 				LastProcessedBlockNumber: p.cfg.Blockchain.LiquidityContractDeployedBlockNumber,
 			}
 		}
@@ -244,7 +244,7 @@ func (p *blockValidityProver) fetchNewDeposits(
 		Start:   nextBlock,
 		End:     nil,
 		Context: p.ctx,
-	}, []*big.Int{}, []common.Address{})
+	}, []*big.Int{}, []common.Address{}, [][32]byte{})
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to filter logs: %w", err)
 	}

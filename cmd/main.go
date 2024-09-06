@@ -108,6 +108,7 @@ func main() {
 			HC:                  &hc,
 			PoW:                 pwNonce,
 			Worker:              w,
+			BlockPostService:    blockPostService,
 			DepositSynchronizer: depositSynchronizer,
 			GPOStorage:          storeGPO,
 		}),

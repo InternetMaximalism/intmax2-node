@@ -66,7 +66,7 @@ pub async fn generate_withdrawal_wrapper_proof_job(
         .with_context(|| "Failed to prove withdrawal")?;
 
     // NOTICE: Not compressing the proof here
-    let encoded_compressed_withdrawal_proof = serde_json::to_string(&wrapped_withdrawal_proof)
+    let withdrawal_proof_json = serde_json::to_string(&wrapped_withdrawal_proof)
         .with_context(|| "Failed to encode wrapped withdrawal proof")?;
 
     let opts = SetOptions::default()
@@ -76,7 +76,7 @@ pub async fn generate_withdrawal_wrapper_proof_job(
 
     let _ = redis::Cmd::set_options(
         &request_id,
-        encoded_compressed_withdrawal_proof.clone(),
+        withdrawal_proof_json.clone(),
         opts,
     )
     .query_async::<_, Option<String>>(conn)

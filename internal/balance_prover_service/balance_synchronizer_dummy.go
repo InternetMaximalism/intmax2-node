@@ -59,13 +59,14 @@ func (s *balanceSynchronizerDummy) TestE2E(
 	}
 
 	withdrawalProcessor := NewWithdrawalProcessor(withdrawalAggregator)
-	withdrawalProof, err := withdrawalProcessor.Prove(withdrawalWitness, nil)
+	withdrawalProofJSON, err := withdrawalProcessor.Prove(withdrawalWitness, nil)
 	if err != nil {
 		s.log.Fatalf("failed to prove withdrawal: %+v", err)
 	}
-	fmt.Printf("withdrawal proof: %x\n", withdrawalProof)
 
-	fmt.Println("Done")
+	s.log.Debugf("withdrawal proof: %v\n", withdrawalProofJSON)
+
+	s.log.Infof("Done")
 }
 
 func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
@@ -279,7 +280,11 @@ func NewWithdrawalProcessor(
 	return &WithdrawalProcessor{withdrawalAggregator}
 }
 
-func BuildSubmitWithdrawalProofData(w *withdrawal_service.WithdrawalAggregatorService, pendingWithdrawals []withdrawal_service.WithdrawalWitnessInput, withdrawalAggregator common.Address) ([]byte, error) {
+func BuildSubmitWithdrawalProofData(
+	w *withdrawal_service.WithdrawalAggregatorService,
+	pendingWithdrawals []withdrawal_service.WithdrawalWitnessInput,
+	withdrawalAggregator common.Address,
+) (*withdrawal_service.GnarkGetProofResponseResult, error) {
 	prevWithdrawalProof := new(string)
 
 	if len(pendingWithdrawals) == 0 {
@@ -301,15 +306,20 @@ func BuildSubmitWithdrawalProofData(w *withdrawal_service.WithdrawalAggregatorSe
 		return nil, fmt.Errorf("failed to request withdrawal wrapper proof to prover: %w", err)
 	}
 
-	return withdrawalWrapperProof, nil
+	gnarkProof, err := w.RequestWithdrawalGnarkProofToProver(withdrawalWrapperProof)
+	if err != nil {
+		return nil, fmt.Errorf("failed to request withdrawal gnark proof to prover: %w", err)
+	}
+
+	return gnarkProof, nil
 }
 
-func (p *WithdrawalProcessor) Prove(withdrawalWitness *withdrawal_service.WithdrawalWitnessInput, prevWithdrawalProof *string) ([]byte, error) {
-	encodedWithdrawalWitness, err := json.Marshal(withdrawalWitness)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal withdrawal witness: %w", err)
-	}
-	fmt.Printf("encodedWithdrawalWitness: %s\n", encodedWithdrawalWitness)
+func (p *WithdrawalProcessor) Prove(withdrawalWitness *withdrawal_service.WithdrawalWitnessInput, prevWithdrawalProof *string) (*withdrawal_service.GnarkGetProofResponseResult, error) {
+	// encodedWithdrawalWitness, err := json.Marshal(withdrawalWitness)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to marshal withdrawal witness: %w", err)
+	// }
+	// fmt.Printf("encodedWithdrawalWitness: %s\n", encodedWithdrawalWitness)
 
 	aggregator := common.Address{}
 	pendingWithdrawals := []withdrawal_service.WithdrawalWitnessInput{*withdrawalWitness}
@@ -317,7 +327,7 @@ func (p *WithdrawalProcessor) Prove(withdrawalWitness *withdrawal_service.Withdr
 	if err != nil {
 		return nil, fmt.Errorf("failed to build submit withdrawal proof data: %w", err)
 	}
-	fmt.Printf("withdrawalWrapperProof: %d\n", len(withdrawalWrapperProof))
+	fmt.Printf("withdrawalWrapperProof: %v\n", withdrawalWrapperProof)
 
 	// withdrawalWrapperProof :=
 	// p.withdrawalAggregator.RequestWithdrawalProofToProver(
