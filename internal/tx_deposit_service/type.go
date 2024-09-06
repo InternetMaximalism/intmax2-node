@@ -26,9 +26,15 @@ type GetTransactionByHashData struct {
 	Transaction *GetDepositData `json:"transaction"`
 }
 
+type GetTransactionByHashError struct {
+	Code    int    `json:"code,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
 type GetDepositsListResponse struct {
-	Success bool                 `json:"success"`
-	Data    *GetDepositsListData `json:"data"`
+	Success bool                       `json:"success"`
+	Data    *GetDepositsListData       `json:"data"`
+	Error   *GetTransactionByHashError `json:"error"`
 }
 
 type GetDepositsListData struct {
@@ -44,15 +50,33 @@ type Deposit struct {
 	Salt       string
 }
 
+type GetTxDepositByHashIncomingData struct {
+	Deposits []*Deposit `json:"deposits,omitempty"`
+}
+
 type GetDepositsList struct {
-	Deposits []*Deposit `json:"deposits"`
+	Success bool                            `json:"success"`
+	Data    *GetTxDepositByHashIncomingData `json:"data,omitempty"`
+	GetDepositByHashIncomingError
+}
+
+type GetDepositByHashIncomingError struct {
+	Code    int    `json:"code,omitempty"`
+	Message string `json:"message,omitempty"`
 }
 
 type GetDepositByHashIncomingData struct {
-	Deposit *GetDepositData `json:"deposit"`
+	Deposit *GetDepositData `json:"deposit,omitempty"`
 }
 
 type GetDepositByHashIncomingResponse struct {
-	Success bool                          `json:"success"`
-	Data    *GetDepositByHashIncomingData `json:"data"`
+	Success bool                           `json:"success"`
+	Data    *GetDepositByHashIncomingData  `json:"data,omitempty"`
+	Error   *GetDepositByHashIncomingError `json:"error,omitempty"`
+}
+
+type GetDepositTxByHashIncomingResponse struct {
+	Success bool              `json:"success"`
+	Data    *GetDepositTxData `json:"data,omitempty"`
+	GetDepositByHashIncomingError
 }

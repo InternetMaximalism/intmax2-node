@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
 
@@ -55,14 +56,30 @@ func GetDepositsListWithRawRequest(
 		return nil, err
 	}
 
-	depositsList := GetDepositsList{
-		Deposits: make([]*Deposit, len(resp.Deposits)),
+	if resp.Error != nil {
+		var js []byte
+		js, err = json.MarshalIndent(&GetDepositsList{
+			GetDepositByHashIncomingError: GetDepositByHashIncomingError{
+				Code:    resp.Error.Code,
+				Message: resp.Error.Message,
+			},
+		}, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal depositsList: %w", err)
+		}
+
+		return js, nil
 	}
 
-	for key := range resp.Deposits {
+	depositsList := GetDepositsList{
+		Success: true,
+		Data:    &GetTxDepositByHashIncomingData{Deposits: make([]*Deposit, len(resp.Data.Deposits))},
+	}
+
+	for key := range resp.Data.Deposits {
 		var deposit *intMaxTypes.Deposit
 		deposit, err = GetDepositFromBackupData(
-			resp.Deposits[key],
+			resp.Data.Deposits[key],
 			receiverAccount,
 		)
 		if err != nil {
@@ -77,7 +94,7 @@ func GetDepositsListWithRawRequest(
 			Amount:            deposit.Amount,
 		}).Hash()
 
-		depositsList.Deposits[key] = &Deposit{
+		depositsList.Data.Deposits[key] = &Deposit{
 			Hash:       depositHash.String(),
 			Recipient:  deposit.Recipient.String(),
 			TokenIndex: deposit.TokenIndex,
@@ -87,7 +104,7 @@ func GetDepositsListWithRawRequest(
 	}
 
 	var pg interface{}
-	err = json.Unmarshal(resp.Pagination, &pg)
+	err = json.Unmarshal(resp.Data.Pagination, &pg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal JSON with pagination: %w", err)
 	}
@@ -98,7 +115,7 @@ func GetDepositsListWithRawRequest(
 		return nil, fmt.Errorf("failed to marshal depositsList: %w", err)
 	}
 
-	js, err = sjson.SetBytes(js, "pagination", pg)
+	js, err = sjson.SetBytes(js, "data.pagination", pg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update JSON with pagination: %w", err)
 	}
@@ -111,7 +128,7 @@ func getDepositsListRawRequest(
 	cfg *configs.Config,
 	input *GetDepositsListInput,
 	recipientAccount *intMaxAcc.PrivateKey,
-) (*GetDepositsListData, error) {
+) (*GetDepositsListResponse, error) {
 	const (
 		contentType = "Content-Type"
 		appJSON     = "application/json"
@@ -174,11 +191,22 @@ func getDepositsListRawRequest(
 
 	if resp == nil {
 		const msg = "send request error occurred"
-		return nil, fmt.Errorf(msg)
+		return &GetDepositsListResponse{
+			Error: &GetTransactionByHashError{
+				Code:    http.StatusInternalServerError,
+				Message: msg,
+			},
+		}, nil
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("failed to get deposits list: %s", resp.String())
+		const messageKey = "message"
+		return &GetDepositsListResponse{
+			Error: &GetTransactionByHashError{
+				Code:    resp.StatusCode(),
+				Message: strings.ToLower(gjson.GetBytes(resp.Body(), messageKey).String()),
+			},
+		}, nil
 	}
 
 	response := new(GetDepositsListResponse)
@@ -186,11 +214,7 @@ func getDepositsListRawRequest(
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
-	if !response.Success {
-		return nil, fmt.Errorf("failed to get deposits list: %s", resp.String())
-	}
-
-	return response.Data, nil
+	return response, nil
 }
 
 func GetDepositByHashIncomingWithRawRequest(
@@ -209,21 +233,38 @@ func GetDepositByHashIncomingWithRawRequest(
 		return nil, err
 	}
 
+	if resp.Error != nil {
+		var js []byte
+		js, err = json.MarshalIndent(&GetDepositTxByHashIncomingResponse{
+			Success:                       false,
+			GetDepositByHashIncomingError: *resp.Error,
+		}, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal deposit by hash (incoming): %w", err)
+		}
+
+		return js, nil
+	}
+
 	var deposit *intMaxTypes.Deposit
 	deposit, err = GetDepositFromBackupData(
-		resp.Deposit,
+		resp.Data.Deposit,
 		recipientAccount,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	js, err := json.MarshalIndent(&GetDepositTxData{
-		ID:          resp.Deposit.ID,
-		Recipient:   resp.Deposit.Recipient,
-		BlockNumber: resp.Deposit.BlockNumber,
-		Deposit:     deposit,
-		CreatedAt:   resp.Deposit.CreatedAt,
+	var js []byte
+	js, err = json.MarshalIndent(&GetDepositTxByHashIncomingResponse{
+		Success: true,
+		Data: &GetDepositTxData{
+			ID:          resp.Data.Deposit.ID,
+			Recipient:   resp.Data.Deposit.Recipient,
+			BlockNumber: resp.Data.Deposit.BlockNumber,
+			Deposit:     deposit,
+			CreatedAt:   resp.Data.Deposit.CreatedAt,
+		},
 	}, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal deposit by hash (incoming): %w", err)
@@ -237,7 +278,7 @@ func getDepositByHashIncomingRawRequest(
 	cfg *configs.Config,
 	depositHash string,
 	recipientAccount *intMaxAcc.PrivateKey,
-) (*GetDepositByHashIncomingData, error) {
+) (*GetDepositByHashIncomingResponse, error) {
 	const (
 		contentType = "Content-Type"
 		appJSON     = "application/json"
@@ -262,15 +303,22 @@ func getDepositByHashIncomingRawRequest(
 
 	if resp == nil {
 		const msg = "send request error occurred"
-		return nil, fmt.Errorf(msg)
+		return &GetDepositByHashIncomingResponse{
+			Error: &GetDepositByHashIncomingError{
+				Code:    http.StatusInternalServerError,
+				Message: msg,
+			},
+		}, nil
 	}
 
-	if resp.StatusCode() == http.StatusBadRequest {
-		return nil, fmt.Errorf("request must be valid")
-	} else if resp.StatusCode() == http.StatusNotFound {
-		return nil, fmt.Errorf("not found")
-	} else if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("failed to get response")
+	if resp.StatusCode() != http.StatusOK {
+		const messageKey = "message"
+		return &GetDepositByHashIncomingResponse{
+			Error: &GetDepositByHashIncomingError{
+				Code:    resp.StatusCode(),
+				Message: strings.ToLower(gjson.GetBytes(resp.Body(), messageKey).String()),
+			},
+		}, nil
 	}
 
 	response := new(GetDepositByHashIncomingResponse)
@@ -278,9 +326,5 @@ func getDepositByHashIncomingRawRequest(
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
-	if !response.Success {
-		return nil, fmt.Errorf("failed to get deposit by hash")
-	}
-
-	return response.Data, nil
+	return response, nil
 }

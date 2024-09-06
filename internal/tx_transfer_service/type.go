@@ -32,18 +32,31 @@ type GetTransactionTxData struct {
 	CreatedAt   string                 `json:"createdAt"`
 }
 
+type GetTransactionTxResponse struct {
+	Success bool                  `json:"success"`
+	Data    *GetTransactionTxData `json:"data,omitempty"`
+	GetTransactionsListError
+}
+
 type GetTransactionByHashData struct {
 	Transaction *GetTransactionData `json:"transaction"`
 }
 
 type GetTransactionByHashResponse struct {
 	Success bool                      `json:"success"`
-	Data    *GetTransactionByHashData `json:"data"`
+	Data    *GetTransactionByHashData `json:"data,omitempty"`
+	Error   *GetTransactionsListError `json:"error,omitempty"`
 }
 
 type GetTransactionsListResponse struct {
-	Success bool                     `json:"success"`
-	Data    *GetTransactionsListData `json:"data"`
+	Success bool                      `json:"success"`
+	Data    *GetTransactionsListData  `json:"data,omitempty"`
+	Error   *GetTransactionsListError `json:"error,omitempty"`
+}
+
+type GetTransactionsListError struct {
+	Code    int    `json:"code,omitempty"`
+	Message string `json:"message,omitempty"`
 }
 
 type GetTransactionsListData struct {
@@ -51,6 +64,12 @@ type GetTransactionsListData struct {
 	Pagination   json.RawMessage       `json:"pagination"`
 }
 
-type GetTransactionsList struct {
+type GetTxTransactionsListData struct {
 	TxHashes []string `json:"txHashes"`
+}
+
+type GetTransactionsList struct {
+	Success bool                       `json:"success"`
+	Data    *GetTxTransactionsListData `json:"data,omitempty"`
+	GetTransactionsListError
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"intmax2-node/pkg/utils"
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -40,13 +39,8 @@ func txDepositByHashIncomingCmd(b *Transaction) *cobra.Command {
 			b.Context, args, args[0], utils.RemoveZeroX(userEthPrivateKey),
 		)
 		if err != nil {
-			if strings.Contains(err.Error(), "not found") {
-				const msg = "%v\n"
-				_, _ = fmt.Fprintf(os.Stderr, msg, err)
-			} else {
-				const msg = "Fatal: %v\n"
-				_, _ = fmt.Fprintf(os.Stderr, msg, err)
-			}
+			const msg = "Fatal: %v\n"
+			_, _ = fmt.Fprintf(os.Stderr, msg, err)
 			os.Exit(1)
 		}
 		_, _ = os.Stdout.WriteString(string(resp))
