@@ -917,10 +917,11 @@ message GetBackupDepositsListResponse {
 
   message Deposit {
     string id = 1;
-    string recipient = 2;
-    uint64 block_number = 3;
-    string encrypted_deposit = 4;
-    google.protobuf.Timestamp created_at = 5;
+    string deposit_hash = 2;
+    string recipient = 3;
+    uint64 block_number = 4;
+    string encrypted_deposit = 5;
+    google.protobuf.Timestamp created_at = 6;
   }
 }
 

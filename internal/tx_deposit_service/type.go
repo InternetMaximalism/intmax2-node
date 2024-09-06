@@ -8,6 +8,7 @@ import (
 
 type GetDepositData struct {
 	ID               string `json:"id"`
+	DepositHash      string `json:"depositHash"`
 	Recipient        string `json:"recipient"`
 	BlockNumber      string `json:"blockNumber"`
 	EncryptedDeposit string `json:"encryptedDeposit"`

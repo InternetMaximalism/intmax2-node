@@ -133,6 +133,7 @@ func (s *StoreVaultServer) GetBackupDepositsList(
 	for key := range list.List {
 		resp.Data.Deposits[key] = &node.GetBackupDepositsListResponse_Deposit{
 			Id:               list.List[key].ID,
+			DepositHash:      list.List[key].DepositDoubleHash,
 			Recipient:        list.List[key].Recipient,
 			BlockNumber:      uint64(list.List[key].BlockNumber),
 			EncryptedDeposit: list.List[key].EncryptedDeposit,

@@ -7,7 +7,6 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	intMaxTypes "intmax2-node/internal/types"
-	"math/big"
 	"net/http"
 	"net/url"
 	"strings"
@@ -86,16 +85,8 @@ func GetDepositsListWithRawRequest(
 			return nil, err
 		}
 
-		recipientSaltHash := intMaxAcc.GetPublicKeySaltHash(deposit.Recipient.Pk.X.BigInt(new(big.Int)), deposit.Salt)
-
-		depositHash := new(intMaxTypes.DepositLeaf).Set(&intMaxTypes.DepositLeaf{
-			RecipientSaltHash: recipientSaltHash,
-			TokenIndex:        deposit.TokenIndex,
-			Amount:            deposit.Amount,
-		}).Hash()
-
 		depositsList.Data.Deposits[key] = &Deposit{
-			Hash:       depositHash.String(),
+			Hash:       resp.Data.Deposits[key].DepositHash,
 			Recipient:  deposit.Recipient.String(),
 			TokenIndex: deposit.TokenIndex,
 			Amount:     deposit.Amount,
