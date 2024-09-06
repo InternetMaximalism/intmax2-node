@@ -240,13 +240,13 @@ type WithdrawalInfo struct {
 	Withdrawals                 []bindings.ChainedWithdrawalLibChainedWithdrawal
 	WithdrawalProofPublicInputs bindings.WithdrawalProofPublicInputsLibWithdrawalProofPublicInputs
 	PisHash                     common.Hash
-	Proof                       []byte
+	Proof                       *GnarkGetProofResponseResult
 }
 
 func MakeWithdrawalInfo(
 	aggregator common.Address,
 	withdrawals []bindings.ChainedWithdrawalLibChainedWithdrawal,
-	proof []byte,
+	proof *GnarkGetProofResponseResult,
 ) (*WithdrawalInfo, error) {
 	hash := common.Hash{}
 	var err error
@@ -404,7 +404,7 @@ func (input *WithdrawalWitnessInput) FromWithdrawalWitness(value *WithdrawalWitn
 // 	BalanceProof: *bobBalanceProof,
 // }
 
-func (w *WithdrawalAggregatorService) BuildSubmitWithdrawalProofData(pendingWithdrawals []WithdrawalWitnessInput, withdrawalAggregator common.Address) ([]byte, error) {
+func (w *WithdrawalAggregatorService) BuildSubmitWithdrawalProofData(pendingWithdrawals []WithdrawalWitnessInput, withdrawalAggregator common.Address) (*GnarkGetProofResponseResult, error) {
 	prevWithdrawalProof := new(string)
 
 	if len(pendingWithdrawals) == 0 {
@@ -426,7 +426,12 @@ func (w *WithdrawalAggregatorService) BuildSubmitWithdrawalProofData(pendingWith
 		return nil, fmt.Errorf("failed to request withdrawal wrapper proof to prover: %w", err)
 	}
 
-	return withdrawalWrapperProof, nil
+	gnarkProof, err := w.RequestWithdrawalGnarkProofToProver(withdrawalWrapperProof)
+	if err != nil {
+		return nil, fmt.Errorf("failed to request withdrawal gnark proof to prover: %w", err)
+	}
+
+	return gnarkProof, nil
 }
 
 // func (w *WithdrawalAggregatorService) BuildSubmitWithdrawalProofData(pendingWithdrawals []mDBApp.Withdrawal, withdrawalAggregator common.Address) ([]byte, error) {
@@ -687,7 +692,7 @@ func (w *WithdrawalAggregatorService) buildMockSubmitWithdrawalProofData(pending
 func (w *WithdrawalAggregatorService) submitWithdrawalProof(
 	withdrawals []bindings.ChainedWithdrawalLibChainedWithdrawal,
 	publicInputs bindings.WithdrawalProofPublicInputsLibWithdrawalProofPublicInputs,
-	proof []byte,
+	proof *GnarkGetProofResponseResult,
 ) (*types.Receipt, error) {
 	transactOpts, err := utils.CreateTransactor(w.cfg.Blockchain.WithdrawalPrivateKeyHex, w.cfg.Blockchain.ScrollNetworkChainID)
 	if err != nil {
@@ -706,7 +711,11 @@ func (w *WithdrawalAggregatorService) submitWithdrawalProof(
 		return nil, fmt.Errorf("failed to log transaction debug info: %w", err)
 	}
 
-	tx, err := w.withdrawalContract.SubmitWithdrawalProof(transactOpts, withdrawals, publicInputs, proof)
+	proofBody, err := hex.DecodeString(proof.Proof)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode proof body: %w", err)
+	}
+	tx, err := w.withdrawalContract.SubmitWithdrawalProof(transactOpts, withdrawals, publicInputs, proofBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send submit withdrawal proof transaction: %w", err)
 	}
