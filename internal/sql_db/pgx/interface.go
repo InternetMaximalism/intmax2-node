@@ -149,6 +149,9 @@ type BackupDeposits interface {
 		recipient, depositHash, encryptedDeposit string,
 		blockNumber int64,
 	) (*mDBApp.BackupDeposit, error)
+	GetBackupDepositByRecipientAndDepositDoubleHash(
+		recipient, depositDoubleHash string,
+	) (*mDBApp.BackupDeposit, error)
 	GetBackupDeposit(conditions []string, values []interface{}) (*mDBApp.BackupDeposit, error)
 	GetBackupDeposits(condition string, value interface{}) ([]*mDBApp.BackupDeposit, error)
 	GetBackupDepositsByRecipient(

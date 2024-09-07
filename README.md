@@ -301,48 +301,262 @@ Example2:
 ### Command `./intmax2-node tx deposit --help`
 ```
 # ./intmax2-node tx deposit --help
-Send deposit transaction
+Manage deposit transaction
 
 Usage:
-  app tx deposit [flags]
+  app tx deposit [command]
+
+Available Commands:
+  erc1155     Send deposit transaction by token "erc1155"
+  erc20       Send deposit transaction by token "erc20"
+  erc721      Send deposit transaction by token "erc721"
+  eth         Send deposit transaction by token "eth"
+  info        Manage deposit by hash
+  list        Manage deposit list
+
+Flags:
+  -h, --help   help for deposit
+```
+### Command `./intmax2-node tx deposit eth --help`
+```
+# ./intmax2-node tx deposit eth --help
+Send deposit transaction by token "eth"
+
+Usage:
+  app tx deposit eth [flags]
 
 Flags:
       --amount string        specify amount without decimals. use as --amount "10"
-  -h, --help                 help for deposit
+  -h, --help                 help for eth
       --private-key string   specify user's Ethereum private key. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
       --recipient string     specify recipient INTMAX address. use as --recipient "0x0000000000000000000000000000000000000000000000000000000000000000"
 
-Example1:
+Example:
   ./intmax2-node tx deposit eth --amount 10000 --recipient 0x06a7b64af8f414bcbeef455b1da5208c9b592b83ee6599824caa6d2ee9141a76 --private-key 0x0000000000000000000000000000000000000000000000000000000000000002
+```
+### Command `./intmax2-node tx deposit erc20 --help`
+```
+# ./intmax2-node tx deposit erc20 --help
+Send deposit transaction by token "erc20"
 
-Example2:
+Usage:
+  app tx deposit erc20 [flags]
+
+Flags:
+      --amount string        specify amount without decimals. use as --amount "10"
+  -h, --help                 help for erc20
+      --private-key string   specify user's Ethereum private key. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
+      --recipient string     specify recipient INTMAX address. use as --recipient "0x0000000000000000000000000000000000000000000000000000000000000000"
+
+Example:
   ./intmax2-node tx deposit erc20 0x0000000000000000000000000000000000000001 --amount 10000 --recipient 0x06a7b64af8f414bcbeef455b1da5208c9b592b83ee6599824caa6d2ee9141a76 --private-key 0x0000000000000000000000000000000000000000000000000000000000000002
+```
+### Command `./intmax2-node tx deposit erc721 --help`
+```
+# ./intmax2-node tx deposit erc721 --help
+Send deposit transaction by token "erc721"
 
-Example3:
+Usage:
+  app tx deposit erc721 [flags]
+
+Flags:
+      --amount string        specify amount without decimals. use as --amount "10"
+  -h, --help                 help for erc721
+      --private-key string   specify user's Ethereum private key. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
+      --recipient string     specify recipient INTMAX address. use as --recipient "0x0000000000000000000000000000000000000000000000000000000000000000"
+
+Example:
   ./intmax2-node tx deposit erc721 0x0000000000000000000000000000000000000001 7 --amount 10000 --recipient 0x06a7b64af8f414bcbeef455b1da5208c9b592b83ee6599824caa6d2ee9141a76 --private-key 0x0000000000000000000000000000000000000000000000000000000000000002
+```
+### Command `./intmax2-node tx deposit erc1155 --help`
+```
+# ./intmax2-node tx deposit erc1155 --help
+Send deposit transaction by token "erc1155"
+
+Usage:
+  app tx deposit erc1155 [flags]
+
+Flags:
+      --amount string        specify amount without decimals. use as --amount "10"
+  -h, --help                 help for erc1155
+      --private-key string   specify user's Ethereum private key. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
+      --recipient string     specify recipient INTMAX address. use as --recipient "0x0000000000000000000000000000000000000000000000000000000000000000"
+```
+### Command `./intmax2-node tx deposit list --help`
+```
+# ./intmax2-node tx deposit list --help
+Manage deposit list
+
+Usage:
+  app tx deposit list [command]
+
+Available Commands:
+  incoming    Get deposit list (incoming)
+  outgoing    Get deposit list (outgoing); coming soon
+
+Flags:
+  -h, --help   help for list
+
+Use "app tx deposit list [command] --help" for more information about a command.
+```
+### Command `./intmax2-node tx deposit list incoming --help`
+```
+# ./intmax2-node tx deposit list incoming --help
+Get deposit list (incoming)
+
+Usage:
+  app tx deposit list incoming [flags]
+
+Flags:
+      --filterCondition string                specify the filter condition. use as --filterCondition "is" (support values: "lessThan", "lessThanOrEqualTo", "is", "greaterThanOrEqualTo", "greaterThan")
+      --filterName string                     specify the filter name. use as --filterName "block_number" (support value: "block_number")
+      --filterValue string                    specify the value of filter. use as --filterValue "1"
+  -h, --help                                  help for incoming
+      --paginationCursorBlockNumber string    specify the BlockNumber cursor. use as --paginationCursorBlockNumber "1" (more then "0")
+      --paginationCursorSortingValue string   specify the SortingValue cursor. use as --paginationCursorSortingValue "1" (more then "0")
+      --paginationDirection string            specify the direction pagination. use as --paginationDirection "next" (support values: "next", "prev") (default "next")
+      --paginationLimit string                specify the limit for pagination without decimals. use as --paginationLimit "100" (default "100")
+      --private-key string                    specify user's Ethereum private key. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
+      --sorting string                        specify the sorting. use as --sorting "desc" (support values: "asc", "desc") (default "desc")
+```
+### Command `./intmax2-node tx deposit info --help`
+```
+# ./intmax2-node tx deposit info --help
+Manage deposit by hash
+
+Usage:
+  app tx deposit info [command]
+
+Available Commands:
+  incoming    Get deposit by hash (incoming)
+  outgoing    Get deposit by hash (outgoing); coming soon
+
+Flags:
+  -h, --help   help for info
+
+Use "app tx deposit info [command] --help" for more information about a command.
+```
+### Command `./intmax2-node tx deposit info incoming --help`
+```
+# ./intmax2-node tx deposit info incoming --help
+Get deposit by hash (incoming)
+
+Usage:
+  app tx deposit info incoming [DepositHash] [flags]
+
+Flags:
+  -h, --help                 help for incoming
+      --private-key string   specify user's Ethereum private key. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
 ```
 ### Command `./intmax2-node tx transfer --help`
 ```
 # ./intmax2-node tx transfer --help
-Send transfer transaction
+Manage transfer transaction
 
 Usage:
-  app tx transfer [flags]
+  app tx transfer [command]
+
+Available Commands:
+  erc1155     Send transfer transaction by token "erc1155"
+  erc20       Send transfer transaction by token "erc20"
+  erc721      Send transfer transaction by token "erc721"
+  eth         Send transfer transaction by token "eth"
+  info        Get transaction by hash
+  list        Get transactions list
+
+Flags:
+  -h, --help   help for transfer
+```
+### Command `./intmax2-node tx transfer eth --help`
+```
+Send transfer transaction by token "eth"
+
+Usage:
+  app tx transfer eth [flags]
 
 Flags:
       --amount string        specify amount without decimals. use as --amount "10"
-  -h, --help                 help for transfer
+  -h, --help                 help for eth
       --private-key string   specify user's Ethereum private key. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
       --recipient string     specify recipient INTMAX address. use as --recipient "0x0000000000000000000000000000000000000000000000000000000000000000"
 
-Example1:
+Example:
   ./intmax2-node tx transfer eth --amount 10 --recipient 0x06a7b64af8f414bcbeef455b1da5208c9b592b83ee6599824caa6d2ee9141a76 --private-key 0x0000000000000000000000000000000000000000000000000000000000000002
+```
+### Command `./intmax2-node tx transfer erc20 --help`
+```
+Send transfer transaction by token "erc20"
 
-Example2:
+Usage:
+  app tx transfer erc20 [flags]
+
+Flags:
+      --amount string        specify amount without decimals. use as --amount "10"
+  -h, --help                 help for erc20
+      --private-key string   specify user's Ethereum private key. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
+      --recipient string     specify recipient INTMAX address. use as --recipient "0x0000000000000000000000000000000000000000000000000000000000000000"
+
+Example:
   ./intmax2-node tx transfer erc20 0x0000000000000000000000000000000000000001 --amount 10 --recipient 0x06a7b64af8f414bcbeef455b1da5208c9b592b83ee6599824caa6d2ee9141a76 --private-key 0x0000000000000000000000000000000000000000000000000000000000000002
+```
+### Command `./intmax2-node tx transfer erc721 --help`
+```
+Send transfer transaction by token "erc721"
 
-Example3:
+Usage:
+  app tx transfer erc721 [flags]
+
+Flags:
+      --amount string        specify amount without decimals. use as --amount "10"
+  -h, --help                 help for erc721
+      --private-key string   specify user's Ethereum private key. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
+      --recipient string     specify recipient INTMAX address. use as --recipient "0x0000000000000000000000000000000000000000000000000000000000000000"
+
+Example:
   ./intmax2-node tx transfer erc721 0x0000000000000000000000000000000000000001 7 --amount 10 --recipient 0x06a7b64af8f414bcbeef455b1da5208c9b592b83ee6599824caa6d2ee9141a76 --private-key 0x0000000000000000000000000000000000000000000000000000000000000002
+```
+### Command `./intmax2-node tx transfer erc1155 --help`
+```
+Send transfer transaction by token "erc1155"
+
+Usage:
+  app tx transfer erc1155 [flags]
+
+Flags:
+      --amount string        specify amount without decimals. use as --amount "10"
+  -h, --help                 help for erc1155
+      --private-key string   specify user's Ethereum private key. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
+      --recipient string     specify recipient INTMAX address. use as --recipient "0x0000000000000000000000000000000000000000000000000000000000000000"
+```
+### Command `./intmax2-node tx transfer list --help`
+```
+Get transactions list
+
+Usage:
+  app tx transfer list [flags]
+
+Flags:
+      --filterCondition string                specify the filter condition. use as --filterCondition "is" (support values: "lessThan", "lessThanOrEqualTo", "is", "greaterThanOrEqualTo", "greaterThan")
+      --filterName string                     specify the filter name. use as --filterName "block_number" (support value: "block_number")
+      --filterValue string                    specify the value of filter. use as --filterValue "1"
+  -h, --help                                  help for list
+      --paginationCursorBlockNumber string    specify the BlockNumber cursor. use as --paginationCursorBlockNumber "1" (more then "0")
+      --paginationCursorSortingValue string   specify the SortingValue cursor. use as --paginationCursorSortingValue "1" (more then "0")
+      --paginationDirection string            specify the direction pagination. use as --paginationDirection "next" (support values: "next", "prev") (default "next")
+      --paginationLimit string                specify the limit for pagination without decimals. use as --paginationLimit "100" (default "100")
+      --private-key string                    specify user's Ethereum private key. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
+      --sorting string                        specify the sorting. use as --sorting "desc" (support values: "asc", "desc") (default "desc")
+```
+### Command `./intmax2-node tx transfer info --help`
+```
+Get transaction by hash
+
+Usage:
+  app tx transfer info [TxHash] [flags]
+
+Flags:
+  -h, --help                 help for info
+      --private-key string   specify user's Ethereum private key. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
 ```
 ### Command `./intmax2-node tx withdrawal --help`
 ```

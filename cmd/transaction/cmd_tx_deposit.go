@@ -7,7 +7,7 @@ import (
 func txDepositCmd(b *Transaction) *cobra.Command {
 	const (
 		use   = "deposit"
-		short = "Send deposit transaction"
+		short = "Manage deposit transaction"
 
 		ethTokenType     = "eth"
 		erc20TokenType   = "erc20"
@@ -24,6 +24,8 @@ func txDepositCmd(b *Transaction) *cobra.Command {
 	depositCmd.AddCommand(txDepositTokenCmd(b, erc20TokenType))
 	depositCmd.AddCommand(txDepositTokenCmd(b, erc721TokenType))
 	depositCmd.AddCommand(txDepositTokenCmd(b, erc1155TokenType))
+	depositCmd.AddCommand(txDepositListCmd(b))
+	depositCmd.AddCommand(txDepositByHashCmd(b))
 
 	return &depositCmd
 }
