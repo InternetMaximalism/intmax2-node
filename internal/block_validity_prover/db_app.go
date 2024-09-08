@@ -57,6 +57,7 @@ type BlockContents interface {
 		blockContent *intMaxTypes.BlockContent,
 	) (*mDBApp.BlockContent, error)
 	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContent, error)
+	BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContent, error)
 }
 
 type BlockHistory interface {

@@ -34,6 +34,7 @@ type SQLDb interface {
 	Accounts
 	BackupBalances
 	Deposits
+	// DepositTreeBuilder
 	BlockContents
 	CtrlProcessingJobs
 	GasPriceOracle
@@ -229,6 +230,12 @@ type Deposits interface {
 	FetchLastDepositIndex() (uint32, error)
 }
 
+// type DepositTreeBuilder interface {
+// 	LastDepositTreeRoot() (common.Hash, error)
+// 	DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, error)
+// 	GetDepositLeafAndIndexByHash(depositHash common.Hash) (depositLeafWithId *block_validity_prover.DepositLeafWithId, depositIndex *uint32, err error)
+// }
+
 type BlockContents interface {
 	// CreateBlockContent(
 	// 	blockNumber uint32,
@@ -241,6 +248,7 @@ type BlockContents interface {
 		blockContent *intMaxTypes.BlockContent,
 	) (*models.BlockContent, error)
 	BlockContentByBlockNumber(blockNumber uint32) (*models.BlockContent, error)
+	BlockContentByTxRoot(txRoot string) (*models.BlockContent, error)
 	// SetValidityWitness(blockNumber uint32, witness *block_validity_prover.ValidityWitness) error
 	// LastValidityWitness() (*block_validity_prover.ValidityWitness, error)
 	// SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error

@@ -14,7 +14,6 @@ import (
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
-	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"intmax2-node/pkg/utils"
@@ -355,13 +354,13 @@ type TransferWitnessInput struct {
 	TransferMerkleProof MerkleProofInput `json:"transferMerkleProof"`
 }
 
-func (input *TransferWitnessInput) FromTransferWitness(value *TransferWitness) *TransferWitnessInput {
+func (input *TransferWitnessInput) FromTransferWitness(value *intMaxTypes.TransferWitness) *TransferWitnessInput {
 	input.Tx.TransferTreeRoot = *value.Tx.TransferTreeRoot
 	input.Tx.Nonce = value.Tx.Nonce
 	input.Transfer = *new(TransferInput).FromTransfer(&value.Transfer)
 	input.TransferIndex = uint(value.TransferIndex)
-	input.TransferMerkleProof = make([]string, len(value.TransferMerkleProof.Siblings))
-	for i, sibling := range value.TransferMerkleProof.Siblings {
+	input.TransferMerkleProof = make([]string, len(value.TransferMerkleProof))
+	for i, sibling := range value.TransferMerkleProof {
 		input.TransferMerkleProof[i] = sibling.String()
 	}
 
@@ -373,15 +372,8 @@ type WithdrawalWitnessInput struct {
 	BalanceProof    string                `json:"balanceProof"`
 }
 
-type TransferWitness struct {
-	Tx                  intMaxTypes.Tx          `json:"tx"`
-	Transfer            intMaxTypes.Transfer    `json:"transfer"`
-	TransferIndex       uint32                  `json:"transferIndex"`
-	TransferMerkleProof *intMaxTree.MerkleProof `json:"transferMerkleProof"`
-}
-
 type WithdrawalWitness struct {
-	TransferWitness *TransferWitness
+	TransferWitness *intMaxTypes.TransferWitness
 	BalanceProof    *string
 }
 

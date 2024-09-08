@@ -310,6 +310,14 @@ type IndexedMembershipProof struct {
 	Leaf       IndexedMerkleLeaf  `json:"leaf"`
 }
 
+func (proof *IndexedMembershipProof) GetLeaf() uint64 {
+	if proof.IsIncluded {
+		return proof.Leaf.Value
+	}
+
+	return 0
+}
+
 func (proof *IndexedMembershipProof) Verify(key *big.Int, root *PoseidonHashOut) error {
 	err := proof.LeafProof.Verify(&proof.Leaf, proof.LeafIndex, root)
 	if err != nil {

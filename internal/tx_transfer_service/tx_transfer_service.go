@@ -194,7 +194,9 @@ func TransferTransaction(
 			TransferTreeRoot: &transfersHash,
 			Nonce:            nonce,
 		},
-		Transfers: initialLeaves,
+		Transfers:     initialLeaves,
+		TxTreeRoot:    &proposedBlock.TxTreeRoot,
+		TxMerkleProof: proposedBlock.TxTreeMerkleProof,
 	}
 
 	encodedTx := txDetails.Marshal()

@@ -519,13 +519,6 @@ func (input *ReceiveDepositWitnessInput) FromReceiveDepositWitness(value *Receiv
 	return input
 }
 
-type TransferWitness struct {
-	Tx                  intMaxTypes.Tx          `json:"tx"`
-	Transfer            intMaxTypes.Transfer    `json:"transfer"`
-	TransferIndex       uint32                  `json:"transferIndex"`
-	TransferMerkleProof *intMaxTree.MerkleProof `json:"transferMerkleProof"`
-}
-
 type TransferWitnessInput struct {
 	Tx                  TxInput          `json:"tx"`
 	Transfer            TransferInput    `json:"transfer"`
@@ -533,23 +526,23 @@ type TransferWitnessInput struct {
 	TransferMerkleProof MerkleProofInput `json:"transferMerkleProof"`
 }
 
-func (input *TransferWitnessInput) FromTransferWitness(value *TransferWitness) *TransferWitnessInput {
+func (input *TransferWitnessInput) FromTransferWitness(value *intMaxTypes.TransferWitness) *TransferWitnessInput {
 	input.Tx = TxInput{
 		TransferTreeRoot: *value.Tx.TransferTreeRoot,
 		Nonce:            value.Tx.Nonce,
 	}
 	input.Transfer = *new(TransferInput).FromTransfer(&value.Transfer)
 	input.TransferIndex = value.TransferIndex
-	input.TransferMerkleProof = make([]string, len(value.TransferMerkleProof.Siblings))
-	for i := 0; i < len(value.TransferMerkleProof.Siblings); i++ {
-		input.TransferMerkleProof[i] = value.TransferMerkleProof.Siblings[i].String()
+	input.TransferMerkleProof = make([]string, len(value.TransferMerkleProof))
+	for i := 0; i < len(value.TransferMerkleProof); i++ {
+		input.TransferMerkleProof[i] = value.TransferMerkleProof[i].String()
 	}
 
 	return input
 }
 
 type ReceiveTransferWitness struct {
-	TransferWitness  *TransferWitness                 `json:"transferWitness"`
+	TransferWitness  *intMaxTypes.TransferWitness     `json:"transferWitness"`
 	PrivateWitness   *PrivateWitness                  `json:"privateWitness"`
 	BalanceProof     string                           `json:"balanceProof"`
 	BlockMerkleProof *intMaxTree.BlockHashMerkleProof `json:"blockMerkleProof"`
@@ -563,8 +556,8 @@ type ReceiveTransferWitnessInput struct {
 }
 
 func (input *ReceiveTransferWitnessInput) FromReceiveTransferWitness(value *ReceiveTransferWitness) *ReceiveTransferWitnessInput {
-	transferMerkleProof := make([]string, len(value.TransferWitness.TransferMerkleProof.Siblings))
-	for i, sibling := range value.TransferWitness.TransferMerkleProof.Siblings {
+	transferMerkleProof := make([]string, len(value.TransferWitness.TransferMerkleProof))
+	for i, sibling := range value.TransferWitness.TransferMerkleProof {
 		transferMerkleProof[i] = sibling.String()
 	}
 	input.TransferWitness = new(TransferWitnessInput).FromTransferWitness(value.TransferWitness)
@@ -645,6 +638,34 @@ type BalancePublicInputs struct {
 	LastTxHash              *intMaxTypes.PoseidonHashOut
 	LastTxInsufficientFlags backup_balance.InsufficientFlags
 	PublicState             *block_validity_prover.PublicState
+}
+
+// pub fn new() -> Self {
+// 	let asset_tree_root = AssetTree::new(ASSET_TREE_HEIGHT).get_root();
+// 	let nullifier_tree_root = NullifierTree::new().get_root();
+// 	Self {
+// 		asset_tree_root,
+// 		nullifier_tree_root,
+// 		nonce: 0,
+// 		salt: Salt::default(),
+// 	}
+// }
+
+func NewWithPublicKey(publicKey *intMaxAcc.PublicKey) *BalancePublicInputs {
+	// privateCommitment := new(intMaxTypes.PoseidonHashOut).SetZero()
+	privateCommitment := new(PrivateState).SetDefault().Commitment()
+	lastTxHash := new(intMaxTypes.PoseidonHashOut).SetZero()
+	lastTxInsufficientFlags := backup_balance.InsufficientFlags{}
+	publicState := new(block_validity_prover.PublicState).Genesis()
+
+	pis := new(BalancePublicInputs)
+	pis.PubKey = publicKey
+	pis.PrivateCommitment = privateCommitment
+	pis.LastTxHash = lastTxHash
+	pis.LastTxInsufficientFlags = lastTxInsufficientFlags
+	pis.PublicState = publicState
+
+	return pis
 }
 
 func (s *BalancePublicInputs) FromPublicInputs(publicInputs []ffg.Element) (*BalancePublicInputs, error) {
@@ -768,7 +789,7 @@ func ValidateTxInclusionValue(
 		return false, errors.Join(ErrInvalidMembershipProof, err)
 	}
 
-	lastBlockNumber := prevAccountMembershipProof.Leaf.Value
+	lastBlockNumber := prevAccountMembershipProof.GetLeaf()
 	if lastBlockNumber > uint64(prevPublicState.BlockNumber) {
 		return false, errors.New("no send tx till one before the last block")
 	}

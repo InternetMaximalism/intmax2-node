@@ -15,6 +15,7 @@ import (
 	intMaxTypes "intmax2-node/internal/types"
 	"log"
 	"math/big"
+	"sort"
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -92,7 +93,7 @@ type DepositDetails struct {
 type DecodedUserData struct {
 	Transactions []*intMaxTypes.TxDetails
 	Deposits     []*DepositDetails
-	Transfers    []*intMaxTypes.Transfer
+	Transfers    []*intMaxTypes.TransferDetailsWithProofBody
 }
 
 func DecodeBackupData(
@@ -102,7 +103,7 @@ func DecodeBackupData(
 	userPrivateKey *intMaxAcc.PrivateKey,
 ) (*DecodedUserData, error) {
 	receivedDeposits := make([]*DepositDetails, 0)
-	receivedTransfers := make([]*intMaxTypes.Transfer, 0)
+	receivedTransfers := make([]*intMaxTypes.TransferDetailsWithProofBody, 0)
 	sentTransactions := make([]*intMaxTypes.TxDetails, 0)
 
 	address := userPrivateKey.Public().ToAddress()
@@ -193,14 +194,19 @@ func DecodeBackupData(
 			log.Printf("failed to decrypt transfer: %v", err)
 			continue
 		}
-		var decodedTransfer intMaxTypes.Transfer
+		var decodedTransfer intMaxTypes.TransferDetails
 		err = decodedTransfer.Unmarshal(encodedTransfer)
 		if err != nil {
 			log.Printf("failed to unmarshal transfer: %v", err)
 			continue
 		}
 
-		receivedTransfers = append(receivedTransfers, &decodedTransfer)
+		transferWithProofBody := intMaxTypes.TransferDetailsWithProofBody{
+			TransferDetails:        &decodedTransfer,
+			SenderBalanceProofBody: transfer.SenderBalanceProofBody,
+		}
+
+		receivedTransfers = append(receivedTransfers, &transferWithProofBody)
 
 		// if _, ok := balances[tokenIndex]; !ok {
 		// 	balances[tokenIndex] = big.NewInt(0)
@@ -241,4 +247,36 @@ func DecodeBackupData(
 		Deposits:     receivedDeposits,
 		Transfers:    receivedTransfers,
 	}, nil
+}
+
+func (userAllData *DecodedUserData) SortValidUserData(syncValidityProver *syncValidityProver) ([]ValidBalanceTransition, error) {
+	validDeposits, _, err := ExtractValidReceivedDeposits(userAllData, syncValidityProver)
+	if err != nil {
+		fmt.Println("Error in ExtractValidReceivedDeposit")
+	}
+	validTransfers, _, err := ExtractValidReceivedTransfers(userAllData, syncValidityProver)
+	if err != nil {
+		fmt.Println("Error in ExtractValidReceivedDeposit")
+	}
+	validTransactions, _, err := ExtractValidSentTransactions(userAllData, syncValidityProver)
+	if err != nil {
+		fmt.Println("Error in ExtractValidReceivedDeposit")
+	}
+
+	validBalanceTransitions := make([]ValidBalanceTransition, 0, len(validDeposits)+len(validTransfers)+len(validTransactions))
+	for _, transaction := range validTransactions {
+		validBalanceTransitions = append(validBalanceTransitions, transaction)
+	}
+	for _, deposit := range validDeposits {
+		validBalanceTransitions = append(validBalanceTransitions, deposit)
+	}
+	for _, transfer := range validTransfers {
+		validBalanceTransitions = append(validBalanceTransitions, transfer)
+	}
+
+	sort.Slice(validBalanceTransitions, func(i, j int) bool {
+		return validBalanceTransitions[i].BlockNumber() < validBalanceTransitions[j].BlockNumber()
+	})
+
+	return validBalanceTransitions, nil
 }

@@ -137,6 +137,7 @@ type BlockContents interface {
 		blockContent *intMaxTypes.BlockContent,
 	) (*mDBApp.BlockContent, error)
 	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContent, error)
+	BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContent, error)
 	// SetValidityWitness(blockNumber uint32, witness *block_validity_prover.ValidityWitness) error
 	// LastValidityWitness() (*block_validity_prover.ValidityWitness, error)
 	// SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error

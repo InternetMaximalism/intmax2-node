@@ -1397,6 +1397,7 @@ type MerkleTrees struct {
 	AccountTree   *intMaxTree.AccountTree
 	BlockHashTree *intMaxTree.BlockHashTree
 	DepositLeaves []*intMaxTree.DepositLeaf
+	DepositRoots  []common.Hash
 	// TxTree        *intMaxTree.PoseidonMerkleTree
 }
 
@@ -1415,7 +1416,7 @@ type mockBlockBuilder struct {
 	validityWitnesses          map[uint32]*ValidityWitness
 	LatestWitnessBlockNumber   uint32
 	MerkleTreeHistory          map[uint32]*MerkleTrees
-	DepositTreeHistory         map[string]*intMaxTree.KeccakMerkleTree // deposit hash -> deposit tree
+	// DepositTreeHistory         map[string]*intMaxTree.KeccakMerkleTree // deposit hash -> deposit tree
 }
 
 type MockBlockBuilderMemory = mockBlockBuilder
@@ -1792,6 +1793,14 @@ func (db *mockBlockBuilder) DepositTreeProof(blockNumber uint32, depositIndex ui
 	}
 
 	return proof, nil
+}
+
+func (db *mockBlockBuilder) BlockNumberByDepositIndex(depositIndex uint32) (uint32, error) {
+	// depositRoots := db.MerkleTreeHistory[blockNumber].DepositRoots
+
+	// return db.MerkleTreeHistory[blockNumber].DepositTree, nil
+
+	return 0, nil
 }
 
 func (db *mockBlockBuilder) AppendBlockTreeLeaf(block *block_post_service.PostedBlock) error {
@@ -2470,6 +2479,10 @@ func (b *mockBlockBuilder) CreateBlockContent(
 		postedBlock,
 		blockContent,
 	)
+}
+
+func (b *mockBlockBuilder) BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContent, error) {
+	return b.db.BlockContentByTxRoot(txRoot)
 }
 
 func (b *mockBlockBuilder) NextAccountID() (uint64, error) {

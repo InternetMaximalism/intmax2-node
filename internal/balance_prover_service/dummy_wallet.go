@@ -24,7 +24,7 @@ type MockWallet struct {
 	publicState       *block_validity_prover.PublicState
 	sendWitnesses     map[uint32]*SendWitness
 	depositCases      map[uint32]*DepositCase
-	transferWitnesses map[uint32][]*TransferWitness
+	transferWitnesses map[uint32][]*intMaxTypes.TransferWitness
 }
 
 func (w *MockWallet) AddDepositCase(depositIndex uint32, depositCase *DepositCase) error {
@@ -35,7 +35,7 @@ func (w *MockWallet) AddDepositCase(depositIndex uint32, depositCase *DepositCas
 func (w *MockWallet) SendTx(
 	blockBuilder *block_validity_prover.MockBlockBuilderMemory,
 	transfers []*intMaxTypes.Transfer,
-) (*TxWitness, []*TransferWitness, error) {
+) (*TxWitness, []*intMaxTypes.TransferWitness, error) {
 	fmt.Printf("-----SendTx-----")
 	if len(transfers) >= numTransfersInTx {
 		return nil, nil, errors.New("transfers length must be less than numTransfersInTx")
@@ -114,14 +114,14 @@ func (w *MockWallet) SendTx(
 		TxMerkleProof: txMerkleProof,
 	}
 
-	transferWitnesses := make([]*TransferWitness, len(transfers))
+	transferWitnesses := make([]*intMaxTypes.TransferWitness, len(transfers))
 	for transferIndex, transfer := range transfers {
 		transferMerkleProof, _, _ := transferTree.ComputeMerkleProof(uint64(transferIndex))
-		transferWitness := TransferWitness{
+		transferWitness := intMaxTypes.TransferWitness{
 			Tx:                  tx,
 			Transfer:            *transfer,
 			TransferIndex:       uint32(transferIndex),
-			TransferMerkleProof: &intMaxTree.MerkleProof{Siblings: transferMerkleProof},
+			TransferMerkleProof: transferMerkleProof,
 		}
 		fmt.Printf("transferWitnesses[%d]: %v\n", transferIndex, transferWitness)
 		transferWitnesses[transferIndex] = &transferWitness
@@ -130,7 +130,7 @@ func (w *MockWallet) SendTx(
 	return txWitness, transferWitnesses, nil
 }
 
-func (w *MockWallet) UpdateOnSendTx(salt Salt, txWitness *TxWitness, transferWitnesses []*TransferWitness) (*SendWitness, error) {
+func (w *MockWallet) UpdateOnSendTx(salt Salt, txWitness *TxWitness, transferWitnesses []*intMaxTypes.TransferWitness) (*SendWitness, error) {
 	prevPrivateState := w.PrivateState()
 	prevBalancePis, err := w.GetBalancePublicInputs()
 	if err != nil {
@@ -199,7 +199,10 @@ func (w *MockWallet) UpdateOnSendTx(salt Salt, txWitness *TxWitness, transferWit
 	return &sendWitness, nil
 }
 
-func (w *MockWallet) SendTxAndUpdate(blockBuilder *block_validity_prover.MockBlockBuilderMemory, transfers []*intMaxTypes.Transfer) (*SendWitness, error) {
+func (w *MockWallet) SendTxAndUpdate(
+	blockBuilder *block_validity_prover.MockBlockBuilderMemory,
+	transfers []*intMaxTypes.Transfer,
+) (*SendWitness, error) {
 	txWitness, transferWitnesses, err := w.SendTx(blockBuilder, transfers)
 	if err != nil {
 		return nil, err
@@ -234,7 +237,7 @@ func NewMockWallet(privateKey *intMaxAcc.PrivateKey) (*MockWallet, error) {
 		publicState:       new(block_validity_prover.PublicState).Genesis(),
 		sendWitnesses:     make(map[uint32]*SendWitness),
 		depositCases:      make(map[uint32]*DepositCase), // depositId => DepositCase
-		transferWitnesses: make(map[uint32][]*TransferWitness),
+		transferWitnesses: make(map[uint32][]*intMaxTypes.TransferWitness),
 	}, nil
 }
 
@@ -555,7 +558,7 @@ func (s *MockWallet) ReceiveDepositAndUpdate(
 func (s *MockWallet) ReceiveTransferAndUpdate(
 	blockBuilder MockBlockBuilder,
 	lastBlockNumber uint32,
-	transferWitness *TransferWitness,
+	transferWitness *intMaxTypes.TransferWitness,
 	senderBalanceProof string,
 ) (*ReceiveTransferWitness, error) {
 	receiveTransferWitness, err := s.GenerateReceiveTransferWitness(
@@ -580,7 +583,7 @@ func (s *MockWallet) ReceiveTransferAndUpdate(
 func (s *MockWallet) GenerateReceiveTransferWitness(
 	blockBuilder MockBlockBuilder,
 	receiverBlockNumber uint32,
-	transferWitness *TransferWitness,
+	transferWitness *intMaxTypes.TransferWitness,
 	senderBalanceProof string,
 	skipInsufficientCheck bool,
 ) (*ReceiveTransferWitness, error) {

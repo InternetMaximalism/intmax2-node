@@ -47,6 +47,63 @@ func TestTransferData(t *testing.T) {
 	assert.Equal(t, transferHash.String(), "0x9b469cf21563c28179698ccac6a789450e68b270b586e6ec583cead158f44631")
 }
 
+func TestTransferDetails(t *testing.T) {
+	address := make([]byte, 32)
+	for i := 0; i < 32; i++ {
+		address[i] = byte(i)
+	}
+	a, _ := new(big.Int).SetString("5072999951032826783367862081641321578167449493857840371024146051846401100402", 10)
+	copy(address[32-len(a.Bytes()):], a.Bytes())
+	recipient, err := intMaxTypes.NewINTMAXAddress(address)
+	assert.NoError(t, err)
+	assert.NotNil(t, recipient)
+	amount, _ := new(big.Int).SetString("4098227373595779913487602621708067623280365761755196974852", 10)
+	assert.NoError(t, err)
+	salt := new(intMaxTypes.PoseidonHashOut)
+	salt.Elements[0] = *new(ffg.Element).SetUint64(3645147740416515513)
+	salt.Elements[1] = *new(ffg.Element).SetUint64(16630279128197546175)
+	salt.Elements[2] = *new(ffg.Element).SetUint64(5615096774476642530)
+	salt.Elements[3] = *new(ffg.Element).SetUint64(7135915778368184935)
+	transferData := intMaxTypes.Transfer{
+		Recipient:  recipient,
+		TokenIndex: 827790650,
+		Amount:     amount,
+		Salt:       salt,
+	}
+
+	transferDetails := intMaxTypes.TransferDetails{
+		TransferWitness: &intMaxTypes.TransferWitness{
+			Transfer:            transferData,
+			TransferIndex:       0,
+			TransferMerkleProof: make([]*goldenposeidon.PoseidonHashOut, 6),
+			Tx: intMaxTypes.Tx{
+				Nonce:            0,
+				TransferTreeRoot: new(goldenposeidon.PoseidonHashOut).SetZero(),
+			},
+		},
+		TxTreeRoot:                new(goldenposeidon.PoseidonHashOut).SetZero(),
+		TxMerkleProof:             make([]*goldenposeidon.PoseidonHashOut, 7),
+		SenderBalancePublicInputs: []byte{},
+	}
+	for i := 0; i < 6; i++ {
+		transferDetails.TransferWitness.TransferMerkleProof[i] = new(goldenposeidon.PoseidonHashOut).SetZero()
+	}
+	for i := 0; i < 7; i++ {
+		transferDetails.TxMerkleProof[i] = new(goldenposeidon.PoseidonHashOut).SetZero()
+	}
+
+	encodedTransferDetails := transferDetails.Marshal()
+
+	t.Log("transferDetails.Marshal()", encodedTransferDetails)
+	t.Log("transferDetails.Marshal()", len(encodedTransferDetails))
+
+	decodedTransferDetails := new(intMaxTypes.TransferDetails)
+	err = decodedTransferDetails.Unmarshal(encodedTransferDetails)
+	require.NoError(t, err)
+
+	require.True(t, transferDetails.Equal(decodedTransferDetails))
+}
+
 func TestEncryptTransfers(t *testing.T) {
 	recipientAccount, err := intMaxAcc.NewPrivateKey(big.NewInt(4))
 	require.NoError(t, err)

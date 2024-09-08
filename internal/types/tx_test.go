@@ -143,9 +143,14 @@ func TestEncryptTxDetails(t *testing.T) {
 		TransferTreeRoot: &TransferTreeRoot,
 	}
 
+	txMerkleProof, txTreeRoot, err := transferTree.ComputeMerkleProof(0)
+	require.NoError(t, err)
+
 	txDetails := intMaxTypes.TxDetails{
-		Tx:        tx,
-		Transfers: transfers,
+		Tx:            tx,
+		Transfers:     transfers,
+		TxTreeRoot:    &txTreeRoot,
+		TxMerkleProof: txMerkleProof,
 	}
 
 	encodedTx := txDetails.Marshal()

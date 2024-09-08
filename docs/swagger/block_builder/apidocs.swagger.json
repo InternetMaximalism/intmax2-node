@@ -179,6 +179,42 @@
         ]
       }
     },
+    "/v1/deposit/stauts/{depositHash}": {
+      "get": {
+        "operationId": "BlockBuilderService_DepositStatusByHash",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DepositStatusByHashResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "depositHash",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "BlockBuilderService"
+        ]
+      }
+    },
     "/v1/info": {
       "get": {
         "summary": "Info returns the info about retrieves the block builder's Scroll address, transaction fee, and difficulty",
@@ -500,6 +536,15 @@
       },
       "title": "DataBlockSignatureResponse describes the data of response about sends the signature to approve the proposed block by signing the tx tree root"
     },
+    "v1DataDepositStatusByHashResponse": {
+      "type": "object",
+      "properties": {
+        "blockNumber": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
     "v1DataInfoResponse": {
       "type": "object",
       "properties": {
@@ -535,6 +580,17 @@
         }
       },
       "title": "DataTransactionResponse describes the data of response to get info about the create new transaction"
+    },
+    "v1DepositStatusByHashResponse": {
+      "type": "object",
+      "properties": {
+        "blockNumber": {
+          "type": "boolean"
+        },
+        "data": {
+          "$ref": "#/definitions/v1DataDepositStatusByHashResponse"
+        }
+      }
     },
     "v1EnoughBalanceOfProofBlockSignatureRequest": {
       "type": "object",

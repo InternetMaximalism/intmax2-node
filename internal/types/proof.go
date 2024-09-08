@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/iden3/go-iden3-crypto/ffg"
@@ -15,6 +16,7 @@ import (
 type Plonky2Proof struct {
 	Proof        []byte        `json:"proof"`
 	PublicInputs []ffg.Element `json:"public_inputs"`
+	proofBytes   []byte
 }
 
 func (p *Plonky2Proof) MarshalJSON() ([]byte, error) {
@@ -66,10 +68,63 @@ func NewCompressedPlonky2ProofFromBytes(proof []byte) (*Plonky2Proof, error) {
 		publicInputs[i].SetUint64(v)
 	}
 
+	proofBytes := []byte{}
+	_, err = reader.Read(proofBytes)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Plonky2Proof{
 		PublicInputs: publicInputs,
 		Proof:        proof,
+		proofBytes:   proofBytes,
 	}, nil
+}
+
+func (p *Plonky2Proof) Bytes() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	err := binary.Write(buf, binary.LittleEndian, uint32(len(p.PublicInputs)))
+	if err != nil {
+		return nil, err
+	}
+
+	for _, v := range p.PublicInputs {
+		err = binary.Write(buf, binary.LittleEndian, v.ToUint64Regular())
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	_, err = buf.Write(p.Proof)
+	if err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func (p *Plonky2Proof) Base64String() (string, error) {
+	bytes, err := p.Bytes()
+	if err != nil {
+		return "", err
+	}
+
+	return base64.StdEncoding.EncodeToString(bytes), nil
+}
+
+func DecodePublicInputs(reader *bufio.Reader, numPublicInputs uint32) ([]ffg.Element, error) {
+	publicInputs := make([]ffg.Element, numPublicInputs)
+	for i := 0; i < int(numPublicInputs); i++ {
+		v := uint64(0)
+		err := binary.Read(reader, binary.LittleEndian, &v)
+		if err != nil {
+			return nil, err
+		}
+
+		publicInputs[i].SetUint64(v)
+	}
+
+	return publicInputs, nil
 }
 
 func NewCompressedPlonky2ProofFromBase64String(proof string) (*Plonky2Proof, error) {
@@ -85,11 +140,9 @@ func NewCompressedPlonky2ProofFromBase64String(proof string) (*Plonky2Proof, err
 		return nil, err
 	}
 
-	publicInputs := make([]ffg.Element, numPublicInputs)
-	for i := 0; i < int(numPublicInputs); i++ {
-		v := uint64(0)
-		binary.Read(reader, binary.LittleEndian, &v)
-		publicInputs[i].SetUint64(v)
+	publicInputs, err := DecodePublicInputs(reader, numPublicInputs)
+	if err != nil {
+		return nil, err
 	}
 
 	proofBytes := []byte{}
@@ -97,6 +150,8 @@ func NewCompressedPlonky2ProofFromBase64String(proof string) (*Plonky2Proof, err
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Printf("reader size: %d", reader.Size())
 
 	return &Plonky2Proof{
 		PublicInputs: publicInputs,

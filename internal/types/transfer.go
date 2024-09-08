@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
 	intMaxAccTypes "intmax2-node/internal/accounts/types"
 	"intmax2-node/internal/finite_field"
@@ -261,14 +262,17 @@ func (td *Transfer) Marshal() []byte {
 	if err != nil {
 		panic(err)
 	}
+
 	_, err = buf.Write(tokenIndexBytes)
 	if err != nil {
 		panic(err)
 	}
+
 	_, err = buf.Write(reversedAmountBytes)
 	if err != nil {
 		panic(err)
 	}
+
 	_, err = buf.Write(td.Salt.Marshal())
 	if err != nil {
 		panic(err)
@@ -315,6 +319,7 @@ func (td *Transfer) Read(buf *bytes.Buffer) error {
 	if err := td.Salt.Unmarshal(saltBytes); err != nil {
 		return err
 	}
+	fmt.Println("saltBytes3")
 
 	return nil
 }
@@ -370,4 +375,225 @@ func (td *Transfer) GetWithdrawalNullifier() *PoseidonHashOut {
 	input := transferCommitment.Elements[:]
 	input = append(input, td.Salt.Elements[:]...)
 	return goldenposeidon.HashNoPad(input)
+}
+
+type TransferWitness struct {
+	Transfer            Transfer
+	TransferIndex       uint32
+	Tx                  Tx
+	TransferMerkleProof []*PoseidonHashOut
+}
+
+func (t *TransferWitness) Equal(other *TransferWitness) bool {
+	if !t.Transfer.Equal(&other.Transfer) {
+		return false
+	}
+
+	if t.TransferMerkleProof == nil && other.TransferMerkleProof == nil {
+		return true
+	}
+
+	if t.TransferIndex != other.TransferIndex {
+		return false
+	}
+
+	if !t.Tx.Equal(&other.Tx) {
+		return false
+	}
+
+	if len(t.TransferMerkleProof) != len(other.TransferMerkleProof) {
+		return false
+	}
+
+	for i := range t.TransferMerkleProof {
+		if !t.TransferMerkleProof[i].Equal(other.TransferMerkleProof[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (t *TransferWitness) Marshal() []byte {
+	buf := bytes.NewBuffer(make([]byte, 0))
+
+	if _, err := buf.Write(t.Transfer.Marshal()); err != nil {
+		panic(err)
+	}
+	if err := binary.Write(buf, binary.BigEndian, t.TransferIndex); err != nil {
+		panic(err)
+	}
+	if _, err := buf.Write(t.Tx.Marshal()); err != nil {
+		panic(err)
+	}
+	if err := binary.Write(buf, binary.BigEndian, uint32(len(t.TransferMerkleProof))); err != nil {
+		panic(err)
+	}
+	for _, proof := range t.TransferMerkleProof {
+		if _, err := buf.Write(proof.Marshal()); err != nil {
+			panic(err)
+		}
+	}
+	return buf.Bytes()
+}
+
+func (t *TransferWitness) Write(buf *bytes.Buffer) error {
+	_, err := buf.Write(t.Marshal())
+
+	return err
+}
+
+func (t *TransferWitness) Read(buf *bytes.Buffer) error {
+	t.Transfer = *new(Transfer)
+	if err := t.Transfer.Read(buf); err != nil {
+		return err
+	}
+
+	if len(buf.Bytes()) == 0 {
+		fmt.Printf("WARNING: only transfer data is available\n")
+		return nil
+	}
+
+	transferIndexBytes := make([]byte, int4Key)
+	if _, err := buf.Read(transferIndexBytes); err != nil {
+		return err
+	}
+	t.TransferIndex = binary.BigEndian.Uint32(transferIndexBytes)
+
+	t.Tx = *new(Tx)
+	if err := t.Tx.Read(buf); err != nil {
+		return err
+	}
+
+	proofsLenBytes := make([]byte, int4Key)
+	if _, err := buf.Read(proofsLenBytes); err != nil {
+		return err
+	}
+	proofsLen := binary.BigEndian.Uint32(proofsLenBytes)
+	t.TransferMerkleProof = make([]*PoseidonHashOut, proofsLen)
+	for i := range t.TransferMerkleProof {
+		t.TransferMerkleProof[i] = new(PoseidonHashOut)
+		if err := t.TransferMerkleProof[i].Unmarshal(buf.Next(int32Key)); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (t *TransferWitness) Unmarshal(data []byte) error {
+	buf := bytes.NewBuffer(data)
+
+	return t.Read(buf)
+}
+
+type TransferDetails struct {
+	TransferWitness           *TransferWitness
+	TxTreeRoot                *PoseidonHashOut
+	TxMerkleProof             []*PoseidonHashOut
+	SenderBalancePublicInputs []byte
+}
+
+func (t *TransferDetails) Equal(other *TransferDetails) bool {
+	if !t.TransferWitness.Equal(other.TransferWitness) {
+		return false
+	}
+
+	if t.TxTreeRoot == nil && other.TxTreeRoot == nil {
+		return true
+	}
+
+	if !t.TxTreeRoot.Equal(other.TxTreeRoot) {
+		return false
+	}
+
+	if len(t.TxMerkleProof) != len(other.TxMerkleProof) {
+		return false
+	}
+
+	for i := range t.TxMerkleProof {
+		if !t.TxMerkleProof[i].Equal(other.TxMerkleProof[i]) {
+			return false
+		}
+	}
+
+	return bytes.Equal(t.SenderBalancePublicInputs, other.SenderBalancePublicInputs)
+}
+
+func (t *TransferDetails) Marshal() []byte {
+	buf := bytes.NewBuffer(make([]byte, 0))
+
+	if _, err := buf.Write(t.TransferWitness.Marshal()); err != nil {
+		panic(err)
+	}
+
+	if _, err := buf.Write(t.TxTreeRoot.Marshal()); err != nil {
+		panic(err)
+	}
+
+	proofsLen := uint32(len(t.TxMerkleProof))
+	if err := binary.Write(buf, binary.BigEndian, proofsLen); err != nil {
+		panic(err)
+	}
+	for _, proof := range t.TxMerkleProof {
+		if _, err := buf.Write(proof.Marshal()); err != nil {
+			panic(err)
+		}
+	}
+
+	_, err := buf.Write(t.SenderBalancePublicInputs)
+	if err != nil {
+		panic(err)
+	}
+
+	return buf.Bytes()
+}
+
+func (t *TransferDetails) Write(buf *bytes.Buffer) error {
+	_, err := buf.Write(t.Marshal())
+
+	return err
+}
+
+func (t *TransferDetails) Read(buf *bytes.Buffer) error {
+	t.TransferWitness = new(TransferWitness)
+	if err := t.TransferWitness.Read(buf); err != nil {
+		return err
+	}
+
+	if len(buf.Bytes()) == 0 {
+		fmt.Printf("WARNING: only transfer witness is available\n")
+		return nil
+	}
+
+	t.TxTreeRoot = new(PoseidonHashOut)
+	if err := t.TxTreeRoot.Unmarshal(buf.Next(int32Key)); err != nil {
+		return err
+	}
+
+	proofsLenBytes := make([]byte, int4Key)
+	if _, err := buf.Read(proofsLenBytes); err != nil {
+		return err
+	}
+	proofsLen := binary.BigEndian.Uint32(proofsLenBytes)
+	t.TxMerkleProof = make([]*PoseidonHashOut, proofsLen)
+	for i := range t.TxMerkleProof {
+		t.TxMerkleProof[i] = new(PoseidonHashOut)
+		if err := t.TxMerkleProof[i].Unmarshal(buf.Next(int32Key)); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (t *TransferDetails) Unmarshal(data []byte) error {
+	buf := bytes.NewBuffer(data)
+
+	return t.Read(buf)
+}
+
+type TransferDetailsWithProofBody struct {
+	TransferDetails        *TransferDetails
+	SenderBalanceProofBody string
 }

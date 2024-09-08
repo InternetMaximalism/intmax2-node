@@ -1,6 +1,7 @@
 package balance_prover_service
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"intmax2-node/internal/block_validity_prover"
@@ -184,6 +185,53 @@ func (s *SyncBalanceProver) SyncNoSend(
 	if err != nil {
 		return err
 	}
+
+	// let prev_balance_pis = if prev_balance_proof.is_some() {
+	//     BalancePublicInputs::from_pis(&prev_balance_proof.as_ref().unwrap().public_inputs)
+	// } else {
+	//     BalancePublicInputs::new(public_key)
+	// };
+	// let last_block_number = balance_update_witness.account_membership_proof.get_value();
+	// let prev_public_state = &prev_balance_pis.public_state;
+	// println!("last_block_number: {}", last_block_number);
+	// println!(
+	//     "prev_public_state.block_number: {}",
+	//     prev_public_state.block_number
+	// );
+	// if last_block_number > prev_balance_pis.public_state.block_number as u64 {
+	// 	return Err("last_block_number is greater than prev_public_state.block_number");
+	// }
+
+	var prevBalancePis *BalancePublicInputs
+	if s.LastBalanceProof != nil {
+		fmt.Println("s.LastBalanceProof != nil")
+		lastBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*s.LastBalanceProof)
+		if err != nil {
+			return err
+		}
+		prevBalancePis, err = new(BalancePublicInputs).FromPublicInputs(lastBalanceProofWithPis.PublicInputs)
+		if err != nil {
+			return err
+		}
+	} else {
+		fmt.Println("NewWithPublicKey")
+		prevBalancePis = NewWithPublicKey(wallet.PublicKey())
+	}
+	prevBalancePisJSON, err := json.Marshal(prevBalancePis)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("prevBalancePisJSON: %s", prevBalancePisJSON)
+
+	lastBlockNumber := updateWitness.AccountMembershipProof.GetLeaf()
+	prevPublicState := prevBalancePis.PublicState
+	fmt.Printf("sync no send")
+	fmt.Printf("lastBlockNumber: %d\n", lastBlockNumber)
+	fmt.Printf("prevPublicState.BlockNumber: %d\n", prevPublicState.BlockNumber)
+	if lastBlockNumber > uint64(prevPublicState.BlockNumber) {
+		return errors.New("last block number is greater than prev public state block number")
+	}
+
 	balanceProof, err := balanceProcessor.ProveUpdate(
 		wallet.PublicKey(),
 		updateWitness,
@@ -258,7 +306,7 @@ func (s *SyncBalanceProver) ReceiveTransfer(
 	wallet *MockWallet,
 	balanceProcessor *BalanceProcessor,
 	blockBuilder MockBlockBuilder,
-	transferWitness *TransferWitness,
+	transferWitness *intMaxTypes.TransferWitness,
 	senderBalanceProof string,
 ) error {
 	fmt.Printf("ReceiveTransfer s.LastUpdatedBlockNumber: %d\n", s.LastUpdatedBlockNumber)

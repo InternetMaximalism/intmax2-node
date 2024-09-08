@@ -273,8 +273,9 @@ func (input *UpdateWitnessInput) FromUpdateWitness(updateWitness *UpdateWitness)
 	}
 	input.AccountMembershipProof.LeafIndex = updateWitness.AccountMembershipProof.LeafIndex
 	input.AccountMembershipProof.Leaf = IndexedMerkleLeafInput{}
-	fmt.Printf("updateWitness.AccountMembershipProof.Leaf: %v\n", updateWitness.AccountMembershipProof.Leaf)
 	input.AccountMembershipProof.Leaf.FromIndexedMerkleLeaf(&updateWitness.AccountMembershipProof.Leaf)
+	fmt.Printf("updateWitness.AccountMembershipProof.Leaf: %v\n", updateWitness.AccountMembershipProof)
+	fmt.Printf("updateWitness.AccountMembershipProof.Leaf: %v\n", input.AccountMembershipProof)
 
 	return input
 }
@@ -315,9 +316,8 @@ func (p *BalanceProcessor) requestUpdateBalanceValidityProof(
 		UpdateWitness:    new(UpdateWitnessInput).FromUpdateWitness(updateWitness),
 		PrevBalanceProof: prevBalanceProof,
 	}
-
-	// bd2, _ := json.Marshal(requestBody.UpdateWitness)
-	// fmt.Printf("requestBody: %s\n", bd2)
+	bd2, _ := json.Marshal(requestBody.UpdateWitness)
+	fmt.Printf("requestBody: %s\n", bd2)
 
 	bd, err := json.Marshal(requestBody)
 	if err != nil {

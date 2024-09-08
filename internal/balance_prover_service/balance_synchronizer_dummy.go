@@ -46,20 +46,27 @@ func (s *balanceSynchronizerDummy) TestE2E(
 	blockBuilderWallet *models.Wallet,
 	withdrawalAggregator *withdrawal_service.WithdrawalAggregatorService,
 ) {
-	// withdrawalWitness, err := s.TestE2EWithoutWithdrawal(syncValidityProver, blockBuilderWallet, withdrawalAggregator)
+	withdrawalWitness, err := s.TestE2EWithoutWithdrawal(syncValidityProver, blockBuilderWallet, withdrawalAggregator)
+	if err != nil {
+		s.log.Fatalf("failed to test e2e: %+v", err)
+		return
+	}
+	withdrawalWitnessInput := new(withdrawal_service.WithdrawalWitnessInput).FromWithdrawalWitness(withdrawalWitness)
+
+	withdrawalWitnessJSON, err := json.Marshal(withdrawalWitnessInput)
+	if err != nil {
+		s.log.Fatalf("failed to marshal withdrawal witness: %+v", err)
+	}
+	fmt.Printf("withdrawalWitnessJSON: %s\n", withdrawalWitnessJSON)
+
+	// withdrawalWitness := new(withdrawal_service.WithdrawalWitnessInput)
+	// err := json.Unmarshal([]byte(EncodedWithdrawalWitness), &withdrawalWitness)
 	// if err != nil {
-	// 	s.log.Fatalf("failed to test e2e: %+v", err)
-	// 	return
+	// 	s.log.Fatalf("failed to unmarshal withdrawal witness: %+v", err)
 	// }
 
-	withdrawalWitness := new(withdrawal_service.WithdrawalWitnessInput)
-	err := json.Unmarshal([]byte(EncodedWithdrawalWitness), &withdrawalWitness)
-	if err != nil {
-		s.log.Fatalf("failed to unmarshal withdrawal witness: %+v", err)
-	}
-
 	withdrawalProcessor := NewWithdrawalProcessor(withdrawalAggregator)
-	withdrawalProofJSON, err := withdrawalProcessor.Prove(withdrawalWitness, nil)
+	withdrawalProofJSON, err := withdrawalProcessor.Prove(withdrawalWitnessInput, nil)
 	if err != nil {
 		s.log.Fatalf("failed to prove withdrawal: %+v", err)
 	}
@@ -254,7 +261,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 	// }
 
 	withdrawalWitness := withdrawal_service.WithdrawalWitness{
-		TransferWitness: &withdrawal_service.TransferWitness{
+		TransferWitness: &intMaxTypes.TransferWitness{
 			Tx:                  withdrawalTransferWitness.Tx,
 			Transfer:            withdrawalTransferWitness.Transfer,
 			TransferIndex:       withdrawalTransferWitness.TransferIndex,

@@ -11,7 +11,9 @@ use crate::{
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
 use intmax2_zkp::{
-    circuits::validity::validity_pis::ValidityPublicInputs,
+    circuits::{
+        balance::balance_pis::BalancePublicInputs, validity::validity_pis::ValidityPublicInputs,
+    },
     common::witness::update_witness::UpdateWitness,
     ethereum_types::{u256::U256, u32limb_trait::U32LimbTrait},
 };
@@ -186,6 +188,36 @@ async fn generate_proof(
     };
 
     // TODO: Validation check of balance_witness
+
+    // there is no send tx till the last block
+    let prev_balance_pis = if prev_balance_proof.is_some() {
+        BalancePublicInputs::from_pis(&prev_balance_proof.as_ref().unwrap().public_inputs)
+    } else {
+        BalancePublicInputs::new(public_key)
+    };
+    let last_block_number = balance_update_witness.account_membership_proof.get_value();
+    let prev_public_state = &prev_balance_pis.public_state;
+    println!("last_block_number: {}", last_block_number);
+    println!(
+        "balance_update_witness.account_membership_proof.is_included: {}",
+        balance_update_witness.account_membership_proof.is_included
+    );
+    println!(
+        "prev_public_state.block_number: {}",
+        prev_public_state.block_number
+    );
+    let encoded_prev_balance_pis = serde_json::to_string(&prev_balance_pis).unwrap();
+    println!("encoded_prev_balance_pis: {}", encoded_prev_balance_pis);
+    if last_block_number > prev_balance_pis.public_state.block_number as u64 {
+        log::warn!(
+            "No send tx till the last block: {} > {}",
+            last_block_number,
+            prev_public_state.block_number
+        );
+        return Err(error::ErrorInternalServerError(
+            "No send tx till the last block",
+        ));
+    }
 
     let response = ProofResponse {
         success: true,

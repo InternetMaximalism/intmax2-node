@@ -81,9 +81,45 @@ func (t *Tx) Hash() *PoseidonHashOut {
 	return goldenposeidon.HashNoPad(input)
 }
 
+func (t *Tx) Marshal() []byte {
+	buf := bytes.NewBuffer(make([]byte, 0))
+
+	if err := binary.Write(buf, binary.BigEndian, t.Nonce); err != nil {
+		panic(err)
+	}
+	if _, err := buf.Write(t.TransferTreeRoot.Marshal()); err != nil {
+		panic(err)
+	}
+
+	return buf.Bytes()
+}
+
+func (t *Tx) Write(buf *bytes.Buffer) error {
+	_, err := buf.Write(t.Marshal())
+
+	return err
+}
+
+func (t *Tx) Read(buf *bytes.Buffer) error {
+	if err := binary.Read(buf, binary.BigEndian, &t.Nonce); err != nil {
+		return err
+	}
+
+	t.TransferTreeRoot = new(PoseidonHashOut)
+	return t.TransferTreeRoot.Unmarshal(buf.Next(int32Key))
+}
+
+func (t *Tx) Unmarshal(data []byte) error {
+	buf := bytes.NewBuffer(data)
+
+	return t.Read(buf)
+}
+
 type TxDetails struct {
 	Tx
-	Transfers []*Transfer
+	TxTreeRoot    *goldenposeidon.PoseidonHashOut
+	TxMerkleProof []*goldenposeidon.PoseidonHashOut
+	Transfers     []*Transfer
 }
 
 func (td *TxDetails) Marshal() []byte {
@@ -101,6 +137,20 @@ func (td *TxDetails) Marshal() []byte {
 
 	for _, transfer := range td.Transfers {
 		if _, err := buf.Write(transfer.Marshal()); err != nil {
+			panic(err)
+		}
+	}
+
+	if _, err := buf.Write(td.TxTreeRoot.Marshal()); err != nil {
+		panic(err)
+	}
+
+	if err := binary.Write(buf, binary.BigEndian, uint32(len(td.TxMerkleProof))); err != nil {
+		panic(err)
+	}
+
+	for _, proof := range td.TxMerkleProof {
+		if _, err := buf.Write(proof.Marshal()); err != nil {
 			panic(err)
 		}
 	}
@@ -139,6 +189,31 @@ func (td *TxDetails) Read(buf *bytes.Buffer) error {
 			return err
 		}
 		td.Transfers[i] = transfer
+	}
+
+	if len(buf.Bytes()) == 0 {
+		return nil
+	}
+
+	txTreeRoot := new(PoseidonHashOut)
+	if err := txTreeRoot.Unmarshal(buf.Next(int32Key)); err != nil {
+		return err
+	}
+
+	td.TxTreeRoot = new(PoseidonHashOut).Set(txTreeRoot)
+
+	var numTxMerkleProof uint32
+	if err := binary.Read(buf, binary.BigEndian, &numTxMerkleProof); err != nil {
+		return err
+	}
+
+	td.TxMerkleProof = make([]*PoseidonHashOut, numTxMerkleProof)
+	for i := 0; i < int(numTxMerkleProof); i++ {
+		proof := new(PoseidonHashOut)
+		if err := proof.Unmarshal(buf.Next(int32Key)); err != nil {
+			return err
+		}
+		td.TxMerkleProof[i] = proof
 	}
 
 	return nil
