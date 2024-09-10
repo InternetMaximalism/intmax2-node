@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
+
+	// "intmax2-node/internal/balance_prover_service"
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
@@ -101,7 +103,7 @@ func GetBalance(
 
 	l2Balance, err := GetUserBalance(ctx, cfg, userPk, tokenIndex)
 	if err != nil {
-		return fmt.Errorf(ErrFailedToGetBalance, "INTMAX")
+		return errors.Join(fmt.Errorf(ErrFailedToGetBalance, "INTMAX"), err)
 	}
 
 	switch tokenInfo.TokenType {
@@ -385,9 +387,14 @@ func CalculateBalance(
 			continue
 		}
 
+		fmt.Printf("Deposit: %v\n", decodedDeposit)
+		fmt.Printf("Deposit amount: %v\n", decodedDeposit.Amount)
+
 		if decodedDeposit.TokenIndex == tokenIndex {
 			balance = new(big.Int).Add(balance, decodedDeposit.Amount)
 		}
+
+		fmt.Printf("Balance: %v\n", balance)
 	}
 
 	for _, transfer := range userAllData.Transfers {
@@ -401,15 +408,20 @@ func CalculateBalance(
 			log.Printf("failed to decrypt transfer: %v", err)
 			continue
 		}
+
 		var decodedTransfer intMaxTypes.Transfer
 		err = decodedTransfer.Unmarshal(encodedTransfer)
 		if err != nil {
 			log.Printf("failed to unmarshal transfer: %v", err)
 			continue
 		}
+
+		fmt.Printf("Transfer: %v\n", decodedTransfer)
 		if tokenIndex == decodedTransfer.TokenIndex {
 			balance = new(big.Int).Add(balance, decodedTransfer.Amount)
 		}
+
+		fmt.Printf("Balance: %v\n", balance)
 	}
 
 	for _, transaction := range userAllData.Transactions {
@@ -423,16 +435,19 @@ func CalculateBalance(
 			log.Printf("failed to decrypt transaction: %v", err)
 			continue
 		}
-		var decodedTx intMaxTypes.TxDetails
-		err = decodedTx.Unmarshal(encodedTx)
+
+		decodedTx, err := intMaxTypes.UnmarshalTxDetails(transaction.EncodingVersion, encodedTx)
 		if err != nil {
 			log.Printf("failed to unmarshal transaction: %v", err)
 			continue
 		}
+
 		for _, transfer := range decodedTx.Transfers {
 			if tokenIndex == transfer.TokenIndex {
 				balance = new(big.Int).Sub(balance, transfer.Amount)
 			}
+
+			fmt.Printf("Balance: %v\n", balance)
 		}
 	}
 
@@ -441,3 +456,46 @@ func CalculateBalance(
 		Amount:     balance,
 	}, nil
 }
+
+// type SyncBalanceProverInterface interface {
+// 	BalancePublicInputs() (*BalancePublicInputs, error)
+// 	SyncSend(
+// 		syncValidityProver *syncValidityProver,
+// 		wallet *MockWallet,
+// 		balanceProcessor *BalanceProcessor,
+// 	) error
+// 	SyncNoSend(
+// 		syncValidityProver *syncValidityProver,
+// 		wallet *MockWallet,
+// 		balanceProcessor *BalanceProcessor,
+// 	) error
+// 	SyncAll(
+// 		syncValidityProver *syncValidityProver,
+// 		wallet *MockWallet,
+// 		balanceProcessor *BalanceProcessor,
+// 	) error
+// 	ReceiveDeposit(
+// 		wallet *MockWallet,
+// 		balanceProcessor *BalanceProcessor,
+// 		blockBuilder MockBlockBuilder,
+// 		depositIndex uint32,
+// 	) error
+// 	ReceiveTransfer(
+// 		wallet *MockWallet,
+// 		balanceProcessor *BalanceProcessor,
+// 		blockBuilder MockBlockBuilder,
+// 		transferWitness *intMaxTypes.TransferWitness,
+// 		senderBalanceProof string,
+// 	) error
+// }
+
+// func SyncBalanceProof(
+// 	ctx context.Context,
+// 	cfg *configs.Config,
+// 	balanceProver SyncBalanceProver,
+// 	userPublicKey *intMaxAcc.PublicKey,
+// 	userAllData *GetBalancesResponse,
+// ) error {
+
+// 	return nil
+// }

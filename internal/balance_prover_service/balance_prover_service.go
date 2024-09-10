@@ -32,6 +32,10 @@ type balanceProverService struct {
 
 type BalanceProverService = balanceProverService
 
+// type BalanceProverService interface {
+// 	DecodedUserData() (*DecodedUserData, error)
+// }
+
 func NewBalanceProverService(
 	ctx context.Context,
 	cfg *configs.Config,
@@ -54,21 +58,17 @@ func NewBalanceProverService(
 	}
 }
 
-func (s *balanceProverService) DecodedUserData() (*DecodedUserData, error) {
-	fmt.Printf("Starting balance prover service: %s\n", s.wallet.IntMaxWalletAddress)
+func DecodeUserData(ctx context.Context, cfg *configs.Config, intMaxPrivateKey *intMaxAcc.PrivateKey) (*DecodedUserData, error) {
+	intMaxWalletAddress := intMaxPrivateKey.ToAddress()
+	fmt.Printf("Starting balance prover service: %s\n", intMaxWalletAddress)
 
-	userAllData, err := balance_service.GetUserBalancesRawRequest(s.ctx, s.cfg, s.wallet.IntMaxWalletAddress)
+	userAllData, err := balance_service.GetUserBalancesRawRequest(ctx, cfg, intMaxWalletAddress.String())
 	if err != nil {
 		const msg = "failed to get user all data: %+v"
-		s.log.Fatalf(msg, err.Error())
+		panic(fmt.Sprintf(msg, err.Error()))
 	}
 
-	intMaxPrivateKey, err := intMaxAcc.NewPrivateKeyFromString(s.wallet.IntMaxPrivateKey)
-	if err != nil {
-		return nil, err
-	}
-
-	decodedUserAllData, err := DecodeBackupData(s.ctx, s.cfg, userAllData, intMaxPrivateKey)
+	decodedUserAllData, err := DecodeBackupData(ctx, cfg, userAllData, intMaxPrivateKey)
 	if err != nil {
 		return nil, err
 	}
@@ -226,14 +226,13 @@ func DecodeBackupData(
 			log.Printf("failed to decrypt transaction: %v", err)
 			continue
 		}
-		var decodedTx intMaxTypes.TxDetails
-		err = decodedTx.Unmarshal(encodedTx)
+		decodedTx, err := intMaxTypes.UnmarshalTxDetails(transaction.EncodingVersion, encodedTx)
 		if err != nil {
 			log.Printf("failed to unmarshal transaction: %v", err)
 			continue
 		}
 
-		sentTransactions = append(sentTransactions, &decodedTx)
+		sentTransactions = append(sentTransactions, decodedTx)
 		// for _, transfer := range decodedTx.Transfers {
 		// 	if _, ok := balances[transfer.TokenIndex]; !ok {
 		// 		balances[transfer.TokenIndex] = big.NewInt(0)
@@ -250,18 +249,26 @@ func DecodeBackupData(
 }
 
 func (userAllData *DecodedUserData) SortValidUserData(syncValidityProver *syncValidityProver) ([]ValidBalanceTransition, error) {
-	validDeposits, _, err := ExtractValidReceivedDeposits(userAllData, syncValidityProver)
+	validDeposits, invalidDeposits, err := ExtractValidReceivedDeposits(userAllData, syncValidityProver)
 	if err != nil {
 		fmt.Println("Error in ExtractValidReceivedDeposit")
 	}
-	validTransfers, _, err := ExtractValidReceivedTransfers(userAllData, syncValidityProver)
+	fmt.Printf("num of valid deposits: %d\n", len(validDeposits))
+	fmt.Printf("num of invalid deposits: %d\n", len(invalidDeposits))
+
+	validTransfers, invalidTransfers, err := ExtractValidReceivedTransfers(userAllData, syncValidityProver)
 	if err != nil {
 		fmt.Println("Error in ExtractValidReceivedDeposit")
 	}
-	validTransactions, _, err := ExtractValidSentTransactions(userAllData, syncValidityProver)
+	fmt.Printf("num of valid transfers: %d\n", len(validTransfers))
+	fmt.Printf("num of invalid transfers: %d\n", len(invalidTransfers))
+
+	validTransactions, invalidTransactions, err := ExtractValidSentTransactions(userAllData, syncValidityProver)
 	if err != nil {
 		fmt.Println("Error in ExtractValidReceivedDeposit")
 	}
+	fmt.Printf("num of valid transactions: %d\n", len(validTransactions))
+	fmt.Printf("num of invalid transactions: %d\n", len(invalidTransactions))
 
 	validBalanceTransitions := make([]ValidBalanceTransition, 0, len(validDeposits)+len(validTransfers)+len(validTransactions))
 	for _, transaction := range validTransactions {

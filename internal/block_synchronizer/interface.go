@@ -23,6 +23,7 @@ type BlockSynchronizer interface {
 	BackupTransfer(
 		recipient intMaxAcc.Address,
 		encodedEncryptedTransferHash, encodedEncryptedTransfer string,
+		senderLastBalanceProofBody, senderBalanceTransitionProofBody []byte,
 		blockNumber uint64,
 	) error
 	BackupWithdrawal(

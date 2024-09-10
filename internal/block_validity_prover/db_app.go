@@ -90,7 +90,7 @@ type DepositTreeBuilder interface {
 	AppendDepositTreeLeaf(depositHash common.Hash, depositLeaf *intMaxTree.DepositLeaf) (root common.Hash, err error)
 
 	IsSynchronizedDepositIndex(depositIndex uint32) (bool, error)
-	DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, error)
+	DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error)
 	GetDepositLeafAndIndexByHash(depositHash common.Hash) (depositLeafWithId *DepositLeafWithId, depositIndex *uint32, err error)
 	UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error
 

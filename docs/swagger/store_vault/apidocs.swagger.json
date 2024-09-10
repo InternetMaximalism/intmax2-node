@@ -680,6 +680,14 @@
         "createdAt": {
           "type": "string",
           "format": "date-time"
+        },
+        "senderLastBalanceProofBody": {
+          "type": "string",
+          "title": "The balance proof from the sender"
+        },
+        "senderBalanceTransitionProofBody": {
+          "type": "string",
+          "title": "The balance proof from the sender"
         }
       }
     },
@@ -957,6 +965,14 @@
           "type": "string",
           "format": "uint64",
           "title": "The block number associated with the transfer"
+        },
+        "senderLastBalanceProofBody": {
+          "type": "string",
+          "title": "The balance proof from the sender"
+        },
+        "senderBalanceTransitionProofBody": {
+          "type": "string",
+          "title": "The balance proof from the sender"
         }
       },
       "description": "BackupTransferRequest is the request message for BackupTransfer method."

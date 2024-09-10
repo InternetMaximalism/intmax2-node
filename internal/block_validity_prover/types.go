@@ -1775,24 +1775,24 @@ func (db *mockBlockBuilder) IsSynchronizedDepositIndex(depositIndex uint32) (boo
 	return true, nil
 }
 
-func (db *mockBlockBuilder) DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, error) {
+func (db *mockBlockBuilder) DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error) {
 	depositLeaves := db.MerkleTreeHistory[blockNumber].DepositLeaves
 
 	if depositIndex >= uint32(len(depositLeaves)) {
-		return nil, errors.New("block number is out of range")
+		return nil, common.Hash{}, errors.New("block number is out of range")
 	}
 
 	leaves := make([][32]byte, 0)
 	for _, depositLeaf := range depositLeaves {
 		leaves = append(leaves, [32]byte(depositLeaf.Hash()))
 	}
-	proof, _, err := db.DepositTree.ComputeMerkleProof(depositIndex, leaves)
+	proof, root, err := db.DepositTree.ComputeMerkleProof(depositIndex, leaves)
 	if err != nil {
 		var ErrDepositTreeProof = errors.New("deposit tree proof error")
-		return nil, errors.Join(ErrDepositTreeProof, err)
+		return nil, common.Hash{}, errors.Join(ErrDepositTreeProof, err)
 	}
 
-	return proof, nil
+	return proof, root, nil
 }
 
 func (db *mockBlockBuilder) BlockNumberByDepositIndex(depositIndex uint32) (uint32, error) {

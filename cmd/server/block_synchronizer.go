@@ -9,7 +9,7 @@ import (
 type BlockSynchronizer interface {
 	BackupTransaction(
 		sender intMaxAcc.Address,
-		encodedEncryptedTx string,
+		encodedEncryptedTx, senderLastBalanceProofBody, senderBalanceTransitionProofBody string,
 		signature string,
 		blockNumber uint64,
 	) error

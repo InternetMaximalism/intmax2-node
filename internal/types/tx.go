@@ -117,9 +117,9 @@ func (t *Tx) Unmarshal(data []byte) error {
 
 type TxDetails struct {
 	Tx
+	Transfers     []*Transfer
 	TxTreeRoot    *goldenposeidon.PoseidonHashOut
 	TxMerkleProof []*goldenposeidon.PoseidonHashOut
-	Transfers     []*Transfer
 }
 
 func (td *TxDetails) Marshal() []byte {
@@ -191,9 +191,9 @@ func (td *TxDetails) Read(buf *bytes.Buffer) error {
 		td.Transfers[i] = transfer
 	}
 
-	if len(buf.Bytes()) == 0 {
-		return nil
-	}
+	// if len(buf.Bytes()) == 0 {
+	// 	return nil
+	// }
 
 	txTreeRoot := new(PoseidonHashOut)
 	if err := txTreeRoot.Unmarshal(buf.Next(int32Key)); err != nil {
@@ -222,4 +222,78 @@ func (td *TxDetails) Read(buf *bytes.Buffer) error {
 func (td *TxDetails) Unmarshal(data []byte) error {
 	buf := bytes.NewBuffer(data)
 	return td.Read(buf)
+}
+
+type TxDetailsV0 struct {
+	Tx
+	Transfers []*Transfer
+}
+
+func (td *TxDetailsV0) Read(buf *bytes.Buffer) error {
+	const int32Key = 32
+
+	transferTreeRoot := new(PoseidonHashOut)
+	if err := transferTreeRoot.Unmarshal(buf.Next(int32Key)); err != nil {
+		var ErrUnmarshalTransferTreeRoot = fmt.Errorf("failed to unmarshal transfer tree root: %w", err)
+		return errors.Join(ErrUnmarshalTransferTreeRoot, err)
+	}
+	td.TransferTreeRoot = new(PoseidonHashOut).Set(transferTreeRoot)
+
+	if err := binary.Read(buf, binary.BigEndian, &td.Nonce); err != nil {
+		return err
+	}
+	var numTransfers uint32
+	if err := binary.Read(buf, binary.BigEndian, &numTransfers); err != nil {
+		return err
+	}
+
+	td.Transfers = make([]*Transfer, numTransfers)
+	for i := 0; i < int(numTransfers); i++ {
+		transfer := new(Transfer)
+		if err := transfer.Read(buf); err != nil {
+			return err
+		}
+		td.Transfers[i] = transfer
+	}
+
+	return nil
+}
+
+func (td *TxDetailsV0) Unmarshal(data []byte) error {
+	buf := bytes.NewBuffer(data)
+	return td.Read(buf)
+}
+
+func UnmarshalTxDetails(version uint32, data []byte) (*TxDetails, error) {
+	switch version {
+	case 0:
+		return UnmarshalTxDetailsV0(data)
+	case 1:
+		return UnmarshalTxDetailsV1(data)
+	default:
+		var ErrUnsupportedVersion = fmt.Errorf("unsupported version: %d", version)
+		return nil, ErrUnsupportedVersion
+	}
+}
+
+func UnmarshalTxDetailsV0(data []byte) (*TxDetails, error) {
+	tx := new(TxDetailsV0)
+	buf := bytes.NewBuffer(data)
+
+	err := tx.Read(buf)
+
+	txDetails := TxDetails{
+		Tx:        tx.Tx,
+		Transfers: tx.Transfers,
+	}
+
+	return &txDetails, err
+}
+
+func UnmarshalTxDetailsV1(data []byte) (*TxDetails, error) {
+	td := new(TxDetails)
+	buf := bytes.NewBuffer(data)
+	err := td.Read(buf)
+
+	return td, err
 }

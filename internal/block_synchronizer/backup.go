@@ -2,6 +2,7 @@ package block_synchronizer
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"intmax2-node/configs"
@@ -110,6 +111,7 @@ func backupTransactionRawRequest(
 func (d *blockSynchronizer) BackupTransfer(
 	recipient intMaxAcc.Address,
 	encodedEncryptedTransferHash, encodedEncryptedTransfer string,
+	senderLastBalanceProofBody, senderBalanceTransitionProofBody []byte,
 	blockNumber uint64,
 ) error {
 	err := backupTransferRawRequest(
@@ -118,6 +120,8 @@ func (d *blockSynchronizer) BackupTransfer(
 		d.log,
 		encodedEncryptedTransferHash,
 		encodedEncryptedTransfer,
+		senderLastBalanceProofBody,
+		senderBalanceTransitionProofBody,
 		recipient.String(),
 		uint32(blockNumber),
 	)
@@ -134,14 +138,17 @@ func backupTransferRawRequest(
 	cfg *configs.Config,
 	log logger.Logger,
 	encodedEncryptedTransferHash, encodedEncryptedTransfer string,
+	senderLastBalanceProofBody, senderBalanceTransitionProofBody []byte,
 	recipient string,
 	blockNumber uint32,
 ) error {
 	ucInput := post_backup_transfer.UCPostBackupTransferInput{
-		TransferHash:      encodedEncryptedTransferHash,
-		EncryptedTransfer: encodedEncryptedTransfer,
-		Recipient:         recipient,
-		BlockNumber:       blockNumber,
+		TransferHash:               encodedEncryptedTransferHash,
+		EncryptedTransfer:          encodedEncryptedTransfer,
+		SenderLastBalanceProofBody: base64.StdEncoding.EncodeToString(senderLastBalanceProofBody),
+		SenderTransitionProofBody:  base64.StdEncoding.EncodeToString(senderBalanceTransitionProofBody),
+		Recipient:                  recipient,
+		BlockNumber:                blockNumber,
 	}
 
 	bd, err := json.Marshal(ucInput)

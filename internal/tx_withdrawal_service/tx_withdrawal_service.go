@@ -2,7 +2,6 @@ package tx_withdrawal_service
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -118,24 +117,6 @@ func WithdrawalTransaction(
 
 	var nonce uint64 = 1 // TODO: Incremented with each transaction
 
-	txDetails := intMaxTypes.TxDetails{
-		Tx: intMaxTypes.Tx{
-			TransferTreeRoot: &transfersHash,
-			Nonce:            nonce,
-		},
-		Transfers: initialLeaves,
-	}
-
-	encodedTx := txDetails.Marshal()
-	encryptedTx, err := intMaxAcc.EncryptECIES(
-		rand.Reader,
-		userAccount.Public(),
-		encodedTx,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to encrypt deposit: %w", err)
-	}
-
 	err = SendWithdrawalTransaction(
 		ctx,
 		cfg,
@@ -181,11 +162,23 @@ func WithdrawalTransaction(
 		return fmt.Errorf("failed to find user's public key in the proposed block")
 	}
 
-	encodedEncryptedTx := base64.StdEncoding.EncodeToString(encryptedTx)
-	backupTx := transaction.BackupTransactionData{
-		TxHash:             txHash.String(),
-		EncodedEncryptedTx: encodedEncryptedTx,
-		Signature:          "0x",
+	txDetails := intMaxTypes.TxDetails{
+		Tx: intMaxTypes.Tx{
+			TransferTreeRoot: &transfersHash,
+			Nonce:            nonce,
+		},
+		TxTreeRoot:    &proposedBlock.TxTreeRoot,
+		TxMerkleProof: proposedBlock.TxTreeMerkleProof,
+		Transfers:     initialLeaves,
+	}
+	backupTx, err := transaction.NewBackupTransactionData(
+		userAccount.Public(),
+		txDetails,
+		txHash,
+		"0x",
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create backup transaction data: %w", err)
 	}
 
 	backupTransfers := make([]*transaction.BackupTransferInput, len(initialLeaves))
@@ -209,7 +202,7 @@ func WithdrawalTransaction(
 	// Accept proposed block
 	err = tx_transfer_service.SendSignedProposedBlock(
 		ctx, cfg, userAccount, proposedBlock.TxTreeRoot, *txHash, proposedBlock.PublicKeys,
-		&backupTx, backupTransfers,
+		backupTx, backupTransfers,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to send transaction: %v", err)

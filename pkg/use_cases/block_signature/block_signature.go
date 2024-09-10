@@ -128,11 +128,23 @@ func (u *uc) Do(
 				return err
 			}
 			u.log.Printf("INTMAX Address: %s\n", intMaxAddress.String())
+			senderLastBalanceProofBody, err := hexutil.Decode(encodedEncryptedTransfer.SenderLastBalanceProofBody)
+			if err != nil {
+				open_telemetry.MarkSpanError(spanCtx, err)
+				return errors.Join(ErrDecodeSenderLastBalanceProofBodyFail, err)
+			}
+			senderBalanceTransitionProofBody, err := hexutil.Decode(encodedEncryptedTransfer.SenderTransitionProofBody)
+			if err != nil {
+				open_telemetry.MarkSpanError(spanCtx, err)
+				return errors.Join(ErrDecodeSenderTransitionProofBodyFail, err)
+			}
+
 			if innerErr := b.BackupTransfer(
-				intMaxAddress, encodedEncryptedTransfer.TransferHash, encodedEncryptedTransfer.EncodedEncryptedTransfer, blockNumber,
+				intMaxAddress, encodedEncryptedTransfer.TransferHash, encodedEncryptedTransfer.EncodedEncryptedTransfer,
+				senderLastBalanceProofBody, senderBalanceTransitionProofBody, blockNumber,
 			); innerErr != nil {
 				open_telemetry.MarkSpanError(spanCtx, innerErr)
-				return innerErr
+				return errors.Join(ErrBackupTransferFail, innerErr)
 			}
 		} else {
 			var ethAddress common.Address

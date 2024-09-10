@@ -5,6 +5,7 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
 	"intmax2-node/docs/swagger"
+	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_prover_service"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
@@ -103,8 +104,20 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 				// synchronizer := balance_prover_service.NewSynchronizerDummy(s.Context, s.Config, s.Log, s.SB, s.DbApp)
 				// synchronizer.TestE2E(syncValidityProver, blockBuilderWallet, withdrawalAggregator)
 
+				// balanceProverService := balance_prover_service.NewBalanceProverService(s.Context, s.Config, s.Log, blockBuilderWallet)
+				balanceProcessor := balance_prover_service.NewBalanceProcessor(
+					s.Context, s.Config, s.Log,
+				)
+				syncBalanceProver := balance_prover_service.NewSyncBalanceProver()
+
+				blockBuilderPrivateKey, err := intMaxAcc.NewPrivateKeyFromString(blockBuilderWallet.IntMaxPrivateKey)
+				if err != nil {
+					const msg = "failed to get IntMax Private Key: %+v"
+					s.Log.Fatalf(msg, err.Error())
+				}
+
 				synchronizer := balance_prover_service.NewSynchronizer(s.Context, s.Config, s.Log, s.SB, s.DbApp)
-				err = synchronizer.Sync(syncValidityProver, blockBuilderWallet)
+				err = synchronizer.Sync(syncValidityProver, balanceProcessor, syncBalanceProver, blockBuilderPrivateKey)
 				if err != nil {
 					const msg = "failed to sync: %+v"
 					s.Log.Fatalf(msg, err.Error())

@@ -63,7 +63,21 @@ func TransferTransaction(
 		return err
 	}
 
-	fmt.Printf("User's INTMAX Address: %s\n", userAccount.ToAddress().String())
+	// fmt.Printf("User's INTMAX Address: %s\n", userAccount.ToAddress().String())
+	// balanceProver := balance_prover_service.NewSyncBalanceProver()
+	// balanceSynchronizer := balance_prover_service.NewSynchronizer(ctx, cfg, log, sb, db)
+	// syncValidityProver, err := balance_prover_service.NewSyncValidityProver(ctx, cfg, log, sb, db)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to create sync validity prover: %w", err)
+	// }
+	// balanceProcessor := balance_prover_service.NewBalanceProcessor(ctx, cfg, log)
+
+	// // balanceProcessor *BalanceProcessor,
+	// err = balanceProver.SyncLocally(ctx, cfg, log, balanceSynchronizer, syncValidityProver, balanceProcessor, userAccount)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to sync balance proof: %w", err)
+	// }
+
 	fmt.Println("Fetching balances...")
 	balance, err := balance_service.GetUserBalance(ctx, cfg, userAccount, tokenIndex)
 	if err != nil {
@@ -81,7 +95,7 @@ func TransferTransaction(
 	}
 
 	if balance.Cmp(amount) < 0 {
-		return fmt.Errorf("insufficient balance: %s", balance)
+		return fmt.Errorf("insufficient funds for total amount: balance %s, total amount %s", balance, amount)
 	}
 
 	var dataBlockInfo *BlockInfoResponseData
@@ -121,6 +135,16 @@ func TransferTransaction(
 		)
 
 		initialLeaves = append(initialLeaves, transfer)
+	}
+
+	const base10 = 10
+	gasFeeInt, ok := new(big.Int).SetString(gasFee, base10)
+	if !ok {
+		return fmt.Errorf("failed to convert gas fee to int: %w", err)
+	}
+	totalAmountWithGas := new(big.Int).Add(amount, gasFeeInt)
+	if balance.Cmp(totalAmountWithGas) < 0 {
+		return fmt.Errorf("insufficient funds for tx cost: balance %s, tx cost %s", balance, totalAmountWithGas)
 	}
 
 	// Send transfer transaction
@@ -198,37 +222,28 @@ func TransferTransaction(
 		TxTreeRoot:    &proposedBlock.TxTreeRoot,
 		TxMerkleProof: proposedBlock.TxTreeMerkleProof,
 	}
-
-	encodedTx := txDetails.Marshal()
-	var encryptedTx []byte
-	encryptedTx, err = intMaxAcc.EncryptECIES(
-		rand.Reader,
+	backupTx, err := transaction.NewBackupTransactionData(
 		userAccount.Public(),
-		encodedTx,
+		txDetails,
+		txHash,
+		"0x",
 	)
 	if err != nil {
-		return fmt.Errorf("failed to encrypt transaction: %w", err)
-	}
-
-	encodedEncryptedTx := base64.StdEncoding.EncodeToString(encryptedTx)
-	backupTx := transaction.BackupTransactionData{
-		TxHash:             txHash.String(),
-		EncodedEncryptedTx: encodedEncryptedTx,
-		Signature:          "0x",
+		return fmt.Errorf("failed to make backup transaction data: %v", err)
 	}
 
 	backupTransfers := make([]*transaction.BackupTransferInput, len(initialLeaves))
 	for i := range initialLeaves {
 		backupTransfers[i], err = MakeTransferBackupData(initialLeaves[i])
 		if err != nil {
-			return fmt.Errorf("failed to make backup data: %v", err)
+			return fmt.Errorf("failed to make backup transfer data: %v", err)
 		}
 	}
 
 	// Accept proposed block
 	err = SendSignedProposedBlock(
 		ctx, cfg, userAccount, proposedBlock.TxTreeRoot, *txHash, proposedBlock.PublicKeys,
-		&backupTx, backupTransfers,
+		backupTx, backupTransfers,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to send transaction: %v", err)

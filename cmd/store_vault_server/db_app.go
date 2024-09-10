@@ -30,6 +30,7 @@ type ServiceCommands interface {
 type BackupTransfers interface {
 	CreateBackupTransfer(
 		recipient, encryptedTransferHash, encryptedTransfer string,
+		senderLastBalanceProofBody, senderBalanceTransitionProofBody []byte,
 		blockNumber int64,
 	) (*mDBApp.BackupTransfer, error)
 	GetBackupTransfer(condition string, value string) (*mDBApp.BackupTransfer, error)

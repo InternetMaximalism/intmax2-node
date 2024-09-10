@@ -141,3 +141,31 @@ pub struct ProofsSendResponse {
     pub proofs: Vec<ProofSendValue>,
     pub error_message: Option<String>,
 }
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProofSpentRequest {
+    pub send_witness: SendWitness,
+    pub balance_update_witness: SerializableUpdateWitness,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpentIdQuery {
+    pub request_id: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProofSpentValue {
+    pub request_id: String,
+    pub proof: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProofsSpentResponse {
+    pub success: bool,
+    pub proofs: Vec<ProofSpentValue>,
+    pub error_message: Option<String>,
+}

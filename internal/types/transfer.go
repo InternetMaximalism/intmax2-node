@@ -319,7 +319,6 @@ func (td *Transfer) Read(buf *bytes.Buffer) error {
 	if err := td.Salt.Unmarshal(saltBytes); err != nil {
 		return err
 	}
-	fmt.Println("saltBytes3")
 
 	return nil
 }

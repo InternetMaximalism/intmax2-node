@@ -11,7 +11,6 @@ import (
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/logger"
-	"intmax2-node/internal/mnemonic_wallet/models"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"time"
@@ -41,7 +40,19 @@ func NewSynchronizer(
 	}
 }
 
-func (s *balanceSynchronizer) Sync(syncValidityProver *syncValidityProver, blockBuilderWallet *models.Wallet) error {
+// func (s *balanceSynchronizer) Sync(syncValidityProver *syncValidityProver, blockBuilderWallet *models.Wallet) error {
+func (s *balanceSynchronizer) Sync(
+	syncValidityProver *syncValidityProver,
+	balanceProcessor *BalanceProcessor,
+	syncBalanceProver *SyncBalanceProver,
+	intMaxPrivateKey *intMaxAcc.PrivateKey,
+) error {
+	mockWallet, err := NewMockWallet(intMaxPrivateKey)
+	if err != nil {
+		const msg = "failed to get Mock Wallet: %+v"
+		s.log.Fatalf(msg, err.Error())
+	}
+
 	timeout := 1 * time.Second
 	ticker := time.NewTicker(timeout)
 	blockNumber := uint32(1)
@@ -52,8 +63,7 @@ func (s *balanceSynchronizer) Sync(syncValidityProver *syncValidityProver, block
 			s.log.Warnf("Received cancel signal from context, stopping...")
 			return nil
 		case <-ticker.C:
-			balanceProverService := NewBalanceProverService(s.ctx, s.cfg, s.log, blockBuilderWallet)
-			userAllData, err := balanceProverService.DecodedUserData()
+			userAllData, err := DecodeUserData(s.ctx, s.cfg, intMaxPrivateKey)
 			if err != nil {
 				const msg = "failed to start Balance Prover Service: %+v"
 				s.log.Fatalf(msg, err.Error())
@@ -63,25 +73,9 @@ func (s *balanceSynchronizer) Sync(syncValidityProver *syncValidityProver, block
 				const msg = "failed to sort valid user data: %+v"
 				s.log.Fatalf(msg, err.Error())
 			}
-
-			intMaxPrivateKey, err := intMaxAcc.NewPrivateKeyFromString(blockBuilderWallet.IntMaxPrivateKey)
-			if err != nil {
-				const msg = "failed to get IntMax Private Key: %+v"
-				s.log.Fatalf(msg, err.Error())
-			}
-
-			mockWallet, err := NewMockWallet(intMaxPrivateKey)
-			if err != nil {
-				const msg = "failed to get Mock Wallet: %+v"
-				s.log.Fatalf(msg, err.Error())
-			}
-
-			syncValidityProver, err := NewSyncValidityProver(
-				s.ctx, s.cfg, s.log, s.sb, s.db,
-			)
-			if err != nil {
-				const msg = "failed to get Sync Validity Prover: %+v"
-				s.log.Fatalf(msg, err.Error())
+			fmt.Printf("size of sortedValidUserData: %v\n", len(sortedValidUserData))
+			for _, transition := range sortedValidUserData {
+				fmt.Printf("transition block number: %d\n", transition.BlockNumber())
 			}
 
 			result, err := block_validity_prover.BlockAuxInfo(syncValidityProver.ValidityProver.BlockBuilder(), blockNumber)
@@ -101,15 +95,15 @@ func (s *balanceSynchronizer) Sync(syncValidityProver *syncValidityProver, block
 				s.log.Fatalf(msg, err.Error())
 			}
 
-			err = balanceProverService.SyncBalanceProver.SyncNoSend(
-				syncValidityProver,
-				mockWallet,
-				balanceProverService.BalanceProcessor,
-			)
-			if err != nil {
-				const msg = "failed to sync balance prover: %+v"
-				s.log.Fatalf(msg, err.Error())
-			}
+			// err = balanceProverService.SyncBalanceProver.SyncNoSend(
+			// 	syncValidityProver,
+			// 	mockWallet,
+			// 	balanceProverService.BalanceProcessor,
+			// )
+			// if err != nil {
+			// 	const msg = "failed to sync balance prover: %+v"
+			// 	s.log.Fatalf(msg, err.Error())
+			// }
 
 			blockValidityProver := syncValidityProver.ValidityProver
 
@@ -119,10 +113,11 @@ func (s *balanceSynchronizer) Sync(syncValidityProver *syncValidityProver, block
 				switch transition := transition.(type) {
 				case ValidSentTx:
 					fmt.Printf("valid sent transaction: %v\n", transition.TxHash)
-					err := s.applySentTransactionTransition(
+					err := applySentTransactionTransition(
 						transition.Tx,
 						blockValidityProver,
-						balanceProverService,
+						balanceProcessor,
+						syncBalanceProver,
 						mockWallet,
 						syncValidityProver,
 					)
@@ -134,10 +129,23 @@ func (s *balanceSynchronizer) Sync(syncValidityProver *syncValidityProver, block
 					}
 				case ValidReceivedDeposit:
 					fmt.Printf("valid received deposit: %v\n", transition.DepositHash)
-					err := s.applyReceivedDepositTransition(
+					transitionBlockNumber := transition.BlockNumber()
+					fmt.Printf("transitionBlockNumber: %d", transitionBlockNumber)
+					err = syncBalanceProver.SyncNoSend(
+						syncValidityProver,
+						mockWallet,
+						balanceProcessor,
+					)
+					if err != nil {
+						const msg = "failed to sync balance prover: %+v"
+						s.log.Fatalf(msg, err.Error())
+					}
+
+					err := applyReceivedDepositTransition(
 						transition.Deposit,
 						blockValidityProver,
-						balanceProverService,
+						balanceProcessor,
+						syncBalanceProver,
 						mockWallet,
 					)
 					if err != nil {
@@ -147,14 +155,25 @@ func (s *balanceSynchronizer) Sync(syncValidityProver *syncValidityProver, block
 					}
 				case ValidReceivedTransfer:
 					fmt.Printf("valid received transfer: %v\n", transition.TransferHash)
-					err := s.applyReceivedTransferTransition(
+					transitionBlockNumber := transition.BlockNumber()
+					fmt.Printf("transitionBlockNumber: %d", transitionBlockNumber)
+					err = syncBalanceProver.SyncNoSend(
+						syncValidityProver,
+						mockWallet,
+						balanceProcessor,
+					)
+					if err != nil {
+						const msg = "failed to sync balance prover: %+v"
+						s.log.Fatalf(msg, err.Error())
+					}
+
+					err := applyReceivedTransferTransition(
 						transition.Transfer,
 						blockValidityProver,
-						balanceProverService,
+						balanceProcessor,
+						syncBalanceProver,
 						mockWallet,
-						balanceProverService.SyncBalanceProver,
 					)
-
 					if err != nil {
 						const msg = "failed to receive transfer: %+v"
 						s.log.Warnf(msg, err.Error())
@@ -170,36 +189,36 @@ func (s *balanceSynchronizer) Sync(syncValidityProver *syncValidityProver, block
 	}
 }
 
-func (s balanceSynchronizer) applyReceivedDepositTransition(
+func applyReceivedDepositTransition(
 	deposit *DepositDetails,
 	blockValidityProver block_validity_prover.BlockValidityProver,
-	balanceProverService *balanceProverService,
+	balanceProcessor *BalanceProcessor,
+	syncBalanceProver *SyncBalanceProver,
 	mockWallet *MockWallet,
 ) error {
+	if deposit == nil {
+		return errors.New("deposit is not found")
+	}
+
 	fmt.Printf("deposit ID: %d\n", deposit.DepositID)
-	fmt.Printf("deposit hash: %d\n", deposit.DepositHash)
 	_, depositIndex, err := blockValidityProver.BlockBuilder().GetDepositLeafAndIndexByHash(deposit.DepositHash)
 	if err != nil {
-		const msg = "failed to get Deposit Index by Hash: %+v"
-		s.log.Warnf(msg, err.Error())
-		return nil
+		const msg = "failed to get Deposit Leaf and Index by Hash: %+v"
+		return fmt.Errorf(msg, err.Error())
 	}
 	if depositIndex == nil {
 		const msg = "failed to get Deposit Index by Hash: %+v"
-		s.log.Warnf(msg, "depositIndex is nil")
-		return nil
+		return fmt.Errorf(msg, "depositIndex is nil")
 	}
 
 	IsSynchronizedDepositIndex, err := blockValidityProver.BlockBuilder().IsSynchronizedDepositIndex(*depositIndex)
 	if err != nil {
 		const msg = "failed to check IsSynchronizedDepositIndex: %+v"
-		s.log.Warnf(msg, err.Error())
-		return nil
+		return fmt.Errorf(msg, err.Error())
 	}
 	if !IsSynchronizedDepositIndex {
 		const msg = "deposit index %d is not synchronized"
-		s.log.Warnf(msg, *depositIndex)
-		return nil
+		return fmt.Errorf(msg, *depositIndex)
 	}
 
 	fmt.Printf("deposit index: %d\n", *depositIndex)
@@ -211,29 +230,35 @@ func (s balanceSynchronizer) applyReceivedDepositTransition(
 			Amount:            deposit.Amount,
 		},
 		DepositIndex: *depositIndex,
+		DepositID:    deposit.DepositID,
 		DepositSalt:  *deposit.Salt,
 	}
-	mockWallet.AddDepositCase(deposit.DepositID, &depositCase)
-	err = balanceProverService.SyncBalanceProver.ReceiveDeposit(
+	mockWallet.AddDepositCase(*depositIndex, &depositCase)
+	fmt.Printf("start to prove deposit\n")
+	err = syncBalanceProver.ReceiveDeposit(
 		mockWallet,
-		balanceProverService.BalanceProcessor,
+		balanceProcessor,
 		blockValidityProver.BlockBuilder(),
-		deposit.DepositID,
+		*depositIndex,
 	)
+	fmt.Printf("prove deposit %v\n", err.Error())
 	if err != nil {
-		const msg = "failed to receive deposit: %+v"
-		return fmt.Errorf(msg, err.Error())
+		if err.Error() == "balance processor not initialized" {
+			return errors.New("balance processor not initialized")
+		}
+
+		return fmt.Errorf("failed to receive deposit: %+v", err.Error())
 	}
 
 	return nil
 }
 
-func (s balanceSynchronizer) applyReceivedTransferTransition(
+func applyReceivedTransferTransition(
 	transfer *intMaxTypes.TransferDetailsWithProofBody,
 	blockValidityProver block_validity_prover.BlockValidityProver,
-	balanceProverService *BalanceProverService,
-	mockWallet *MockWallet,
+	balanceProcessor *BalanceProcessor,
 	syncBalanceProver *SyncBalanceProver,
+	mockWallet *MockWallet,
 ) error {
 	fmt.Printf("transfer hash: %d\n", transfer.TransferDetails.TransferWitness.Transfer.Hash())
 
@@ -263,7 +288,7 @@ func (s balanceSynchronizer) applyReceivedTransferTransition(
 
 	syncBalanceProver.ReceiveTransfer(
 		mockWallet,
-		balanceProverService.BalanceProcessor,
+		balanceProcessor,
 		blockValidityProver.BlockBuilder(),
 		transfer.TransferDetails.TransferWitness,
 		encodedSenderBalanceProof,
@@ -272,12 +297,13 @@ func (s balanceSynchronizer) applyReceivedTransferTransition(
 	return nil
 }
 
-func (s *balanceSynchronizer) applySentTransactionTransition(
+func applySentTransactionTransition(
 	tx *intMaxTypes.TxDetails,
 	blockValidityProver block_validity_prover.BlockValidityProver,
-	balanceProverService *balanceProverService,
+	balanceProcessor *BalanceProcessor,
+	syncBalanceProver *SyncBalanceProver,
 	mockWallet *MockWallet,
-	syncValidityProver *syncValidityProver,
+	syncValidityProver *syncValidityProver, // XXX
 ) error {
 	// syncValidityProver.Sync() // sync validity proofs
 	fmt.Printf("transaction hash: %d\n", tx.Hash())
@@ -289,31 +315,28 @@ func (s *balanceSynchronizer) applySentTransactionTransition(
 	txWitness, transferWitnesses, err := mockWallet.SendTx(blockValidityProver.BlockBuilder(), transfers)
 	if err != nil {
 		const msg = "failed to send transaction: %+v"
-		s.log.Warnf(msg, err.Error())
-		return nil
+		return fmt.Errorf(msg, err.Error())
 	}
 	newSalt, err := new(Salt).SetRandom()
 	if err != nil {
 		const msg = "failed to set random: %+v"
-		s.log.Warnf(msg, err.Error())
-		return nil
+		return fmt.Errorf(msg, err.Error())
 	}
 
 	_, err = mockWallet.UpdateOnSendTx(*newSalt, txWitness, transferWitnesses)
 	if err != nil {
 		const msg = "failed to update on SendTx: %+v"
-		s.log.Warnf(msg, err.Error())
-		return nil
+		return fmt.Errorf(msg, err.Error())
 	}
 
-	err = balanceProverService.SyncBalanceProver.SyncSend(
+	err = syncBalanceProver.SyncSend(
 		syncValidityProver,
 		mockWallet,
-		balanceProverService.BalanceProcessor,
+		balanceProcessor,
 	)
 	if err != nil {
 		const msg = "failed to sync transaction: %+v"
-		s.log.Fatalf(msg, err.Error())
+		panic(fmt.Sprintf(msg, err.Error()))
 	}
 
 	return nil

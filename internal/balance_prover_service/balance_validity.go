@@ -47,11 +47,18 @@ func ExtractValidSentTransactions(userData *DecodedUserData, syncValidityProver 
 	for _, tx := range userData.Transactions {
 		txHash := tx.Tx.Hash() // TODO: validate transaction
 
+		fmt.Printf("transaction hash: %s\n", txHash.String())
+		if tx.TxTreeRoot == nil {
+			// TODO: If TxTreeRoot is nil, the account is no longer valid.
+			syncValidityProver.log.Warnf("transaction tx tree root is nil\n")
+			invalidTxHashes = append(invalidTxHashes, txHash)
+			continue
+		}
+
 		txRoot := tx.TxTreeRoot.String()[:2]
 		blockContent, err := syncValidityProver.ValidityProver.BlockBuilder().BlockContentByTxRoot(txRoot)
 		if err != nil {
-			fmt.Printf("failed to get block content by tx root %s: %v\n", txHash.String(), err)
-			invalidTxHashes = append(invalidTxHashes, txHash)
+			syncValidityProver.log.Warnf("failed to get block content by tx root %s: %v\n", txHash.String(), err)
 			continue
 		}
 
@@ -59,9 +66,10 @@ func ExtractValidSentTransactions(userData *DecodedUserData, syncValidityProver 
 		sentBlockNumbers = append(sentBlockNumbers, ValidSentTx{
 			TxHash:      txHash,
 			blockNumber: blockNumber,
+			Tx:          tx,
 		})
 
-		fmt.Printf("valid transaction: %s\n", txHash.String())
+		syncValidityProver.log.Debugf("valid transaction: %s\n", txHash.String())
 	}
 
 	return sentBlockNumbers, invalidTxHashes, nil
@@ -73,32 +81,32 @@ func ExtractValidReceivedDeposits(userData *DecodedUserData, syncValidityProver 
 	for _, deposit := range userData.Deposits {
 		defaultDepositHash := common.Hash{}
 		if deposit.DepositHash == defaultDepositHash {
-			fmt.Printf("deposit hash should not be zero\n")
+			syncValidityProver.log.Warnf("deposit hash should not be zero\n")
 			continue
 		}
 
 		depositHash := deposit.DepositHash // TODO: validate deposit
+		syncValidityProver.log.Debugf("deposit hash: %s\n", depositHash.String())
 
 		_, depositIndex, err := syncValidityProver.ValidityProver.BlockBuilder().GetDepositLeafAndIndexByHash(depositHash)
 		if err != nil {
-			fmt.Printf("failed to get deposit index by hash %s: %v\n", depositHash.String(), err)
-			invalidDepositHashes = append(invalidDepositHashes, depositHash)
+			syncValidityProver.log.Warnf("failed to get deposit index by hash %s: %v\n", depositHash.String(), err)
 			continue
 		}
 
 		blockNumber, err := syncValidityProver.ValidityProver.BlockBuilder().BlockNumberByDepositIndex(*depositIndex)
 		if err != nil {
-			fmt.Printf("failed to get block number by deposit index %d: %v\n", *depositIndex, err)
-			invalidDepositHashes = append(invalidDepositHashes, depositHash)
+			syncValidityProver.log.Warnf("failed to get block number by deposit index %d: %v\n", *depositIndex, err)
 			continue
 		}
 
 		sentBlockNumbers = append(sentBlockNumbers, ValidReceivedDeposit{
 			DepositHash: depositHash,
 			blockNumber: blockNumber,
+			Deposit:     deposit,
 		})
 
-		fmt.Printf("valid deposit: %s\n", depositHash.String())
+		syncValidityProver.log.Debugf("valid deposit: %s\n", depositHash.String())
 	}
 
 	return sentBlockNumbers, invalidDepositHashes, nil
@@ -110,11 +118,17 @@ func ExtractValidReceivedTransfers(userData *DecodedUserData, syncValidityProver
 	for _, transfer := range userData.Transfers {
 		transferHash := transfer.TransferDetails.TransferWitness.Transfer.Hash() // TODO: validate transfer
 
+		syncValidityProver.log.Debugf("transfer hash: %s\n", transferHash.String())
+		if transfer.TransferDetails.TxTreeRoot == nil {
+			syncValidityProver.log.Warnf("transfer tx tree root is nil\n")
+			invalidTransferHashes = append(invalidTransferHashes, transferHash)
+			continue
+		}
+
 		txRoot := transfer.TransferDetails.TxTreeRoot.String()[:2]
 		blockContent, err := syncValidityProver.ValidityProver.BlockBuilder().BlockContentByTxRoot(txRoot)
 		if err != nil {
-			fmt.Printf("failed to get block content by transfer root %s: %v\n", transferHash.String(), err)
-			invalidTransferHashes = append(invalidTransferHashes, transferHash)
+			syncValidityProver.log.Warnf("failed to get block content by transfer root %s: %v\n", transferHash.String(), err)
 			continue
 		}
 
@@ -122,9 +136,10 @@ func ExtractValidReceivedTransfers(userData *DecodedUserData, syncValidityProver
 		receivedBlockNumbers = append(receivedBlockNumbers, ValidReceivedTransfer{
 			TransferHash: transferHash,
 			blockNumber:  blockNumber,
+			Transfer:     transfer,
 		})
 
-		fmt.Printf("valid transfer: %s\n", transferHash.String())
+		syncValidityProver.log.Debugf("valid transfer: %s\n", transferHash.String())
 	}
 
 	return receivedBlockNumbers, invalidTransferHashes, nil

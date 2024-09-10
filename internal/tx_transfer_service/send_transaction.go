@@ -23,8 +23,6 @@ func SendTransferTransaction(
 	senderAccount *intMaxAcc.PrivateKey,
 	transfersHash intMaxTypes.PoseidonHashOut,
 	nonce uint64,
-	// encodedEncryptedTx *transaction.BackupTransactionData,
-	// encodedEncryptedTransfers []*transaction.BackupTransferInput,
 ) error {
 	const duration = 300 * time.Minute
 	expiration := time.Now().Add(duration)
@@ -71,7 +69,6 @@ func SendTransferTransaction(
 
 	return SendTransactionWithRawRequest(
 		ctx, cfg, senderAccount, transfersHash, nonce, expiration, powNonceStr, signatureInput,
-		// encodedEncryptedTx, encodedEncryptedTransfers,
 	)
 }
 
@@ -84,8 +81,6 @@ func SendTransactionWithRawRequest(
 	expiration time.Time,
 	powNonce string,
 	signature *bn254.G2Affine,
-	// encodedEncryptedTx *transaction.BackupTransactionData,
-	// encodedEncryptedTransfers []*transaction.BackupTransferInput,
 ) error {
 	return sendTransactionRawRequest(
 		ctx,
@@ -96,8 +91,6 @@ func SendTransactionWithRawRequest(
 		expiration,
 		powNonce,
 		hexutil.Encode(signature.Marshal()),
-		// encodedEncryptedTx,
-		// encodedEncryptedTransfers,
 	)
 }
 
@@ -108,8 +101,6 @@ func sendTransactionRawRequest(
 	nonce uint64,
 	expiration time.Time,
 	powNonce, signature string,
-	// backupTx *transaction.BackupTransactionData,
-	// backupTransfers []*transaction.BackupTransferInput,
 ) error {
 	ucInput := transaction.UCTransactionInput{
 		Sender:        senderAddress,
@@ -118,8 +109,6 @@ func sendTransactionRawRequest(
 		PowNonce:      powNonce,
 		Expiration:    expiration,
 		Signature:     signature,
-		// BackupTx:        backupTx,
-		// BackupTransfers: backupTransfers,
 	}
 
 	bd, err := json.Marshal(ucInput)

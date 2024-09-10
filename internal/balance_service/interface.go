@@ -25,10 +25,11 @@ type BackupTransfer struct {
 }
 
 type BackupTransaction struct {
-	Sender      string `json:"sender,omitempty"`
-	EncryptedTx string `json:"encryptedTx,omitempty"`
-	BlockNumber string `json:"blockNumber,omitempty"`
-	CreatedAt   string `json:"createdAt,omitempty"`
+	Sender          string `json:"sender,omitempty"`
+	EncodingVersion uint32 `json:"encodingVersion"`
+	EncryptedTx     string `json:"encryptedTx,omitempty"`
+	BlockNumber     string `json:"blockNumber,omitempty"`
+	CreatedAt       string `json:"createdAt,omitempty"`
 }
 
 type GetVerifyDepositConfirmationResponse struct {

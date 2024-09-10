@@ -276,11 +276,11 @@ fn validate_witness(
     let deposit_index = receive_deposit_witness.deposit_witness.deposit_index;
     let deposit = &receive_deposit_witness.deposit_witness.deposit;
     let deposit_merkle_proof = &receive_deposit_witness.deposit_witness.deposit_merkle_proof;
-    println!("siblings: {:?}\n", deposit_merkle_proof);
-    println!("deposit hash: {}\n", deposit.hash().to_hex());
-    println!("deposit index: {}\n", deposit_index);
+    println!("siblings: {:?}", deposit_merkle_proof);
+    println!("deposit hash: {}", deposit.hash().to_hex());
+    println!("deposit index: {}", deposit_index);
     println!(
-        "deposit tree root: {}\n",
+        "deposit tree root: {}",
         public_state.deposit_tree_root.to_hex()
     );
 
@@ -292,6 +292,7 @@ fn validate_witness(
     let result =
         deposit_merkle_proof.verify(&deposit, deposit_index, public_state.deposit_tree_root);
     if !result.is_ok() {
+        println!("deposit_merkle_proof: {:?}", deposit_merkle_proof);
         anyhow::bail!("Invalid deposit merkle proof");
     }
 

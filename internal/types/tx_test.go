@@ -3,6 +3,7 @@ package types_test
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/tree"
@@ -154,6 +155,8 @@ func TestEncryptTxDetails(t *testing.T) {
 	}
 
 	encodedTx := txDetails.Marshal()
+	fmt.Printf("txDetails: %v\n", txDetails)
+	fmt.Printf("encodedTx: %d\n", len(encodedTx))
 
 	encryptedTransfer, err := intMaxAcc.EncryptECIES(
 		rand.Reader,

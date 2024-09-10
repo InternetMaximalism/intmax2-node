@@ -533,6 +533,10 @@ message BackupTransferRequest {
   string recipient = 30;
   // The block number associated with the transfer
   uint64 block_number = 40;
+  // The balance proof from the sender
+  string sender_last_balance_proof_body = 50;
+  // The balance proof from the sender
+  string sender_balance_transition_proof_body = 60;
 }
 
 // BackupTransferResponse is the response message for Backup method.
@@ -569,6 +573,10 @@ message GetBackupTransfersResponse {
     string recipient = 3;
     string encrypted_transfer = 4;
     google.protobuf.Timestamp created_at = 5;
+    // The balance proof from the sender
+    string sender_last_balance_proof_body = 6;
+    // The balance proof from the sender
+    string sender_balance_transition_proof_body = 7;
   }
 
   message Meta {

@@ -98,6 +98,24 @@ func (s *BalanceProcessor) ProveReceiveDeposit(
 	// request balance prover
 	s.log.Debugf("ProveReceiveDeposit\n")
 	s.log.Debugf("publicKey: %v\n", publicKey)
+
+	if lastBalanceProof != nil {
+		lastBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*lastBalanceProof)
+		if err != nil {
+			return nil, err
+		}
+
+		lastBalancePublicInputs, err := new(BalancePublicInputs).FromPublicInputs(lastBalanceProofWithPis.PublicInputs)
+		if err != nil {
+			return nil, err
+		}
+		encodedLastBalancePublicInputs, err := json.Marshal(lastBalancePublicInputs)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Printf("encodedLastBalancePublicInputs: %s\n", encodedLastBalancePublicInputs)
+	}
+
 	requestID, err := s.requestReceiveDepositBalanceValidityProof(publicKey, receiveDepositWitness, lastBalanceProof)
 	if err != nil {
 		return nil, err

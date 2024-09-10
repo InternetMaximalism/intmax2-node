@@ -12,6 +12,7 @@ import (
 	"intmax2-node/internal/use_cases/backup_balance"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/iden3/go-iden3-crypto/ffg"
 )
@@ -365,6 +366,7 @@ type DepositWitness struct {
 	DepositSalt        Salt                          `json:"depositSalt"`
 	DepositIndex       uint                          `json:"depositIndex"`
 	Deposit            intMaxTree.DepositLeaf        `json:"deposit"`
+	DepositRoot        common.Hash                   `json:"-"`
 	DepositMerkleProof *intMaxTree.KeccakMerkleProof `json:"depositMerkleProof"`
 }
 
@@ -573,6 +575,7 @@ func (input *ReceiveTransferWitnessInput) FromReceiveTransferWitness(value *Rece
 
 type DepositCase struct {
 	DepositSalt  Salt                   `json:"depositSalt"`
+	DepositID    uint32                 `json:"depositId"`
 	DepositIndex uint32                 `json:"depositIndex"`
 	Deposit      intMaxTree.DepositLeaf `json:"deposit"`
 }

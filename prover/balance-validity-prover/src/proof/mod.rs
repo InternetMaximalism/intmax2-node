@@ -1,7 +1,10 @@
 use anyhow::Context as _;
 use intmax2_zkp::{
     circuits::{
-        balance::{balance_pis::BalancePublicInputs, balance_processor::BalanceProcessor},
+        balance::{
+            balance_pis::BalancePublicInputs, balance_processor::BalanceProcessor,
+            send::spent_circuit::SpentValue,
+        },
         validity::validity_circuit::ValidityCircuit,
     },
     common::{
@@ -271,3 +274,52 @@ pub async fn generate_balance_send_proof_job(
 
     Ok(())
 }
+
+pub fn generate_balance_spent_proof_job(
+    send_witness: &SendWitness,
+    balance_processor: &BalanceProcessor<F, C, D>,
+) -> anyhow::Result<String> {
+    let spent_circuit = &balance_processor
+        .balance_transition_processor
+        .sender_processor
+        .spent_circuit;
+
+    let spent_value = SpentValue::new(
+        &send_witness.prev_private_state,
+        &send_witness.prev_balances,
+        send_witness.new_private_state_salt,
+        &send_witness.transfers,
+        &send_witness.asset_merkle_proofs,
+        send_witness.tx_witness.tx.nonce,
+    );
+
+    log::debug!("Proving...");
+    let spent_proof = spent_circuit.prove(&spent_value).unwrap();
+
+    let encoded_compressed_spent_proof =
+        encode_plonky2_proof(spent_proof, &spent_circuit.data.verifier_data())
+            .map_err(|e| anyhow::anyhow!("Failed to encode balance proof: {:?}", e))?;
+
+
+    Ok(encoded_compressed_spent_proof)
+}
+
+pub fn generate_balance_single_send_proof_job(
+    send_witness: &SendWitness,
+    update_witness: &UpdateWitness<F, C, D>,
+    balance_processor: &BalanceProcessor<F, C, D>,
+    validity_circuit: &ValidityCircuit<F, C, D>,
+) -> anyhow::Result<String> {
+    let sender_processor = &balance_processor
+        .balance_transition_processor.sender_processor;
+
+    log::debug!("Proving...");
+    let send_proof = sender_processor.prove(&validity_circuit, &send_witness, &update_witness);
+
+    let encoded_compressed_send_proof =
+        encode_plonky2_proof(send_proof, &sender_processor.sender_circuit.data.verifier_data())
+            .map_err(|e| anyhow::anyhow!("Failed to encode balance proof: {:?}", e))?;
+
+    Ok(encoded_compressed_send_proof)
+}
+

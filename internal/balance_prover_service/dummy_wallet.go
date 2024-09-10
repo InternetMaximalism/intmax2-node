@@ -23,7 +23,7 @@ type MockWallet struct {
 	salt              Salt
 	publicState       *block_validity_prover.PublicState
 	sendWitnesses     map[uint32]*SendWitness
-	depositCases      map[uint32]*DepositCase
+	depositCases      map[uint32]*DepositCase // depositIndex => DepositCase
 	transferWitnesses map[uint32][]*intMaxTypes.TransferWitness
 }
 
@@ -478,8 +478,8 @@ type MockBlockBuilder = block_validity_prover.BlockBuilderStorage
 func (s *MockWallet) ReceiveDepositAndUpdate(
 	blockBuilder MockBlockBuilder,
 	depositIndex uint32,
-	// depositId uint32,
 ) (*ReceiveDepositWitness, error) {
+	fmt.Printf("-----ReceiveDepositAndUpdate %d-----\n", depositIndex)
 	for index, depositCase := range s.depositCases {
 		fmt.Printf("depositCase[%d]: %v\n", index, depositCase)
 		fmt.Printf("depositHash[%d]: %v\n", index, depositCase.Deposit.Hash())
@@ -495,7 +495,7 @@ func (s *MockWallet) ReceiveDepositAndUpdate(
 		return nil, errors.New("last validity witness not found")
 	}
 	blockNumber := lastValidityWitness.BlockWitness.Block.BlockNumber
-	depositMerkleProof, err := blockBuilder.DepositTreeProof(blockNumber, depositCase.DepositIndex)
+	depositMerkleProof, actualDepositRoot, err := blockBuilder.DepositTreeProof(blockNumber, depositCase.DepositIndex)
 	if err != nil {
 		return nil, err
 	}
@@ -503,6 +503,13 @@ func (s *MockWallet) ReceiveDepositAndUpdate(
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("actual deposit tree root: %s\n", actualDepositRoot.String())
+	fmt.Printf("expected deposit tree root: %s\n", depositTreeRoot.String())
+	if depositTreeRoot != actualDepositRoot {
+		return nil, errors.New("deposit tree root mismatch")
+	}
+
+	fmt.Printf("deposit index: %d\n", depositIndex)
 	fmt.Printf("ReceiveDepositAndUpdate deposit tree root: %s\n", depositTreeRoot.String())
 	fmt.Printf("depositCase.Deposit: %v\n", depositCase.Deposit)
 	fmt.Printf("depositCase.Deposit hash: %v\n", depositCase.Deposit.Hash())
@@ -519,6 +526,7 @@ func (s *MockWallet) ReceiveDepositAndUpdate(
 		DepositMerkleProof: depositMerkleProof,
 		DepositSalt:        depositCase.DepositSalt,
 		DepositIndex:       uint(depositCase.DepositIndex),
+		DepositRoot:        depositTreeRoot,
 		Deposit:            depositCase.Deposit,
 	}
 	deposit := depositWitness.Deposit
