@@ -81,7 +81,7 @@ func TransferTransaction(
 	}
 
 	if balance.Cmp(amount) < 0 {
-		return fmt.Errorf("insufficient balance: %s", balance)
+		return fmt.Errorf("insufficient funds for total amount: balance %s, total amount %s", balance, amount)
 	}
 
 	var dataBlockInfo *BlockInfoResponseData
@@ -121,6 +121,16 @@ func TransferTransaction(
 		)
 
 		initialLeaves = append(initialLeaves, transfer)
+	}
+
+	const base10 = 10
+	gasFeeInt, ok := new(big.Int).SetString(gasFee, base10)
+	if !ok {
+		return fmt.Errorf("failed to convert gas fee to int: %w", err)
+	}
+	totalAmountWithGas := new(big.Int).Add(amount, gasFeeInt)
+	if balance.Cmp(totalAmountWithGas) < 0 {
+		return fmt.Errorf("insufficient funds for tx cost: balance %s, tx cost %s", balance, totalAmountWithGas)
 	}
 
 	// Send transfer transaction
