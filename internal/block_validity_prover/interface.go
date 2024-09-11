@@ -34,6 +34,7 @@ type BlockValidityService interface {
 	BlockContentByTxRoot(txRoot string) (*block_post_service.PostedBlock, error)
 	GetDepositLeafAndIndexByHash(depositHash common.Hash) (depositLeafWithId *DepositLeafWithId, depositIndex *uint32, err error)
 	BlockNumberByDepositIndex(depositIndex uint32) (uint32, error)
+	LatestSynchronizedBlockNumber() (uint32, error)
 	IsSynchronizedDepositIndex(depositIndex uint32) (bool, error)
 	FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error)
 	DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error)

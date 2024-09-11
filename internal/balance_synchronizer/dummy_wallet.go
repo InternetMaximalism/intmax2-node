@@ -38,7 +38,7 @@ func (w *MockWallet) AddDepositCase(depositIndex uint32, depositCase *balance_pr
 
 func (w *MockWallet) SendTx(
 	// blockBuilder *block_validity_prover.MockBlockBuilderMemory,
-	blockValidityProver block_validity_prover.BlockValidityService,
+	blockValidityService block_validity_prover.BlockValidityService,
 	transfers []*intMaxTypes.Transfer,
 ) (*balance_prover_service.TxWitness, []*intMaxTypes.TransferWitness, error) {
 	fmt.Printf("-----SendTx-----")
@@ -78,7 +78,7 @@ func (w *MockWallet) SendTx(
 	txRequests := []*block_validity_prover.MockTxRequest{&txRequest0}
 
 	fmt.Printf("IMPORTANT PostBlock")
-	validityWitness, err := blockValidityProver.PostBlock(
+	validityWitness, err := blockValidityService.PostBlock(
 		w.nonce == 0,
 		txRequests,
 	)
@@ -210,10 +210,10 @@ func (w *MockWallet) UpdateOnSendTx(
 
 func (w *MockWallet) SendTxAndUpdate(
 	// blockBuilder *block_validity_prover.MockBlockBuilderMemory,
-	blockValidityProver block_validity_prover.BlockValidityService,
+	blockValidityService block_validity_prover.BlockValidityService,
 	transfers []*intMaxTypes.Transfer,
 ) (*balance_prover_service.SendWitness, error) {
-	txWitness, transferWitnesses, err := w.SendTx(blockValidityProver, transfers)
+	txWitness, transferWitnesses, err := w.SendTx(blockValidityService, transfers)
 	if err != nil {
 		return nil, err
 	}
@@ -487,7 +487,7 @@ type MockBlockBuilder = block_validity_prover.BlockBuilderStorage
 
 func (s *MockWallet) ReceiveDepositAndUpdate(
 	// blockBuilder MockBlockBuilder,
-	blockValidityProver block_validity_prover.BlockValidityService,
+	blockValidityService block_validity_prover.BlockValidityService,
 	depositIndex uint32,
 ) (*balance_prover_service.ReceiveDepositWitness, error) {
 	fmt.Printf("-----ReceiveDepositAndUpdate %d-----\n", depositIndex)
@@ -501,7 +501,7 @@ func (s *MockWallet) ReceiveDepositAndUpdate(
 		return nil, errors.New("deposit not found")
 	}
 
-	depositMerkleProof, depositTreeRoot, err := blockValidityProver.DepositTreeProof(depositIndex)
+	depositMerkleProof, depositTreeRoot, err := blockValidityService.DepositTreeProof(depositIndex)
 	if err != nil {
 		return nil, err
 	}
@@ -564,13 +564,13 @@ func (s *MockWallet) ReceiveDepositAndUpdate(
 
 func (s *MockWallet) ReceiveTransferAndUpdate(
 	// blockBuilder MockBlockBuilder,
-	blockValidityProver block_validity_prover.BlockValidityService,
+	blockValidityService block_validity_prover.BlockValidityService,
 	lastBlockNumber uint32,
 	transferWitness *intMaxTypes.TransferWitness,
 	senderBalanceProof string,
 ) (*balance_prover_service.ReceiveTransferWitness, error) {
 	receiveTransferWitness, err := s.GenerateReceiveTransferWitness(
-		blockValidityProver,
+		blockValidityService,
 		lastBlockNumber,
 		transferWitness,
 		senderBalanceProof,
@@ -590,7 +590,7 @@ func (s *MockWallet) ReceiveTransferAndUpdate(
 
 func (s *MockWallet) GenerateReceiveTransferWitness(
 	// blockBuilder MockBlockBuilder,
-	blockValidityProver block_validity_prover.BlockValidityService,
+	blockValidityService block_validity_prover.BlockValidityService,
 	receiverBlockNumber uint32,
 	transferWitness *intMaxTypes.TransferWitness,
 	senderBalanceProof string,
@@ -639,7 +639,7 @@ func (s *MockWallet) GenerateReceiveTransferWitness(
 	}
 
 	// blockMerkleProof, err := blockBuilder.GetBlockMerkleProof(receiverBlockNumber, balancePis.PublicState.BlockNumber)
-	blockMerkleProof, err := blockValidityProver.BlockTreeProof(receiverBlockNumber, balancePis.PublicState.BlockNumber)
+	blockMerkleProof, err := blockValidityService.BlockTreeProof(receiverBlockNumber, balancePis.PublicState.BlockNumber)
 	if err != nil {
 		return nil, err
 	}

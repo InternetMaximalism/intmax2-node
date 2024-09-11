@@ -45,7 +45,7 @@ func NewSynchronizer(
 
 func (s *balanceSynchronizer) Sync(
 	blockSynchronizer block_validity_prover.BlockSynchronizer,
-	blockValidityProver block_validity_prover.BlockValidityService,
+	blockValidityService block_validity_prover.BlockValidityService,
 	balanceProcessor balance_prover_service.BalanceProcessor,
 	syncBalanceProver *SyncBalanceProver,
 	intMaxPrivateKey *intMaxAcc.PrivateKey,
@@ -73,7 +73,7 @@ func (s *balanceSynchronizer) Sync(
 			}
 			sortedValidUserData, err := userAllData.SortValidUserData(
 				s.log,
-				blockValidityProver,
+				blockValidityService,
 				blockSynchronizer,
 			)
 			if err != nil {
@@ -85,16 +85,16 @@ func (s *balanceSynchronizer) Sync(
 				fmt.Printf("transition block number: %d\n", transition.BlockNumber())
 			}
 
-			err = blockValidityProver.SyncBlockProverWithBlockNumber(blockNumber)
+			latestSynchronizedBlockNumber, err := blockValidityService.LatestSynchronizedBlockNumber()
 			if err != nil {
-				if err.Error() == "block content by block number error" {
-					time.Sleep(1 * time.Second)
-					// return errors.New("block content by block number error")
-					continue
-				}
-
 				const msg = "failed to sync block prover: %+v"
 				s.log.Fatalf(msg, err.Error())
+			}
+
+			if latestSynchronizedBlockNumber <= blockNumber {
+				// return errors.New("block content by block number error")
+				time.Sleep(1 * time.Second)
+				continue
 			}
 
 			// err = balanceProverService.SyncBalanceProver.SyncNoSend(
@@ -116,7 +116,7 @@ func (s *balanceSynchronizer) Sync(
 					err := applySentTransactionTransition(
 						s.log,
 						transition.Tx,
-						blockValidityProver,
+						blockValidityService,
 						blockSynchronizer,
 						balanceProcessor,
 						syncBalanceProver,
@@ -134,7 +134,7 @@ func (s *balanceSynchronizer) Sync(
 					fmt.Printf("transitionBlockNumber: %d", transitionBlockNumber)
 					err = syncBalanceProver.SyncNoSend(
 						s.log,
-						blockValidityProver,
+						blockValidityService,
 						blockSynchronizer,
 						mockWallet,
 						balanceProcessor,
@@ -146,7 +146,7 @@ func (s *balanceSynchronizer) Sync(
 
 					err := applyReceivedDepositTransition(
 						transition.Deposit,
-						blockValidityProver,
+						blockValidityService,
 						balanceProcessor,
 						syncBalanceProver,
 						mockWallet,
@@ -162,7 +162,7 @@ func (s *balanceSynchronizer) Sync(
 					fmt.Printf("transitionBlockNumber: %d", transitionBlockNumber)
 					err = syncBalanceProver.SyncNoSend(
 						s.log,
-						blockValidityProver,
+						blockValidityService,
 						blockSynchronizer,
 						mockWallet,
 						balanceProcessor,
@@ -174,7 +174,7 @@ func (s *balanceSynchronizer) Sync(
 
 					err := applyReceivedTransferTransition(
 						transition.Transfer,
-						blockValidityProver,
+						blockValidityService,
 						balanceProcessor,
 						syncBalanceProver,
 						mockWallet,
@@ -196,7 +196,7 @@ func (s *balanceSynchronizer) Sync(
 
 func applyReceivedDepositTransition(
 	deposit *balance_prover_service.DepositDetails,
-	blockValidityProver block_validity_prover.BlockValidityService,
+	blockValidityService block_validity_prover.BlockValidityService,
 	balanceProcessor balance_prover_service.BalanceProcessor,
 	syncBalanceProver *SyncBalanceProver,
 	mockWallet *MockWallet,
@@ -206,7 +206,7 @@ func applyReceivedDepositTransition(
 	}
 
 	fmt.Printf("deposit ID: %d\n", deposit.DepositID)
-	_, depositIndex, err := blockValidityProver.GetDepositLeafAndIndexByHash(deposit.DepositHash)
+	_, depositIndex, err := blockValidityService.GetDepositLeafAndIndexByHash(deposit.DepositHash)
 	if err != nil {
 		const msg = "failed to get Deposit Leaf and Index by Hash: %+v"
 		return fmt.Errorf(msg, err.Error())
@@ -216,7 +216,7 @@ func applyReceivedDepositTransition(
 		return fmt.Errorf(msg, "depositIndex is nil")
 	}
 
-	IsSynchronizedDepositIndex, err := blockValidityProver.IsSynchronizedDepositIndex(*depositIndex)
+	IsSynchronizedDepositIndex, err := blockValidityService.IsSynchronizedDepositIndex(*depositIndex)
 	if err != nil {
 		const msg = "failed to check IsSynchronizedDepositIndex: %+v"
 		return fmt.Errorf(msg, err.Error())
@@ -243,7 +243,7 @@ func applyReceivedDepositTransition(
 	err = syncBalanceProver.ReceiveDeposit(
 		mockWallet,
 		balanceProcessor,
-		blockValidityProver,
+		blockValidityService,
 		*depositIndex,
 	)
 	fmt.Printf("prove deposit %v\n", err.Error())
@@ -260,7 +260,7 @@ func applyReceivedDepositTransition(
 
 func applyReceivedTransferTransition(
 	transfer *intMaxTypes.TransferDetailsWithProofBody,
-	blockValidityProver block_validity_prover.BlockValidityService,
+	blockValidityService block_validity_prover.BlockValidityService,
 	balanceProcessor balance_prover_service.BalanceProcessor,
 	syncBalanceProver *SyncBalanceProver,
 	mockWallet *MockWallet,
@@ -294,7 +294,7 @@ func applyReceivedTransferTransition(
 	syncBalanceProver.ReceiveTransfer(
 		mockWallet,
 		balanceProcessor,
-		blockValidityProver,
+		blockValidityService,
 		transfer.TransferDetails.TransferWitness,
 		encodedSenderBalanceProof,
 	)
@@ -305,7 +305,7 @@ func applyReceivedTransferTransition(
 func applySentTransactionTransition(
 	log logger.Logger,
 	tx *intMaxTypes.TxDetails,
-	blockValidityProver block_validity_prover.BlockValidityService,
+	blockValidityService block_validity_prover.BlockValidityService,
 	blockSynchronizer block_validity_prover.BlockSynchronizer,
 	balanceProcessor balance_prover_service.BalanceProcessor,
 	syncBalanceProver *SyncBalanceProver,
@@ -319,7 +319,7 @@ func applySentTransactionTransition(
 	transfers := tx.Transfers
 
 	// balanceProverService.SyncBalanceProver
-	txWitness, transferWitnesses, err := mockWallet.SendTx(blockValidityProver, transfers)
+	txWitness, transferWitnesses, err := mockWallet.SendTx(blockValidityService, transfers)
 	if err != nil {
 		const msg = "failed to send transaction: %+v"
 		return fmt.Errorf(msg, err.Error())
@@ -338,7 +338,7 @@ func applySentTransactionTransition(
 
 	err = syncBalanceProver.SyncSend(
 		log,
-		blockValidityProver,
+		blockValidityService,
 		blockSynchronizer,
 		mockWallet,
 		balanceProcessor,

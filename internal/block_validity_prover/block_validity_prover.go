@@ -175,6 +175,10 @@ func (d *blockValidityProver) BlockNumberByDepositIndex(depositIndex uint32) (ui
 	return d.blockBuilder.BlockNumberByDepositIndex(depositIndex)
 }
 
+func (d *blockValidityProver) LatestSynchronizedBlockNumber() (uint32, error) {
+	return d.blockBuilder.LastGeneratedProofBlockNumber, nil
+}
+
 func (d *blockValidityProver) IsSynchronizedDepositIndex(depositIndex uint32) (bool, error) {
 	return d.blockBuilder.IsSynchronizedDepositIndex(depositIndex)
 }
