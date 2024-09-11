@@ -63,17 +63,29 @@ func TransferTransaction(
 		return err
 	}
 
+	// TODO: Create balance proof locally
 	// fmt.Printf("User's INTMAX Address: %s\n", userAccount.ToAddress().String())
 	// balanceProver := balance_prover_service.NewSyncBalanceProver()
 	// balanceSynchronizer := balance_prover_service.NewSynchronizer(ctx, cfg, log, sb, db)
-	// syncValidityProver, err := balance_prover_service.NewSyncValidityProver(ctx, cfg, log, sb, db)
+	// blockSynchronizer, err := block_synchronizer.NewBlockSynchronizer(
+	// 	ctx, cfg, log,
+	// )
 	// if err != nil {
-	// 	return fmt.Errorf("failed to create sync validity prover: %w", err)
+	// 	return fmt.Errorf("failed to create block synchronizer: %w", err)
 	// }
+	// blockValidityProver, err := block_validity_prover.NewBlockValidityProver(ctx, cfg, log, sb, db)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to create block validity prover: %w", err)
+	// }
+
+	// // syncValidityProver, err := balance_prover_service.NewSyncValidityProver(ctx, cfg, log, sb, db)
+	// // if err != nil {
+	// // 	return fmt.Errorf("failed to create sync validity prover: %w", err)
+	// // }
 	// balanceProcessor := balance_prover_service.NewBalanceProcessor(ctx, cfg, log)
 
 	// // balanceProcessor *BalanceProcessor,
-	// err = balanceProver.SyncLocally(ctx, cfg, log, balanceSynchronizer, syncValidityProver, balanceProcessor, userAccount)
+	// err = SyncLocally(ctx, cfg, log, balanceProver, balanceSynchronizer, blockValidityProver, blockSynchronizer, balanceProcessor, userAccount)
 	// if err != nil {
 	// 	return fmt.Errorf("failed to sync balance proof: %w", err)
 	// }

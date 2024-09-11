@@ -356,12 +356,6 @@ func (w *SendWitness) GetNextLastTx() (*SendWitnessResult, error) {
 	}, nil
 }
 
-type UpdateWitness struct {
-	ValidityProof          string                             `json:"validityProof"`
-	BlockMerkleProof       intMaxTree.BlockHashMerkleProof    `json:"blockMerkleProof"`
-	AccountMembershipProof *intMaxTree.IndexedMembershipProof `json:"accountMembershipProof"`
-}
-
 type DepositWitness struct {
 	DepositSalt        Salt                          `json:"depositSalt"`
 	DepositIndex       uint                          `json:"depositIndex"`

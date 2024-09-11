@@ -48,7 +48,7 @@ const (
 //		d, err := block_post_service.NewBlockPostService(ctx, &cfg)
 //		events, lastIntMaxBlockNumber, err := d.FetchNewPostedBlocks(startScrollBlockNumber)
 //		calldata, err := d.FetchScrollCalldataByHash(events[0].Raw.TxHash)
-//	 ai := NewAccountInfo(dbApp)
+//	    ai := NewAccountInfo(dbApp)
 //		blockContent, err := FetchIntMaxBlockContentByCalldata(calldata, ai)
 func FetchIntMaxBlockContentByCalldata(
 	calldata []byte,

@@ -2,6 +2,8 @@ package balance_prover_service
 
 import (
 	"fmt"
+	"intmax2-node/internal/block_validity_prover"
+	"intmax2-node/internal/logger"
 	intMaxTypes "intmax2-node/internal/types"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -41,7 +43,11 @@ func (v ValidReceivedTransfer) BlockNumber() uint32 {
 	return v.blockNumber
 }
 
-func ExtractValidSentTransactions(userData *DecodedUserData, syncValidityProver *syncValidityProver) ([]ValidSentTx, []*poseidonHashOut, error) {
+func ExtractValidSentTransactions(
+	log logger.Logger,
+	userData *BalanceTransitionData,
+	blockValidityProver block_validity_prover.BlockValidityProver,
+) ([]ValidSentTx, []*poseidonHashOut, error) {
 	sentBlockNumbers := make([]ValidSentTx, 0, len(userData.Deposits))
 	invalidTxHashes := make([]*poseidonHashOut, 0, len(userData.Deposits))
 	for _, tx := range userData.Transactions {
@@ -50,15 +56,15 @@ func ExtractValidSentTransactions(userData *DecodedUserData, syncValidityProver 
 		fmt.Printf("transaction hash: %s\n", txHash.String())
 		if tx.TxTreeRoot == nil {
 			// TODO: If TxTreeRoot is nil, the account is no longer valid.
-			syncValidityProver.log.Warnf("transaction tx tree root is nil\n")
+			log.Warnf("transaction tx tree root is nil\n")
 			invalidTxHashes = append(invalidTxHashes, txHash)
 			continue
 		}
 
 		txRoot := tx.TxTreeRoot.String()[:2]
-		blockContent, err := syncValidityProver.ValidityProver.BlockBuilder().BlockContentByTxRoot(txRoot)
+		blockContent, err := blockValidityProver.BlockContentByTxRoot(txRoot)
 		if err != nil {
-			syncValidityProver.log.Warnf("failed to get block content by tx root %s: %v\n", txHash.String(), err)
+			log.Warnf("failed to get block content by tx root %s: %v\n", txHash.String(), err)
 			continue
 		}
 
@@ -69,34 +75,38 @@ func ExtractValidSentTransactions(userData *DecodedUserData, syncValidityProver 
 			Tx:          tx,
 		})
 
-		syncValidityProver.log.Debugf("valid transaction: %s\n", txHash.String())
+		log.Debugf("valid transaction: %s\n", txHash.String())
 	}
 
 	return sentBlockNumbers, invalidTxHashes, nil
 }
 
-func ExtractValidReceivedDeposits(userData *DecodedUserData, syncValidityProver *syncValidityProver) ([]ValidReceivedDeposit, []common.Hash, error) {
+func ExtractValidReceivedDeposits(
+	log logger.Logger,
+	userData *BalanceTransitionData,
+	blockValidityProver block_validity_prover.BlockValidityProver,
+) ([]ValidReceivedDeposit, []common.Hash, error) {
 	sentBlockNumbers := make([]ValidReceivedDeposit, 0, len(userData.Deposits))
 	invalidDepositHashes := make([]common.Hash, 0, len(userData.Deposits))
 	for _, deposit := range userData.Deposits {
 		defaultDepositHash := common.Hash{}
 		if deposit.DepositHash == defaultDepositHash {
-			syncValidityProver.log.Warnf("deposit hash should not be zero\n")
+			log.Warnf("deposit hash should not be zero\n")
 			continue
 		}
 
 		depositHash := deposit.DepositHash // TODO: validate deposit
-		syncValidityProver.log.Debugf("deposit hash: %s\n", depositHash.String())
+		log.Debugf("deposit hash: %s\n", depositHash.String())
 
-		_, depositIndex, err := syncValidityProver.ValidityProver.BlockBuilder().GetDepositLeafAndIndexByHash(depositHash)
+		_, depositIndex, err := blockValidityProver.GetDepositLeafAndIndexByHash(depositHash)
 		if err != nil {
-			syncValidityProver.log.Warnf("failed to get deposit index by hash %s: %v\n", depositHash.String(), err)
+			log.Warnf("failed to get deposit index by hash %s: %v\n", depositHash.String(), err)
 			continue
 		}
 
-		blockNumber, err := syncValidityProver.ValidityProver.BlockBuilder().BlockNumberByDepositIndex(*depositIndex)
+		blockNumber, err := blockValidityProver.BlockNumberByDepositIndex(*depositIndex)
 		if err != nil {
-			syncValidityProver.log.Warnf("failed to get block number by deposit index %d: %v\n", *depositIndex, err)
+			log.Warnf("failed to get block number by deposit index %d: %v\n", *depositIndex, err)
 			continue
 		}
 
@@ -106,29 +116,33 @@ func ExtractValidReceivedDeposits(userData *DecodedUserData, syncValidityProver 
 			Deposit:     deposit,
 		})
 
-		syncValidityProver.log.Debugf("valid deposit: %s\n", depositHash.String())
+		log.Debugf("valid deposit: %s\n", depositHash.String())
 	}
 
 	return sentBlockNumbers, invalidDepositHashes, nil
 }
 
-func ExtractValidReceivedTransfers(userData *DecodedUserData, syncValidityProver *syncValidityProver) ([]ValidReceivedTransfer, []*poseidonHashOut, error) {
+func ExtractValidReceivedTransfers(
+	log logger.Logger,
+	userData *BalanceTransitionData,
+	blockValidityProver block_validity_prover.BlockValidityProver,
+) ([]ValidReceivedTransfer, []*poseidonHashOut, error) {
 	receivedBlockNumbers := make([]ValidReceivedTransfer, 0, len(userData.Transfers))
 	invalidTransferHashes := make([]*poseidonHashOut, 0, len(userData.Transfers))
 	for _, transfer := range userData.Transfers {
 		transferHash := transfer.TransferDetails.TransferWitness.Transfer.Hash() // TODO: validate transfer
 
-		syncValidityProver.log.Debugf("transfer hash: %s\n", transferHash.String())
+		log.Debugf("transfer hash: %s\n", transferHash.String())
 		if transfer.TransferDetails.TxTreeRoot == nil {
-			syncValidityProver.log.Warnf("transfer tx tree root is nil\n")
+			log.Warnf("transfer tx tree root is nil\n")
 			invalidTransferHashes = append(invalidTransferHashes, transferHash)
 			continue
 		}
 
 		txRoot := transfer.TransferDetails.TxTreeRoot.String()[:2]
-		blockContent, err := syncValidityProver.ValidityProver.BlockBuilder().BlockContentByTxRoot(txRoot)
+		blockContent, err := blockValidityProver.BlockContentByTxRoot(txRoot)
 		if err != nil {
-			syncValidityProver.log.Warnf("failed to get block content by transfer root %s: %v\n", transferHash.String(), err)
+			log.Warnf("failed to get block content by transfer root %s: %v\n", transferHash.String(), err)
 			continue
 		}
 
@@ -139,7 +153,7 @@ func ExtractValidReceivedTransfers(userData *DecodedUserData, syncValidityProver
 			Transfer:     transfer,
 		})
 
-		syncValidityProver.log.Debugf("valid transfer: %s\n", transferHash.String())
+		log.Debugf("valid transfer: %s\n", transferHash.String())
 	}
 
 	return receivedBlockNumbers, invalidTransferHashes, nil

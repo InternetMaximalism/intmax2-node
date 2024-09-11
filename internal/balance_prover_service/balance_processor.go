@@ -26,27 +26,34 @@ type BalanceProofWithPublicInputs struct {
 	PublicInputs *BalancePublicInputs
 }
 
-type BalanceProcessor struct {
+type balanceProcessor struct {
 	ctx context.Context
 	cfg *configs.Config
 	log logger.Logger
+}
+
+type BalanceProcessor interface {
+	ProveReceiveDeposit(publicKey *intMaxAcc.PublicKey, receiveDepositWitness *ReceiveDepositWitness, lastBalanceProof *string) (*BalanceProofWithPublicInputs, error)
+	ProveReceiveTransfer(publicKey *intMaxAcc.PublicKey, receiveTransferWitness *ReceiveTransferWitness, lastBalanceProof *string) (*BalanceProofWithPublicInputs, error)
+	ProveSend(publicKey *intMaxAcc.PublicKey, sendWitness *SendWitness, updateWitness *block_validity_prover.UpdateWitness, lastBalanceProof *string) (*BalanceProofWithPublicInputs, error)
+	ProveUpdate(publicKey *intMaxAcc.PublicKey, updateWitness *block_validity_prover.UpdateWitness, lastBalanceProof *string) (*BalanceProofWithPublicInputs, error)
 }
 
 func NewBalanceProcessor(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
-) *BalanceProcessor {
-	return &BalanceProcessor{
+) BalanceProcessor {
+	return &balanceProcessor{
 		ctx,
 		cfg,
 		log,
 	}
 }
 
-func (s *BalanceProcessor) ProveUpdate(
+func (s *balanceProcessor) ProveUpdate(
 	publicKey *intMaxAcc.PublicKey,
-	updateWitness *UpdateWitness,
+	updateWitness *block_validity_prover.UpdateWitness,
 	lastBalanceProof *string,
 ) (*BalanceProofWithPublicInputs, error) {
 	// request balance prover
@@ -90,7 +97,7 @@ func (s *BalanceProcessor) ProveUpdate(
 	}
 }
 
-func (s *BalanceProcessor) ProveReceiveDeposit(
+func (s *balanceProcessor) ProveReceiveDeposit(
 	publicKey *intMaxAcc.PublicKey,
 	receiveDepositWitness *ReceiveDepositWitness,
 	lastBalanceProof *string,
@@ -155,10 +162,10 @@ func (s *BalanceProcessor) ProveReceiveDeposit(
 	}
 }
 
-func (s *BalanceProcessor) ProveSend(
+func (s *balanceProcessor) ProveSend(
 	publicKey *intMaxAcc.PublicKey,
 	sendWitness *SendWitness,
-	updateWitness *UpdateWitness,
+	updateWitness *block_validity_prover.UpdateWitness,
 	lastBalanceProof *string,
 ) (*BalanceProofWithPublicInputs, error) {
 	// request balance prover
@@ -202,7 +209,7 @@ func (s *BalanceProcessor) ProveSend(
 	}
 }
 
-func (s *BalanceProcessor) ProveReceiveTransfer(
+func (s *balanceProcessor) ProveReceiveTransfer(
 	publicKey *intMaxAcc.PublicKey,
 	receiveTransferWitness *ReceiveTransferWitness,
 	lastBalanceProof *string,
@@ -277,7 +284,7 @@ type UpdateBalanceValidityInput struct {
 	PrevBalanceProof *string `json:"prevBalanceProof,omitempty"`
 }
 
-func (input *UpdateWitnessInput) FromUpdateWitness(updateWitness *UpdateWitness) *UpdateWitnessInput {
+func (input *UpdateWitnessInput) FromUpdateWitness(updateWitness *block_validity_prover.UpdateWitness) *UpdateWitnessInput {
 	input.ValidityProof = updateWitness.ValidityProof
 	input.BlockMerkleProof = make(MerkleProofInput, len(updateWitness.BlockMerkleProof.Siblings))
 	for i := range updateWitness.BlockMerkleProof.Siblings {
@@ -292,8 +299,8 @@ func (input *UpdateWitnessInput) FromUpdateWitness(updateWitness *UpdateWitness)
 	input.AccountMembershipProof.LeafIndex = updateWitness.AccountMembershipProof.LeafIndex
 	input.AccountMembershipProof.Leaf = IndexedMerkleLeafInput{}
 	input.AccountMembershipProof.Leaf.FromIndexedMerkleLeaf(&updateWitness.AccountMembershipProof.Leaf)
-	fmt.Printf("updateWitness.AccountMembershipProof.Leaf: %v\n", updateWitness.AccountMembershipProof)
-	fmt.Printf("updateWitness.AccountMembershipProof.Leaf: %v\n", input.AccountMembershipProof)
+	// fmt.Printf("updateWitness.AccountMembershipProof.Leaf: %v\n", updateWitness.AccountMembershipProof)
+	// fmt.Printf("input.AccountMembershipProof.Leaf: %v\n", input.AccountMembershipProof)
 
 	return input
 }
@@ -325,17 +332,17 @@ type ReceiveTransferBalanceValidityInput struct {
 // "balanceUpdateWitness":'$(cat data/balance_update_for_send_witness_0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.json)',
 // "prevBalanceProof":"'$(base64 --input data/prev_balance_update_for_send_proof_0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.bin)'" }'
 // -H "Content-Type: application/json" $API_BALANCE_VALIDITY_PROVER_URL/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/send | jq
-func (p *BalanceProcessor) requestUpdateBalanceValidityProof(
+func (p *balanceProcessor) requestUpdateBalanceValidityProof(
 	publicKey *intMaxAcc.PublicKey,
-	updateWitness *UpdateWitness,
+	updateWitness *block_validity_prover.UpdateWitness,
 	prevBalanceProof *string,
 ) (string, error) {
 	requestBody := UpdateBalanceValidityInput{
 		UpdateWitness:    new(UpdateWitnessInput).FromUpdateWitness(updateWitness),
 		PrevBalanceProof: prevBalanceProof,
 	}
-	bd2, _ := json.Marshal(requestBody.UpdateWitness)
-	fmt.Printf("requestBody: %s\n", bd2)
+	// bd2, _ := json.Marshal(requestBody.UpdateWitness)
+	// fmt.Printf("requestBody: %s\n", bd2)
 
 	bd, err := json.Marshal(requestBody)
 	if err != nil {
@@ -399,7 +406,7 @@ func (p *BalanceProcessor) requestUpdateBalanceValidityProof(
 // Execute the following request:
 // curl -X POST -d '{ "receiveDepositWitness":'$(cat data/receive_deposit_witness_0.json)', "prevBalanceProof":"'$(base64 --input data/prev_receive_deposit_proof_0.bin)'" }'
 // -H "Content-Type: application/json" $API_BALANCE_VALIDITY_PROVER_URL/proof/{:intMaxAddress}/deposit | jq
-func (p *BalanceProcessor) requestReceiveDepositBalanceValidityProof(
+func (p *balanceProcessor) requestReceiveDepositBalanceValidityProof(
 	publicKey *intMaxAcc.PublicKey,
 	receiveDepositWitness *ReceiveDepositWitness,
 	prevBalanceProof *string,
@@ -466,10 +473,10 @@ func (p *BalanceProcessor) requestReceiveDepositBalanceValidityProof(
 // curl -X POST -d '{ "balanceUpdateWitness":'$(cat data/balance_update_witness_0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.json)',
 // "prevBalanceProof":"'$(base64 --input data/prev_balance_update_proof_0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.bin)'" }'
 // -H "Content-Type: application/json" $API_BALANCE_VALIDITY_PROVER_URL/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/update | jq
-func (p *BalanceProcessor) requestSendBalanceValidityProof(
+func (p *balanceProcessor) requestSendBalanceValidityProof(
 	publicKey *intMaxAcc.PublicKey,
 	sendWitness *SendWitness,
-	updateWitness *UpdateWitness,
+	updateWitness *block_validity_prover.UpdateWitness,
 	prevBalanceProof *string,
 ) (string, error) {
 	requestBody := SendBalanceValidityInput{
@@ -543,7 +550,7 @@ func (p *BalanceProcessor) requestSendBalanceValidityProof(
 // curl -X POST -d '{ "receiveTransferWitness":'$(cat data/receive_transfer_witness_0x7a00b7dbf1994ff9fb05a5897b7dc459dd9167ee7a4ad049b9850cbaf286bbee.json)',
 // "prevBalanceProof":"'$(base64 --input data/prev_receive_transfer_proof_0x7a00b7dbf1994ff9fb05a5897b7dc459dd9167ee7a4ad049b9850cbaf286bbee.bin)'" }'
 // -H "Content-Type: application/json" $API_BALANCE_VALIDITY_PROVER_URL/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/transfer | jq
-func (p *BalanceProcessor) requestReceiveTransferBalanceValidityProof(
+func (p *balanceProcessor) requestReceiveTransferBalanceValidityProof(
 	publicKey *intMaxAcc.PublicKey,
 	receiveTransferWitness *ReceiveTransferWitness,
 	prevBalanceProof *string,
@@ -624,7 +631,7 @@ type BalanceValidityProofResponse struct {
 
 // Execute the following request:
 // curl $API_BALANCE_VALIDITY_PROVER_URL/proof/{:intMaxAddress}/update/{:blockHash} | jq
-func (p *BalanceProcessor) fetchUpdateBalanceValidityProof(publicKey *intMaxAcc.PublicKey, requestID string) (*BalanceValidityProofResponse, error) {
+func (p *balanceProcessor) fetchUpdateBalanceValidityProof(publicKey *intMaxAcc.PublicKey, requestID string) (*BalanceValidityProofResponse, error) {
 	const (
 		httpKey     = "http"
 		httpsKey    = "https"
@@ -676,7 +683,7 @@ func (p *BalanceProcessor) fetchUpdateBalanceValidityProof(publicKey *intMaxAcc.
 
 // Execute the following request:
 // curl $API_BALANCE_VALIDITY_PROVER_URL/proof/{:intMaxAddress}/deposit/{:depositIndex} | jq
-func (p *BalanceProcessor) fetchReceiveDepositBalanceValidityProof(publicKey *intMaxAcc.PublicKey, requestID string) (*BalanceValidityProofResponse, error) {
+func (p *balanceProcessor) fetchReceiveDepositBalanceValidityProof(publicKey *intMaxAcc.PublicKey, requestID string) (*BalanceValidityProofResponse, error) {
 	const (
 		httpKey     = "http"
 		httpsKey    = "https"
@@ -728,7 +735,7 @@ func (p *BalanceProcessor) fetchReceiveDepositBalanceValidityProof(publicKey *in
 
 // Execute the following request:
 // curl $API_BALANCE_VALIDITY_PROVER_URL/proof/{:intMaxAddress}/send/{:blockHash} | jq
-func (p *BalanceProcessor) fetchSendBalanceValidityProof(publicKey *intMaxAcc.PublicKey, requestID string) (*BalanceValidityProofResponse, error) {
+func (p *balanceProcessor) fetchSendBalanceValidityProof(publicKey *intMaxAcc.PublicKey, requestID string) (*BalanceValidityProofResponse, error) {
 	const (
 		httpKey     = "http"
 		httpsKey    = "https"
@@ -780,7 +787,7 @@ func (p *BalanceProcessor) fetchSendBalanceValidityProof(publicKey *intMaxAcc.Pu
 
 // Execute the following request:
 // curl $API_BALANCE_VALIDITY_PROVER_URL/proof/{:intMaxAddress}/send/{:blockHash} | jq
-func (p *BalanceProcessor) fetchReceiveTransferBalanceValidityProof(publicKey *intMaxAcc.PublicKey, requestID string) (*BalanceValidityProofResponse, error) {
+func (p *balanceProcessor) fetchReceiveTransferBalanceValidityProof(publicKey *intMaxAcc.PublicKey, requestID string) (*BalanceValidityProofResponse, error) {
 	const (
 		httpKey     = "http"
 		httpsKey    = "https"

@@ -33,7 +33,8 @@ func (w *MockWallet) AddDepositCase(depositIndex uint32, depositCase *DepositCas
 }
 
 func (w *MockWallet) SendTx(
-	blockBuilder *block_validity_prover.MockBlockBuilderMemory,
+	// blockBuilder *block_validity_prover.MockBlockBuilderMemory,
+	blockValidityProver block_validity_prover.BlockValidityProver,
 	transfers []*intMaxTypes.Transfer,
 ) (*TxWitness, []*intMaxTypes.TransferWitness, error) {
 	fmt.Printf("-----SendTx-----")
@@ -73,7 +74,7 @@ func (w *MockWallet) SendTx(
 	txRequests := []*block_validity_prover.MockTxRequest{&txRequest0}
 
 	fmt.Printf("IMPORTANT PostBlock")
-	validityWitness, err := blockBuilder.PostBlock(
+	validityWitness, err := blockValidityProver.PostBlock(
 		w.nonce == 0,
 		txRequests,
 	)
@@ -200,10 +201,11 @@ func (w *MockWallet) UpdateOnSendTx(salt Salt, txWitness *TxWitness, transferWit
 }
 
 func (w *MockWallet) SendTxAndUpdate(
-	blockBuilder *block_validity_prover.MockBlockBuilderMemory,
+	// blockBuilder *block_validity_prover.MockBlockBuilderMemory,
+	blockValidityProver block_validity_prover.BlockValidityProver,
 	transfers []*intMaxTypes.Transfer,
 ) (*SendWitness, error) {
-	txWitness, transferWitnesses, err := w.SendTx(blockBuilder, transfers)
+	txWitness, transferWitnesses, err := w.SendTx(blockValidityProver, transfers)
 	if err != nil {
 		return nil, err
 	}
@@ -476,7 +478,8 @@ func (s *MockWallet) updateOnReceive(witness *PrivateWitness) error {
 type MockBlockBuilder = block_validity_prover.BlockBuilderStorage
 
 func (s *MockWallet) ReceiveDepositAndUpdate(
-	blockBuilder MockBlockBuilder,
+	// blockBuilder MockBlockBuilder,
+	blockValidityProver block_validity_prover.BlockValidityProver,
 	depositIndex uint32,
 ) (*ReceiveDepositWitness, error) {
 	fmt.Printf("-----ReceiveDepositAndUpdate %d-----\n", depositIndex)
@@ -490,25 +493,12 @@ func (s *MockWallet) ReceiveDepositAndUpdate(
 		return nil, errors.New("deposit not found")
 	}
 
-	lastValidityWitness, err := blockBuilder.LastValidityWitness()
-	if err != nil {
-		return nil, errors.New("last validity witness not found")
-	}
-	blockNumber := lastValidityWitness.BlockWitness.Block.BlockNumber
-	depositMerkleProof, actualDepositRoot, err := blockBuilder.DepositTreeProof(blockNumber, depositCase.DepositIndex)
+	depositMerkleProof, depositTreeRoot, err := blockValidityProver.DepositTreeProof(depositIndex)
 	if err != nil {
 		return nil, err
-	}
-	depositTreeRoot, err := blockBuilder.LastDepositTreeRoot()
-	if err != nil {
-		return nil, err
-	}
-	fmt.Printf("actual deposit tree root: %s\n", actualDepositRoot.String())
-	fmt.Printf("expected deposit tree root: %s\n", depositTreeRoot.String())
-	if depositTreeRoot != actualDepositRoot {
-		return nil, errors.New("deposit tree root mismatch")
 	}
 
+	fmt.Printf("expected deposit tree root: %s\n", depositTreeRoot.String())
 	fmt.Printf("deposit index: %d\n", depositIndex)
 	fmt.Printf("ReceiveDepositAndUpdate deposit tree root: %s\n", depositTreeRoot.String())
 	fmt.Printf("depositCase.Deposit: %v\n", depositCase.Deposit)
@@ -564,13 +554,14 @@ func (s *MockWallet) ReceiveDepositAndUpdate(
 }
 
 func (s *MockWallet) ReceiveTransferAndUpdate(
-	blockBuilder MockBlockBuilder,
+	// blockBuilder MockBlockBuilder,
+	blockValidityProver block_validity_prover.BlockValidityProver,
 	lastBlockNumber uint32,
 	transferWitness *intMaxTypes.TransferWitness,
 	senderBalanceProof string,
 ) (*ReceiveTransferWitness, error) {
 	receiveTransferWitness, err := s.GenerateReceiveTransferWitness(
-		blockBuilder,
+		blockValidityProver,
 		lastBlockNumber,
 		transferWitness,
 		senderBalanceProof,
@@ -589,7 +580,8 @@ func (s *MockWallet) ReceiveTransferAndUpdate(
 }
 
 func (s *MockWallet) GenerateReceiveTransferWitness(
-	blockBuilder MockBlockBuilder,
+	// blockBuilder MockBlockBuilder,
+	blockValidityProver block_validity_prover.BlockValidityProver,
 	receiverBlockNumber uint32,
 	transferWitness *intMaxTypes.TransferWitness,
 	senderBalanceProof string,
@@ -637,7 +629,7 @@ func (s *MockWallet) GenerateReceiveTransferWitness(
 	}
 
 	// blockMerkleProof, err := blockBuilder.GetBlockMerkleProof(receiverBlockNumber, balancePis.PublicState.BlockNumber)
-	blockMerkleProof, err := blockBuilder.BlockTreeProof(receiverBlockNumber, balancePis.PublicState.BlockNumber)
+	blockMerkleProof, err := blockValidityProver.BlockTreeProof(receiverBlockNumber, balancePis.PublicState.BlockNumber)
 	if err != nil {
 		return nil, err
 	}

@@ -7,6 +7,8 @@ import (
 	"intmax2-node/docs/swagger"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_prover_service"
+	"intmax2-node/internal/block_synchronizer"
+	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
 	"intmax2-node/internal/pb/gateway"
@@ -75,9 +77,18 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 			// 	const msg = "failed to start Block Validity Prover: %+v"
 			// 	s.Log.Fatalf(msg, err.Error())
 			// }
-			syncValidityProver, err := balance_prover_service.NewSyncValidityProver(s.Context, s.Config, s.Log, s.SB, s.DbApp)
+
+			blockSynchronizer, err := block_synchronizer.NewBlockSynchronizer(
+				s.Context, s.Config, s.Log,
+			)
 			if err != nil {
-				s.Log.Fatalf("failed to create sync validity prover: %+v", err)
+				const msg = "failed to get Block Builder IntMax Address: %+v"
+				s.Log.Fatalf(msg, err.Error())
+			}
+			validityProver, err := block_validity_prover.NewBlockValidityProver(s.Context, s.Config, s.Log, s.SB, s.DbApp)
+			if err != nil {
+				const msg = "failed to get Block Builder IntMax Address: %+v"
+				s.Log.Fatalf(msg, err.Error())
 			}
 
 			wg.Add(1)
@@ -88,7 +99,7 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 					s.WG.Done()
 				}()
 
-				blockBuilderWallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(s.Config.Blockchain.BuilderPrivateKeyHex)
+				blockBuilderWallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(s.Config.Wallet.PrivateKeyHex)
 				if err != nil {
 					const msg = "failed to get Block Builder IntMax Address: %+v"
 					s.Log.Fatalf(msg, err.Error())
@@ -102,7 +113,7 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 				// 	s.Log.Fatalf(msg, err.Error())
 				// }
 				// synchronizer := balance_prover_service.NewSynchronizerDummy(s.Context, s.Config, s.Log, s.SB, s.DbApp)
-				// synchronizer.TestE2E(syncValidityProver, blockBuilderWallet, withdrawalAggregator)
+				// synchronizer.TestE2E(validityProver, blockBuilderWallet, withdrawalAggregator)
 
 				// balanceProverService := balance_prover_service.NewBalanceProverService(s.Context, s.Config, s.Log, blockBuilderWallet)
 				balanceProcessor := balance_prover_service.NewBalanceProcessor(
@@ -116,8 +127,8 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 					s.Log.Fatalf(msg, err.Error())
 				}
 
-				synchronizer := balance_prover_service.NewSynchronizer(s.Context, s.Config, s.Log, s.SB, s.DbApp)
-				err = synchronizer.Sync(syncValidityProver, balanceProcessor, syncBalanceProver, blockBuilderPrivateKey)
+				balanceSynchronizer := balance_prover_service.NewSynchronizer(s.Context, s.Config, s.Log, s.SB, s.DbApp)
+				err = balanceSynchronizer.Sync(blockSynchronizer, validityProver, balanceProcessor, syncBalanceProver, blockBuilderPrivateKey)
 				if err != nil {
 					const msg = "failed to sync: %+v"
 					s.Log.Fatalf(msg, err.Error())

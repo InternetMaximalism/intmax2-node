@@ -2,11 +2,15 @@ package block_validity_prover
 
 import (
 	"context"
+	"math/big"
+
+	// intMaxAcc "intmax2-node/internal/accounts"
+
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/block_post_service"
+	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
-	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -14,7 +18,6 @@ import (
 type BlockValidityProver interface {
 	SyncDepositedEvents() error
 	SyncDepositTree(endBlock *uint64, depositIndex uint32) error
-	// SyncBlockTree(_ BlockSynchronizer) (endBlock uint64, err error)
 	SyncBlockTree(
 		bps BlockSynchronizer,
 		startBlock uint64,
@@ -23,9 +26,22 @@ type BlockValidityProver interface {
 		blockContent *intMaxTypes.BlockContent,
 		postedBlock *block_post_service.PostedBlock,
 	) error
+	SyncBlockProverWithBlockNumber(blockNumber uint32) error
 	SyncBlockProver() error
-	BlockBuilder() *mockBlockBuilder
+	// BlockBuilder() *mockBlockBuilder
+	// SyncBlockTree(_ BlockSynchronizer) (endBlock uint64, err error)
 	FetchLastDepositIndex() (uint32, error)
+	LastSeenBlockPostedEventBlockNumber() (uint64, error)
+	SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error
+	LatestIntMaxBlockNumber() uint32
+	BlockContentByTxRoot(txRoot string) (*block_post_service.PostedBlock, error)
+	GetDepositLeafAndIndexByHash(depositHash common.Hash) (depositLeafWithId *DepositLeafWithId, depositIndex *uint32, err error)
+	BlockNumberByDepositIndex(depositIndex uint32) (uint32, error)
+	IsSynchronizedDepositIndex(depositIndex uint32) (bool, error)
+	FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error)
+	DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error)
+	BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.MerkleProof, error)
+	PostBlock(isRegistrationBlock bool, txs []*MockTxRequest) (*ValidityWitness, error) // XXX
 }
 
 type BlockSynchronizer interface {
@@ -33,21 +49,4 @@ type BlockSynchronizer interface {
 	FetchNewPostedBlocks(startBlock uint64, endBlock *uint64) ([]*bindings.RollupBlockPosted, *big.Int, error)
 	FetchScrollCalldataByHash(txHash common.Hash) ([]byte, error)
 	RollupContractDeployedBlockNumber() uint64
-	BackupTransaction(
-		sender intMaxAcc.Address,
-		encodedEncryptedTxHash, encodedEncryptedTx string,
-		signature string,
-		blockNumber uint64,
-	) error
-	BackupTransfer(
-		recipient intMaxAcc.Address,
-		encodedEncryptedTransferHash, encodedEncryptedTransfer string,
-		senderLastBalanceProofBody, senderBalanceTransitionProofBody []byte,
-		blockNumber uint64,
-	) error
-	BackupWithdrawal(
-		recipient common.Address,
-		encodedEncryptedTransferHash, encodedEncryptedTransfer string,
-		blockNumber uint64,
-	) error
 }
