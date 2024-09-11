@@ -270,6 +270,7 @@ func NewServerCmd(s *Server) *cobra.Command {
 				const msg = "failed to start Block Validity Prover: %+v"
 				s.Log.Fatalf(msg, err.Error())
 			}
+			blockValidityService, err := block_validity_prover.NewBlockValidityService(s.Context, s.Config, s.Log, s.SB, s.DbApp)
 
 			wg.Add(1)
 			s.WG.Add(1)
@@ -286,7 +287,7 @@ func NewServerCmd(s *Server) *cobra.Command {
 					s.Log.Fatalf(msg, err.Error())
 				}
 
-				latestSynchronizedDepositIndex, err := blockValidityProver.FetchLastDepositIndex()
+				latestSynchronizedDepositIndex, err := blockValidityService.FetchLastDepositIndex()
 				if err != nil {
 					const msg = "failed to fetch last deposit index: %+v"
 					s.Log.Fatalf(msg, err.Error())
@@ -314,7 +315,7 @@ func NewServerCmd(s *Server) *cobra.Command {
 						}
 
 						// sync block content
-						startBlock, err := blockValidityProver.LastSeenBlockPostedEventBlockNumber()
+						startBlock, err := blockValidityService.LastSeenBlockPostedEventBlockNumber()
 						if err != nil {
 							startBlock = s.Config.Blockchain.RollupContractDeployedBlockNumber
 							// var ErrLastSeenBlockPostedEventBlockNumberFail = errors.New("last seen block posted event block number fail")
@@ -326,7 +327,7 @@ func NewServerCmd(s *Server) *cobra.Command {
 							panic(err)
 						}
 
-						err = blockValidityProver.SetLastSeenBlockPostedEventBlockNumber(endBlock)
+						err = blockValidityService.SetLastSeenBlockPostedEventBlockNumber(endBlock)
 						if err != nil {
 							var ErrSetLastSeenBlockPostedEventBlockNumberFail = errors.New("set last seen block posted event block number fail")
 							panic(errors.Join(ErrSetLastSeenBlockPostedEventBlockNumberFail, err))

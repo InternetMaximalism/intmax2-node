@@ -1,10 +1,12 @@
-package balance_prover_service
+package balance_synchronizer
 
 import (
 	"errors"
 	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/balance_prover_service"
 	"intmax2-node/internal/block_validity_prover"
+	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/backup_balance"
@@ -15,28 +17,30 @@ import (
 
 const numTransfersInTx = 1 << intMaxTree.TRANSFER_TREE_HEIGHT
 
+type poseidonHashOut = intMaxGP.PoseidonHashOut
+
 type MockWallet struct {
 	privateKey        intMaxAcc.PrivateKey
 	assetTree         intMaxTree.AssetTree
 	nullifierTree     intMaxTree.NullifierTree
 	nonce             uint32
-	salt              Salt
+	salt              balance_prover_service.Salt
 	publicState       *block_validity_prover.PublicState
-	sendWitnesses     map[uint32]*SendWitness
-	depositCases      map[uint32]*DepositCase // depositIndex => DepositCase
+	sendWitnesses     map[uint32]*balance_prover_service.SendWitness
+	depositCases      map[uint32]*balance_prover_service.DepositCase // depositIndex => DepositCase
 	transferWitnesses map[uint32][]*intMaxTypes.TransferWitness
 }
 
-func (w *MockWallet) AddDepositCase(depositIndex uint32, depositCase *DepositCase) error {
+func (w *MockWallet) AddDepositCase(depositIndex uint32, depositCase *balance_prover_service.DepositCase) error {
 	w.depositCases[depositIndex] = depositCase
 	return nil
 }
 
 func (w *MockWallet) SendTx(
 	// blockBuilder *block_validity_prover.MockBlockBuilderMemory,
-	blockValidityProver block_validity_prover.BlockValidityProver,
+	blockValidityProver block_validity_prover.BlockValidityService,
 	transfers []*intMaxTypes.Transfer,
-) (*TxWitness, []*intMaxTypes.TransferWitness, error) {
+) (*balance_prover_service.TxWitness, []*intMaxTypes.TransferWitness, error) {
 	fmt.Printf("-----SendTx-----")
 	if len(transfers) >= numTransfersInTx {
 		return nil, nil, errors.New("transfers length must be less than numTransfersInTx")
@@ -107,7 +111,7 @@ func (w *MockWallet) SendTx(
 		})
 	}
 
-	txWitness := &TxWitness{
+	txWitness := &balance_prover_service.TxWitness{
 		ValidityPis:   *validityWitness.ValidityPublicInputs(),
 		SenderLeaves:  senderWitness,
 		Tx:            tx,
@@ -131,7 +135,11 @@ func (w *MockWallet) SendTx(
 	return txWitness, transferWitnesses, nil
 }
 
-func (w *MockWallet) UpdateOnSendTx(salt Salt, txWitness *TxWitness, transferWitnesses []*intMaxTypes.TransferWitness) (*SendWitness, error) {
+func (w *MockWallet) UpdateOnSendTx(
+	salt balance_prover_service.Salt,
+	txWitness *balance_prover_service.TxWitness,
+	transferWitnesses []*intMaxTypes.TransferWitness,
+) (*balance_prover_service.SendWitness, error) {
 	prevPrivateState := w.PrivateState()
 	prevBalancePis, err := w.GetBalancePublicInputs()
 	if err != nil {
@@ -183,7 +191,7 @@ func (w *MockWallet) UpdateOnSendTx(salt Salt, txWitness *TxWitness, transferWit
 		insufficientFlags.SetBit(i, newBalance.IsInsufficient)
 	}
 
-	sendWitness := SendWitness{
+	sendWitness := balance_prover_service.SendWitness{
 		PrevBalancePis:      prevBalancePis,
 		PrevPrivateState:    prevPrivateState,
 		PrevBalances:        prevBalances,
@@ -202,14 +210,14 @@ func (w *MockWallet) UpdateOnSendTx(salt Salt, txWitness *TxWitness, transferWit
 
 func (w *MockWallet) SendTxAndUpdate(
 	// blockBuilder *block_validity_prover.MockBlockBuilderMemory,
-	blockValidityProver block_validity_prover.BlockValidityProver,
+	blockValidityProver block_validity_prover.BlockValidityService,
 	transfers []*intMaxTypes.Transfer,
-) (*SendWitness, error) {
+) (*balance_prover_service.SendWitness, error) {
 	txWitness, transferWitnesses, err := w.SendTx(blockValidityProver, transfers)
 	if err != nil {
 		return nil, err
 	}
-	newSalt, err := new(Salt).SetRandom()
+	newSalt, err := new(balance_prover_service.Salt).SetRandom()
 	if err != nil {
 		return nil, err
 	}
@@ -235,10 +243,10 @@ func NewMockWallet(privateKey *intMaxAcc.PrivateKey) (*MockWallet, error) {
 		assetTree:         *assetTree,
 		nullifierTree:     *nullifierTree,
 		nonce:             0,
-		salt:              Salt{},
+		salt:              balance_prover_service.Salt{},
 		publicState:       new(block_validity_prover.PublicState).Genesis(),
-		sendWitnesses:     make(map[uint32]*SendWitness),
-		depositCases:      make(map[uint32]*DepositCase), // depositId => DepositCase
+		sendWitnesses:     make(map[uint32]*balance_prover_service.SendWitness),
+		depositCases:      make(map[uint32]*balance_prover_service.DepositCase), // depositId => DepositCase
 		transferWitnesses: make(map[uint32][]*intMaxTypes.TransferWitness),
 	}, nil
 }
@@ -251,8 +259,8 @@ func (s *MockWallet) GenericAddress() (*intMaxTypes.GenericAddress, error) {
 	return intMaxTypes.NewINTMAXAddress(s.PublicKey().ToAddress().Bytes())
 }
 
-func (s *MockWallet) PrivateState() *PrivateState {
-	return &PrivateState{
+func (s *MockWallet) PrivateState() *balance_prover_service.PrivateState {
+	return &balance_prover_service.PrivateState{
 		AssetTreeRoot:     s.assetTree.GetRoot(),
 		NullifierTreeRoot: s.nullifierTree.GetRoot(),
 		Nonce:             s.nonce,
@@ -279,13 +287,13 @@ func (s *MockWallet) UpdatePublicState(publicState *block_validity_prover.Public
 	s.publicState = new(block_validity_prover.PublicState).Set(publicState)
 }
 
-func (s *MockWallet) GetLastSendWitness() *SendWitness {
+func (s *MockWallet) GetLastSendWitness() *balance_prover_service.SendWitness {
 	if len(s.sendWitnesses) == 0 {
 		return nil
 	}
 
 	lastBlockNumber := uint32(0)
-	var lastSendWitness *SendWitness
+	var lastSendWitness *balance_prover_service.SendWitness
 	for blockNumber, sendWitness := range s.sendWitnesses {
 		if blockNumber > lastBlockNumber {
 			lastBlockNumber = blockNumber
@@ -296,7 +304,7 @@ func (s *MockWallet) GetLastSendWitness() *SendWitness {
 	return lastSendWitness
 }
 
-func (s *MockWallet) GetBalancePublicInputs() (*BalancePublicInputs, error) {
+func (s *MockWallet) GetBalancePublicInputs() (*balance_prover_service.BalancePublicInputs, error) {
 	lastSendWitness := s.GetLastSendWitness()
 	lastTxHash := new(poseidonHashOut)
 	lastTxInsufficientFlags := backup_balance.InsufficientFlags{}
@@ -309,7 +317,7 @@ func (s *MockWallet) GetBalancePublicInputs() (*BalancePublicInputs, error) {
 		lastTxInsufficientFlags = nextLastTx.LastTxInsufficientFlags
 	}
 
-	return &BalancePublicInputs{
+	return &balance_prover_service.BalancePublicInputs{
 		PubKey:                  s.privateKey.Public(),
 		PrivateCommitment:       s.PrivateState().Commitment(),
 		LastTxHash:              lastTxHash,
@@ -318,7 +326,7 @@ func (s *MockWallet) GetBalancePublicInputs() (*BalancePublicInputs, error) {
 	}, nil
 }
 
-func (s *MockWallet) GetSendWitness(blockNumber uint32) (*SendWitness, error) {
+func (s *MockWallet) GetSendWitness(blockNumber uint32) (*balance_prover_service.SendWitness, error) {
 	result, ok := s.sendWitnesses[blockNumber]
 	if !ok {
 		return nil, errors.New("send witness not found")
@@ -328,11 +336,11 @@ func (s *MockWallet) GetSendWitness(blockNumber uint32) (*SendWitness, error) {
 }
 
 func (s *MockWallet) GeneratePrivateWitness(
-	newSalt Salt,
+	newSalt balance_prover_service.Salt,
 	tokenIndex uint32,
 	amount *big.Int,
 	nullifier intMaxTypes.Bytes32,
-) (*PrivateWitness, error) {
+) (*balance_prover_service.PrivateWitness, error) {
 	prevPrivateState := s.PrivateState()
 
 	fmt.Printf("s.assetTree: %v\n", s.assetTree)
@@ -394,7 +402,7 @@ func (s *MockWallet) GeneratePrivateWitness(
 	}
 	fmt.Printf("actual new nullifier tree root: %v\n", newNullifierTreeRoot)
 
-	return &PrivateWitness{
+	return &balance_prover_service.PrivateWitness{
 		TokenIndex:       tokenIndex,
 		Amount:           amount,
 		Nullifier:        nullifier,
@@ -406,7 +414,7 @@ func (s *MockWallet) GeneratePrivateWitness(
 	}, nil
 }
 
-func (s *MockWallet) updateOnReceive(witness *PrivateWitness) error {
+func (s *MockWallet) updateOnReceive(witness *balance_prover_service.PrivateWitness) error {
 	fmt.Printf("s.assetTree: %v\n", s.assetTree)
 
 	nullifier := new(intMaxTypes.Uint256).FromFieldElementSlice(witness.Nullifier.ToFieldElementSlice())
@@ -479,9 +487,9 @@ type MockBlockBuilder = block_validity_prover.BlockBuilderStorage
 
 func (s *MockWallet) ReceiveDepositAndUpdate(
 	// blockBuilder MockBlockBuilder,
-	blockValidityProver block_validity_prover.BlockValidityProver,
+	blockValidityProver block_validity_prover.BlockValidityService,
 	depositIndex uint32,
-) (*ReceiveDepositWitness, error) {
+) (*balance_prover_service.ReceiveDepositWitness, error) {
 	fmt.Printf("-----ReceiveDepositAndUpdate %d-----\n", depositIndex)
 	for index, depositCase := range s.depositCases {
 		fmt.Printf("depositCase[%d]: %v\n", index, depositCase)
@@ -512,7 +520,7 @@ func (s *MockWallet) ReceiveDepositAndUpdate(
 		return nil, err
 	}
 
-	depositWitness := DepositWitness{
+	depositWitness := balance_prover_service.DepositWitness{
 		DepositMerkleProof: depositMerkleProof,
 		DepositSalt:        depositCase.DepositSalt,
 		DepositIndex:       uint(depositCase.DepositIndex),
@@ -531,7 +539,8 @@ func (s *MockWallet) ReceiveDepositAndUpdate(
 
 	nullifierBytes32 := intMaxTypes.Bytes32{}
 	nullifierBytes32.FromPoseidonHashOut(nullifier)
-	privateWitness, err := s.GeneratePrivateWitness(Salt(*newSalt), deposit.TokenIndex, deposit.Amount, nullifierBytes32)
+	salt := balance_prover_service.Salt(*newSalt)
+	privateWitness, err := s.GeneratePrivateWitness(salt, deposit.TokenIndex, deposit.Amount, nullifierBytes32)
 	if err != nil {
 		return nil, err
 	}
@@ -547,7 +556,7 @@ func (s *MockWallet) ReceiveDepositAndUpdate(
 	}
 	fmt.Println("finish updateOnReceive")
 
-	return &ReceiveDepositWitness{
+	return &balance_prover_service.ReceiveDepositWitness{
 		DepositWitness: &depositWitness,
 		PrivateWitness: privateWitness,
 	}, nil
@@ -555,11 +564,11 @@ func (s *MockWallet) ReceiveDepositAndUpdate(
 
 func (s *MockWallet) ReceiveTransferAndUpdate(
 	// blockBuilder MockBlockBuilder,
-	blockValidityProver block_validity_prover.BlockValidityProver,
+	blockValidityProver block_validity_prover.BlockValidityService,
 	lastBlockNumber uint32,
 	transferWitness *intMaxTypes.TransferWitness,
 	senderBalanceProof string,
-) (*ReceiveTransferWitness, error) {
+) (*balance_prover_service.ReceiveTransferWitness, error) {
 	receiveTransferWitness, err := s.GenerateReceiveTransferWitness(
 		blockValidityProver,
 		lastBlockNumber,
@@ -581,12 +590,12 @@ func (s *MockWallet) ReceiveTransferAndUpdate(
 
 func (s *MockWallet) GenerateReceiveTransferWitness(
 	// blockBuilder MockBlockBuilder,
-	blockValidityProver block_validity_prover.BlockValidityProver,
+	blockValidityProver block_validity_prover.BlockValidityService,
 	receiverBlockNumber uint32,
 	transferWitness *intMaxTypes.TransferWitness,
 	senderBalanceProof string,
 	skipInsufficientCheck bool,
-) (*ReceiveTransferWitness, error) {
+) (*balance_prover_service.ReceiveTransferWitness, error) {
 	transfer := transferWitness.Transfer
 	recipientAddress, err := s.GenericAddress()
 	if err != nil {
@@ -601,7 +610,7 @@ func (s *MockWallet) GenerateReceiveTransferWitness(
 		return nil, err
 	}
 
-	balancePis, err := new(BalancePublicInputs).FromPublicInputs(senderBalanceProofWithPis.PublicInputs)
+	balancePis, err := new(balance_prover_service.BalancePublicInputs).FromPublicInputs(senderBalanceProofWithPis.PublicInputs)
 	if err != nil {
 		return nil, err
 	}
@@ -623,7 +632,8 @@ func (s *MockWallet) GenerateReceiveTransferWitness(
 	nullifier := transfer.Nullifier()
 	nullifierBytes32 := intMaxTypes.Bytes32{}
 	nullifierBytes32.FromPoseidonHashOut(nullifier)
-	privateWitness, err := s.GeneratePrivateWitness(Salt(*new(poseidonHashOut)), transfer.TokenIndex, transfer.Amount, nullifierBytes32)
+	salt := balance_prover_service.Salt(*new(poseidonHashOut))
+	privateWitness, err := s.GeneratePrivateWitness(salt, transfer.TokenIndex, transfer.Amount, nullifierBytes32)
 	if err != nil {
 		return nil, err
 	}
@@ -634,7 +644,7 @@ func (s *MockWallet) GenerateReceiveTransferWitness(
 		return nil, err
 	}
 
-	return &ReceiveTransferWitness{
+	return &balance_prover_service.ReceiveTransferWitness{
 		TransferWitness:  transferWitness,
 		BalanceProof:     senderBalanceProof,
 		PrivateWitness:   privateWitness,
@@ -670,7 +680,7 @@ func (s *MockWallet) GenerateReceiveTransferWitness(
 //     deposit_index
 // }
 
-func (w *MockWallet) Deposit(b *block_validity_prover.MockBlockBuilderMemory, salt Salt, tokenIndex uint32, amount *big.Int) uint32 {
+func (w *MockWallet) Deposit(b *block_validity_prover.MockBlockBuilderMemory, salt balance_prover_service.Salt, tokenIndex uint32, amount *big.Int) uint32 {
 	recipientSaltHash := intMaxAcc.GetPublicKeySaltHash(w.PublicKey().BigInt(), &salt)
 	depositLeaf := intMaxTree.DepositLeaf{
 		RecipientSaltHash: recipientSaltHash,
@@ -688,7 +698,7 @@ func (w *MockWallet) Deposit(b *block_validity_prover.MockBlockBuilderMemory, sa
 		panic(err)
 	}
 
-	depositCase := DepositCase{
+	depositCase := balance_prover_service.DepositCase{
 		DepositSalt:  salt,
 		DepositIndex: depositIndex,
 		Deposit:      depositLeaf,

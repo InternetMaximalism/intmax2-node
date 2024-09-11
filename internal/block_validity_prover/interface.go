@@ -10,7 +10,6 @@ import (
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/block_post_service"
 	intMaxTree "intmax2-node/internal/tree"
-	intMaxTypes "intmax2-node/internal/types"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -22,14 +21,12 @@ type BlockValidityProver interface {
 		bps BlockSynchronizer,
 		startBlock uint64,
 	) (lastEventSeenBlockNumber uint64, err error)
-	SyncBlockProverWithAuxInfo(
-		blockContent *intMaxTypes.BlockContent,
-		postedBlock *block_post_service.PostedBlock,
-	) error
 	SyncBlockProverWithBlockNumber(blockNumber uint32) error
 	SyncBlockProver() error
-	// BlockBuilder() *mockBlockBuilder
-	// SyncBlockTree(_ BlockSynchronizer) (endBlock uint64, err error)
+	PostBlock(isRegistrationBlock bool, txs []*MockTxRequest) (*ValidityWitness, error) // XXX
+}
+
+type BlockValidityService interface {
 	FetchLastDepositIndex() (uint32, error)
 	LastSeenBlockPostedEventBlockNumber() (uint64, error)
 	SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error
@@ -41,7 +38,6 @@ type BlockValidityProver interface {
 	FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error)
 	DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error)
 	BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.MerkleProof, error)
-	PostBlock(isRegistrationBlock bool, txs []*MockTxRequest) (*ValidityWitness, error) // XXX
 }
 
 type BlockSynchronizer interface {

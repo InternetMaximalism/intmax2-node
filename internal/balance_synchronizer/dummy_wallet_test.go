@@ -1,4 +1,4 @@
-package balance_prover_service_test
+package balance_synchronizer
 
 // func TestDummyWallet(t *testing.T) {
 // 	privateKey, err := intMaxAcc.NewPrivateKeyFromString("7397927abf5b7665c4667e8cb8b92e929e287625f79264564bb66c1fa2232b2c")

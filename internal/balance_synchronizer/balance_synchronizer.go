@@ -1,4 +1,4 @@
-package balance_prover_service
+package balance_synchronizer
 
 import (
 	"bufio"
@@ -9,12 +9,15 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/balance_prover_service"
 	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/logger"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"time"
 )
+
+const int8Key = 8
 
 type balanceSynchronizer struct {
 	ctx context.Context
@@ -42,8 +45,8 @@ func NewSynchronizer(
 
 func (s *balanceSynchronizer) Sync(
 	blockSynchronizer block_validity_prover.BlockSynchronizer,
-	blockValidityProver block_validity_prover.BlockValidityProver,
-	balanceProcessor BalanceProcessor,
+	blockValidityProver block_validity_prover.BlockValidityService,
+	balanceProcessor balance_prover_service.BalanceProcessor,
 	syncBalanceProver *SyncBalanceProver,
 	intMaxPrivateKey *intMaxAcc.PrivateKey,
 ) error {
@@ -63,7 +66,7 @@ func (s *balanceSynchronizer) Sync(
 			s.log.Warnf("Received cancel signal from context, stopping...")
 			return nil
 		case <-ticker.C:
-			userAllData, err := NewBalanceTransitionData(s.ctx, s.cfg, intMaxPrivateKey)
+			userAllData, err := balance_prover_service.NewBalanceTransitionData(s.ctx, s.cfg, intMaxPrivateKey)
 			if err != nil {
 				const msg = "failed to start Balance Prover Service: %+v"
 				s.log.Fatalf(msg, err.Error())
@@ -108,12 +111,13 @@ func (s *balanceSynchronizer) Sync(
 				fmt.Printf("valid transition: %v\n", transition)
 
 				switch transition := transition.(type) {
-				case ValidSentTx:
+				case balance_prover_service.ValidSentTx:
 					fmt.Printf("valid sent transaction: %v\n", transition.TxHash)
 					err := applySentTransactionTransition(
 						s.log,
 						transition.Tx,
 						blockValidityProver,
+						blockSynchronizer,
 						balanceProcessor,
 						syncBalanceProver,
 						mockWallet,
@@ -124,13 +128,14 @@ func (s *balanceSynchronizer) Sync(
 						s.log.Warnf(msg, err.Error())
 						continue
 					}
-				case ValidReceivedDeposit:
+				case balance_prover_service.ValidReceivedDeposit:
 					fmt.Printf("valid received deposit: %v\n", transition.DepositHash)
 					transitionBlockNumber := transition.BlockNumber()
 					fmt.Printf("transitionBlockNumber: %d", transitionBlockNumber)
 					err = syncBalanceProver.SyncNoSend(
 						s.log,
 						blockValidityProver,
+						blockSynchronizer,
 						mockWallet,
 						balanceProcessor,
 					)
@@ -151,13 +156,14 @@ func (s *balanceSynchronizer) Sync(
 						s.log.Warnf(msg, err.Error())
 						continue
 					}
-				case ValidReceivedTransfer:
+				case balance_prover_service.ValidReceivedTransfer:
 					fmt.Printf("valid received transfer: %v\n", transition.TransferHash)
 					transitionBlockNumber := transition.BlockNumber()
 					fmt.Printf("transitionBlockNumber: %d", transitionBlockNumber)
 					err = syncBalanceProver.SyncNoSend(
 						s.log,
 						blockValidityProver,
+						blockSynchronizer,
 						mockWallet,
 						balanceProcessor,
 					)
@@ -189,9 +195,9 @@ func (s *balanceSynchronizer) Sync(
 }
 
 func applyReceivedDepositTransition(
-	deposit *DepositDetails,
-	blockValidityProver block_validity_prover.BlockValidityProver,
-	balanceProcessor BalanceProcessor,
+	deposit *balance_prover_service.DepositDetails,
+	blockValidityProver block_validity_prover.BlockValidityService,
+	balanceProcessor balance_prover_service.BalanceProcessor,
 	syncBalanceProver *SyncBalanceProver,
 	mockWallet *MockWallet,
 ) error {
@@ -222,7 +228,7 @@ func applyReceivedDepositTransition(
 
 	fmt.Printf("deposit index: %d\n", *depositIndex)
 
-	depositCase := DepositCase{
+	depositCase := balance_prover_service.DepositCase{
 		Deposit: intMaxTree.DepositLeaf{
 			RecipientSaltHash: deposit.RecipientSaltHash,
 			TokenIndex:        deposit.TokenIndex,
@@ -254,8 +260,8 @@ func applyReceivedDepositTransition(
 
 func applyReceivedTransferTransition(
 	transfer *intMaxTypes.TransferDetailsWithProofBody,
-	blockValidityProver block_validity_prover.BlockValidityProver,
-	balanceProcessor BalanceProcessor,
+	blockValidityProver block_validity_prover.BlockValidityService,
+	balanceProcessor balance_prover_service.BalanceProcessor,
 	syncBalanceProver *SyncBalanceProver,
 	mockWallet *MockWallet,
 ) error {
@@ -299,9 +305,9 @@ func applyReceivedTransferTransition(
 func applySentTransactionTransition(
 	log logger.Logger,
 	tx *intMaxTypes.TxDetails,
-	blockValidityProver block_validity_prover.BlockValidityProver,
-	// blockSynchronizer block_validity_prover.BlockSynchronizer,
-	balanceProcessor BalanceProcessor,
+	blockValidityProver block_validity_prover.BlockValidityService,
+	blockSynchronizer block_validity_prover.BlockSynchronizer,
+	balanceProcessor balance_prover_service.BalanceProcessor,
 	syncBalanceProver *SyncBalanceProver,
 	mockWallet *MockWallet,
 	// syncValidityProver *syncValidityProver, // XXX
@@ -318,7 +324,7 @@ func applySentTransactionTransition(
 		const msg = "failed to send transaction: %+v"
 		return fmt.Errorf(msg, err.Error())
 	}
-	newSalt, err := new(Salt).SetRandom()
+	newSalt, err := new(balance_prover_service.Salt).SetRandom()
 	if err != nil {
 		const msg = "failed to set random: %+v"
 		return fmt.Errorf(msg, err.Error())
@@ -333,6 +339,7 @@ func applySentTransactionTransition(
 	err = syncBalanceProver.SyncSend(
 		log,
 		blockValidityProver,
+		blockSynchronizer,
 		mockWallet,
 		balanceProcessor,
 	)

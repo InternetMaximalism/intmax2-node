@@ -35,7 +35,7 @@ type blockValidityProver struct {
 
 type BlockValidityProverMemory = blockValidityProver
 
-func NewBlockValidityProver(ctx context.Context, cfg *configs.Config, log logger.Logger, sb ServiceBlockchain, db SQLDriverApp) (*blockValidityProver, error) {
+func NewBlockValidityProver(ctx context.Context, cfg *configs.Config, log logger.Logger, sb ServiceBlockchain, db SQLDriverApp) (BlockValidityProver, error) {
 	ethClient, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
 	if err != nil {
 		return nil, errors.Join(ErrNewEthereumClientFail, err)
@@ -110,6 +110,56 @@ func (d *blockValidityProver) LastSeenBlockPostedEventBlockNumber() (uint64, err
 
 func (d *blockValidityProver) SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error {
 	return d.blockBuilder.SetLastSeenBlockPostedEventBlockNumber(blockNumber)
+}
+
+func NewBlockValidityService(ctx context.Context, cfg *configs.Config, log logger.Logger, sb ServiceBlockchain, db SQLDriverApp) (*blockValidityProver, error) {
+	ethClient, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
+	if err != nil {
+		return nil, errors.Join(ErrNewEthereumClientFail, err)
+	}
+	defer ethClient.Close()
+
+	scrollLink, err := sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
+	if err != nil {
+		return nil, errors.Join(ErrScrollNetwrokChainLink, err)
+	}
+
+	scrollClient, err := utils.NewClient(scrollLink)
+	if err != nil {
+		return nil, errors.Join(ErrNewScrollClientFail, err)
+	}
+	defer scrollClient.Close()
+
+	var liquidity *bindings.Liquidity
+	liquidity, err = bindings.NewLiquidity(
+		common.HexToAddress(cfg.Blockchain.LiquidityContractAddress),
+		ethClient,
+	)
+	if err != nil {
+		return nil, errors.Join(ErrInstantiateLiquidityContractFail, err)
+	}
+
+	var rollup *bindings.Rollup
+	rollup, err = bindings.NewRollup(
+		common.HexToAddress(cfg.Blockchain.RollupContractAddress),
+		scrollClient,
+	)
+	if err != nil {
+		return nil, errors.Join(ErrInstantiateRollupContractFail, err)
+	}
+
+	blockBuilder := NewMockBlockBuilder(cfg, db)
+
+	return &blockValidityProver{
+		ctx:          ctx,
+		cfg:          cfg,
+		log:          log,
+		ethClient:    ethClient,
+		scrollClient: scrollClient,
+		liquidity:    liquidity,
+		rollup:       rollup,
+		blockBuilder: blockBuilder,
+	}, nil
 }
 
 func (d *blockValidityProver) LatestIntMaxBlockNumber() uint32 {

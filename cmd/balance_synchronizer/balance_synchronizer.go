@@ -7,6 +7,8 @@ import (
 	"intmax2-node/docs/swagger"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_prover_service"
+	"intmax2-node/internal/balance_synchronizer"
+	balanceSynchronizer "intmax2-node/internal/balance_synchronizer"
 	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/logger"
@@ -15,6 +17,7 @@ import (
 	"intmax2-node/internal/pb/gateway/consts"
 	"intmax2-node/internal/pb/gateway/http_response_modifier"
 	node "intmax2-node/internal/pb/gen/block_builder_service/node"
+	"intmax2-node/internal/withdrawal_service"
 	"intmax2-node/third_party"
 	"sync"
 	"time"
@@ -85,7 +88,7 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 				const msg = "failed to get Block Builder IntMax Address: %+v"
 				s.Log.Fatalf(msg, err.Error())
 			}
-			validityProver, err := block_validity_prover.NewBlockValidityProver(s.Context, s.Config, s.Log, s.SB, s.DbApp)
+			blockValidityService, err := block_validity_prover.NewBlockValidityService(s.Context, s.Config, s.Log, s.SB, s.DbApp)
 			if err != nil {
 				const msg = "failed to get Block Builder IntMax Address: %+v"
 				s.Log.Fatalf(msg, err.Error())
@@ -105,21 +108,21 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 					s.Log.Fatalf(msg, err.Error())
 				}
 
-				// withdrawalAggregator, err := withdrawal_service.NewWithdrawalAggregatorService(
-				// 	s.Context, s.Config, s.Log, s.DbApp, s.SB,
-				// )
-				// if err != nil {
-				// 	const msg = "failed to create withdrawal aggregator service: %+v"
-				// 	s.Log.Fatalf(msg, err.Error())
-				// }
-				// synchronizer := balance_prover_service.NewSynchronizerDummy(s.Context, s.Config, s.Log, s.SB, s.DbApp)
-				// synchronizer.TestE2E(validityProver, blockBuilderWallet, withdrawalAggregator)
+				withdrawalAggregator, err := withdrawal_service.NewWithdrawalAggregatorService(
+					s.Context, s.Config, s.Log, s.DbApp, s.SB,
+				)
+				if err != nil {
+					const msg = "failed to create withdrawal aggregator service: %+v"
+					s.Log.Fatalf(msg, err.Error())
+				}
+				synchronizer := balance_synchronizer.NewSynchronizerDummy(s.Context, s.Config, s.Log, s.SB, s.DbApp)
+				synchronizer.TestE2E(blockValidityService, blockSynchronizer, blockBuilderWallet, withdrawalAggregator)
 
 				// balanceProverService := balance_prover_service.NewBalanceProverService(s.Context, s.Config, s.Log, blockBuilderWallet)
 				balanceProcessor := balance_prover_service.NewBalanceProcessor(
 					s.Context, s.Config, s.Log,
 				)
-				syncBalanceProver := balance_prover_service.NewSyncBalanceProver()
+				syncBalanceProver := balanceSynchronizer.NewSyncBalanceProver()
 
 				blockBuilderPrivateKey, err := intMaxAcc.NewPrivateKeyFromString(blockBuilderWallet.IntMaxPrivateKey)
 				if err != nil {
@@ -127,8 +130,8 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 					s.Log.Fatalf(msg, err.Error())
 				}
 
-				balanceSynchronizer := balance_prover_service.NewSynchronizer(s.Context, s.Config, s.Log, s.SB, s.DbApp)
-				err = balanceSynchronizer.Sync(blockSynchronizer, validityProver, balanceProcessor, syncBalanceProver, blockBuilderPrivateKey)
+				balanceSynchronizer := balanceSynchronizer.NewSynchronizer(s.Context, s.Config, s.Log, s.SB, s.DbApp)
+				err = balanceSynchronizer.Sync(blockSynchronizer, blockValidityService, balanceProcessor, syncBalanceProver, blockBuilderPrivateKey)
 				if err != nil {
 					const msg = "failed to sync: %+v"
 					s.Log.Fatalf(msg, err.Error())

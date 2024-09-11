@@ -1,4 +1,4 @@
-package balance_prover_service
+package balance_synchronizer
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/balance_prover_service"
 	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/logger"
 	intMaxTypes "intmax2-node/internal/types"
@@ -58,7 +59,7 @@ func NewSyncBalanceProver() *SyncBalanceProver {
 	}
 }
 
-func (s *SyncBalanceProver) LastBalancePublicInputs() (*BalancePublicInputs, error) {
+func (s *SyncBalanceProver) LastBalancePublicInputs() (*balance_prover_service.BalancePublicInputs, error) {
 	if s.LastBalanceProof == nil {
 		return nil, errors.New("last balance proof is nil")
 	}
@@ -68,7 +69,7 @@ func (s *SyncBalanceProver) LastBalancePublicInputs() (*BalancePublicInputs, err
 		return nil, err
 	}
 
-	balancePublicInputs, err := new(BalancePublicInputs).FromPublicInputs(balanceProofWithPis.PublicInputs)
+	balancePublicInputs, err := new(balance_prover_service.BalancePublicInputs).FromPublicInputs(balanceProofWithPis.PublicInputs)
 	if err != nil {
 		return nil, err
 	}
@@ -78,15 +79,18 @@ func (s *SyncBalanceProver) LastBalancePublicInputs() (*BalancePublicInputs, err
 
 func (s *SyncBalanceProver) SyncSend(
 	log logger.Logger,
-	blockValidityProver block_validity_prover.BlockValidityProver,
+	blockValidityProver block_validity_prover.BlockValidityService,
+	blockSynchronizer block_validity_prover.BlockSynchronizer,
 	wallet *MockWallet,
-	balanceProcessor BalanceProcessor,
+	balanceProcessor balance_prover_service.BalanceProcessor,
 ) error {
 	fmt.Println("-----SyncSend------")
-	err := blockValidityProver.SyncBlockProver() // sync validity proofs
-	if err != nil {
-		return err
-	}
+	// err := blockValidityProver.SyncBlockProver() // sync validity proofs
+	// if err != nil {
+	// 	return err
+	// }
+	balance_prover_service.CheckBlockSynchronization(blockValidityProver, blockSynchronizer)
+
 	allBlockNumbers := wallet.GetAllBlockNumbers()
 	notSyncedBlockNumbers := []uint32{}
 	for _, blockNumber := range allBlockNumbers {
@@ -184,17 +188,19 @@ func (s *SyncBalanceProver) SyncSend(
 // assuming that there is no un-synced send tx.
 func (s *SyncBalanceProver) SyncNoSend(
 	log logger.Logger,
-	// syncValidityProver *syncValidityProver,
-	blockValidityProver block_validity_prover.BlockValidityProver,
+	blockValidityProver block_validity_prover.BlockValidityService,
+	blockSynchronizer block_validity_prover.BlockSynchronizer,
 	wallet *MockWallet,
-	balanceProcessor BalanceProcessor,
+	balanceProcessor balance_prover_service.BalanceProcessor,
 ) error {
 	fmt.Println("-----SyncNoSend------")
 	// blockBuilder := blockValidityProver.BlockBuilder()
-	err := blockValidityProver.SyncBlockProver()
-	if err != nil {
-		return err
-	}
+	// err := blockValidityProver.SyncBlockProver()
+	// if err != nil {
+	// 	return err
+	// }
+	balance_prover_service.CheckBlockSynchronization(blockValidityProver, blockSynchronizer)
+
 	allBlockNumbers := wallet.GetAllBlockNumbers()
 	// notSyncedBlockNumbers := []uint32{}
 	for _, blockNumber := range allBlockNumbers {
@@ -241,20 +247,20 @@ func (s *SyncBalanceProver) SyncNoSend(
 	// 	return Err("last_block_number is greater than prev_public_state.block_number");
 	// }
 
-	var prevBalancePis *BalancePublicInputs
+	var prevBalancePis *balance_prover_service.BalancePublicInputs
 	if s.LastBalanceProof != nil {
 		fmt.Println("s.LastBalanceProof != nil")
 		lastBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*s.LastBalanceProof)
 		if err != nil {
 			return err
 		}
-		prevBalancePis, err = new(BalancePublicInputs).FromPublicInputs(lastBalanceProofWithPis.PublicInputs)
+		prevBalancePis, err = new(balance_prover_service.BalancePublicInputs).FromPublicInputs(lastBalanceProofWithPis.PublicInputs)
 		if err != nil {
 			return err
 		}
 	} else {
 		fmt.Println("NewWithPublicKey")
-		prevBalancePis = NewWithPublicKey(wallet.PublicKey())
+		prevBalancePis = balance_prover_service.NewWithPublicKey(wallet.PublicKey())
 	}
 	prevBalancePisJSON, err := json.Marshal(prevBalancePis)
 	if err != nil {
@@ -298,20 +304,18 @@ func (s *SyncBalanceProver) SyncNoSend(
 
 func (s *SyncBalanceProver) SyncAll(
 	log logger.Logger,
-	// syncValidityProver *syncValidityProver,
-	blockValidityProver block_validity_prover.BlockValidityProver,
+	blockValidityProver block_validity_prover.BlockValidityService,
+	blockSynchronizer block_validity_prover.BlockSynchronizer,
 	wallet *MockWallet,
-	balanceProcessor BalanceProcessor,
+	balanceProcessor balance_prover_service.BalanceProcessor,
 ) (err error) {
-	// blockValidityProver := syncValidityProver.ValidityProver
-
 	fmt.Printf("LatestWitnessNumber before SyncSend: %d\n", blockValidityProver.LatestIntMaxBlockNumber())
 
-	err = s.SyncSend(log, blockValidityProver, wallet, balanceProcessor)
+	err = s.SyncSend(log, blockValidityProver, blockSynchronizer, wallet, balanceProcessor)
 	if err != nil {
 		return err
 	}
-	err = s.SyncNoSend(log, blockValidityProver, wallet, balanceProcessor)
+	err = s.SyncNoSend(log, blockValidityProver, blockSynchronizer, wallet, balanceProcessor)
 	if err != nil {
 		return err
 	}
@@ -321,9 +325,9 @@ func (s *SyncBalanceProver) SyncAll(
 
 func (s *SyncBalanceProver) ReceiveDeposit(
 	wallet *MockWallet,
-	balanceProcessor BalanceProcessor,
+	balanceProcessor balance_prover_service.BalanceProcessor,
 	// blockBuilder MockBlockBuilder,
-	blockValidityProver block_validity_prover.BlockValidityProver,
+	blockValidityProver block_validity_prover.BlockValidityService,
 	depositIndex uint32,
 ) error {
 	receiveDepositWitness, err := wallet.ReceiveDepositAndUpdate(blockValidityProver, depositIndex)
@@ -348,9 +352,9 @@ func (s *SyncBalanceProver) ReceiveDeposit(
 
 func (s *SyncBalanceProver) ReceiveTransfer(
 	wallet *MockWallet,
-	balanceProcessor BalanceProcessor,
+	balanceProcessor balance_prover_service.BalanceProcessor,
 	// blockBuilder MockBlockBuilder,
-	blockValidityProver block_validity_prover.BlockValidityProver,
+	blockValidityProver block_validity_prover.BlockValidityService,
 	transferWitness *intMaxTypes.TransferWitness,
 	senderBalanceProof string,
 ) error {
@@ -414,9 +418,9 @@ func SyncLocally(
 	s *SyncBalanceProver,
 	balanceSynchronizer *balanceSynchronizer,
 	// syncValidityProver *syncValidityProver,
-	blockValidityProver block_validity_prover.BlockValidityProver,
+	blockValidityProver block_validity_prover.BlockValidityService,
 	blockSynchronizer block_validity_prover.BlockSynchronizer,
-	balanceProcessor BalanceProcessor,
+	balanceProcessor balance_prover_service.BalanceProcessor,
 	intMaxPrivateKey *intMaxAcc.PrivateKey,
 ) error {
 	mockWallet, err := NewMockWallet(intMaxPrivateKey)
@@ -437,7 +441,7 @@ func SyncLocally(
 			log.Warnf("Received cancel signal from context, stopping...")
 			return nil
 		case <-ticker.C:
-			userAllData, err := NewBalanceTransitionData(ctx, cfg, intMaxPrivateKey)
+			userAllData, err := balance_prover_service.NewBalanceTransitionData(ctx, cfg, intMaxPrivateKey)
 			if err != nil {
 				const msg = "failed to start Balance Prover Service: %+v"
 				log.Fatalf(msg, err.Error())
@@ -478,12 +482,13 @@ func SyncLocally(
 				fmt.Printf("valid transition: %v\n", transition)
 
 				switch transition := transition.(type) {
-				case ValidSentTx:
+				case balance_prover_service.ValidSentTx:
 					fmt.Printf("valid sent transaction: %v\n", transition.TxHash)
 					err := applySentTransactionTransition(
 						log,
 						transition.Tx,
 						blockValidityProver,
+						blockSynchronizer,
 						balanceProcessor,
 						syncBalanceProver,
 						mockWallet,
@@ -493,13 +498,14 @@ func SyncLocally(
 						log.Warnf(msg, err.Error())
 						continue
 					}
-				case ValidReceivedDeposit:
+				case balance_prover_service.ValidReceivedDeposit:
 					fmt.Printf("valid received deposit: %v\n", transition.DepositHash)
 					transitionBlockNumber := transition.BlockNumber()
 					fmt.Printf("transitionBlockNumber: %d", transitionBlockNumber)
 					err = syncBalanceProver.SyncNoSend(
 						log,
 						blockValidityProver,
+						blockSynchronizer,
 						mockWallet,
 						balanceProcessor,
 					)
@@ -520,13 +526,14 @@ func SyncLocally(
 						log.Warnf(msg, err.Error())
 						continue
 					}
-				case ValidReceivedTransfer:
+				case balance_prover_service.ValidReceivedTransfer:
 					fmt.Printf("valid received transfer: %v\n", transition.TransferHash)
 					transitionBlockNumber := transition.BlockNumber()
 					fmt.Printf("transitionBlockNumber: %d", transitionBlockNumber)
 					err = syncBalanceProver.SyncNoSend(
 						log,
 						blockValidityProver,
+						blockSynchronizer,
 						mockWallet,
 						balanceProcessor,
 					)

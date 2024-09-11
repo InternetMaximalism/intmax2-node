@@ -231,10 +231,6 @@ func (p *blockValidityProver) SyncBlockProverWithAuxInfo(
 ) error {
 	fmt.Printf("IMPORTANT: Block %d proof is synchronizing\n", postedBlock.BlockNumber)
 
-	// TODO: Update block hash tree
-
-	// TODO: Separate another worker
-
 	blockWitness, err := p.blockBuilder.GenerateBlock(blockContent, postedBlock)
 	if err != nil {
 		panic(err)

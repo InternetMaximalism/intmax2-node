@@ -37,8 +37,8 @@ type syncExternalValidityProver struct {
 }
 
 type syncValidityProver struct {
-	ValidityProver    block_validity_prover.BlockValidityProver
-	blockSynchronizer block_validity_prover.BlockSynchronizer
+	blockValidityService block_validity_prover.BlockValidityService
+	blockSynchronizer    block_validity_prover.BlockSynchronizer
 }
 
 // func NewSyncValidityProver(
@@ -66,9 +66,12 @@ type syncValidityProver struct {
 // }
 
 // check synchronization of INTMAX blocks
-func (s *syncValidityProver) Check() (err error) {
+func CheckBlockSynchronization(
+	blockValidityService block_validity_prover.BlockValidityService,
+	blockSynchronizer block_validity_prover.BlockSynchronizer,
+) (err error) {
 	// s.blockSynchronizer.SyncBlockTree(blockProverService)
-	startBlock, err := s.ValidityProver.LastSeenBlockPostedEventBlockNumber()
+	startBlock, err := blockValidityService.LastSeenBlockPostedEventBlockNumber()
 	if err != nil {
 		var ErrNotFound = errors.New("not found")
 		if !errors.Is(err, ErrNotFound) {
@@ -76,12 +79,12 @@ func (s *syncValidityProver) Check() (err error) {
 			panic(errors.Join(ErrLastSeenBlockPostedEventBlockNumberFail, err))
 		}
 
-		startBlock = s.blockSynchronizer.RollupContractDeployedBlockNumber()
+		startBlock = blockSynchronizer.RollupContractDeployedBlockNumber()
 	}
 
 	const int5000Key = 5000
 	endBlock := startBlock + int5000Key
-	events, _, err := s.blockSynchronizer.FetchNewPostedBlocks(startBlock, &endBlock)
+	events, _, err := blockSynchronizer.FetchNewPostedBlocks(startBlock, &endBlock)
 	if err != nil {
 		var ErrFetchNewPostedBlocksFail = errors.New("fetch new posted blocks fail")
 		return errors.Join(ErrFetchNewPostedBlocksFail, err)
