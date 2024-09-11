@@ -24,6 +24,7 @@ services:
       - intmax2-node-ot-collector
       - intmax2-node-postgres
       - intmax2-node-store-vault
+      - intmax2-node-block-validity-prover
     ports:
       - '8780:80'
       - '8781:10000'
@@ -97,6 +98,63 @@ services:
       timeout: 5s
       retries: 5
 
+  intmax2-node-block-validity-prover:
+    container_name: intmax2-node-block-validity-prover
+    image: 'intmax2-node-block-validity-prover:dev'
+    command: sh -c "./block-validity-prover"
+    build:
+      context: ../prover/block-validity-prover/
+      dockerfile: ../../build/prover/block-validity-prover.Dockerfile
+    environment:
+      - REDIS_URL=redis://:password@intmax2-node-redis:6379/0
+      - PORT=8080
+        # debug, info or error
+      - RUST_LOG=debug
+    networks:
+      - intmax2-node
+    ports:
+      - "8091:8080"
+    depends_on:
+      - intmax2-node-redis
+
+  intmax2-node-balance-validity-prover:
+    container_name: intmax2-node-balance-validity-prover
+    image: 'intmax2-node-balance-validity-prover:dev'
+    command: sh -c "./balance-validity-prover"
+    build:
+      context: ../prover/balance-validity-prover/
+      dockerfile: ../../build/prover/balance-validity-prover.Dockerfile
+    environment:
+      - REDIS_URL=redis://:password@intmax2-node-redis:6379/0
+      - PORT=8080
+      # debug, info or error
+      - RUST_LOG=debug
+    networks:
+      - intmax2-node
+    ports:
+      - "8092:8080"
+    depends_on:
+      - intmax2-node-redis
+
+  intmax2-node-withdrawal-aggregator-prover:
+    container_name: intmax2-node-withdrawal-aggregator-prover
+    image: 'intmax2-node-withdrawal-aggregator-prover:dev'
+    command: sh -c "./withdrawal-aggregator-prover"
+    build:
+      context: ../prover/withdrawal-aggregator-prover/
+      dockerfile: ../../build/prover/withdrawal-aggregator-prover.Dockerfile
+    environment:
+      - REDIS_URL=redis://:password@intmax2-node-redis:6379/0
+      - PORT=8080
+      # debug, info or error
+      - RUST_LOG=debug
+    networks:
+      - intmax2-node
+    ports:
+      - "8093:8080"
+    depends_on:
+      - intmax2-node-redis
+
   intmax2-node-ot-collector:
     container_name: intmax2-node-ot-collector
     image: "otel/opentelemetry-collector-contrib:0.37.1"
@@ -119,3 +177,15 @@ services:
       - "16686:16686"
       - "14268"
       - "14250"
+
+  intmax2-node-redis:
+    container_name: intmax2-node-redis
+    image: "redis:7.2.3"
+    command: /bin/sh -c "redis-server --requirepass password"
+    restart: always
+    volumes:
+      - ./temp_data/redis_data:/data
+    networks:
+      - intmax2-node
+    ports:
+      - "16379:6379"

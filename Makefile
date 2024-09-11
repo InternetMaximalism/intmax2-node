@@ -141,11 +141,21 @@ build-up: down ## rebuilding containers and starting application and dependency 
 	docker compose -f build/docker-compose.yml build $(re_build_arg)
 	docker compose -f build/docker-compose.yml up
 
+.PHONY: build-prover
+build-prover:
+	docker compose -f build/docker-compose.yml stop intmax2-node-block-validity-prover intmax2-node-balance-validity-prover intmax2-node-withdrawal-aggregator-prover
+	docker compose -f build/docker-compose.yml rm -f intmax2-node-block-validity-prover intmax2-node-balance-validity-prover intmax2-node-withdrawal-aggregator-prover
+	docker compose -f build/docker-compose.yml build --no-cache intmax2-node-block-validity-prover intmax2-node-balance-validity-prover intmax2-node-withdrawal-aggregator-prover
+
 .PHONY: start-build-up
 start-build-up: down ## rebuilding containers and starting application and dependency services
 	cp -f build/env.docker.block-builder-service.example build/env.docker.block-builder-service
 	cp -f build/env.docker.store-vault-server.example build/env.docker.store-vault-server
 	cp -f build/env.docker.withdrawal-server.example build/env.docker.withdrawal-server
+	docker compose -f build/docker-compose.yml up -d intmax2-node-redis
+	docker compose -f build/docker-compose.yml up -d intmax2-node-block-validity-prover
+	docker compose -f build/docker-compose.yml up -d intmax2-node-balance-validity-prover
+	docker compose -f build/docker-compose.yml up -d intmax2-node-withdrawal-aggregator-prover
 	docker compose -f build/docker-compose.yml up -d intmax2-node-postgres
 	docker compose -f build/docker-compose.yml up -d intmax2-node-ot-collector
 
