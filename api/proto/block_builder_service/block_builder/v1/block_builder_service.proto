@@ -75,6 +75,18 @@ service BlockBuilderService {
       get: "/v1/info"
     };
   }
+
+  // rpc BlockNumberByTxHash(BlockNumberByTxHashRequest) returns (BlockNumberByTxHashResponse) {
+  //   option (google.api.http) = {
+  //     get: "/v1/block/status/{tx_hash}"
+  //   };
+  // }
+
+  rpc DepositStatusByHash(DepositStatusByHashRequest) returns (DepositStatusByHashResponse) {
+    option (google.api.http) = {
+      get: "/v1/deposit/stauts/{deposit_hash}"
+    };
+  }
 }
 
 // HealthCheckRequest describes request to get info about the health check block builder
@@ -252,6 +264,18 @@ message BlockStatusByTxTreeRootResponse {
   uint64 block_number = 20 [json_name="blockNumber", (tagger.tags)="json:\"blockNumber,omitempty\""];
 }
 
+message DepositStatusByHashRequest {
+  string deposit_hash = 10 [json_name="depositHash", (tagger.tags)="json:\"depositHash\""];
+}
+
+message DepositStatusByHashResponse {
+  bool success = 10 [json_name="blockNumber", (tagger.tags)="json:\"blockNumber,omitempty\""];
+  DataDepositStatusByHashResponse data = 20 [json_name="data", (tagger.tags)="data:\"blockNumber,omitempty\""];
+}
+
+message DataDepositStatusByHashResponse {
+  uint32 block_number = 10 [json_name="blockNumber", (tagger.tags)="json:\"blockNumber,omitempty\""];
+}
 
 // InfoRequest describes request about retrieves the block builder's Scroll address, transaction fee, and difficulty
 message InfoRequest {}
