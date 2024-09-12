@@ -4,10 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"intmax2-node/internal/bindings"
+	intMaxTree "intmax2-node/internal/tree"
 	"io"
 	"math/big"
 	"strings"
 	"time"
+
+	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
+	errorsDB "intmax2-node/pkg/sql_db/errors"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -27,51 +31,58 @@ type ProcessDepositsInput struct {
 	DepositHashes          [][int32Key]byte
 }
 
-func (b *mockBlockBuilder) LastSeenProcessDepositsEventBlockNumber() (uint64, error) {
-	return b.lastSeenProcessDepositsEventBlockNumber, nil
-}
-
-func (b *mockBlockBuilder) SetLastSeenProcessDepositsEventBlockNumber(blockNumber uint64) error {
-	b.lastSeenProcessDepositsEventBlockNumber = blockNumber
-
-	return nil
-}
-
 func (b *mockBlockBuilder) LastDepositTreeRoot() (common.Hash, error) {
-	return b.DepositTreeRoots[len(b.DepositTreeRoots)-1], nil
+	root, _, _ := b.DepositTree.GetCurrentRootCountAndSiblings()
+	return root, nil
+	// return b.DepositTreeRoots[len(b.DepositTreeRoots)-1], nil
 }
 
-func (b *mockBlockBuilder) AppendDepositTreeRoot(root common.Hash) error {
-	b.DepositTreeRoots = append(b.DepositTreeRoots, root)
+// func (b *mockBlockBuilder) AppendDepositTreeRoot(root common.Hash) error {
+// 	b.DepositTreeRoots = append(b.DepositTreeRoots, root)
 
-	return nil
-}
+// 	return nil
+// }
 
-func (b *mockBlockBuilder) AppendDepositTreeLeaf(depositHash common.Hash) error {
+func (b *mockBlockBuilder) AppendDepositTreeLeaf(depositHash common.Hash, depositLeaf *intMaxTree.DepositLeaf) (root common.Hash, err error) {
 	_, count, _ := b.DepositTree.GetCurrentRootCountAndSiblings()
-	_, err := b.DepositTree.AddLeaf(count, depositHash)
-	if err != nil {
-		return err
+	b.DepositLeaves = append(b.DepositLeaves, depositLeaf)
+	return b.DepositTree.AddLeaf(count, depositHash)
+}
+
+func (b *mockBlockBuilder) FetchLastDepositIndex() (uint32, error) {
+	return b.db.FetchLastDepositIndex()
+}
+
+func (p *blockValidityProver) SyncDepositTree(latestBlock *uint64, depositIndex uint32) error {
+	var latestBlockNumber uint64
+	if latestBlock == nil {
+		var err error
+		latestBlockNumber, err = p.scrollClient.BlockNumber(p.ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get latest block number: %v", err.Error())
+		}
+	} else {
+		latestBlockNumber = *latestBlock
 	}
 
-	return nil
-}
-
-func (p *blockValidityProver) SyncDepositTree() error {
 	b := p.blockBuilder
 
-	latestBlockNumber, err := p.scrollClient.BlockNumber(p.ctx)
+	const depositsProcessedEvent = "DepositsProcessed"
+	lastSeenProcessDepositsEvent, err := b.EventBlockNumberByEventNameForValidityProver(depositsProcessedEvent)
 	if err != nil {
-		return fmt.Errorf("failed to get latest block number: %v", err.Error())
+		if err.Error() == "not found" {
+			lastSeenProcessDepositsEvent = &mDBApp.EventBlockNumberForValidityProver{
+				EventName:                mDBApp.DepositsAndAnalyzedReleyedEvent,
+				LastProcessedBlockNumber: p.cfg.Blockchain.RollupContractDeployedBlockNumber,
+			}
+		} else {
+			return fmt.Errorf("failed to get last seen process deposits event block number: %v", err.Error())
+		}
 	}
-
-	lastSeenProcessDepositsEventBlockNumber, err := b.LastSeenProcessDepositsEventBlockNumber()
-	if err != nil {
-		return fmt.Errorf("failed to get last seen process deposits event block number: %v", err.Error())
-	}
+	lastSeenProcessDepositsEventBlockNumber := lastSeenProcessDepositsEvent.LastProcessedBlockNumber
 	for lastSeenProcessDepositsEventBlockNumber < latestBlockNumber {
 		p.log.Infof("Syncing deposits from block %d\n", lastSeenProcessDepositsEventBlockNumber)
-		endBlock := lastSeenProcessDepositsEventBlockNumber + eventBlockRange
+		endBlock := min(lastSeenProcessDepositsEventBlockNumber+eventBlockRange, latestBlockNumber)
 
 		var depositsProcessedEvents []*bindings.RollupDepositsProcessed
 		depositsProcessedEvents, err = p.getDepositsProcessedEvent(lastSeenProcessDepositsEventBlockNumber, &endBlock)
@@ -105,33 +116,159 @@ func (p *blockValidityProver) SyncDepositTree() error {
 					return fmt.Errorf("failed to for relay message calldata: %v", err.Error())
 				}
 
+				var lastDepositRoot common.Hash
 				for i := range processDepositsCalldata.DepositHashes {
 					depositHash := processDepositsCalldata.DepositHashes[i]
 
-					err = b.AppendDepositTreeLeaf(common.Hash(depositHash))
+					depositLeafWithId, _, err := b.GetDepositLeafAndIndexByHash(common.Hash(depositHash))
+					if err != nil {
+						return fmt.Errorf("failed to get deposit leaf by hash: %v", err.Error())
+					}
+
+					if depositLeafWithId.DepositLeaf.Hash() != common.Hash(depositHash) {
+						return fmt.Errorf("DepositLeaf hash mismatch: expected %v, got %v", depositLeafWithId.DepositLeaf.Hash(), common.Hash(depositHash))
+					}
+
+					lastDepositRoot, err = b.AppendDepositTreeLeaf(common.Hash(depositHash), depositLeafWithId.DepositLeaf)
 					if err != nil {
 						return fmt.Errorf("failed to add deposit leaf: %v", err.Error())
 					}
+
+					fmt.Printf("deposit index by deposit hash: %d, %v\n", depositIndex, common.Hash(depositHash))
+					err = b.UpdateDepositIndexByDepositHash(common.Hash(depositHash), depositIndex)
+					if err != nil {
+						return fmt.Errorf("failed to update deposit index: %v", err.Error())
+					}
+
+					depositIndex++
 				}
 
-				lastDepositRoot, err := b.LastDepositTreeRoot()
-				if err != nil {
-					return fmt.Errorf("failed to get latest deposit tree root: %v", err.Error())
-				}
 				if lastDepositRoot != common.Hash(deposit.DepositTreeRoot) {
 					return fmt.Errorf("DepositTreeRoot mismatch: expected %v, got %v", common.Hash(deposit.DepositTreeRoot), lastDepositRoot)
 				}
 
-				b.AppendDepositTreeRoot(lastDepositRoot)
+				// err := b.AppendDepositTreeRoot(lastDepositRoot)
+				// if err != nil {
+				// 	return fmt.Errorf("failed to append deposit tree root: %v", err.Error())
+				// }
 			}
 		}
 
-		b.SetLastSeenProcessDepositsEventBlockNumber(endBlock)
+		b.UpsertEventBlockNumberForValidityProver(depositsProcessedEvent, endBlock)
+		lastSeenProcessDepositsEventBlockNumber = endBlock
 
 		time.Sleep(1 * time.Second)
 	}
 
 	return nil
+}
+
+func (p *blockValidityProver) SyncDepositedEvents() error {
+	err := p.BlockBuilder().Exec(p.ctx, nil, func(d interface{}, _ interface{}) (err error) {
+		q := d.(SQLDriverApp)
+
+		const depositedEvent = "Deposited"
+		event, err := q.EventBlockNumberByEventNameForValidityProver(depositedEvent)
+		if err != nil {
+			if errors.Is(err, errorsDB.ErrNotFound) {
+				event = &mDBApp.EventBlockNumberForValidityProver{
+					EventName:                mDBApp.DepositsAndAnalyzedReleyedEvent,
+					LastProcessedBlockNumber: p.cfg.Blockchain.LiquidityContractDeployedBlockNumber,
+				}
+			} else {
+				panic(fmt.Sprintf("Error fetching event block number: %v", err.Error()))
+			}
+		} else if event == nil {
+			event = &mDBApp.EventBlockNumberForValidityProver{
+				EventName:                mDBApp.DepositsAndAnalyzedReleyedEvent,
+				LastProcessedBlockNumber: p.cfg.Blockchain.LiquidityContractDeployedBlockNumber,
+			}
+		}
+
+		var events []*bindings.LiquidityDeposited
+		events, _, _, err =
+			p.fetchNewDeposits(event.LastProcessedBlockNumber)
+		if err != nil {
+			panic(fmt.Sprintf("Failed to fetch new deposits: %v", err.Error()))
+		}
+
+		if len(events) == 0 {
+			p.log.Debugf("No new deposits found\n")
+			return nil
+		}
+
+		deposits := make([]*DepositLeafWithId, 0, len(events))
+		var lastEventBlockNumber uint64
+		for _, e := range events {
+			deposits = append(deposits, &DepositLeafWithId{
+				DepositLeaf: &intMaxTree.DepositLeaf{
+					RecipientSaltHash: e.RecipientSaltHash,
+					TokenIndex:        e.TokenIndex,
+					Amount:            e.Amount,
+				},
+				DepositId: uint32(e.DepositId.Uint64()),
+				// DepositIndex: uint32(e.DepositIndex),
+			})
+
+			if e.Raw.BlockNumber > lastEventBlockNumber {
+				lastEventBlockNumber = e.Raw.BlockNumber
+			}
+		}
+
+		p.log.Debugf("Found %d new deposits\n", len(deposits))
+		for _, d := range deposits {
+			_, err = q.CreateDeposit(*d.DepositLeaf, d.DepositId)
+			if err != nil {
+				return fmt.Errorf("error creating deposit: %v", err.Error())
+			}
+		}
+
+		_, err = q.UpsertEventBlockNumberForValidityProver(depositedEvent, lastEventBlockNumber)
+		if err != nil {
+			panic(fmt.Sprintf("Error updating event block number: %v", err.Error()))
+		}
+
+		return nil
+	})
+
+	p.log.Debugf("SyncDepositedEvents done")
+
+	return err
+}
+
+func (p *blockValidityProver) fetchNewDeposits(
+	startBlock uint64,
+) ([]*bindings.LiquidityDeposited, *big.Int, map[uint32]bool, error) {
+	nextBlock := startBlock + 1
+	iterator, err := p.liquidity.FilterDeposited(&bind.FilterOpts{
+		Start:   nextBlock,
+		End:     nil,
+		Context: p.ctx,
+	}, []*big.Int{}, []common.Address{}, [][32]byte{})
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to filter logs: %w", err)
+	}
+
+	defer iterator.Close()
+
+	var events []*bindings.LiquidityDeposited
+	maxDepositIndex := new(big.Int)
+	tokenIndexMap := make(map[uint32]bool)
+
+	for iterator.Next() {
+		event := iterator.Event
+		events = append(events, event)
+		tokenIndexMap[event.TokenIndex] = true
+		if event.DepositId.Cmp(maxDepositIndex) > 0 {
+			maxDepositIndex.Set(event.DepositId)
+		}
+	}
+
+	if err = iterator.Error(); err != nil {
+		return nil, nil, nil, fmt.Errorf("error encountered while iterating: %w", err)
+	}
+
+	return events, maxDepositIndex, tokenIndexMap, nil
 }
 
 func (p *blockValidityProver) getDepositsProcessedEvent(
