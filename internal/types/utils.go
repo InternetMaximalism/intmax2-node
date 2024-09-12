@@ -68,6 +68,16 @@ func (b *Bytes16) UnmarshalJSON(data []byte) error {
 
 type Bytes32 [int32Key / numUint32Bytes]uint32
 
+func (b *Bytes32) Equal(other *Bytes32) bool {
+	for i := 0; i < int32Key/numUint32Bytes; i++ {
+		if b[i] != other[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (b *Bytes32) FromBytes(bytes []byte) {
 	for i := 0; i < int32Key/numUint32Bytes; i++ {
 		b[i] = binary.BigEndian.Uint32(bytes[i*numUint32Bytes : (i+1)*numUint32Bytes])
@@ -118,6 +128,29 @@ func (b *Bytes32) ToFieldElementSlice() []ffg.Element {
 	}
 
 	return buf
+}
+
+func (b *Bytes32) FromPoseidonHashOut(value *PoseidonHashOut) *Bytes32 {
+	for i, e := range value.Elements {
+		rawValue := e.ToUint64Regular()
+		low := uint32(rawValue)
+		high := uint32(rawValue >> 32)
+
+		b[i*2] = high
+		b[i*2+1] = low
+	}
+
+	return b
+}
+
+func (b *Bytes32) PoseidonHashOut() *PoseidonHashOut {
+	elements := [4]ffg.Element{}
+	for i := 0; i < len(elements); i++ {
+		value := uint64(b[i*2])<<32 + uint64(b[i*2+1])
+		elements[i].SetUint64(value)
+	}
+
+	return &PoseidonHashOut{Elements: elements}
 }
 
 func Uint32SliceToBytes(v []uint32) []byte {

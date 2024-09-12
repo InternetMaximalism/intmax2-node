@@ -301,6 +301,14 @@ func (h *PoseidonHashOut) FromString(s string) error {
 	return h.Unmarshal(data)
 }
 
+func (h *PoseidonHashOut) FromPartial(elementsIn []ffg.Element) *PoseidonHashOut {
+	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
+		h.Elements[i] = elementsIn[i]
+	}
+
+	return h
+}
+
 func (h PoseidonHashOut) MarshalJSON() ([]byte, error) {
 	hashOutHex := "0x" + hex.EncodeToString(h.Marshal())
 	return json.Marshal(hashOutHex)

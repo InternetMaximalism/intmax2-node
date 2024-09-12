@@ -78,6 +78,10 @@ func NewBlockSynchronizer(ctx context.Context, cfg *configs.Config, log logger.L
 	}, nil
 }
 
+func (d *blockSynchronizer) RollupContractDeployedBlockNumber() uint64 {
+	return d.cfg.Blockchain.RollupContractDeployedBlockNumber
+}
+
 func (d *blockSynchronizer) FetchLatestBlockNumber(ctx context.Context) (uint64, error) {
 	blockNumber, err := d.scrollClient.BlockNumber(ctx)
 	if err != nil {
@@ -87,12 +91,15 @@ func (d *blockSynchronizer) FetchLatestBlockNumber(ctx context.Context) (uint64,
 	return blockNumber, nil
 }
 
-func (d *blockSynchronizer) FetchNewPostedBlocks(startBlock uint64) ([]*bindings.RollupBlockPosted, *big.Int, error) {
+func (d *blockSynchronizer) FetchNewPostedBlocks(startBlock uint64, endBlock *uint64) ([]*bindings.RollupBlockPosted, *big.Int, error) {
 	nextBlock := startBlock + int1Key
+	if endBlock != nil && nextBlock > *endBlock {
+		return nil, nil, nil
+	}
 
 	iterator, err := d.rollup.FilterBlockPosted(&bind.FilterOpts{
 		Start:   nextBlock,
-		End:     nil,
+		End:     endBlock,
 		Context: d.ctx,
 	}, [][int32Key]byte{}, []common.Address{})
 	if err != nil {
@@ -136,36 +143,3 @@ func (d *blockSynchronizer) FetchScrollCalldataByHash(txHash common.Hash) ([]byt
 
 	return calldata, nil
 }
-
-// func (d *blockPostService) FetchNewDeposits(startBlock uint64) ([]*bindings.LiquidityDeposited, *big.Int, map[uint32]bool, error) {
-// 	nextBlock := startBlock + 1
-// 	iterator, err := d.liquidity.FilterDeposited(&bind.FilterOpts{
-// 		Start:   nextBlock,
-// 		End:     nil,
-// 		Context: d.ctx,
-// 	}, []*big.Int{}, []common.Address{})
-// 	if err != nil {
-// 		return nil, nil, nil, errors.Join(ErrFilterLogsFail, err)
-// 	}
-
-// 	defer iterator.Close()
-
-// 	var events []*bindings.LiquidityDeposited
-// 	maxDepositIndex := new(big.Int)
-// 	tokenIndexMap := make(map[uint32]bool)
-
-// 	for iterator.Next() {
-// 		event := iterator.Event
-// 		events = append(events, event)
-// 		tokenIndexMap[event.TokenIndex] = true
-// 		if event.DepositId.Cmp(maxDepositIndex) > 0 {
-// 			maxDepositIndex.Set(event.DepositId)
-// 		}
-// 	}
-
-// 	if err = iterator.Error(); err != nil {
-// 		return nil, nil, nil, errors.Join(ErrEncounteredWhileIterating, err)
-// 	}
-
-// 	return events, maxDepositIndex, tokenIndexMap, nil
-// }

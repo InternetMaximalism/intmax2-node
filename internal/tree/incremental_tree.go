@@ -15,6 +15,18 @@ type PoseidonIncrementalMerkleTree struct {
 	currentRoot PoseidonHashOut
 }
 
+func (mt *PoseidonIncrementalMerkleTree) Set(other *PoseidonIncrementalMerkleTree) *PoseidonIncrementalMerkleTree {
+	mt.height = other.height
+	mt.zeroHashes = make([]*PoseidonHashOut, len(other.zeroHashes))
+	copy(mt.zeroHashes, other.zeroHashes)
+	mt.count = other.count
+	mt.siblings = make([]*PoseidonHashOut, len(other.siblings))
+	copy(mt.siblings, other.siblings)
+	mt.currentRoot = *new(PoseidonHashOut).Set(&other.currentRoot)
+
+	return mt
+}
+
 // NewPoseidonIncrementalMerkleTree creates new PoseidonIncrementalMerkleTree by giving leaf nodes.
 func NewPoseidonIncrementalMerkleTree(
 	height uint8,
@@ -152,7 +164,7 @@ func (mt *PoseidonIncrementalMerkleTree) ComputeMerkleProof(index uint64, leaves
 // AddLeaf adds new leaves to the tree and computes the new root
 func (mt *PoseidonIncrementalMerkleTree) AddLeaf(index uint64, leaf *PoseidonHashOut) (*PoseidonHashOut, error) {
 	if index != mt.count {
-		const msg = "mismatched leaf count: %d, expected: %d"
+		const msg = "mismatched PoseidonIncrementalMerkleTree leaf count: %d, expected: %d"
 		return nil, fmt.Errorf(msg, index, mt.count)
 	}
 	cur := new(PoseidonHashOut).Set(leaf)
@@ -248,6 +260,12 @@ func (mt *PoseidonIncrementalMerkleTree) CurrentRoot() PoseidonHashOut {
 
 type MerkleProof struct {
 	Siblings []*goldenposeidon.PoseidonHashOut
+}
+
+func (proof *MerkleProof) Set(other *MerkleProof) *MerkleProof {
+	proof.Siblings = make([]*goldenposeidon.PoseidonHashOut, len(other.Siblings))
+	copy(proof.Siblings, other.Siblings)
+	return proof
 }
 
 func (proof *MerkleProof) MarshalJSON() ([]byte, error) {

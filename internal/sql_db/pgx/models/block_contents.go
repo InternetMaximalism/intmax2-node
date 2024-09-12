@@ -10,6 +10,7 @@ type BlockContent struct {
 	BlockHash           string
 	PrevBlockHash       string
 	DepositRoot         string
+	SignatureHash       string
 	IsRegistrationBlock bool
 	TxRoot              string
 	AggregatedSignature string

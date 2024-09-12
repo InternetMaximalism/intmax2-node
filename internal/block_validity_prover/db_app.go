@@ -18,9 +18,21 @@ import (
 
 type SQLDriverApp interface {
 	GenericCommandsApp
+	// AccountInfo
+	// DepositTreeBuilder
+	// BlockHistory
+	BlockContents
+	EventBlockNumbersForValidityProver
+	Deposits
+}
+
+type BlockBuilderStorage interface {
+	GenericCommandsApp
 	AccountInfo
 	DepositTreeBuilder
+	BlockHistory
 	BlockContents
+	EventBlockNumbersForValidityProver
 }
 
 type GenericCommandsApp interface {
@@ -34,43 +46,66 @@ type AccountInfo interface {
 }
 
 type BlockContents interface {
+	// CreateBlockContent(
+	// 	blockNumber uint32,
+	// 	blockHash, prevBlockHash, depositRoot, txRoot, aggregatedSignature, aggregatedPublicKey, messagePoint string,
+	// 	isRegistrationBlock bool,
+	// 	senders []intMaxTypes.ColumnSender,
+	// ) (*mDBApp.BlockContent, error)
+	CreateBlockContent(
+		postedBlock *block_post_service.PostedBlock,
+		blockContent *intMaxTypes.BlockContent,
+	) (*mDBApp.BlockContent, error)
+	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContent, error)
+	BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContent, error)
+}
+
+type BlockHistory interface {
 	GenerateBlock(blockContent *intMaxTypes.BlockContent, postedBlock *block_post_service.PostedBlock) (*BlockWitness, error)
 	LatestIntMaxBlockNumber() uint32
+	SetValidityProof(blockNumber uint32, proof string) error
+	ValidityProofByBlockNumber(blockNumber uint32) (*string, error)
+
+	SetValidityWitness(blockNumber uint32, witness *ValidityWitness) error
+	LastValidityWitness() (*ValidityWitness, error)
 	SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error
 	LastSeenBlockPostedEventBlockNumber() (blockNumber uint64, err error)
-	SetValidityProof(blockNumber uint32, proof string) error
-	LastValidityProof() (*string, error)
-	LastValidityWitness() (*ValidityWitness, error)
-	CreateBlockContent(
-		blockNumber uint32,
-		blockHash, prevBlockHash, depositRoot, txRoot, aggregatedSignature, aggregatedPublicKey, messagePoint string,
-		isRegistrationBlock bool,
-		senders []intMaxTypes.ColumnSender,
-	) (*mDBApp.BlockContent, error)
-	BlockContent(blockNumber uint32) (*mDBApp.BlockContent, bool)
+
 	// GenerateValidityWitness(blockWitness *BlockWitness) (*ValidityWitness, error)
 	NextAccountID() (uint64, error)
 	AppendAccountTreeLeaf(sender *big.Int, lastBlockNumber uint64) (*intMaxTree.IndexedInsertionProof, error)
-	AccountTreeRoot() (intMaxGP.PoseidonHashOut, error)
+	AccountTreeRoot() (*intMaxGP.PoseidonHashOut, error)
 	GetAccountTreeLeaf(sender *big.Int) (*intMaxTree.IndexedMerkleLeaf, error)
 	UpdateAccountTreeLeaf(sender *big.Int, lastBlockNumber uint64) (*intMaxTree.IndexedUpdateProof, error)
+	GetAccountMembershipProof(currentBlockNumber uint32, publicKey *big.Int) (*intMaxTree.IndexedMembershipProof, error)
 	AppendBlockTreeLeaf(block *block_post_service.PostedBlock) error
-	BlockTreeRoot() (intMaxGP.PoseidonHashOut, error)
-	BlockTreeProof(blockNumber uint32) (*intMaxTree.MerkleProof, error)
+	BlockTreeRoot() (*intMaxGP.PoseidonHashOut, error)
+	BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.MerkleProof, error)
+	CurrentBlockTreeProof(leafBlockNumber uint32) (*intMaxTree.MerkleProof, error)
 }
 
 type DepositTreeBuilder interface {
-	LastSeenProcessDepositsEventBlockNumber() (uint64, error)
-	SetLastSeenProcessDepositsEventBlockNumber(blockNumber uint64) error
 	LastDepositTreeRoot() (common.Hash, error)
-	AppendDepositTreeRoot(depositTreeRoot common.Hash) error
-	AppendDepositTreeLeaf(depositHash common.Hash) error
+	// AppendDepositTreeRoot(depositTreeRoot common.Hash) error
+	AppendDepositTreeLeaf(depositHash common.Hash, depositLeaf *intMaxTree.DepositLeaf) (root common.Hash, err error)
+
+	IsSynchronizedDepositIndex(depositIndex uint32) (bool, error)
+	DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error)
+	GetDepositLeafAndIndexByHash(depositHash common.Hash) (depositLeafWithId *DepositLeafWithId, depositIndex *uint32, err error)
+	UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error
+
+	FetchLastDepositIndex() (uint32, error)
 }
 
 type EventBlockNumbers interface {
 	UpsertEventBlockNumber(eventName string, blockNumber uint64) (*mDBApp.EventBlockNumber, error)
 	EventBlockNumberByEventName(eventName string) (*mDBApp.EventBlockNumber, error)
 	EventBlockNumbersByEventNames(eventNames []string) ([]*mDBApp.EventBlockNumber, error)
+}
+
+type EventBlockNumbersForValidityProver interface {
+	UpsertEventBlockNumberForValidityProver(eventName string, blockNumber uint64) (*mDBApp.EventBlockNumberForValidityProver, error)
+	EventBlockNumberByEventNameForValidityProver(eventName string) (*mDBApp.EventBlockNumberForValidityProver, error)
 }
 
 type CtrlEventBlockNumbersJobs interface {
@@ -106,4 +141,14 @@ type Accounts interface {
 	AccountByAccountID(accountID *uint256.Int) (*mDBApp.Account, error)
 	ResetSequenceByAccounts() error
 	DelAllAccounts() error
+}
+
+type Deposits interface {
+	CreateDeposit(depositLeaf intMaxTree.DepositLeaf, depositID uint32) (*mDBApp.Deposit, error)
+	UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error
+	Deposit(ID string) (*mDBApp.Deposit, error)
+	DepositByDepositID(depositID uint32) (*mDBApp.Deposit, error)
+	DepositByDepositHash(depositHash common.Hash) (*mDBApp.Deposit, error)
+	ScanDeposits() ([]*mDBApp.Deposit, error)
+	FetchLastDepositIndex() (uint32, error)
 }
