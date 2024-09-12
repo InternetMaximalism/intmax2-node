@@ -159,7 +159,7 @@ func ProcessingPostedBlocks(
 		nextBN *big.Int
 	)
 
-	events, nextBN, err = bps.FetchNewPostedBlocks(bn)
+	events, nextBN, err = bps.FetchNewPostedBlocks(bn, nil)
 	if err != nil {
 		return errors.Join(ErrFetchNewPostedBlocksFail, err)
 	}

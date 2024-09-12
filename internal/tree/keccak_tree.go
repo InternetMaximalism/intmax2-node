@@ -4,6 +4,7 @@ package tree
 /// https://github.com/0xPolygonHermez/zkevm-node/blob/develop/l1infotree/hash.go
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -25,6 +26,18 @@ type KeccakMerkleTree struct {
 	currentRoot common.Hash
 }
 
+func (mt *KeccakMerkleTree) Set(other *KeccakMerkleTree) *KeccakMerkleTree {
+	mt.height = other.height
+	mt.zeroHashes = make([][32]byte, len(other.zeroHashes))
+	copy(mt.zeroHashes, other.zeroHashes)
+	mt.count = other.count
+	mt.siblings = make([][32]byte, len(other.siblings))
+	copy(mt.siblings, other.siblings)
+	mt.currentRoot = other.currentRoot
+
+	return mt
+}
+
 // NewKeccakMerkleTree creates new KeccakMerkleTree.
 func NewKeccakMerkleTree(height uint8, initialLeaves [][numHashBytes]byte, zeroHash common.Hash) (*KeccakMerkleTree, error) {
 	mt := &KeccakMerkleTree{
@@ -33,13 +46,15 @@ func NewKeccakMerkleTree(height uint8, initialLeaves [][numHashBytes]byte, zeroH
 		count:      uint32(len(initialLeaves)),
 	}
 	var err error
-	mt.siblings, mt.currentRoot, err = mt.initSiblings(initialLeaves)
+	var siblings *KeccakMerkleProof
+	siblings, mt.currentRoot, err = mt.initSiblings(initialLeaves)
 	if err != nil {
 		log.Error("error initializing si siblings. Error: ", err)
 		return nil, err
 	}
 	log.Debug("Initial count: ", mt.count)
 	log.Debug("Initial root: ", mt.currentRoot)
+	mt.siblings = siblings.Siblings
 	return mt, nil
 }
 
@@ -83,11 +98,15 @@ func (mt *KeccakMerkleTree) BuildMerkleRoot(leaves [][numHashBytes]byte) (common
 }
 
 // ComputeMerkleProof computes the merkleProof and root given the leaves of the tree
-func (mt *KeccakMerkleTree) ComputeMerkleProof(gerIndex uint32, leaves [][numHashBytes]byte) ([][numHashBytes]byte, common.Hash, error) {
+func (mt *KeccakMerkleTree) ComputeMerkleProof(gerIndex uint32, leaves [][numHashBytes]byte) (*KeccakMerkleProof, common.Hash, error) {
 	var ns [][][]byte
 	if len(leaves) == 0 {
 		leaves = append(leaves, mt.zeroHashes[0])
 	}
+	if gerIndex >= uint32(len(leaves)) {
+		return nil, common.Hash{}, fmt.Errorf("error: index out of bounds: %d", gerIndex)
+	}
+
 	var siblings [][numHashBytes]byte
 	index := gerIndex
 	for h := uint8(0); h < mt.height; h++ {
@@ -124,13 +143,13 @@ func (mt *KeccakMerkleTree) ComputeMerkleProof(gerIndex uint32, leaves [][numHas
 		return nil, common.Hash{}, fmt.Errorf("error: more than one root detected: %+v", ns)
 	}
 
-	return siblings, common.BytesToHash(ns[0][0]), nil
+	return &KeccakMerkleProof{Siblings: siblings}, common.BytesToHash(ns[0][0]), nil
 }
 
 // AddLeaf adds new leaves to the tree and computes the new root
 func (mt *KeccakMerkleTree) AddLeaf(index uint32, leaf [numHashBytes]byte) (common.Hash, error) {
 	if index != mt.count {
-		return common.Hash{}, fmt.Errorf("mismatched leaf count: %d, expected: %d", index, mt.count)
+		return common.Hash{}, fmt.Errorf("mismatched KeccakMerkleTree leaf count: %d, expected: %d", index, mt.count)
 	}
 	cur := leaf
 	isFilledSubTree := true
@@ -162,7 +181,7 @@ func (mt *KeccakMerkleTree) AddLeaf(index uint32, leaf [numHashBytes]byte) (comm
 
 // initSiblings returns the siblings of the node at the given index.
 // it is used to initialize the siblings array in the beginning.
-func (mt *KeccakMerkleTree) initSiblings(initialLeaves [][numHashBytes]byte) ([][numHashBytes]byte, common.Hash, error) {
+func (mt *KeccakMerkleTree) initSiblings(initialLeaves [][numHashBytes]byte) (*KeccakMerkleProof, common.Hash, error) {
 	if mt.count != uint32(len(initialLeaves)) {
 		return nil, [numHashBytes]byte{}, fmt.Errorf("error: mt.count and initialLeaves length mismatch")
 	}
@@ -178,15 +197,19 @@ func (mt *KeccakMerkleTree) initSiblings(initialLeaves [][numHashBytes]byte) ([]
 			log.Error("error calculating initial root: ", err)
 			return nil, [numHashBytes]byte{}, err
 		}
-		return siblings, root, nil
+		return &KeccakMerkleProof{Siblings: siblings}, root, nil
 	}
 
 	return mt.ComputeMerkleProof(mt.count, initialLeaves)
 }
 
 // GetCurrentRootCountAndSiblings returns the latest root, count and sibblings
-func (mt *KeccakMerkleTree) GetCurrentRootCountAndSiblings() (root common.Hash, nextIndex uint32, siblings [][numHashBytes]byte) {
-	return mt.currentRoot, mt.count, mt.siblings
+func (mt *KeccakMerkleTree) GetCurrentRootCountAndSiblings() (root common.Hash, nextIndex uint32, siblings *KeccakMerkleProof) {
+	siblings = &KeccakMerkleProof{
+		Siblings: mt.siblings,
+	}
+
+	return mt.currentRoot, mt.count, siblings
 }
 
 // Hash calculates the keccak hash of elements.
@@ -210,4 +233,50 @@ func generateKeccakZeroHashes(height uint8, initialZeroHash common.Hash) [][numH
 		zeroHashes = append(zeroHashes, Hash(zeroHashes[i-1], zeroHashes[i-1]))
 	}
 	return zeroHashes
+}
+
+type KeccakMerkleProof struct {
+	Siblings [][numHashBytes]byte
+}
+
+func (proof *KeccakMerkleProof) GetRoot() []byte {
+	var buf []byte
+	for _, sibling := range proof.Siblings {
+		buf = append(buf, sibling[:]...)
+	}
+	return buf
+}
+
+func (proof *KeccakMerkleProof) GetMerkleRoot(
+	index int,
+	leafHash common.Hash,
+) common.Hash {
+	nodeHash := [numHashBytes]byte{}
+	copy(nodeHash[:], leafHash[:])
+
+	for _, sibling := range proof.Siblings {
+		if index&1 == 1 {
+			nodeHash = Hash(sibling, nodeHash)
+		} else {
+			nodeHash = Hash(nodeHash, sibling)
+		}
+		index >>= 1
+	}
+
+	return nodeHash
+}
+
+func (proof *KeccakMerkleProof) Verify(
+	root common.Hash,
+	index int,
+	leafHash common.Hash,
+) error {
+	expectedRoot := proof.GetMerkleRoot(index, leafHash)
+
+	if expectedRoot != root {
+		var ErrMerkleProofVerifyFail = errors.New("the Merkle proof verify fail")
+		return ErrMerkleProofVerifyFail
+	}
+
+	return nil
 }

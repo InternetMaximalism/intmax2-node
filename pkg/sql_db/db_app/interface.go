@@ -3,11 +3,14 @@ package db_app
 import (
 	"context"
 	"encoding/json"
+	"intmax2-node/internal/block_post_service"
 	mFL "intmax2-node/internal/sql_filter/models"
+	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/pkg/sql_db/db_app/models"
 
 	"github.com/dimiro1/health"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
 )
 
@@ -26,9 +29,12 @@ type SQLDb interface {
 	BackupDeposits
 	CtrlEventBlockNumbersJobs
 	EventBlockNumbersErrors
+	EventBlockNumbersForValidityProver
 	Senders
 	Accounts
 	BackupBalances
+	Deposits
+	BlockContents
 	CtrlProcessingJobs
 	GasPriceOracle
 }
@@ -87,6 +93,11 @@ type EventBlockNumbers interface {
 	UpsertEventBlockNumber(eventName string, blockNumber uint64) (*models.EventBlockNumber, error)
 	EventBlockNumberByEventName(eventName string) (*models.EventBlockNumber, error)
 	EventBlockNumbersByEventNames(eventNames []string) ([]*models.EventBlockNumber, error)
+}
+
+type EventBlockNumbersForValidityProver interface {
+	UpsertEventBlockNumberForValidityProver(eventName string, blockNumber uint64) (*models.EventBlockNumberForValidityProver, error)
+	EventBlockNumberByEventNameForValidityProver(eventName string) (*models.EventBlockNumberForValidityProver, error)
 }
 
 type Balances interface {
@@ -209,6 +220,25 @@ type BackupBalances interface {
 	) (*models.BackupBalance, error)
 	GetBackupBalance(conditions []string, values []interface{}) (*models.BackupBalance, error)
 	GetBackupBalances(condition string, value interface{}) ([]*models.BackupBalance, error)
+}
+
+type Deposits interface {
+	CreateDeposit(depositLeaf intMaxTree.DepositLeaf, depositID uint32) (*models.Deposit, error)
+	UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error
+	Deposit(ID string) (*models.Deposit, error)
+	DepositByDepositID(depositID uint32) (*models.Deposit, error)
+	DepositByDepositHash(depositHash common.Hash) (*models.Deposit, error)
+	ScanDeposits() ([]*models.Deposit, error)
+	FetchLastDepositIndex() (uint32, error)
+}
+
+type BlockContents interface {
+	CreateBlockContent(
+		postedBlock *block_post_service.PostedBlock,
+		blockContent *intMaxTypes.BlockContent,
+	) (*models.BlockContent, error)
+	BlockContentByBlockNumber(blockNumber uint32) (*models.BlockContent, error)
+	BlockContentByTxRoot(txRoot string) (*models.BlockContent, error)
 }
 
 type CtrlProcessingJobs interface {

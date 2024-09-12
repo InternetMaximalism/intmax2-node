@@ -3,10 +3,13 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"intmax2-node/internal/block_post_service"
+	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 
 	"github.com/dimiro1/health"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
 )
 
@@ -19,10 +22,13 @@ type SQLDriverApp interface {
 	Signatures
 	TxMerkleProofs
 	EventBlockNumbers
+	EventBlockNumbersForValidityProver
 	CtrlEventBlockNumbersJobs
 	EventBlockNumbersErrors
 	Senders
 	Accounts
+	Deposits
+	BlockContents
 	CtrlProcessingJobs
 	GasPriceOracleApp
 }
@@ -70,6 +76,11 @@ type EventBlockNumbers interface {
 	EventBlockNumbersByEventNames(eventNames []string) ([]*mDBApp.EventBlockNumber, error)
 }
 
+type EventBlockNumbersForValidityProver interface {
+	UpsertEventBlockNumberForValidityProver(eventName string, blockNumber uint64) (*mDBApp.EventBlockNumberForValidityProver, error)
+	EventBlockNumberByEventNameForValidityProver(eventName string) (*mDBApp.EventBlockNumberForValidityProver, error)
+}
+
 type CtrlEventBlockNumbersJobs interface {
 	CreateCtrlEventBlockNumbersJobs(eventName string) error
 	CtrlEventBlockNumbersJobs(eventName string) (*mDBApp.CtrlEventBlockNumbersJobs, error)
@@ -103,6 +114,25 @@ type Accounts interface {
 	AccountByAccountID(accountID *uint256.Int) (*mDBApp.Account, error)
 	ResetSequenceByAccounts() error
 	DelAllAccounts() error
+}
+
+type Deposits interface {
+	CreateDeposit(depositLeaf intMaxTree.DepositLeaf, depositID uint32) (*mDBApp.Deposit, error)
+	UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error
+	Deposit(ID string) (*mDBApp.Deposit, error)
+	DepositByDepositID(depositID uint32) (*mDBApp.Deposit, error)
+	DepositByDepositHash(depositHash common.Hash) (*mDBApp.Deposit, error)
+	ScanDeposits() ([]*mDBApp.Deposit, error)
+	FetchLastDepositIndex() (uint32, error)
+}
+
+type BlockContents interface {
+	CreateBlockContent(
+		postedBlock *block_post_service.PostedBlock,
+		blockContent *intMaxTypes.BlockContent,
+	) (*mDBApp.BlockContent, error)
+	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContent, error)
+	BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContent, error)
 }
 
 type CtrlProcessingJobs interface {

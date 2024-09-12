@@ -37,9 +37,19 @@ func (leaf *BlockHashLeaf) Hash() *PoseidonHashOut {
 	return intMaxGP.HashNoPad(inputs)
 }
 
+type BlockHashMerkleProof = MerkleProof
+
 type BlockHashTree struct {
 	Leaves []*BlockHashLeaf
 	inner  *PoseidonIncrementalMerkleTree
+}
+
+func (t *BlockHashTree) Set(other *BlockHashTree) *BlockHashTree {
+	t.Leaves = make([]*BlockHashLeaf, len(other.Leaves))
+	copy(t.Leaves, other.Leaves)
+	t.inner = new(PoseidonIncrementalMerkleTree).Set(other.inner)
+
+	return t
 }
 
 func NewBlockHashTreeWithInitialLeaves(height uint8, initialLeaves []*BlockHashLeaf) (*BlockHashTree, error) {
@@ -87,7 +97,7 @@ func (t *BlockHashTree) AddLeaf(index uint32, leaf *BlockHashLeaf) (root *Poseid
 	}
 
 	if int(index) != len(t.Leaves) {
-		return nil, errors.New("index is not equal to the length of leaves")
+		return nil, errors.New("index is not equal to the length of block leaves")
 	}
 
 	t.Leaves = append(t.Leaves, leaf)
@@ -118,8 +128,8 @@ func (t *BlockHashTree) Prove(index uint32) (proof MerkleProof, root PoseidonHas
 	return proof, root, err
 }
 
-func (t *BlockHashTree) GetRoot() PoseidonHashOut {
+func (t *BlockHashTree) GetRoot() *PoseidonHashOut {
 	root, _, _ := t.inner.GetCurrentRootCountAndSiblings()
 
-	return root
+	return &root
 }

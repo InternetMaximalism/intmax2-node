@@ -55,7 +55,7 @@ func (t *TransferTree) AddLeaf(index uint64, leaf *types.Transfer) (root *Poseid
 	}
 
 	if int(index) != len(t.Leaves) {
-		return nil, ErrLeafInputIndexInvalid
+		return nil, errors.Join(ErrLeafInputIndexInvalid, errors.New("transfer tree AddLeaf"))
 	}
 	t.Leaves = append(t.Leaves, new(types.Transfer).Set(leaf))
 

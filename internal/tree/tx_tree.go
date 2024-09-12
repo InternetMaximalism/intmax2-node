@@ -52,7 +52,7 @@ func (t *TxTree) AddLeaf(index uint64, leaf *types.Tx) (root *PoseidonHashOut, e
 	}
 
 	if int(index) != len(t.Leaves) {
-		return nil, ErrLeafInputIndexInvalid
+		return nil, errors.Join(ErrLeafInputIndexInvalid, errors.New("tx tree AddLeaf"))
 	}
 	t.Leaves = append(t.Leaves, new(types.Tx).Set(leaf))
 
