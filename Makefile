@@ -143,6 +143,9 @@ build-up: down ## rebuilding containers and starting application and dependency 
 
 .PHONY: build-prover
 build-prover:
+	cp -f build/env.docker.block-builder-service.example build/env.docker.block-builder-service
+	cp -f build/env.docker.store-vault-server.example build/env.docker.store-vault-server
+	cp -f build/env.docker.withdrawal-server.example build/env.docker.withdrawal-server
 	docker compose -f build/docker-compose.yml stop intmax2-node-block-validity-prover intmax2-node-balance-validity-prover intmax2-node-withdrawal-aggregator-prover
 	docker compose -f build/docker-compose.yml rm -f intmax2-node-block-validity-prover intmax2-node-balance-validity-prover intmax2-node-withdrawal-aggregator-prover
 	docker compose -f build/docker-compose.yml build --no-cache intmax2-node-block-validity-prover intmax2-node-balance-validity-prover intmax2-node-withdrawal-aggregator-prover
