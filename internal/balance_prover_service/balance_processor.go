@@ -127,7 +127,26 @@ func (s *balanceProcessor) ProveReceiveDeposit(
 			return nil, err
 		}
 		fmt.Printf("encodedLastBalancePublicInputs: %s\n", encodedLastBalancePublicInputs)
+
+		lastBalanceProofPrivateCommitment := lastBalancePublicInputs.PrivateCommitment
+		receiveDepositWitnessPrivateCommitment := receiveDepositWitness.PrivateWitness.PrevPrivateState.Commitment()
+		if !receiveDepositWitnessPrivateCommitment.Equal(lastBalanceProofPrivateCommitment) {
+			fmt.Printf("last balance proof commitment: %s\n", lastBalanceProofPrivateCommitment.String())
+			fmt.Printf("receive deposit commitment: %s\n", receiveDepositWitnessPrivateCommitment.String())
+			return nil, fmt.Errorf("last balance proof commitment is not equal to receive deposit commitment")
+		}
+	} else {
+		fmt.Println("private state should be equal to default private state")
+		lastBalanceProofPrivateCommitment := new(PrivateState).SetDefault().Commitment()
+		receiveDepositWitnessPrivateCommitment := receiveDepositWitness.PrivateWitness.PrevPrivateState.Commitment()
+		if !receiveDepositWitnessPrivateCommitment.Equal(lastBalanceProofPrivateCommitment) {
+			fmt.Printf("last balance proof commitment: %s\n", lastBalanceProofPrivateCommitment.String())
+			fmt.Printf("receive deposit commitment: %s\n", receiveDepositWitnessPrivateCommitment.String())
+			return nil, fmt.Errorf("last balance proof commitment is not equal to receive deposit commitment")
+		}
 	}
+
+	fmt.Printf("default PrivateState: %v\n", new(PrivateState).SetDefault().Commitment())
 
 	requestID, err := s.requestReceiveDepositBalanceValidityProof(publicKey, receiveDepositWitness, lastBalanceProof)
 	if err != nil {

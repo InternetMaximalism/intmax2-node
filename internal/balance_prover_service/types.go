@@ -651,18 +651,7 @@ type BalancePublicInputs struct {
 	PublicState             *block_validity_prover.PublicState
 }
 
-// pub fn new() -> Self {
-// 	let asset_tree_root = AssetTree::new(ASSET_TREE_HEIGHT).get_root();
-// 	let nullifier_tree_root = NullifierTree::new().get_root();
-// 	Self {
-// 		asset_tree_root,
-// 		nullifier_tree_root,
-// 		nonce: 0,
-// 		salt: Salt::default(),
-// 	}
-// }
-
-func NewWithPublicKey(publicKey *intMaxAcc.PublicKey) *BalancePublicInputs {
+func NewBalancePublicInputsWithPublicKey(publicKey *intMaxAcc.PublicKey) *BalancePublicInputs {
 	// privateCommitment := new(intMaxTypes.PoseidonHashOut).SetZero()
 	privateCommitment := new(PrivateState).SetDefault().Commitment()
 	lastTxHash := new(intMaxTypes.PoseidonHashOut).SetZero()

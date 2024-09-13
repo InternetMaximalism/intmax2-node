@@ -2,20 +2,32 @@ use anyhow::Context as _;
 use intmax2_zkp::{
     circuits::{
         balance::{
-            balance_pis::BalancePublicInputs, balance_processor::BalanceProcessor,
+            balance_pis::BalancePublicInputs,
+            balance_processor::BalanceProcessor,
+            receive::{
+                receive_deposit_circuit::ReceiveDepositValue,
+                receive_targets::private_state_transition::PrivateStateTransitionValue,
+            },
             send::spent_circuit::SpentValue,
         },
         validity::validity_circuit::ValidityCircuit,
     },
     common::{
-        trees::{account_tree::AccountMembershipProof, block_hash_tree::BlockHashMerkleProof},
+        deposit::{get_pubkey_salt_hash, Deposit},
+        public_state::PublicState,
+        salt::Salt,
+        trees::{
+            account_tree::AccountMembershipProof, block_hash_tree::BlockHashMerkleProof,
+            deposit_tree::DepositMerkleProof,
+        },
         witness::{
             private_witness::PrivateWitness, receive_deposit_witness::ReceiveDepositWitness,
             receive_transfer_witness::ReceiveTransferWitness, send_witness::SendWitness,
             transfer_witness::TransferWitness, update_witness::UpdateWitness,
         },
     },
-    ethereum_types::u256::U256,
+    ethereum_types::{bytes32::Bytes32, u256::U256, u32limb_trait::U32LimbTrait},
+    utils::leafable::Leafable,
 };
 use plonky2::plonk::{
     circuit_data::VerifierCircuitData,
@@ -300,7 +312,6 @@ pub fn generate_balance_spent_proof_job(
         encode_plonky2_proof(spent_proof, &spent_circuit.data.verifier_data())
             .map_err(|e| anyhow::anyhow!("Failed to encode balance proof: {:?}", e))?;
 
-
     Ok(encoded_compressed_spent_proof)
 }
 
@@ -311,15 +322,171 @@ pub fn generate_balance_single_send_proof_job(
     validity_circuit: &ValidityCircuit<F, C, D>,
 ) -> anyhow::Result<String> {
     let sender_processor = &balance_processor
-        .balance_transition_processor.sender_processor;
+        .balance_transition_processor
+        .sender_processor;
 
     log::debug!("Proving...");
     let send_proof = sender_processor.prove(&validity_circuit, &send_witness, &update_witness);
 
-    let encoded_compressed_send_proof =
-        encode_plonky2_proof(send_proof, &sender_processor.sender_circuit.data.verifier_data())
-            .map_err(|e| anyhow::anyhow!("Failed to encode balance proof: {:?}", e))?;
+    let encoded_compressed_send_proof = encode_plonky2_proof(
+        send_proof,
+        &sender_processor.sender_circuit.data.verifier_data(),
+    )
+    .map_err(|e| anyhow::anyhow!("Failed to encode balance proof: {:?}", e))?;
 
     Ok(encoded_compressed_send_proof)
 }
 
+pub fn validate_witness(
+    _pubkey: U256,
+    public_state: &PublicState,
+    receive_deposit_witness: &ReceiveDepositWitness,
+    prev_balance_proof: &Option<ProofWithPublicInputs<F, C, D>>,
+) -> anyhow::Result<()> {
+    let deposit_witness = receive_deposit_witness.deposit_witness.clone();
+    let private_transition_witness = receive_deposit_witness.private_witness.clone();
+
+    let deposit_index = receive_deposit_witness.deposit_witness.deposit_index;
+    let deposit = &receive_deposit_witness.deposit_witness.deposit;
+    let deposit_merkle_proof = &receive_deposit_witness.deposit_witness.deposit_merkle_proof;
+    println!("siblings: {:?}", deposit_merkle_proof);
+    println!("deposit hash: {}", deposit.hash().to_hex());
+    println!("deposit index: {}", deposit_index);
+    println!(
+        "deposit tree root: {}",
+        public_state.deposit_tree_root.to_hex()
+    );
+
+    // let pubkey_salt_hash = get_pubkey_salt_hash(pubkey, deposit_salt);
+    // if pubkey_salt_hash != deposit.pubkey_salt_hash {
+    //     anyhow::bail!("pubkey_salt_hash not match");
+    // }
+
+    let result =
+        deposit_merkle_proof.verify(&deposit, deposit_index, public_state.deposit_tree_root);
+    if !result.is_ok() {
+        println!("deposit_merkle_proof: {:?}", deposit_merkle_proof);
+        anyhow::bail!("Invalid deposit merkle proof");
+    }
+
+    let deposit = deposit_witness.deposit.clone();
+    let nullifier: Bytes32 = deposit.poseidon_hash().into();
+    if nullifier != private_transition_witness.nullifier {
+        println!("deposit: {:?}", deposit);
+        println!("nullifier: {}", nullifier);
+        println!(
+            "private_transition_witness.nullifier: {}",
+            private_transition_witness.nullifier
+        );
+        anyhow::bail!("nullifier not match");
+    }
+    // assert_eq!(deposit.token_index, private_transition_witness.token_index);
+    if deposit.token_index != private_transition_witness.token_index {
+        println!("token_index: {}", deposit.token_index);
+        println!(
+            "private_transition_witness.token_index: {}",
+            private_transition_witness.token_index
+        );
+        anyhow::bail!("token_index not match");
+    }
+    // assert_eq!(deposit.amount, private_transition_witness.amount);
+    if deposit.amount != private_transition_witness.amount {
+        println!("amount: {}", deposit.amount);
+        println!(
+            "private_transition_witness.amount: {}",
+            private_transition_witness.amount
+        );
+        anyhow::bail!("amount not match");
+    }
+
+    // assertion
+    let private_state_transition = PrivateStateTransitionValue::new(
+        private_transition_witness.token_index,
+        private_transition_witness.amount,
+        private_transition_witness.nullifier,
+        private_transition_witness.new_salt,
+        &private_transition_witness.prev_private_state,
+        &private_transition_witness.nullifier_proof,
+        &private_transition_witness.prev_asset_leaf,
+        &private_transition_witness.asset_merkle_proof,
+    );
+
+    let prev_balance_pis = if let Some(prev_balance_proof) = prev_balance_proof {
+        BalancePublicInputs::from_pis(&prev_balance_proof.public_inputs)
+    } else {
+        BalancePublicInputs::new(_pubkey)
+    };
+
+    let receive_deposit_value = validate_receive_deposit_value(
+        prev_balance_pis.pubkey,
+        deposit_witness.deposit_salt,
+        deposit_witness.deposit_index,
+        &deposit_witness.deposit,
+        &deposit_witness.deposit_merkle_proof,
+        &prev_balance_pis.public_state,
+        &private_state_transition,
+    )
+    .map_err(|e| anyhow::anyhow!("Failed to validate receive deposit value: {:?}", e))?;
+
+    println!(
+        "private commitment: {:?}",
+        receive_deposit_value.prev_private_commitment
+    );
+    println!("state: {:?}", prev_balance_pis.private_commitment);
+
+    anyhow::ensure!(
+        receive_deposit_value.prev_private_commitment == prev_balance_pis.private_commitment,
+        "prev_private_commitment not match"
+    );
+
+    Ok(())
+}
+
+fn validate_receive_deposit_value(
+    pubkey: U256,
+    deposit_salt: Salt,
+    deposit_index: usize,
+    deposit: &Deposit,
+    deposit_merkle_proof: &DepositMerkleProof,
+    public_state: &PublicState,
+    private_state_transition: &PrivateStateTransitionValue,
+) -> anyhow::Result<ReceiveDepositValue> {
+    // verify deposit inclusion
+    let pubkey_salt_hash = get_pubkey_salt_hash(pubkey, deposit_salt);
+    anyhow::ensure!(
+        pubkey_salt_hash == deposit.pubkey_salt_hash,
+        "pubkey_salt_hash not match"
+    );
+    deposit_merkle_proof
+        .verify(&deposit, deposit_index, public_state.deposit_tree_root)
+        .map_err(|e| anyhow::anyhow!("Invalid deposit merkle proof: {:?}", e))?;
+
+    let nullifier: Bytes32 = deposit.poseidon_hash().into();
+    anyhow::ensure!(
+        deposit.token_index == private_state_transition.token_index,
+        "token_index not match"
+    );
+    anyhow::ensure!(
+        deposit.amount == private_state_transition.amount,
+        "amount not match"
+    );
+    anyhow::ensure!(
+        nullifier == private_state_transition.nullifier,
+        "nullifier not match"
+    );
+
+    let prev_private_commitment = private_state_transition.prev_private_state.commitment();
+    let new_private_commitment = private_state_transition.new_private_state.commitment();
+
+    Ok(ReceiveDepositValue {
+        pubkey,
+        deposit_salt,
+        deposit_index,
+        deposit: deposit.clone(),
+        deposit_merkle_proof: deposit_merkle_proof.clone(),
+        public_state: public_state.clone(),
+        private_state_transition: private_state_transition.clone(),
+        prev_private_commitment,
+        new_private_commitment,
+    })
+}

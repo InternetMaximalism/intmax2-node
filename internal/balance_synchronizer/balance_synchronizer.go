@@ -140,6 +140,13 @@ func (s *balanceSynchronizer) Sync(
 						balanceProcessor,
 					)
 					if err != nil {
+						var ErrNoValidityProofByBlockNumber = errors.New("no validity proof by block number")
+						if err.Error() == ErrNoValidityProofByBlockNumber.Error() {
+							const msg = "failed to receive deposit: %+v"
+							s.log.Warnf(msg, err.Error())
+							continue
+						}
+
 						const msg = "failed to sync balance prover: %+v"
 						s.log.Fatalf(msg, err.Error())
 					}
@@ -246,8 +253,8 @@ func applyReceivedDepositTransition(
 		blockValidityService,
 		*depositIndex,
 	)
-	fmt.Printf("prove deposit %v\n", err.Error())
 	if err != nil {
+		fmt.Printf("prove deposit %v\n", err.Error())
 		if err.Error() == "balance processor not initialized" {
 			return errors.New("balance processor not initialized")
 		}

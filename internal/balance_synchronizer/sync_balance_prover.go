@@ -267,8 +267,8 @@ func (s *SyncBalanceProver) SyncNoSend(
 			return err
 		}
 	} else {
-		fmt.Println("NewWithPublicKey")
-		prevBalancePis = balance_prover_service.NewWithPublicKey(wallet.PublicKey())
+		fmt.Println("NewBalancePublicInputsWithPublicKey")
+		prevBalancePis = balance_prover_service.NewBalancePublicInputsWithPublicKey(wallet.PublicKey())
 	}
 	prevBalancePisJSON, err := json.Marshal(prevBalancePis)
 	if err != nil {

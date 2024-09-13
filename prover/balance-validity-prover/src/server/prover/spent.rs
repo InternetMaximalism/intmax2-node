@@ -7,13 +7,12 @@ use crate::{
         },
         state::AppState,
     },
-    proof::{generate_balance_single_send_proof_job},
+    proof::generate_balance_single_send_proof_job,
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
 use intmax2_zkp::{
-    circuits::validity::{validity_pis::ValidityPublicInputs},
-    common::witness::update_witness::UpdateWitness,
-    constants::NUM_TRANSFERS_IN_TX,
+    circuits::validity::validity_pis::ValidityPublicInputs,
+    common::witness::update_witness::UpdateWitness, constants::NUM_TRANSFERS_IN_TX,
 };
 
 #[get("/proof/spent/{request_id}")]
@@ -142,7 +141,7 @@ async fn generate_proof(
     validity_circuit_data
         .verify(validity_proof.clone())
         .map_err(error::ErrorInternalServerError)?;
-    let validity_public_inputs = ValidityPublicInputs::from_pis(&validity_proof.public_inputs);
+    // let validity_public_inputs = ValidityPublicInputs::from_pis(&validity_proof.public_inputs);
     let balance_update_witness = UpdateWitness {
         validity_proof,
         block_merkle_proof: req.balance_update_witness.block_merkle_proof.clone(),

@@ -19,7 +19,7 @@ func (p *pgx) CreateBackupTransfer(
 	const query = `
 	    INSERT INTO backup_transfers
         (id, recipient, transfer_double_hash, encrypted_transfer, sender_last_balance_proof_body, sender_balance_transition_proof_body, block_number, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 
 	id := uuid.New().String()

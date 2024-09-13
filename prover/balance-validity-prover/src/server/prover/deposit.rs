@@ -7,13 +7,13 @@ use crate::{
         },
         state::AppState,
     },
-    proof::generate_receive_deposit_proof_job,
+    proof::{generate_receive_deposit_proof_job, validate_witness},
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
 use intmax2_zkp::{
     circuits::balance::balance_pis::BalancePublicInputs,
-    common::{public_state::PublicState, witness::receive_deposit_witness::ReceiveDepositWitness},
-    ethereum_types::{bytes32::Bytes32, u256::U256, u32limb_trait::U32LimbTrait},
+    common::public_state::PublicState,
+    ethereum_types::{u256::U256, u32limb_trait::U32LimbTrait},
     utils::leafable::Leafable,
 };
 
@@ -174,8 +174,13 @@ async fn generate_proof(
         PublicState::genesis()
     };
 
-    validate_witness(public_key, &public_state, &receive_deposit_witness)
-        .map_err(error::ErrorInternalServerError)?;
+    validate_witness(
+        public_key,
+        &public_state,
+        &receive_deposit_witness,
+        &prev_balance_proof,
+    )
+    .map_err(error::ErrorInternalServerError)?;
 
     println!(
         "asset Merkle proof: siblings = {:?}",
@@ -263,68 +268,4 @@ async fn generate_proof(
 
 fn get_receive_deposit_request_id(public_key: &str, deposit_hash: &str) -> String {
     format!("balance-validity/{}/deposit/{}", public_key, deposit_hash)
-}
-
-fn validate_witness(
-    _pubkey: U256,
-    public_state: &PublicState,
-    receive_deposit_witness: &ReceiveDepositWitness,
-) -> anyhow::Result<()> {
-    let deposit_witness = receive_deposit_witness.deposit_witness.clone();
-    let private_transition_witness = receive_deposit_witness.private_witness.clone();
-
-    let deposit_index = receive_deposit_witness.deposit_witness.deposit_index;
-    let deposit = &receive_deposit_witness.deposit_witness.deposit;
-    let deposit_merkle_proof = &receive_deposit_witness.deposit_witness.deposit_merkle_proof;
-    println!("siblings: {:?}", deposit_merkle_proof);
-    println!("deposit hash: {}", deposit.hash().to_hex());
-    println!("deposit index: {}", deposit_index);
-    println!(
-        "deposit tree root: {}",
-        public_state.deposit_tree_root.to_hex()
-    );
-
-    // let pubkey_salt_hash = get_pubkey_salt_hash(pubkey, deposit_salt);
-    // if pubkey_salt_hash != deposit.pubkey_salt_hash {
-    //     anyhow::bail!("pubkey_salt_hash not match");
-    // }
-
-    let result =
-        deposit_merkle_proof.verify(&deposit, deposit_index, public_state.deposit_tree_root);
-    if !result.is_ok() {
-        println!("deposit_merkle_proof: {:?}", deposit_merkle_proof);
-        anyhow::bail!("Invalid deposit merkle proof");
-    }
-
-    let deposit = deposit_witness.deposit.clone();
-    let nullifier: Bytes32 = deposit.poseidon_hash().into();
-    if nullifier != private_transition_witness.nullifier {
-        println!("deposit: {:?}", deposit);
-        println!("nullifier: {}", nullifier);
-        println!(
-            "private_transition_witness.nullifier: {}",
-            private_transition_witness.nullifier
-        );
-        anyhow::bail!("nullifier not match");
-    }
-    // assert_eq!(deposit.token_index, private_transition_witness.token_index);
-    if deposit.token_index != private_transition_witness.token_index {
-        println!("token_index: {}", deposit.token_index);
-        println!(
-            "private_transition_witness.token_index: {}",
-            private_transition_witness.token_index
-        );
-        anyhow::bail!("token_index not match");
-    }
-    // assert_eq!(deposit.amount, private_transition_witness.amount);
-    if deposit.amount != private_transition_witness.amount {
-        println!("amount: {}", deposit.amount);
-        println!(
-            "private_transition_witness.amount: {}",
-            private_transition_witness.amount
-        );
-        anyhow::bail!("amount not match");
-    }
-
-    Ok(())
 }

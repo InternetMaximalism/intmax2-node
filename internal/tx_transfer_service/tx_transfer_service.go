@@ -189,8 +189,8 @@ func TransferTransaction(
 	transfersHash, _, _ := transferTree.GetCurrentRootCountAndSiblings()
 
 	var nonce uint64 = 1 // TODO: Incremented with each transaction
-	lastBalanceProof := ""
-	balanceTransitionProof := ""
+	// lastBalanceProof := ""
+	// balanceTransitionProof := ""
 
 	err = SendTransferTransaction(
 		ctx,
@@ -246,15 +246,15 @@ func TransferTransaction(
 		return fmt.Errorf("failed to make backup transaction data: %v", err)
 	}
 
-	lastBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(lastBalanceProof)
-	if err != nil {
-		return fmt.Errorf("failed to create last balance proof: %v", err)
-	}
+	// lastBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(lastBalanceProof)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to create last balance proof: %v", err)
+	// }
 
-	balanceTransitionProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(balanceTransitionProof)
-	if err != nil {
-		return fmt.Errorf("failed to create balance transition proof: %v", err)
-	}
+	// balanceTransitionProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(balanceTransitionProof)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to create balance transition proof: %v", err)
+	// }
 
 	backupTransfers := make([]*transaction.BackupTransferInput, len(initialLeaves))
 	for i := range initialLeaves {
@@ -269,13 +269,17 @@ func TransferTransaction(
 			TransferMerkleProof: transferMerkleProof,
 		}
 		transferDetails := intMaxTypes.TransferDetails{
-			TransferWitness:                     &transferWitness,
-			TxTreeRoot:                          &proposedBlock.TxTreeRoot,
-			TxMerkleProof:                       proposedBlock.TxTreeMerkleProof,
-			SenderLastBalancePublicInputs:       lastBalanceProofWithPis.PublicInputsBytes(),
-			SenderBalanceTransitionPublicInputs: balanceTransitionProofWithPis.PublicInputsBytes(),
+			TransferWitness: &transferWitness,
+			TxTreeRoot:      &proposedBlock.TxTreeRoot,
+			TxMerkleProof:   proposedBlock.TxTreeMerkleProof,
+			// SenderLastBalancePublicInputs:       lastBalanceProofWithPis.PublicInputsBytes(),
+			// SenderBalanceTransitionPublicInputs: balanceTransitionProofWithPis.PublicInputsBytes(),
 		}
-		backupTransfers[i], err = MakeTransferBackupData(&transferDetails, lastBalanceProofWithPis.ProofBase64String(), balanceTransitionProofWithPis.ProofBase64String())
+		backupTransfers[i], err = MakeTransferBackupData(
+			&transferDetails,
+			// lastBalanceProofWithPis.ProofBase64String(),
+			// balanceTransitionProofWithPis.ProofBase64String(),
+		)
 		if err != nil {
 			return fmt.Errorf("failed to make backup transfer data: %v", err)
 		}
@@ -304,14 +308,18 @@ var ErrFailedToDecodeFromBase64 = errors.New("failed to decode from base64")
 var ErrFailedToDecrypt = errors.New("failed to decrypt")
 var ErrFailedToUnmarshal = errors.New("failed to unmarshal")
 
-func MakeTransferBackupData(transferDetails *intMaxTypes.TransferDetails, senderLastBalanceProofBody string, senderBalanceTransitionProofBody string) (backupTransfer *transaction.BackupTransferInput, _ error) {
-	if len(senderLastBalanceProofBody) == 0 {
-		return nil, errors.New("sender last balance proof body is empty")
-	}
+func MakeTransferBackupData(
+	transferDetails *intMaxTypes.TransferDetails,
+	// senderLastBalanceProofBody string,
+	// senderBalanceTransitionProofBody string,
+) (backupTransfer *transaction.BackupTransferInput, _ error) {
+	// if len(senderLastBalanceProofBody) == 0 {
+	// 	return nil, errors.New("sender last balance proof body is empty")
+	// }
 
-	if len(senderBalanceTransitionProofBody) == 0 {
-		return nil, errors.New("sender balance transition proof body is empty")
-	}
+	// if len(senderBalanceTransitionProofBody) == 0 {
+	// 	return nil, errors.New("sender balance transition proof body is empty")
+	// }
 
 	transfer := transferDetails.TransferWitness.Transfer
 	if transfer.Recipient.TypeOfAddress != intMaxAccTypes.INTMAXAddressType {
@@ -337,11 +345,13 @@ func MakeTransferBackupData(transferDetails *intMaxTypes.TransferDetails, sender
 	}
 
 	return &transaction.BackupTransferInput{
-		Recipient:                  hexutil.Encode(transfer.Recipient.Marshal()),
-		TransferHash:               transfer.Hash().String(),
-		EncodedEncryptedTransfer:   base64.StdEncoding.EncodeToString(encryptedTransfer),
-		SenderLastBalanceProofBody: senderLastBalanceProofBody,
-		SenderTransitionProofBody:  senderBalanceTransitionProofBody,
+		Recipient:                hexutil.Encode(transfer.Recipient.Marshal()),
+		TransferHash:             transfer.Hash().String(),
+		EncodedEncryptedTransfer: base64.StdEncoding.EncodeToString(encryptedTransfer),
+		// SenderLastBalanceProofBody: senderLastBalanceProofBody,
+		// SenderTransitionProofBody:  senderBalanceTransitionProofBody,
+		SenderLastBalanceProofBody: "",
+		SenderTransitionProofBody:  "",
 	}, nil
 }
 

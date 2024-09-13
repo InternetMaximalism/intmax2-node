@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
-	"intmax2-node/docs/swagger"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_prover_service"
 	"intmax2-node/internal/balance_synchronizer"
@@ -13,16 +12,10 @@ import (
 	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
-	"intmax2-node/internal/pb/gateway"
-	"intmax2-node/internal/pb/gateway/consts"
-	"intmax2-node/internal/pb/gateway/http_response_modifier"
-	node "intmax2-node/internal/pb/gen/block_builder_service/node"
-	"intmax2-node/third_party"
 	"sync"
 	"time"
 
 	"github.com/dimiro1/health"
-	"github.com/rs/cors"
 	"github.com/spf13/cobra"
 )
 
@@ -188,25 +181,6 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 }
 
 func (s *Synchronizer) Init() error {
-	tm := time.Duration(s.Config.HTTP.Timeout) * time.Second
-
-	var c *cors.Cors
-	if s.Config.HTTP.CORSAllowAll {
-		c = cors.AllowAll()
-	} else {
-		c = cors.New(cors.Options{
-			AllowedOrigins:       s.Config.HTTP.CORS,
-			AllowedMethods:       s.Config.HTTP.CORSAllowMethods,
-			AllowedHeaders:       s.Config.HTTP.CORSAllowHeaders,
-			ExposedHeaders:       s.Config.HTTP.CORSExposeHeaders,
-			AllowCredentials:     s.Config.HTTP.CORSAllowCredentials,
-			MaxAge:               s.Config.HTTP.CORSMaxAge,
-			OptionsSuccessStatus: s.Config.HTTP.CORSStatusCode,
-		})
-	}
-
-	ctx := context.WithValue(s.Context, consts.AppConfigs, s.Config)
-
 	const (
 		version   = "version"
 		buildtime = "buildtime"
@@ -225,41 +199,6 @@ func (s *Synchronizer) Init() error {
 	})
 	s.HC.AddChecker(checkSB, s.SB)
 
-	// run web -> gRPC gateway
-	gw, grpcGwErr := gateway.Run(
-		ctx,
-		&gateway.Params{
-			Name:               appName,
-			Logger:             s.Log,
-			GatewayAddr:        s.Config.HTTP.Addr(), // listen incoming host:port for rest api
-			DialAddr:           s.Config.GRPC.Addr(), // connect to gRPC server host:port
-			HTTPTimeout:        tm,
-			HealthCheckHandler: s.HC,
-			Services: []gateway.RegisterServiceHandlerFunc{
-				node.RegisterInfoServiceHandler,
-				node.RegisterBlockBuilderServiceHandler,
-			},
-			CorsHandler: c.Handler,
-			Swagger: &gateway.Swagger{
-				HostURL:            s.Config.Swagger.HostURL,
-				BasePath:           s.Config.Swagger.BasePath,
-				SwaggerPath:        configs.SwaggerBlockBuilderPath,
-				FsSwagger:          swagger.FsSwaggerBlockBuilder,
-				OpenAPIPath:        configs.SwaggerOpenAPIBlockBuilderPath,
-				FsOpenAPI:          third_party.OpenAPIBlockBuilder,
-				RegexpBuildVersion: s.Config.Swagger.RegexpBuildVersion,
-				RegexpHostURL:      s.Config.Swagger.RegexpHostURL,
-				RegexpBasePATH:     s.Config.Swagger.RegexpBasePATH,
-			},
-			Cookies: &http_response_modifier.Cookies{
-				ForAuthUse:         s.Config.HTTP.CookieForAuthUse,
-				Secure:             s.Config.HTTP.CookieSecure,
-				Domain:             s.Config.HTTP.CookieDomain,
-				SameSiteStrictMode: s.Config.HTTP.CookieSameSiteStrictMode,
-			},
-		},
-	)
-
 	const (
 		start  = "%sapplication started (version: %s buildtime: %s)"
 		finish = "%sapplication finished"
@@ -268,17 +207,7 @@ func (s *Synchronizer) Init() error {
 	s.Log.Infof(start, appName, buildvars.Version, buildvars.BuildTime)
 	defer s.Log.Infof(finish, appName)
 
-	var err error
-	select {
-	case <-s.Context.Done():
-	case err = <-grpcGwErr:
-		const msg = "%sgRPC gateway error: %s"
-		s.Log.Errorf(msg, appName, err)
-	}
-
-	if gw != nil {
-		gw.SetStatus(health.Down)
-	}
+	<-s.Context.Done()
 
 	s.Cancel()
 
