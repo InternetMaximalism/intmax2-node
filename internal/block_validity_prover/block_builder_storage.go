@@ -811,7 +811,12 @@ func (db *mockBlockBuilder) PostBlock(
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("prev block number is %d (PostBlock)\n", prevValidityWitness.BlockWitness.Block.BlockNumber)
+
+	fmt.Printf("blockWitness.Block.BlockNumber (PostBlock): %d\n", blockWitness.Block.BlockNumber)
+	if blockWitness.Block.BlockNumber != db.LatestIntMaxBlockNumber()+1 {
+		fmt.Printf("db.LatestIntMaxBlockNumber(): %d\n", db.LatestIntMaxBlockNumber())
+		return nil, errors.New("block number is not equal to the last block number + 1")
+	}
 	validityWitness, err := generateValidityWitness(
 		db,
 		blockWitness,
@@ -820,13 +825,13 @@ func (db *mockBlockBuilder) PostBlock(
 	if err != nil {
 		panic(err)
 	}
-	encodedBlockWitness, err := json.Marshal(validityWitness.BlockWitness)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("blockNumber: %d\n", blockWitness.Block.BlockNumber)
-	fmt.Printf("blockNumber: %d\n", validityWitness.BlockWitness.Block.BlockNumber)
-	fmt.Printf("validityWitness.BlockWitness after generateValidityWitness: %s\n", encodedBlockWitness)
+	// encodedBlockWitness, err := json.Marshal(validityWitness.BlockWitness)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	fmt.Printf("blockWitness.Block.BlockNumber: %d\n", blockWitness.Block.BlockNumber)
+	fmt.Printf("validityWitness.BlockWitness.Block.BlockNumber: %d\n", validityWitness.BlockWitness.Block.BlockNumber)
+	// fmt.Printf("validityWitness.BlockWitness after generateValidityWitness: %s\n", encodedBlockWitness)
 
 	fmt.Printf("SenderFlag 1: %v\n", validityWitness.BlockWitness.Signature.SenderFlag)
 	validityPis := validityWitness.ValidityPublicInputs()
@@ -836,7 +841,7 @@ func (db *mockBlockBuilder) PostBlock(
 	}
 	fmt.Printf("validityPis (PostBlock): %s\n", encodedValidityPis)
 
-	fmt.Printf("SenderFlag 2: %v\n", validityWitness.BlockWitness.Signature.SenderFlag)
+	fmt.Printf("SetValidityWitness SenderFlag: %v\n", validityWitness.BlockWitness.Signature.SenderFlag)
 	db.SetValidityWitness(blockWitness.Block.BlockNumber, validityWitness)
 
 	fmt.Printf("post block #%d\n", validityWitness.BlockWitness.Block.BlockNumber)
@@ -846,8 +851,8 @@ func (db *mockBlockBuilder) PostBlock(
 func generateValidityWitness(db BlockBuilderStorage, blockWitness *BlockWitness, prevValidityWitness *ValidityWitness) (*ValidityWitness, error) {
 	fmt.Printf("---------------------- generateValidityWitness ----------------------\n")
 	if blockWitness.Block.BlockNumber != db.LatestIntMaxBlockNumber()+1 {
-		fmt.Printf("blockWitness.Block.BlockNumber: %d\n", blockWitness.Block.BlockNumber)
-		fmt.Printf("db.LatestIntMaxBlockNumber(): %d\n", db.LatestIntMaxBlockNumber())
+		fmt.Printf("blockWitness.Block.BlockNumber (generateValidityWitness): %d\n", blockWitness.Block.BlockNumber)
+		fmt.Printf("db.LatestIntMaxBlockNumber() (generateValidityWitness): %d\n", db.LatestIntMaxBlockNumber())
 		return nil, errors.New("block number is not equal to the last block number + 1")
 	}
 

@@ -85,6 +85,10 @@ func NewBlockValidityProver(ctx context.Context, cfg *configs.Config, log logger
 	}, nil
 }
 
+func (d *blockValidityProver) RollupContractDeployedBlockNumber() uint64 {
+	return d.cfg.Blockchain.RollupContractDeployedBlockNumber
+}
+
 func (d *blockValidityProver) FetchScrollCalldataByHash(txHash common.Hash) ([]byte, error) {
 	tx, isPending, err := d.scrollClient.TransactionByHash(context.Background(), txHash)
 	if err != nil {

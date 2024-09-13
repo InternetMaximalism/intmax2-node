@@ -89,7 +89,10 @@ func (s *SyncBalanceProver) SyncSend(
 	// if err != nil {
 	// 	return err
 	// }
-	balance_prover_service.CheckBlockSynchronization(blockValidityService, blockSynchronizer)
+	err := balance_prover_service.CheckBlockSynchronization(blockValidityService, blockSynchronizer)
+	if err != nil {
+		return err
+	}
 
 	allBlockNumbers := wallet.GetAllBlockNumbers()
 	notSyncedBlockNumbers := []uint32{}
@@ -199,7 +202,10 @@ func (s *SyncBalanceProver) SyncNoSend(
 	// if err != nil {
 	// 	return err
 	// }
-	balance_prover_service.CheckBlockSynchronization(blockValidityService, blockSynchronizer)
+	err := balance_prover_service.CheckBlockSynchronization(blockValidityService, blockSynchronizer)
+	if err != nil {
+		return err
+	}
 
 	allBlockNumbers := wallet.GetAllBlockNumbers()
 	// notSyncedBlockNumbers := []uint32{}

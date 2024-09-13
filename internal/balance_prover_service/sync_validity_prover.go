@@ -71,7 +71,7 @@ func CheckBlockSynchronization(
 	blockSynchronizer block_validity_prover.BlockSynchronizer,
 ) (err error) {
 	// s.blockSynchronizer.SyncBlockTree(blockProverService)
-	startBlock, err := blockValidityService.LastSeenBlockPostedEventBlockNumber()
+	startBlock, err := blockValidityService.LastSeenBlockPostedEventBlockNumber() // XXX
 	if err != nil {
 		var ErrNotFound = errors.New("not found")
 		if !errors.Is(err, ErrNotFound) {
@@ -79,11 +79,11 @@ func CheckBlockSynchronization(
 			panic(errors.Join(ErrLastSeenBlockPostedEventBlockNumberFail, err))
 		}
 
-		startBlock = blockSynchronizer.RollupContractDeployedBlockNumber()
+		startBlock = blockValidityService.RollupContractDeployedBlockNumber()
 	}
 
-	const int5000Key = 5000
-	endBlock := startBlock + int5000Key
+	const searchBlocksLimitAtOnce = 10000
+	endBlock := startBlock + searchBlocksLimitAtOnce
 	events, _, err := blockSynchronizer.FetchNewPostedBlocks(startBlock, &endBlock)
 	if err != nil {
 		var ErrFetchNewPostedBlocksFail = errors.New("fetch new posted blocks fail")

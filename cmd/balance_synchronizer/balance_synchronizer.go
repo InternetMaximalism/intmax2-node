@@ -2,12 +2,12 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
 	"intmax2-node/docs/swagger"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_prover_service"
-	"intmax2-node/internal/balance_synchronizer"
 	balanceSynchronizer "intmax2-node/internal/balance_synchronizer"
 	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/block_validity_prover"
@@ -17,7 +17,6 @@ import (
 	"intmax2-node/internal/pb/gateway/consts"
 	"intmax2-node/internal/pb/gateway/http_response_modifier"
 	node "intmax2-node/internal/pb/gen/block_builder_service/node"
-	"intmax2-node/internal/withdrawal_service"
 	"intmax2-node/third_party"
 	"sync"
 	"time"
@@ -28,18 +27,14 @@ import (
 )
 
 type Synchronizer struct {
-	Context          context.Context
-	Cancel           context.CancelFunc
-	WG               *sync.WaitGroup
-	Config           *configs.Config
-	Log              logger.Logger
-	DbApp            SQLDriverApp
-	BBR              BlockBuilderRegistryService
-	SB               ServiceBlockchain
-	NS               NetworkService
-	HC               *health.Handler
-	PoW              PoWNonce
-	BlockPostService BlockPostService
+	Context context.Context
+	Cancel  context.CancelFunc
+	WG      *sync.WaitGroup
+	Config  *configs.Config
+	Log     logger.Logger
+	DbApp   SQLDriverApp
+	SB      ServiceBlockchain
+	HC      *health.Handler
 }
 
 func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
@@ -53,21 +48,15 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			s.Log.Debugf("Run Block Builder command\n")
 
-			err := s.BlockPostService.Init(s.Context)
-			if err != nil {
-				const msg = "init the Block Validity Prover error occurred: %v"
-				s.Log.Fatalf(msg, err.Error())
-			}
+			// err := s.BlockPostService.Init(s.Context)
+			// if err != nil {
+			// 	const msg = "init the Block Validity Prover error occurred: %v"
+			// 	s.Log.Fatalf(msg, err.Error())
+			// }
 
-			err = s.SB.CheckScrollPrivateKey(s.Context)
+			err := s.SB.CheckScrollPrivateKey(s.Context)
 			if err != nil {
 				const msg = "check private key error occurred: %v"
-				s.Log.Fatalf(msg, err.Error())
-			}
-
-			err = s.NS.CheckNetwork(s.Context)
-			if err != nil {
-				const msg = "check network error occurred: %v"
 				s.Log.Fatalf(msg, err.Error())
 			}
 
@@ -102,21 +91,74 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 					s.WG.Done()
 				}()
 
-				blockBuilderWallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(s.Config.Wallet.PrivateKeyHex)
+				timeout := 1 * time.Second
+				ticker := time.NewTicker(timeout)
+				blockNumber := uint32(1)
+				for {
+					select {
+					case <-s.Context.Done():
+						ticker.Stop()
+						s.Log.Warnf("Received cancel signal from context, stopping...")
+						return
+					case <-ticker.C:
+						fmt.Printf("===============blockNumber: %d\n", blockNumber)
+						err = blockValidityService.SyncBlockProverWithBlockNumber(blockNumber)
+						fmt.Printf("===============err: %v\n", err)
+						if err != nil {
+							if err.Error() == block_validity_prover.ErrNoValidityProofByBlockNumber.Error() {
+								s.Log.Warnf("no last validity proof")
+								time.Sleep(5 * time.Second)
+
+								continue
+							}
+
+							if err.Error() == "block number is not equal to the last block number + 1" {
+								s.Log.Warnf("block number is not equal to the last block number + 1")
+								time.Sleep(5 * time.Second)
+
+								continue
+							}
+
+							if err.Error() == "block content by block number error" {
+								s.Log.Warnf("block content by block number error")
+								time.Sleep(5 * time.Second)
+
+								continue
+							}
+
+							const msg = "failed to sync block prover: %+v"
+							s.Log.Fatalf(msg, err.Error())
+						}
+
+						fmt.Printf("update blockNumber: %d\n", blockNumber)
+						blockNumber++
+					}
+				}
+			}()
+
+			wg.Add(1)
+			s.WG.Add(1)
+			go func() {
+				defer func() {
+					wg.Done()
+					s.WG.Done()
+				}()
+
+				userWallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(s.Config.Wallet.PrivateKeyHex)
 				if err != nil {
 					const msg = "failed to get Block Builder IntMax Address: %+v"
 					s.Log.Fatalf(msg, err.Error())
 				}
 
-				withdrawalAggregator, err := withdrawal_service.NewWithdrawalAggregatorService(
-					s.Context, s.Config, s.Log, s.DbApp, s.SB,
-				)
-				if err != nil {
-					const msg = "failed to create withdrawal aggregator service: %+v"
-					s.Log.Fatalf(msg, err.Error())
-				}
-				synchronizer := balance_synchronizer.NewSynchronizerDummy(s.Context, s.Config, s.Log, s.SB, s.DbApp)
-				synchronizer.TestE2E(blockValidityService, blockSynchronizer, blockBuilderWallet, withdrawalAggregator)
+				// withdrawalAggregator, err := withdrawal_service.NewWithdrawalAggregatorService(
+				// 	s.Context, s.Config, s.Log, s.DbApp, s.SB,
+				// )
+				// if err != nil {
+				// 	const msg = "failed to create withdrawal aggregator service: %+v"
+				// 	s.Log.Fatalf(msg, err.Error())
+				// }
+				// synchronizer := balance_synchronizer.NewSynchronizerDummy(s.Context, s.Config, s.Log, s.SB, s.DbApp)
+				// synchronizer.TestE2E(blockValidityService, blockSynchronizer, blockBuilderWallet, withdrawalAggregator)
 
 				// balanceProverService := balance_prover_service.NewBalanceProverService(s.Context, s.Config, s.Log, blockBuilderWallet)
 				balanceProcessor := balance_prover_service.NewBalanceProcessor(
@@ -124,14 +166,14 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 				)
 				syncBalanceProver := balanceSynchronizer.NewSyncBalanceProver()
 
-				blockBuilderPrivateKey, err := intMaxAcc.NewPrivateKeyFromString(blockBuilderWallet.IntMaxPrivateKey)
+				userPrivateKey, err := intMaxAcc.NewPrivateKeyFromString(userWallet.IntMaxPrivateKey)
 				if err != nil {
 					const msg = "failed to get IntMax Private Key: %+v"
 					s.Log.Fatalf(msg, err.Error())
 				}
 
 				balanceSynchronizer := balanceSynchronizer.NewSynchronizer(s.Context, s.Config, s.Log, s.SB, s.DbApp)
-				err = balanceSynchronizer.Sync(blockSynchronizer, blockValidityService, balanceProcessor, syncBalanceProver, blockBuilderPrivateKey)
+				err = balanceSynchronizer.Sync(blockSynchronizer, blockValidityService, balanceProcessor, syncBalanceProver, userPrivateKey)
 				if err != nil {
 					const msg = "failed to sync: %+v"
 					s.Log.Fatalf(msg, err.Error())
@@ -208,7 +250,6 @@ func (s *Synchronizer) Init() error {
 		buildtime: buildvars.BuildTime,
 	})
 	s.HC.AddChecker(checkSB, s.SB)
-	s.HC.AddChecker(checkNS, s.NS)
 
 	// run web -> gRPC gateway
 	gw, grpcGwErr := gateway.Run(

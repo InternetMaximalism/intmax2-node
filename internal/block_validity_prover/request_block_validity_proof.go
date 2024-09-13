@@ -57,11 +57,11 @@ func (p *blockValidityProver) requestBlockValidityProof(blockHash common.Hash, v
 	}
 	p.log.Debugf("size of requestBlockValidityProof: %d bytes\n", len(bd))
 
-	// encodedValidityWitness, err := json.Marshal(validityWitness)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to marshal JSON request body: %w", err)
-	// }
-	// p.log.Debugf("encodedValidityWitness: %s\n", encodedValidityWitness)
+	encodedValidityWitness, err := json.Marshal(validityWitness)
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON request body: %w", err)
+	}
+	p.log.Debugf("encodedValidityWitness: %s\n", encodedValidityWitness)
 
 	const (
 		httpKey     = "http"

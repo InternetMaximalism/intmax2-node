@@ -13,7 +13,6 @@ type BlockSynchronizer interface {
 	FetchLatestBlockNumber(ctx context.Context) (uint64, error)
 	FetchNewPostedBlocks(startBlock uint64, endBlock *uint64) ([]*bindings.RollupBlockPosted, *big.Int, error)
 	FetchScrollCalldataByHash(txHash common.Hash) ([]byte, error)
-	RollupContractDeployedBlockNumber() uint64
 	BackupTransaction(
 		sender intMaxAcc.Address,
 		encodedEncryptedTxHash, encodedEncryptedTx string,
