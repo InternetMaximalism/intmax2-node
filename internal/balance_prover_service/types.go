@@ -90,11 +90,22 @@ func (input *PublicStateInput) FromPublicState(value *block_validity_prover.Publ
 	input.BlockTreeRoot = value.BlockTreeRoot
 	input.PrevAccountTreeRoot = value.PrevAccountTreeRoot
 	input.AccountTreeRoot = value.AccountTreeRoot
-	input.DepositTreeRoot = value.DepositTreeRoot.String()
-	input.BlockHash = value.BlockHash.String()
+	input.DepositTreeRoot = value.DepositTreeRoot.Hex()
+	input.BlockHash = value.BlockHash.Hex()
 	input.BlockNumber = value.BlockNumber
 
 	return input
+}
+
+func (input *PublicStateInput) PublicState() *block_validity_prover.PublicState {
+	return &block_validity_prover.PublicState{
+		BlockTreeRoot:       input.BlockTreeRoot,
+		PrevAccountTreeRoot: input.PrevAccountTreeRoot,
+		AccountTreeRoot:     input.AccountTreeRoot,
+		DepositTreeRoot:     common.HexToHash(input.DepositTreeRoot),
+		BlockHash:           common.HexToHash(input.BlockHash),
+		BlockNumber:         input.BlockNumber,
+	}
 }
 
 type ValidityPublicInputsInput struct {
@@ -538,17 +549,19 @@ func (input *TransferWitnessInput) FromTransferWitness(value *intMaxTypes.Transf
 }
 
 type ReceiveTransferWitness struct {
-	TransferWitness  *intMaxTypes.TransferWitness     `json:"transferWitness"`
-	PrivateWitness   *PrivateWitness                  `json:"privateWitness"`
-	BalanceProof     string                           `json:"balanceProof"`
-	BlockMerkleProof *intMaxTree.BlockHashMerkleProof `json:"blockMerkleProof"`
+	TransferWitness        *intMaxTypes.TransferWitness     `json:"transferWitness"`
+	PrivateWitness         *PrivateWitness                  `json:"privateWitness"`
+	LastBalanceProof       string                           `json:"lastBalanceProof"`
+	BalanceTransitionProof string                           `json:"balanceTransitionProof"`
+	BlockMerkleProof       *intMaxTree.BlockHashMerkleProof `json:"blockMerkleProof"`
 }
 
 type ReceiveTransferWitnessInput struct {
-	TransferWitness  *TransferWitnessInput `json:"transferWitness"`
-	PrivateWitness   *PrivateWitnessInput  `json:"privateWitness"`
-	BalanceProof     string                `json:"balanceProof"`
-	BlockMerkleProof MerkleProofInput      `json:"blockMerkleProof"`
+	TransferWitness        *TransferWitnessInput `json:"transferWitness"`
+	PrivateWitness         *PrivateWitnessInput  `json:"privateWitness"`
+	LastBalanceProof       string                `json:"lastBalanceProof"`
+	BalanceTransitionProof string                `json:"balanceTransitionProof"`
+	BlockMerkleProof       MerkleProofInput      `json:"blockMerkleProof"`
 }
 
 func (input *ReceiveTransferWitnessInput) FromReceiveTransferWitness(value *ReceiveTransferWitness) *ReceiveTransferWitnessInput {
@@ -558,7 +571,8 @@ func (input *ReceiveTransferWitnessInput) FromReceiveTransferWitness(value *Rece
 	}
 	input.TransferWitness = new(TransferWitnessInput).FromTransferWitness(value.TransferWitness)
 	input.PrivateWitness = new(PrivateWitnessInput).FromPrivateWitness(value.PrivateWitness)
-	input.BalanceProof = value.BalanceProof
+	input.LastBalanceProof = value.LastBalanceProof
+	input.BalanceTransitionProof = value.BalanceTransitionProof
 	input.BlockMerkleProof = make([]string, len(value.BlockMerkleProof.Siblings))
 	for i, sibling := range value.BlockMerkleProof.Siblings {
 		input.BlockMerkleProof[i] = sibling.String()
@@ -665,20 +679,20 @@ func NewWithPublicKey(publicKey *intMaxAcc.PublicKey) *BalancePublicInputs {
 	return pis
 }
 
+const (
+	numHashOutElts                = intMaxGP.NUM_HASH_OUT_ELTS
+	publicKeyOffset               = 0
+	privateCommitmentOffset       = publicKeyOffset + int8Key
+	lastTxHashOffset              = privateCommitmentOffset + numHashOutElts
+	lastTxInsufficientFlagsOffset = lastTxHashOffset + numHashOutElts
+	publicStateOffset             = lastTxInsufficientFlagsOffset + backup_balance.InsufficientFlagsLen
+	sizeOfBalancePublicInputs     = publicStateOffset + block_validity_prover.PublicStateLimbSize
+)
+
 func (s *BalancePublicInputs) FromPublicInputs(publicInputs []ffg.Element) (*BalancePublicInputs, error) {
 	if len(publicInputs) < balancePublicInputsLen {
 		return nil, errors.New("invalid length")
 	}
-
-	const (
-		numHashOutElts                = intMaxGP.NUM_HASH_OUT_ELTS
-		publicKeyOffset               = 0
-		privateCommitmentOffset       = publicKeyOffset + int8Key
-		lastTxHashOffset              = privateCommitmentOffset + numHashOutElts
-		lastTxInsufficientFlagsOffset = lastTxHashOffset + numHashOutElts
-		publicStateOffset             = lastTxInsufficientFlagsOffset + backup_balance.InsufficientFlagsLen
-		end                           = publicStateOffset + block_validity_prover.PublicStateLimbSize
-	)
 
 	address := new(intMaxTypes.Uint256).FromFieldElementSlice(publicInputs[0:int8Key])
 	publicKey, err := new(intMaxAcc.PublicKey).SetBigInt(address.BigInt())
@@ -705,7 +719,7 @@ func (s *BalancePublicInputs) FromPublicInputs(publicInputs []ffg.Element) (*Bal
 		publicInputs[lastTxInsufficientFlagsOffset:publicStateOffset],
 	)
 	publicState := new(block_validity_prover.PublicState).FromFieldElementSlice(
-		publicInputs[publicStateOffset:end],
+		publicInputs[publicStateOffset:sizeOfBalancePublicInputs],
 	)
 
 	return &BalancePublicInputs{

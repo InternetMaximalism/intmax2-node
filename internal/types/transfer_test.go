@@ -3,6 +3,7 @@ package types_test
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/hash/goldenposeidon"
 	intMaxTypes "intmax2-node/internal/types"
@@ -81,9 +82,10 @@ func TestTransferDetails(t *testing.T) {
 				TransferTreeRoot: new(goldenposeidon.PoseidonHashOut).SetZero(),
 			},
 		},
-		TxTreeRoot:                new(goldenposeidon.PoseidonHashOut).SetZero(),
-		TxMerkleProof:             make([]*goldenposeidon.PoseidonHashOut, 7),
-		SenderBalancePublicInputs: []byte{},
+		TxTreeRoot:                          new(goldenposeidon.PoseidonHashOut).SetZero(),
+		TxMerkleProof:                       make([]*goldenposeidon.PoseidonHashOut, 7),
+		SenderLastBalancePublicInputs:       []byte{1, 2, 3, 4, 5, 6, 7, 8},
+		SenderBalanceTransitionPublicInputs: []byte{10, 20, 30, 40, 50, 60, 70, 80},
 	}
 	for i := 0; i < 6; i++ {
 		transferDetails.TransferWitness.TransferMerkleProof[i] = new(goldenposeidon.PoseidonHashOut).SetZero()
@@ -101,6 +103,7 @@ func TestTransferDetails(t *testing.T) {
 	err = decodedTransferDetails.Unmarshal(encodedTransferDetails)
 	require.NoError(t, err)
 
+	fmt.Printf("decodedTransferDetails: %+v\n", decodedTransferDetails)
 	require.True(t, transferDetails.Equal(decodedTransferDetails))
 }
 

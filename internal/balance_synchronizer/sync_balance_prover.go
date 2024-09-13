@@ -18,6 +18,7 @@ import (
 type SyncBalanceProver struct {
 	LastUpdatedBlockNumber uint32
 	LastBalanceProof       *string
+	LastSenderProof        *string
 }
 
 // type SyncBalanceProverInterface interface {
@@ -56,6 +57,7 @@ func NewSyncBalanceProver() *SyncBalanceProver {
 	return &SyncBalanceProver{
 		LastUpdatedBlockNumber: 0,
 		LastBalanceProof:       nil,
+		LastSenderProof:        nil,
 	}
 }
 
@@ -81,7 +83,7 @@ func (s *SyncBalanceProver) SyncSend(
 	log logger.Logger,
 	blockValidityService block_validity_prover.BlockValidityService,
 	blockSynchronizer block_validity_prover.BlockSynchronizer,
-	wallet *MockWallet,
+	wallet UserState,
 	balanceProcessor balance_prover_service.BalanceProcessor,
 ) error {
 	fmt.Println("-----SyncSend------")
@@ -193,7 +195,7 @@ func (s *SyncBalanceProver) SyncNoSend(
 	log logger.Logger,
 	blockValidityService block_validity_prover.BlockValidityService,
 	blockSynchronizer block_validity_prover.BlockSynchronizer,
-	wallet *MockWallet,
+	wallet UserState,
 	balanceProcessor balance_prover_service.BalanceProcessor,
 ) error {
 	fmt.Println("-----SyncNoSend------")
@@ -312,7 +314,7 @@ func (s *SyncBalanceProver) SyncAll(
 	log logger.Logger,
 	blockValidityService block_validity_prover.BlockValidityService,
 	blockSynchronizer block_validity_prover.BlockSynchronizer,
-	wallet *MockWallet,
+	wallet UserState,
 	balanceProcessor balance_prover_service.BalanceProcessor,
 ) (err error) {
 	fmt.Printf("LatestWitnessNumber before SyncSend: %d\n", blockValidityService.LatestIntMaxBlockNumber())
@@ -330,7 +332,7 @@ func (s *SyncBalanceProver) SyncAll(
 }
 
 func (s *SyncBalanceProver) ReceiveDeposit(
-	wallet *MockWallet,
+	wallet UserState,
 	balanceProcessor balance_prover_service.BalanceProcessor,
 	// blockBuilder MockBlockBuilder,
 	blockValidityService block_validity_prover.BlockValidityService,
@@ -357,19 +359,21 @@ func (s *SyncBalanceProver) ReceiveDeposit(
 }
 
 func (s *SyncBalanceProver) ReceiveTransfer(
-	wallet *MockWallet,
+	wallet UserState,
 	balanceProcessor balance_prover_service.BalanceProcessor,
 	// blockBuilder MockBlockBuilder,
 	blockValidityService block_validity_prover.BlockValidityService,
 	transferWitness *intMaxTypes.TransferWitness,
-	senderBalanceProof string,
+	senderLastBalanceProof string,
+	senderBalanceTransitionProof string,
 ) error {
 	fmt.Printf("ReceiveTransfer s.LastUpdatedBlockNumber: %d\n", s.LastUpdatedBlockNumber)
 	receiveTransferWitness, err := wallet.ReceiveTransferAndUpdate(
 		blockValidityService,
 		s.LastUpdatedBlockNumber,
 		transferWitness,
-		senderBalanceProof,
+		senderLastBalanceProof,
+		senderBalanceTransitionProof,
 	)
 	if err != nil {
 		return err
@@ -429,7 +433,7 @@ func SyncLocally(
 	balanceProcessor balance_prover_service.BalanceProcessor,
 	intMaxPrivateKey *intMaxAcc.PrivateKey,
 ) error {
-	mockWallet, err := NewMockWallet(intMaxPrivateKey)
+	userWalletState, err := NewMockWallet(intMaxPrivateKey)
 	if err != nil {
 		const msg = "failed to get Mock Wallet: %+v"
 		return fmt.Errorf(msg, err.Error())
@@ -475,7 +479,7 @@ func SyncLocally(
 
 			// err = balanceProverService.SyncBalanceProver.SyncNoSend(
 			// 	syncValidityProver,
-			// 	mockWallet,
+			// 	userWalletState,
 			// 	balanceProverService.BalanceProcessor,
 			// )
 			// if err != nil {
@@ -496,7 +500,7 @@ func SyncLocally(
 						blockSynchronizer,
 						balanceProcessor,
 						syncBalanceProver,
-						mockWallet,
+						userWalletState,
 					)
 					if err != nil {
 						const msg = "failed to send transaction: %+v"
@@ -511,7 +515,7 @@ func SyncLocally(
 						log,
 						blockValidityService,
 						blockSynchronizer,
-						mockWallet,
+						userWalletState,
 						balanceProcessor,
 					)
 					if err != nil {
@@ -524,7 +528,7 @@ func SyncLocally(
 						blockValidityService,
 						balanceProcessor,
 						syncBalanceProver,
-						mockWallet,
+						userWalletState,
 					)
 					if err != nil {
 						const msg = "failed to receive deposit: %+v"
@@ -539,7 +543,7 @@ func SyncLocally(
 						log,
 						blockValidityService,
 						blockSynchronizer,
-						mockWallet,
+						userWalletState,
 						balanceProcessor,
 					)
 					if err != nil {
@@ -552,7 +556,7 @@ func SyncLocally(
 						blockValidityService,
 						balanceProcessor,
 						syncBalanceProver,
-						mockWallet,
+						userWalletState,
 					)
 					if err != nil {
 						const msg = "failed to receive transfer: %+v"

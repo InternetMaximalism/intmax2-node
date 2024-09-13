@@ -189,7 +189,8 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 		s.log.Fatalf("ETH balance 2")
 	}
 
-	aliceBalanceProof := *aliceProver.LastBalanceProof
+	aliceLastBalanceProof := *aliceProver.LastBalanceProof
+	aliceSenderTransitionProof := *aliceProver.LastSenderProof
 
 	// sync bob wallet to the latest block
 
@@ -201,7 +202,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 
 	// receive transfer and update bob balance proof
 	fmt.Printf("-----------------ReceiveTransfer----------------------")
-	err = bobProver.ReceiveTransfer(bobWallet, balanceProcessor, blockValidityProver, transferWitness, aliceBalanceProof)
+	err = bobProver.ReceiveTransfer(bobWallet, balanceProcessor, blockValidityProver, transferWitness, aliceLastBalanceProof, aliceSenderTransitionProof)
 	if err != nil {
 		s.log.Fatalf("failed to receive transfer: %+v", err)
 	}
@@ -350,7 +351,7 @@ func (p *WithdrawalProcessor) Prove(withdrawalWitness *withdrawal_service.Withdr
 	return withdrawalWrapperProof, nil
 }
 
-func GetAssetBalance(wallet *MockWallet, tokenIndex uint32) *big.Int {
+func GetAssetBalance(wallet *mockWallet, tokenIndex uint32) *big.Int {
 	privateState := wallet.PrivateState()
 	if !privateState.AssetTreeRoot.Equal(wallet.assetTree.GetRoot()) {
 		fmt.Printf("assetTree (wallet): %v\n", wallet.assetTree.GetRoot())

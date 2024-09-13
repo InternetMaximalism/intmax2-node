@@ -50,7 +50,7 @@ func (s *balanceSynchronizer) Sync(
 	syncBalanceProver *SyncBalanceProver,
 	intMaxPrivateKey *intMaxAcc.PrivateKey,
 ) error {
-	mockWallet, err := NewMockWallet(intMaxPrivateKey)
+	userWalletState, err := NewMockWallet(intMaxPrivateKey)
 	if err != nil {
 		const msg = "failed to get Mock Wallet: %+v"
 		s.log.Fatalf(msg, err.Error())
@@ -99,7 +99,7 @@ func (s *balanceSynchronizer) Sync(
 
 			// err = balanceProverService.SyncBalanceProver.SyncNoSend(
 			// 	syncValidityProver,
-			// 	mockWallet,
+			// 	userWalletState,
 			// 	balanceProverService.BalanceProcessor,
 			// )
 			// if err != nil {
@@ -120,7 +120,7 @@ func (s *balanceSynchronizer) Sync(
 						blockSynchronizer,
 						balanceProcessor,
 						syncBalanceProver,
-						mockWallet,
+						userWalletState,
 					)
 
 					if err != nil {
@@ -136,7 +136,7 @@ func (s *balanceSynchronizer) Sync(
 						s.log,
 						blockValidityService,
 						blockSynchronizer,
-						mockWallet,
+						userWalletState,
 						balanceProcessor,
 					)
 					if err != nil {
@@ -149,7 +149,7 @@ func (s *balanceSynchronizer) Sync(
 						blockValidityService,
 						balanceProcessor,
 						syncBalanceProver,
-						mockWallet,
+						userWalletState,
 					)
 					if err != nil {
 						const msg = "failed to receive deposit: %+v"
@@ -164,7 +164,7 @@ func (s *balanceSynchronizer) Sync(
 						s.log,
 						blockValidityService,
 						blockSynchronizer,
-						mockWallet,
+						userWalletState,
 						balanceProcessor,
 					)
 					if err != nil {
@@ -177,7 +177,7 @@ func (s *balanceSynchronizer) Sync(
 						blockValidityService,
 						balanceProcessor,
 						syncBalanceProver,
-						mockWallet,
+						userWalletState,
 					)
 					if err != nil {
 						const msg = "failed to receive transfer: %+v"
@@ -199,13 +199,13 @@ func applyReceivedDepositTransition(
 	blockValidityService block_validity_prover.BlockValidityService,
 	balanceProcessor balance_prover_service.BalanceProcessor,
 	syncBalanceProver *SyncBalanceProver,
-	mockWallet *MockWallet,
+	userState UserState,
 ) error {
 	if deposit == nil {
 		return errors.New("deposit is not found")
 	}
 
-	fmt.Printf("deposit ID: %d\n", deposit.DepositID)
+	fmt.Printf("applyReceivedDepositTransition deposit ID: %d\n", deposit.DepositID)
 	_, depositIndex, err := blockValidityService.GetDepositLeafAndIndexByHash(deposit.DepositHash)
 	if err != nil {
 		const msg = "failed to get Deposit Leaf and Index by Hash: %+v"
@@ -238,10 +238,10 @@ func applyReceivedDepositTransition(
 		DepositID:    deposit.DepositID,
 		DepositSalt:  *deposit.Salt,
 	}
-	mockWallet.AddDepositCase(*depositIndex, &depositCase)
+	userState.AddDepositCase(*depositIndex, &depositCase)
 	fmt.Printf("start to prove deposit\n")
 	err = syncBalanceProver.ReceiveDeposit(
-		mockWallet,
+		userState,
 		balanceProcessor,
 		blockValidityService,
 		*depositIndex,
@@ -263,40 +263,52 @@ func applyReceivedTransferTransition(
 	blockValidityService block_validity_prover.BlockValidityService,
 	balanceProcessor balance_prover_service.BalanceProcessor,
 	syncBalanceProver *SyncBalanceProver,
-	mockWallet *MockWallet,
+	userState UserState,
 ) error {
 	fmt.Printf("transfer hash: %d\n", transfer.TransferDetails.TransferWitness.Transfer.Hash())
 
-	senderBalanceProofBody, err := base64.StdEncoding.DecodeString(transfer.SenderBalanceProofBody)
+	senderLastBalanceProofBody, err := base64.StdEncoding.DecodeString(transfer.SenderLastBalanceProofBody)
 	if err != nil {
 		var ErrDecodeSenderBalanceProofBody = errors.New("failed to decode sender balance proof body")
 		return errors.Join(ErrDecodeSenderBalanceProofBody, err)
 	}
 
-	reader := bufio.NewReader(bytes.NewReader(transfer.TransferDetails.SenderBalancePublicInputs))
-	senderBalancePublicInputs, err := intMaxTypes.DecodePublicInputs(reader, uint32(len(transfer.TransferDetails.SenderBalancePublicInputs))/int8Key)
+	reader := bufio.NewReader(bytes.NewReader(transfer.TransferDetails.SenderLastBalancePublicInputs))
+	senderLastBalancePublicInputs, err := intMaxTypes.DecodePublicInputs(reader, uint32(len(transfer.TransferDetails.SenderLastBalancePublicInputs))/int8Key)
 	if err != nil {
 		var ErrDecodeSenderBalancePublicInputs = errors.New("failed to decode sender balance public inputs")
 		return errors.Join(ErrDecodeSenderBalancePublicInputs, err)
 	}
 
-	senderBalanceProof := intMaxTypes.Plonky2Proof{
-		Proof:        senderBalanceProofBody,
-		PublicInputs: senderBalancePublicInputs,
+	senderLastBalanceProof := intMaxTypes.Plonky2Proof{
+		Proof:        senderLastBalanceProofBody,
+		PublicInputs: senderLastBalancePublicInputs,
 	}
 
-	encodedSenderBalanceProof, err := senderBalanceProof.Base64String()
+	encodedSenderLastBalanceProof, err := senderLastBalanceProof.Base64String()
 	if err != nil {
 		var ErrEncodeSenderBalanceProof = errors.New("failed to encode sender balance proof")
 		return errors.Join(ErrEncodeSenderBalanceProof, err)
 	}
 
+	senderBalanceTransitionProof := intMaxTypes.Plonky2Proof{
+		Proof:        senderLastBalanceProofBody,
+		PublicInputs: senderLastBalancePublicInputs,
+	}
+
+	encodedSenderBalanceTransitionProof, err := senderBalanceTransitionProof.Base64String()
+	if err != nil {
+		var ErrEncodeSenderBalanceTransitionProof = errors.New("failed to encode sender balance transition proof")
+		return errors.Join(ErrEncodeSenderBalanceTransitionProof, err)
+	}
+
 	syncBalanceProver.ReceiveTransfer(
-		mockWallet,
+		userState,
 		balanceProcessor,
 		blockValidityService,
 		transfer.TransferDetails.TransferWitness,
-		encodedSenderBalanceProof,
+		encodedSenderLastBalanceProof,
+		encodedSenderBalanceTransitionProof,
 	)
 
 	return nil
@@ -309,7 +321,7 @@ func applySentTransactionTransition(
 	blockSynchronizer block_validity_prover.BlockSynchronizer,
 	balanceProcessor balance_prover_service.BalanceProcessor,
 	syncBalanceProver *SyncBalanceProver,
-	mockWallet *MockWallet,
+	userState UserState,
 	// syncValidityProver *syncValidityProver, // XXX
 ) error {
 	// syncValidityProver.Sync() // sync validity proofs
@@ -319,7 +331,7 @@ func applySentTransactionTransition(
 	transfers := tx.Transfers
 
 	// balanceProverService.SyncBalanceProver
-	txWitness, transferWitnesses, err := mockWallet.SendTx(blockValidityService, transfers)
+	txWitness, transferWitnesses, err := userState.SendTx(blockValidityService, transfers)
 	if err != nil {
 		const msg = "failed to send transaction: %+v"
 		return fmt.Errorf(msg, err.Error())
@@ -330,7 +342,7 @@ func applySentTransactionTransition(
 		return fmt.Errorf(msg, err.Error())
 	}
 
-	_, err = mockWallet.UpdateOnSendTx(*newSalt, txWitness, transferWitnesses)
+	_, err = userState.UpdateOnSendTx(*newSalt, txWitness, transferWitnesses)
 	if err != nil {
 		const msg = "failed to update on SendTx: %+v"
 		return fmt.Errorf(msg, err.Error())
@@ -340,7 +352,7 @@ func applySentTransactionTransition(
 		log,
 		blockValidityService,
 		blockSynchronizer,
-		mockWallet,
+		userState,
 		balanceProcessor,
 	)
 	if err != nil {

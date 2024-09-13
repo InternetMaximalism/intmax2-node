@@ -21,6 +21,11 @@ const timeoutForFetchingBalanceValidityProof = 3 * time.Second
 
 var ErrBalanceProofNotGenerated = errors.New("balance proof is not generated")
 
+type SenderProofWithPublicInputs struct {
+	Proof        string
+	PublicInputs *SenderPublicInputs
+}
+
 type BalanceProofWithPublicInputs struct {
 	Proof        string
 	PublicInputs *BalancePublicInputs
@@ -35,6 +40,7 @@ type balanceProcessor struct {
 type BalanceProcessor interface {
 	ProveReceiveDeposit(publicKey *intMaxAcc.PublicKey, receiveDepositWitness *ReceiveDepositWitness, lastBalanceProof *string) (*BalanceProofWithPublicInputs, error)
 	ProveReceiveTransfer(publicKey *intMaxAcc.PublicKey, receiveTransferWitness *ReceiveTransferWitness, lastBalanceProof *string) (*BalanceProofWithPublicInputs, error)
+	ProveSendTransition(publicKey *intMaxAcc.PublicKey, sendWitness *SendWitness, updateWitness *block_validity_prover.UpdateWitness, lastBalanceProof *string) (*SenderProofWithPublicInputs, error)
 	ProveSend(publicKey *intMaxAcc.PublicKey, sendWitness *SendWitness, updateWitness *block_validity_prover.UpdateWitness, lastBalanceProof *string) (*BalanceProofWithPublicInputs, error)
 	ProveUpdate(publicKey *intMaxAcc.PublicKey, updateWitness *block_validity_prover.UpdateWitness, lastBalanceProof *string) (*BalanceProofWithPublicInputs, error)
 }
@@ -157,6 +163,52 @@ func (s *balanceProcessor) ProveReceiveDeposit(
 			return &BalanceProofWithPublicInputs{
 				Proof:        *proof.Proof,
 				PublicInputs: balancePublicInputs,
+			}, nil
+		}
+	}
+}
+
+func (s *balanceProcessor) ProveSendTransition(
+	publicKey *intMaxAcc.PublicKey,
+	sendWitness *SendWitness,
+	updateWitness *block_validity_prover.UpdateWitness,
+	lastBalanceProof *string,
+) (*SenderProofWithPublicInputs, error) {
+	s.log.Debugf("ProveSend\n")
+	s.log.Debugf("publicKey: %v\n", publicKey)
+	requestID, err := s.requestSendBalanceValidityProof(publicKey, sendWitness, updateWitness, lastBalanceProof)
+	if err != nil {
+		return nil, err
+	}
+
+	ticker := time.NewTicker(timeoutForFetchingBalanceValidityProof)
+	for {
+		select {
+		case <-s.ctx.Done():
+			return nil, s.ctx.Err()
+		case <-ticker.C:
+			proof, err := s.fetchSendBalanceValidityProof(publicKey, requestID)
+			if err != nil {
+				if errors.Is(err, ErrBalanceProofNotGenerated) {
+					continue
+				}
+
+				return nil, err
+			}
+
+			senderProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*proof.Proof)
+			if err != nil {
+				return nil, err
+			}
+
+			senderPublicInputs, err := new(SenderPublicInputs).FromPublicInputs(senderProofWithPis.PublicInputs)
+			if err != nil {
+				return nil, err
+			}
+
+			return &SenderProofWithPublicInputs{
+				Proof:        *proof.Proof,
+				PublicInputs: senderPublicInputs,
 			}, nil
 		}
 	}
@@ -608,7 +660,7 @@ func (p *balanceProcessor) requestReceiveTransferBalanceValidityProof(
 		return "", fmt.Errorf("failed to send the balance proof request for ReceiveTransferWitness: %s", response.Message)
 	}
 
-	balanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(receiveTransferWitness.BalanceProof)
+	balanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(receiveTransferWitness.LastBalanceProof)
 	if err != nil {
 		return "", err
 	}

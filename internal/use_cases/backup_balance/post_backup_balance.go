@@ -36,6 +36,16 @@ type InsufficientFlags struct {
 	Limbs [InsufficientFlagsLen]uint32
 }
 
+func (flags *InsufficientFlags) Equal(other *InsufficientFlags) bool {
+	for i, limb := range flags.Limbs {
+		if limb != other.Limbs[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (flags *InsufficientFlags) FromFieldElementSlice(value []ffg.Element) *InsufficientFlags {
 	for i, x := range value {
 		y := x.ToUint64Regular()

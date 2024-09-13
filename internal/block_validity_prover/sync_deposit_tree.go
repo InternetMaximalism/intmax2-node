@@ -185,6 +185,15 @@ func (p *blockValidityProver) SyncDepositedEvents() error {
 			}
 		}
 
+		latestBlockNumber, err := p.ethClient.BlockNumber(p.ctx)
+		if err != nil {
+			panic(fmt.Sprintf("Failed to get latest block number: %v", err.Error()))
+		}
+		if event.LastProcessedBlockNumber >= latestBlockNumber {
+			p.log.Debugf("No new Scroll block found\n")
+			return nil
+		}
+
 		var events []*bindings.LiquidityDeposited
 		events, _, _, err =
 			p.fetchNewDeposits(event.LastProcessedBlockNumber)

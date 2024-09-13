@@ -159,6 +159,19 @@ func NewCompressedPlonky2ProofFromBase64String(proof string) (*Plonky2Proof, err
 	}, nil
 }
 
+func (p *Plonky2Proof) PublicInputsBytes() []byte {
+	buf := new(bytes.Buffer)
+	for _, v := range p.PublicInputs {
+		binary.Write(buf, binary.LittleEndian, v.ToUint64Regular())
+	}
+
+	return buf.Bytes()
+}
+
+func (p *Plonky2Proof) ProofBase64String() string {
+	return base64.StdEncoding.EncodeToString(p.Proof)
+}
+
 func MakeSamplePlonky2Proof() (*Plonky2Proof, error) {
 	proofBin, err := os.ReadFile("../../pkg/data/balance_proof.bin")
 	if err != nil {

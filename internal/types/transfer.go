@@ -487,10 +487,11 @@ func (t *TransferWitness) Unmarshal(data []byte) error {
 }
 
 type TransferDetails struct {
-	TransferWitness           *TransferWitness
-	TxTreeRoot                *PoseidonHashOut
-	TxMerkleProof             []*PoseidonHashOut
-	SenderBalancePublicInputs []byte
+	TransferWitness                     *TransferWitness
+	TxTreeRoot                          *PoseidonHashOut
+	TxMerkleProof                       []*PoseidonHashOut
+	SenderLastBalancePublicInputs       []byte
+	SenderBalanceTransitionPublicInputs []byte
 }
 
 func (t *TransferDetails) Equal(other *TransferDetails) bool {
@@ -516,7 +517,15 @@ func (t *TransferDetails) Equal(other *TransferDetails) bool {
 		}
 	}
 
-	return bytes.Equal(t.SenderBalancePublicInputs, other.SenderBalancePublicInputs)
+	if !bytes.Equal(t.SenderLastBalancePublicInputs, other.SenderLastBalancePublicInputs) {
+		return false
+	}
+
+	if !bytes.Equal(t.SenderBalanceTransitionPublicInputs, other.SenderBalanceTransitionPublicInputs) {
+		return false
+	}
+
+	return true
 }
 
 func (t *TransferDetails) Marshal() []byte {
@@ -540,8 +549,17 @@ func (t *TransferDetails) Marshal() []byte {
 		}
 	}
 
-	_, err := buf.Write(t.SenderBalancePublicInputs)
-	if err != nil {
+	if err := binary.Write(buf, binary.BigEndian, uint32(len(t.SenderLastBalancePublicInputs))); err != nil {
+		panic(err)
+	}
+	if _, err := buf.Write(t.SenderLastBalancePublicInputs); err != nil {
+		panic(err)
+	}
+
+	if err := binary.Write(buf, binary.BigEndian, uint32(len(t.SenderBalanceTransitionPublicInputs))); err != nil {
+		panic(err)
+	}
+	if _, err := buf.Write(t.SenderBalanceTransitionPublicInputs); err != nil {
 		panic(err)
 	}
 
@@ -583,6 +601,26 @@ func (t *TransferDetails) Read(buf *bytes.Buffer) error {
 		}
 	}
 
+	senderLastBalancePublicInputsLenBytes := make([]byte, int4Key)
+	if _, err := buf.Read(senderLastBalancePublicInputsLenBytes); err != nil {
+		return err
+	}
+	senderLastBalancePublicInputsLen := binary.BigEndian.Uint32(senderLastBalancePublicInputsLenBytes)
+	t.SenderLastBalancePublicInputs = make([]byte, senderLastBalancePublicInputsLen)
+	if _, err := buf.Read(t.SenderLastBalancePublicInputs); err != nil {
+		return err
+	}
+
+	senderBalanceTransitionPublicInputsLenBytes := make([]byte, int4Key)
+	if _, err := buf.Read(senderBalanceTransitionPublicInputsLenBytes); err != nil {
+		return err
+	}
+	senderBalanceTransitionPublicInputsLen := binary.BigEndian.Uint32(senderBalanceTransitionPublicInputsLenBytes)
+	t.SenderBalanceTransitionPublicInputs = make([]byte, senderBalanceTransitionPublicInputsLen)
+	if _, err := buf.Read(t.SenderBalanceTransitionPublicInputs); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -593,6 +631,7 @@ func (t *TransferDetails) Unmarshal(data []byte) error {
 }
 
 type TransferDetailsWithProofBody struct {
-	TransferDetails        *TransferDetails
-	SenderBalanceProofBody string
+	TransferDetails                  *TransferDetails
+	SenderLastBalanceProofBody       string
+	SenderBalanceTransitionProofBody string
 }

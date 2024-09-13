@@ -17,11 +17,12 @@ type BackupDeposit struct {
 }
 
 type BackupTransfer struct {
-	EncryptedTransfer      string `json:"encryptedTransfer,omitempty"`
-	Recipient              string `json:"recipient,omitempty"`
-	BlockNumber            string `json:"blockNumber,omitempty"`
-	SenderBalanceProofBody string `json:"balanceProofBody,omitempty"`
-	CreatedAt              string `json:"createdAt,omitempty"`
+	EncryptedTransfer                string `json:"encryptedTransfer,omitempty"`
+	Recipient                        string `json:"recipient,omitempty"`
+	BlockNumber                      string `json:"blockNumber,omitempty"`
+	SenderLastBalanceProofBody       string `json:"senderLastBalanceProofBody,omitempty"`
+	SenderBalanceTransitionProofBody string `json:"senderBalanceTransitionProofBody,omitempty"`
+	CreatedAt                        string `json:"createdAt,omitempty"`
 }
 
 type BackupTransaction struct {

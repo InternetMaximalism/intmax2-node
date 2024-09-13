@@ -19,6 +19,7 @@ import (
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/iden3/go-iden3-crypto/ffg"
 )
 
 type DepositDetails struct {
@@ -165,8 +166,9 @@ func DecodeBackupData(
 		}
 
 		transferWithProofBody := intMaxTypes.TransferDetailsWithProofBody{
-			TransferDetails:        &decodedTransfer,
-			SenderBalanceProofBody: transfer.SenderBalanceProofBody,
+			TransferDetails:                  &decodedTransfer,
+			SenderLastBalanceProofBody:       transfer.SenderLastBalanceProofBody,
+			SenderBalanceTransitionProofBody: transfer.SenderBalanceTransitionProofBody,
 		}
 
 		receivedTransfers = append(receivedTransfers, &transferWithProofBody)
@@ -403,4 +405,153 @@ func ExtractValidReceivedTransfers(
 	}
 
 	return receivedBlockNumbers, invalidTransferHashes, nil
+}
+
+// pub fn new(
+// 	config: &CircuitConfig,
+// 	circuit_type: BalanceTransitionType,
+// 	receive_transfer_circuit: &ReceiveTransferCircuit<F, C, D>,
+// 	receive_deposit_circuit: &ReceiveDepositCircuit<F, C, D>,
+// 	update_circuit: &UpdateCircuit<F, C, D>,
+// 	sender_circuit: &SenderCircuit<F, C, D>,
+// 	receive_transfer_proof: Option<ProofWithPublicInputs<F, C, D>>,
+// 	receive_deposit_proof: Option<ProofWithPublicInputs<F, C, D>>,
+// 	update_proof: Option<ProofWithPublicInputs<F, C, D>>,
+// 	sender_proof: Option<ProofWithPublicInputs<F, C, D>>,
+// 	prev_balance_pis: BalancePublicInputs,
+// 	balance_circuit_vd: VerifierOnlyCircuitData<C, D>,
+// ) -> Self {
+// 	let mut circuit_flags = [false; 4];
+// 	circuit_flags[circuit_type as usize] = true;
+
+// 	let new_balance_pis = match circuit_type {
+// 		BalanceTransitionType::ReceiveTransfer => {
+// 			let receive_transfer_proof = receive_transfer_proof
+// 				.clone()
+// 				.expect("receive_transfer_proof is None");
+// 			receive_transfer_circuit
+// 				.data
+// 				.verify(receive_transfer_proof.clone())
+// 				.expect("receive_transfer_proof is invalid");
+// 			let pis = ReceiveTransferPublicInputs::<F, C, D>::from_slice(
+// 				config,
+// 				&receive_transfer_proof.public_inputs,
+// 			);
+// 			assert_eq!(
+// 				pis.balance_circuit_vd, balance_circuit_vd,
+// 				"balance_circuit_vd mismatch in receive_transfer_proof"
+// 			);
+// 			assert_eq!(
+// 				pis.prev_private_commitment,
+// 				prev_balance_pis.private_commitment,
+// 			);
+// 			assert_eq!(pis.pubkey, prev_balance_pis.pubkey);
+// 			assert_eq!(pis.public_state, prev_balance_pis.public_state);
+// 			BalancePublicInputs {
+// 				pubkey: pis.pubkey,
+// 				private_commitment: pis.new_private_commitment,
+// 				..prev_balance_pis.clone()
+// 			}
+// 		}
+// 		BalanceTransitionType::ReceiveDeposit => {
+// 			let receive_deposit_proof = receive_deposit_proof
+// 				.clone()
+// 				.expect("receive_deposit_proof is None");
+// 			receive_deposit_circuit
+// 				.data
+// 				.verify(receive_deposit_proof.clone())
+// 				.expect("receive_deposit_proof is invalid");
+// 			let pis = ReceiveDepositPublicInputs::from_u64_slice(
+// 				&receive_deposit_proof
+// 					.public_inputs
+// 					.iter()
+// 					.map(|x| x.to_canonical_u64())
+// 					.collect::<Vec<_>>(),
+// 			);
+// 			assert_eq!(
+// 				pis.prev_private_commitment,
+// 				prev_balance_pis.private_commitment,
+// 			);
+// 			assert_eq!(pis.pubkey, prev_balance_pis.pubkey);
+// 			assert_eq!(pis.public_state, prev_balance_pis.public_state);
+// 			BalancePublicInputs {
+// 				pubkey: pis.pubkey,
+// 				private_commitment: pis.new_private_commitment,
+// 				..prev_balance_pis.clone()
+// 			}
+// 		}
+// 		BalanceTransitionType::Update => {
+// 			let update_proof = update_proof.clone().expect("update_proof is None");
+// 			update_circuit
+// 				.data
+// 				.verify(update_proof.clone())
+// 				.expect("update_proof is invalid");
+// 			let pis =
+// 				UpdatePublicInputs::from_u64_slice(&update_proof.public_inputs.to_u64_vec());
+// 			assert_eq!(pis.prev_public_state, prev_balance_pis.public_state);
+// 			BalancePublicInputs {
+// 				public_state: pis.new_public_state,
+// 				..prev_balance_pis
+// 			}
+// 		}
+// 		BalanceTransitionType::Sender => {
+// 			let sender_proof = sender_proof.clone().expect("sender_proof is None");
+// 			sender_circuit
+// 				.data
+// 				.verify(sender_proof.clone())
+// 				.expect("sender_proof is invalid");
+// 			let pis = SenderPublicInputs::from_u64_slice(
+// 				&sender_proof
+// 					.public_inputs
+// 					.iter()
+// 					.map(|x| x.to_canonical_u64())
+// 					.collect::<Vec<_>>(),
+// 			);
+// 			assert_eq!(pis.prev_balance_pis, prev_balance_pis);
+// 			pis.new_balance_pis
+// 		}
+// 	};
+
+// 	let new_balance_pis_commitment = new_balance_pis.commitment();
+
+type SenderPublicInputs struct {
+	PrevBalancePublicInputs *BalancePublicInputs
+	NewBalancePublicInputs  *BalancePublicInputs
+}
+
+func (pis *BalancePublicInputs) Equal(other *BalancePublicInputs) bool {
+	return pis.PubKey.Equal(other.PubKey) &&
+		pis.PrivateCommitment.Equal(other.PrivateCommitment) &&
+		pis.PublicState.Equal(other.PublicState) &&
+		pis.LastTxHash.Equal(other.LastTxHash) &&
+		pis.LastTxInsufficientFlags.Equal(&other.LastTxInsufficientFlags)
+}
+
+func (pis *SenderPublicInputs) FromPublicInputs(
+	publicInputs []ffg.Element,
+) (*SenderPublicInputs, error) {
+	prevBalancePublicInputs, err := new(BalancePublicInputs).FromPublicInputs(publicInputs[:sizeOfBalancePublicInputs])
+	if err != nil {
+		return nil, err
+	}
+
+	newBalancePublicInputs, err := new(BalancePublicInputs).FromPublicInputs(publicInputs[sizeOfBalancePublicInputs:])
+	if err != nil {
+		return nil, err
+	}
+
+	return &SenderPublicInputs{
+		PrevBalancePublicInputs: prevBalancePublicInputs,
+		NewBalancePublicInputs:  newBalancePublicInputs,
+	}, nil
+}
+
+func (pis *BalancePublicInputs) UpdateWithSendTransition(
+	balanceTransitionPublicInputs *SenderPublicInputs,
+) (*BalancePublicInputs, error) {
+	if !balanceTransitionPublicInputs.PrevBalancePublicInputs.Equal(pis) {
+		return nil, errors.New("prev balance public inputs mismatch")
+	}
+
+	return balanceTransitionPublicInputs.NewBalancePublicInputs, nil
 }

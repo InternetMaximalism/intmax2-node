@@ -8,7 +8,7 @@ import (
 	"intmax2-node/docs/swagger"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_prover_service"
-	balanceSynchronizer "intmax2-node/internal/balance_synchronizer"
+	"intmax2-node/internal/balance_synchronizer"
 	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/logger"
@@ -48,27 +48,13 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			s.Log.Debugf("Run Block Builder command\n")
 
-			// err := s.BlockPostService.Init(s.Context)
+			// err := s.SB.CheckScrollPrivateKey(s.Context)
 			// if err != nil {
-			// 	const msg = "init the Block Validity Prover error occurred: %v"
+			// 	const msg = "check private key error occurred: %v"
 			// 	s.Log.Fatalf(msg, err.Error())
 			// }
-
-			err := s.SB.CheckScrollPrivateKey(s.Context)
-			if err != nil {
-				const msg = "check private key error occurred: %v"
-				s.Log.Fatalf(msg, err.Error())
-			}
 
 			wg := sync.WaitGroup{}
-
-			// s.Log.Infof("Start Block Validity Prover")
-			// var blockValidityProver block_validity_prover.BlockValidityProver
-			// blockValidityProver, err = block_validity_prover.NewBlockValidityProver(s.Context, s.Config, s.Log, s.SB, s.DbApp)
-			// if err != nil {
-			// 	const msg = "failed to start Block Validity Prover: %+v"
-			// 	s.Log.Fatalf(msg, err.Error())
-			// }
 
 			blockSynchronizer, err := block_synchronizer.NewBlockSynchronizer(
 				s.Context, s.Config, s.Log,
@@ -150,6 +136,9 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 					s.Log.Fatalf(msg, err.Error())
 				}
 
+				fmt.Printf("my Ethereum address: %s\n", userWallet.WalletAddress)
+				fmt.Printf("my INTMAX address: %s\n", userWallet.IntMaxWalletAddress)
+
 				// withdrawalAggregator, err := withdrawal_service.NewWithdrawalAggregatorService(
 				// 	s.Context, s.Config, s.Log, s.DbApp, s.SB,
 				// )
@@ -164,7 +153,7 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 				balanceProcessor := balance_prover_service.NewBalanceProcessor(
 					s.Context, s.Config, s.Log,
 				)
-				syncBalanceProver := balanceSynchronizer.NewSyncBalanceProver()
+				syncBalanceProver := balance_synchronizer.NewSyncBalanceProver()
 
 				userPrivateKey, err := intMaxAcc.NewPrivateKeyFromString(userWallet.IntMaxPrivateKey)
 				if err != nil {
@@ -172,7 +161,7 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 					s.Log.Fatalf(msg, err.Error())
 				}
 
-				balanceSynchronizer := balanceSynchronizer.NewSynchronizer(s.Context, s.Config, s.Log, s.SB, s.DbApp)
+				balanceSynchronizer := balance_synchronizer.NewSynchronizer(s.Context, s.Config, s.Log, s.SB, s.DbApp)
 				err = balanceSynchronizer.Sync(blockSynchronizer, blockValidityService, balanceProcessor, syncBalanceProver, userPrivateKey)
 				if err != nil {
 					const msg = "failed to sync: %+v"
@@ -216,9 +205,6 @@ func (s *Synchronizer) Init() error {
 		})
 	}
 
-	// srv := server.New(
-	// 	s.Log, s.Config, s.DbApp, server.NewCommands(), s.Config.HTTP.CookieForAuthUse, s.HC, s.PoW, s.Worker,
-	// )
 	ctx := context.WithValue(s.Context, consts.AppConfigs, s.Config)
 
 	const (
@@ -230,18 +216,6 @@ func (s *Synchronizer) Init() error {
 		checkSB   = "blockchain_service"
 		checkNS   = "network_service"
 	)
-
-	// // run externals gRPC server listener
-	// grpcErr, gRPCServerStop := listener.Run(
-	// 	ctx,
-	// 	s.Log,
-	// 	appName,
-	// 	s.Config.GRPC.Addr(), // listen incoming host:port for gRPC server
-	// 	func(s grpc.ServiceRegistrar) {
-	// 		node.RegisterInfoServiceServer(s, srv)
-	// 		node.RegisterBlockBuilderServiceServer(s, srv)
-	// 	},
-	// )
 
 	// healthCheck
 	s.HC.AddChecker(sqlDBApp, s.DbApp)
@@ -297,9 +271,6 @@ func (s *Synchronizer) Init() error {
 	var err error
 	select {
 	case <-s.Context.Done():
-	// case err = <-grpcErr:
-	// 	const msg = "%sgRPC server error: %s"
-	// 	s.Log.Errorf(msg, appName, err)
 	case err = <-grpcGwErr:
 		const msg = "%sgRPC gateway error: %s"
 		s.Log.Errorf(msg, appName, err)
@@ -309,7 +280,6 @@ func (s *Synchronizer) Init() error {
 		gw.SetStatus(health.Down)
 	}
 
-	// gRPCServerStop()
 	s.Cancel()
 
 	return nil

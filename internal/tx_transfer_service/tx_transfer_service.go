@@ -189,6 +189,8 @@ func TransferTransaction(
 	transfersHash, _, _ := transferTree.GetCurrentRootCountAndSiblings()
 
 	var nonce uint64 = 1 // TODO: Incremented with each transaction
+	lastBalanceProof := ""
+	balanceTransitionProof := ""
 
 	err = SendTransferTransaction(
 		ctx,
@@ -244,12 +246,41 @@ func TransferTransaction(
 		return fmt.Errorf("failed to make backup transaction data: %v", err)
 	}
 
+	lastBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(lastBalanceProof)
+	if err != nil {
+		return fmt.Errorf("failed to create last balance proof: %v", err)
+	}
+
+	balanceTransitionProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(balanceTransitionProof)
+	if err != nil {
+		return fmt.Errorf("failed to create balance transition proof: %v", err)
+	}
+
 	backupTransfers := make([]*transaction.BackupTransferInput, len(initialLeaves))
 	for i := range initialLeaves {
-		backupTransfers[i], err = MakeTransferBackupData(initialLeaves[i])
+		transferMerkleProof, _, err := transferTree.ComputeMerkleProof(uint64(i))
+		if err != nil {
+			return fmt.Errorf("failed to compute merkle proof: %v", err)
+		}
+		transferWitness := intMaxTypes.TransferWitness{
+			Transfer:            *initialLeaves[i],
+			TransferIndex:       uint32(i),
+			Tx:                  *tx,
+			TransferMerkleProof: transferMerkleProof,
+		}
+		transferDetails := intMaxTypes.TransferDetails{
+			TransferWitness:                     &transferWitness,
+			TxTreeRoot:                          &proposedBlock.TxTreeRoot,
+			TxMerkleProof:                       proposedBlock.TxTreeMerkleProof,
+			SenderLastBalancePublicInputs:       lastBalanceProofWithPis.PublicInputsBytes(),
+			SenderBalanceTransitionPublicInputs: balanceTransitionProofWithPis.PublicInputsBytes(),
+		}
+		backupTransfers[i], err = MakeTransferBackupData(&transferDetails, lastBalanceProofWithPis.ProofBase64String(), balanceTransitionProofWithPis.ProofBase64String())
 		if err != nil {
 			return fmt.Errorf("failed to make backup transfer data: %v", err)
 		}
+		fmt.Printf("SenderLastBalanceProofBody[%d]: %v\n", i, backupTransfers[i].SenderLastBalanceProofBody)
+		fmt.Printf("SenderTransitionProofBody[%d]: %v\n", i, backupTransfers[i].SenderTransitionProofBody)
 	}
 
 	// Accept proposed block
@@ -273,7 +304,16 @@ var ErrFailedToDecodeFromBase64 = errors.New("failed to decode from base64")
 var ErrFailedToDecrypt = errors.New("failed to decrypt")
 var ErrFailedToUnmarshal = errors.New("failed to unmarshal")
 
-func MakeTransferBackupData(transfer *intMaxTypes.Transfer) (backupTransfer *transaction.BackupTransferInput, _ error) {
+func MakeTransferBackupData(transferDetails *intMaxTypes.TransferDetails, senderLastBalanceProofBody string, senderBalanceTransitionProofBody string) (backupTransfer *transaction.BackupTransferInput, _ error) {
+	if len(senderLastBalanceProofBody) == 0 {
+		return nil, errors.New("sender last balance proof body is empty")
+	}
+
+	if len(senderBalanceTransitionProofBody) == 0 {
+		return nil, errors.New("sender balance transition proof body is empty")
+	}
+
+	transfer := transferDetails.TransferWitness.Transfer
 	if transfer.Recipient.TypeOfAddress != intMaxAccTypes.INTMAXAddressType {
 		return nil, errors.New("recipient address should be INTMAX")
 	}
@@ -290,16 +330,18 @@ func MakeTransferBackupData(transfer *intMaxTypes.Transfer) (backupTransfer *tra
 	encryptedTransfer, err := intMaxAcc.EncryptECIES(
 		rand.Reader,
 		recipientPublicKey,
-		transfer.Marshal(),
+		transferDetails.Marshal(),
 	)
 	if err != nil {
 		return nil, errors.Join(ErrFailedToEncryptTransfer, err)
 	}
 
 	return &transaction.BackupTransferInput{
-		Recipient:                hexutil.Encode(transfer.Recipient.Marshal()),
-		TransferHash:             transfer.Hash().String(),
-		EncodedEncryptedTransfer: base64.StdEncoding.EncodeToString(encryptedTransfer),
+		Recipient:                  hexutil.Encode(transfer.Recipient.Marshal()),
+		TransferHash:               transfer.Hash().String(),
+		EncodedEncryptedTransfer:   base64.StdEncoding.EncodeToString(encryptedTransfer),
+		SenderLastBalanceProofBody: senderLastBalanceProofBody,
+		SenderTransitionProofBody:  senderBalanceTransitionProofBody,
 	}, nil
 }
 
