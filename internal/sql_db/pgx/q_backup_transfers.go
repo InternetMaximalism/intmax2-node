@@ -13,18 +13,25 @@ import (
 
 func (p *pgx) CreateBackupTransfer(
 	recipient, encryptedTransferHash, encryptedTransfer string,
+	senderLastBalanceProofBody, senderBalanceTransitionProofBody []byte,
 	blockNumber int64,
 ) (*mDBApp.BackupTransfer, error) {
 	const query = `
-	    INSERT INTO backup_transfers
-        (id, recipient, transfer_double_hash, encrypted_transfer, block_number, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6)
-	`
+        INSERT INTO backup_transfers (
+        id ,recipient ,transfer_double_hash ,encrypted_transfer
+        ,sender_last_balance_proof_body ,sender_balance_transition_proof_body
+        ,block_number ,created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+`
 
 	id := uuid.New().String()
 	createdAt := time.Now().UTC()
 
-	err := p.createBackupEntry(query, id, recipient, encryptedTransferHash, encryptedTransfer, blockNumber, createdAt)
+	err := p.createBackupEntry(query,
+		id, recipient, encryptedTransferHash, encryptedTransfer,
+		senderLastBalanceProofBody, senderBalanceTransitionProofBody,
+		blockNumber, createdAt,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -34,10 +41,13 @@ func (p *pgx) CreateBackupTransfer(
 
 func (p *pgx) GetBackupTransfer(condition, value string) (*mDBApp.BackupTransfer, error) {
 	const baseQuery = `
-        SELECT id, recipient, transfer_double_hash, encrypted_transfer, block_number, created_at
+        SELECT
+        id ,recipient ,transfer_double_hash ,encrypted_transfer
+        ,sender_last_balance_proof_body ,sender_balance_transition_proof_body
+        ,block_number ,created_at
         FROM backup_transfers
         WHERE %s = $1
-    `
+`
 	query := fmt.Sprintf(baseQuery, condition)
 
 	var b models.BackupTransfer
@@ -47,6 +57,8 @@ func (p *pgx) GetBackupTransfer(condition, value string) (*mDBApp.BackupTransfer
 			&b.Recipient,
 			&b.TransferDoubleHash,
 			&b.EncryptedTransfer,
+			&b.SenderLastBalanceProofBody,
+			&b.SenderBalanceTransitionProofBody,
 			&b.BlockNumber,
 			&b.CreatedAt,
 		))
@@ -83,11 +95,13 @@ func (p *pgx) GetBackupTransfers(condition string, value interface{}) ([]*mDBApp
 
 func (p *pgx) backupTransferToDBApp(b *models.BackupTransfer) mDBApp.BackupTransfer {
 	return mDBApp.BackupTransfer{
-		ID:                 b.ID,
-		Recipient:          b.Recipient,
-		TransferDoubleHash: b.TransferDoubleHash.String,
-		EncryptedTransfer:  b.EncryptedTransfer,
-		BlockNumber:        b.BlockNumber,
-		CreatedAt:          b.CreatedAt,
+		ID:                               b.ID,
+		Recipient:                        b.Recipient,
+		TransferDoubleHash:               b.TransferDoubleHash.String,
+		EncryptedTransfer:                b.EncryptedTransfer,
+		SenderLastBalanceProofBody:       b.SenderLastBalanceProofBody,
+		SenderBalanceTransitionProofBody: b.SenderBalanceTransitionProofBody,
+		BlockNumber:                      b.BlockNumber,
+		CreatedAt:                        b.CreatedAt,
 	}
 }

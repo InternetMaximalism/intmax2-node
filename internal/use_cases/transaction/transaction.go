@@ -40,9 +40,11 @@ type BackupTransactionData struct {
 }
 
 type BackupTransferInput struct {
-	Recipient                string `json:"recipient"`
-	TransferHash             string `json:"transferHash"`
-	EncodedEncryptedTransfer string `json:"encryptedTransfer"`
+	Recipient                  string `json:"recipient"`
+	TransferHash               string `json:"transferHash"`
+	EncodedEncryptedTransfer   string `json:"encryptedTransfer"`
+	SenderLastBalanceProofBody string `json:"senderLastBalanceProofBody"`
+	SenderTransitionProofBody  string `json:"senderBalanceTransitionProofBody"`
 }
 
 type UCTransactionInput struct {

@@ -63,7 +63,33 @@ func TransferTransaction(
 		return err
 	}
 
-	fmt.Printf("User's INTMAX Address: %s\n", userAccount.ToAddress().String())
+	// TODO: Create balance proof locally
+	// fmt.Printf("User's INTMAX Address: %s\n", userAccount.ToAddress().String())
+	// balanceProver := balance_prover_service.NewSyncBalanceProver()
+	// balanceSynchronizer := balance_prover_service.NewSynchronizer(ctx, cfg, log, sb, db)
+	// blockSynchronizer, err := block_synchronizer.NewBlockSynchronizer(
+	// 	ctx, cfg, log,
+	// )
+	// if err != nil {
+	// 	return fmt.Errorf("failed to create block synchronizer: %w", err)
+	// }
+	// blockValidityProver, err := block_validity_prover.NewBlockValidityProver(ctx, cfg, log, sb, db)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to create block validity prover: %w", err)
+	// }
+
+	// // syncValidityProver, err := balance_prover_service.NewSyncValidityProver(ctx, cfg, log, sb, db)
+	// // if err != nil {
+	// // 	return fmt.Errorf("failed to create sync validity prover: %w", err)
+	// // }
+	// balanceProcessor := balance_prover_service.NewBalanceProcessor(ctx, cfg, log)
+
+	// // balanceProcessor *BalanceProcessor,
+	// err = SyncLocally(ctx, cfg, log, balanceProver, balanceSynchronizer, blockValidityProver, blockSynchronizer, balanceProcessor, userAccount)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to sync balance proof: %w", err)
+	// }
+
 	fmt.Println("Fetching balances...")
 	balance, err := balance_service.GetUserBalance(ctx, cfg, userAccount, tokenIndex)
 	if err != nil {
@@ -163,6 +189,8 @@ func TransferTransaction(
 	transfersHash, _, _ := transferTree.GetCurrentRootCountAndSiblings()
 
 	var nonce uint64 = 1 // TODO: Incremented with each transaction
+	// lastBalanceProof := ""
+	// balanceTransitionProof := ""
 
 	err = SendTransferTransaction(
 		ctx,
@@ -204,39 +232,65 @@ func TransferTransaction(
 			TransferTreeRoot: &transfersHash,
 			Nonce:            nonce,
 		},
-		Transfers: initialLeaves,
+		Transfers:     initialLeaves,
+		TxTreeRoot:    &proposedBlock.TxTreeRoot,
+		TxMerkleProof: proposedBlock.TxTreeMerkleProof,
 	}
-
-	encodedTx := txDetails.Marshal()
-	var encryptedTx []byte
-	encryptedTx, err = intMaxAcc.EncryptECIES(
-		rand.Reader,
+	backupTx, err := transaction.NewBackupTransactionData(
 		userAccount.Public(),
-		encodedTx,
+		txDetails,
+		txHash,
+		"0x",
 	)
 	if err != nil {
-		return fmt.Errorf("failed to encrypt transaction: %w", err)
+		return fmt.Errorf("failed to make backup transaction data: %v", err)
 	}
 
-	encodedEncryptedTx := base64.StdEncoding.EncodeToString(encryptedTx)
-	backupTx := transaction.BackupTransactionData{
-		TxHash:             txHash.String(),
-		EncodedEncryptedTx: encodedEncryptedTx,
-		Signature:          "0x",
-	}
+	// lastBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(lastBalanceProof)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to create last balance proof: %v", err)
+	// }
+
+	// balanceTransitionProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(balanceTransitionProof)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to create balance transition proof: %v", err)
+	// }
 
 	backupTransfers := make([]*transaction.BackupTransferInput, len(initialLeaves))
 	for i := range initialLeaves {
-		backupTransfers[i], err = MakeTransferBackupData(initialLeaves[i])
+		transferMerkleProof, _, err := transferTree.ComputeMerkleProof(uint64(i))
 		if err != nil {
-			return fmt.Errorf("failed to make backup data: %v", err)
+			return fmt.Errorf("failed to compute merkle proof: %v", err)
 		}
+		transferWitness := intMaxTypes.TransferWitness{
+			Transfer:            *initialLeaves[i],
+			TransferIndex:       uint32(i),
+			Tx:                  *tx,
+			TransferMerkleProof: transferMerkleProof,
+		}
+		transferDetails := intMaxTypes.TransferDetails{
+			TransferWitness: &transferWitness,
+			TxTreeRoot:      &proposedBlock.TxTreeRoot,
+			TxMerkleProof:   proposedBlock.TxTreeMerkleProof,
+			// SenderLastBalancePublicInputs:       lastBalanceProofWithPis.PublicInputsBytes(),
+			// SenderBalanceTransitionPublicInputs: balanceTransitionProofWithPis.PublicInputsBytes(),
+		}
+		backupTransfers[i], err = MakeTransferBackupData(
+			&transferDetails,
+			// lastBalanceProofWithPis.ProofBase64String(),
+			// balanceTransitionProofWithPis.ProofBase64String(),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to make backup transfer data: %v", err)
+		}
+		fmt.Printf("SenderLastBalanceProofBody[%d]: %v\n", i, backupTransfers[i].SenderLastBalanceProofBody)
+		fmt.Printf("SenderTransitionProofBody[%d]: %v\n", i, backupTransfers[i].SenderTransitionProofBody)
 	}
 
 	// Accept proposed block
 	err = SendSignedProposedBlock(
 		ctx, cfg, userAccount, proposedBlock.TxTreeRoot, *txHash, proposedBlock.PublicKeys,
-		&backupTx, backupTransfers,
+		backupTx, backupTransfers,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to send transaction: %v", err)
@@ -254,7 +308,20 @@ var ErrFailedToDecodeFromBase64 = errors.New("failed to decode from base64")
 var ErrFailedToDecrypt = errors.New("failed to decrypt")
 var ErrFailedToUnmarshal = errors.New("failed to unmarshal")
 
-func MakeTransferBackupData(transfer *intMaxTypes.Transfer) (backupTransfer *transaction.BackupTransferInput, _ error) {
+func MakeTransferBackupData(
+	transferDetails *intMaxTypes.TransferDetails,
+	// senderLastBalanceProofBody string,
+	// senderBalanceTransitionProofBody string,
+) (backupTransfer *transaction.BackupTransferInput, _ error) {
+	// if len(senderLastBalanceProofBody) == 0 {
+	// 	return nil, errors.New("sender last balance proof body is empty")
+	// }
+
+	// if len(senderBalanceTransitionProofBody) == 0 {
+	// 	return nil, errors.New("sender balance transition proof body is empty")
+	// }
+
+	transfer := transferDetails.TransferWitness.Transfer
 	if transfer.Recipient.TypeOfAddress != intMaxAccTypes.INTMAXAddressType {
 		return nil, errors.New("recipient address should be INTMAX")
 	}
@@ -271,7 +338,7 @@ func MakeTransferBackupData(transfer *intMaxTypes.Transfer) (backupTransfer *tra
 	encryptedTransfer, err := intMaxAcc.EncryptECIES(
 		rand.Reader,
 		recipientPublicKey,
-		transfer.Marshal(),
+		transferDetails.Marshal(),
 	)
 	if err != nil {
 		return nil, errors.Join(ErrFailedToEncryptTransfer, err)
@@ -281,6 +348,10 @@ func MakeTransferBackupData(transfer *intMaxTypes.Transfer) (backupTransfer *tra
 		Recipient:                hexutil.Encode(transfer.Recipient.Marshal()),
 		TransferHash:             transfer.Hash().String(),
 		EncodedEncryptedTransfer: base64.StdEncoding.EncodeToString(encryptedTransfer),
+		// SenderLastBalanceProofBody: senderLastBalanceProofBody,
+		// SenderTransitionProofBody:  senderBalanceTransitionProofBody,
+		SenderLastBalanceProofBody: "",
+		SenderTransitionProofBody:  "",
 	}, nil
 }
 

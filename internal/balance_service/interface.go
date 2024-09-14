@@ -17,17 +17,20 @@ type BackupDeposit struct {
 }
 
 type BackupTransfer struct {
-	EncryptedTransfer string `json:"encryptedTransfer,omitempty"`
-	Recipient         string `json:"recipient,omitempty"`
-	BlockNumber       string `json:"blockNumber,omitempty"`
-	CreatedAt         string `json:"createdAt,omitempty"`
+	EncryptedTransfer                string `json:"encryptedTransfer,omitempty"`
+	Recipient                        string `json:"recipient,omitempty"`
+	BlockNumber                      string `json:"blockNumber,omitempty"`
+	SenderLastBalanceProofBody       string `json:"senderLastBalanceProofBody,omitempty"`
+	SenderBalanceTransitionProofBody string `json:"senderBalanceTransitionProofBody,omitempty"`
+	CreatedAt                        string `json:"createdAt,omitempty"`
 }
 
 type BackupTransaction struct {
-	Sender      string `json:"sender,omitempty"`
-	EncryptedTx string `json:"encryptedTx,omitempty"`
-	BlockNumber string `json:"blockNumber,omitempty"`
-	CreatedAt   string `json:"createdAt,omitempty"`
+	Sender          string `json:"sender,omitempty"`
+	EncodingVersion uint32 `json:"encodingVersion"`
+	EncryptedTx     string `json:"encryptedTx,omitempty"`
+	BlockNumber     string `json:"blockNumber,omitempty"`
+	CreatedAt       string `json:"createdAt,omitempty"`
 }
 
 type GetVerifyDepositConfirmationResponse struct {

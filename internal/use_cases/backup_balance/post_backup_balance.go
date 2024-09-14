@@ -2,6 +2,7 @@ package backup_balance
 
 import (
 	"context"
+	"encoding/binary"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/finite_field"
@@ -18,7 +19,7 @@ import (
 
 const (
 	numTransfersInTx     = 1 << intMaxTree.TRANSFER_TREE_HEIGHT
-	insufficientFlagsLen = numTransfersInTx / 32
+	InsufficientFlagsLen = numTransfersInTx / 32
 	uint256LimbSize      = 8
 	int32Key             = 32
 )
@@ -32,7 +33,17 @@ const (
 )
 
 type InsufficientFlags struct {
-	Limbs [insufficientFlagsLen]uint32
+	Limbs [InsufficientFlagsLen]uint32
+}
+
+func (flags *InsufficientFlags) Equal(other *InsufficientFlags) bool {
+	for i, limb := range flags.Limbs {
+		if limb != other.Limbs[i] {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (flags *InsufficientFlags) FromFieldElementSlice(value []ffg.Element) *InsufficientFlags {
@@ -45,6 +56,33 @@ func (flags *InsufficientFlags) FromFieldElementSlice(value []ffg.Element) *Insu
 	}
 
 	return flags
+}
+
+func (flags *InsufficientFlags) SetBit(index int, isValid bool) {
+	limbIndex := index / 32
+	bitIndex := index % 32
+
+	if isValid {
+		flags.Limbs[limbIndex] |= 1 << bitIndex
+	} else {
+		flags.Limbs[limbIndex] &^= 1 << bitIndex
+	}
+}
+
+func (flags *InsufficientFlags) RandomAccess(index int) bool {
+	limbIndex := index / 32
+	bitIndex := index % 32
+
+	return flags.Limbs[limbIndex]&(1<<bitIndex) != 0
+}
+
+func (flags *InsufficientFlags) Bytes() []byte {
+	buf := make([]byte, InsufficientFlagsLen*4)
+	for i, limb := range flags.Limbs {
+		binary.BigEndian.PutUint32(buf[i*4:], limb)
+	}
+
+	return buf
 }
 
 type BalancePublicInputs struct {
@@ -95,7 +133,7 @@ func (pis *BalancePublicInputs) FromPublicInputs(publicInputs []ffg.Element) *Ba
 	const startPrivateCommitmentIndex = uint256LimbSize
 	const lastTxHashIndex = startPrivateCommitmentIndex + goldenposeidon.NUM_HASH_OUT_ELTS
 	const lastTxInsufficientFlagsIndex = lastTxHashIndex + goldenposeidon.NUM_HASH_OUT_ELTS
-	const publicStateIndex = lastTxInsufficientFlagsIndex + insufficientFlagsLen
+	const publicStateIndex = lastTxInsufficientFlagsIndex + InsufficientFlagsLen
 	const endIndex = publicStateIndex + block_validity_prover.PublicStateLimbSize
 	if len(publicInputs) != endIndex {
 		panic("Invalid public inputs length")

@@ -126,35 +126,30 @@ run: gen ## starting application and dependency services
 # translate `SWAGGER_USE=true GIT_USE=true HTTP_PORT=8082 GRPC_PORT=10002 CMD_RUN="withdrawal-server" make run` => ./intmax2-node withdrawal-server
 	go run $(GOFLAGS) ./cmd ${CMD_RUN}
 
-.PHONY: up
-up: ## starting application and dependency services
+.PHONY: cp
+cp:
 	cp -f build/env.docker.block-builder-service.example build/env.docker.block-builder-service
 	cp -f build/env.docker.store-vault-server.example build/env.docker.store-vault-server
 	cp -f build/env.docker.withdrawal-server.example build/env.docker.withdrawal-server
+
+.PHONY: up
+up: cp ## starting application and dependency services
 	docker compose -f build/docker-compose.yml up
 
 .PHONY: build-up
-build-up: down ## rebuilding containers and starting application and dependency services
-	cp -f build/env.docker.block-builder-service.example build/env.docker.block-builder-service
-	cp -f build/env.docker.store-vault-server.example build/env.docker.store-vault-server
-	cp -f build/env.docker.withdrawal-server.example build/env.docker.withdrawal-server
+build-up: cp down cp ## rebuilding containers and starting application and dependency services
 	docker compose -f build/docker-compose.yml build $(re_build_arg)
 	docker compose -f build/docker-compose.yml up
 
 .PHONY: build-prover
-build-prover:
-	cp -f build/env.docker.block-builder-service.example build/env.docker.block-builder-service
-	cp -f build/env.docker.store-vault-server.example build/env.docker.store-vault-server
-	cp -f build/env.docker.withdrawal-server.example build/env.docker.withdrawal-server
+build-prover: cp
 	docker compose -f build/docker-compose.yml stop intmax2-node-block-validity-prover intmax2-node-balance-validity-prover intmax2-node-withdrawal-aggregator-prover
 	docker compose -f build/docker-compose.yml rm -f intmax2-node-block-validity-prover intmax2-node-balance-validity-prover intmax2-node-withdrawal-aggregator-prover
 	docker compose -f build/docker-compose.yml build --no-cache intmax2-node-block-validity-prover intmax2-node-balance-validity-prover intmax2-node-withdrawal-aggregator-prover
 
 .PHONY: start-build-up
 start-build-up: down ## rebuilding containers and starting application and dependency services
-	cp -f build/env.docker.block-builder-service.example build/env.docker.block-builder-service
-	cp -f build/env.docker.store-vault-server.example build/env.docker.store-vault-server
-	cp -f build/env.docker.withdrawal-server.example build/env.docker.withdrawal-server
+	make cp
 	docker compose -f build/docker-compose.yml up -d intmax2-node-redis
 	docker compose -f build/docker-compose.yml up -d intmax2-node-block-validity-prover
 	docker compose -f build/docker-compose.yml up -d intmax2-node-balance-validity-prover
@@ -163,20 +158,19 @@ start-build-up: down ## rebuilding containers and starting application and depen
 	docker compose -f build/docker-compose.yml up -d intmax2-node-ot-collector
 
 .PHONY: down
-down:
-	cp -f build/env.docker.block-builder-service.example build/env.docker.block-builder-service
-	cp -f build/env.docker.store-vault-server.example build/env.docker.store-vault-server
-	cp -f build/env.docker.withdrawal-server.example build/env.docker.withdrawal-server
+down: cp
 	docker compose -f build/docker-compose.yml down
 	rm -f build/env.docker.block-builder-service
 	rm -f build/env.docker.store-vault-server
 	rm -f build/env.docker.withdrawal-server
 
 .PHONY: clean-all
-clean-all: down
+clean-all: cp down
 	rm -f build/env.docker.block-builder-service
 	rm -f build/env.docker.store-vault-server
 	rm -f build/env.docker.withdrawal-server
+	rm -rf temp_data/gnark_server
+	rm -rf temp_data/redis_data
 	rm -rf build/sql_dbs/intmax2-node-postgres
 
 .PHONY: lint

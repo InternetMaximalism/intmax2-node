@@ -24,8 +24,8 @@ func (p *pgx) CreateBackupTransaction(
 ) (*mDBApp.BackupTransaction, error) {
 	const query = `
 	    INSERT INTO backup_transactions
-        (id, sender, tx_double_hash, encrypted_tx, block_number, signature, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        (id, sender, tx_double_hash, encrypted_tx, block_number, signature, created_at, encoding_version)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, 1)
 	`
 
 	id := uuid.New().String()
@@ -43,7 +43,7 @@ func (p *pgx) CreateBackupTransaction(
 
 func (p *pgx) GetBackupTransaction(condition, value string) (*mDBApp.BackupTransaction, error) {
 	const baseQuery = `
-        SELECT id, sender, tx_double_hash, encrypted_tx, block_number, signature, created_at
+        SELECT id, sender, tx_double_hash, encrypted_tx, encoding_version, block_number, signature, created_at
         FROM backup_transactions
         WHERE %s = $1
     `
@@ -56,6 +56,7 @@ func (p *pgx) GetBackupTransaction(condition, value string) (*mDBApp.BackupTrans
 			&b.Sender,
 			&b.TxDoubleHash,
 			&b.EncryptedTx,
+			&b.EncodingVersion,
 			&b.BlockNumber,
 			&b.Signature,
 			&b.CreatedAt,
@@ -70,7 +71,7 @@ func (p *pgx) GetBackupTransaction(condition, value string) (*mDBApp.BackupTrans
 func (p *pgx) GetBackupTransactionBySenderAndTxDoubleHash(sender, txDoubleHash string) (*mDBApp.BackupTransaction, error) {
 	const (
 		q = `
-        SELECT id, sender, tx_double_hash, encrypted_tx, block_number, signature, created_at
+        SELECT id, sender, tx_double_hash, encrypted_tx, encoding_version, block_number, signature, created_at
         FROM backup_transactions
         WHERE sender = $1 AND tx_double_hash = $2 `
 	)
@@ -82,6 +83,7 @@ func (p *pgx) GetBackupTransactionBySenderAndTxDoubleHash(sender, txDoubleHash s
 			&b.Sender,
 			&b.TxDoubleHash,
 			&b.EncryptedTx,
+			&b.EncodingVersion,
 			&b.BlockNumber,
 			&b.Signature,
 			&b.CreatedAt,
@@ -95,7 +97,7 @@ func (p *pgx) GetBackupTransactionBySenderAndTxDoubleHash(sender, txDoubleHash s
 
 func (p *pgx) GetBackupTransactions(condition string, value interface{}) ([]*mDBApp.BackupTransaction, error) {
 	const baseQuery = `
-        SELECT id, sender, tx_double_hash, encrypted_tx, block_number, signature, created_at
+        SELECT id, sender, tx_double_hash, encrypted_tx, encoding_version, block_number, signature, created_at
         FROM backup_transactions
         WHERE %s = $1
 `
@@ -103,7 +105,7 @@ func (p *pgx) GetBackupTransactions(condition string, value interface{}) ([]*mDB
 	var transactions []*mDBApp.BackupTransaction
 	err := p.getBackupEntries(query, value, func(rows *sql.Rows) error {
 		var b models.BackupTransaction
-		err := rows.Scan(&b.ID, &b.Sender, &b.TxDoubleHash, &b.EncryptedTx, &b.BlockNumber, &b.Signature, &b.CreatedAt)
+		err := rows.Scan(&b.ID, &b.Sender, &b.TxDoubleHash, &b.EncryptedTx, &b.EncodingVersion, &b.BlockNumber, &b.Signature, &b.CreatedAt)
 		if err != nil {
 			return err
 		}
@@ -129,7 +131,7 @@ func (p *pgx) GetBackupTransactionsBySender(
 ) {
 	var (
 		q = `
-SELECT id, sender, tx_double_hash, encrypted_tx, block_number, signature, created_at
+SELECT id, sender, tx_double_hash, encrypted_tx, encoding_version, block_number, signature, created_at
 FROM backup_transactions
 WHERE sender = @sender %s
 `
@@ -233,6 +235,7 @@ WHERE sender = @sender %s
 			&b.Sender,
 			&b.TxDoubleHash,
 			&b.EncryptedTx,
+			&b.EncodingVersion,
 			&b.BlockNumber,
 			&b.Signature,
 			&b.CreatedAt,
@@ -292,12 +295,13 @@ WHERE sender = @sender %s
 
 func (p *pgx) backupTransactionToDBApp(b *models.BackupTransaction) mDBApp.BackupTransaction {
 	return mDBApp.BackupTransaction{
-		ID:           b.ID,
-		Sender:       b.Sender,
-		TxDoubleHash: b.TxDoubleHash.String,
-		EncryptedTx:  b.EncryptedTx,
-		BlockNumber:  b.BlockNumber,
-		Signature:    b.Signature,
-		CreatedAt:    b.CreatedAt,
+		ID:              b.ID,
+		Sender:          b.Sender,
+		TxDoubleHash:    b.TxDoubleHash.String,
+		EncryptedTx:     b.EncryptedTx,
+		EncodingVersion: b.EncodingVersion,
+		BlockNumber:     b.BlockNumber,
+		Signature:       b.Signature,
+		CreatedAt:       b.CreatedAt,
 	}
 }

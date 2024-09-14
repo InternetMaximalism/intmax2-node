@@ -39,6 +39,7 @@ type BlockValidityService interface {
 	FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error)
 	DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error)
 	BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.MerkleProof, error)
+	RollupContractDeployedBlockNumber() uint64
 	PostBlock(isRegistrationBlock bool, txs []*MockTxRequest) (*ValidityWitness, error) // XXX
 }
 

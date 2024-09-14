@@ -6,9 +6,11 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
+	intMaxAccTypes "intmax2-node/internal/accounts/types"
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
@@ -17,6 +19,7 @@ import (
 	"intmax2-node/pkg/utils"
 	"log"
 	"math/big"
+	"net/http"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -25,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/google/uuid"
 )
 
 const (
@@ -419,4 +423,375 @@ func extractIds(withdrawas []mDBApp.Withdrawal) []string {
 		ids[i] = w.ID
 	}
 	return ids
+}
+
+func (w *WithdrawalAggregatorService) RequestWithdrawalProofToProver(witness *WithdrawalWitnessInput, prevProof *string) (*string, error) {
+	requestID := uuid.New().String()
+	resGeneration, err := w.requestWithdrawalProofToProver(requestID, witness, prevProof)
+	if err != nil {
+		return nil, err
+	}
+
+	if resGeneration != nil {
+		fmt.Printf("Request Withdrawal Proof to Prover: %s\n", *resGeneration)
+		return resGeneration, nil
+	}
+
+	ticker := time.NewTicker(5 * time.Second)
+	for {
+		select {
+		case <-w.ctx.Done():
+			return nil, err
+		case <-ticker.C:
+			resFetching, errFetching := w.fetchWithdrawalProofToProver(requestID)
+			if errFetching != nil {
+				var ErrWrappedWithdrawalProofFetching = errors.New("failed to fetch wrapper withdrawal proof")
+				err = errors.Join(ErrWrappedWithdrawalProofFetching, errFetching)
+
+				time.Sleep(10 * time.Second)
+
+				continue
+			}
+
+			return resFetching, nil
+		}
+	}
+}
+
+type WithdrawalProofRequest struct {
+	ID                  string                  `json:"id"`
+	PrevWithdrawalProof *string                 `json:"prevWithdrawalProof,omitempty"`
+	WithdrawalWitness   *WithdrawalWitnessInput `json:"withdrawalWitness"`
+}
+
+func (w *WithdrawalAggregatorService) requestWithdrawalProofToProver(requestID string, witness *WithdrawalWitnessInput, prevProof *string) (*string, error) {
+	requestBody := WithdrawalProofRequest{
+		ID:                  requestID,
+		PrevWithdrawalProof: prevProof,
+		WithdrawalWitness:   witness,
+	}
+	jsonBody, err := json.Marshal(requestBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal JSON request body: %w", err)
+	}
+
+	apiUrl := fmt.Sprintf("%s/proof/withdrawal",
+		w.cfg.WithdrawalService.WithdrawalProverUrl,
+	)
+	resp, err := http.Post(apiUrl, "application/json", bytes.NewBuffer(jsonBody)) // nolint:gosec
+	if err != nil {
+		return nil, fmt.Errorf("failed to request API: %w", err)
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var res ProofResponse
+	if err = json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return nil, fmt.Errorf("failed to decode JSON response: %w", err)
+	}
+
+	return res.Proof, nil
+}
+
+func (w *WithdrawalAggregatorService) fetchWithdrawalProofToProver(requestID string) (*string, error) {
+	// requestBody := map[string]interface{}{
+	// 	"id": requestID,
+	// }
+	// jsonBody, err := json.Marshal(requestBody)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to marshal JSON request body: %w", err)
+	// }
+
+	apiUrl := fmt.Sprintf("%s/proof/withdrawal/%s",
+		w.cfg.WithdrawalService.WithdrawalProverUrl,
+		requestID,
+	)
+	resp, err := http.Get(apiUrl) // nolint:gosec
+	if err != nil {
+		return nil, fmt.Errorf("failed to request API: %w", err)
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var res ProofResponse
+	if err = json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return nil, fmt.Errorf("failed to decode JSON response: %w", err)
+	}
+
+	if !res.Success {
+		if res.ErrorMessage != nil {
+			return nil, fmt.Errorf("prover request failed %s", *res.ErrorMessage)
+		}
+
+		return nil, fmt.Errorf("prover request failed")
+	}
+
+	return res.Proof, nil
+}
+
+func (w *WithdrawalAggregatorService) RequestWithdrawalWrapperProofToProver(withdrawalProof string, withdrawalAggregator common.Address) (wrappedProof []byte, err error) {
+	requestID := uuid.New().String()
+	resGeneration, err := w.requestWithdrawalWrapperProofToProver(requestID, withdrawalProof, withdrawalAggregator)
+	if err != nil {
+		return nil, err
+	}
+
+	if resGeneration != nil {
+		fmt.Printf("Request Withdrawal Proof to Prover: %s\n", *resGeneration)
+		return []byte(*resGeneration), nil
+	}
+
+	ticker := time.NewTicker(10 * time.Second)
+	for {
+		select {
+		case <-w.ctx.Done():
+			return nil, err
+		case <-ticker.C:
+			resFetching, errFetching := w.fetchWithdrawalWrapperProofToProver(requestID)
+			if errFetching != nil {
+				var ErrWrappedWithdrawalProofFetching = errors.New("failed to fetch wrapper withdrawal proof")
+				err = errors.Join(ErrWrappedWithdrawalProofFetching, errFetching)
+				continue
+			}
+
+			return []byte(*resFetching), nil
+		}
+	}
+}
+
+func (w *WithdrawalAggregatorService) requestWithdrawalWrapperProofToProver(requestID string, withdrawalProof string, withdrawalAggregator common.Address) (wrappedProof *string, err error) {
+	requestBody := map[string]interface{}{
+		"id":                   requestID,
+		"withdrawalProof":      withdrawalProof,
+		"withdrawalAggregator": withdrawalAggregator.Hex(), // with 0x prefix
+	}
+	jsonBody, err := json.Marshal(requestBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal JSON request body: %w", err)
+	}
+
+	apiUrl := fmt.Sprintf("%s/proof/wrapper",
+		w.cfg.WithdrawalService.WithdrawalProverUrl,
+	)
+	resp, err := http.Post(apiUrl, "application/json", bytes.NewBuffer(jsonBody)) // nolint:gosec
+	if err != nil {
+		return nil, fmt.Errorf("failed to request API: %w", err)
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var res ProofResponse
+	if err = json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return nil, fmt.Errorf("failed to decode JSON response: %w", err)
+	}
+
+	if !res.Success {
+		if res.ErrorMessage != nil {
+			return nil, fmt.Errorf("prover request failed %s", *res.ErrorMessage)
+		}
+
+		return nil, fmt.Errorf("prover request failed")
+	}
+
+	return res.Proof, nil
+}
+
+func (w *WithdrawalAggregatorService) fetchWithdrawalWrapperProofToProver(requestID string) (wrappedProof *string, err error) {
+	apiUrl := fmt.Sprintf("%s/proof/wrapper/%s",
+		w.cfg.WithdrawalService.WithdrawalProverUrl,
+		requestID,
+	)
+	resp, err := http.Get(apiUrl) // nolint:gosec
+	if err != nil {
+		return nil, fmt.Errorf("failed to request API: %w", err)
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var res ProofResponse
+	if err = json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return nil, fmt.Errorf("failed to decode JSON response: %w", err)
+	}
+
+	if !res.Success {
+		return nil, fmt.Errorf("prover request failed %s", *res.ErrorMessage)
+	}
+
+	if res.Proof == nil {
+		return nil, fmt.Errorf("proof is nil")
+	}
+
+	return res.Proof, nil
+}
+
+func (w *WithdrawalAggregatorService) RequestWithdrawalGnarkProofToProver(wrappedProofJSON []byte) (gnarkProof *GnarkGetProofResponseResult, err error) {
+	JobID, err := w.requestWithdrawalGnarkProofToProver(wrappedProofJSON)
+	if err != nil {
+		return nil, err
+	}
+	w.log.Infof("Request Withdrawal Gnark Proof to Prover: %s\n", JobID)
+
+	ticker := time.NewTicker(10 * time.Second)
+	for {
+		select {
+		case <-w.ctx.Done():
+			return nil, err
+		case <-ticker.C:
+			resFetching, errFetching := w.fetchWithdrawalGnarkProofToProver(JobID)
+			if errFetching != nil {
+				var ErrWrappedWithdrawalProofFetching = errors.New("failed to fetch wrapper withdrawal proof")
+				err = errors.Join(ErrWrappedWithdrawalProofFetching, errFetching)
+				w.log.Debugf("Failed to fetch withdrawal gnark proof: %s\n", err)
+				continue
+			}
+
+			return resFetching, nil
+		}
+	}
+}
+
+func (w *WithdrawalAggregatorService) requestWithdrawalGnarkProofToProver(wrappedProofJSON []byte) (string, error) {
+	apiUrl := fmt.Sprintf("%s/start-proof",
+		w.cfg.WithdrawalService.WithdrawalGnarkProverUrl,
+	)
+	resp, err := http.Post(apiUrl, "application/json", bytes.NewBuffer(wrappedProofJSON)) // nolint:gosec
+	if err != nil {
+		return "", fmt.Errorf("failed to request API: %w", err)
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var res GnarkStartProofResponse
+	if err = json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return "", fmt.Errorf("failed to decode JSON response: %w", err)
+	}
+
+	return res.JobID, nil
+}
+
+func (w *WithdrawalAggregatorService) fetchWithdrawalGnarkProofToProver(jobID string) (wrappedProof *GnarkGetProofResponseResult, err error) {
+	apiUrl := fmt.Sprintf("%s/get-proof?jobId=%s",
+		w.cfg.WithdrawalService.WithdrawalGnarkProverUrl,
+		jobID,
+	)
+	resp, err := http.Get(apiUrl) // nolint:gosec
+	if err != nil {
+		return nil, fmt.Errorf("failed to request API: %w", err)
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var res GnarkGetProofResponse
+	if err = json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return nil, fmt.Errorf("failed to decode JSON response: %w", err)
+	}
+
+	if res.Status != "done" {
+		return nil, fmt.Errorf("prover request failed")
+	}
+
+	return &res.Result, nil
+}
+
+type GenericAddressInput struct {
+	IsPublicKey bool   `json:"isPubkey"`
+	Data        string `json:"data"`
+}
+
+type AmountInput = string
+type SaltInput = goldenposeidon.PoseidonHashOut
+
+type TransferInput struct {
+	Recipient  GenericAddressInput `json:"recipient"`
+	TokenIndex uint32              `json:"tokenIndex"`
+	Amount     AmountInput         `json:"amount"`
+	Salt       SaltInput           `json:"salt"`
+}
+
+func (input *TransferInput) FromTransfer(value *intMaxTypes.Transfer) *TransferInput {
+	// input.Recipient = hexutil.Encode(value.Recipient.Address[:])
+	data := new(big.Int).SetBytes(value.Recipient.Address)
+	input.Recipient = GenericAddressInput{
+		IsPublicKey: value.Recipient.TypeOfAddress == intMaxAccTypes.INTMAXAddressType,
+		Data:        data.String(),
+	}
+	input.TokenIndex = value.TokenIndex
+	input.Amount = value.Amount.String()
+	input.Salt = *value.Salt
+
+	return input
+}
+
+type TxInput struct {
+	TransferTreeRoot goldenposeidon.PoseidonHashOut `json:"transferTreeRoot"`
+	Nonce            uint64                         `json:"nonce"`
+}
+
+type MerkleProofInput = []string
+
+type TransferWitnessInput struct {
+	Tx                  TxInput          `json:"tx"`
+	Transfer            TransferInput    `json:"transfer"`
+	TransferIndex       uint             `json:"transferIndex"`
+	TransferMerkleProof MerkleProofInput `json:"transferMerkleProof"`
+}
+
+func (input *TransferWitnessInput) FromTransferWitness(value *intMaxTypes.TransferWitness) *TransferWitnessInput {
+	input.Tx.TransferTreeRoot = *value.Tx.TransferTreeRoot
+	input.Tx.Nonce = value.Tx.Nonce
+	input.Transfer = *new(TransferInput).FromTransfer(&value.Transfer)
+	input.TransferIndex = uint(value.TransferIndex)
+	input.TransferMerkleProof = make([]string, len(value.TransferMerkleProof))
+	for i, sibling := range value.TransferMerkleProof {
+		input.TransferMerkleProof[i] = sibling.String()
+	}
+
+	return input
+}
+
+type WithdrawalWitnessInput struct {
+	TransferWitness *TransferWitnessInput `json:"transferWitness"`
+	BalanceProof    string                `json:"balanceProof"`
+}
+
+type WithdrawalWitness struct {
+	TransferWitness *intMaxTypes.TransferWitness
+	BalanceProof    *string
+}
+
+func (input *WithdrawalWitnessInput) FromWithdrawalWitness(value *WithdrawalWitness) *WithdrawalWitnessInput {
+	input.TransferWitness = new(TransferWitnessInput).FromTransferWitness(value.TransferWitness)
+	input.BalanceProof = *value.BalanceProof
+
+	return input
 }

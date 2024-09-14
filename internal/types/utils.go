@@ -263,6 +263,21 @@ func (v *Uint256) FromBytes(bytes []byte) *Uint256 {
 	return v
 }
 
+func (v *Uint256) Add(other *Uint256) *Uint256 {
+	result := new(big.Int).Add(v.BigInt(), other.BigInt())
+	return new(Uint256).FromBigInt(result)
+}
+
+func (v *Uint256) Sub(other *Uint256) *Uint256 {
+	result := new(big.Int).Sub(v.BigInt(), other.BigInt())
+
+	if result.Cmp(big.NewInt(0)) < 0 {
+		panic("U256 sub underflow occurred")
+	}
+
+	return new(Uint256).FromBigInt(result)
+}
+
 type FlatG1 = [2]Bytes32
 
 func FlattenG1Affine(pk *bn254.G1Affine) FlatG1 {

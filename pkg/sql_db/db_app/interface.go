@@ -129,6 +129,7 @@ type Withdrawals interface {
 type BackupTransfers interface {
 	CreateBackupTransfer(
 		recipient, encryptedTransferHash, encryptedTransfer string,
+		senderLastBalanceProofBody, senderBalanceTransitionProofBody []byte,
 		blockNumber int64,
 	) (*models.BackupTransfer, error)
 	GetBackupTransfer(condition string, value string) (*models.BackupTransfer, error)
