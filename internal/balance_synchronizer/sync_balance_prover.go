@@ -465,19 +465,19 @@ func SyncLocally(
 	sb block_validity_prover.ServiceBlockchain,
 	blockValidityService block_validity_prover.BlockValidityService,
 	intMaxPrivateKey *intMaxAcc.PrivateKey,
-) error {
+) (*balanceSynchronizer, error) {
 	blockSynchronizer, err := block_synchronizer.NewBlockSynchronizer(
 		ctx, cfg, log,
 	)
 	if err != nil {
 		const msg = "failed to get Block Synchronizer: %+v"
-		return fmt.Errorf(msg, err.Error())
+		return nil, fmt.Errorf(msg, err.Error())
 	}
 
 	userWalletState, err := NewMockWallet(intMaxPrivateKey)
 	if err != nil {
 		const msg = "failed to get Mock Wallet: %+v"
-		return fmt.Errorf(msg, err.Error())
+		return nil, fmt.Errorf(msg, err.Error())
 	}
 
 	syncBalanceProver := NewSyncBalanceProver()
@@ -485,7 +485,7 @@ func SyncLocally(
 	balanceProcessor := balance_prover_service.NewBalanceProcessor(
 		ctx, cfg, log,
 	)
-	balanceSynchronizer := NewSynchronizer(ctx, cfg, log, sb, blockSynchronizer, blockValidityService, balanceProcessor, syncBalanceProver)
+	balanceSynchronizer := NewSynchronizer(ctx, cfg, log, sb, blockSynchronizer, blockValidityService, balanceProcessor, syncBalanceProver, userWalletState)
 	err = balanceSynchronizer.Sync(intMaxPrivateKey)
 	if err != nil {
 		const msg = "failed to sync: %+v"
@@ -509,13 +509,13 @@ func SyncLocally(
 
 	timeout := 1 * time.Second
 	ticker := time.NewTicker(timeout)
-	blockNumber := uint32(1)
+	blockNumber := uint32(1) // TODO
 	for {
 		select {
 		case <-ctx.Done():
 			ticker.Stop()
 			log.Warnf("Received cancel signal from context, stopping...")
-			return nil
+			return nil, errors.New("received cancel signal from context")
 		case <-ticker.C:
 			latestBlockNumber, err := blockValidityService.LatestSynchronizedBlockNumber()
 			if err != nil {
@@ -523,9 +523,7 @@ func SyncLocally(
 				panic(fmt.Sprintf(msg, err.Error()))
 			}
 			if blockNumber <= latestBlockNumber {
-				// return errors.New("block content by block number error")
-				time.Sleep(1 * time.Second)
-				continue
+				return balanceSynchronizer, nil
 			}
 
 			for _, transition := range sortedValidUserData {

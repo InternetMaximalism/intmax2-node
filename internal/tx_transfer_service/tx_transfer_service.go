@@ -11,9 +11,12 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	intMaxAccTypes "intmax2-node/internal/accounts/types"
+	"intmax2-node/internal/balance_prover_service"
 	"intmax2-node/internal/balance_service"
+	"intmax2-node/internal/balance_synchronizer"
 	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/hash/goldenposeidon"
+	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
@@ -90,7 +93,22 @@ func TransferTransaction(
 	// 	return fmt.Errorf("failed to sync balance proof: %w", err)
 	// }
 
+	log := logger.NewCommandLineLogger()
+
 	fmt.Println("Fetching balances...")
+	blockValidityService := balance_prover_service.NewExternalBlockValidityProver(ctx, cfg)
+	balanceSynchronizer, err := balance_synchronizer.SyncLocally(
+		ctx,
+		cfg,
+		log,
+		sb,
+		blockValidityService,
+		userAccount,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to sync balance proof: %w", err)
+	}
+
 	balance, err := balance_service.GetUserBalance(ctx, cfg, userAccount, tokenIndex)
 	if err != nil {
 		return fmt.Errorf(ErrFailedToGetBalance.Error()+": %v", err)
@@ -188,9 +206,9 @@ func TransferTransaction(
 
 	transfersHash, _, _ := transferTree.GetCurrentRootCountAndSiblings()
 
-	var nonce uint64 = 1 // TODO: Incremented with each transaction
 	// lastBalanceProof := ""
 	// balanceTransitionProof := ""
+	nonce := balanceSynchronizer.CurrentNonce() + 1
 
 	err = SendTransferTransaction(
 		ctx,
@@ -525,7 +543,7 @@ func MakeWithdrawalBackupData(
 	transfer *intMaxTypes.Transfer,
 	senderAddress intMaxAcc.Address,
 	transfersHash goldenposeidon.PoseidonHashOut,
-	nonce uint64,
+	nonce uint32,
 	txTreeRoot goldenposeidon.PoseidonHashOut,
 	txTreeMerkleProof []*goldenposeidon.PoseidonHashOut,
 	transferMerkleProof []*goldenposeidon.PoseidonHashOut,
@@ -552,7 +570,7 @@ func MakeWithdrawalBackupData(
 		TransferMerkleProof: transferMerkleProof,
 		TransferTreeRoot:    transfersHash,
 		TransferIndex:       transferIndex,
-		Nonce:               strconv.FormatUint(nonce, base10Key),
+		Nonce:               strconv.FormatUint(uint64(nonce), base10Key),
 		TxTreeMerkleProof:   txTreeMerkleProof,
 		TxTreeRoot:          txTreeRoot,
 		TxIndex:             txIndex,
@@ -564,13 +582,14 @@ func MakeWithdrawalBackupData(
 		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
+	// TODO: Only use one of the implementations.
 	encryptedTransfer2, err := json.Marshal(&BackupWithdrawal{
 		SenderAddress:       senderAddress,
 		Transfer:            transfer,
 		TransferMerkleProof: transferMerkleProof,
 		TransferIndex:       transferIndex,
 		TransferTreeRoot:    transfersHash,
-		Nonce:               nonce,
+		Nonce:               uint64(nonce),
 		TxTreeMerkleProof:   txTreeMerkleProof,
 		TxIndex:             txIndex,
 		TxTreeRoot:          txTreeRoot,

@@ -356,7 +356,7 @@ type TransferWitnessInput struct {
 
 func (input *TransferWitnessInput) FromTransferWitness(value *intMaxTypes.TransferWitness) *TransferWitnessInput {
 	input.Tx.TransferTreeRoot = *value.Tx.TransferTreeRoot
-	input.Tx.Nonce = value.Tx.Nonce
+	input.Tx.Nonce = uint64(value.Tx.Nonce)
 	input.Transfer = *new(TransferInput).FromTransfer(&value.Transfer)
 	input.TransferIndex = uint(value.TransferIndex)
 	input.TransferMerkleProof = make([]string, len(value.TransferMerkleProof))

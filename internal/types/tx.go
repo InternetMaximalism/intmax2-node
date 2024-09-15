@@ -12,14 +12,10 @@ import (
 
 type Tx struct {
 	TransferTreeRoot *PoseidonHashOut
-	Nonce            uint64
+	Nonce            uint32
 }
 
-func NewTx(transferTreeRoot *PoseidonHashOut, nonce uint64) (*Tx, error) {
-	if nonce > ffg.Modulus().Uint64() {
-		return nil, ErrNonceTooLarge
-	}
-
+func NewTx(transferTreeRoot *PoseidonHashOut, nonce uint32) (*Tx, error) {
 	t := new(Tx)
 	t.Nonce = nonce
 	t.TransferTreeRoot = new(PoseidonHashOut).Set(transferTreeRoot)
@@ -71,7 +67,7 @@ func (t *Tx) ToFieldElementSlice() []ffg.Element {
 	for i := int0Key; i < goldenposeidon.NUM_HASH_OUT_ELTS; i++ {
 		result[i].Set(&t.TransferTreeRoot.Elements[i])
 	}
-	result[int4Key].SetUint64(t.Nonce)
+	result[int4Key].SetUint64(uint64(t.Nonce))
 
 	return result
 }

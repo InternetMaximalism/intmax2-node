@@ -28,6 +28,7 @@ type balanceSynchronizer struct {
 	blockValidityService block_validity_prover.BlockValidityService
 	balanceProcessor     balance_prover_service.BalanceProcessor
 	syncBalanceProver    *SyncBalanceProver
+	userState            UserState
 }
 
 func NewSynchronizer(
@@ -39,6 +40,7 @@ func NewSynchronizer(
 	blockValidityService block_validity_prover.BlockValidityService,
 	balanceProcessor balance_prover_service.BalanceProcessor,
 	syncBalanceProver *SyncBalanceProver,
+	userState UserState,
 ) *balanceSynchronizer {
 	return &balanceSynchronizer{
 		ctx:                  ctx,
@@ -49,21 +51,19 @@ func NewSynchronizer(
 		blockValidityService: blockValidityService,
 		balanceProcessor:     balanceProcessor,
 		syncBalanceProver:    syncBalanceProver,
+		userState:            userState,
 	}
+}
+
+func (s *balanceSynchronizer) CurrentNonce() uint32 {
+	return s.userState.Nonce()
 }
 
 func (s *balanceSynchronizer) Sync(
 	intMaxPrivateKey *intMaxAcc.PrivateKey,
 ) error {
-	userWalletState, err := NewMockWallet(intMaxPrivateKey)
-	if err != nil {
-		const msg = "failed to get Mock Wallet: %+v"
-		s.log.Fatalf(msg, err.Error())
-	}
-
 	timeout := 1 * time.Second
 	ticker := time.NewTicker(timeout)
-	blockNumber := uint32(1)
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -95,7 +95,7 @@ func (s *balanceSynchronizer) Sync(
 				s.log.Fatalf(msg, err.Error())
 			}
 
-			if latestSynchronizedBlockNumber <= blockNumber {
+			if latestSynchronizedBlockNumber <= s.syncBalanceProver.LastUpdatedBlockNumber {
 				// return errors.New("block content by block number error")
 				time.Sleep(1 * time.Second)
 				continue
@@ -112,7 +112,7 @@ func (s *balanceSynchronizer) Sync(
 			// }
 
 			for _, transition := range sortedValidUserData {
-				fmt.Printf("wallet private state commitment (before): %s\n", userWalletState.PrivateState().Commitment().String())
+				fmt.Printf("wallet private state commitment (before): %s\n", s.userState.PrivateState().Commitment().String())
 				fmt.Printf("valid transition: %v\n", transition)
 
 				switch transition := transition.(type) {
@@ -125,7 +125,7 @@ func (s *balanceSynchronizer) Sync(
 						s.blockSynchronizer,
 						s.balanceProcessor,
 						s.syncBalanceProver,
-						userWalletState,
+						s.userState,
 					)
 
 					if err != nil {
@@ -156,7 +156,7 @@ func (s *balanceSynchronizer) Sync(
 						s.log,
 						s.blockValidityService,
 						s.blockSynchronizer,
-						userWalletState,
+						s.userState,
 						s.balanceProcessor,
 					)
 					if err != nil {
@@ -190,7 +190,7 @@ func (s *balanceSynchronizer) Sync(
 						s.blockValidityService,
 						s.balanceProcessor,
 						s.syncBalanceProver,
-						userWalletState,
+						s.userState,
 					)
 					if err != nil {
 						const msg = "failed to receive deposit: %+v"
@@ -198,7 +198,7 @@ func (s *balanceSynchronizer) Sync(
 						continue
 					}
 
-					fmt.Printf("wallet private state commitment (after): %s\n", userWalletState.PrivateState().Commitment().String())
+					fmt.Printf("wallet private state commitment (after): %s\n", s.userState.PrivateState().Commitment().String())
 				case balance_prover_service.ValidReceivedTransfer:
 					fmt.Printf("valid received transfer: %v\n", transition.TransferHash)
 					transitionBlockNumber := transition.BlockNumber()
@@ -207,7 +207,7 @@ func (s *balanceSynchronizer) Sync(
 						s.log,
 						s.blockValidityService,
 						s.blockSynchronizer,
-						userWalletState,
+						s.userState,
 						s.balanceProcessor,
 					)
 					if err != nil {
@@ -220,7 +220,7 @@ func (s *balanceSynchronizer) Sync(
 						s.blockValidityService,
 						s.balanceProcessor,
 						s.syncBalanceProver,
-						userWalletState,
+						s.userState,
 					)
 					if err != nil {
 						const msg = "failed to receive transfer: %+v"
@@ -232,8 +232,6 @@ func (s *balanceSynchronizer) Sync(
 				}
 			}
 		}
-
-		blockNumber++
 	}
 }
 

@@ -165,7 +165,7 @@ func TestHandlerTransaction(t *testing.T) {
 
 		currTx, err = intMaxTypes.NewTx(
 			&transferRoot,
-			uint64(nonce),
+			nonce,
 		)
 		assert.NoError(t, err)
 	}

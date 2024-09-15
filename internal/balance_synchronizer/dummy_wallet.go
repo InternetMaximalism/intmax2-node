@@ -50,6 +50,7 @@ type UserState interface {
 	) (*balance_prover_service.SendWitness, error)
 	// PrivateKey() *intMaxAcc.PrivateKey
 	PublicKey() *intMaxAcc.PublicKey
+	Nonce() uint32
 	GenericAddress() (*intMaxTypes.GenericAddress, error)
 	PrivateState() *balance_prover_service.PrivateState
 	GetAllBlockNumbers() []uint32
@@ -114,7 +115,7 @@ func (w *mockWallet) SendTx(
 	transferTreeRoot, _, _ := transferTree.GetCurrentRootCountAndSiblings()
 	tx := intMaxTypes.Tx{
 		TransferTreeRoot: &transferTreeRoot,
-		Nonce:            uint64(w.nonce),
+		Nonce:            w.nonce,
 	}
 
 	txRequest0 := block_validity_prover.MockTxRequest{
@@ -193,7 +194,7 @@ func (w *mockWallet) UpdateOnSendTx(
 		return nil, err
 	}
 
-	if txWitness.Tx.Nonce != uint64(w.nonce) {
+	if txWitness.Tx.Nonce != w.nonce {
 		panic("nonce mismatch")
 	}
 
@@ -300,6 +301,10 @@ func NewMockWallet(privateKey *intMaxAcc.PrivateKey) (*mockWallet, error) {
 
 func (s *mockWallet) PublicKey() *intMaxAcc.PublicKey {
 	return s.privateKey.Public()
+}
+
+func (s *mockWallet) Nonce() uint32 {
+	return s.nonce
 }
 
 func (s *mockWallet) GenericAddress() (*intMaxTypes.GenericAddress, error) {

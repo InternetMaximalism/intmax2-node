@@ -499,7 +499,7 @@ func (w *worker) Receiver(input *ReceiverWorker) error {
 	var currTx *intMaxTypes.Tx
 	currTx, err = intMaxTypes.NewTx(
 		transfersHash,
-		input.Nonce,
+		uint32(input.Nonce),
 	)
 	if err != nil {
 		return errors.Join(ErrNewTxFail, err)

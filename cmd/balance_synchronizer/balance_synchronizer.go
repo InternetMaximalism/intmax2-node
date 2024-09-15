@@ -154,7 +154,14 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 					s.Log.Fatalf(msg, err.Error())
 				}
 
-				balanceSynchronizer := balance_synchronizer.NewSynchronizer(s.Context, s.Config, s.Log, s.SB, blockSynchronizer, blockValidityService, balanceProcessor, syncBalanceProver)
+				// userWalletState := balance_synchronizer.NewUserWalletState(userPrivateKey)
+				userWalletState, err := balance_synchronizer.NewMockWallet(userPrivateKey)
+				if err != nil {
+					const msg = "failed to get Mock Wallet: %+v"
+					s.Log.Fatalf(msg, err.Error())
+				}
+
+				balanceSynchronizer := balance_synchronizer.NewSynchronizer(s.Context, s.Config, s.Log, s.SB, blockSynchronizer, blockValidityService, balanceProcessor, syncBalanceProver, userWalletState)
 				err = balanceSynchronizer.Sync(userPrivateKey)
 				if err != nil {
 					const msg = "failed to sync: %+v"

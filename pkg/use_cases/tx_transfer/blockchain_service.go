@@ -17,5 +17,7 @@ type GenericCommandsSB interface {
 
 type ChainSB interface {
 	SetupEthereumNetworkChainID(ctx context.Context) error
+	SetupScrollNetworkChainID(ctx context.Context) error
 	EthereumNetworkChainLinkEvmJSONRPC(ctx context.Context) (string, error)
+	ScrollNetworkChainLinkEvmJSONRPC(ctx context.Context) (string, error)
 }

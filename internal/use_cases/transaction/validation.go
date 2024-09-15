@@ -173,7 +173,7 @@ func (input *UCTransactionInput) isPoW(pow PoWNonce) validation.Rule {
 
 		tx, err := intMaxTypes.NewTx(
 			transfersHash,
-			input.Nonce,
+			uint32(input.Nonce),
 		)
 		if err != nil {
 			return fmt.Errorf("failed to create new tx: %w", err)

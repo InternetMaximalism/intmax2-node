@@ -61,7 +61,7 @@ func TestTxTree(t *testing.T) {
 	leaves := make([]*intMaxTypes.Tx, 8)
 	for i := 0; i < 4; i++ {
 		leaves[i] = new(intMaxTypes.Tx).Set(zeroTx)
-		leaves[i].Nonce = uint64(i)
+		leaves[i].Nonce = uint32(i)
 		require.Nil(t, err)
 		_, err := mt.AddLeaf(uint64(i), leaves[i])
 		require.Nil(t, err)
@@ -77,7 +77,7 @@ func TestTxTree(t *testing.T) {
 	assert.Equal(t, expectedRoot.Elements, actualRoot.Elements)
 
 	leaves[4] = new(intMaxTypes.Tx).Set(zeroTx)
-	leaves[4].Nonce = uint64(4)
+	leaves[4].Nonce = uint32(4)
 	assert.Nil(t, err)
 	_, err = mt.AddLeaf(4, leaves[4])
 	require.Nil(t, err)
@@ -91,7 +91,7 @@ func TestTxTree(t *testing.T) {
 
 	for i := 5; i < 8; i++ {
 		leaves[i] = new(intMaxTypes.Tx).Set(zeroTx)
-		leaves[i].Nonce = uint64(i)
+		leaves[i].Nonce = uint32(i)
 		assert.Nil(t, err)
 		_, err := mt.AddLeaf(uint64(i), leaves[i])
 		require.Nil(t, err)
@@ -158,19 +158,19 @@ func TestWithdrawalRequest(t *testing.T) {
 	leaves := make([]*intMaxTypes.Tx, 8)
 	for i := 0; i < 4; i++ {
 		leaves[i] = new(intMaxTypes.Tx).Set(zeroTx)
-		leaves[i].Nonce = uint64(i)
+		leaves[i].Nonce = uint32(i)
 		require.Nil(t, err)
 		_, err := mt.AddLeaf(uint64(i), leaves[i])
 		require.Nil(t, err)
 	}
 
 	leaves[4] = new(intMaxTypes.Tx).Set(zeroTx)
-	leaves[4].Nonce = uint64(4)
+	leaves[4].Nonce = uint32(4)
 	_, err = mt.AddLeaf(4, leaves[4])
 	require.Nil(t, err)
 
 	leaves[5] = new(intMaxTypes.Tx).Set(zeroTx)
-	leaves[5].Nonce = uint64(5)
+	leaves[5].Nonce = uint32(5)
 	_, err = mt.AddLeaf(5, leaves[5])
 	require.Nil(t, err)
 

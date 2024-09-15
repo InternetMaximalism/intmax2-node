@@ -68,7 +68,7 @@ func MakeSampleTransferTree() (goldenposeidon.PoseidonHashOut, error) {
 	return transferTreeRoot, nil
 }
 
-func MakeSampleTxTree(transferTreeRoot *goldenposeidon.PoseidonHashOut, nonce uint64) (goldenposeidon.PoseidonHashOut, error) {
+func MakeSampleTxTree(transferTreeRoot *goldenposeidon.PoseidonHashOut, nonce uint32) (goldenposeidon.PoseidonHashOut, error) {
 	tx, err := intMaxTypes.NewTx(
 		transferTreeRoot,
 		nonce,

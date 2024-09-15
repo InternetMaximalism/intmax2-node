@@ -22,7 +22,7 @@ func SendTransferTransaction(
 	cfg *configs.Config,
 	senderAccount *intMaxAcc.PrivateKey,
 	transfersHash intMaxTypes.PoseidonHashOut,
-	nonce uint64,
+	nonce uint32,
 ) error {
 	const duration = 300 * time.Minute
 	expiration := time.Now().Add(duration)
@@ -53,7 +53,7 @@ func SendTransferTransaction(
 
 	message, err := transaction.MakeMessage(
 		transfersHash.Marshal(),
-		nonce,
+		uint64(nonce),
 		powNonceStr,
 		senderAccount.ToAddress(),
 		expiration,
@@ -77,7 +77,7 @@ func SendTransactionWithRawRequest(
 	cfg *configs.Config,
 	senderAccount *intMaxAcc.PrivateKey,
 	transfersHash intMaxTypes.PoseidonHashOut,
-	nonce uint64,
+	nonce uint32,
 	expiration time.Time,
 	powNonce string,
 	signature *bn254.G2Affine,
@@ -98,14 +98,14 @@ func sendTransactionRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
 	senderAddress, transfersHash string,
-	nonce uint64,
+	nonce uint32,
 	expiration time.Time,
 	powNonce, signature string,
 ) error {
 	ucInput := transaction.UCTransactionInput{
 		Sender:        senderAddress,
 		TransfersHash: transfersHash,
-		Nonce:         nonce,
+		Nonce:         uint64(nonce),
 		PowNonce:      powNonce,
 		Expiration:    expiration,
 		Signature:     signature,
