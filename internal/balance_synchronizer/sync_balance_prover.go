@@ -54,6 +54,7 @@ type SyncBalanceProver struct {
 // }
 
 func NewSyncBalanceProver() *SyncBalanceProver {
+	fmt.Println("NewSyncBalanceProver")
 	return &SyncBalanceProver{
 		LastUpdatedBlockNumber: 0,
 		LastBalanceProof:       nil,
@@ -299,8 +300,8 @@ func (s *SyncBalanceProver) SyncNoSend(
 	// 	return err
 	// }
 
-	fmt.Printf("PublicInputs: %v\n", balanceProof.PublicInputs)
-	fmt.Printf("PublicState: %v\n", balanceProof.PublicInputs.PublicState)
+	fmt.Printf("PublicInputs: %+v\n", balanceProof.PublicInputs)
+	fmt.Printf("PublicState: %+v\n", balanceProof.PublicInputs.PublicState)
 	fmt.Printf("s.LastUpdatedBlockNumber before SyncNoSend: %d\n", s.LastUpdatedBlockNumber)
 	s.LastUpdatedBlockNumber = currentBlockNumber
 	fmt.Printf("s.LastUpdatedBlockNumber after SyncNoSend: %d\n", s.LastUpdatedBlockNumber)
@@ -343,14 +344,42 @@ func (s *SyncBalanceProver) ReceiveDeposit(
 		return err
 	}
 	fmt.Println("start ProveReceiveDeposit")
+	lastBalanceProof := s.LastBalanceProof
+	lastBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*lastBalanceProof)
+	if err != nil {
+		return err
+	}
+
+	lastBalancePublicInputs, err := new(balance_prover_service.BalancePublicInputs).FromPublicInputs(lastBalanceProofWithPis.PublicInputs)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("ReceiveDeposit PrivateCommitment commitment: %s\n", lastBalancePublicInputs.PrivateCommitment.String())
+
 	balanceProof, err := balanceProcessor.ProveReceiveDeposit(
 		wallet.PublicKey(),
 		receiveDepositWitness,
-		s.LastBalanceProof,
+		lastBalanceProof,
 	)
 	if err != nil {
 		return err
 	}
+
+	lastBalanceProofWithPis, err = intMaxTypes.NewCompressedPlonky2ProofFromBase64String(balanceProof.Proof)
+	if err != nil {
+		return err
+	}
+
+	lastBalancePublicInputs, err = new(balance_prover_service.BalancePublicInputs).FromPublicInputs(lastBalanceProofWithPis.PublicInputs)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("ReceiveDeposit PrivateCommitment commitment (after): %s\n", lastBalancePublicInputs.PrivateCommitment.String())
+	fmt.Printf("ReceiveDeposit PrivateCommitment commitment (after, public inputs): %s\n", balanceProof.PublicInputs.PrivateCommitment.String())
+	fmt.Printf("wallet private state: %+v\n", wallet.PrivateState())
+	fmt.Printf("wallet private state commitment: %s\n", wallet.PrivateState().Commitment().String())
+
 	fmt.Println("finish ProveReceiveDeposit")
 
 	s.LastBalanceProof = &balanceProof.Proof
@@ -388,7 +417,6 @@ func (s *SyncBalanceProver) ReceiveTransfer(
 	}
 
 	s.LastBalanceProof = &balanceProof.Proof
-
 	return nil
 }
 

@@ -106,10 +106,16 @@ pub async fn generate_receive_deposit_proof_job(
     if let Some(prev_balance_proof) = &prev_balance_proof {
         let prev_balance_proof = BalancePublicInputs::from_pis(&prev_balance_proof.public_inputs);
         println!(
-            "prev_balance_proof: {}",
+            "prev_balance_proof account_tree_root: {}",
             prev_balance_proof
                 .public_state
                 .account_tree_root
+                .to_string()
+        );
+        println!(
+            "prev_balance_proof private_commitment: {}",
+            prev_balance_proof
+                .private_commitment
                 .to_string()
         );
     }
@@ -123,6 +129,12 @@ pub async fn generate_receive_deposit_proof_job(
 
     let balance_pis = BalancePublicInputs::from_pis(&balance_proof.public_inputs);
     println!("balance_proof: {:?}", balance_pis);
+    println!(
+        "balance_proof private_commitment: {}",
+        balance_pis
+            .private_commitment
+            .to_string()
+    );
     println!(
         "balance_proof account_tree_root: {}",
         balance_pis.public_state.account_tree_root.to_string()

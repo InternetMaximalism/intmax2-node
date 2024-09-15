@@ -389,6 +389,7 @@ func (s *mockWallet) GeneratePrivateWitness(
 	nullifier intMaxTypes.Bytes32,
 ) (*balance_prover_service.PrivateWitness, error) {
 	prevPrivateState := s.PrivateState()
+	fmt.Printf("prevPrivateState: %v\n", prevPrivateState)
 
 	fmt.Printf("s.assetTree: %v\n", s.assetTree)
 	assetTree := new(intMaxTree.AssetTree).Set(&s.assetTree)             // clone
@@ -582,6 +583,13 @@ func (s *mockWallet) ReceiveDepositAndUpdate(
 	newSalt, err := new(poseidonHashOut).SetRandom()
 	if err != nil {
 		return nil, err
+	}
+
+	for i, leaf := range s.assetTree.Leaves {
+		fmt.Printf("asset tree leaves[%d]: %v, %v\n", i, leaf.Amount, leaf.IsInsufficient)
+	}
+	for i, leaf := range s.nullifierTree.GetLeaves() {
+		fmt.Printf("nullifier tree leaves[%d]: %v\n", i, leaf)
 	}
 
 	nullifierBytes32 := intMaxTypes.Bytes32{}

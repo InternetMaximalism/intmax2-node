@@ -108,6 +108,7 @@ func (s *balanceSynchronizer) Sync(
 			// }
 
 			for _, transition := range sortedValidUserData {
+				fmt.Printf("wallet private state commitment (before): %s\n", userWalletState.PrivateState().Commitment().String())
 				fmt.Printf("valid transition: %v\n", transition)
 
 				switch transition := transition.(type) {
@@ -163,6 +164,8 @@ func (s *balanceSynchronizer) Sync(
 						s.log.Warnf(msg, err.Error())
 						continue
 					}
+
+					fmt.Printf("wallet private state commitment (after): %s\n", userWalletState.PrivateState().Commitment().String())
 				case balance_prover_service.ValidReceivedTransfer:
 					fmt.Printf("valid received transfer: %v\n", transition.TransferHash)
 					transitionBlockNumber := transition.BlockNumber()

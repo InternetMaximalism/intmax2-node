@@ -14,10 +14,9 @@ use intmax2_zkp::{
     circuits::balance::balance_pis::BalancePublicInputs,
     common::public_state::PublicState,
     ethereum_types::{u256::U256, u32limb_trait::U32LimbTrait},
-    utils::leafable::Leafable,
 };
 
-#[get("/proof/{public_key}/deposit/{deposit_hash}")]
+#[get("/proof/{public_key}/deposit/{request_id}")]
 async fn get_proof(
     query_params: web::Path<(String, String)>,
     redis: web::Data<redis::Client>,
@@ -74,7 +73,7 @@ async fn get_proofs(
     let ids_query = serde_qs::from_str::<DepositHashQuery>(query_string);
 
     let request_ids: Vec<String> = match ids_query {
-        Ok(query) => query.deposit_hashes,
+        Ok(query) => query.request_ids,
         Err(e) => {
             log::warn!("Failed to deserialize query: {:?}", e);
             return Ok(HttpResponse::BadRequest().body("Invalid query parameters"));
@@ -92,7 +91,7 @@ async fn get_proofs(
         .map_err(actix_web::error::ErrorInternalServerError)?;
         if let Some(proof) = some_proof {
             proofs.push(ProofDepositValue {
-                deposit_hash: (*request_id).to_string(),
+                request_id: (*request_id).to_string(),
                 proof,
             });
         }
@@ -121,12 +120,13 @@ async fn generate_proof(
 
     let public_key = U256::from_hex(&query_params).expect("failed to parse public key");
 
-    let request_id = req
-        .receive_deposit_witness
-        .deposit_witness
-        .deposit
-        .hash()
-        .to_string();
+    // let request_id = req
+    //     .receive_deposit_witness
+    //     .deposit_witness
+    //     .deposit
+    //     .hash()
+    //     .to_string();
+    let request_id = req.request_id.clone();
     let full_request_id = get_receive_deposit_request_id(&public_key.to_hex(), &request_id);
     log::debug!("request ID: {:?}", full_request_id);
     let old_proof = redis::Cmd::get(&full_request_id)

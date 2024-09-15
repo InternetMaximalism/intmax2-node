@@ -68,7 +68,7 @@ async fn get_proofs(
     let ids_query = serde_qs::from_str::<SpentIdQuery>(query_string);
 
     let request_ids = match ids_query {
-        Ok(query) => query.request_id,
+        Ok(query) => query.request_ids,
         Err(e) => {
             log::warn!("Failed to deserialize query: {:?}", e);
             return Ok(HttpResponse::BadRequest().body("Invalid query parameters"));
@@ -109,7 +109,8 @@ async fn generate_proof(
         .await
         .map_err(error::ErrorInternalServerError)?;
 
-    let request_id = uuid::Uuid::new_v4();
+    // let request_id = uuid::Uuid::new_v4();
+    let request_id = req.request_id.clone();
     let full_request_id = get_balance_spent_request_id(&request_id.to_string());
     log::debug!("request ID: {:?}", full_request_id);
     let old_proof = redis::Cmd::get(&full_request_id)

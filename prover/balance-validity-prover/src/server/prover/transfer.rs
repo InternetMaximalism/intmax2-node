@@ -10,12 +10,9 @@ use crate::{
     proof::generate_balance_transfer_proof_job,
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
-use intmax2_zkp::{
-    circuits::balance::balance_pis::BalancePublicInputs,
-    ethereum_types::{u256::U256, u32limb_trait::U32LimbTrait},
-};
+use intmax2_zkp::ethereum_types::{u256::U256, u32limb_trait::U32LimbTrait};
 
-#[get("/proof/{public_key}/transfer/{private_commitment}")]
+#[get("/proof/{public_key}/transfer/{request_id}")]
 async fn get_proof(
     query_params: web::Path<(String, String)>,
     redis: web::Data<redis::Client>,
@@ -73,30 +70,27 @@ async fn get_proofs(
 
     let query_string = req.query_string();
     let ids_query = serde_qs::from_str::<TransferIdQuery>(query_string);
-    let private_commitments: Vec<String>;
 
-    match ids_query {
-        Ok(query) => {
-            private_commitments = query.private_commitments;
-        }
+    let request_ids: Vec<String> = match ids_query {
+        Ok(query) => query.request_ids,
         Err(e) => {
             log::warn!("Failed to deserialize query: {:?}", e);
             return Ok(HttpResponse::BadRequest().body("Invalid query parameters"));
         }
-    }
+    };
 
     let mut proofs: Vec<ProofTransferValue> = Vec::new();
-    for private_commitment in &private_commitments {
+    for request_id in &request_ids {
         let some_proof = redis::Cmd::get(&get_balance_transfer_request_id(
             &public_key.to_hex(),
-            private_commitment,
+            request_id,
         ))
         .query_async::<_, Option<String>>(&mut conn)
         .await
         .map_err(actix_web::error::ErrorInternalServerError)?;
         if let Some(proof) = some_proof {
             proofs.push(ProofTransferValue {
-                private_commitment: (*private_commitment).to_string(),
+                request_id: (*request_id).to_string(),
                 proof,
             });
         }
@@ -140,11 +134,11 @@ async fn generate_proof(
     balance_circuit_data
         .verify(receive_transfer_witness.balance_proof.clone())
         .map_err(error::ErrorInternalServerError)?;
-    let balance_public_inputs =
-        BalancePublicInputs::from_pis(&receive_transfer_witness.balance_proof.public_inputs);
+    // let balance_public_inputs =
+    //     BalancePublicInputs::from_pis(&receive_transfer_witness.balance_proof.public_inputs);
 
-    // let block_hash = balance_public_inputs.public_state.block_hash;
-    let request_id = balance_public_inputs.private_commitment.to_string();
+    // let request_id = balance_public_inputs.private_commitment.to_string();
+    let request_id = req.request_id.clone();
     let full_request_id = get_balance_transfer_request_id(&public_key.to_hex(), &request_id);
     log::debug!("request ID: {:?}", full_request_id);
     let old_proof = redis::Cmd::get(&full_request_id)

@@ -11,14 +11,12 @@ use crate::{
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
 use intmax2_zkp::{
-    circuits::{
-        balance::balance_pis::BalancePublicInputs, validity::validity_pis::ValidityPublicInputs,
-    },
+    circuits::balance::balance_pis::BalancePublicInputs,
     common::witness::update_witness::UpdateWitness,
     ethereum_types::{u256::U256, u32limb_trait::U32LimbTrait},
 };
 
-#[get("/proof/{public_key}/update/{block_hash}")]
+#[get("/proof/{public_key}/update/{request_id}")]
 async fn get_proof(
     query_params: web::Path<(String, String)>,
     redis: web::Data<redis::Client>,
@@ -77,30 +75,27 @@ async fn get_proofs(
 
     let query_string = req.query_string();
     let ids_query = serde_qs::from_str::<UpdateIdQuery>(query_string);
-    let block_hashes: Vec<String>;
 
-    match ids_query {
-        Ok(query) => {
-            block_hashes = query.block_hashes;
-        }
+    let request_ids: Vec<String> = match ids_query {
+        Ok(query) => query.request_ids,
         Err(e) => {
             log::warn!("Failed to deserialize query: {:?}", e);
             return Ok(HttpResponse::BadRequest().body("Invalid query parameters"));
         }
-    }
+    };
 
     let mut proofs: Vec<ProofUpdateValue> = Vec::new();
-    for block_hash in &block_hashes {
+    for request_id in &request_ids {
         let some_proof = redis::Cmd::get(&get_balance_update_request_id(
             &public_key.to_hex(),
-            block_hash,
+            request_id,
         ))
         .query_async::<_, Option<String>>(&mut conn)
         .await
         .map_err(actix_web::error::ErrorInternalServerError)?;
         if let Some(proof) = some_proof {
             proofs.push(ProofUpdateValue {
-                block_hash: (*block_hash).to_string(),
+                request_id: (*request_id).to_string(),
                 proof,
             });
         }
@@ -141,14 +136,14 @@ async fn generate_proof(
     validity_circuit_data
         .verify(validity_proof.clone())
         .map_err(error::ErrorInternalServerError)?;
-    let validity_public_inputs = ValidityPublicInputs::from_pis(&validity_proof.public_inputs);
+    // let validity_public_inputs = ValidityPublicInputs::from_pis(&validity_proof.public_inputs);
     let balance_update_witness = UpdateWitness {
         validity_proof,
         block_merkle_proof: req.balance_update_witness.block_merkle_proof.clone(),
         account_membership_proof: req.balance_update_witness.account_membership_proof.clone(),
     };
 
-    let request_id = validity_public_inputs.public_state.block_hash.to_hex();
+    let request_id = req.request_id.clone();
     let full_request_id = get_balance_update_request_id(&public_key.to_hex(), &request_id);
     log::debug!("request ID: {:?}", full_request_id);
     let old_proof = redis::Cmd::get(&full_request_id)
@@ -262,6 +257,6 @@ async fn generate_proof(
     Ok(HttpResponse::Ok().json(response))
 }
 
-fn get_balance_update_request_id(public_key: &str, block_hash: &str) -> String {
-    format!("balance-validity/{}/update/{}", public_key, block_hash)
+fn get_balance_update_request_id(public_key: &str, request_id: &str) -> String {
+    format!("balance-validity/{}/update/{}", public_key, request_id)
 }
