@@ -154,8 +154,8 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 					s.Log.Fatalf(msg, err.Error())
 				}
 
-				balanceSynchronizer := balance_synchronizer.NewSynchronizer(s.Context, s.Config, s.Log, s.SB, s.DbApp)
-				err = balanceSynchronizer.Sync(blockSynchronizer, blockValidityService, balanceProcessor, syncBalanceProver, userPrivateKey)
+				balanceSynchronizer := balance_synchronizer.NewSynchronizer(s.Context, s.Config, s.Log, s.SB, blockSynchronizer, blockValidityService, balanceProcessor, syncBalanceProver)
+				err = balanceSynchronizer.Sync(userPrivateKey)
 				if err != nil {
 					const msg = "failed to sync: %+v"
 					s.Log.Fatalf(msg, err.Error())

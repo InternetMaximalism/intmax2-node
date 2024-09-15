@@ -85,8 +85,8 @@ func NewBlockValidityProver(ctx context.Context, cfg *configs.Config, log logger
 	}, nil
 }
 
-func (d *blockValidityProver) RollupContractDeployedBlockNumber() uint64 {
-	return d.cfg.Blockchain.RollupContractDeployedBlockNumber
+func (d *blockValidityProver) RollupContractDeployedBlockNumber() (uint64, error) {
+	return d.cfg.Blockchain.RollupContractDeployedBlockNumber, nil
 }
 
 func (d *blockValidityProver) FetchScrollCalldataByHash(txHash common.Hash) ([]byte, error) {
@@ -166,8 +166,8 @@ func NewBlockValidityService(ctx context.Context, cfg *configs.Config, log logge
 	}, nil
 }
 
-func (d *blockValidityProver) LatestIntMaxBlockNumber() uint32 {
-	return d.blockBuilder.LatestIntMaxBlockNumber()
+func (d *blockValidityProver) LatestIntMaxBlockNumber() (uint32, error) {
+	return d.blockBuilder.LatestIntMaxBlockNumber(), nil
 }
 
 func (d *blockValidityProver) GetDepositLeafAndIndexByHash(depositHash common.Hash) (depositLeafWithId *DepositLeafWithId, depositIndex *uint32, err error) {
@@ -257,4 +257,40 @@ func (d *blockValidityProver) DepositTreeProof(depositIndex uint32) (*intMaxTree
 	}
 
 	return depositMerkleProof, depositTreeRoot, err
+}
+
+// check synchronization of INTMAX blocks
+func CheckBlockSynchronization(
+	blockValidityService BlockValidityService,
+	blockSynchronizer BlockSynchronizer,
+) (err error) {
+	// s.blockSynchronizer.SyncBlockTree(blockProverService)
+	startBlock, err := blockValidityService.LastSeenBlockPostedEventBlockNumber() // XXX
+	if err != nil {
+		var ErrNotFound = errors.New("not found")
+		if !errors.Is(err, ErrNotFound) {
+			var ErrLastSeenBlockPostedEventBlockNumberFail = errors.New("last seen block posted event block number fail")
+			panic(errors.Join(ErrLastSeenBlockPostedEventBlockNumberFail, err)) // TODO
+		}
+
+		startBlock, err = blockValidityService.RollupContractDeployedBlockNumber()
+		if err != nil {
+			var ErrRollupContractDeployedBlockNumberFail = errors.New("rollup contract deployed block number fail")
+			panic(errors.Join(ErrRollupContractDeployedBlockNumberFail, err)) // TODO
+		}
+	}
+
+	const searchBlocksLimitAtOnce = 10000
+	endBlock := startBlock + searchBlocksLimitAtOnce
+	events, _, err := blockSynchronizer.FetchNewPostedBlocks(startBlock, &endBlock)
+	if err != nil {
+		var ErrFetchNewPostedBlocksFail = errors.New("fetch new posted blocks fail")
+		return errors.Join(ErrFetchNewPostedBlocksFail, err)
+	}
+
+	if len(events) != 0 {
+		return errors.New("not synchronized")
+	}
+
+	return nil
 }

@@ -20,11 +20,14 @@ import (
 const int8Key = 8
 
 type balanceSynchronizer struct {
-	ctx context.Context
-	cfg *configs.Config
-	log logger.Logger
-	sb  block_validity_prover.ServiceBlockchain
-	db  block_validity_prover.SQLDriverApp
+	ctx                  context.Context
+	cfg                  *configs.Config
+	log                  logger.Logger
+	sb                   block_validity_prover.ServiceBlockchain
+	blockSynchronizer    block_validity_prover.BlockSynchronizer
+	blockValidityService block_validity_prover.BlockValidityService
+	balanceProcessor     balance_prover_service.BalanceProcessor
+	syncBalanceProver    *SyncBalanceProver
 }
 
 func NewSynchronizer(
@@ -32,22 +35,24 @@ func NewSynchronizer(
 	cfg *configs.Config,
 	log logger.Logger,
 	sb block_validity_prover.ServiceBlockchain,
-	db block_validity_prover.SQLDriverApp,
-) *balanceSynchronizer {
-	return &balanceSynchronizer{
-		ctx: ctx,
-		cfg: cfg,
-		log: log,
-		sb:  sb,
-		db:  db,
-	}
-}
-
-func (s *balanceSynchronizer) Sync(
 	blockSynchronizer block_validity_prover.BlockSynchronizer,
 	blockValidityService block_validity_prover.BlockValidityService,
 	balanceProcessor balance_prover_service.BalanceProcessor,
 	syncBalanceProver *SyncBalanceProver,
+) *balanceSynchronizer {
+	return &balanceSynchronizer{
+		ctx:                  ctx,
+		cfg:                  cfg,
+		log:                  log,
+		sb:                   sb,
+		blockSynchronizer:    blockSynchronizer,
+		blockValidityService: blockValidityService,
+		balanceProcessor:     balanceProcessor,
+		syncBalanceProver:    syncBalanceProver,
+	}
+}
+
+func (s *balanceSynchronizer) Sync(
 	intMaxPrivateKey *intMaxAcc.PrivateKey,
 ) error {
 	userWalletState, err := NewMockWallet(intMaxPrivateKey)
@@ -73,8 +78,7 @@ func (s *balanceSynchronizer) Sync(
 			}
 			sortedValidUserData, err := userAllData.SortValidUserData(
 				s.log,
-				blockValidityService,
-				blockSynchronizer,
+				s.blockValidityService,
 			)
 			if err != nil {
 				const msg = "failed to sort valid user data: %+v"
@@ -85,7 +89,7 @@ func (s *balanceSynchronizer) Sync(
 				fmt.Printf("transition block number: %d\n", transition.BlockNumber())
 			}
 
-			latestSynchronizedBlockNumber, err := blockValidityService.LatestSynchronizedBlockNumber()
+			latestSynchronizedBlockNumber, err := s.blockValidityService.LatestSynchronizedBlockNumber()
 			if err != nil {
 				const msg = "failed to sync block prover: %+v"
 				s.log.Fatalf(msg, err.Error())
@@ -117,10 +121,10 @@ func (s *balanceSynchronizer) Sync(
 					err := applySentTransactionTransition(
 						s.log,
 						transition.Tx,
-						blockValidityService,
-						blockSynchronizer,
-						balanceProcessor,
-						syncBalanceProver,
+						s.blockValidityService,
+						s.blockSynchronizer,
+						s.balanceProcessor,
+						s.syncBalanceProver,
 						userWalletState,
 					)
 
@@ -133,12 +137,27 @@ func (s *balanceSynchronizer) Sync(
 					fmt.Printf("valid received deposit: %v\n", transition.DepositHash)
 					transitionBlockNumber := transition.BlockNumber()
 					fmt.Printf("transitionBlockNumber: %d", transitionBlockNumber)
-					err = syncBalanceProver.SyncNoSend(
+
+					if s.syncBalanceProver.LastBalanceProof != nil {
+						lastBalanceProof := *s.syncBalanceProver.LastBalanceProof
+						lastBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(lastBalanceProof)
+						if err != nil {
+							return err
+						}
+
+						lastBalancePublicInputs, err := new(balance_prover_service.BalancePublicInputs).FromPublicInputs(lastBalanceProofWithPis.PublicInputs)
+						if err != nil {
+							return err
+						}
+						fmt.Printf("AAA lastBalancePublicInputs (ReceiveDeposit) PrivateCommitment commitment: %s\n", lastBalancePublicInputs.PrivateCommitment.String())
+					}
+
+					err = s.syncBalanceProver.SyncNoSend(
 						s.log,
-						blockValidityService,
-						blockSynchronizer,
+						s.blockValidityService,
+						s.blockSynchronizer,
 						userWalletState,
-						balanceProcessor,
+						s.balanceProcessor,
 					)
 					if err != nil {
 						var ErrNoValidityProofByBlockNumber = errors.New("no validity proof by block number")
@@ -152,11 +171,25 @@ func (s *balanceSynchronizer) Sync(
 						s.log.Fatalf(msg, err.Error())
 					}
 
+					if s.syncBalanceProver.LastBalanceProof != nil {
+						lastBalanceProof := *s.syncBalanceProver.LastBalanceProof
+						lastBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(lastBalanceProof)
+						if err != nil {
+							return err
+						}
+
+						lastBalancePublicInputs, err := new(balance_prover_service.BalancePublicInputs).FromPublicInputs(lastBalanceProofWithPis.PublicInputs)
+						if err != nil {
+							return err
+						}
+						fmt.Printf("BBB lastBalancePublicInputs (ReceiveDeposit) PrivateCommitment commitment: %s\n", lastBalancePublicInputs.PrivateCommitment.String())
+					}
+
 					err := applyReceivedDepositTransition(
 						transition.Deposit,
-						blockValidityService,
-						balanceProcessor,
-						syncBalanceProver,
+						s.blockValidityService,
+						s.balanceProcessor,
+						s.syncBalanceProver,
 						userWalletState,
 					)
 					if err != nil {
@@ -170,12 +203,12 @@ func (s *balanceSynchronizer) Sync(
 					fmt.Printf("valid received transfer: %v\n", transition.TransferHash)
 					transitionBlockNumber := transition.BlockNumber()
 					fmt.Printf("transitionBlockNumber: %d", transitionBlockNumber)
-					err = syncBalanceProver.SyncNoSend(
+					err = s.syncBalanceProver.SyncNoSend(
 						s.log,
-						blockValidityService,
-						blockSynchronizer,
+						s.blockValidityService,
+						s.blockSynchronizer,
 						userWalletState,
-						balanceProcessor,
+						s.balanceProcessor,
 					)
 					if err != nil {
 						const msg = "failed to sync balance prover: %+v"
@@ -184,9 +217,9 @@ func (s *balanceSynchronizer) Sync(
 
 					err := applyReceivedTransferTransition(
 						transition.Transfer,
-						blockValidityService,
-						balanceProcessor,
-						syncBalanceProver,
+						s.blockValidityService,
+						s.balanceProcessor,
+						s.syncBalanceProver,
 						userWalletState,
 					)
 					if err != nil {

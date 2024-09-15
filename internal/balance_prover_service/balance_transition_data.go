@@ -216,7 +216,6 @@ func DecodeBackupData(
 func (userAllData *BalanceTransitionData) SortValidUserData(
 	log logger.Logger,
 	blockValidityProver block_validity_prover.BlockValidityService,
-	blockSynchronizer block_validity_prover.BlockSynchronizer,
 ) ([]ValidBalanceTransition, error) {
 	validDeposits, invalidDeposits, err := ExtractValidReceivedDeposits(log, userAllData, blockValidityProver)
 	if err != nil {
