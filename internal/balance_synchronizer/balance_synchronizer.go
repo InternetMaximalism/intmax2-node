@@ -258,7 +258,7 @@ func applyReceivedDepositTransition(
 	}
 
 	depositIndex := *depositInfo.DepositIndex
-	IsSynchronizedDepositIndex, err := blockValidityService.IsSynchronizedDepositIndex(depositIndex) // TODO: should not use this method
+	IsSynchronizedDepositIndex, err := blockValidityService.IsSynchronizedDepositIndex(depositIndex)
 	if err != nil {
 		const msg = "failed to check IsSynchronizedDepositIndex: %+v"
 		return fmt.Errorf(msg, err.Error())

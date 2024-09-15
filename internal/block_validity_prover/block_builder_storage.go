@@ -514,7 +514,7 @@ func (db *mockBlockBuilder) BlockNumberByDepositIndex(depositIndex uint32) (uint
 
 	// return db.MerkleTreeHistory[blockNumber].DepositTree, nil
 
-	return 0, nil
+	return 0, errors.New("not implemented")
 }
 
 func (db *mockBlockBuilder) AppendBlockTreeLeaf(block *block_post_service.PostedBlock) error {
