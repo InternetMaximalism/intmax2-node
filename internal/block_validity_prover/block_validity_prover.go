@@ -170,8 +170,36 @@ func (d *blockValidityProver) LatestIntMaxBlockNumber() (uint32, error) {
 	return d.blockBuilder.LatestIntMaxBlockNumber(), nil
 }
 
-func (d *blockValidityProver) GetDepositLeafAndIndexByHash(depositHash common.Hash) (depositLeafWithId *DepositLeafWithId, depositIndex *uint32, err error) {
-	return d.blockBuilder.GetDepositLeafAndIndexByHash(depositHash)
+type DepositInfo struct {
+	DepositId    uint32
+	DepositIndex *uint32
+	BlockNumber  *uint32
+	DepositLeaf  *intMaxTree.DepositLeaf
+}
+
+func (d *blockValidityProver) GetDepositLeafAndIndexByHash(depositHash common.Hash) (*DepositInfo, error) {
+	depositLeafWithId, depositIndex, err := d.blockBuilder.GetDepositLeafAndIndexByHash(depositHash)
+	if err != nil {
+		var ErrGetDepositLeafAndIndexByHashFail = errors.New("failed to get deposit leaf and index by hash")
+		return nil, errors.Join(ErrGetDepositLeafAndIndexByHashFail, err)
+	}
+
+	depositInfo := DepositInfo{
+		DepositId:    depositLeafWithId.DepositId,
+		DepositIndex: depositIndex,
+		DepositLeaf:  depositLeafWithId.DepositLeaf,
+	}
+	if depositIndex != nil {
+		blockNumber, err := d.blockBuilder.BlockNumberByDepositIndex(*depositIndex)
+		if err != nil {
+			var ErrBlockNumberByDepositIndexFail = errors.New("failed to get block number by deposit index")
+			return nil, errors.Join(ErrBlockNumberByDepositIndexFail, err)
+		}
+
+		depositInfo.BlockNumber = &blockNumber
+	}
+
+	return &depositInfo, nil
 }
 
 func (d *blockValidityProver) BlockNumberByDepositIndex(depositIndex uint32) (uint32, error) {

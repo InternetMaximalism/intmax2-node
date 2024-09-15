@@ -111,8 +111,8 @@ func (s *externalBlockValidityService) BlockContentByTxRoot(txRoot string) (*blo
 	return nil, errors.New("not implemented")
 }
 
-func (s *externalBlockValidityService) GetDepositLeafAndIndexByHash(depositHash common.Hash) (*block_validity_prover.DepositLeafWithId, *uint32, error) {
-	return nil, nil, errors.New("not implemented")
+func (s *externalBlockValidityService) GetDepositLeafAndIndexByHash(depositHash common.Hash) (*block_validity_prover.DepositInfo, error) {
+	return nil, errors.New("not implemented")
 }
 
 func (s *externalBlockValidityService) BlockNumberByDepositIndex(depositIndex uint32) (uint32, error) {

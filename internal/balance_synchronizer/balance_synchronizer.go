@@ -247,27 +247,28 @@ func applyReceivedDepositTransition(
 	}
 
 	fmt.Printf("applyReceivedDepositTransition deposit ID: %d\n", deposit.DepositID)
-	_, depositIndex, err := blockValidityService.GetDepositLeafAndIndexByHash(deposit.DepositHash)
+	depositInfo, err := blockValidityService.GetDepositLeafAndIndexByHash(deposit.DepositHash)
 	if err != nil {
 		const msg = "failed to get Deposit Leaf and Index by Hash: %+v"
 		return fmt.Errorf(msg, err.Error())
 	}
-	if depositIndex == nil {
+	if depositInfo.DepositIndex == nil {
 		const msg = "failed to get Deposit Index by Hash: %+v"
 		return fmt.Errorf(msg, "depositIndex is nil")
 	}
 
-	IsSynchronizedDepositIndex, err := blockValidityService.IsSynchronizedDepositIndex(*depositIndex)
+	depositIndex := *depositInfo.DepositIndex
+	IsSynchronizedDepositIndex, err := blockValidityService.IsSynchronizedDepositIndex(depositIndex) // TODO: should not use this method
 	if err != nil {
 		const msg = "failed to check IsSynchronizedDepositIndex: %+v"
 		return fmt.Errorf(msg, err.Error())
 	}
 	if !IsSynchronizedDepositIndex {
 		const msg = "deposit index %d is not synchronized"
-		return fmt.Errorf(msg, *depositIndex)
+		return fmt.Errorf(msg, depositIndex)
 	}
 
-	fmt.Printf("deposit index: %d\n", *depositIndex)
+	fmt.Printf("deposit index: %d\n", depositIndex)
 
 	depositCase := balance_prover_service.DepositCase{
 		Deposit: intMaxTree.DepositLeaf{
@@ -275,17 +276,17 @@ func applyReceivedDepositTransition(
 			TokenIndex:        deposit.TokenIndex,
 			Amount:            deposit.Amount,
 		},
-		DepositIndex: *depositIndex,
+		DepositIndex: depositIndex,
 		DepositID:    deposit.DepositID,
 		DepositSalt:  *deposit.Salt,
 	}
-	userState.AddDepositCase(*depositIndex, &depositCase)
+	userState.AddDepositCase(depositIndex, &depositCase)
 	fmt.Printf("start to prove deposit\n")
 	err = syncBalanceProver.ReceiveDeposit(
 		userState,
 		balanceProcessor,
 		blockValidityService,
-		*depositIndex,
+		depositIndex,
 	)
 	if err != nil {
 		fmt.Printf("prove deposit %v\n", err.Error())
