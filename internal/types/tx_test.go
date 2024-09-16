@@ -151,6 +151,7 @@ func TestEncryptTxDetails(t *testing.T) {
 		Tx:            tx,
 		Transfers:     transfers,
 		TxTreeRoot:    &txTreeRoot,
+		TxIndex:       5,
 		TxMerkleProof: txMerkleProof,
 	}
 
@@ -179,11 +180,12 @@ func TestEncryptTxDetails(t *testing.T) {
 	require.Equal(t, encodedTx, decryptedTxBytes)
 
 	decryptedTx := new(intMaxTypes.TxDetails)
-
 	err = decryptedTx.Unmarshal(decryptedTxBytes)
 	require.NoError(t, err)
+
+	fmt.Printf("decryptedTx: %+v\n", decryptedTx)
 	assert.True(
-		t, txDetails.Tx.Equal(&decryptedTx.Tx),
+		t, decryptedTx.Equal(&txDetails),
 		"recipients should be equal: %+v != %+v", txDetails, decryptedTx,
 	)
 }
