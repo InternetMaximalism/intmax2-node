@@ -280,23 +280,94 @@ Usage:
 Flags:
   -h, --help help for withdrawal-relayer-mock
 ```
+### Command `./intmax2-node balance --help`
+```
+# ./intmax2-node balance --help
+Manage balance
+
+Usage:
+  app balance [command]
+
+Available Commands:
+  get         Manage of Get balance of specified INTMAX account
+
+Flags:
+  -h, --help   help for balance
+
+Use "app balance [command] --help" for more information about a command.
+```
 ### Command `./intmax2-node balance get --help`
 ```
 # ./intmax2-node balance get --help
-Get balance of specified INTMAX account
+Manage of Get balance of specified INTMAX account
 
 Usage:
-  app balance get [flags]
+  app balance get [command]
+
+Available Commands:
+  erc1155     Get balance by token "erc1155" of specified INTMAX account
+  erc20       Get balance by token "erc20" of specified INTMAX account
+  erc721      Get balance by token "erc721" of specified INTMAX account
+  eth         Get balance by token "eth" of specified INTMAX account
 
 Flags:
-  -h, --help                 help for get
+  -h, --help   help for get
+
+Use "app balance get [command] --help" for more information about a command.
+```
+### Command `./intmax2-node balance get erc1155 --help`
+```
+# ./intmax2-node balance get erc1155 --help
+Get balance by token "erc1155" of specified INTMAX account
+
+Usage:
+  app balance get erc1155 [flags]
+
+Flags:
+  -h, --help                 help for erc1155
+      --private-key string   specify user address. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
+```
+### Command `./intmax2-node balance get erc20 --help`
+```
+# ./intmax2-node balance get erc20 --help
+Get balance by token "erc20" of specified INTMAX account
+
+Usage:
+  app balance get erc20 [flags]
+
+Flags:
+  -h, --help                 help for erc20
       --private-key string   specify user address. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
 
-Example1:
-  ./intmax2-node balance get eth --private-key 0x030644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd3
-
-Example2:
+Example:
   ./intmax2-node balance get erc20 0x0000000000000000000000000000000000000001 --private-key 0x030644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd3
+```
+### Command `./intmax2-node balance get erc721 --help`
+```
+# ./intmax2-node balance get erc721 --help
+Get balance by token "erc721" of specified INTMAX account
+
+Usage:
+  app balance get erc721 [flags]
+
+Flags:
+  -h, --help                 help for erc721
+      --private-key string   specify user address. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
+```
+### Command `./intmax2-node balance get eth --help`
+```
+# ./intmax2-node balance get eth --help
+Get balance by token "eth" of specified INTMAX account
+
+Usage:
+  app balance get eth [flags]
+
+Flags:
+  -h, --help                 help for eth
+      --private-key string   specify user address. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
+
+Example:
+  ./intmax2-node balance get eth --private-key 0x030644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd3
 ```
 ### Command `./intmax2-node tx deposit --help`
 ```
