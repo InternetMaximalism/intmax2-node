@@ -112,16 +112,6 @@ func main() {
 			DepositSynchronizer: depositSynchronizer,
 			GPOStorage:          storeGPO,
 		}),
-		balance_synchronizer.NewSynchronizerCmd(&balance_synchronizer.Synchronizer{
-			Context: ctx,
-			Cancel:  cancel,
-			Config:  cfg,
-			Log:     log,
-			DbApp:   dbApp,
-			WG:      &wg,
-			SB:      bc,
-			HC:      &hc,
-		}),
 		migrator.NewMigratorCmd(ctx, log, dbApp),
 		deposit.NewDepositCmd(&deposit.Deposit{
 			Context: ctx,
