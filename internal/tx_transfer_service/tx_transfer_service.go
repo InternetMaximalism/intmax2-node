@@ -14,6 +14,7 @@ import (
 	"intmax2-node/internal/balance_service"
 	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/hash/goldenposeidon"
+	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
@@ -36,7 +37,7 @@ const (
 func TransferTransaction(
 	ctx context.Context,
 	cfg *configs.Config,
-	// log logger.Logger,
+	log logger.Logger,
 	sb ServiceBlockchain,
 	args []string,
 	amountStr string,
@@ -105,6 +106,11 @@ func TransferTransaction(
 	// 	return fmt.Errorf("failed to sync balance proof: %w", err)
 	// }
 
+	l1Balance, err := balance_service.GetTokenBalance(ctx, cfg, log, sb, *wallet.WalletAddress, *tokenInfo)
+	if err != nil {
+		return fmt.Errorf(ErrFailedToGetBalanceEth, "Ethereum")
+	}
+
 	balance, err := balance_service.GetUserBalance(ctx, cfg, userAccount, tokenIndex)
 	if err != nil {
 		return fmt.Errorf(ErrFailedToGetBalance.Error()+": %v", err)
@@ -169,8 +175,8 @@ func TransferTransaction(
 		return fmt.Errorf("failed to convert gas fee to int: %w", err)
 	}
 	totalAmountWithGas := new(big.Int).Add(amount, gasFeeInt)
-	if balance.Cmp(totalAmountWithGas) < 0 {
-		return fmt.Errorf("insufficient funds for tx cost: balance %s, tx cost %s", balance, totalAmountWithGas)
+	if l1Balance.Cmp(totalAmountWithGas) < 0 {
+		return fmt.Errorf("insufficient funds for tx cost: l1Balance %s, tx cost %s", l1Balance, totalAmountWithGas)
 	}
 
 	// Send transfer transaction
