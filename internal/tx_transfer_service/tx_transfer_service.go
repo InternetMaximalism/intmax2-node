@@ -11,12 +11,9 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	intMaxAccTypes "intmax2-node/internal/accounts/types"
-	"intmax2-node/internal/balance_prover_service"
 	"intmax2-node/internal/balance_service"
-	"intmax2-node/internal/balance_synchronizer"
 	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/hash/goldenposeidon"
-	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
@@ -93,21 +90,20 @@ func TransferTransaction(
 	// 	return fmt.Errorf("failed to sync balance proof: %w", err)
 	// }
 
-	log := logger.NewCommandLineLogger()
-
 	fmt.Println("Fetching balances...")
-	blockValidityService := balance_prover_service.NewExternalBlockValidityProver(ctx, cfg)
-	balanceSynchronizer, err := balance_synchronizer.SyncLocally(
-		ctx,
-		cfg,
-		log,
-		sb,
-		blockValidityService,
-		userAccount,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to sync balance proof: %w", err)
-	}
+	// log := logger.NewCommandLineLogger()
+	// blockValidityService := balance_prover_service.NewExternalBlockValidityProver(ctx, cfg)
+	// balanceSynchronizer, err := balance_synchronizer.SyncLocally(
+	// 	ctx,
+	// 	cfg,
+	// 	log,
+	// 	sb,
+	// 	blockValidityService,
+	// 	userAccount,
+	// )
+	// if err != nil {
+	// 	return fmt.Errorf("failed to sync balance proof: %w", err)
+	// }
 
 	balance, err := balance_service.GetUserBalance(ctx, cfg, userAccount, tokenIndex)
 	if err != nil {
@@ -208,7 +204,8 @@ func TransferTransaction(
 
 	// lastBalanceProof := ""
 	// balanceTransitionProof := ""
-	nonce := balanceSynchronizer.CurrentNonce() + 1
+	// nonce := balanceSynchronizer.CurrentNonce() + 1
+	nonce := uint32(1) // TODO: Get nonce from balance synchronizer
 
 	err = SendTransferTransaction(
 		ctx,
