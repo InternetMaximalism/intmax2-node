@@ -295,7 +295,7 @@ func MakeTxWitness(
 	// }
 
 	fmt.Printf("IMPORTANT PostBlock")
-	validityWitness, err := blockValidityService.ValidityWitness(txDetails.TxTreeRoot.String())
+	validityPublicInputs, senderLeaves, err := blockValidityService.ValidityPublicInputs(txDetails.TxTreeRoot.String())
 	// validityWitness, err := blockValidityService.UpdateValidityWitness(
 	// 	blockContent,
 	// )
@@ -321,7 +321,7 @@ func MakeTxWitness(
 	// }
 
 	senderWitness := make([]*intMaxTree.SenderLeaf, 0)
-	for _, sender := range validityWitness.ValidityTransitionWitness.SenderLeaves {
+	for _, sender := range senderLeaves {
 		senderWitness = append(senderWitness, &intMaxTree.SenderLeaf{
 			Sender:  new(intMaxTypes.Uint256).FromBigInt(sender.Sender),
 			IsValid: sender.IsValid,
@@ -329,7 +329,7 @@ func MakeTxWitness(
 	}
 
 	txWitness := &balance_prover_service.TxWitness{
-		ValidityPis:   *validityWitness.ValidityPublicInputs(),
+		ValidityPis:   *validityPublicInputs, // *validityWitness.ValidityPublicInputs(),
 		SenderLeaves:  senderWitness,
 		Tx:            tx,
 		TxIndex:       txDetails.TxIndex,

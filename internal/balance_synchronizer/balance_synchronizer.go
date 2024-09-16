@@ -89,12 +89,13 @@ func (s *balanceSynchronizer) Sync(
 				fmt.Printf("transition block number: %d\n", transition.BlockNumber())
 			}
 
-			latestSynchronizedBlockNumber, err := s.blockValidityService.LatestSynchronizedBlockNumber()
+			validityProverInfo, err := s.blockValidityService.FetchValidityProverInfo()
 			if err != nil {
 				const msg = "failed to sync block prover: %+v"
 				s.log.Fatalf(msg, err.Error())
 			}
 
+			latestSynchronizedBlockNumber := validityProverInfo.BlockNumber
 			if latestSynchronizedBlockNumber <= s.syncBalanceProver.LastUpdatedBlockNumber {
 				// return errors.New("block content by block number error")
 				time.Sleep(1 * time.Second)

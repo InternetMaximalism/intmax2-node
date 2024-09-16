@@ -291,7 +291,7 @@ func (s *SyncBalanceProver) SyncNoSend(
 
 func (s *SyncBalanceProver) SyncAll(
 	log logger.Logger,
-	blockValidityService block_validity_prover.BlockValidityService,
+	blockValidityService *block_validity_prover.BlockValidityProverMemory,
 	blockSynchronizer block_validity_prover.BlockSynchronizer,
 	wallet UserState,
 	balanceProcessor balance_prover_service.BalanceProcessor,
@@ -490,13 +490,14 @@ func SyncLocally(
 			log.Warnf("Received cancel signal from context, stopping...")
 			return nil, errors.New("received cancel signal from context")
 		case <-ticker.C:
-			latestBlockNumber, err := blockValidityService.LatestSynchronizedBlockNumber()
+			validityProverInfo, err := blockValidityService.FetchValidityProverInfo()
 			if err != nil {
 				const msg = "failed to sync block prover: %+v"
 				panic(fmt.Sprintf(msg, err.Error()))
 			}
 
 			// XXX: when the sync is done, we should stop the loop
+			latestBlockNumber := validityProverInfo.BlockNumber
 			if latestBlockNumber < blockNumber {
 				return balanceSynchronizer, nil
 			}

@@ -223,6 +223,28 @@ func (d *blockValidityProver) LatestSynchronizedBlockNumber() (uint32, error) {
 	return d.blockBuilder.LastGeneratedProofBlockNumber, nil
 }
 
+type ValidityProverInfo struct {
+	DepositIndex uint32
+	BlockNumber  uint32
+}
+
+func (d *blockValidityProver) FetchValidityProverInfo() (*ValidityProverInfo, error) {
+	lastDepositIndex, err := d.FetchLastDepositIndex()
+	if err != nil {
+		return nil, err
+	}
+
+	lastBlockNumber, err := d.LatestSynchronizedBlockNumber()
+	if err != nil {
+		return nil, err
+	}
+
+	return &ValidityProverInfo{
+		DepositIndex: lastDepositIndex,
+		BlockNumber:  lastBlockNumber,
+	}, nil
+}
+
 func (d *blockValidityProver) FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber *uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error) {
 	if currentBlockNumber == nil {
 		latestBlockNumber := d.blockBuilder.LatestIntMaxBlockNumber()
@@ -324,6 +346,18 @@ func (d *blockValidityProver) BlockContentByTxRoot(txRoot string) (*block_post_s
 		blockContent.BlockNumber,
 		signatureHash,
 	), nil
+}
+
+func (d *blockValidityProver) ValidityPublicInputs(txRoot string) (*ValidityPublicInputs, []SenderLeaf, error) {
+	validityWitness, err := d.ValidityWitness(txRoot)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	validityPublicInputs := validityWitness.ValidityPublicInputs()
+	senderLeaves := validityWitness.ValidityTransitionWitness.SenderLeaves
+
+	return validityPublicInputs, senderLeaves, nil
 }
 
 func (d *blockValidityProver) DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error) {
