@@ -216,7 +216,7 @@ func applyReceivedDepositTransition(
 	}
 
 	fmt.Printf("applyReceivedDepositTransition deposit ID: %d\n", deposit.DepositID)
-	depositInfo, err := blockValidityService.GetDepositLeafAndIndexByHash(deposit.DepositHash)
+	depositInfo, err := blockValidityService.GetDepositInfoByHash(deposit.DepositHash)
 	if err != nil {
 		const msg = "failed to get Deposit Leaf and Index by Hash: %+v"
 		return fmt.Errorf(msg, err.Error())
@@ -227,12 +227,7 @@ func applyReceivedDepositTransition(
 	}
 
 	depositIndex := *depositInfo.DepositIndex
-	IsSynchronizedDepositIndex, err := blockValidityService.IsSynchronizedDepositIndex(depositIndex)
-	if err != nil {
-		const msg = "failed to check IsSynchronizedDepositIndex: %+v"
-		return fmt.Errorf(msg, err.Error())
-	}
-	if !IsSynchronizedDepositIndex {
+	if !depositInfo.IsSynchronized {
 		const msg = "deposit index %d is not synchronized"
 		return fmt.Errorf(msg, depositIndex)
 	}

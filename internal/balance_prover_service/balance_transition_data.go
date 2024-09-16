@@ -345,7 +345,7 @@ func ExtractValidReceivedDeposits(
 		depositHash := deposit.DepositHash // TODO: validate deposit
 		log.Debugf("deposit hash: %s\n", depositHash.String())
 
-		depositInfo, err := blockValidityService.GetDepositLeafAndIndexByHash(depositHash)
+		depositInfo, err := blockValidityService.GetDepositInfoByHash(depositHash)
 		if err != nil {
 			log.Warnf("failed to get deposit index by hash %s: %v\n", depositHash.String(), err)
 			continue

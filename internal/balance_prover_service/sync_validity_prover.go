@@ -94,16 +94,12 @@ func (s *externalBlockValidityService) BlockContentByTxRoot(txRoot string) (*blo
 	return nil, errors.New("not implemented")
 }
 
-func (s *externalBlockValidityService) GetDepositLeafAndIndexByHash(depositHash common.Hash) (*block_validity_prover.DepositInfo, error) {
+func (s *externalBlockValidityService) GetDepositInfoByHash(depositHash common.Hash) (*block_validity_prover.DepositInfo, error) {
 	return nil, errors.New("not implemented")
 }
 
 func (s *externalBlockValidityService) LatestSynchronizedBlockNumber() (uint32, error) {
 	return 0, errors.New("not implemented")
-}
-
-func (s *externalBlockValidityService) IsSynchronizedDepositIndex(depositIndex uint32) (bool, error) {
-	return false, errors.New("not implemented")
 }
 
 func (s *externalBlockValidityService) FetchUpdateWitness(

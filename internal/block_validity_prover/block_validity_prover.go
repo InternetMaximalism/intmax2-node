@@ -172,13 +172,14 @@ func (d *blockValidityProver) LatestIntMaxBlockNumber() (uint32, error) {
 }
 
 type DepositInfo struct {
-	DepositId    uint32
-	DepositIndex *uint32
-	BlockNumber  *uint32
-	DepositLeaf  *intMaxTree.DepositLeaf
+	DepositId      uint32
+	DepositIndex   *uint32
+	BlockNumber    *uint32
+	IsSynchronized bool
+	DepositLeaf    *intMaxTree.DepositLeaf
 }
 
-func (d *blockValidityProver) GetDepositLeafAndIndexByHash(depositHash common.Hash) (*DepositInfo, error) {
+func (d *blockValidityProver) GetDepositInfoByHash(depositHash common.Hash) (*DepositInfo, error) {
 	depositLeafWithId, depositIndex, err := d.blockBuilder.GetDepositLeafAndIndexByHash(depositHash)
 	if err != nil {
 		var ErrGetDepositLeafAndIndexByHashFail = errors.New("failed to get deposit leaf and index by hash")
@@ -197,7 +198,14 @@ func (d *blockValidityProver) GetDepositLeafAndIndexByHash(depositHash common.Ha
 			return nil, errors.Join(ErrBlockNumberByDepositIndexFail, err)
 		}
 
+		isSynchronizedDepositIndex, err := d.blockBuilder.IsSynchronizedDepositIndex(*depositIndex)
+		if err != nil {
+			var ErrIsSynchronizedDepositIndexFail = errors.New("failed to check if deposit index is synchronized")
+			return nil, errors.Join(ErrIsSynchronizedDepositIndexFail, err)
+		}
+
 		depositInfo.BlockNumber = &blockNumber
+		depositInfo.IsSynchronized = isSynchronizedDepositIndex
 	}
 
 	return &depositInfo, nil
@@ -210,10 +218,6 @@ func (d *blockValidityProver) BlockNumberByDepositIndex(depositIndex uint32) (ui
 
 func (d *blockValidityProver) LatestSynchronizedBlockNumber() (uint32, error) {
 	return d.blockBuilder.LastGeneratedProofBlockNumber, nil
-}
-
-func (d *blockValidityProver) IsSynchronizedDepositIndex(depositIndex uint32) (bool, error) {
-	return d.blockBuilder.IsSynchronizedDepositIndex(depositIndex)
 }
 
 func (d *blockValidityProver) FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber *uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error) {
