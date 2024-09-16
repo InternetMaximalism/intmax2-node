@@ -33,26 +33,3 @@ DROP TABLE block_contents;
 DROP TABLE block_contained_senders;
 
 DROP SEQUENCE block_contents_block_number_seq;
-
-
--- type MockBlockBuilder struct {
--- 	LastBlockNumber                         uint32
--- 	AccountTree                             *intMaxTree.AccountTree      -- current account tree
--- 	BlockTree                               *intMaxTree.BlockHashTree    -- current block hash tree
--- 	DepositTree                             *intMaxTree.KeccakMerkleTree -- current deposit tree
--- 	DepositLeaves                           map[common.Hash]*DepositLeafWithId
--- 	DepositTreeRoots                        []common.Hash
--- 	LastSeenProcessDepositsEventBlockNumber uint64
--- 	LastSeenBlockPostedEventBlockNumber     uint64
--- 	LastSeenProcessedDepositId              uint64
--- 	LastValidityWitness                     *ValidityWitness
--- 	LastValidityProof                       *string
--- 	AuxInfo                                 map[uint32]AuxInfo
--- }
-
--- block_number
--- block_hash
--- validity_proof
-
--- last_validity_witness
--- last_seen_block_posted_event_block_number

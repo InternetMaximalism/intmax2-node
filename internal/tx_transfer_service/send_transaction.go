@@ -22,9 +22,7 @@ func SendTransferTransaction(
 	cfg *configs.Config,
 	senderAccount *intMaxAcc.PrivateKey,
 	transfersHash intMaxTypes.PoseidonHashOut,
-	nonce uint64,
-	// encodedEncryptedTx *transaction.BackupTransactionData,
-	// encodedEncryptedTransfers []*transaction.BackupTransferInput,
+	nonce uint32,
 ) error {
 	const duration = 300 * time.Minute
 	expiration := time.Now().Add(duration)
@@ -55,7 +53,7 @@ func SendTransferTransaction(
 
 	message, err := transaction.MakeMessage(
 		transfersHash.Marshal(),
-		nonce,
+		uint64(nonce),
 		powNonceStr,
 		senderAccount.ToAddress(),
 		expiration,
@@ -71,7 +69,6 @@ func SendTransferTransaction(
 
 	return SendTransactionWithRawRequest(
 		ctx, cfg, senderAccount, transfersHash, nonce, expiration, powNonceStr, signatureInput,
-		// encodedEncryptedTx, encodedEncryptedTransfers,
 	)
 }
 
@@ -80,12 +77,10 @@ func SendTransactionWithRawRequest(
 	cfg *configs.Config,
 	senderAccount *intMaxAcc.PrivateKey,
 	transfersHash intMaxTypes.PoseidonHashOut,
-	nonce uint64,
+	nonce uint32,
 	expiration time.Time,
 	powNonce string,
 	signature *bn254.G2Affine,
-	// encodedEncryptedTx *transaction.BackupTransactionData,
-	// encodedEncryptedTransfers []*transaction.BackupTransferInput,
 ) error {
 	return sendTransactionRawRequest(
 		ctx,
@@ -96,8 +91,6 @@ func SendTransactionWithRawRequest(
 		expiration,
 		powNonce,
 		hexutil.Encode(signature.Marshal()),
-		// encodedEncryptedTx,
-		// encodedEncryptedTransfers,
 	)
 }
 
@@ -105,21 +98,17 @@ func sendTransactionRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
 	senderAddress, transfersHash string,
-	nonce uint64,
+	nonce uint32,
 	expiration time.Time,
 	powNonce, signature string,
-	// backupTx *transaction.BackupTransactionData,
-	// backupTransfers []*transaction.BackupTransferInput,
 ) error {
 	ucInput := transaction.UCTransactionInput{
 		Sender:        senderAddress,
 		TransfersHash: transfersHash,
-		Nonce:         nonce,
+		Nonce:         uint64(nonce),
 		PowNonce:      powNonce,
 		Expiration:    expiration,
 		Signature:     signature,
-		// BackupTx:        backupTx,
-		// BackupTransfers: backupTransfers,
 	}
 
 	bd, err := json.Marshal(ucInput)

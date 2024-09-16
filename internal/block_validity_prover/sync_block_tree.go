@@ -114,8 +114,8 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, startBlock ui
 
 	latestScrollBlockNumber, err := bps.FetchLatestBlockNumber(p.ctx)
 
-	const int5000Key = 5000
-	endBlock := startBlock + int5000Key
+	const searchBlocksLimitAtOnce = 10000
+	endBlock := startBlock + searchBlocksLimitAtOnce
 	if endBlock > latestScrollBlockNumber {
 		endBlock = latestScrollBlockNumber
 	}
@@ -126,6 +126,7 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, startBlock ui
 	}
 
 	if len(events) == 0 {
+		fmt.Printf("Scroll Block %d is synchronized (SyncBlockTree)\n", endBlock)
 		return endBlock, nil
 	}
 
@@ -196,6 +197,7 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, startBlock ui
 				}
 			}
 
+			fmt.Printf("blockContent: %v\n", blockContent)
 			err := setAuxInfo(
 				p.blockBuilder,
 				postedBlock,
@@ -214,6 +216,7 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, startBlock ui
 func (p *blockValidityProver) SyncBlockProverWithBlockNumber(
 	blockNumber uint32,
 ) error {
+	fmt.Printf("SyncBlockProverWithBlockNumber %d proof is synchronizing\n", blockNumber)
 	result, err := BlockAuxInfo(p.blockBuilder, blockNumber)
 	if err != nil {
 		return errors.New("block content by block number error")
@@ -241,11 +244,17 @@ func (p *blockValidityProver) SyncBlockProverWithAuxInfo(
 		panic("last validity witness error")
 	}
 
+	fmt.Printf("blockWitness.Block.BlockNumber (SyncBlockProverWithAuxInfo): %d\n", blockWitness.Block.BlockNumber)
+	if blockWitness.Block.BlockNumber != p.blockBuilder.LatestIntMaxBlockNumber()+1 {
+		fmt.Printf("db.LatestIntMaxBlockNumber(): %d\n", p.blockBuilder.LatestIntMaxBlockNumber())
+		return errors.New("block number is not equal to the last block number + 1")
+	}
 	validityWitness, err := generateValidityWitness(p.blockBuilder, blockWitness, latestValidityWitness)
 	if err != nil {
 		panic(err)
 	}
 
+	fmt.Printf("SetValidityWitness BlockNumber: %d\n", validityWitness.BlockWitness.Block.BlockNumber)
 	if err := p.blockBuilder.SetValidityWitness(
 		validityWitness.BlockWitness.Block.BlockNumber,
 		validityWitness,
@@ -272,13 +281,15 @@ func (p *blockValidityProver) SyncBlockProver() error {
 	// 	return nil
 	// }
 
+	fmt.Printf("lastGeneratedBlockNumber (SyncBlockProver): %d\n", lastGeneratedBlockNumber)
+	fmt.Printf("currentBlockNumber (SyncBlockProver): %d\n", currentBlockNumber)
 	for blockNumber := lastGeneratedBlockNumber + 1; blockNumber <= currentBlockNumber; blockNumber++ {
 		// validityWitnessBlockNumber := p.blockBuilder.LatestIntMaxBlockNumber()
 		validityWitness, err := p.blockBuilder.ValidityWitnessByBlockNumber(blockNumber)
 		fmt.Printf("SenderFlag: %v\n", validityWitness.BlockWitness.Signature.SenderFlag)
 
 		// validityWitnessBlockNumber := validityWitness.BlockWitness.Block.BlockNumber
-		fmt.Printf("IMPORTANT: Block %d proof is processing\n", validityWitness.BlockWitness.Block.BlockNumber)
+		fmt.Printf("validityWitness.BlockWitness.Block.BlockNumber: %d\n", validityWitness.BlockWitness.Block.BlockNumber)
 		fmt.Printf("IMPORTANT: Block %d proof is processing\n", blockNumber)
 		if err != nil {
 			panic("last validity witness error")
@@ -292,8 +303,14 @@ func (p *blockValidityProver) SyncBlockProver() error {
 
 		lastValidityProof, err := p.blockBuilder.ValidityProofByBlockNumber(blockNumber - 1)
 		if err != nil && err.Error() != ErrGenesisValidityProof.Error() {
-			var ErrLastValidityProofFail = errors.New("last validity proof fail")
-			return errors.Join(ErrLastValidityProofFail, err)
+			// if err.Error() != ErrGenesisValidityProof.Error() {
+			//  var ErrLastValidityProofFail = errors.New("last validity proof fail")
+			// 	return errors.Join(ErrLastValidityProofFail, err)
+			// }
+
+			if err.Error() != ErrNoValidityProofByBlockNumber.Error() {
+				return ErrNoValidityProofByBlockNumber
+			}
 		}
 
 		fmt.Printf("validityWitness AccountRegistrationProofs: %v\n", validityWitness.ValidityTransitionWitness.AccountRegistrationProofs)

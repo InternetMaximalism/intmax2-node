@@ -3,6 +3,7 @@ package accounts_test
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/mnemonic_wallet"
@@ -11,7 +12,9 @@ import (
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSignatureByINTMAXAccount(t *testing.T) {
@@ -71,6 +74,18 @@ func TestVerifyHexSignature(t *testing.T) {
 	flattenMessage := finite_field.BytesToFieldElementSlice(messageBytes)
 	err = intMaxAcc.VerifySignature(signature, publicKey, flattenMessage)
 	assert.NoError(t, err)
+}
+
+func TestAggregatedPublicKey(t *testing.T) {
+	privateKey, err := intMaxAcc.NewPrivateKey(big.NewInt(2))
+	assert.NoError(t, err)
+
+	publicKey := privateKey.Public()
+	fmt.Printf("publicKey: %v\n", publicKey.ToAddress().String())
+	publicKeysHash, err := hexutil.Decode("0xad5d1d11ba412b3ea4aed201704872794628d2ce09d4bb3e0777cced104f389e")
+	require.NoError(t, err)
+	weightedPublicKey := publicKey.WeightByHash(publicKeysHash)
+	fmt.Printf("weightedPublicKey: %v\n", weightedPublicKey.BigInt())
 }
 
 func TestAggregatedSignature(t *testing.T) {

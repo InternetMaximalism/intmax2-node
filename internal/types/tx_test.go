@@ -3,6 +3,7 @@ package types_test
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/tree"
@@ -14,6 +15,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestPoseidonHashOutBytes32(t *testing.T) {
+	hashOut := new(goldenposeidon.PoseidonHashOut)
+	err := hashOut.FromString("0x030644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd3")
+	require.NoError(t, err)
+
+	bytes32 := new(intMaxTypes.Bytes32).FromPoseidonHashOut(hashOut)
+	assert.Equal(t, "0x030644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd3", bytes32.PoseidonHashOut().String())
+}
 
 // {
 // 	"nonce": 2,
@@ -134,12 +144,20 @@ func TestEncryptTxDetails(t *testing.T) {
 		TransferTreeRoot: &TransferTreeRoot,
 	}
 
+	txMerkleProof, txTreeRoot, err := transferTree.ComputeMerkleProof(0)
+	require.NoError(t, err)
+
 	txDetails := intMaxTypes.TxDetails{
-		Tx:        tx,
-		Transfers: transfers,
+		Tx:            tx,
+		Transfers:     transfers,
+		TxTreeRoot:    &txTreeRoot,
+		TxIndex:       5,
+		TxMerkleProof: txMerkleProof,
 	}
 
 	encodedTx := txDetails.Marshal()
+	fmt.Printf("txDetails: %v\n", txDetails)
+	fmt.Printf("encodedTx: %d\n", len(encodedTx))
 
 	encryptedTransfer, err := intMaxAcc.EncryptECIES(
 		rand.Reader,
@@ -162,11 +180,12 @@ func TestEncryptTxDetails(t *testing.T) {
 	require.Equal(t, encodedTx, decryptedTxBytes)
 
 	decryptedTx := new(intMaxTypes.TxDetails)
-
 	err = decryptedTx.Unmarshal(decryptedTxBytes)
 	require.NoError(t, err)
+
+	fmt.Printf("decryptedTx: %+v\n", decryptedTx)
 	assert.True(
-		t, txDetails.Tx.Equal(&decryptedTx.Tx),
+		t, decryptedTx.Equal(&txDetails),
 		"recipients should be equal: %+v != %+v", txDetails, decryptedTx,
 	)
 }

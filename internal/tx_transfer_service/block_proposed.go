@@ -26,7 +26,7 @@ func GetBlockProposed(
 	cfg *configs.Config,
 	senderAccount *intMaxAcc.PrivateKey,
 	transfersHash goldenposeidon.PoseidonHashOut,
-	nonce uint64,
+	nonce uint32,
 ) (*BlockProposedResponseData, error) {
 	tx, err := intMaxTypes.NewTx(
 		&transfersHash,

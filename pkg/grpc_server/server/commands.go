@@ -2,11 +2,13 @@ package server
 
 import (
 	"intmax2-node/configs"
+	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/logger"
 	blockInfo "intmax2-node/internal/use_cases/block_info"
 	blockProposed "intmax2-node/internal/use_cases/block_proposed"
 	blockSignature "intmax2-node/internal/use_cases/block_signature"
 	blockStatus "intmax2-node/internal/use_cases/block_status"
+	depositStatusByHash "intmax2-node/internal/use_cases/deposit_status_by_hash"
 	getVersion "intmax2-node/internal/use_cases/get_version"
 	healthCheck "intmax2-node/internal/use_cases/health_check"
 	"intmax2-node/internal/use_cases/transaction"
@@ -14,6 +16,7 @@ import (
 	ucBlockProposed "intmax2-node/pkg/use_cases/block_proposed"
 	ucBlockSignature "intmax2-node/pkg/use_cases/block_signature"
 	ucBlockStatus "intmax2-node/pkg/use_cases/block_status"
+	ucDepositStatusByHash "intmax2-node/pkg/use_cases/deposit_status_by_hash"
 	ucGetVersion "intmax2-node/pkg/use_cases/get_version"
 	ucHealthCheck "intmax2-node/pkg/use_cases/health_check"
 	ucTransaction "intmax2-node/pkg/use_cases/transaction"
@@ -47,6 +50,14 @@ type Commands interface {
 		db SQLDriverApp,
 		worker Worker,
 	) blockStatus.UseCaseBlockStatus
+
+	// TODO: Move to Block Validity Prover
+	DepositStatusByHash(
+		cfg *configs.Config,
+		log logger.Logger,
+		db SQLDriverApp,
+		blockValidityProver *block_validity_prover.BlockValidityProver,
+	) depositStatusByHash.UseCaseDepositStatusByHash
 }
 
 type commands struct{}
@@ -97,4 +108,13 @@ func (c *commands) BlockStatusByTxTreeRoot(
 	worker Worker,
 ) blockStatus.UseCaseBlockStatus {
 	return ucBlockStatus.New(cfg, log, db, worker)
+}
+
+func (c *commands) DepositStatusByHash(
+	cfg *configs.Config,
+	log logger.Logger,
+	db SQLDriverApp,
+	blockValidityProver *block_validity_prover.BlockValidityProver,
+) depositStatusByHash.UseCaseDepositStatusByHash {
+	return ucDepositStatusByHash.New(cfg, log, db, blockValidityProver)
 }

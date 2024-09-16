@@ -1,9 +1,16 @@
 package balance_prover_service
 
 import (
+	"context"
 	"errors"
+	"intmax2-node/configs"
+	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/block_validity_prover"
+	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 type ValidityProcessor interface {
@@ -28,12 +35,6 @@ func NewExternalValidityProcessor() *ExternalValidityProcessor {
 
 func (p *ExternalValidityProcessor) Prove(prevValidityProof *intMaxTypes.Plonky2Proof, validityWitness *block_validity_prover.ValidityWitness) (*intMaxTypes.Plonky2Proof, error) {
 	return nil, nil
-}
-
-type syncExternalValidityProver struct {
-	ValidityProcessor ValidityProcessor
-	LastBlockNumber   uint32
-	ValidityProofs    map[uint32]*intMaxTypes.Plonky2Proof
 }
 
 type syncValidityProver struct {
@@ -65,34 +66,71 @@ type syncValidityProver struct {
 // 	}, nil
 // }
 
-// check synchronization of INTMAX blocks
-func CheckBlockSynchronization(
-	blockValidityService block_validity_prover.BlockValidityService,
-	blockSynchronizer block_validity_prover.BlockSynchronizer,
-) (err error) {
-	// s.blockSynchronizer.SyncBlockTree(blockProverService)
-	startBlock, err := blockValidityService.LastSeenBlockPostedEventBlockNumber() // XXX
-	if err != nil {
-		var ErrNotFound = errors.New("not found")
-		if !errors.Is(err, ErrNotFound) {
-			var ErrLastSeenBlockPostedEventBlockNumberFail = errors.New("last seen block posted event block number fail")
-			panic(errors.Join(ErrLastSeenBlockPostedEventBlockNumberFail, err))
-		}
+type externalBlockValidityService struct {
+	ctx context.Context
+	cfg *configs.Config
+}
 
-		startBlock = blockValidityService.RollupContractDeployedBlockNumber()
+func NewExternalBlockValidityProver(ctx context.Context, cfg *configs.Config) block_validity_prover.BlockValidityService {
+	return &externalBlockValidityService{
+		ctx: ctx,
+		cfg: cfg,
 	}
+}
 
-	const searchBlocksLimitAtOnce = 10000
-	endBlock := startBlock + searchBlocksLimitAtOnce
-	events, _, err := blockSynchronizer.FetchNewPostedBlocks(startBlock, &endBlock)
-	if err != nil {
-		var ErrFetchNewPostedBlocksFail = errors.New("fetch new posted blocks fail")
-		return errors.Join(ErrFetchNewPostedBlocksFail, err)
-	}
+func (s *externalBlockValidityService) FetchLastDepositIndex() (uint32, error) {
+	return 0, errors.New("not implemented")
+}
 
-	if len(events) != 0 {
-		return errors.New("not synchronized")
-	}
+func (s *externalBlockValidityService) LastSeenBlockPostedEventBlockNumber() (uint64, error) {
+	return 0, errors.New("not implemented")
+}
 
-	return nil
+func (s *externalBlockValidityService) LatestIntMaxBlockNumber() (uint32, error) {
+	return 0, nil
+}
+
+func (s *externalBlockValidityService) BlockContentByTxRoot(txRoot string) (*block_post_service.PostedBlock, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (s *externalBlockValidityService) GetDepositLeafAndIndexByHash(depositHash common.Hash) (*block_validity_prover.DepositInfo, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (s *externalBlockValidityService) BlockNumberByDepositIndex(depositIndex uint32) (uint32, error) {
+	return 0, errors.New("not implemented")
+}
+
+func (s *externalBlockValidityService) LatestSynchronizedBlockNumber() (uint32, error) {
+	return 0, errors.New("not implemented")
+}
+
+func (s *externalBlockValidityService) IsSynchronizedDepositIndex(depositIndex uint32) (bool, error) {
+	return false, errors.New("not implemented")
+}
+
+func (s *externalBlockValidityService) FetchUpdateWitness(
+	publicKey *intMaxAcc.PublicKey,
+	currentBlockNumber uint32,
+	targetBlockNumber uint32,
+	isPrevAccountTree bool,
+) (*block_validity_prover.UpdateWitness, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (s *externalBlockValidityService) DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error) {
+	return nil, common.Hash{}, errors.New("not implemented")
+}
+
+func (s *externalBlockValidityService) BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.MerkleProof, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (s *externalBlockValidityService) PostBlock(isRegistrationBlock bool, txs []*block_validity_prover.MockTxRequest) (*block_validity_prover.ValidityWitness, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (s *externalBlockValidityService) RollupContractDeployedBlockNumber() (uint64, error) {
+	return 0, errors.New("not implemented")
 }

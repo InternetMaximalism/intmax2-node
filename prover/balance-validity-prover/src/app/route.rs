@@ -23,4 +23,9 @@ pub fn setup_routes(cfg: &mut web::ServiceConfig) {
         prover::send::get_proofs,
         prover::send::generate_proof,
     ));
+    cfg.service((
+        prover::spent::get_proof,
+        prover::spent::get_proofs,
+        prover::spent::generate_proof,
+    ));
 }

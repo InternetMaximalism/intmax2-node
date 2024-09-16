@@ -7,7 +7,7 @@ import (
 	"intmax2-node/configs/buildvars"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_prover_service"
-	"intmax2-node/internal/balance_synchronizer"
+	service "intmax2-node/internal/balance_synchronizer"
 	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/logger"
@@ -146,7 +146,7 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 				balanceProcessor := balance_prover_service.NewBalanceProcessor(
 					s.Context, s.Config, s.Log,
 				)
-				syncBalanceProver := balance_synchronizer.NewSyncBalanceProver()
+				syncBalanceProver := service.NewSyncBalanceProver()
 
 				userPrivateKey, err := intMaxAcc.NewPrivateKeyFromString(userWallet.IntMaxPrivateKey)
 				if err != nil {
@@ -154,8 +154,15 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 					s.Log.Fatalf(msg, err.Error())
 				}
 
-				balanceSynchronizer := balance_synchronizer.NewSynchronizer(s.Context, s.Config, s.Log, s.SB, s.DbApp)
-				err = balanceSynchronizer.Sync(blockSynchronizer, blockValidityService, balanceProcessor, syncBalanceProver, userPrivateKey)
+				// userWalletState := service.NewUserWalletState(userPrivateKey)
+				userWalletState, err := service.NewMockWallet(userPrivateKey)
+				if err != nil {
+					const msg = "failed to get Mock Wallet: %+v"
+					s.Log.Fatalf(msg, err.Error())
+				}
+
+				balanceSynchronizer := service.NewSynchronizer(s.Context, s.Config, s.Log, s.SB, blockSynchronizer, blockValidityService, balanceProcessor, syncBalanceProver, userWalletState)
+				err = balanceSynchronizer.Sync(userPrivateKey)
 				if err != nil {
 					const msg = "failed to sync: %+v"
 					s.Log.Fatalf(msg, err.Error())

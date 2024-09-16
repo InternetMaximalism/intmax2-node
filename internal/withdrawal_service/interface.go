@@ -7,9 +7,8 @@ type ProofResponse struct {
 }
 
 type GenerateProofResponse struct {
-	Success      bool   `json:"success"`
-	Value        int    `json:"value"`
-	ErrorMessage string `json:"error_message"`
+	Success bool   `json:"success"`
+	Message string `json:"message"`
 }
 
 type ProofValue struct {
@@ -19,7 +18,7 @@ type ProofValue struct {
 
 type ProofsResponse struct {
 	Success      bool         `json:"success"`
-	Values       []ProofValue `json:"values"`
+	Proofs       []ProofValue `json:"proofs"`
 	ErrorMessage string       `json:"error_message,omitempty"`
 }
 

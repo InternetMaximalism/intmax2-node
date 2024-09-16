@@ -524,8 +524,7 @@ func backupDepositRawRequest(
 	}
 
 	if resp == nil {
-		const msg = "send request error occurred"
-		return fmt.Errorf(msg)
+		return fmt.Errorf("send request error occurred")
 	}
 
 	if resp.StatusCode() != http.StatusOK {

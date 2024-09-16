@@ -216,7 +216,6 @@ func DecodeBackupData(
 func (userAllData *BalanceTransitionData) SortValidUserData(
 	log logger.Logger,
 	blockValidityProver block_validity_prover.BlockValidityService,
-	blockSynchronizer block_validity_prover.BlockSynchronizer,
 ) ([]ValidBalanceTransition, error) {
 	validDeposits, invalidDeposits, err := ExtractValidReceivedDeposits(log, userAllData, blockValidityProver)
 	if err != nil {
@@ -294,7 +293,7 @@ func (v ValidReceivedTransfer) BlockNumber() uint32 {
 func ExtractValidSentTransactions(
 	log logger.Logger,
 	userData *BalanceTransitionData,
-	blockValidityProver block_validity_prover.BlockValidityService,
+	blockValidityService block_validity_prover.BlockValidityService,
 ) ([]ValidSentTx, []*poseidonHashOut, error) {
 	sentBlockNumbers := make([]ValidSentTx, 0, len(userData.Deposits))
 	invalidTxHashes := make([]*poseidonHashOut, 0, len(userData.Deposits))
@@ -310,7 +309,7 @@ func ExtractValidSentTransactions(
 		}
 
 		txRoot := tx.TxTreeRoot.String()[:2]
-		blockContent, err := blockValidityProver.BlockContentByTxRoot(txRoot)
+		blockContent, err := blockValidityService.BlockContentByTxRoot(txRoot)
 		if err != nil {
 			log.Warnf("failed to get block content by tx root %s: %v\n", txHash.String(), err)
 			continue
@@ -332,7 +331,7 @@ func ExtractValidSentTransactions(
 func ExtractValidReceivedDeposits(
 	log logger.Logger,
 	userData *BalanceTransitionData,
-	blockValidityProver block_validity_prover.BlockValidityService,
+	blockValidityService block_validity_prover.BlockValidityService,
 ) ([]ValidReceivedDeposit, []common.Hash, error) {
 	sentBlockNumbers := make([]ValidReceivedDeposit, 0, len(userData.Deposits))
 	invalidDepositHashes := make([]common.Hash, 0, len(userData.Deposits))
@@ -346,21 +345,20 @@ func ExtractValidReceivedDeposits(
 		depositHash := deposit.DepositHash // TODO: validate deposit
 		log.Debugf("deposit hash: %s\n", depositHash.String())
 
-		_, depositIndex, err := blockValidityProver.GetDepositLeafAndIndexByHash(depositHash)
+		depositInfo, err := blockValidityService.GetDepositLeafAndIndexByHash(depositHash)
 		if err != nil {
 			log.Warnf("failed to get deposit index by hash %s: %v\n", depositHash.String(), err)
 			continue
 		}
 
-		blockNumber, err := blockValidityProver.BlockNumberByDepositIndex(*depositIndex)
-		if err != nil {
-			log.Warnf("failed to get block number by deposit index %d: %v\n", *depositIndex, err)
+		if depositInfo.BlockNumber == nil {
+			log.Warnf("deposit block number is nil\n")
 			continue
 		}
 
 		sentBlockNumbers = append(sentBlockNumbers, ValidReceivedDeposit{
 			DepositHash: depositHash,
-			blockNumber: blockNumber,
+			blockNumber: *depositInfo.BlockNumber,
 			Deposit:     deposit,
 		})
 
@@ -373,7 +371,7 @@ func ExtractValidReceivedDeposits(
 func ExtractValidReceivedTransfers(
 	log logger.Logger,
 	userData *BalanceTransitionData,
-	blockValidityProver block_validity_prover.BlockValidityService,
+	blockValidityService block_validity_prover.BlockValidityService,
 ) ([]ValidReceivedTransfer, []*poseidonHashOut, error) {
 	receivedBlockNumbers := make([]ValidReceivedTransfer, 0, len(userData.Transfers))
 	invalidTransferHashes := make([]*poseidonHashOut, 0, len(userData.Transfers))
@@ -388,7 +386,7 @@ func ExtractValidReceivedTransfers(
 		}
 
 		txRoot := transfer.TransferDetails.TxTreeRoot.String()[:2]
-		blockContent, err := blockValidityProver.BlockContentByTxRoot(txRoot)
+		blockContent, err := blockValidityService.BlockContentByTxRoot(txRoot)
 		if err != nil {
 			log.Warnf("failed to get block content by transfer root %s: %v\n", transferHash.String(), err)
 			continue

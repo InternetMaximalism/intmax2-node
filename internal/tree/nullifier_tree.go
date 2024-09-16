@@ -41,6 +41,10 @@ func (t *NullifierTree) GetLeaf(index LeafIndex) *IndexedMerkleLeaf {
 	return t.inner.Leaves[index]
 }
 
+func (t *NullifierTree) GetLeaves() []*IndexedMerkleLeaf {
+	return t.inner.Leaves
+}
+
 func (t *NullifierTree) Prove(index LeafIndex) (proof *IndexedMerkleProof, root *PoseidonHashOut, err error) {
 	return t.inner.Prove(index)
 }

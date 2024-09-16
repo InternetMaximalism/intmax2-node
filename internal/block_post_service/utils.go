@@ -40,8 +40,11 @@ func NewPostedBlock(prevBlockHash, depositRoot common.Hash, blockNumber uint32, 
 }
 
 func (pb *PostedBlock) Set(other *PostedBlock) *PostedBlock {
+	pb.PrevBlockHash = other.PrevBlockHash
 	copy(pb.PrevBlockHash[:], other.PrevBlockHash[:])
+	pb.DepositRoot = other.DepositRoot
 	copy(pb.DepositRoot[:], other.DepositRoot[:])
+	pb.SignatureHash = other.SignatureHash
 	copy(pb.SignatureHash[:], other.SignatureHash[:])
 	pb.BlockNumber = other.BlockNumber
 

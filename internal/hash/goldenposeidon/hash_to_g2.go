@@ -8,14 +8,14 @@ import (
 	"github.com/iden3/go-iden3-crypto/ffg"
 )
 
-func FieldElementSliceToBigInt(inputs []*ffg.Element) *fp.Element {
-	value := new(fp.Element).SetZero()
+func FieldElementSliceToBigInt(inputs []*ffg.Element) *big.Int {
+	value := big.NewInt(0)
 	const shift = 32
-	base := new(fp.Element).SetUint64(uint64(1) << shift)
-	power := new(fp.Element).SetOne()
+	base := new(big.Int).SetUint64(uint64(1) << shift)
+	power := big.NewInt(1)
 	for _, c := range inputs {
 		limb := uint32(c.ToUint64Regular())
-		x := new(fp.Element).SetUint64(uint64(limb))
+		x := new(big.Int).SetUint64(uint64(limb))
 
 		// Calculate value += limb * power
 		x.Mul(x, power)
@@ -40,8 +40,8 @@ func HashToFq2(inputs []ffg.Element) bn254.E2 {
 	c1 := FieldElementSliceToBigInt(c1Output)
 
 	return bn254.E2{
-		A0: *c0,
-		A1: *c1,
+		A0: *new(fp.Element).SetBigInt(c0),
+		A1: *new(fp.Element).SetBigInt(c1),
 	}
 }
 

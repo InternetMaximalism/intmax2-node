@@ -126,7 +126,7 @@ func (input *ValidityPublicInputsInput) FromValidityPublicInputs(value *block_va
 
 type TxInput struct {
 	TransferTreeRoot poseidonHashOut `json:"transferTreeRoot"`
-	Nonce            uint64          `json:"nonce"`
+	Nonce            uint32          `json:"nonce"`
 }
 
 type TxWitnessInput struct {
@@ -296,7 +296,7 @@ func NewSpentValue(
 	}
 
 	insufficientFlags = backup_balance.InsufficientFlags(insufficientFlags)
-	isValid := txNonce == uint64(prevPrivateState.Nonce)
+	isValid := uint32(txNonce) == prevPrivateState.Nonce
 	newPrivateState := PrivateState{
 		AssetTreeRoot:     assetTreeRoot,
 		Nonce:             prevPrivateState.Nonce + 1,
@@ -313,7 +313,7 @@ func NewSpentValue(
 	transferRoot, _, _ := transferTree.GetCurrentRootCountAndSiblings()
 	tx := intMaxTypes.Tx{
 		TransferTreeRoot: &transferRoot,
-		Nonce:            txNonce,
+		Nonce:            uint32(txNonce),
 	}
 
 	return &SpentValue{
@@ -346,7 +346,7 @@ func (w *SendWitness) GetNextLastTx() (*SendWitnessResult, error) {
 		w.NewPrivateStateSalt,
 		w.Transfers,
 		w.AssetMerkleProofs,
-		w.TxWitness.Tx.Nonce,
+		uint64(w.TxWitness.Tx.Nonce),
 	)
 	if err != nil {
 		return nil, err

@@ -115,7 +115,7 @@ func WithdrawalTransaction(
 		return fmt.Errorf("failed to compute merkle proof: %v", err)
 	}
 
-	var nonce uint64 = 1 // TODO: Incremented with each transaction
+	var nonce uint32 = 1 // TODO: Incremented with each transaction
 
 	err = SendWithdrawalTransaction(
 		ctx,
@@ -217,7 +217,7 @@ func WithdrawalTransaction(
 		TransferMerkleProof: transferMerkleProof,
 		TransferIndex:       transferIndex,
 		TransferTreeRoot:    transfersHash,
-		Nonce:               nonce,
+		Nonce:               uint64(nonce),
 		TxTreeMerkleProof:   proposedBlock.TxTreeMerkleProof,
 		TxIndex:             int32(txIndex),
 		TxTreeRoot:          proposedBlock.TxTreeRoot,

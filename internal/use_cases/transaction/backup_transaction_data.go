@@ -9,6 +9,12 @@ import (
 	intMaxTypes "intmax2-node/internal/types"
 )
 
+type BackupTransactionData struct {
+	TxHash             string `json:"txHash"`
+	EncodedEncryptedTx string `json:"encryptedTx"`
+	Signature          string `json:"signature"`
+}
+
 func NewBackupTransactionData(
 	userPublicKey *intMaxAcc.PublicKey,
 	txDetails intMaxTypes.TxDetails,

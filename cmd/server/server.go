@@ -65,15 +65,15 @@ func NewServerCmd(s *Server) *cobra.Command {
 				s.Log.Fatalf(msg, err.Error())
 			}
 
-			err = s.SB.CheckScrollPrivateKey(s.Context)
+			err = s.BlockPostService.Init(s.Context)
 			if err != nil {
-				const msg = "check private key error occurred: %v"
+				const msg = "init the Block Validity Prover error occurred: %v"
 				s.Log.Fatalf(msg, err.Error())
 			}
 
-			err = s.BlockPostService.Init(s.Context)
+			err = s.SB.CheckScrollPrivateKey(s.Context)
 			if err != nil {
-				const msg = "init the Block Post Service error occurred: %v"
+				const msg = "check private key error occurred: %v"
 				s.Log.Fatalf(msg, err.Error())
 			}
 
@@ -260,8 +260,8 @@ func NewServerCmd(s *Server) *cobra.Command {
 					s.WG.Done()
 				}()
 
-				// var blockSynchronizer block_.BlockSynchronizer
-				blockSynchronizer, err := block_synchronizer.NewBlockSynchronizer(s.Context, s.Config, s.Log)
+				var blockSynchronizer block_synchronizer.BlockSynchronizer
+				blockSynchronizer, err = block_synchronizer.NewBlockSynchronizer(s.Context, s.Config, s.Log)
 				if err != nil {
 					const msg = "failed to start Block Synchronizer: %+v"
 					s.Log.Fatalf(msg, err.Error())

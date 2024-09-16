@@ -12,14 +12,10 @@ import (
 
 type Tx struct {
 	TransferTreeRoot *PoseidonHashOut
-	Nonce            uint64
+	Nonce            uint32
 }
 
-func NewTx(transferTreeRoot *PoseidonHashOut, nonce uint64) (*Tx, error) {
-	if nonce > ffg.Modulus().Uint64() {
-		return nil, ErrNonceTooLarge
-	}
-
+func NewTx(transferTreeRoot *PoseidonHashOut, nonce uint32) (*Tx, error) {
 	t := new(Tx)
 	t.Nonce = nonce
 	t.TransferTreeRoot = new(PoseidonHashOut).Set(transferTreeRoot)
@@ -71,7 +67,7 @@ func (t *Tx) ToFieldElementSlice() []ffg.Element {
 	for i := int0Key; i < goldenposeidon.NUM_HASH_OUT_ELTS; i++ {
 		result[i].Set(&t.TransferTreeRoot.Elements[i])
 	}
-	result[int4Key].SetUint64(t.Nonce)
+	result[int4Key].SetUint64(uint64(t.Nonce))
 
 	return result
 }
@@ -119,7 +115,44 @@ type TxDetails struct {
 	Tx
 	Transfers     []*Transfer
 	TxTreeRoot    *goldenposeidon.PoseidonHashOut
+	TxIndex       uint32
 	TxMerkleProof []*goldenposeidon.PoseidonHashOut
+}
+
+func (td *TxDetails) Equal(other *TxDetails) bool {
+	if !td.Tx.Equal(&other.Tx) {
+		return false
+	}
+
+	if len(td.Transfers) != len(other.Transfers) {
+		return false
+	}
+
+	for i, transfer := range td.Transfers {
+		if !transfer.Equal(other.Transfers[i]) {
+			return false
+		}
+	}
+
+	if !td.TxTreeRoot.Equal(other.TxTreeRoot) {
+		return false
+	}
+
+	if td.TxIndex != other.TxIndex {
+		return false
+	}
+
+	if len(td.TxMerkleProof) != len(other.TxMerkleProof) {
+		return false
+	}
+
+	for i, proof := range td.TxMerkleProof {
+		if !proof.Equal(other.TxMerkleProof[i]) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (td *TxDetails) Marshal() []byte {
@@ -142,6 +175,10 @@ func (td *TxDetails) Marshal() []byte {
 	}
 
 	if _, err := buf.Write(td.TxTreeRoot.Marshal()); err != nil {
+		panic(err)
+	}
+
+	if err := binary.Write(buf, binary.BigEndian, td.TxIndex); err != nil {
 		panic(err)
 	}
 
@@ -197,6 +234,10 @@ func (td *TxDetails) Read(buf *bytes.Buffer) error {
 
 	txTreeRoot := new(PoseidonHashOut)
 	if err := txTreeRoot.Unmarshal(buf.Next(int32Key)); err != nil {
+		return err
+	}
+
+	if err := binary.Read(buf, binary.BigEndian, &td.TxIndex); err != nil {
 		return err
 	}
 
@@ -267,6 +308,7 @@ func (td *TxDetailsV0) Unmarshal(data []byte) error {
 func UnmarshalTxDetails(version uint32, data []byte) (*TxDetails, error) {
 	switch version {
 	case 0:
+		fmt.Println("WARNING: Using old version of TxDetails")
 		return UnmarshalTxDetailsV0(data)
 	case 1:
 		return UnmarshalTxDetailsV1(data)

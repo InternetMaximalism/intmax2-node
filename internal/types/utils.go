@@ -130,6 +130,18 @@ func (b *Bytes32) ToFieldElementSlice() []ffg.Element {
 	return buf
 }
 
+func (b *Bytes32) FromFieldElementSlice(value []ffg.Element) *Bytes32 {
+	for i, x := range value {
+		y := x.ToUint64Regular()
+		if y >= uint64(1)<<int32Key {
+			panic("overflow")
+		}
+		b[i] = uint32(y)
+	}
+
+	return b
+}
+
 func (b *Bytes32) FromPoseidonHashOut(value *PoseidonHashOut) *Bytes32 {
 	for i, e := range value.Elements {
 		rawValue := e.ToUint64Regular()

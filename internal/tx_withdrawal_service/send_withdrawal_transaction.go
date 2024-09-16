@@ -32,7 +32,7 @@ func SendWithdrawalTransaction(
 	sb ServiceBlockchain,
 	senderAccount *intMaxAcc.PrivateKey,
 	transfersHash intMaxTypes.PoseidonHashOut,
-	nonce uint64,
+	nonce uint32,
 ) error {
 	const duration = 300 * time.Minute
 	expiration := time.Now().Add(duration)
@@ -63,7 +63,7 @@ func SendWithdrawalTransaction(
 
 	message, err := transaction.MakeMessage(
 		transfersHash.Marshal(),
-		nonce,
+		uint64(nonce),
 		powNonceStr,
 		senderAccount.ToAddress(),
 		expiration,

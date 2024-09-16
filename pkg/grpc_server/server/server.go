@@ -2,22 +2,24 @@ package server
 
 import (
 	"intmax2-node/configs"
+	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/logger"
 
 	"github.com/dimiro1/health"
 )
 
 type Server struct {
-	log              logger.Logger
-	config           *configs.Config
-	dbApp            SQLDriverApp
-	commands         Commands
-	cookieForAuthUse bool
-	hc               *health.Handler
-	pow              PoWNonce
-	worker           Worker
-	sb               ServiceBlockchain
-	storageGPO       GPOStorage
+	log                 logger.Logger
+	config              *configs.Config
+	dbApp               SQLDriverApp
+	commands            Commands
+	cookieForAuthUse    bool
+	hc                  *health.Handler
+	pow                 PoWNonce
+	worker              Worker
+	sb                  ServiceBlockchain
+	storageGPO          GPOStorage
+	blockValidityProver *block_validity_prover.BlockValidityProver
 }
 
 // New initializes a new Server struct.

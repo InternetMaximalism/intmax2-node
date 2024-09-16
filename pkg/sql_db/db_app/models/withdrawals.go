@@ -51,6 +51,6 @@ type Withdrawal struct {
 	TransferHash        string              `json:"transfer_hash"`
 	BlockNumber         int64               `json:"block_number"`
 	BlockHash           string              `json:"block_hash"`
-	EnoughBalanceProof  EnoughBalanceProof  `json:"enough_balance_proof"`
+	EnoughBalanceProof  EnoughBalanceProof  `json:"enough_balance_proof"` // only proof
 	CreatedAt           time.Time           `json:"created_at"`
 }

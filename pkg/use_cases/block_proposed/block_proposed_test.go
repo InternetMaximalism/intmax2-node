@@ -126,7 +126,7 @@ func sampleTxTree(t *testing.T) *intMaxTree.TxTree {
 	leaves := make([]*intMaxTypes.Tx, 8)
 	for i := 0; i < 8; i++ {
 		leaves[i] = new(intMaxTypes.Tx).Set(zeroTx)
-		leaves[i].Nonce = uint64(i)
+		leaves[i].Nonce = uint32(i)
 		_, err := mt.AddLeaf(uint64(i), leaves[i])
 		require.Nil(t, err)
 	}
