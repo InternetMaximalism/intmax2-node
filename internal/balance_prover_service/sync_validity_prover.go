@@ -123,7 +123,7 @@ func (s *externalBlockValidityService) BlockTreeProof(rootBlockNumber uint32, le
 	return nil, errors.New("not implemented")
 }
 
-func (s *externalBlockValidityService) PostBlock(isRegistrationBlock bool, txs []*block_validity_prover.MockTxRequest) (*block_validity_prover.ValidityWitness, error) {
+func (s *externalBlockValidityService) PostBlock(blockContent *intMaxTypes.BlockContent) (*block_validity_prover.ValidityWitness, error) {
 	return nil, errors.New("not implemented")
 }
 

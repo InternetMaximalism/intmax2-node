@@ -10,6 +10,7 @@ import (
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/block_post_service"
 	intMaxTree "intmax2-node/internal/tree"
+	intMaxTypes "intmax2-node/internal/types"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -23,7 +24,7 @@ type BlockValidityProver interface {
 	) (lastEventSeenBlockNumber uint64, err error)
 	SyncBlockProverWithBlockNumber(blockNumber uint32) error
 	SyncBlockProver() error
-	PostBlock(isRegistrationBlock bool, txs []*MockTxRequest) (*ValidityWitness, error)
+	PostBlock(blockContent *intMaxTypes.BlockContent) (*ValidityWitness, error)
 	LastSeenBlockPostedEventBlockNumber() (uint64, error)
 	SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error
 }
@@ -39,7 +40,7 @@ type BlockValidityService interface {
 	DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error)
 	BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.MerkleProof, error)
 	// RollupContractDeployedBlockNumber() (uint64, error)
-	PostBlock(isRegistrationBlock bool, txs []*MockTxRequest) (*ValidityWitness, error) // XXX
+	PostBlock(blockContent *intMaxTypes.BlockContent) (*ValidityWitness, error)
 }
 
 type BlockSynchronizer interface {

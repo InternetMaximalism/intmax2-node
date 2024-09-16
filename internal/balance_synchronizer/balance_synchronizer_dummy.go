@@ -108,7 +108,12 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 	depositIndex := aliceWallet.Deposit(blockBuilder, *salt, 0, big.NewInt(100))
 
 	// post dummy block to reflect the deposit tree
-	_, err = blockBuilder.PostBlock(true, []*block_validity_prover.MockTxRequest{})
+	emptyBlockContent, err := NewBlockContentFromTxRequests(true, []*block_validity_prover.MockTxRequest{})
+	if err != nil {
+		s.log.Fatalf("failed to create block content: %+v", err)
+	}
+
+	_, err = blockBuilder.PostBlock(emptyBlockContent)
 	if err != nil {
 		s.log.Fatalf("failed to post block: %+v", err)
 	}

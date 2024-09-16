@@ -10,6 +10,7 @@ import (
 	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/logger"
 	intMaxTree "intmax2-node/internal/tree"
+	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/pkg/utils"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -229,10 +230,9 @@ func (d *blockValidityProver) BlockTreeProof(rootBlockNumber uint32, leafBlockNu
 }
 
 func (d *blockValidityProver) PostBlock(
-	isRegistrationBlock bool,
-	txs []*MockTxRequest,
+	blockContent *intMaxTypes.BlockContent,
 ) (*ValidityWitness, error) {
-	return d.blockBuilder.PostBlock(isRegistrationBlock, txs)
+	return d.blockBuilder.PostBlock(blockContent)
 }
 
 // TODO: multiple response

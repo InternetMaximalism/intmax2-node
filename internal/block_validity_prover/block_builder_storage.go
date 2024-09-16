@@ -234,10 +234,7 @@ type DepositLeafWithId struct {
 	DepositId   uint32
 }
 
-func (b *mockBlockBuilder) GenerateBlock(
-	blockContent *intMaxTypes.BlockContent,
-	postedBlock *block_post_service.PostedBlock,
-) (*BlockWitness, error) {
+func NewSignatureContentFromBlockContent(blockContent *intMaxTypes.BlockContent) *SignatureContent {
 	isRegistrationBlock := blockContent.SenderType == intMaxTypes.PublicKeySenderType
 
 	publicKeys := make([]intMaxTypes.Uint256, len(blockContent.Senders))
@@ -254,7 +251,7 @@ func (b *mockBlockBuilder) GenerateBlock(
 		senderFlagBytes[i/int8Key] |= flag << (int8Key - 1 - i%int8Key)
 	}
 
-	signature := SignatureContent{
+	signatureContent := SignatureContent{
 		IsRegistrationBlock: isRegistrationBlock,
 		TxTreeRoot:          intMaxTypes.Bytes32{},
 		SenderFlag:          intMaxTypes.Bytes16{},
@@ -264,13 +261,45 @@ func (b *mockBlockBuilder) GenerateBlock(
 		AggSignature:        intMaxTypes.FlattenG2Affine(blockContent.AggregatedSignature),
 		MessagePoint:        intMaxTypes.FlattenG2Affine(blockContent.MessagePoint),
 	}
-	copy(signature.TxTreeRoot[:], intMaxTypes.CommonHashToUint32Slice(blockContent.TxTreeRoot))
-	signature.SenderFlag.FromBytes(senderFlagBytes[:])
+	copy(signatureContent.TxTreeRoot[:], intMaxTypes.CommonHashToUint32Slice(blockContent.TxTreeRoot))
+	signatureContent.SenderFlag.FromBytes(senderFlagBytes[:])
+
+	return &signatureContent
+}
+
+func (b *mockBlockBuilder) GenerateBlock(
+	blockContent *intMaxTypes.BlockContent,
+	postedBlock *block_post_service.PostedBlock,
+) (*BlockWitness, error) {
+	// isRegistrationBlock := blockContent.SenderType == intMaxTypes.PublicKeySenderType
+
+	// publicKeys := make([]intMaxTypes.Uint256, len(blockContent.Senders))
+	// accountIDs := make([]uint64, len(blockContent.Senders))
+	// senderFlagBytes := [int16Key]byte{}
+	// for i, sender := range blockContent.Senders {
+	// 	publicKey := new(intMaxTypes.Uint256).FromBigInt(sender.PublicKey.BigInt())
+	// 	publicKeys[i] = *publicKey
+	// 	accountIDs[i] = sender.AccountID
+	// 	var flag uint8 = 0
+	// 	if sender.IsSigned {
+	// 		flag = 1
+	// 	}
+	// 	senderFlagBytes[i/int8Key] |= flag << (int8Key - 1 - i%int8Key)
+	// }
+
+	signature := NewSignatureContentFromBlockContent(blockContent)
+	publicKeys := make([]intMaxTypes.Uint256, len(blockContent.Senders))
+	// accountIDs := make([]uint64, len(blockContent.Senders))
+	for i, sender := range blockContent.Senders {
+		publicKey := new(intMaxTypes.Uint256).FromBigInt(sender.PublicKey.BigInt())
+		publicKeys[i] = *publicKey
+		// accountIDs[i] = sender.AccountID
+	}
 
 	prevAccountTreeRoot := b.AccountTree.GetRoot()
 	prevBlockTreeRoot := b.BlockTree.GetRoot()
 
-	if isRegistrationBlock {
+	if signature.IsRegistrationBlock {
 		accountMembershipProofs := make([]intMaxTree.IndexedMembershipProof, len(blockContent.Senders))
 		for i, sender := range blockContent.Senders {
 			accountMembershipProof, _, err := b.AccountTree.ProveMembership(sender.PublicKey.BigInt())
@@ -283,7 +312,7 @@ func (b *mockBlockBuilder) GenerateBlock(
 
 		blockWitness := &BlockWitness{
 			Block:                   postedBlock,
-			Signature:               signature,
+			Signature:               *signature,
 			PublicKeys:              publicKeys,
 			PrevAccountTreeRoot:     prevAccountTreeRoot,
 			PrevBlockTreeRoot:       prevBlockTreeRoot,
@@ -319,7 +348,7 @@ func (b *mockBlockBuilder) GenerateBlock(
 	accountIDPacked.FromBytes(accountIDPackedBytes)
 	blockWitness := &BlockWitness{
 		Block:                   postedBlock,
-		Signature:               signature,
+		Signature:               *signature,
 		PublicKeys:              publicKeys,
 		PrevAccountTreeRoot:     prevAccountTreeRoot,
 		PrevBlockTreeRoot:       prevBlockTreeRoot,
@@ -789,19 +818,135 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTree(
 	return blockWitness, txTree, nil
 }
 
+func (db *mockBlockBuilder) GenerateBlockWithTxTreeFromBlockContent(
+	blockContent *intMaxTypes.BlockContent,
+) (*BlockWitness, error) {
+	const numOfSenders = 128
+	if len(blockContent.Senders) > numOfSenders {
+		// panic("too many txs")
+		return nil, errors.New("too many txs")
+	}
+
+	publicKeys := make([]intMaxTypes.Uint256, len(blockContent.Senders))
+	for i, sender := range blockContent.Senders {
+		publicKeys[i].FromBigInt(sender.PublicKey.BigInt())
+	}
+
+	dummyPublicKey := intMaxAcc.NewDummyPublicKey()
+	for i := len(publicKeys); i < numOfSenders; i++ {
+		publicKeys = append(publicKeys, *new(intMaxTypes.Uint256).FromBigInt(dummyPublicKey.BigInt()))
+	}
+
+	lastValidityWitness, err := db.LastValidityWitness()
+	if err != nil {
+		panic(err)
+	}
+	blockNumber := lastValidityWitness.BlockWitness.Block.BlockNumber
+
+	var accountIDPacked *AccountIdPacked
+	var accountMerkleProofs []AccountMerkleProof
+	var accountMembershipProofs []intMaxTree.IndexedMembershipProof
+	isRegistrationBlock := blockContent.SenderType == "PUBLIC_KEY"
+	if isRegistrationBlock {
+		accountMembershipProofs = make([]intMaxTree.IndexedMembershipProof, len(publicKeys))
+		fmt.Printf("size of publicKeys: %d\n", len(publicKeys))
+		for i, publicKey := range publicKeys {
+			isDummy := publicKey.BigInt().Cmp(intMaxAcc.NewDummyPublicKey().BigInt()) == 0
+			fmt.Printf("isDummy: %v, ", isDummy)
+
+			leaf, err := db.GetAccountTreeLeaf(publicKey.BigInt())
+			if err != nil {
+				if err.Error() != ErrAccountTreeGetAccountID.Error() {
+					return nil, errors.Join(errors.New("account tree leaf error"), err)
+				}
+			}
+
+			if !isDummy && leaf != nil {
+				return nil, errors.New("account already exists")
+			}
+
+			proof, err := db.GetAccountMembershipProof(blockNumber, publicKey.BigInt())
+			if err != nil {
+				return nil, errors.Join(errors.New("account membership proof error"), err)
+			}
+
+			accountMembershipProofs[i] = *proof
+		}
+	} else {
+		accountIDs := make([]uint64, len(publicKeys))
+		accountMerkleProofs = make([]AccountMerkleProof, len(publicKeys))
+		for i, publicKey := range publicKeys {
+			accountID, ok := db.AccountTree.GetAccountID(publicKey.BigInt())
+			if !ok {
+				return nil, errors.New("account id not found")
+			}
+			proof, err := db.ProveInclusion(accountID)
+			if err != nil {
+				return nil, errors.New("account inclusion proof error")
+			}
+
+			accountIDs[i] = accountID
+			accountMerkleProofs[i] = AccountMerkleProof{
+				MerkleProof: proof.MerkleProof,
+				Leaf:        proof.Leaf,
+			}
+		}
+
+		accountIDPacked = new(AccountIdPacked).Pack(accountIDs)
+		// accountIDHash = GetAccountIDsHash(accountIDs)
+	}
+
+	txTreeRoot := intMaxTypes.Bytes32{}
+	txTreeRoot.FromBytes(blockContent.TxTreeRoot[:])
+	signature := NewSignatureContentFromBlockContent(blockContent)
+
+	depositRoot, _, _ := db.DepositTree.GetCurrentRootCountAndSiblings()
+	lastValidityWitness, err = db.LastValidityWitness()
+	if err != nil {
+		panic(err)
+	}
+	block := &block_post_service.PostedBlock{
+		PrevBlockHash: lastValidityWitness.BlockWitness.Block.Hash(),
+		DepositRoot:   depositRoot,
+		SignatureHash: signature.Hash(),
+		BlockNumber:   blockNumber + 1,
+	}
+
+	prevAccountTreeRoot := db.AccountTree.GetRoot()
+	prevBlockTreeRoot := db.BlockTree.GetRoot()
+	blockWitness := &BlockWitness{
+		Block:                   block,
+		Signature:               *signature,
+		PublicKeys:              publicKeys,
+		PrevAccountTreeRoot:     prevAccountTreeRoot,
+		PrevBlockTreeRoot:       prevBlockTreeRoot,
+		AccountIdPacked:         accountIDPacked,
+		AccountMerkleProofs:     &accountMerkleProofs,
+		AccountMembershipProofs: &accountMembershipProofs,
+	}
+
+	validationPis := blockWitness.MainValidationPublicInputs()
+	fmt.Printf("validationPis: %v\n", validationPis)
+	if !validationPis.IsValid && len(blockContent.Senders) > 0 {
+		// Despite non-empty block, the block is not valid.
+		panic("the block should be valid if it is not an empty block")
+	}
+
+	return blockWitness, nil
+}
+
 type MockTxRequest struct {
 	Sender              *intMaxAcc.PrivateKey
+	AccountID           uint64
 	Tx                  *intMaxTypes.Tx
 	WillReturnSignature bool
 }
 
 func (db *mockBlockBuilder) PostBlock(
-	isRegistrationBlock bool,
-	txs []*MockTxRequest,
+	blockContent *intMaxTypes.BlockContent,
 ) (*ValidityWitness, error) {
-	blockWitness, _, err := db.GenerateBlockWithTxTree(
-		isRegistrationBlock,
-		txs,
+	blockWitness, err := db.GenerateBlockWithTxTreeFromBlockContent(
+		blockContent,
 	)
 	if err != nil {
 		panic(err)

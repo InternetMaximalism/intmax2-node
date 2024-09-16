@@ -82,7 +82,7 @@ type BlockContent struct {
 	Senders []Sender
 
 	// TxRoot is the root hash of the transactions in the block
-	TxTreeRoot common.Hash
+	TxTreeRoot [32]byte
 
 	// AggregatedSignature is the aggregated signature of the block
 	AggregatedSignature *bn254.G2Affine

@@ -333,7 +333,6 @@ func applySentTransactionTransition(
 	balanceProcessor balance_prover_service.BalanceProcessor,
 	syncBalanceProver *SyncBalanceProver,
 	userState UserState,
-	// syncValidityProver *syncValidityProver, // XXX
 ) error {
 	// syncValidityProver.Sync() // sync validity proofs
 	fmt.Printf("transaction hash: %d\n", tx.Hash())

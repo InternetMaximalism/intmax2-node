@@ -10,6 +10,7 @@ import (
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
 )
 
@@ -22,7 +23,7 @@ func (p *pgx) CreateBlockContent(
 	prevBlockHash := postedBlock.PrevBlockHash.Hex()[2:]
 	depositRoot := postedBlock.DepositRoot.Hex()[2:]
 	signatureHash := postedBlock.SignatureHash.Hex()[2:]
-	txRoot := blockContent.TxTreeRoot.Hex()[2:]
+	txRoot := common.Hash(blockContent.TxTreeRoot).Hex()[2:]
 	aggregatedSignature := hex.EncodeToString(blockContent.AggregatedSignature.Marshal())
 	aggregatedPublicKey := hex.EncodeToString(blockContent.AggregatedPublicKey.Marshal())
 	messagePoint := hex.EncodeToString(blockContent.MessagePoint.Marshal())

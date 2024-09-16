@@ -5,14 +5,19 @@ import (
 	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_prover_service"
+	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/block_validity_prover"
+	"intmax2-node/internal/finite_field"
 	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/backup_balance"
 	"math/big"
+	"sort"
 
+	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 const numTransfersInTx = 1 << intMaxTree.TRANSFER_TREE_HEIGHT
@@ -84,8 +89,75 @@ func (w *mockWallet) AddDepositCase(depositIndex uint32, depositCase *balance_pr
 	return nil
 }
 
+// TODO: refactor this function
+func NewBlockContentFromTxRequests(isRegistrationBlock bool, txs []*block_validity_prover.MockTxRequest) (*intMaxTypes.BlockContent, error) {
+	const numOfSenders = 128
+	if len(txs) > numOfSenders {
+		panic("too many txs")
+	}
+
+	// sort and pad txs
+	sortedTxs := make([]*block_validity_prover.MockTxRequest, len(txs))
+	copy(sortedTxs, txs)
+	sort.Slice(sortedTxs, func(i, j int) bool {
+		return sortedTxs[j].Sender.PublicKey.BigInt().Cmp(sortedTxs[i].Sender.PublicKey.BigInt()) == 1
+	})
+
+	publicKeys := make([]*intMaxAcc.PublicKey, len(sortedTxs))
+	for i, tx := range sortedTxs {
+		publicKeys[i] = tx.Sender.Public()
+	}
+
+	dummyPublicKey := intMaxAcc.NewDummyPublicKey()
+	for i := len(publicKeys); i < numOfSenders; i++ {
+		publicKeys = append(publicKeys, dummyPublicKey)
+	}
+
+	zeroTx := new(intMaxTypes.Tx).SetZero()
+	txTree, err := intMaxTree.NewTxTree(uint8(intMaxTree.TX_TREE_HEIGHT), nil, zeroTx.Hash())
+	if err != nil {
+		panic(err)
+	}
+
+	for _, tx := range txs {
+		_, index, _ := txTree.GetCurrentRootCountAndSiblings()
+		txTree.AddLeaf(index, tx.Tx)
+	}
+
+	txTreeRoot, _, _ := txTree.GetCurrentRootCountAndSiblings()
+
+	flattenTxTreeRoot := finite_field.BytesToFieldElementSlice(txTreeRoot.Marshal())
+
+	addresses := make([]intMaxTypes.Uint256, len(publicKeys))
+	for i, publicKey := range publicKeys {
+		addresses[i] = *new(intMaxTypes.Uint256).FromBigInt(publicKey.BigInt())
+	}
+	publicKeysHash := block_validity_prover.GetPublicKeysHash(addresses)
+
+	signatures := make([]*bn254.G2Affine, len(sortedTxs))
+	for i, keyPair := range sortedTxs {
+		signature, err := keyPair.Sender.WeightByHash(publicKeysHash.Bytes()).Sign(flattenTxTreeRoot)
+		if err != nil {
+			return nil, err
+		}
+		signatures[i] = signature
+	}
+
+	encodedSignatures := make([]string, len(sortedTxs))
+	for i, signature := range signatures {
+		encodedSignatures[i] = hexutil.Encode(signature.Marshal())
+	}
+
+	var blockContent *intMaxTypes.BlockContent
+	blockContent, err = block_post_service.MakeRegistrationBlock(txTreeRoot, publicKeys, encodedSignatures)
+	if err != nil {
+		return nil, err
+	}
+
+	return blockContent, nil
+}
+
 func (w *mockWallet) SendTx(
-	// blockBuilder *block_validity_prover.MockBlockBuilderMemory,
 	blockValidityService block_validity_prover.BlockValidityService,
 	transfers []*intMaxTypes.Transfer,
 ) (*balance_prover_service.TxWitness, []*intMaxTypes.TransferWitness, error) {
@@ -121,14 +193,18 @@ func (w *mockWallet) SendTx(
 	txRequest0 := block_validity_prover.MockTxRequest{
 		Tx:                  &tx,
 		Sender:              &w.privateKey,
+		AccountID:           2,
 		WillReturnSignature: true,
 	}
 	txRequests := []*block_validity_prover.MockTxRequest{&txRequest0}
+	blockContent, err := NewBlockContentFromTxRequests(true, txRequests)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	fmt.Printf("IMPORTANT PostBlock")
 	validityWitness, err := blockValidityService.PostBlock(
-		w.nonce == 0,
-		txRequests,
+		blockContent,
 	)
 	if err != nil {
 		return nil, nil, err

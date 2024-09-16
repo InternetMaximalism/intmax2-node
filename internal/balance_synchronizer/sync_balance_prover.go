@@ -102,7 +102,6 @@ func (s *SyncBalanceProver) SyncSend(
 		return notSyncedBlockNumbers[i] < notSyncedBlockNumbers[j]
 	})
 
-	// blockBuilder := blockValidityService.BlockBuilder()
 	for _, blockNumber := range notSyncedBlockNumbers {
 		sendWitness, err := wallet.GetSendWitness(blockNumber)
 		if err != nil {
@@ -496,7 +495,9 @@ func SyncLocally(
 				const msg = "failed to sync block prover: %+v"
 				panic(fmt.Sprintf(msg, err.Error()))
 			}
-			if blockNumber <= latestBlockNumber {
+
+			// XXX: when the sync is done, we should stop the loop
+			if latestBlockNumber < blockNumber {
 				return balanceSynchronizer, nil
 			}
 
