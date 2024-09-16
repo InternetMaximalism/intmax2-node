@@ -333,10 +333,10 @@ func applySentTransactionTransition(
 	fmt.Printf("transaction hash: %d\n", tx.Hash())
 
 	// txMerkleProof := tx.TxMerkleProof
-	transfers := tx.Transfers
+	// transfers := tx.Transfers
 
 	// balanceProverService.SyncBalanceProver
-	txWitness, transferWitnesses, err := userState.SendTx(blockValidityService, transfers)
+	txWitness, transferWitnesses, err := MakeTxWitness(blockValidityService, tx)
 	if err != nil {
 		const msg = "failed to send transaction: %+v"
 		return fmt.Errorf(msg, err.Error())

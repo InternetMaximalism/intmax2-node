@@ -1286,13 +1286,16 @@ func (w *ValidityWitness) Compress(maxAccountID uint64) (*CompressedValidityWitn
 }
 
 func (vw *ValidityWitness) ValidityPublicInputs() *ValidityPublicInputs {
-	prevBlockTreeRoot := vw.BlockWitness.PrevBlockTreeRoot
+	blockWitness := vw.BlockWitness
+	validityTransitionWitness := vw.ValidityTransitionWitness
+
+	prevBlockTreeRoot := blockWitness.PrevBlockTreeRoot
 
 	// Check transition block tree root
-	block := vw.BlockWitness.Block
+	block := blockWitness.Block
 	defaultLeaf := new(intMaxTree.BlockHashLeaf).SetDefault()
 	fmt.Printf("old block root: %s\n", prevBlockTreeRoot.String())
-	err := vw.ValidityTransitionWitness.BlockMerkleProof.Verify(
+	err := validityTransitionWitness.BlockMerkleProof.Verify(
 		defaultLeaf.Hash(),
 		int(block.BlockNumber),
 		prevBlockTreeRoot,
@@ -1302,22 +1305,22 @@ func (vw *ValidityWitness) ValidityPublicInputs() *ValidityPublicInputs {
 		panic("Block merkle proof is invalid")
 	}
 	blockHashLeaf := intMaxTree.NewBlockHashLeaf(block.Hash())
-	blockTreeRoot := vw.ValidityTransitionWitness.BlockMerkleProof.GetRoot(blockHashLeaf.Hash(), int(block.BlockNumber))
+	blockTreeRoot := validityTransitionWitness.BlockMerkleProof.GetRoot(blockHashLeaf.Hash(), int(block.BlockNumber))
 	fmt.Printf("new block root: %s\n", blockTreeRoot.String())
 
-	mainValidationPis := vw.BlockWitness.MainValidationPublicInputs()
+	mainValidationPis := blockWitness.MainValidationPublicInputs()
 
 	// transition account tree root
-	prevAccountTreeRoot := vw.BlockWitness.PrevAccountTreeRoot
+	prevAccountTreeRoot := blockWitness.PrevAccountTreeRoot
 	accountTreeRoot := new(intMaxGP.PoseidonHashOut).Set(prevAccountTreeRoot)
 	fmt.Printf("mainValidationPis.IsValid: %v\n", mainValidationPis.IsValid)
 	fmt.Printf("mainValidationPis.IsRegistrationBlock: %v\n", mainValidationPis.IsRegistrationBlock)
 	if mainValidationPis.IsValid && mainValidationPis.IsRegistrationBlock {
-		accountRegistrationProofs := vw.ValidityTransitionWitness.AccountRegistrationProofs
+		accountRegistrationProofs := validityTransitionWitness.AccountRegistrationProofs
 		if !accountRegistrationProofs.IsValid {
 			panic("account registration proofs should be given")
 		}
-		for i, senderLeaf := range vw.ValidityTransitionWitness.SenderLeaves {
+		for i, senderLeaf := range validityTransitionWitness.SenderLeaves {
 			accountRegistrationProof := accountRegistrationProofs.Proofs[i]
 			var lastBlockNumber uint32 = 0
 			if senderLeaf.IsValid {
@@ -1339,11 +1342,11 @@ func (vw *ValidityWitness) ValidityPublicInputs() *ValidityPublicInputs {
 		}
 	}
 	if mainValidationPis.IsValid && !mainValidationPis.IsRegistrationBlock {
-		accountUpdateProofs := vw.ValidityTransitionWitness.AccountUpdateProofs
+		accountUpdateProofs := validityTransitionWitness.AccountUpdateProofs
 		if !accountUpdateProofs.IsValid {
 			panic("account update proofs should be given")
 		}
-		for i, senderLeaf := range vw.ValidityTransitionWitness.SenderLeaves {
+		for i, senderLeaf := range validityTransitionWitness.SenderLeaves {
 			accountUpdateProof := accountUpdateProofs.Proofs[i]
 			prevLastBlockNumber := uint32(accountUpdateProof.PrevLeaf.Value)
 			lastBlockNumber := prevLastBlockNumber

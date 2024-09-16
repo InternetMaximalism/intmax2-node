@@ -220,10 +220,13 @@ func (w *depositSynchronizer) Start(
 				}
 			}
 
+			txRootBytes := [32]byte{}
+			copy(txRootBytes[:], txRoot.Marshal())
+
 			blockContent := intMaxTypes.NewBlockContent(
 				intMaxTypes.PublicKeySenderType,
 				senders,
-				*txRoot,
+				txRootBytes,
 				aggregatedSignature,
 			)
 			if innerErr := blockContent.IsValid(); innerErr != nil {

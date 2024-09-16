@@ -2,6 +2,7 @@ package block_validity_prover
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
@@ -13,7 +14,9 @@ import (
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/pkg/utils"
 
+	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
@@ -233,10 +236,60 @@ func (d *blockValidityProver) BlockTreeProof(rootBlockNumber uint32, leafBlockNu
 	return d.blockBuilder.BlockTreeProof(rootBlockNumber, leafBlockNumber)
 }
 
-func (d *blockValidityProver) PostBlock(
+func (d *blockValidityProver) UpdateValidityWitness(
 	blockContent *intMaxTypes.BlockContent,
 ) (*ValidityWitness, error) {
-	return d.blockBuilder.PostBlock(blockContent)
+	return d.blockBuilder.UpdateValidityWitness(blockContent)
+}
+
+func (d *blockValidityProver) ValidityWitness(
+	txRoot string,
+) (*ValidityWitness, error) {
+	rawBlockContent, err := d.blockBuilder.BlockContentByTxRoot(txRoot)
+	if err != nil {
+		return nil, err
+	}
+
+	senderType := intMaxTypes.AccountIDSenderType
+	if rawBlockContent.IsRegistrationBlock {
+		senderType = intMaxTypes.PublicKeySenderType
+	}
+
+	var senders []intMaxTypes.Sender
+	err = json.Unmarshal(rawBlockContent.Senders, &senders)
+	if err != nil {
+		var ErrUnmarshalSendersFail = errors.New("failed to unmarshal senders")
+		return nil, errors.Join(ErrUnmarshalSendersFail, err)
+	}
+
+	aggregatedSignatureBytes, err := hexutil.Decode(rawBlockContent.AggregatedSignature)
+	if err != nil {
+		var ErrDecodeAggregatedSignatureFail = errors.New("failed to decode aggregated signature")
+		return nil, errors.Join(ErrDecodeAggregatedSignatureFail, err)
+	}
+
+	aggregatedSignature := new(bn254.G2Affine)
+	err = aggregatedSignature.Unmarshal(aggregatedSignatureBytes)
+	if err != nil {
+		var ErrUnmarshalAggregatedSignatureFail = errors.New("failed to unmarshal aggregated signature")
+		return nil, errors.Join(ErrUnmarshalAggregatedSignatureFail, err)
+	}
+
+	blockContent := intMaxTypes.NewBlockContent(
+		senderType,
+		senders,
+		common.HexToHash(rawBlockContent.TxRoot),
+		aggregatedSignature,
+	)
+
+	blockWitness, err := d.blockBuilder.GenerateBlockWithTxTreeFromBlockContent(
+		blockContent,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	return calculateValidityWitness(d.blockBuilder, blockWitness)
 }
 
 // TODO: multiple response

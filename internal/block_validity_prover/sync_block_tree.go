@@ -249,7 +249,7 @@ func (p *blockValidityProver) SyncBlockProverWithAuxInfo(
 		fmt.Printf("db.LatestIntMaxBlockNumber(): %d\n", p.blockBuilder.LatestIntMaxBlockNumber())
 		return errors.New("block number is not equal to the last block number + 1")
 	}
-	validityWitness, err := generateValidityWitness(p.blockBuilder, blockWitness, latestValidityWitness)
+	validityWitness, err := calculateValidityWitnessWithConsistencyCheck(p.blockBuilder, blockWitness, latestValidityWitness)
 	if err != nil {
 		panic(err)
 	}

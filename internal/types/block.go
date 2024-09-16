@@ -96,7 +96,7 @@ type BlockContent struct {
 func NewBlockContent(
 	senderType string,
 	senders []Sender,
-	txTreeRoot PoseidonHashOut,
+	txTreeRoot [32]byte,
 	aggregatedSignature *bn254.G2Affine,
 ) *BlockContent {
 	var bc BlockContent
@@ -107,7 +107,7 @@ func NewBlockContent(
 	bc.SenderType = senderType
 	bc.Senders = make([]Sender, len(senders))
 	copy(bc.Senders, senders)
-	copy(bc.TxTreeRoot[:], txTreeRoot.Marshal())
+	copy(bc.TxTreeRoot[:], txTreeRoot[:])
 	bc.AggregatedSignature = new(bn254.G2Affine).Set(aggregatedSignature)
 
 	defaultPublicKey := accounts.NewDummyPublicKey()

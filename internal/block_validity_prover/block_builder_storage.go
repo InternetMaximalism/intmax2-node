@@ -73,7 +73,7 @@ type MockBlockBuilder interface {
 	LastValidityWitness() (*ValidityWitness, error)
 	LatestIntMaxBlockNumber() uint32
 	NextAccountID() (uint64, error)
-	PostBlock(isRegistrationBlock bool, txs []*MockTxRequest) (*ValidityWitness, error)
+	ValidityWitness(isRegistrationBlock bool, txs []*MockTxRequest) (*ValidityWitness, error)
 	ProveInclusion(accountId uint64) (*AccountMerkleProof, error)
 	PublicKeyByAccountID(accountID uint64) (pk *intMaxAcc.PublicKey, err error)
 	RegisterPublicKey(pk *intMaxAcc.PublicKey, lastSentBlockNumber uint32) (accountID uint64, err error)
@@ -942,7 +942,7 @@ type MockTxRequest struct {
 	WillReturnSignature bool
 }
 
-func (db *mockBlockBuilder) PostBlock(
+func (db *mockBlockBuilder) UpdateValidityWitness(
 	blockContent *intMaxTypes.BlockContent,
 ) (*ValidityWitness, error) {
 	blockWitness, err := db.GenerateBlockWithTxTreeFromBlockContent(
@@ -963,7 +963,7 @@ func (db *mockBlockBuilder) PostBlock(
 		fmt.Printf("latestIntMaxBlockNumber: %d\n", latestIntMaxBlockNumber)
 		return nil, errors.New("block number is not equal to the last block number + 1")
 	}
-	validityWitness, err := generateValidityWitness(
+	validityWitness, err := calculateValidityWitnessWithConsistencyCheck(
 		db,
 		blockWitness,
 		prevValidityWitness,
@@ -995,7 +995,7 @@ func (db *mockBlockBuilder) PostBlock(
 	return validityWitness, nil
 }
 
-func generateValidityWitness(db BlockBuilderStorage, blockWitness *BlockWitness, prevValidityWitness *ValidityWitness) (*ValidityWitness, error) {
+func calculateValidityWitnessWithConsistencyCheck(db BlockBuilderStorage, blockWitness *BlockWitness, prevValidityWitness *ValidityWitness) (*ValidityWitness, error) {
 	fmt.Printf("---------------------- generateValidityWitness ----------------------\n")
 	latestIntMaxBlockNumber := db.LatestIntMaxBlockNumber()
 	if blockWitness.Block.BlockNumber != latestIntMaxBlockNumber+1 {
@@ -1014,7 +1014,7 @@ func generateValidityWitness(db BlockBuilderStorage, blockWitness *BlockWitness,
 		return nil, errors.New("account tree root is not equal to the last account tree root")
 	}
 
-	blockTreeRoot, err := db.BlockTreeRoot()
+	prevBlockTreeRoot, err := db.BlockTreeRoot()
 	if err != nil {
 		return nil, errors.New("block tree root error")
 	}
@@ -1023,22 +1023,46 @@ func generateValidityWitness(db BlockBuilderStorage, blockWitness *BlockWitness,
 	} else {
 		fmt.Printf("block number %d is invalid\n", prevPis.PublicState.BlockNumber+1)
 	}
-	fmt.Printf("blockTreeRoot: %s\n", blockTreeRoot.String())
-	if !prevPis.PublicState.BlockTreeRoot.Equal(blockTreeRoot) {
-		fmt.Printf("prevPis.PublicState.BlockTreeRoot is not the same with blockTreeRoot, %s != %s", prevPis.PublicState.BlockTreeRoot.String(), blockTreeRoot.String())
+	fmt.Printf("prevBlockTreeRoot: %s\n", prevBlockTreeRoot.String())
+	if !prevPis.PublicState.BlockTreeRoot.Equal(prevBlockTreeRoot) {
+		fmt.Printf("prevPis.PublicState.BlockTreeRoot is not the same with blockTreeRoot, %s != %s", prevPis.PublicState.BlockTreeRoot.String(), prevBlockTreeRoot.String())
 		return nil, errors.New("block tree root is not equal to the last block tree root")
 	}
 
-	defaultLeaf := new(intMaxTree.BlockHashLeaf).SetDefault()
-	prevBlockTreeRoot := prevPis.PublicState.BlockTreeRoot
 	blockMerkleProof, err := db.CurrentBlockTreeProof(blockWitness.Block.BlockNumber)
 	if err != nil {
 		var ErrBlockTreeProve = errors.New("block tree prove error")
 		return nil, errors.Join(ErrBlockTreeProve, err)
 	}
 
+	return calculateValidityWitnessWithMerkleProofs(db, blockWitness, prevBlockTreeRoot, blockMerkleProof)
+}
+
+func calculateValidityWitness(db BlockBuilderStorage, blockWitness *BlockWitness) (*ValidityWitness, error) {
+	fmt.Printf("---------------------- generateValidityWitness ----------------------\n")
+	prevBlockTreeRoot, err := db.BlockTreeRoot()
+	if err != nil {
+		return nil, errors.New("block tree root error")
+	}
+
+	blockMerkleProof, err := db.CurrentBlockTreeProof(blockWitness.Block.BlockNumber)
+	if err != nil {
+		var ErrBlockTreeProve = errors.New("block tree prove error")
+		return nil, errors.Join(ErrBlockTreeProve, err)
+	}
+
+	return calculateValidityWitnessWithMerkleProofs(db, blockWitness, prevBlockTreeRoot, blockMerkleProof)
+}
+
+func calculateValidityWitnessWithMerkleProofs(
+	db BlockBuilderStorage,
+	blockWitness *BlockWitness,
+	prevBlockTreeRoot *intMaxGP.PoseidonHashOut,
+	blockMerkleProof *intMaxTree.MerkleProof,
+) (*ValidityWitness, error) {
 	// debug
-	err = blockMerkleProof.Verify(
+	defaultLeaf := new(intMaxTree.BlockHashLeaf).SetDefault()
+	err := blockMerkleProof.Verify(
 		defaultLeaf.Hash(),
 		int(blockWitness.Block.BlockNumber),
 		prevBlockTreeRoot,

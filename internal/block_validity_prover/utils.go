@@ -234,10 +234,13 @@ func recoverRegistrationBlockContent(
 	aggregatedSignature.Y.A1.SetBytes(decodedInput.AggregatedSignature[int2Key][:])
 	aggregatedSignature.Y.A0.SetBytes(decodedInput.AggregatedSignature[int3Key][:])
 
+	txRootBytes := [int32Key]byte{}
+	copy(txRootBytes[:], txTreeRoot.Marshal())
+
 	blockContent := intMaxTypes.NewBlockContent(
 		intMaxTypes.PublicKeySenderType,
 		senders,
-		*txTreeRoot,
+		txRootBytes,
 		aggregatedSignature,
 	)
 
@@ -316,10 +319,13 @@ func recoverNonRegistrationBlockContent(
 	aggregatedSignature.Y.A1.SetBytes(decodedInput.AggregatedSignature[int2Key][:])
 	aggregatedSignature.Y.A0.SetBytes(decodedInput.AggregatedSignature[int3Key][:])
 
+	txRootBytes := [int32Key]byte{}
+	copy(txRootBytes[:], txTreeRoot.Marshal())
+
 	blockContent := intMaxTypes.NewBlockContent(
 		intMaxTypes.AccountIDSenderType,
 		senders,
-		*txTreeRoot,
+		txRootBytes,
 		aggregatedSignature,
 	)
 

@@ -213,10 +213,13 @@ func (w *blockPostService) Start(
 					return innerErr
 				}
 
+				txRootBytes := [32]byte{}
+				copy(txRootBytes[:], txTreeRoot.Marshal())
+
 				blockContent := intMaxTypes.NewBlockContent(
 					senderType,
 					senders,
-					*txTreeRoot,
+					txRootBytes,
 					aggregatedSignature,
 				)
 				if innerErr := blockContent.IsValid(); innerErr != nil {

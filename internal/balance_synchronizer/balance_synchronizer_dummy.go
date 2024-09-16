@@ -113,7 +113,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 		s.log.Fatalf("failed to create block content: %+v", err)
 	}
 
-	_, err = blockBuilder.PostBlock(emptyBlockContent)
+	_, err = blockBuilder.UpdateValidityWitness(emptyBlockContent)
 	if err != nil {
 		s.log.Fatalf("failed to post block: %+v", err)
 	}

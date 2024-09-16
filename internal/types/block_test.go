@@ -82,10 +82,13 @@ func TestPublicKeyBlockValidation(t *testing.T) {
 		}
 	}
 
+	txRootBytes := [32]byte{}
+	copy(txRootBytes[:], txRoot.Marshal())
+
 	blockContent := intMaxTypes.NewBlockContent(
 		intMaxTypes.PublicKeySenderType,
 		senders,
-		*txRoot,
+		txRootBytes,
 		aggregatedSignature,
 	)
 	err = blockContent.IsValid()
@@ -163,10 +166,13 @@ func TestAccountIDBlockValidation(t *testing.T) {
 		}
 	}
 
+	txRootBytes := [32]byte{}
+	copy(txRootBytes[:], txRoot.Marshal())
+
 	blockContent := intMaxTypes.NewBlockContent(
 		intMaxTypes.AccountIDSenderType,
 		senders,
-		*txRoot,
+		txRootBytes,
 		aggregatedSignature,
 	)
 	require.NoError(t, blockContent.IsValid())

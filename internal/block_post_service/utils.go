@@ -180,10 +180,13 @@ func MakeRegistrationBlock(
 		}
 	}
 
+	txRootBytes := [32]byte{}
+	copy(txRootBytes[:], txRoot.Marshal())
+
 	blockContent := intMaxTypes.NewBlockContent(
 		intMaxTypes.PublicKeySenderType,
 		senders,
-		txRoot,
+		txRootBytes,
 		aggregatedSignature,
 	)
 	err := blockContent.IsValid()
@@ -290,10 +293,13 @@ func MakeNonRegistrationBlock(
 		}
 	}
 
+	txRootBytes := [32]byte{}
+	copy(txRootBytes[:], txRoot.Marshal())
+
 	blockContent := intMaxTypes.NewBlockContent(
 		intMaxTypes.AccountIDSenderType,
 		senders,
-		txRoot,
+		txRootBytes,
 		aggregatedSignature,
 	)
 	err := blockContent.IsValid()
