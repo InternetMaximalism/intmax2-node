@@ -465,6 +465,7 @@ func (p *balanceProcessor) requestUpdateBalanceValidityProof(
 		err = fmt.Errorf("failed to get response")
 		p.log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
 			"response":    resp.String(),
 		}).WithError(err).Errorf("Unexpected status code")
 		return "", err
@@ -531,6 +532,7 @@ func (p *balanceProcessor) requestReceiveDepositBalanceValidityProof(
 		err = fmt.Errorf("failed to get response")
 		p.log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
 			"response":    resp.String(),
 		}).WithError(err).Errorf("Unexpected status code")
 		return "", err
@@ -600,6 +602,7 @@ func (p *balanceProcessor) requestSendBalanceValidityProof(
 		err = fmt.Errorf("failed to get response")
 		p.log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
 			"response":    resp.String(),
 		}).WithError(err).Errorf("Unexpected status code")
 		return "", err
@@ -663,6 +666,7 @@ func (p *balanceProcessor) requestSpendProof(
 		err = fmt.Errorf("failed to get response")
 		p.log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
 			"response":    resp.String(),
 		}).WithError(err).Errorf("Unexpected status code")
 		return "", err
@@ -730,6 +734,7 @@ func (p *balanceProcessor) requestReceiveTransferBalanceValidityProof(
 		err = fmt.Errorf("failed to get response")
 		p.log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
 			"response":    resp.String(),
 		}).WithError(err).Errorf("Unexpected status code")
 		return "", err
@@ -782,7 +787,13 @@ func (p *balanceProcessor) fetchUpdateBalanceValidityProof(publicKey *intMaxAcc.
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("failed to get response")
+		err = fmt.Errorf("failed to get response")
+		p.log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return nil, err
 	}
 
 	response := new(BalanceValidityProofResponse)
@@ -834,7 +845,13 @@ func (p *balanceProcessor) fetchReceiveDepositBalanceValidityProof(publicKey *in
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("failed to get response")
+		err = fmt.Errorf("failed to get response")
+		p.log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return nil, err
 	}
 
 	response := new(BalanceValidityProofResponse)
@@ -886,7 +903,13 @@ func (p *balanceProcessor) fetchSendBalanceValidityProof(publicKey *intMaxAcc.Pu
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("failed to get response")
+		err = fmt.Errorf("failed to get response")
+		p.log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return nil, err
 	}
 
 	response := new(BalanceValidityProofResponse)
@@ -936,7 +959,13 @@ func (p *balanceProcessor) fetchSpendBalanceValidityProof(publicKey *intMaxAcc.P
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("failed to get response")
+		err = fmt.Errorf("failed to get response")
+		p.log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return nil, err
 	}
 
 	response := new(BalanceValidityProofResponse)
@@ -988,7 +1017,13 @@ func (p *balanceProcessor) fetchReceiveTransferBalanceValidityProof(publicKey *i
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("failed to get response")
+		err = fmt.Errorf("failed to get response")
+		p.log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return nil, err
 	}
 
 	response := new(BalanceValidityProofResponse)

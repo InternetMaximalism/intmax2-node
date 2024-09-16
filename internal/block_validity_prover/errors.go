@@ -66,8 +66,8 @@ var ErrInvalidSignature = errors.New("fail to verify signature")
 // ErrNewBlockPostServiceFail error: failed to create new block post service.
 var ErrNewBlockPostServiceFail = errors.New("failed to create new block post service")
 
-// ErrFetchNewPostedBlocksFail error: failed to fetch new posted block.
-var ErrFetchNewPostedBlocksFail = errors.New("failed to fetch new posted block")
+// ErrFetchNewPostedBlocksFail error: fetch new posted blocks fail.
+var ErrFetchNewPostedBlocksFail = errors.New("fetch new posted blocks fail")
 
 // ErrFetchScrollCalldataByHashFail error: failed to fetch scroll calldate by hash.
 var ErrFetchScrollCalldataByHashFail = errors.New("failed to fetch scroll calldate by hash")
@@ -123,17 +123,20 @@ var ErrCreateBlockContentFail = errors.New("failed to create block content")
 // ErrRequestAndFetchBlockValidityProofFail error: request and fetch block validity proof fail.
 var ErrRequestAndFetchBlockValidityProofFail = errors.New("request and fetch block validity proof fail")
 
-// ErrLastSeenBlockPostedEventBlockNumberFail error: failed to get last seen block posted event block number.
-var ErrLastSeenBlockPostedEventBlockNumberFail = errors.New("failed to get last seen block posted event block number")
+// ErrLastSeenBlockPostedEventBlockNumberFail error: last seen block posted event block number fail.
+var ErrLastSeenBlockPostedEventBlockNumberFail = errors.New("last seen block posted event block number fail")
 
 // ErrNoLastValidityProof error: no last validity proof.
 var ErrNoLastValidityProof = errors.New("no last validity proof")
 
-// ErrNoLastValidityWitness error: genesis validity proof error.
+// ErrGenesisValidityProof error: genesis validity proof error.
 var ErrGenesisValidityProof = errors.New("genesis validity proof error")
 
-// ErrNoLastValidityWitness error: no validity proof by block number.
+// ErrNoValidityProofByBlockNumber error: no validity proof by block number.
 var ErrNoValidityProofByBlockNumber = errors.New("no validity proof by block number")
 
 // ErrAccountTreeGetAccountID error: account id not found in the account tree.
 var ErrAccountTreeGetAccountID = errors.New("account id not found in the account tree")
+
+// ErrBlockUnSynchronization error: not synchronized.
+var ErrBlockUnSynchronization = errors.New("not synchronized")

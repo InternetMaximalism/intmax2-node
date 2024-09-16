@@ -287,7 +287,7 @@ func (d *blockValidityProver) DepositTreeProof(depositIndex uint32) (*intMaxTree
 	return depositMerkleProof, depositTreeRoot, err
 }
 
-// check synchronization of INTMAX blocks
+// CheckBlockSynchronization checks synchronization of INTMAX blocks.
 func CheckBlockSynchronization(
 	blockValidityService BlockValidityService,
 	blockSynchronizer BlockSynchronizer,
@@ -297,7 +297,6 @@ func CheckBlockSynchronization(
 	if err != nil {
 		var ErrNotFound = errors.New("not found")
 		if !errors.Is(err, ErrNotFound) {
-			var ErrLastSeenBlockPostedEventBlockNumberFail = errors.New("last seen block posted event block number fail")
 			panic(errors.Join(ErrLastSeenBlockPostedEventBlockNumberFail, err)) // TODO
 		}
 
@@ -312,12 +311,11 @@ func CheckBlockSynchronization(
 	endBlock := startBlock + searchBlocksLimitAtOnce
 	events, _, err := blockSynchronizer.FetchNewPostedBlocks(startBlock, &endBlock)
 	if err != nil {
-		var ErrFetchNewPostedBlocksFail = errors.New("fetch new posted blocks fail")
 		return errors.Join(ErrFetchNewPostedBlocksFail, err)
 	}
 
 	if len(events) != 0 {
-		return errors.New("not synchronized")
+		return ErrBlockUnSynchronization
 	}
 
 	return nil
