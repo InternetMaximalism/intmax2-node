@@ -137,21 +137,6 @@ func (s *balanceSynchronizer) Sync(
 					fmt.Printf("valid received deposit: %v\n", transition.DepositHash)
 					transitionBlockNumber := transition.BlockNumber()
 					fmt.Printf("transitionBlockNumber: %d", transitionBlockNumber)
-
-					if s.syncBalanceProver.LastBalanceProof != nil {
-						lastBalanceProof := *s.syncBalanceProver.LastBalanceProof
-						lastBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(lastBalanceProof)
-						if err != nil {
-							return err
-						}
-
-						lastBalancePublicInputs, err := new(balance_prover_service.BalancePublicInputs).FromPublicInputs(lastBalanceProofWithPis.PublicInputs)
-						if err != nil {
-							return err
-						}
-						fmt.Printf("AAA lastBalancePublicInputs (ReceiveDeposit) PrivateCommitment commitment: %s\n", lastBalancePublicInputs.PrivateCommitment.String())
-					}
-
 					err = s.syncBalanceProver.SyncNoSend(
 						s.log,
 						s.blockValidityService,
@@ -171,20 +156,6 @@ func (s *balanceSynchronizer) Sync(
 						s.log.Fatalf(msg, err.Error())
 					}
 
-					if s.syncBalanceProver.LastBalanceProof != nil {
-						lastBalanceProof := *s.syncBalanceProver.LastBalanceProof
-						lastBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(lastBalanceProof)
-						if err != nil {
-							return err
-						}
-
-						lastBalancePublicInputs, err := new(balance_prover_service.BalancePublicInputs).FromPublicInputs(lastBalanceProofWithPis.PublicInputs)
-						if err != nil {
-							return err
-						}
-						fmt.Printf("BBB lastBalancePublicInputs (ReceiveDeposit) PrivateCommitment commitment: %s\n", lastBalancePublicInputs.PrivateCommitment.String())
-					}
-
 					err := applyReceivedDepositTransition(
 						transition.Deposit,
 						s.blockValidityService,
@@ -197,8 +168,6 @@ func (s *balanceSynchronizer) Sync(
 						s.log.Warnf(msg, err.Error())
 						continue
 					}
-
-					fmt.Printf("wallet private state commitment (after): %s\n", s.userState.PrivateState().Commitment().String())
 				case balance_prover_service.ValidReceivedTransfer:
 					fmt.Printf("valid received transfer: %v\n", transition.TransferHash)
 					transitionBlockNumber := transition.BlockNumber()

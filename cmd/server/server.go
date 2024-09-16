@@ -44,8 +44,8 @@ type Server struct {
 	PoW                 PoWNonce
 	Worker              Worker
 	DepositSynchronizer DepositSynchronizer
-	BlockPostService    BlockPostService
 	GPOStorage          GPOStorage
+	BlockPostService    BlockPostService
 }
 
 func NewServerCmd(s *Server) *cobra.Command {
@@ -242,26 +242,6 @@ func NewServerCmd(s *Server) *cobra.Command {
 					s.Log.Fatalf(msg, err.Error())
 				}
 			}()
-
-			// wg.Add(1)
-			// s.WG.Add(1)
-			// go func() {
-			// 	defer func() {
-			// 		wg.Done()
-			// 		s.WG.Done()
-			// 	}()
-			// 	tickerEventWatcher := time.NewTicker(s.Config.BlockPostService.TimeoutForEventWatcher)
-			// 	defer func() {
-			// 		if tickerEventWatcher != nil {
-			// 			tickerEventWatcher.Stop()
-			// 		}
-			// 	}()
-			// 	err = block_synchronizer.StartBlocksFetcher(s.Context, s.Config, s.Log, s.DbApp, tickerEventWatcher)
-			// 	if err != nil {
-			// 		const msg = "failed to start Block Post Service: %+v"
-			// 		s.Log.Fatalf(msg, err.Error())
-			// 	}
-			// }()
 
 			s.Log.Infof("Start Block Validity Prover")
 			var blockValidityProver block_validity_prover.BlockValidityProver

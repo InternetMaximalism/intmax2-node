@@ -14,6 +14,8 @@ cmd/examples/*
 !cmd/examples/.gitkeep
 build/sql_dbs/*
 !build/sql_dbs/.gitkeep
+build/temp_data/*
+!build/temp_data/.gitkeep
 build/env.docker.block-builder-service
 build/env.docker.store-vault-server
 build/env.docker.withdrawal-server

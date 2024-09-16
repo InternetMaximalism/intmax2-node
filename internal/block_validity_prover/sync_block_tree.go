@@ -221,7 +221,6 @@ func (p *blockValidityProver) SyncBlockProverWithBlockNumber(
 	if err != nil {
 		return errors.New("block content by block number error")
 	}
-	fmt.Printf("PostedBlock %d proof is synchronizing\n", result.PostedBlock)
 
 	return p.SyncBlockProverWithAuxInfo(
 		result.BlockContent,

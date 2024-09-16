@@ -1,4 +1,4 @@
-package server
+package balance_synchronizer
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"github.com/holiman/uint256"
 )
 
-//go:generate mockgen -destination=mock_db_app.go -package=server -source=db_app.go
+//go:generate mockgen -destination=mock_db_app.go -package=balance_synchronizer -source=db_app.go
 
 type SQLDriverApp interface {
 	GenericCommandsApp

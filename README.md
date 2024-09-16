@@ -301,48 +301,262 @@ Example2:
 ### Command `./intmax2-node tx deposit --help`
 ```
 # ./intmax2-node tx deposit --help
-Send deposit transaction
+Manage deposit transaction
 
 Usage:
-  app tx deposit [flags]
+  app tx deposit [command]
+
+Available Commands:
+  erc1155     Send deposit transaction by token "erc1155"
+  erc20       Send deposit transaction by token "erc20"
+  erc721      Send deposit transaction by token "erc721"
+  eth         Send deposit transaction by token "eth"
+  info        Manage deposit by hash
+  list        Manage deposit list
+
+Flags:
+  -h, --help   help for deposit
+```
+### Command `./intmax2-node tx deposit eth --help`
+```
+# ./intmax2-node tx deposit eth --help
+Send deposit transaction by token "eth"
+
+Usage:
+  app tx deposit eth [flags]
 
 Flags:
       --amount string        specify amount without decimals. use as --amount "10"
-  -h, --help                 help for deposit
+  -h, --help                 help for eth
       --private-key string   specify user's Ethereum private key. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
       --recipient string     specify recipient INTMAX address. use as --recipient "0x0000000000000000000000000000000000000000000000000000000000000000"
 
-Example1:
+Example:
   ./intmax2-node tx deposit eth --amount 10000 --recipient 0x06a7b64af8f414bcbeef455b1da5208c9b592b83ee6599824caa6d2ee9141a76 --private-key 0x0000000000000000000000000000000000000000000000000000000000000002
+```
+### Command `./intmax2-node tx deposit erc20 --help`
+```
+# ./intmax2-node tx deposit erc20 --help
+Send deposit transaction by token "erc20"
 
-Example2:
+Usage:
+  app tx deposit erc20 [flags]
+
+Flags:
+      --amount string        specify amount without decimals. use as --amount "10"
+  -h, --help                 help for erc20
+      --private-key string   specify user's Ethereum private key. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
+      --recipient string     specify recipient INTMAX address. use as --recipient "0x0000000000000000000000000000000000000000000000000000000000000000"
+
+Example:
   ./intmax2-node tx deposit erc20 0x0000000000000000000000000000000000000001 --amount 10000 --recipient 0x06a7b64af8f414bcbeef455b1da5208c9b592b83ee6599824caa6d2ee9141a76 --private-key 0x0000000000000000000000000000000000000000000000000000000000000002
+```
+### Command `./intmax2-node tx deposit erc721 --help`
+```
+# ./intmax2-node tx deposit erc721 --help
+Send deposit transaction by token "erc721"
 
-Example3:
+Usage:
+  app tx deposit erc721 [flags]
+
+Flags:
+      --amount string        specify amount without decimals. use as --amount "10"
+  -h, --help                 help for erc721
+      --private-key string   specify user's Ethereum private key. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
+      --recipient string     specify recipient INTMAX address. use as --recipient "0x0000000000000000000000000000000000000000000000000000000000000000"
+
+Example:
   ./intmax2-node tx deposit erc721 0x0000000000000000000000000000000000000001 7 --amount 10000 --recipient 0x06a7b64af8f414bcbeef455b1da5208c9b592b83ee6599824caa6d2ee9141a76 --private-key 0x0000000000000000000000000000000000000000000000000000000000000002
+```
+### Command `./intmax2-node tx deposit erc1155 --help`
+```
+# ./intmax2-node tx deposit erc1155 --help
+Send deposit transaction by token "erc1155"
+
+Usage:
+  app tx deposit erc1155 [flags]
+
+Flags:
+      --amount string        specify amount without decimals. use as --amount "10"
+  -h, --help                 help for erc1155
+      --private-key string   specify user's Ethereum private key. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
+      --recipient string     specify recipient INTMAX address. use as --recipient "0x0000000000000000000000000000000000000000000000000000000000000000"
+```
+### Command `./intmax2-node tx deposit list --help`
+```
+# ./intmax2-node tx deposit list --help
+Manage deposit list
+
+Usage:
+  app tx deposit list [command]
+
+Available Commands:
+  incoming    Get deposit list (incoming)
+  outgoing    Get deposit list (outgoing); coming soon
+
+Flags:
+  -h, --help   help for list
+
+Use "app tx deposit list [command] --help" for more information about a command.
+```
+### Command `./intmax2-node tx deposit list incoming --help`
+```
+# ./intmax2-node tx deposit list incoming --help
+Get deposit list (incoming)
+
+Usage:
+  app tx deposit list incoming [flags]
+
+Flags:
+      --filterCondition string                specify the filter condition. use as --filterCondition "is" (support values: "lessThan", "lessThanOrEqualTo", "is", "greaterThanOrEqualTo", "greaterThan")
+      --filterName string                     specify the filter name. use as --filterName "block_number" (support value: "block_number")
+      --filterValue string                    specify the value of filter. use as --filterValue "1"
+  -h, --help                                  help for incoming
+      --paginationCursorBlockNumber string    specify the BlockNumber cursor. use as --paginationCursorBlockNumber "1" (more then "0")
+      --paginationCursorSortingValue string   specify the SortingValue cursor. use as --paginationCursorSortingValue "1" (more then "0")
+      --paginationDirection string            specify the direction pagination. use as --paginationDirection "next" (support values: "next", "prev") (default "next")
+      --paginationLimit string                specify the limit for pagination without decimals. use as --paginationLimit "100" (default "100")
+      --private-key string                    specify user's Ethereum private key. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
+      --sorting string                        specify the sorting. use as --sorting "desc" (support values: "asc", "desc") (default "desc")
+```
+### Command `./intmax2-node tx deposit info --help`
+```
+# ./intmax2-node tx deposit info --help
+Manage deposit by hash
+
+Usage:
+  app tx deposit info [command]
+
+Available Commands:
+  incoming    Get deposit by hash (incoming)
+  outgoing    Get deposit by hash (outgoing); coming soon
+
+Flags:
+  -h, --help   help for info
+
+Use "app tx deposit info [command] --help" for more information about a command.
+```
+### Command `./intmax2-node tx deposit info incoming --help`
+```
+# ./intmax2-node tx deposit info incoming --help
+Get deposit by hash (incoming)
+
+Usage:
+  app tx deposit info incoming [DepositHash] [flags]
+
+Flags:
+  -h, --help                 help for incoming
+      --private-key string   specify user's Ethereum private key. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
 ```
 ### Command `./intmax2-node tx transfer --help`
 ```
 # ./intmax2-node tx transfer --help
-Send transfer transaction
+Manage transfer transaction
 
 Usage:
-  app tx transfer [flags]
+  app tx transfer [command]
+
+Available Commands:
+  erc1155     Send transfer transaction by token "erc1155"
+  erc20       Send transfer transaction by token "erc20"
+  erc721      Send transfer transaction by token "erc721"
+  eth         Send transfer transaction by token "eth"
+  info        Get transaction by hash
+  list        Get transactions list
+
+Flags:
+  -h, --help   help for transfer
+```
+### Command `./intmax2-node tx transfer eth --help`
+```
+Send transfer transaction by token "eth"
+
+Usage:
+  app tx transfer eth [flags]
 
 Flags:
       --amount string        specify amount without decimals. use as --amount "10"
-  -h, --help                 help for transfer
+  -h, --help                 help for eth
       --private-key string   specify user's Ethereum private key. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
       --recipient string     specify recipient INTMAX address. use as --recipient "0x0000000000000000000000000000000000000000000000000000000000000000"
 
-Example1:
+Example:
   ./intmax2-node tx transfer eth --amount 10 --recipient 0x06a7b64af8f414bcbeef455b1da5208c9b592b83ee6599824caa6d2ee9141a76 --private-key 0x0000000000000000000000000000000000000000000000000000000000000002
+```
+### Command `./intmax2-node tx transfer erc20 --help`
+```
+Send transfer transaction by token "erc20"
 
-Example2:
+Usage:
+  app tx transfer erc20 [flags]
+
+Flags:
+      --amount string        specify amount without decimals. use as --amount "10"
+  -h, --help                 help for erc20
+      --private-key string   specify user's Ethereum private key. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
+      --recipient string     specify recipient INTMAX address. use as --recipient "0x0000000000000000000000000000000000000000000000000000000000000000"
+
+Example:
   ./intmax2-node tx transfer erc20 0x0000000000000000000000000000000000000001 --amount 10 --recipient 0x06a7b64af8f414bcbeef455b1da5208c9b592b83ee6599824caa6d2ee9141a76 --private-key 0x0000000000000000000000000000000000000000000000000000000000000002
+```
+### Command `./intmax2-node tx transfer erc721 --help`
+```
+Send transfer transaction by token "erc721"
 
-Example3:
+Usage:
+  app tx transfer erc721 [flags]
+
+Flags:
+      --amount string        specify amount without decimals. use as --amount "10"
+  -h, --help                 help for erc721
+      --private-key string   specify user's Ethereum private key. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
+      --recipient string     specify recipient INTMAX address. use as --recipient "0x0000000000000000000000000000000000000000000000000000000000000000"
+
+Example:
   ./intmax2-node tx transfer erc721 0x0000000000000000000000000000000000000001 7 --amount 10 --recipient 0x06a7b64af8f414bcbeef455b1da5208c9b592b83ee6599824caa6d2ee9141a76 --private-key 0x0000000000000000000000000000000000000000000000000000000000000002
+```
+### Command `./intmax2-node tx transfer erc1155 --help`
+```
+Send transfer transaction by token "erc1155"
+
+Usage:
+  app tx transfer erc1155 [flags]
+
+Flags:
+      --amount string        specify amount without decimals. use as --amount "10"
+  -h, --help                 help for erc1155
+      --private-key string   specify user's Ethereum private key. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
+      --recipient string     specify recipient INTMAX address. use as --recipient "0x0000000000000000000000000000000000000000000000000000000000000000"
+```
+### Command `./intmax2-node tx transfer list --help`
+```
+Get transactions list
+
+Usage:
+  app tx transfer list [flags]
+
+Flags:
+      --filterCondition string                specify the filter condition. use as --filterCondition "is" (support values: "lessThan", "lessThanOrEqualTo", "is", "greaterThanOrEqualTo", "greaterThan")
+      --filterName string                     specify the filter name. use as --filterName "block_number" (support value: "block_number")
+      --filterValue string                    specify the value of filter. use as --filterValue "1"
+  -h, --help                                  help for list
+      --paginationCursorBlockNumber string    specify the BlockNumber cursor. use as --paginationCursorBlockNumber "1" (more then "0")
+      --paginationCursorSortingValue string   specify the SortingValue cursor. use as --paginationCursorSortingValue "1" (more then "0")
+      --paginationDirection string            specify the direction pagination. use as --paginationDirection "next" (support values: "next", "prev") (default "next")
+      --paginationLimit string                specify the limit for pagination without decimals. use as --paginationLimit "100" (default "100")
+      --private-key string                    specify user's Ethereum private key. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
+      --sorting string                        specify the sorting. use as --sorting "desc" (support values: "asc", "desc") (default "desc")
+```
+### Command `./intmax2-node tx transfer info --help`
+```
+Get transaction by hash
+
+Usage:
+  app tx transfer info [TxHash] [flags]
+
+Flags:
+  -h, --help                 help for info
+      --private-key string   specify user's Ethereum private key. use as --private-key "0x0000000000000000000000000000000000000000000000000000000000000000"
 ```
 ### Command `./intmax2-node tx withdrawal --help`
 ```
@@ -395,113 +609,120 @@ When a node starts, it tries to find and remember its external address in this o
 
 ## ENV Variables
 
-| * | Variable                                              | Default                                                            | Description                                                                                                                                |
-|---|-------------------------------------------------------|--------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
-|   | **APP**                                               |                                                                    |                                                                                                                                            |
-|   | PRINT_CONFIG                                          | false                                                              | displaing config info with start service                                                                                                   |
-|   | CA_DOMAIN_NAME                                        | x.test.example.com                                                 | DNS.1 name of CA Root certificate                                                                                                          |
-|   | PEM_PATH_CA_CERT                                      | scripts/x509/ca_cert.pem                                           | path to pem file with CA Root certificate                                                                                                  |
-|   | PEM_PATH_SERV_CERT                                    | scripts/x509/server_cert.pem                                       | path to pem file with Server certificate                                                                                                   |
-|   | PEM_PATH_SERV_KEY                                     | scripts/x509/server_key.pem                                        | path to pem file with Server key                                                                                                           |
-|   | PEM_PATH_CA_CERT_CLIENT                               | scripts/x509/client_ca_cert.pem                                    | path to pem file with CA Root Client certificate                                                                                           |
-|   | PEM_PATH_CLIENT_CERT                                  | scripts/x509/client_cert.pem                                       | path to pem file with Client certificate                                                                                                   |
-|   | PEM_PATH_CLIENT_KEY                                   | scripts/x509/client_key.pem                                        | path to pem file with Client key                                                                                                           |
-|   | **PoW**                                               |                                                                    |                                                                                                                                            |
-|   | POW_DIFFICULTY                                        | 4000                                                               | the difficulty of proof-of-work                                                                                                            |
-|   | POW_WORKERS                                           | 2                                                                  | the number workers for compute PoW                                                                                                         |
-|   | **BLOCKCHAIN**                                        |                                                                    |                                                                                                                                            |
-|   | BLOCKCHAIN_SCROLL_NETWORK_CHAIN_ID                    |                                                                    | the Scroll blockchain network ID. Chain ID must be equal: ScrollSepolia = `534351`; Scroll = `534352`                                      |
-|   | BLOCKCHAIN_SCROLL_MIN_BALANCE                         | 100000000000000000                                                 | the Scroll blockchain balance minimal value for node start (min value equal or more then 0.1ETH)                                           |
-|   | BLOCKCHAIN_SCROLL_STAKE_BALANCE                       | 100000000000000000                                                 | the Scroll blockchain balance value for stake with block builder update (min value equal or more then 0.1ETH)                              |
-|   | BLOCKCHAIN_SCROLL_MESSENGER_L1_CONTRACT_ADDRESS       |                                                                    | the Scroll messagenger contract address on L1 Mainnet                                                                                      |
-|   | BLOCKCHAIN_SCROLL_MESSENGER_L2_CONTRACT_ADDRESS       |                                                                    | the Scroll messagenger contract address on L2 Scroll                                                                                       |
-| * | BLOCKCHAIN_BLOCK_BUILDER_REGISTRY_CONTRACT_ADDRESS    |                                                                    | the Block Builder Registry Contract address in the Scroll blockchain                                                                       |
-| * | BLOCKCHAIN_ROLLUP_CONTRACT_ADDRESS                    |                                                                    | the Rollup Contract address in the Scroll blockchain                                                                                       |
-| * | BLOCKCHAIN_LIQUIDITY_CONTRACT_ADDRESS                 |                                                                    | the Liquidity Contract address in the Mainnet                                                                                              |
-| * | BLOCKCHAIN_WITHDRAWAL_CONTRACT_ADDRESS                |                                                                    | the Withdrawal Contract address in the Scroll blockchain                                                                                   |
-|   | BLOCKCHAIN_ETHEREUM_NETWORK_CHAIN_ID                  |                                                                    | the Ethereum blockchain network ID. Chain ID must be equal: Sepolia = `11155111`; Ethereum = `1`                                           |
-|   | BLOCKCHAIN_ETHEREUM_BUILDER_KEY_HEX                   |                                                                    | (pk) Ethereum builder private key                                                                                                          |
-|   | BLOCKCHAIN_ETHEREUM_DEPOSIT_ANALYZER_PRIVATE_KEY_HEX  |                                                                    | (pk) Ethereum deposit analyzer private key                                                                                                 |
-|   | BLOCKCHAIN_ETHEREUM_WITHDRAWAL_PRIVATE_KEY_HEX        |                                                                    | (pk) Ethereum withdrawal private key                                                                                                       |
-|   | BLOCKCHAIN_ETHEREUM_MESSENEGER_MOCK_PRIVATE_KEY_HEX   |                                                                    | (pk) Ethereum messenger mock private key                                                                                                   |
-|   | BLOCKCHAIN_MAX_COUNTER_OF_TRANSACTION                 | 128                                                                | max number of transactions in the block                                                                                                    |
-|   | BLOCKCHAIN_DEPOSIT_ANALYZER_THRESHOLD                 | 10                                                                 | threshold for deposit analyzer                                                                                                             |
-|   | BLOCKCHAIN_DEPOSIT_ANALYZER_MINUTES_THRESHOLD         | 10                                                                 | minutes threshold for deposit analyzer                                                                                                     |
-|   | **WALLET**                                            |                                                                    |                                                                                                                                            |
-|   | WALLET_PRIVATE_KEY_HEX                                |                                                                    | (pk) private key for wallet address recognizing                                                                                            |
-|   | WALLET_MNEMONIC_VALUE                                 |                                                                    | (mnemonic) mnemonic for recovery private key                                                                                               |
-|   | WALLET_MNEMONIC_DERIVATION_PATH                       |                                                                    | (mnemonic) mnemonic password for recovery private key                                                                                      |
-|   | WALLET_MNEMONIC_PASSWORD                              |                                                                    | (mnemonic) mnemonic derivation path                                                                                                        |
-|   | **LOG**                                               |                                                                    |                                                                                                                                            |
-|   | LOG_LEVEL                                             | debug                                                              | log level                                                                                                                                  |
-|   | IS_LOG_LINES                                          | false                                                              | whether log line number of code where log func called or not                                                                               |
-|   | LOG_JSON                                              | false                                                              | when true prints each log message as separate JSON object                                                                                  |
-|   | LOG_TIME_FORMAT                                       | 2006-01-02T15:04:05Z                                               | log time format in go time formatting style                                                                                                |
-|   | **HTTP (node)**                                       |                                                                    |                                                                                                                                            |
-|   | HTTP_CORS_ALLOW_ALL                                   | false                                                              | (node) allow all with cross-origin resource sharing                                                                                        |
-|   | HTTP_CORS                                             | *                                                                  | (node) cross-origin resource sharing                                                                                                       |
-|   | HTTP_CORS_MAX_AGE                                     | 600                                                                | (node) default timeout in seconds of the cross-origin resource sharing                                                                     |
-|   | HTTP_CORS_STATUS_CODE                                 | 204                                                                | (node) status code for the answer of the cross-origin resource sharing                                                                     |
-|   | HTTP_HOST                                             | 0.0.0.0                                                            | (node) host address for bind http external server                                                                                          |
-|   | HTTP_PORT                                             | 80                                                                 | (node) port for bind http external server                                                                                                  |
-|   | HTTP_CORS_ALLOW_CREDENTIALS                           | true                                                               | (node) allowed credentials                                                                                                                 |
-|   | HTTP_CORS_ALLOW_METHODS                               | OPTIONS                                                            | (node) allowed http methods                                                                                                                |
-|   | HTTP_CORS_ALLOW_HEADS                                 | Accept;Authorization;Content-Type;X-CSRF-Token;X-User-Id;X-Api-Key | (node) allowed http heads                                                                                                                  |
-|   | HTTP_CORS_EXPOSE_HEADS                                |                                                                    | (node) exposed http methods                                                                                                                |
-|   | HTTP_TLS_USE                                          | false                                                              | (node) flag of turn off (false) or turn on (true) about use HTTPS                                                                          |
-|   | COOKIE_SECURE                                         | false                                                              | (node) flag of turn off (false) or turn on (true) the cookie secure (HTTP)                                                                 |
-|   | COOKIE_DOMAIN                                         |                                                                    | (node) name of domain for cookie                                                                                                           |
-|   | COOKIE_SAME_SITE_STRICT_MODE                          | false                                                              | (node) flag of turn off (false) or turn on (true) the cookie same site strict mode                                                         |
-|   | COOKIE_FOR_AUTH_USE                                   | false                                                              | (node) flag of turn off (false) or turn on (true)  mode for the cookie use for authorization                                               |
-|   | **GRPC (node)**                                       |                                                                    |                                                                                                                                            |
-|   | GRPC_HOST                                             | 0.0.0.0                                                            | (node) host address for bind gRPC external server                                                                                          |
-|   | GRPC_PORT                                             | 10000                                                              | (node) port for bind gRPC external server                                                                                                  |
-|   | **SWAGGER (node)**                                    |                                                                    |                                                                                                                                            |
-|   | SWAGGER_HOST_URL                                      | 127.0.0.1:8780                                                     | (node) host url for swagger-json connection                                                                                                |
-|   | SWAGGER_BASE_PATH                                     | /                                                                  | (node) base path for swagger-json connection                                                                                               |
-|   | **NETWORK**                                           |                                                                    |                                                                                                                                            |
-|   | NETWORK_DOMAIN                                        |                                                                    | `domain` or `ip-address` of external proxy-server for connections with node                                                                |
-|   | NETWORK_PORT                                          |                                                                    | `port` of external proxy-server for connections with node                                                                                  |
-|   | NETWORK_HTTPS_USE                                     | false                                                              | flag of turn off (false) or turn on (true) about use HTTPS schema for external proxy-server for connections with node                      |
-|   | **API**                                               |                                                                    |                                                                                                                                            |
-| * | API_WITHDRAWAL_PROVER_URL                             |                                                                    | API endpoint for verifying and processing withdrawal prover requests.                                                                      |
-| * | API_WITHDRAWAL_GNARK_PROVER_URL                             |                                                                    | API endpoint for verifying and processing Gnark prover requests.                                                                      |
-| * | API_SCROLL_BRIDGE_URL                                 |                                                                    | API endpoint for verifying and processing scroll bridge requests.                                                                          |
-| * | API_BLOCK_BUILDER_URL                                 |                                                                    | API endpoint for verifying and processing block builder requests.                                                                          |
-| * | API_DATA_STORE_VAULT_URL                              |                                                                    | API endpoint for verifying and processing data store vault requests.                                                                       |
-| * | API_WITHDRAWAL_SERVER_URL                             |                                                                    | API endpoint for verifying and processing withdrawal requests.                                                                             |
-|   | **STUN SERVER**                                       |                                                                    |                                                                                                                                            |
-| * | STUN_SERVER_NETWORK_TYPE                              | udp6;udp4                                                          | network type for dial with stun server (separator equal `;`)                                                                               |
-| * | STUN_SERVER_LIST                                      | stun.l.google.com:19302                                            | network address for dial with stun server (separator equal `;`)                                                                            |
-|   | **GAS PRICE ORACLE**                                  |                                                                    |                                                                                                                                            |
-|   | GAS_PRICE_ORACLE_DELIMITER                            | 10                                                                 | minimum number of senders to which gasFee must be distributed for transfer                                                                 |
-| * | GAS_PRICE_ORACLE_TIMEOUT                              | 30s                                                                | timeout for updating gasFee from contract of the gas price oracle                                                                          |
-|   | **WORKER**                                            |                                                                    |                                                                                                                                            |
-|   | WORKER_ID                                             | pgx                                                                | id of worker                                                                                                                               |
-|   | WORKER_PATH                                           | /app/worker                                                        | dir of worker                                                                                                                              |
-|   | WORKER_MAX_COUNTER                                    | 20                                                                 | max counter of worker                                                                                                                      |
-|   | WORKER_PATH_CLEAN_IN_START                            | 20                                                                 | flag of turn off (false) or turn on (true) the clean dir of worker                                                                         |
-|   | WORKER_CURRENT_FILE_LIFETIME                          | 1m                                                                 | timeout for create new current file of worker                                                                                              |
-|   | WORKER_TIMEOUT_FOR_CHECK_CURRENT_FILE                 | 10s                                                                | timeout for check the status of current file of worker                                                                                     |
-|   | WORKER_TIMEOUT_FOR_SIGNATURES_AVAILABLE_FILES         | 15s                                                                | timeout for processing the transaction signature of current file of worker                                                                 |
-|   | WORKER_MAX_COUNTER_OF_USERS                           | 128                                                                | condition for create new of current file of worker                                                                                         |
-|   | **BLOCK VALIDITY PROVER**                             |                                                                    |                                                                                                                                            |
-|   | BLOCK_VALIDITY_PROVER_EVENT_WATCHER_LIFETIME          | 1m                                                                 | timeout for block validity prover event watcher                                                                                            |
-|   | BLOCKCHAIN_ROLLUP_CONTRACT_DEPLOYED_BLOCK_NUMBER      | 0                                                                  | the block number when the Rollup contract was deployed                                                                                     |
-|   | **SQL DB OF APP**                                     |                                                                    |                                                                                                                                            |
-|   | SQL_DB_APP_DRIVER_NAME                                | pgx                                                                | system driver name with sql driver of application (only, `pgx` of `postgres`)                                                              |
-| * | SQL_DB_APP_DNS_CONNECTION                             |                                                                    | connection string for connect with sql driver of application                                                                               |
-|   | SQL_DB_APP_RECONNECT_TIMEOUT                          | 1s                                                                 | timeout for database connection with sql driver of application                                                                             |
-|   | SQL_DB_APP_OPEN_LIMIT                                 | 5                                                                  | maximum number of connections in the pool with sql driver of application                                                                   |
-|   | SQL_DB_APP_IDLE_LIMIT                                 | 5                                                                  | the maximum number of connections in the idle with sql driver of application                                                               |
-|   | SQL_DB_APP_CONN_LIFE                                  | 5m                                                                 | the maximum amount of time a connection may be reused with sql driver of application                                                       |
-|   | **RECOMMIT OF SQL DB**                                |                                                                    |                                                                                                                                            |
-|   | SQL_DB_RECOMMIT_ATTEMPTS_NUMBER                       | 50                                                                 | attempts number tried of commits with transactions of sql driver                                                                           |
-|   | SQL_DB_RECOMMIT_TIMEOUT                               | 1s                                                                 | timeout of attempts number tried of commits with transactions of sql driver                                                                |
-|   | **OPEN TELEMETRY**                                    |                                                                    |                                                                                                                                            |
-|   | OPEN_TELEMETRY_ENABLE                                 | false                                                              | flag of turn off (false) or turn on (true) the OpenTelemetry                                                                               |
-|   | OTEL_EXPORTER_OTLP_ENDPOINT                           |                                                                    | external parameter (see official documentation about the OpenTelemetry; example: gRPC http://localhost:4317 or HTTP http://localhost:4318) |
-|   | OTEL_EXPORTER_OTLP_COMPRESSION                        |                                                                    | external parameter (see official documentation about the OpenTelemetry; example = 'gzip')                                                  |
+| * | Variable                                                      | Default                                                            | Description                                                                                                                                |
+|---|---------------------------------------------------------------|--------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
+|   | **APP**                                                       |                                                                    |                                                                                                                                            |
+|   | PRINT_CONFIG                                                  | false                                                              | displaing config info with start service                                                                                                   |
+|   | CA_DOMAIN_NAME                                                | x.test.example.com                                                 | DNS.1 name of CA Root certificate                                                                                                          |
+|   | PEM_PATH_CA_CERT                                              | scripts/x509/ca_cert.pem                                           | path to pem file with CA Root certificate                                                                                                  |
+|   | PEM_PATH_SERV_CERT                                            | scripts/x509/server_cert.pem                                       | path to pem file with Server certificate                                                                                                   |
+|   | PEM_PATH_SERV_KEY                                             | scripts/x509/server_key.pem                                        | path to pem file with Server key                                                                                                           |
+|   | PEM_PATH_CA_CERT_CLIENT                                       | scripts/x509/client_ca_cert.pem                                    | path to pem file with CA Root Client certificate                                                                                           |
+|   | PEM_PATH_CLIENT_CERT                                          | scripts/x509/client_cert.pem                                       | path to pem file with Client certificate                                                                                                   |
+|   | PEM_PATH_CLIENT_KEY                                           | scripts/x509/client_key.pem                                        | path to pem file with Client key                                                                                                           |
+|   | **PoW**                                                       |                                                                    |                                                                                                                                            |
+|   | POW_DIFFICULTY                                                | 4000                                                               | the difficulty of proof-of-work                                                                                                            |
+|   | POW_WORKERS                                                   | 2                                                                  | the number workers for compute PoW                                                                                                         |
+|   | **BLOCKCHAIN**                                                |                                                                    |                                                                                                                                            |
+|   | BLOCKCHAIN_SCROLL_NETWORK_CHAIN_ID                            |                                                                    | the Scroll blockchain network ID. Chain ID must be equal: ScrollSepolia = `534351`; Scroll = `534352`                                      |
+|   | BLOCKCHAIN_SCROLL_MIN_BALANCE                                 | 100000000000000000                                                 | the Scroll blockchain balance minimal value for node start (min value equal or more then 0.1ETH)                                           |
+|   | BLOCKCHAIN_SCROLL_STAKE_BALANCE                               | 100000000000000000                                                 | the Scroll blockchain balance value for stake with block builder update (min value equal or more then 0.1ETH)                              |
+|   | BLOCKCHAIN_SCROLL_MESSENGER_L1_CONTRACT_ADDRESS               |                                                                    | the Scroll messagenger contract address on L1 Mainnet                                                                                      |
+|   | BLOCKCHAIN_SCROLL_MESSENGER_L1_CONTRACT_DEPLOYED_BLOCK_NUMBER | 0                                                                  | the block number when the Scroll messagenger contract address on L1 Mainnet was deployed                                                   |
+|   | BLOCKCHAIN_SCROLL_MESSENGER_L2_CONTRACT_ADDRESS               |                                                                    | the Scroll messagenger contract address on L2 Scroll                                                                                       |
+| * | BLOCKCHAIN_BLOCK_BUILDER_REGISTRY_CONTRACT_ADDRESS            |                                                                    | the Block Builder Registry Contract address in the Scroll blockchain                                                                       |
+| * | BLOCKCHAIN_ROLLUP_CONTRACT_ADDRESS                            |                                                                    | the Rollup Contract address in the Scroll blockchain                                                                                       |
+|   | BLOCKCHAIN_ROLLUP_CONTRACT_DEPLOYED_BLOCK_NUMBER              | 0                                                                  | the block number when the Rollup contract was deployed                                                                                     |
+| * | BLOCKCHAIN_LIQUIDITY_CONTRACT_ADDRESS                         |                                                                    | the Liquidity Contract address in the Mainnet                                                                                              |
+|   | BLOCKCHAIN_LIQUIDITY_CONTRACT_DEPLOYED_BLOCK_NUMBER           | 0                                                                  | the block number when the Liquidity contract was deployed                                                                                  |
+| * | BLOCKCHAIN_WITHDRAWAL_CONTRACT_ADDRESS                        |                                                                    | the Withdrawal Contract address in the Scroll blockchain                                                                                   |
+|   | BLOCKCHAIN_ETHEREUM_NETWORK_CHAIN_ID                          |                                                                    | the Ethereum blockchain network ID. Chain ID must be equal: Sepolia = `11155111`; Ethereum = `1`                                           |
+|   | BLOCKCHAIN_ETHEREUM_BUILDER_KEY_HEX                           |                                                                    | (pk) Ethereum builder private key                                                                                                          |
+|   | BLOCKCHAIN_ETHEREUM_DEPOSIT_ANALYZER_PRIVATE_KEY_HEX          |                                                                    | (pk) Ethereum deposit analyzer private key                                                                                                 |
+|   | BLOCKCHAIN_ETHEREUM_WITHDRAWAL_PRIVATE_KEY_HEX                |                                                                    | (pk) Ethereum withdrawal private key                                                                                                       |
+|   | BLOCKCHAIN_ETHEREUM_MESSENEGER_MOCK_PRIVATE_KEY_HEX           |                                                                    | (pk) Ethereum messenger mock private key                                                                                                   |
+|   | BLOCKCHAIN_MAX_COUNTER_OF_TRANSACTION                         | 128                                                                | max number of transactions in the block                                                                                                    |
+|   | BLOCKCHAIN_DEPOSIT_ANALYZER_THRESHOLD                         | 10                                                                 | threshold for deposit analyzer                                                                                                             |
+|   | BLOCKCHAIN_DEPOSIT_ANALYZER_MINUTES_THRESHOLD                 | 10                                                                 | minutes threshold for deposit analyzer                                                                                                     |
+|   | **WALLET**                                                    |                                                                    |                                                                                                                                            |
+|   | WALLET_PRIVATE_KEY_HEX                                        |                                                                    | (pk) private key for wallet address recognizing                                                                                            |
+|   | WALLET_MNEMONIC_VALUE                                         |                                                                    | (mnemonic) mnemonic for recovery private key                                                                                               |
+|   | WALLET_MNEMONIC_DERIVATION_PATH                               |                                                                    | (mnemonic) mnemonic password for recovery private key                                                                                      |
+|   | WALLET_MNEMONIC_PASSWORD                                      |                                                                    | (mnemonic) mnemonic derivation path                                                                                                        |
+|   | **LOG**                                                       |                                                                    |                                                                                                                                            |
+|   | LOG_LEVEL                                                     | debug                                                              | log level                                                                                                                                  |
+|   | IS_LOG_LINES                                                  | false                                                              | whether log line number of code where log func called or not                                                                               |
+|   | LOG_JSON                                                      | false                                                              | when true prints each log message as separate JSON object                                                                                  |
+|   | LOG_TIME_FORMAT                                               | 2006-01-02T15:04:05Z                                               | log time format in go time formatting style                                                                                                |
+|   | **HTTP (node)**                                               |                                                                    |                                                                                                                                            |
+|   | HTTP_CORS_ALLOW_ALL                                           | false                                                              | (node) allow all with cross-origin resource sharing                                                                                        |
+|   | HTTP_CORS                                                     | *                                                                  | (node) cross-origin resource sharing                                                                                                       |
+|   | HTTP_CORS_MAX_AGE                                             | 600                                                                | (node) default timeout in seconds of the cross-origin resource sharing                                                                     |
+|   | HTTP_CORS_STATUS_CODE                                         | 204                                                                | (node) status code for the answer of the cross-origin resource sharing                                                                     |
+|   | HTTP_HOST                                                     | 0.0.0.0                                                            | (node) host address for bind http external server                                                                                          |
+|   | HTTP_PORT                                                     | 80                                                                 | (node) port for bind http external server                                                                                                  |
+|   | HTTP_CORS_ALLOW_CREDENTIALS                                   | true                                                               | (node) allowed credentials                                                                                                                 |
+|   | HTTP_CORS_ALLOW_METHODS                                       | OPTIONS                                                            | (node) allowed http methods                                                                                                                |
+|   | HTTP_CORS_ALLOW_HEADS                                         | Accept;Authorization;Content-Type;X-CSRF-Token;X-User-Id;X-Api-Key | (node) allowed http heads                                                                                                                  |
+|   | HTTP_CORS_EXPOSE_HEADS                                        |                                                                    | (node) exposed http methods                                                                                                                |
+|   | HTTP_TLS_USE                                                  | false                                                              | (node) flag of turn off (false) or turn on (true) about use HTTPS                                                                          |
+|   | COOKIE_SECURE                                                 | false                                                              | (node) flag of turn off (false) or turn on (true) the cookie secure (HTTP)                                                                 |
+|   | COOKIE_DOMAIN                                                 |                                                                    | (node) name of domain for cookie                                                                                                           |
+|   | COOKIE_SAME_SITE_STRICT_MODE                                  | false                                                              | (node) flag of turn off (false) or turn on (true) the cookie same site strict mode                                                         |
+|   | COOKIE_FOR_AUTH_USE                                           | false                                                              | (node) flag of turn off (false) or turn on (true)  mode for the cookie use for authorization                                               |
+|   | **GRPC (node)**                                               |                                                                    |                                                                                                                                            |
+|   | GRPC_HOST                                                     | 0.0.0.0                                                            | (node) host address for bind gRPC external server                                                                                          |
+|   | GRPC_PORT                                                     | 10000                                                              | (node) port for bind gRPC external server                                                                                                  |
+|   | **SWAGGER (node)**                                            |                                                                    |                                                                                                                                            |
+|   | SWAGGER_HOST_URL                                              | 127.0.0.1:8780                                                     | (node) host url for swagger-json connection                                                                                                |
+|   | SWAGGER_BASE_PATH                                             | /                                                                  | (node) base path for swagger-json connection                                                                                               |
+|   | **NETWORK**                                                   |                                                                    |                                                                                                                                            |
+|   | NETWORK_DOMAIN                                                |                                                                    | `domain` or `ip-address` of external proxy-server for connections with node                                                                |
+|   | NETWORK_PORT                                                  |                                                                    | `port` of external proxy-server for connections with node                                                                                  |
+|   | NETWORK_HTTPS_USE                                             | false                                                              | flag of turn off (false) or turn on (true) about use HTTPS schema for external proxy-server for connections with node                      |
+|   | **WITHDRAWAL_SERVICE**                                        |                                                                    |                                                                                                                                            |
+| * | WITHDRAWAL_PROVER_URL                                         | http://localhost:8093                                              | API endpoint for verifying and processing withdrawal prover requests.                                                                      |
+| * | WITHDRAWAL_GNARK_PROVER_URL                                   |                                                                    | API endpoint for verifying and processing Gnark prover requests.                                                                           |
+|   | **API**                                                       |                                                                    |                                                                                                                                            |
+|   | API_SCROLL_BRIDGE_URL                                         |                                                                    | API endpoint for verifying and processing scroll bridge requests.                                                                          |
+| * | API_BLOCK_BUILDER_URL                                         |                                                                    | API endpoint for verifying and processing block builder requests.                                                                          |
+| * | API_DATA_STORE_VAULT_URL                                      |                                                                    | API endpoint for verifying and processing data store vault requests.                                                                       |
+| * | API_WITHDRAWAL_SERVER_URL                                     |                                                                    | API endpoint for verifying and processing withdrawal requests.                                                                             |
+|   | **STUN SERVER**                                               |                                                                    |                                                                                                                                            |
+| * | STUN_SERVER_NETWORK_TYPE                                      | udp6;udp4                                                          | network type for dial with stun server (separator equal `;`)                                                                               |
+| * | STUN_SERVER_LIST                                              | stun.l.google.com:19302                                            | network address for dial with stun server (separator equal `;`)                                                                            |
+|   | **GAS PRICE ORACLE**                                          |                                                                    |                                                                                                                                            |
+|   | GAS_PRICE_ORACLE_DELIMITER                                    | 10                                                                 | minimum number of senders to which gasFee must be distributed for transfer                                                                 |
+| * | GAS_PRICE_ORACLE_TIMEOUT                                      | 30s                                                                | timeout for updating gasFee from contract of the gas price oracle                                                                          |
+|   | **WORKER**                                                    |                                                                    |                                                                                                                                            |
+|   | WORKER_ID                                                     | pgx                                                                | id of worker                                                                                                                               |
+|   | WORKER_PATH                                                   | /app/worker                                                        | dir of worker                                                                                                                              |
+|   | WORKER_MAX_COUNTER                                            | 20                                                                 | max counter of worker                                                                                                                      |
+|   | WORKER_PATH_CLEAN_IN_START                                    | 20                                                                 | flag of turn off (false) or turn on (true) the clean dir of worker                                                                         |
+|   | WORKER_CURRENT_FILE_LIFETIME                                  | 1m                                                                 | timeout for create new current file of worker                                                                                              |
+|   | WORKER_TIMEOUT_FOR_CHECK_CURRENT_FILE                         | 10s                                                                | timeout for check the status of current file of worker                                                                                     |
+|   | WORKER_TIMEOUT_FOR_SIGNATURES_AVAILABLE_FILES                 | 15s                                                                | timeout for processing the transaction signature of current file of worker                                                                 |
+|   | WORKER_MAX_COUNTER_OF_USERS                                   | 128                                                                | condition for create new of current file of worker                                                                                         |
+|   | **BALANCE VALIDITY PROVER**                                   |                                                                    |                                                                                                                                            |
+|   | BALANCE_VALIDITY_PROVER_URL                                   | http://localhost:8092                                              | API endpoint for the balance validity prover                                                                                               |
+|   | **BLOCK VALIDITY PROVER**                                     |                                                                    |                                                                                                                                            |
+|   | BLOCK_VALIDITY_PROVER_URL                                     | http://localhost:8091                                              | API endpoint for the block validity prover                                                                                                 |
+|   | BLOCK_VALIDITY_PROVER_EVENT_WATCHER_LIFETIME                  | 1m                                                                 | timeout for block validity prover event watcher                                                                                            |
+|   | BLOCK_VALIDITY_PROVER_FETCH_PROOF_LIFETIME                    | 1m                                                                 | timeout for block validity prover fetch proof                                                                                              |
+|   | **SQL DB OF APP**                                             |                                                                    |                                                                                                                                            |
+|   | SQL_DB_APP_DRIVER_NAME                                        | pgx                                                                | system driver name with sql driver of application (only, `pgx` of `postgres`)                                                              |
+| * | SQL_DB_APP_DNS_CONNECTION                                     |                                                                    | connection string for connect with sql driver of application                                                                               |
+|   | SQL_DB_APP_RECONNECT_TIMEOUT                                  | 1s                                                                 | timeout for database connection with sql driver of application                                                                             |
+|   | SQL_DB_APP_OPEN_LIMIT                                         | 5                                                                  | maximum number of connections in the pool with sql driver of application                                                                   |
+|   | SQL_DB_APP_IDLE_LIMIT                                         | 5                                                                  | the maximum number of connections in the idle with sql driver of application                                                               |
+|   | SQL_DB_APP_CONN_LIFE                                          | 5m                                                                 | the maximum amount of time a connection may be reused with sql driver of application                                                       |
+|   | **RECOMMIT OF SQL DB**                                        |                                                                    |                                                                                                                                            |
+|   | SQL_DB_RECOMMIT_ATTEMPTS_NUMBER                               | 50                                                                 | attempts number tried of commits with transactions of sql driver                                                                           |
+|   | SQL_DB_RECOMMIT_TIMEOUT                                       | 1s                                                                 | timeout of attempts number tried of commits with transactions of sql driver                                                                |
+|   | **OPEN TELEMETRY**                                            |                                                                    |                                                                                                                                            |
+|   | OPEN_TELEMETRY_ENABLE                                         | false                                                              | flag of turn off (false) or turn on (true) the OpenTelemetry                                                                               |
+|   | OTEL_EXPORTER_OTLP_ENDPOINT                                   |                                                                    | external parameter (see official documentation about the OpenTelemetry; example: gRPC http://localhost:4317 or HTTP http://localhost:4318) |
+|   | OTEL_EXPORTER_OTLP_COMPRESSION                                |                                                                    | external parameter (see official documentation about the OpenTelemetry; example = 'gzip')                                                  |
 
 ## Tests
 For applies tests need copies `.env.example` as `.env` and runs command: `go test ./...`

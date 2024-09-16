@@ -295,12 +295,13 @@ WHERE sender = @sender %s
 
 func (p *pgx) backupTransactionToDBApp(b *models.BackupTransaction) mDBApp.BackupTransaction {
 	return mDBApp.BackupTransaction{
-		ID:           b.ID,
-		Sender:       b.Sender,
-		TxDoubleHash: b.TxDoubleHash.String,
-		EncryptedTx:  b.EncryptedTx,
-		BlockNumber:  b.BlockNumber,
-		Signature:    b.Signature,
-		CreatedAt:    b.CreatedAt,
+		ID:              b.ID,
+		Sender:          b.Sender,
+		TxDoubleHash:    b.TxDoubleHash.String,
+		EncryptedTx:     b.EncryptedTx,
+		EncodingVersion: b.EncodingVersion,
+		BlockNumber:     b.BlockNumber,
+		Signature:       b.Signature,
+		CreatedAt:       b.CreatedAt,
 	}
 }

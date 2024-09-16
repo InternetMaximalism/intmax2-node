@@ -38,7 +38,7 @@ func (p *pgx) GetBackupTransfer(condition, value string) (*mDBApp.BackupTransfer
         SELECT id, recipient, transfer_double_hash, encrypted_transfer, sender_last_balance_proof_body, sender_balance_transition_proof_body, block_number, created_at
         FROM backup_transfers
         WHERE %s = $1
-    `
+`
 	query := fmt.Sprintf(baseQuery, condition)
 
 	var b models.BackupTransfer

@@ -59,24 +59,40 @@ func GetTransactionsListWithRawRequest(
 		return nil, err
 	}
 
-	txList := GetTransactionsList{
-		TxHashes: make([]string, len(resp.Transactions)),
+	if resp.Error != nil {
+		var js []byte
+		js, err = json.MarshalIndent(&GetTransactionsList{
+			GetTransactionsListError: GetTransactionsListError{
+				Code:    resp.Error.Code,
+				Message: resp.Error.Message,
+			},
+		}, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal txList: %w", err)
+		}
+
+		return js, nil
 	}
 
-	for key := range resp.Transactions {
+	txList := GetTransactionsList{
+		Success: true,
+		Data:    &GetTxTransactionsListData{TxHashes: make([]string, len(resp.Data.Transactions))},
+	}
+
+	for key := range resp.Data.Transactions {
 		var txDetails *intMaxTypes.TxDetails
 		txDetails, err = GetTransactionFromBackupData(
-			resp.Transactions[key],
+			resp.Data.Transactions[key],
 			senderAccount,
 		)
 		if err != nil {
 			return nil, err
 		}
-		txList.TxHashes[key] = txDetails.Hash().String()
+		txList.Data.TxHashes[key] = txDetails.Hash().String()
 	}
 
 	var pg interface{}
-	err = json.Unmarshal(resp.Pagination, &pg)
+	err = json.Unmarshal(resp.Data.Pagination, &pg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal JSON with pagination: %w", err)
 	}
@@ -87,7 +103,7 @@ func GetTransactionsListWithRawRequest(
 		return nil, fmt.Errorf("failed to marshal txList: %w", err)
 	}
 
-	js, err = sjson.SetBytes(js, "pagination", pg)
+	js, err = sjson.SetBytes(js, "data.pagination", pg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update JSON with pagination: %w", err)
 	}
@@ -100,7 +116,7 @@ func getTransactionsListRawRequest(
 	cfg *configs.Config,
 	input *GetTransactionsListInput,
 	senderAccount *intMaxAcc.PrivateKey,
-) (*GetTransactionsListData, error) {
+) (*GetTransactionsListResponse, error) {
 	const (
 		contentType = "Content-Type"
 		appJSON     = "application/json"
@@ -163,11 +179,22 @@ func getTransactionsListRawRequest(
 
 	if resp == nil {
 		const msg = "send request error occurred"
-		return nil, fmt.Errorf(msg)
+		return &GetTransactionsListResponse{
+			Error: &GetTransactionsListError{
+				Code:    http.StatusInternalServerError,
+				Message: msg,
+			},
+		}, nil
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("failed to get transactions list: %s", resp.String())
+		const messageKey = "message"
+		return &GetTransactionsListResponse{
+			Error: &GetTransactionsListError{
+				Code:    resp.StatusCode(),
+				Message: strings.ToLower(gjson.GetBytes(resp.Body(), messageKey).String()),
+			},
+		}, nil
 	}
 
 	response := new(GetTransactionsListResponse)
@@ -175,11 +202,7 @@ func getTransactionsListRawRequest(
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
-	if !response.Success {
-		return nil, fmt.Errorf("failed to get transactions list: %s", resp.String())
-	}
-
-	return response.Data, nil
+	return response, nil
 }
 
 func GetTransactionByHashWithRawRequest(
@@ -198,9 +221,24 @@ func GetTransactionByHashWithRawRequest(
 		return nil, err
 	}
 
+	if resp.Error != nil {
+		var js []byte
+		js, err = json.MarshalIndent(&GetTransactionTxResponse{
+			GetTransactionsListError: GetTransactionsListError{
+				Code:    resp.Error.Code,
+				Message: resp.Error.Message,
+			},
+		}, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal transaction by hash: %w", err)
+		}
+
+		return js, nil
+	}
+
 	var txDetails *intMaxTypes.TxDetails
 	txDetails, err = GetTransactionFromBackupData(
-		resp.Transaction,
+		resp.Data.Transaction,
 		senderAccount,
 	)
 	if err != nil {
@@ -209,26 +247,30 @@ func GetTransactionByHashWithRawRequest(
 
 	var sign *bn254.G2Affine
 	sign, err = GetSignatureFromBackupData(
-		resp.Transaction.Signature,
+		resp.Data.Transaction.Signature,
 		senderAccount,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	js, err := json.MarshalIndent(&GetTransactionTxData{
-		ID:          resp.Transaction.ID,
-		Sender:      resp.Transaction.Sender,
-		Signature:   hexutil.Encode(sign.Marshal()),
-		BlockNumber: resp.Transaction.BlockNumber,
-		TxDetails:   txDetails,
-		CreatedAt:   resp.Transaction.CreatedAt,
+	var js []byte
+	js, err = json.MarshalIndent(&GetTransactionTxResponse{
+		Success: true,
+		Data: &GetTransactionTxData{
+			ID:          resp.Data.Transaction.ID,
+			Sender:      resp.Data.Transaction.Sender,
+			Signature:   hexutil.Encode(sign.Marshal()),
+			BlockNumber: resp.Data.Transaction.BlockNumber,
+			TxDetails:   txDetails,
+			CreatedAt:   resp.Data.Transaction.CreatedAt,
+		},
 	}, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal transaction by hash: %w", err)
 	}
 
-	arrTxDetails := gjson.GetBytes(js, "txDetails.Transfers").Array()
+	arrTxDetails := gjson.GetBytes(js, "data.txDetails.Transfers").Array()
 	for key := range arrTxDetails {
 		var address string
 		if arrTxDetails[key].Get("Recipient.TypeOfAddress").String() == intMaxAccTypes.INTMAXAddressType {
@@ -249,7 +291,7 @@ func GetTransactionByHashWithRawRequest(
 
 		js, err = sjson.SetBytes(
 			js,
-			fmt.Sprintf("txDetails.Transfers.%d.Recipient.Address", key),
+			fmt.Sprintf("data.txDetails.Transfers.%d.Recipient.Address", key),
 			address,
 		)
 		if err != nil {
@@ -265,7 +307,7 @@ func getTransactionByHashRawRequest(
 	cfg *configs.Config,
 	txHash string,
 	senderAccount *intMaxAcc.PrivateKey,
-) (*GetTransactionByHashData, error) {
+) (*GetTransactionByHashResponse, error) {
 	const (
 		contentType = "Content-Type"
 		appJSON     = "application/json"
@@ -290,13 +332,22 @@ func getTransactionByHashRawRequest(
 
 	if resp == nil {
 		const msg = "send request error occurred"
-		return nil, fmt.Errorf(msg)
+		return &GetTransactionByHashResponse{
+			Error: &GetTransactionsListError{
+				Code:    http.StatusInternalServerError,
+				Message: msg,
+			},
+		}, nil
 	}
 
-	if resp.StatusCode() == http.StatusBadRequest {
-		return nil, fmt.Errorf("not found")
-	} else if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("failed to get response")
+	if resp.StatusCode() != http.StatusOK {
+		const messageKey = "message"
+		return &GetTransactionByHashResponse{
+			Error: &GetTransactionsListError{
+				Code:    resp.StatusCode(),
+				Message: strings.ToLower(gjson.GetBytes(resp.Body(), messageKey).String()),
+			},
+		}, nil
 	}
 
 	response := new(GetTransactionByHashResponse)
@@ -304,9 +355,5 @@ func getTransactionByHashRawRequest(
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
-	if !response.Success {
-		return nil, fmt.Errorf("failed to get transaction by hash")
-	}
-
-	return response.Data, nil
+	return response, nil
 }

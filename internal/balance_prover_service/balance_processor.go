@@ -444,7 +444,7 @@ func (p *balanceProcessor) requestUpdateBalanceValidityProof(
 	)
 
 	intMaxAddress := publicKey.ToAddress().String()
-	apiUrl := fmt.Sprintf("%s/proof/%s/update", p.cfg.BlockValidityProver.BalanceValidityProverUrl, intMaxAddress)
+	apiUrl := fmt.Sprintf("%s/proof/%s/update", p.cfg.BalanceValidityProver.BalanceValidityProverUrl, intMaxAddress)
 
 	r := resty.New().R()
 	var resp *resty.Response
@@ -510,7 +510,7 @@ func (p *balanceProcessor) requestReceiveDepositBalanceValidityProof(
 	)
 
 	intMaxAddress := publicKey.ToAddress().String()
-	apiUrl := fmt.Sprintf("%s/proof/%s/deposit", p.cfg.BlockValidityProver.BalanceValidityProverUrl, intMaxAddress)
+	apiUrl := fmt.Sprintf("%s/proof/%s/deposit", p.cfg.BalanceValidityProver.BalanceValidityProverUrl, intMaxAddress)
 
 	r := resty.New().R()
 	var resp *resty.Response
@@ -579,7 +579,7 @@ func (p *balanceProcessor) requestSendBalanceValidityProof(
 	)
 
 	intMaxAddress := publicKey.ToAddress().String()
-	apiUrl := fmt.Sprintf("%s/proof/%s/send", p.cfg.BlockValidityProver.BalanceValidityProverUrl, intMaxAddress)
+	apiUrl := fmt.Sprintf("%s/proof/%s/send", p.cfg.BalanceValidityProver.BalanceValidityProverUrl, intMaxAddress)
 
 	r := resty.New().R()
 	var resp *resty.Response
@@ -642,7 +642,7 @@ func (p *balanceProcessor) requestSpendProof(
 	)
 
 	intMaxAddress := publicKey.ToAddress().String()
-	apiUrl := fmt.Sprintf("%s/proof/%s/spend", p.cfg.BlockValidityProver.BalanceValidityProverUrl, intMaxAddress)
+	apiUrl := fmt.Sprintf("%s/proof/%s/spend", p.cfg.BalanceValidityProver.BalanceValidityProverUrl, intMaxAddress)
 
 	r := resty.New().R()
 	var resp *resty.Response
@@ -709,7 +709,7 @@ func (p *balanceProcessor) requestReceiveTransferBalanceValidityProof(
 	)
 
 	intMaxAddress := publicKey.ToAddress().String()
-	apiUrl := fmt.Sprintf("%s/proof/%s/transfer", p.cfg.BlockValidityProver.BalanceValidityProverUrl, intMaxAddress)
+	apiUrl := fmt.Sprintf("%s/proof/%s/transfer", p.cfg.BalanceValidityProver.BalanceValidityProverUrl, intMaxAddress)
 
 	r := resty.New().R()
 	var resp *resty.Response
@@ -765,7 +765,7 @@ func (p *balanceProcessor) fetchUpdateBalanceValidityProof(publicKey *intMaxAcc.
 	)
 
 	intMaxAddress := publicKey.ToAddress().String()
-	apiUrl := fmt.Sprintf("%s/proof/%s/update/%s", p.cfg.BlockValidityProver.BalanceValidityProverUrl, intMaxAddress, requestID)
+	apiUrl := fmt.Sprintf("%s/proof/%s/update/%s", p.cfg.BalanceValidityProver.BalanceValidityProverUrl, intMaxAddress, requestID)
 
 	r := resty.New().R()
 	resp, err := r.SetContext(p.ctx).SetHeaders(map[string]string{
@@ -817,7 +817,7 @@ func (p *balanceProcessor) fetchReceiveDepositBalanceValidityProof(publicKey *in
 	)
 
 	intMaxAddress := publicKey.ToAddress().String()
-	apiUrl := fmt.Sprintf("%s/proof/%s/deposit/%s", p.cfg.BlockValidityProver.BalanceValidityProverUrl, intMaxAddress, requestID)
+	apiUrl := fmt.Sprintf("%s/proof/%s/deposit/%s", p.cfg.BalanceValidityProver.BalanceValidityProverUrl, intMaxAddress, requestID)
 
 	r := resty.New().R()
 	resp, err := r.SetContext(p.ctx).SetHeaders(map[string]string{
@@ -869,7 +869,7 @@ func (p *balanceProcessor) fetchSendBalanceValidityProof(publicKey *intMaxAcc.Pu
 	)
 
 	intMaxAddress := publicKey.ToAddress().String()
-	apiUrl := fmt.Sprintf("%s/proof/%s/send/%s", p.cfg.BlockValidityProver.BalanceValidityProverUrl, intMaxAddress, requestID)
+	apiUrl := fmt.Sprintf("%s/proof/%s/send/%s", p.cfg.BalanceValidityProver.BalanceValidityProverUrl, intMaxAddress, requestID)
 
 	r := resty.New().R()
 	resp, err := r.SetContext(p.ctx).SetHeaders(map[string]string{
@@ -919,7 +919,7 @@ func (p *balanceProcessor) fetchSpendBalanceValidityProof(publicKey *intMaxAcc.P
 	)
 
 	intMaxAddress := publicKey.ToAddress().String()
-	apiUrl := fmt.Sprintf("%s/proof/%s/spend/%s", p.cfg.BlockValidityProver.BalanceValidityProverUrl, intMaxAddress, requestID)
+	apiUrl := fmt.Sprintf("%s/proof/%s/spend/%s", p.cfg.BalanceValidityProver.BalanceValidityProverUrl, intMaxAddress, requestID)
 
 	r := resty.New().R()
 	resp, err := r.SetContext(p.ctx).SetHeaders(map[string]string{
@@ -971,7 +971,7 @@ func (p *balanceProcessor) fetchReceiveTransferBalanceValidityProof(publicKey *i
 	)
 
 	intMaxAddress := publicKey.ToAddress().String()
-	apiUrl := fmt.Sprintf("%s/proof/%s/transfer/%s", p.cfg.BlockValidityProver.BalanceValidityProverUrl, intMaxAddress, requestID)
+	apiUrl := fmt.Sprintf("%s/proof/%s/transfer/%s", p.cfg.BalanceValidityProver.BalanceValidityProverUrl, intMaxAddress, requestID)
 
 	r := resty.New().R()
 	resp, err := r.SetContext(p.ctx).SetHeaders(map[string]string{

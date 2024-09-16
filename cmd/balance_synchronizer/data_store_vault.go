@@ -1,4 +1,4 @@
-package server
+package balance_synchronizer
 
 import (
 	intMaxAcc "intmax2-node/internal/accounts"

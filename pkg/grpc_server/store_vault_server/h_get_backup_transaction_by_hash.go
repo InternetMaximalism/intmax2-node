@@ -21,7 +21,7 @@ func (s *StoreVaultServer) GetBackupTransactionByHash(
 	resp := node.GetBackupTransactionByHashResponse{}
 
 	const (
-		hName      = "Handler GetBackupTransactions"
+		hName      = "Handler GetBackupTransactionByHash"
 		requestKey = "request"
 	)
 

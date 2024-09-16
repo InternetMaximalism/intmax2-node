@@ -55,7 +55,6 @@ type SyncBalanceProver struct {
 // }
 
 func NewSyncBalanceProver() *SyncBalanceProver {
-	fmt.Println("NewSyncBalanceProver")
 	return &SyncBalanceProver{
 		LastUpdatedBlockNumber: 0,
 		LastBalanceProof:       nil,
@@ -426,6 +425,7 @@ func (s *SyncBalanceProver) ReceiveTransfer(
 	}
 
 	s.LastBalanceProof = &balanceProof.Proof
+
 	return nil
 }
 
@@ -457,7 +457,6 @@ func (s *SyncBalanceProver) ReceiveTransfer(
 //     blockSynchronizer block_validity_prover.BlockSynchronizer
 // }
 
-// blockValidityService := balance_prover_service.NewExternalBlockValidityProver(ctx, cfg)
 func SyncLocally(
 	ctx context.Context,
 	cfg *configs.Config,

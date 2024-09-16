@@ -198,7 +198,10 @@ func (p *blockValidityProver) SyncDepositedEvents() error {
 		events, _, _, err =
 			p.fetchNewDeposits(event.LastProcessedBlockNumber)
 		if err != nil {
-			panic(fmt.Sprintf("Failed to fetch new deposits: %v", err.Error()))
+			const msgErr = "cannot be found"
+			if !strings.Contains(err.Error(), msgErr) {
+				panic(fmt.Sprintf("Failed to fetch new deposits: %v", err.Error()))
+			}
 		}
 
 		if len(events) == 0 {

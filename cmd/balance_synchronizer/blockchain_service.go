@@ -1,4 +1,4 @@
-package server
+package balance_synchronizer
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"github.com/dimiro1/health"
 )
 
-//go:generate mockgen -destination=mock_blockchain_service.go -package=server -source=blockchain_service.go
+//go:generate mockgen -destination=mock_blockchain_service.go -package=balance_synchronizer -source=blockchain_service.go
 
 type ServiceBlockchain interface {
 	GenericCommandsSB

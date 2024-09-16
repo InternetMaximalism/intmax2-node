@@ -156,6 +156,9 @@ type BackupDeposits interface {
 		recipient, depositHash, encryptedDeposit string,
 		blockNumber int64,
 	) (*mDBApp.BackupDeposit, error)
+	GetBackupDepositByRecipientAndDepositDoubleHash(
+		recipient, depositDoubleHash string,
+	) (*mDBApp.BackupDeposit, error)
 	GetBackupDeposit(conditions []string, values []interface{}) (*mDBApp.BackupDeposit, error)
 	GetBackupDeposits(condition string, value interface{}) ([]*mDBApp.BackupDeposit, error)
 	GetBackupDepositsByRecipient(
@@ -235,17 +238,8 @@ type BlockContents interface {
 		postedBlock *block_post_service.PostedBlock,
 		blockContent *intMaxTypes.BlockContent,
 	) (*mDBApp.BlockContent, error)
-	// 	blockNumber uint32,
-	// 	blockHash, prevBlockHash, depositRoot, txRoot, aggregatedSignature, aggregatedPublicKey, messagePoint string,
-	// 	isRegistrationBlock bool,
-	// 	senders []intMaxTypes.ColumnSender,
-	// ) (*mDBApp.BlockContent, error)
 	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContent, error)
 	BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContent, error)
-	// SetValidityWitness(blockNumber uint32, witness *block_validity_prover.ValidityWitness) error
-	// LastValidityWitness() (*block_validity_prover.ValidityWitness, error)
-	// SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error
-	// LastSeenBlockPostedEventBlockNumber() (blockNumber uint64, err error)
 }
 
 type CtrlProcessingJobs interface {

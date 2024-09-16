@@ -826,12 +826,13 @@ func (db *mockBlockBuilder) PostBlock(
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Printf("blockWitness.Block.BlockNumber: %d\n", blockWitness.Block.BlockNumber)
+	fmt.Printf("validityWitness.BlockWitness.Block.BlockNumber: %d\n", validityWitness.BlockWitness.Block.BlockNumber)
 	// encodedBlockWitness, err := json.Marshal(validityWitness.BlockWitness)
 	// if err != nil {
 	// 	panic(err)
 	// }
-	fmt.Printf("blockWitness.Block.BlockNumber: %d\n", blockWitness.Block.BlockNumber)
-	fmt.Printf("validityWitness.BlockWitness.Block.BlockNumber: %d\n", validityWitness.BlockWitness.Block.BlockNumber)
 	// fmt.Printf("validityWitness.BlockWitness after generateValidityWitness: %s\n", encodedBlockWitness)
 
 	fmt.Printf("SenderFlag 1: %v\n", validityWitness.BlockWitness.Signature.SenderFlag)

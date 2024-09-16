@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"intmax2-node/cmd/balance_checker"
-	balance_synchronizer "intmax2-node/cmd/balance_synchronizer"
+	"intmax2-node/cmd/balance_synchronizer"
 	"intmax2-node/cmd/block_builder"
 	"intmax2-node/cmd/deposit"
 	"intmax2-node/cmd/ethereum_private_key_wallet"
@@ -179,6 +179,16 @@ func main() {
 			Log:     log,
 			DbApp:   dbApp,
 			SB:      bc,
+		}),
+		balance_synchronizer.NewSynchronizerCmd(&balance_synchronizer.Synchronizer{
+			Context: ctx,
+			Cancel:  cancel,
+			Config:  cfg,
+			Log:     log,
+			DbApp:   dbApp,
+			WG:      &wg,
+			SB:      bc,
+			HC:      &hc,
 		}),
 	)
 	if err != nil {

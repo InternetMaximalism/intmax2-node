@@ -129,8 +129,6 @@ func TestDepositTreeWithoutInitialLeaves(t *testing.T) {
 		t.Errorf("fail to create merkle tree")
 	}
 
-	fmt.Printf("root: %x, count: %d\n", mt.inner.currentRoot, mt.inner.count)
-
 	var recipientSaltHash []byte
 
 	type RawDepositLeaf struct {

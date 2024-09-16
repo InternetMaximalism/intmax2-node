@@ -25,9 +25,9 @@ var ErrAddLeafFail = errors.New("failed to add")
 // ErrLeafInputIndexInvalid error: index is not equal to the length of leaves.
 var ErrLeafInputIndexInvalid = errors.New("index is not equal to the length of leaves")
 
-// ErrAssetLeafInputIndexInvalid error: index is not equal to the length of asset leaves.
-var ErrAssetLeafInputIndexInvalid = errors.New("index is not equal to the length of asset leaves")
-
 var ErrInvalidPrevRoot = errors.New("invalid prevRoot")
 
 var ErrInvalidRootAfterUpdatedPrevLeaf = errors.New("invalid root after updated previous leaf")
+
+// ErrAssetLeafInputIndexInvalid error: index is not equal to the length of asset leaves.
+var ErrAssetLeafInputIndexInvalid = errors.New("index is not equal to the length of asset leaves")

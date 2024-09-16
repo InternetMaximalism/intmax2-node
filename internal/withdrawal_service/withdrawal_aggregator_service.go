@@ -779,7 +779,7 @@ func (w *WithdrawalAggregatorService) requestWithdrawalProofToProver(requestID s
 	}
 
 	apiUrl := fmt.Sprintf("%s/proof/withdrawal",
-		w.cfg.API.WithdrawalProverUrl,
+		w.cfg.WithdrawalService.WithdrawalProverUrl,
 	)
 	resp, err := http.Post(apiUrl, "application/json", bytes.NewBuffer(jsonBody)) // nolint:gosec
 	if err != nil {
@@ -811,7 +811,7 @@ func (w *WithdrawalAggregatorService) fetchWithdrawalProofToProver(requestID str
 	// }
 
 	apiUrl := fmt.Sprintf("%s/proof/withdrawal/%s",
-		w.cfg.API.WithdrawalProverUrl,
+		w.cfg.WithdrawalService.WithdrawalProverUrl,
 		requestID,
 	)
 	resp, err := http.Get(apiUrl) // nolint:gosec
@@ -884,7 +884,7 @@ func (w *WithdrawalAggregatorService) requestWithdrawalWrapperProofToProver(requ
 	}
 
 	apiUrl := fmt.Sprintf("%s/proof/wrapper",
-		w.cfg.API.WithdrawalProverUrl,
+		w.cfg.WithdrawalService.WithdrawalProverUrl,
 	)
 	resp, err := http.Post(apiUrl, "application/json", bytes.NewBuffer(jsonBody)) // nolint:gosec
 	if err != nil {
@@ -916,7 +916,7 @@ func (w *WithdrawalAggregatorService) requestWithdrawalWrapperProofToProver(requ
 
 func (w *WithdrawalAggregatorService) fetchWithdrawalWrapperProofToProver(requestID string) (wrappedProof *string, err error) {
 	apiUrl := fmt.Sprintf("%s/proof/wrapper/%s",
-		w.cfg.API.WithdrawalProverUrl,
+		w.cfg.WithdrawalService.WithdrawalProverUrl,
 		requestID,
 	)
 	resp, err := http.Get(apiUrl) // nolint:gosec
@@ -975,7 +975,7 @@ func (w *WithdrawalAggregatorService) RequestWithdrawalGnarkProofToProver(wrappe
 
 func (w *WithdrawalAggregatorService) requestWithdrawalGnarkProofToProver(wrappedProofJSON []byte) (string, error) {
 	apiUrl := fmt.Sprintf("%s/start-proof",
-		w.cfg.API.WithdrawalGnarkProverUrl,
+		w.cfg.WithdrawalService.WithdrawalGnarkProverUrl,
 	)
 	resp, err := http.Post(apiUrl, "application/json", bytes.NewBuffer(wrappedProofJSON)) // nolint:gosec
 	if err != nil {
@@ -999,7 +999,7 @@ func (w *WithdrawalAggregatorService) requestWithdrawalGnarkProofToProver(wrappe
 
 func (w *WithdrawalAggregatorService) fetchWithdrawalGnarkProofToProver(jobID string) (wrappedProof *GnarkGetProofResponseResult, err error) {
 	apiUrl := fmt.Sprintf("%s/get-proof?jobId=%s",
-		w.cfg.API.WithdrawalGnarkProverUrl,
+		w.cfg.WithdrawalService.WithdrawalGnarkProverUrl,
 		jobID,
 	)
 	resp, err := http.Get(apiUrl) // nolint:gosec

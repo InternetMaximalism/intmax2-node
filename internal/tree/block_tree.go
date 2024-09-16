@@ -2,7 +2,6 @@ package tree
 
 import (
 	"errors"
-	// "intmax2-node/internal/block_post_service"
 	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	intMaxTypes "intmax2-node/internal/types"
 )

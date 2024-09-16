@@ -491,6 +491,15 @@ service StoreVaultService {
     };
   }
 
+  // GetBackupTransactionByHash processes a request for backup transaction by hash
+  //
+  // ## This method handles the backup transaction by hash.
+  rpc GetBackupDepositByHash(GetBackupDepositByHashRequest) returns (GetBackupDepositByHashResponse) {
+    option (google.api.http) = {
+      get: "/v1/backups/deposit/{deposit_hash}"
+    };
+  }
+
   rpc BackupBalance(BackupBalanceRequest) returns (BackupBalanceResponse) {
     option (google.api.http) = {
       post: "/v1/backups/balance"
@@ -760,6 +769,28 @@ message GetBackupTransactionByHashResponse {
   }
 }
 
+message GetBackupDepositByHashRequest {
+  string recipient = 1;
+  string deposit_hash = 2;
+}
+
+message GetBackupDepositByHashResponse {
+  bool success = 1;
+  Data data = 2;
+
+  message Data {
+    Deposit deposit = 1;
+  }
+
+  message Deposit {
+    string id = 1;
+    string recipient = 2;
+    uint64 block_number = 3;
+    string encrypted_deposit = 4;
+    google.protobuf.Timestamp created_at = 5;
+  }
+}
+
 // BackupDepositRequest is the request message for BackupDeposit method.
 message BackupDepositRequest {
   // The deposit hash
@@ -819,7 +850,7 @@ message GetBackupDepositsResponse {
 message GetBackupDepositsListRequest {
   // the pagination value
   Pagination pagination = 5;
-  string sender = 1;
+  string recipient = 1;
   // order by sorting (asc or desc)
   string sorting = 20;
   // order by (example: date_start)
@@ -894,10 +925,11 @@ message GetBackupDepositsListResponse {
 
   message Deposit {
     string id = 1;
-    string recipient = 2;
-    uint64 block_number = 3;
-    string encrypted_deposit = 4;
-    google.protobuf.Timestamp created_at = 5;
+    string deposit_hash = 2;
+    string recipient = 3;
+    uint64 block_number = 4;
+    string encrypted_deposit = 5;
+    google.protobuf.Timestamp created_at = 6;
   }
 }
 
