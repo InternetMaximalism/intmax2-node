@@ -85,9 +85,9 @@ func NewBlockValidityProver(ctx context.Context, cfg *configs.Config, log logger
 	}, nil
 }
 
-func (d *blockValidityProver) RollupContractDeployedBlockNumber() (uint64, error) {
-	return d.cfg.Blockchain.RollupContractDeployedBlockNumber, nil
-}
+// func (d *blockValidityProver) RollupContractDeployedBlockNumber() (uint64, error) {
+// 	return d.cfg.Blockchain.RollupContractDeployedBlockNumber, nil
+// }
 
 func (d *blockValidityProver) FetchScrollCalldataByHash(txHash common.Hash) ([]byte, error) {
 	tx, isPending, err := d.scrollClient.TransactionByHash(context.Background(), txHash)
@@ -215,8 +215,13 @@ func (d *blockValidityProver) IsSynchronizedDepositIndex(depositIndex uint32) (b
 	return d.blockBuilder.IsSynchronizedDepositIndex(depositIndex)
 }
 
-func (d *blockValidityProver) FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error) {
-	return d.blockBuilder.FetchUpdateWitness(publicKey, currentBlockNumber, targetBlockNumber, isPrevAccountTree)
+func (d *blockValidityProver) FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber *uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error) {
+	if currentBlockNumber == nil {
+		latestBlockNumber := d.blockBuilder.LatestIntMaxBlockNumber()
+		return d.blockBuilder.FetchUpdateWitness(publicKey, latestBlockNumber, targetBlockNumber, isPrevAccountTree)
+	}
+
+	return d.blockBuilder.FetchUpdateWitness(publicKey, *currentBlockNumber, targetBlockNumber, isPrevAccountTree)
 }
 
 func (d *blockValidityProver) BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.MerkleProof, error) {
@@ -230,6 +235,7 @@ func (d *blockValidityProver) PostBlock(
 	return d.blockBuilder.PostBlock(isRegistrationBlock, txs)
 }
 
+// TODO: multiple response
 func (d *blockValidityProver) BlockContentByTxRoot(txRoot string) (*block_post_service.PostedBlock, error) {
 	blockContent, err := d.blockBuilder.BlockContentByTxRoot(txRoot)
 	if err != nil {
@@ -285,40 +291,4 @@ func (d *blockValidityProver) DepositTreeProof(depositIndex uint32) (*intMaxTree
 	}
 
 	return depositMerkleProof, depositTreeRoot, err
-}
-
-// check synchronization of INTMAX blocks
-func CheckBlockSynchronization(
-	blockValidityService BlockValidityService,
-	blockSynchronizer BlockSynchronizer,
-) (err error) {
-	// s.blockSynchronizer.SyncBlockTree(blockProverService)
-	startBlock, err := blockValidityService.LastSeenBlockPostedEventBlockNumber() // XXX
-	if err != nil {
-		var ErrNotFound = errors.New("not found")
-		if !errors.Is(err, ErrNotFound) {
-			var ErrLastSeenBlockPostedEventBlockNumberFail = errors.New("last seen block posted event block number fail")
-			panic(errors.Join(ErrLastSeenBlockPostedEventBlockNumberFail, err)) // TODO
-		}
-
-		startBlock, err = blockValidityService.RollupContractDeployedBlockNumber()
-		if err != nil {
-			var ErrRollupContractDeployedBlockNumberFail = errors.New("rollup contract deployed block number fail")
-			panic(errors.Join(ErrRollupContractDeployedBlockNumberFail, err)) // TODO
-		}
-	}
-
-	const searchBlocksLimitAtOnce = 10000
-	endBlock := startBlock + searchBlocksLimitAtOnce
-	events, _, err := blockSynchronizer.FetchNewPostedBlocks(startBlock, &endBlock)
-	if err != nil {
-		var ErrFetchNewPostedBlocksFail = errors.New("fetch new posted blocks fail")
-		return errors.Join(ErrFetchNewPostedBlocksFail, err)
-	}
-
-	if len(events) != 0 {
-		return errors.New("not synchronized")
-	}
-
-	return nil
 }

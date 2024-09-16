@@ -88,14 +88,6 @@ func (s *SyncBalanceProver) SyncSend(
 	balanceProcessor balance_prover_service.BalanceProcessor,
 ) error {
 	fmt.Printf("-----SyncSend %s------\n", wallet.PublicKey())
-	// err := blockValidityService.SyncBlockProver() // sync validity proofs
-	// if err != nil {
-	// 	return err
-	// }
-	err := block_validity_prover.CheckBlockSynchronization(blockValidityService, blockSynchronizer)
-	if err != nil {
-		return err
-	}
 
 	allBlockNumbers := wallet.GetAllBlockNumbers()
 	notSyncedBlockNumbers := []uint32{}
@@ -121,7 +113,7 @@ func (s *SyncBalanceProver) SyncSend(
 		fmt.Printf("FetchUpdateWitness blockNumber: %d\n", blockNumber)
 		updateWitness, err := blockValidityService.FetchUpdateWitness(
 			wallet.PublicKey(),
-			blockNumber,
+			&blockNumber,
 			prevBalancePisBlockNumber,
 			true,
 		)
@@ -200,49 +192,32 @@ func (s *SyncBalanceProver) SyncNoSend(
 	balanceProcessor balance_prover_service.BalanceProcessor,
 ) error {
 	fmt.Printf("-----SyncNoSend %s------\n", wallet.PublicKey())
-	// blockBuilder := blockValidityService.BlockBuilder()
-	// err := blockValidityService.SyncBlockProver()
-	// if err != nil {
-	// 	return err
-	// }
-	err := block_validity_prover.CheckBlockSynchronization(blockValidityService, blockSynchronizer)
-	if err != nil {
-		return err
-	}
 
 	allBlockNumbers := wallet.GetAllBlockNumbers()
-	// notSyncedBlockNumbers := []uint32{}
 	for _, blockNumber := range allBlockNumbers {
 		fmt.Printf("s.LastUpdatedBlockNumber after GetAllBlockNumbers: %d\n", s.LastUpdatedBlockNumber)
 		if s.LastUpdatedBlockNumber < blockNumber {
 			return errors.New("sync send tx first")
-			// notSyncedBlockNumbers = append(notSyncedBlockNumbers, blockNumber)
 		}
 	}
 
-	// sort.Slice(notSyncedBlockNumbers, func(i, j int) bool {
-	// 	return notSyncedBlockNumbers[i] < notSyncedBlockNumbers[j]
-	// })
-
-	// if len(notSyncedBlockNumbers) > 0 {
-	// 	return errors.New("sync send tx first")
-	// }
-	currentBlockNumber, err := blockValidityService.LatestIntMaxBlockNumber()
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("currentBlockNumber before FetchUpdateWitness: %d\n", currentBlockNumber)
 	fmt.Printf("s.LastUpdatedBlockNumber before FetchUpdateWitness: %d\n", s.LastUpdatedBlockNumber)
 	updateWitness, err := blockValidityService.FetchUpdateWitness(
 		wallet.PublicKey(),
-		currentBlockNumber,
+		nil, // latest
 		s.LastUpdatedBlockNumber,
 		false,
 	)
 	if err != nil {
 		return err
 	}
+
+	validityProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(updateWitness.ValidityProof)
+	if err != nil {
+		return err
+	}
+	validityPis := new(block_validity_prover.ValidityPublicInputs).FromPublicInputs(validityProofWithPis.PublicInputs)
+	currentBlockNumber := validityPis.PublicState.BlockNumber
 
 	// let prev_balance_pis = if prev_balance_proof.is_some() {
 	//     BalancePublicInputs::from_pis(&prev_balance_proof.as_ref().unwrap().public_inputs)
@@ -281,12 +256,12 @@ func (s *SyncBalanceProver) SyncNoSend(
 	}
 	fmt.Printf("prevBalancePisJSON: %s", prevBalancePisJSON)
 
-	lastBlockNumber := updateWitness.AccountMembershipProof.GetLeaf()
+	lastSentTxBlockNumber := updateWitness.AccountMembershipProof.GetLeaf()
 	prevPublicState := prevBalancePis.PublicState
 	fmt.Printf("sync no send")
-	fmt.Printf("lastBlockNumber: %d\n", lastBlockNumber)
+	fmt.Printf("lastSentTxBlockNumber: %d\n", lastSentTxBlockNumber)
 	fmt.Printf("prevPublicState.BlockNumber: %d\n", prevPublicState.BlockNumber)
-	if lastBlockNumber > uint64(prevPublicState.BlockNumber) {
+	if lastSentTxBlockNumber > uint64(prevPublicState.BlockNumber) {
 		return errors.New("last block number is greater than prev public state block number")
 	}
 

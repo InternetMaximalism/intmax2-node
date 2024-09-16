@@ -215,23 +215,23 @@ func DecodeBackupData(
 
 func (userAllData *BalanceTransitionData) SortValidUserData(
 	log logger.Logger,
-	blockValidityProver block_validity_prover.BlockValidityService,
+	blockValidityService block_validity_prover.BlockValidityService,
 ) ([]ValidBalanceTransition, error) {
-	validDeposits, invalidDeposits, err := ExtractValidReceivedDeposits(log, userAllData, blockValidityProver)
+	validDeposits, invalidDeposits, err := ExtractValidReceivedDeposits(log, userAllData, blockValidityService)
 	if err != nil {
 		fmt.Println("Error in ExtractValidReceivedDeposit")
 	}
 	fmt.Printf("num of valid deposits: %d\n", len(validDeposits))
 	fmt.Printf("num of invalid deposits: %d\n", len(invalidDeposits))
 
-	validTransfers, invalidTransfers, err := ExtractValidReceivedTransfers(log, userAllData, blockValidityProver)
+	validTransfers, invalidTransfers, err := ExtractValidReceivedTransfers(log, userAllData, blockValidityService)
 	if err != nil {
 		fmt.Println("Error in ExtractValidReceivedDeposit")
 	}
 	fmt.Printf("num of valid transfers: %d\n", len(validTransfers))
 	fmt.Printf("num of invalid transfers: %d\n", len(invalidTransfers))
 
-	validTransactions, invalidTransactions, err := ExtractValidSentTransactions(log, userAllData, blockValidityProver)
+	validTransactions, invalidTransactions, err := ExtractValidSentTransactions(log, userAllData, blockValidityService)
 	if err != nil {
 		fmt.Println("Error in ExtractValidReceivedDeposit")
 	}
@@ -302,7 +302,7 @@ func ExtractValidSentTransactions(
 
 		fmt.Printf("transaction hash: %s\n", txHash.String())
 		if tx.TxTreeRoot == nil {
-			// TODO: If TxTreeRoot is nil, the account is no longer valid.
+			// If TxTreeRoot is nil, the account is no longer valid.
 			log.Warnf("transaction tx tree root is nil\n")
 			invalidTxHashes = append(invalidTxHashes, txHash)
 			continue

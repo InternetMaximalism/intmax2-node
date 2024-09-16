@@ -82,9 +82,9 @@ func (s *externalBlockValidityService) FetchLastDepositIndex() (uint32, error) {
 	return 0, errors.New("not implemented")
 }
 
-func (s *externalBlockValidityService) LastSeenBlockPostedEventBlockNumber() (uint64, error) {
-	return 0, errors.New("not implemented")
-}
+// func (s *externalBlockValidityService) LastSeenBlockPostedEventBlockNumber() (uint64, error) {
+// 	return 0, errors.New("not implemented")
+// }
 
 func (s *externalBlockValidityService) LatestIntMaxBlockNumber() (uint32, error) {
 	return 0, nil
@@ -98,10 +98,6 @@ func (s *externalBlockValidityService) GetDepositLeafAndIndexByHash(depositHash 
 	return nil, errors.New("not implemented")
 }
 
-func (s *externalBlockValidityService) BlockNumberByDepositIndex(depositIndex uint32) (uint32, error) {
-	return 0, errors.New("not implemented")
-}
-
 func (s *externalBlockValidityService) LatestSynchronizedBlockNumber() (uint32, error) {
 	return 0, errors.New("not implemented")
 }
@@ -112,7 +108,7 @@ func (s *externalBlockValidityService) IsSynchronizedDepositIndex(depositIndex u
 
 func (s *externalBlockValidityService) FetchUpdateWitness(
 	publicKey *intMaxAcc.PublicKey,
-	currentBlockNumber uint32,
+	currentBlockNumber *uint32,
 	targetBlockNumber uint32,
 	isPrevAccountTree bool,
 ) (*block_validity_prover.UpdateWitness, error) {
@@ -131,6 +127,6 @@ func (s *externalBlockValidityService) PostBlock(isRegistrationBlock bool, txs [
 	return nil, errors.New("not implemented")
 }
 
-func (s *externalBlockValidityService) RollupContractDeployedBlockNumber() (uint64, error) {
-	return 0, errors.New("not implemented")
-}
+// func (s *externalBlockValidityService) RollupContractDeployedBlockNumber() (uint64, error) {
+// 	return 0, errors.New("not implemented")
+// }

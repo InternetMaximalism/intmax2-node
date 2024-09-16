@@ -30,17 +30,15 @@ type BlockValidityProver interface {
 
 type BlockValidityService interface {
 	FetchLastDepositIndex() (uint32, error)
-	LastSeenBlockPostedEventBlockNumber() (uint64, error)
 	LatestIntMaxBlockNumber() (uint32, error)
 	BlockContentByTxRoot(txRoot string) (*block_post_service.PostedBlock, error)
 	GetDepositLeafAndIndexByHash(depositHash common.Hash) (depositInfo *DepositInfo, err error)
-	// BlockNumberByDepositIndex(depositIndex uint32) (uint32, error)
 	LatestSynchronizedBlockNumber() (uint32, error)
 	IsSynchronizedDepositIndex(depositIndex uint32) (bool, error)
-	FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error)
+	FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber *uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error)
 	DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error)
 	BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.MerkleProof, error)
-	RollupContractDeployedBlockNumber() (uint64, error)
+	// RollupContractDeployedBlockNumber() (uint64, error)
 	PostBlock(isRegistrationBlock bool, txs []*MockTxRequest) (*ValidityWitness, error) // XXX
 }
 
