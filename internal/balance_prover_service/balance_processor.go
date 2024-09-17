@@ -20,8 +20,6 @@ import (
 
 const timeoutForFetchingBalanceValidityProof = 3 * time.Second
 
-var ErrBalanceProofNotGenerated = errors.New("balance proof is not generated")
-
 type SenderProofWithPublicInputs struct {
 	Proof        string
 	PublicInputs *SenderPublicInputs
@@ -80,7 +78,8 @@ func (s *balanceProcessor) ProveUpdate(
 		case <-ticker.C:
 			proof, err := s.fetchUpdateBalanceValidityProof(publicKey, requestID)
 			if err != nil {
-				if errors.Is(err, ErrBalanceProofNotGenerated) {
+				if errors.Is(err, ErrBalanceProofNotGenerated) ||
+					errors.Is(err, ErrStatusRequestTimeout) {
 					continue
 				}
 
@@ -784,6 +783,10 @@ func (p *balanceProcessor) fetchUpdateBalanceValidityProof(publicKey *intMaxAcc.
 	if resp == nil {
 		const msg = "send request error occurred"
 		return nil, errors.New(msg)
+	}
+
+	if resp.StatusCode() == http.StatusRequestTimeout {
+		return nil, ErrStatusRequestTimeout
 	}
 
 	if resp.StatusCode() != http.StatusOK {
