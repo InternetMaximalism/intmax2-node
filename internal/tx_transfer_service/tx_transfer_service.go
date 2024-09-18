@@ -11,9 +11,9 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	intMaxAccTypes "intmax2-node/internal/accounts/types"
-	"intmax2-node/internal/balance_prover_service"
 	"intmax2-node/internal/balance_service"
 	"intmax2-node/internal/balance_synchronizer"
+	"intmax2-node/internal/block_validity_prover"
 	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
@@ -41,6 +41,7 @@ func TransferTransaction(
 	cfg *configs.Config,
 	// log logger.Logger,
 	sb ServiceBlockchain,
+	db block_validity_prover.SQLDriverApp,
 	args []string,
 	amountStr string,
 	recipientAddressStr string,
@@ -95,7 +96,11 @@ func TransferTransaction(
 
 	fmt.Println("Fetching balances...")
 	log := logger.NewCommandLineLogger()
-	blockValidityService := balance_prover_service.NewExternalBlockValidityProver(ctx, cfg)
+	// blockValidityService := balance_prover_service.NewExternalBlockValidityProver(ctx, cfg)
+	blockValidityService, err := block_validity_prover.NewBlockValidityService(ctx, cfg, log, sb, db)
+	if err != nil {
+		return fmt.Errorf("failed to create block validity service: %w", err)
+	}
 	balanceSynchronizer, err := balance_synchronizer.SyncLocally(
 		ctx,
 		cfg,

@@ -539,11 +539,22 @@ func (db *mockBlockBuilder) DepositTreeProof(blockNumber uint32, depositIndex ui
 }
 
 func (db *mockBlockBuilder) BlockNumberByDepositIndex(depositIndex uint32) (uint32, error) {
-	// depositRoots := db.MerkleTreeHistory[blockNumber].DepositRoots
+	lastValidityWitness, err := db.LastValidityWitness()
+	if err != nil {
+		return 0, err
+	}
 
-	// return db.MerkleTreeHistory[blockNumber].DepositTree, nil
+	blockNumber := uint32(1)
+	fmt.Printf("lastValidityWitness.BlockWitness.Block.BlockNumber: %d\n", lastValidityWitness.BlockWitness.Block.BlockNumber)
+	for ; blockNumber <= lastValidityWitness.BlockWitness.Block.BlockNumber; blockNumber++ {
+		depositLeaves := db.MerkleTreeHistory[blockNumber].DepositLeaves
+		fmt.Printf("latest deposit index: %d\n", len(depositLeaves))
+		if depositIndex >= uint32(len(depositLeaves)) {
+			return 0, errors.New("deposit index is out of range")
+		}
+	}
 
-	return 0, errors.New("not implemented")
+	return blockNumber, nil
 }
 
 func (db *mockBlockBuilder) AppendBlockTreeLeaf(block *block_post_service.PostedBlock) error {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
 	"intmax2-node/internal/open_telemetry"
@@ -26,17 +27,20 @@ type uc struct {
 	cfg *configs.Config
 	log logger.Logger
 	sb  ServiceBlockchain
+	db  block_validity_prover.SQLDriverApp
 }
 
 func New(
 	cfg *configs.Config,
 	log logger.Logger,
 	sb ServiceBlockchain,
+	db block_validity_prover.SQLDriverApp,
 ) txTransfer.UseCaseTxTransfer {
 	return &uc{
 		cfg: cfg,
 		log: log,
 		sb:  sb,
+		db:  db,
 	}
 }
 
@@ -80,5 +84,5 @@ func (u *uc) Do(ctx context.Context, args []string, amount, recipientAddressStr,
 		return ErrEmptyAmount
 	}
 
-	return service.TransferTransaction(spanCtx, u.cfg, u.sb, args, amount, recipientAddressStr, userEthPrivateKey)
+	return service.TransferTransaction(spanCtx, u.cfg, u.sb, u.db, args, amount, recipientAddressStr, userEthPrivateKey)
 }

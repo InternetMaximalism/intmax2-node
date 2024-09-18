@@ -606,6 +606,7 @@ func SyncLocally(
 		const msg = "failed to start Balance Prover Service: %+v"
 		log.Fatalf(msg, err.Error())
 	}
+	fmt.Println("end NewBalanceTransitionData")
 	sortedValidUserData, err := balanceTransitionData.SortValidUserData(log, blockValidityService)
 	if err != nil {
 		const msg = "failed to sort valid user data: %+v"
@@ -621,6 +622,7 @@ func SyncLocally(
 		const msg = "failed to start Balance Prover Service: %+v"
 		log.Fatalf(msg, err.Error())
 	}
+	fmt.Println("end GetBackupBalance")
 
 	err = syncBalanceProver.SetEncryptedBalanceData(userWalletState, storedBalanceData)
 	if err != nil {

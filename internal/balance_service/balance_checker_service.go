@@ -412,7 +412,7 @@ func CalculateBalance(
 		var decodedTransfer intMaxTypes.Transfer
 		err = decodedTransfer.Unmarshal(encodedTransfer)
 		if err != nil {
-			log.Printf("failed to unmarshal transfer: %v", err)
+			log.Printf("failed to unmarshal transfer in CalculateBalance: %v", err)
 			continue
 		}
 

@@ -50,7 +50,8 @@ func NewBalanceTransitionData(ctx context.Context, cfg *configs.Config, userPriv
 
 	decodedUserAllData, err := DecodeBackupData(ctx, cfg, storedTransitionData, userPrivateKey)
 	if err != nil {
-		return nil, err
+		fmt.Printf("Error in DecodeBackupData: %v\n", err)
+		return nil, fmt.Errorf("failed to decode backup data: %v", err)
 	}
 
 	fmt.Printf("user deposits: %d\n", len(decodedUserAllData.Deposits))
@@ -147,23 +148,28 @@ func DecodeBackupData(
 		// balances[tokenIndex] = new(big.Int).Add(balances[tokenIndex], decodedDeposit.Amount)
 	}
 
-	for _, transfer := range userAllData.Transfers {
+	fmt.Printf("num of received transfers: %d\n", len(userAllData.Transfers))
+	for i, transfer := range userAllData.Transfers {
+		fmt.Printf("transfers[%d]: %v\n", i, transfer)
 		encryptedTransferBytes, err := base64.StdEncoding.DecodeString(transfer.EncryptedTransfer)
 		if err != nil {
 			log.Printf("failed to decode transfer: %v", err)
 			continue
 		}
+		fmt.Println("DecryptECIES")
 		encodedTransfer, err := userPrivateKey.DecryptECIES(encryptedTransferBytes)
 		if err != nil {
 			log.Printf("failed to decrypt transfer: %v", err)
 			continue
 		}
+		fmt.Println("Unmarshal")
 		var decodedTransfer intMaxTypes.TransferDetails
 		err = decodedTransfer.Unmarshal(encodedTransfer)
 		if err != nil {
-			log.Printf("failed to unmarshal transfer: %v", err)
+			log.Printf("failed to unmarshal transfer in DecodeBackupData: %v", err)
 			continue
 		}
+		fmt.Println("end Unmarshal")
 
 		transferWithProofBody := intMaxTypes.TransferDetailsWithProofBody{
 			TransferDetails:                  &decodedTransfer,
@@ -180,7 +186,9 @@ func DecodeBackupData(
 		// balances[tokenIndex] = new(big.Int).Add(balances[tokenIndex], decodedTransfer.Amount)
 	}
 
+	fmt.Printf("num of sent transactions: %d\n", len(userAllData.Transactions))
 	for _, transaction := range userAllData.Transactions {
+		fmt.Printf("transaction: %v\n", transaction)
 		encryptedTxBytes, err := base64.StdEncoding.DecodeString(transaction.EncryptedTx)
 		if err != nil {
 			log.Printf("failed to decode transaction: %v", err)

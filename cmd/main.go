@@ -171,6 +171,7 @@ func main() {
 			Config:  cfg,
 			Log:     log,
 			SB:      bc,
+			DbApp:   dbApp,
 		}),
 		block_builder.NewCmd(ctx, log, bc, bbr),
 		messenger.NewMessengerCmd(&messenger.Messenger{

@@ -3,6 +3,7 @@ package transaction
 import (
 	"context"
 	"intmax2-node/configs"
+	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/logger"
 
 	"github.com/spf13/cobra"
@@ -13,6 +14,7 @@ type Transaction struct {
 	Config  *configs.Config
 	Log     logger.Logger
 	SB      ServiceBlockchain
+	DbApp   block_validity_prover.SQLDriverApp
 }
 
 func NewTransactionCmd(b *Transaction) *cobra.Command {

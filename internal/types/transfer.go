@@ -443,6 +443,7 @@ func (t *TransferWitness) Write(buf *bytes.Buffer) error {
 }
 
 func (t *TransferWitness) Read(buf *bytes.Buffer) error {
+	fmt.Printf("Reading TransferWitness\n")
 	t.Transfer = *new(Transfer)
 	if err := t.Transfer.Read(buf); err != nil {
 		return err
@@ -453,21 +454,26 @@ func (t *TransferWitness) Read(buf *bytes.Buffer) error {
 		return nil
 	}
 
+	fmt.Println("Reading TransferIndex")
 	transferIndexBytes := make([]byte, int4Key)
 	if _, err := buf.Read(transferIndexBytes); err != nil {
 		return err
 	}
 	t.TransferIndex = binary.BigEndian.Uint32(transferIndexBytes)
 
+	fmt.Println("Reading Tx")
 	t.Tx = *new(Tx)
 	if err := t.Tx.Read(buf); err != nil {
 		return err
 	}
 
+	fmt.Println("Reading TransferMerkleProof")
 	proofsLenBytes := make([]byte, int4Key)
 	if _, err := buf.Read(proofsLenBytes); err != nil {
 		return err
 	}
+
+	fmt.Println("Reading TransferMerkleProof length")
 	proofsLen := binary.BigEndian.Uint32(proofsLenBytes)
 	t.TransferMerkleProof = make([]*PoseidonHashOut, proofsLen)
 	for i := range t.TransferMerkleProof {
@@ -574,21 +580,26 @@ func (t *TransferDetails) Write(buf *bytes.Buffer) error {
 
 func (t *TransferDetails) Read(buf *bytes.Buffer) error {
 	t.TransferWitness = new(TransferWitness)
+	fmt.Println("Reading TransferWitness")
 	if err := t.TransferWitness.Read(buf); err != nil {
+		fmt.Println("Error reading TransferWitness")
 		return err
 	}
 
+	fmt.Printf("TransferWitness: %+v\n", t.TransferWitness)
 	if len(buf.Bytes()) == 0 {
 		fmt.Printf("WARNING: only transfer witness is available\n")
 		return nil
 	}
 
 	t.TxTreeRoot = new(PoseidonHashOut)
+	// fmt.Println("Error reading TxTreeRoot")
 	if err := t.TxTreeRoot.Unmarshal(buf.Next(int32Key)); err != nil {
 		return err
 	}
 
 	proofsLenBytes := make([]byte, int4Key)
+	// fmt.Println("Error reading TxMerkleProof length")
 	if _, err := buf.Read(proofsLenBytes); err != nil {
 		return err
 	}
@@ -597,26 +608,31 @@ func (t *TransferDetails) Read(buf *bytes.Buffer) error {
 	for i := range t.TxMerkleProof {
 		t.TxMerkleProof[i] = new(PoseidonHashOut)
 		if err := t.TxMerkleProof[i].Unmarshal(buf.Next(int32Key)); err != nil {
+			fmt.Println("Error reading TxMerkleProof")
 			return err
 		}
 	}
 
 	senderLastBalancePublicInputsLenBytes := make([]byte, int4Key)
+	// fmt.Println("Error reading SenderLastBalancePublicInputs length")
 	if _, err := buf.Read(senderLastBalancePublicInputsLenBytes); err != nil {
 		return err
 	}
 	senderLastBalancePublicInputsLen := binary.BigEndian.Uint32(senderLastBalancePublicInputsLenBytes)
 	t.SenderLastBalancePublicInputs = make([]byte, senderLastBalancePublicInputsLen)
+	// fmt.Println("Error reading SenderLastBalancePublicInputs")
 	if _, err := buf.Read(t.SenderLastBalancePublicInputs); err != nil {
 		return err
 	}
 
 	senderBalanceTransitionPublicInputsLenBytes := make([]byte, int4Key)
+	// fmt.Println("Error reading SenderBalanceTransitionPublicInputs length")
 	if _, err := buf.Read(senderBalanceTransitionPublicInputsLenBytes); err != nil {
 		return err
 	}
 	senderBalanceTransitionPublicInputsLen := binary.BigEndian.Uint32(senderBalanceTransitionPublicInputsLenBytes)
 	t.SenderBalanceTransitionPublicInputs = make([]byte, senderBalanceTransitionPublicInputsLen)
+	// fmt.Println("Error reading SenderBalanceTransitionPublicInputs")
 	if _, err := buf.Read(t.SenderBalanceTransitionPublicInputs); err != nil {
 		return err
 	}

@@ -44,7 +44,7 @@ func txTransferTokenCmd(b *Transaction, token string) *cobra.Command {
 		}
 
 		err = newCommands().SendTransferTransaction(
-			b.Config, b.Log, b.SB,
+			b.Config, b.Log, b.SB, b.DbApp,
 		).Do(
 			b.Context,
 			append([]string{token}, args...),
