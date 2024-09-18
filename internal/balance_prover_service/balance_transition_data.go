@@ -150,26 +150,23 @@ func DecodeBackupData(
 
 	fmt.Printf("num of received transfers: %d\n", len(userAllData.Transfers))
 	for i, transfer := range userAllData.Transfers {
-		fmt.Printf("transfers[%d]: %v\n", i, transfer)
 		encryptedTransferBytes, err := base64.StdEncoding.DecodeString(transfer.EncryptedTransfer)
 		if err != nil {
 			log.Printf("failed to decode transfer: %v", err)
 			continue
 		}
-		fmt.Println("DecryptECIES")
 		encodedTransfer, err := userPrivateKey.DecryptECIES(encryptedTransferBytes)
 		if err != nil {
 			log.Printf("failed to decrypt transfer: %v", err)
 			continue
 		}
-		fmt.Println("Unmarshal")
 		var decodedTransfer intMaxTypes.TransferDetails
 		err = decodedTransfer.Unmarshal(encodedTransfer)
 		if err != nil {
+			fmt.Printf("transfers[%d]: %v\n", i, transfer)
 			log.Printf("failed to unmarshal transfer in DecodeBackupData: %v", err)
 			continue
 		}
-		fmt.Println("end Unmarshal")
 
 		transferWithProofBody := intMaxTypes.TransferDetailsWithProofBody{
 			TransferDetails:                  &decodedTransfer,

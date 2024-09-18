@@ -277,6 +277,7 @@ func (h *PoseidonHashOut) String() string {
 func (h *PoseidonHashOut) Unmarshal(data []byte) error {
 	const elementSize = 8
 	if len(data) != NUM_HASH_OUT_ELTS*elementSize {
+		fmt.Printf("Fail to unmarshal data: %v\n", data)
 		return fmt.Errorf("invalid data size: %d", len(data))
 	}
 
