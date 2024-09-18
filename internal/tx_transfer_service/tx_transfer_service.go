@@ -522,6 +522,7 @@ func MakeWithdrawalBackupData(
 	}
 
 	return &transaction.BackupTransferInput{
+		TransferHash:             transfer.Hash().String(),
 		Recipient:                hexutil.Encode(transfer.Recipient.Marshal()),
 		EncodedEncryptedTransfer: base64.StdEncoding.EncodeToString(encryptedTransfer),
 	}, nil

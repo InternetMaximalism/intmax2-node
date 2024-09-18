@@ -12,7 +12,7 @@ const (
 
 type UCPostWithdrawalRequestTransferDataInput struct {
 	Recipient  string `json:"recipient"`
-	TokenIndex int64  `json:"token_index"`
+	TokenIndex int64  `json:"tokenIndex"`
 	Amount     string `json:"amount"`
 	Salt       string `json:"salt"`
 }
@@ -38,14 +38,14 @@ type UCPostWithdrawalRequestEnoughBalanceProofInput struct {
 }
 
 type UCPostWithdrawalRequestInput struct {
-	TransferData        *UCPostWithdrawalRequestTransferDataInput        `json:"transfer_data"`
-	TransferMerkleProof *UCPostWithdrawalRequestTransferMerkleProofInput `json:"transfer_merkle_proof"`
+	TransferData        *UCPostWithdrawalRequestTransferDataInput        `json:"transferData"`
+	TransferMerkleProof *UCPostWithdrawalRequestTransferMerkleProofInput `json:"transferMerkleProof"`
 	Transaction         *UCPostWithdrawalRequestTransactionInput         `json:"transaction"`
-	TxMerkleProof       *UCPostWithdrawalRequestTxMerkleProofInput       `json:"tx_merkle_proof"`
-	TransferHash        string                                           `json:"transfer_hash"`
-	BlockNumber         int64                                            `json:"block_number"`
-	BlockHash           string                                           `json:"block_hash"`
-	EnoughBalanceProof  *UCPostWithdrawalRequestEnoughBalanceProofInput  `json:"enough_balance_proof"`
+	TxMerkleProof       *UCPostWithdrawalRequestTxMerkleProofInput       `json:"txMerkleProof"`
+	TransferHash        string                                           `json:"transferHash"`
+	BlockNumber         int64                                            `json:"blockNumber"`
+	BlockHash           string                                           `json:"blockHash"`
+	EnoughBalanceProof  *UCPostWithdrawalRequestEnoughBalanceProofInput  `json:"enoughBalanceProof"`
 }
 
 /**
