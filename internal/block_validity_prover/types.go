@@ -135,6 +135,62 @@ func (ps *PublicState) FromFieldElementSlice(value []ffg.Element) *PublicState {
 	return ps
 }
 
+const NumPublicStateBytes = int32Key*int5Key + int4Key
+
+func (ps *PublicState) Marshal() []byte {
+	buf := make([]byte, NumPublicStateBytes)
+	offset := 0
+
+	copy(buf[offset:offset+int32Key], ps.BlockTreeRoot.Marshal())
+	offset += int32Key
+
+	copy(buf[offset:offset+int32Key], ps.PrevAccountTreeRoot.Marshal())
+	offset += int32Key
+
+	copy(buf[offset:offset+int32Key], ps.AccountTreeRoot.Marshal())
+	offset += int32Key
+
+	copy(buf[offset:offset+int32Key], ps.DepositTreeRoot.Bytes())
+	offset += int32Key
+
+	copy(buf[offset:offset+int32Key], ps.BlockHash.Bytes())
+	offset += int32Key
+
+	binary.BigEndian.PutUint32(buf, ps.BlockNumber)
+
+	return buf
+}
+
+func (ps *PublicState) Unmarshal(data []byte) error {
+	if len(data) < NumPublicStateBytes {
+		return errors.New("invalid data length")
+	}
+
+	offset := 0
+
+	ps.BlockTreeRoot = new(intMaxGP.PoseidonHashOut)
+	ps.BlockTreeRoot.Unmarshal(data[offset : offset+int32Key])
+	offset += int32Key
+
+	ps.PrevAccountTreeRoot = new(intMaxGP.PoseidonHashOut)
+	ps.PrevAccountTreeRoot.Unmarshal(data[offset : offset+int32Key])
+	offset += int32Key
+
+	ps.AccountTreeRoot = new(intMaxGP.PoseidonHashOut)
+	ps.AccountTreeRoot.Unmarshal(data[offset : offset+int32Key])
+	offset += int32Key
+
+	ps.DepositTreeRoot = common.BytesToHash(data[offset : offset+int32Key])
+	offset += int32Key
+
+	ps.BlockHash = common.BytesToHash(data[offset : offset+int32Key])
+	offset += int32Key
+
+	ps.BlockNumber = binary.BigEndian.Uint32(data[offset : offset+int4Key])
+
+	return nil
+}
+
 type ValidityPublicInputs struct {
 	PublicState    *PublicState
 	TxTreeRoot     intMaxTypes.Bytes32

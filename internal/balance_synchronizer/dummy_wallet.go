@@ -6,6 +6,7 @@ import (
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_prover_service"
 	"intmax2-node/internal/block_post_service"
+	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/finite_field"
 	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
@@ -25,12 +26,14 @@ const numTransfersInTx = 1 << intMaxTree.TRANSFER_TREE_HEIGHT
 type poseidonHashOut = intMaxGP.PoseidonHashOut
 
 type mockWallet struct {
-	privateKey        intMaxAcc.PrivateKey
-	assetTree         intMaxTree.AssetTree
-	nullifierTree     intMaxTree.NullifierTree
-	nonce             uint32
-	salt              balance_prover_service.Salt
-	publicState       *block_validity_prover.PublicState
+	privateKey    intMaxAcc.PrivateKey
+	assetTree     intMaxTree.AssetTree
+	nullifierTree intMaxTree.NullifierTree
+	nonce         uint32
+	salt          balance_prover_service.Salt
+	publicState   *block_validity_prover.PublicState
+
+	// cache
 	sendWitnesses     map[uint32]*balance_prover_service.SendWitness
 	depositCases      map[uint32]*balance_prover_service.DepositCase // depositIndex => DepositCase
 	transferWitnesses map[uint32][]*intMaxTypes.TransferWitness
@@ -45,9 +48,14 @@ type UserState interface {
 	) (*balance_prover_service.SendWitness, error)
 	PublicKey() *intMaxAcc.PublicKey
 	Nonce() uint32
+	Salt() balance_prover_service.Salt
 	GenericAddress() (*intMaxTypes.GenericAddress, error)
 	PrivateState() *balance_prover_service.PrivateState
+	PublicState() *block_validity_prover.PublicState
+	Nullifiers() []intMaxTypes.Bytes32
+	AssetLeaves() []*intMaxTree.AssetLeaf
 	GetAllBlockNumbers() []uint32
+	DecryptBalanceData(encryptedBalanceData string) (*block_synchronizer.BalanceData, error)
 	UpdatePublicState(publicState *block_validity_prover.PublicState)
 	GetLastSendWitness() *balance_prover_service.SendWitness
 	GetBalancePublicInputs() (*balance_prover_service.BalancePublicInputs, error)
@@ -475,6 +483,10 @@ func (s *mockWallet) Nonce() uint32 {
 	return s.nonce
 }
 
+func (s *mockWallet) Salt() balance_prover_service.Salt {
+	return s.salt
+}
+
 func (s *mockWallet) GenericAddress() (*intMaxTypes.GenericAddress, error) {
 	return intMaxTypes.NewINTMAXAddress(s.PublicKey().ToAddress().Bytes())
 }
@@ -486,6 +498,18 @@ func (s *mockWallet) PrivateState() *balance_prover_service.PrivateState {
 		Nonce:             s.nonce,
 		Salt:              s.salt,
 	}
+}
+
+func (s *mockWallet) PublicState() *block_validity_prover.PublicState {
+	return s.publicState
+}
+
+func (s *mockWallet) Nullifiers() []intMaxTypes.Bytes32 {
+	return s.nullifierTree.Nullifiers()
+}
+
+func (s *mockWallet) AssetLeaves() []*intMaxTree.AssetLeaf {
+	return s.assetTree.Leaves
 }
 
 func (s *mockWallet) GetAllBlockNumbers() []uint32 {
@@ -505,6 +529,16 @@ func (s *mockWallet) GetAllBlockNumbers() []uint32 {
 
 func (s *mockWallet) UpdatePublicState(publicState *block_validity_prover.PublicState) {
 	s.publicState = new(block_validity_prover.PublicState).Set(publicState)
+}
+
+func (s *mockWallet) DecryptBalanceData(encryptedBalanceData string) (*block_synchronizer.BalanceData, error) {
+	balanceData := new(block_synchronizer.BalanceData)
+	err := balanceData.Decrypt(&s.privateKey, encryptedBalanceData)
+	if err != nil {
+		return nil, err
+	}
+
+	return balanceData, nil
 }
 
 func (s *mockWallet) GetLastSendWitness() *balance_prover_service.SendWitness {

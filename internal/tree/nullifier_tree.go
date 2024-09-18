@@ -25,6 +25,18 @@ func NewNullifierTree(height uint8) (*NullifierTree, error) {
 	}, nil
 }
 
+func (t *NullifierTree) Nullifiers() []intMaxTypes.Bytes32 {
+	nullifiers := make([]intMaxTypes.Bytes32, len(t.inner.Leaves))
+	for i := range t.inner.Leaves {
+		key := new(intMaxTypes.Uint256).FromBigInt(t.inner.Leaves[i].Key)
+		keyBytes := new(intMaxTypes.Bytes32).FromFieldElementSlice(key.ToFieldElementSlice())
+
+		nullifiers[i] = *keyBytes
+	}
+
+	return nullifiers
+}
+
 func (t *NullifierTree) Set(other *NullifierTree) *NullifierTree {
 	t.inner = new(IndexedMerkleTree).Set(other.inner)
 
@@ -57,3 +69,14 @@ func (t *NullifierTree) Insert(key intMaxTypes.Bytes32) (proof *IndexedInsertion
 	keyInt := new(intMaxTypes.Uint256).FromFieldElementSlice(key.ToFieldElementSlice())
 	return t.inner.Insert(keyInt.BigInt(), 0)
 }
+
+// func (t *NullifierTree) AddNullifiers(nullifiers []*intMaxTypes.Bytes32) error {
+// 	for _, nullifier := range nullifiers {
+// 		_, err := t.inner.Insert(nullifier)
+// 		if err != nil {
+// 			return err
+// 		}
+// 	}
+
+// 	return nil
+// }

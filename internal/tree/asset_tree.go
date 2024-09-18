@@ -17,6 +17,27 @@ type AssetLeaf struct {
 	Amount         *intMaxTypes.Uint256
 }
 
+func (l *AssetLeaf) Marshal() []byte {
+	amount := l.Amount.Bytes()
+	isInsufficient := byte(0)
+	if l.IsInsufficient {
+		isInsufficient = byte(1)
+	}
+
+	return append([]byte{isInsufficient}, amount...)
+}
+
+func (l *AssetLeaf) Unmarshal(data []byte) error {
+	if len(data) < 1 {
+		return errors.New("invalid data length")
+	}
+
+	l.IsInsufficient = data[0] == 1
+	l.Amount = new(intMaxTypes.Uint256).FromBytes(data[1:])
+
+	return nil
+}
+
 func (l *AssetLeaf) Set(leaf *AssetLeaf) *AssetLeaf {
 	return &AssetLeaf{
 		IsInsufficient: leaf.IsInsufficient,

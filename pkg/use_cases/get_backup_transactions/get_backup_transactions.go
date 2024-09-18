@@ -72,11 +72,12 @@ func generateBackupTransaction(transactions []*models.BackupTransaction) []*node
 	results := make([]*node.GetBackupTransactionsResponse_Transaction, 0, len(transactions))
 	for key := range transactions {
 		backupTransaction := &node.GetBackupTransactionsResponse_Transaction{
-			Id:          transactions[key].ID,
-			Sender:      transactions[key].Sender,
-			Signature:   transactions[key].Signature,
-			BlockNumber: uint64(transactions[key].BlockNumber),
-			EncryptedTx: transactions[key].EncryptedTx,
+			Id:              transactions[key].ID,
+			Sender:          transactions[key].Sender,
+			Signature:       transactions[key].Signature,
+			BlockNumber:     uint64(transactions[key].BlockNumber),
+			EncryptedTx:     transactions[key].EncryptedTx,
+			EncodingVersion: uint32(transactions[key].EncodingVersion),
 			CreatedAt: &timestamppb.Timestamp{
 				Seconds: transactions[key].CreatedAt.Unix(),
 				Nanos:   int32(transactions[key].CreatedAt.Nanosecond()),

@@ -97,7 +97,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 	if err != nil {
 		s.log.Fatalf("failed to create mock wallet: %+v", err)
 	}
-	aliceProver := NewSyncBalanceProver()
+	aliceProver := NewSyncBalanceProver(s.ctx, s.cfg, s.log)
 
 	salt, err := new(balance_prover_service.Salt).SetRandom()
 	if err != nil {
@@ -154,7 +154,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 	if err != nil {
 		s.log.Fatalf("failed to create mock wallet: %+v", err)
 	}
-	bobProver := NewSyncBalanceProver()
+	bobProver := NewSyncBalanceProver(s.ctx, s.cfg, s.log)
 
 	// transfer 50wei ETH to bob
 	recipientAddress, err := intMaxTypes.NewINTMAXAddress(bobWallet.PublicKey().ToAddress().Bytes())
@@ -194,7 +194,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 		s.log.Fatalf("ETH balance 2")
 	}
 
-	aliceLastBalanceProof := *aliceProver.LastBalanceProof
+	aliceLastBalanceProof := *aliceProver.LastBalanceProof()
 	aliceSenderTransitionProof := *aliceProver.LastSenderProof
 
 	// sync bob wallet to the latest block
@@ -275,7 +275,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 			TransferIndex:       withdrawalTransferWitness.TransferIndex,
 			TransferMerkleProof: withdrawalTransferWitness.TransferMerkleProof,
 		},
-		BalanceProof: bobProver.LastBalanceProof,
+		BalanceProof: bobProver.LastBalanceProof(),
 	}
 
 	// if withdrawalWitness.ToWithdrawal().Amount != 10 {

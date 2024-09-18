@@ -146,7 +146,7 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 				balanceProcessor := balance_prover_service.NewBalanceProcessor(
 					s.Context, s.Config, s.Log,
 				)
-				syncBalanceProver := service.NewSyncBalanceProver()
+				syncBalanceProver := service.NewSyncBalanceProver(s.Context, s.Config, s.Log)
 
 				userPrivateKey, err := intMaxAcc.NewPrivateKeyFromString(userWallet.IntMaxPrivateKey)
 				if err != nil {

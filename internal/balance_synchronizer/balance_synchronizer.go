@@ -71,12 +71,12 @@ func (s *balanceSynchronizer) Sync(
 			s.log.Warnf("Received cancel signal from context, stopping...")
 			return nil
 		case <-ticker.C:
-			userAllData, err := balance_prover_service.NewBalanceTransitionData(s.ctx, s.cfg, intMaxPrivateKey)
+			balanceTransitionData, err := balance_prover_service.NewBalanceTransitionData(s.ctx, s.cfg, intMaxPrivateKey)
 			if err != nil {
 				const msg = "failed to start Balance Prover Service: %+v"
 				s.log.Fatalf(msg, err.Error())
 			}
-			sortedValidUserData, err := userAllData.SortValidUserData(
+			sortedValidUserData, err := balanceTransitionData.SortValidUserData(
 				s.log,
 				s.blockValidityService,
 			)
@@ -89,6 +89,20 @@ func (s *balanceSynchronizer) Sync(
 				fmt.Printf("transition block number: %d\n", transition.BlockNumber())
 			}
 
+			// storedBalanceData, err := block_synchronizer.GetBackupBalance(s.ctx, s.cfg, intMaxPrivateKey.Public())
+			// if err != nil {
+			// 	const msg = "failed to start Balance Prover Service: %+v"
+			// 	log.Fatalf(msg, err.Error())
+			// }
+			// err = block_synchronizer.BackupBalanceProof(s.ctx, s.cfg, s.log,
+			// 	intMaxPrivateKey.ToAddress(), storedBalanceData.BalanceProofBody, storedBalanceData.EncryptedBalanceData,
+			// 	storedBalanceData.EncryptedTxs, storedBalanceData.EncryptedTransfers, storedBalanceData.EncryptedDeposits,
+			// 	storedBalanceData.Signature, storedBalanceData.BlockNumber)
+			// if err != nil {
+			// 	const msg = "failed to start Balance Prover Service: %+v"
+			// 	log.Fatalf(msg, err.Error())
+			// }
+
 			validityProverInfo, err := s.blockValidityService.FetchValidityProverInfo()
 			if err != nil {
 				const msg = "failed to sync block prover: %+v"
@@ -96,7 +110,7 @@ func (s *balanceSynchronizer) Sync(
 			}
 
 			latestSynchronizedBlockNumber := validityProverInfo.BlockNumber
-			if latestSynchronizedBlockNumber <= s.syncBalanceProver.LastUpdatedBlockNumber {
+			if latestSynchronizedBlockNumber <= s.syncBalanceProver.LastUpdatedBlockNumber() {
 				// return errors.New("block content by block number error")
 				time.Sleep(1 * time.Second)
 				continue

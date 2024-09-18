@@ -659,7 +659,7 @@
     }
   },
   "definitions": {
-    "GetBackupBalancesResponseBalance": {
+    "BackupBalanceResponseDataBalance": {
       "type": "object",
       "properties": {
         "id": {
@@ -810,6 +810,9 @@
         "blockNumber": {
           "type": "string",
           "format": "uint64"
+        },
+        "prevId": {
+          "type": "string"
         }
       }
     },
@@ -829,8 +832,8 @@
     "v1BackupBalanceResponseData": {
       "type": "object",
       "properties": {
-        "message": {
-          "type": "string",
+        "balance": {
+          "$ref": "#/definitions/BackupBalanceResponseDataBalance",
           "title": "A message indicating the result of the backup transfer"
         }
       },
@@ -914,6 +917,10 @@
         "blockNumber": {
           "type": "string"
         },
+        "encodingVersion": {
+          "type": "integer",
+          "format": "int64"
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time"
@@ -943,6 +950,11 @@
         "signature": {
           "type": "string",
           "title": "The signature for the transaction"
+        },
+        "encodingVersion": {
+          "type": "integer",
+          "format": "int64",
+          "title": "The encoding version for the encrypted_tx"
         }
       },
       "description": "BackupTransactionRequest is the request message for BackupTransaction method."
@@ -1059,6 +1071,52 @@
         }
       }
     },
+    "v1GetBackupBalancesResponseBalance": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "userAddress": {
+          "type": "string"
+        },
+        "encryptedBalanceProof": {
+          "type": "string"
+        },
+        "encryptedBalanceData": {
+          "type": "string"
+        },
+        "encryptedTxs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "encryptedTransfers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "encryptedDeposits": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "signature": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
     "v1GetBackupBalancesResponseData": {
       "type": "object",
       "properties": {
@@ -1066,7 +1124,7 @@
           "type": "array",
           "items": {
             "type": "object",
-            "$ref": "#/definitions/GetBackupBalancesResponseBalance"
+            "$ref": "#/definitions/v1GetBackupBalancesResponseBalance"
           }
         },
         "meta": {
@@ -1400,6 +1458,10 @@
         "encryptedTx": {
           "type": "string"
         },
+        "encodingVersion": {
+          "type": "integer",
+          "format": "int64"
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time"
@@ -1570,6 +1632,10 @@
         "encryptedTx": {
           "type": "string"
         },
+        "encodingVersion": {
+          "type": "integer",
+          "format": "int64"
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time"
@@ -1636,6 +1702,10 @@
         },
         "encryptedTx": {
           "type": "string"
+        },
+        "encodingVersion": {
+          "type": "integer",
+          "format": "int64"
         },
         "createdAt": {
           "type": "string",

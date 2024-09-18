@@ -42,13 +42,13 @@ func NewBalanceTransitionData(ctx context.Context, cfg *configs.Config, userPriv
 	intMaxWalletAddress := userPrivateKey.ToAddress()
 	fmt.Printf("Starting balance prover service: %s\n", intMaxWalletAddress)
 
-	userAllData, err := balance_service.GetUserBalancesRawRequest(ctx, cfg, intMaxWalletAddress.String())
+	storedTransitionData, err := balance_service.GetUserBalancesRawRequest(ctx, cfg, intMaxWalletAddress.String())
 	if err != nil {
 		const msg = "failed to get user all data: %+v"
 		panic(fmt.Sprintf(msg, err.Error()))
 	}
 
-	decodedUserAllData, err := DecodeBackupData(ctx, cfg, userAllData, userPrivateKey)
+	decodedUserAllData, err := DecodeBackupData(ctx, cfg, storedTransitionData, userPrivateKey)
 	if err != nil {
 		return nil, err
 	}

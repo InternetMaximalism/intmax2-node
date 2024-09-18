@@ -7,6 +7,7 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
+	node "intmax2-node/internal/pb/gen/store_vault_service/node"
 	service "intmax2-node/internal/store_vault_service"
 	intMaxTypes "intmax2-node/internal/types"
 	backupBalance "intmax2-node/internal/use_cases/backup_balance"
@@ -14,6 +15,7 @@ import (
 	"io"
 
 	"go.opentelemetry.io/otel/attribute"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // uc describes use case
@@ -33,7 +35,7 @@ func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupBalance.
 
 func (u *uc) Do(
 	ctx context.Context, input *backupBalance.UCPostBackupBalanceInput,
-) error {
+) (*node.BackupBalanceResponse_Data_Balance, error) {
 	const (
 		hName                    = "UseCase PostBackupBalance"
 		userKey                  = "user"
@@ -50,7 +52,7 @@ func (u *uc) Do(
 
 	if input == nil {
 		open_telemetry.MarkSpanError(spanCtx, ErrUCPostBackupBalanceInputEmpty)
-		return ErrUCPostBackupBalanceInputEmpty
+		return nil, ErrUCPostBackupBalanceInputEmpty
 	}
 
 	span.SetAttributes(
@@ -64,12 +66,26 @@ func (u *uc) Do(
 		attribute.StringSlice(encryptedDepositsKey, input.EncryptedDeposits),
 	)
 
-	err := service.PostBackupBalance(ctx, u.cfg, u.log, u.db, input)
+	newBackupBalance, err := service.PostBackupBalance(ctx, u.cfg, u.log, u.db, input)
 	if err != nil {
-		return fmt.Errorf("failed to post backup balance: %w", err)
+		return nil, fmt.Errorf("failed to post backup balance: %w", err)
 	}
 
-	return nil
+	return &node.BackupBalanceResponse_Data_Balance{
+		Id:                    newBackupBalance.ID,
+		UserAddress:           newBackupBalance.UserAddress,
+		EncryptedBalanceProof: newBackupBalance.EncryptedBalanceProof,
+		EncryptedBalanceData:  newBackupBalance.EncryptedBalanceData,
+		EncryptedTxs:          newBackupBalance.EncryptedTxs,
+		EncryptedTransfers:    newBackupBalance.EncryptedTransfers,
+		EncryptedDeposits:     newBackupBalance.EncryptedDeposits,
+		BlockNumber:           newBackupBalance.BlockNumber,
+		Signature:             newBackupBalance.Signature,
+		CreatedAt: &timestamppb.Timestamp{
+			Seconds: newBackupBalance.CreatedAt.Unix(),
+			Nanos:   int32(newBackupBalance.CreatedAt.Nanosecond()),
+		},
+	}, nil
 }
 
 func WriteBalance(buf io.Writer, balance *intMaxTypes.Balance) error {
