@@ -111,7 +111,7 @@ func TransferTransaction(
 		return fmt.Errorf(ErrFailedToGetBalanceEth, "Ethereum")
 	}
 
-	balance, err := balance_service.GetUserBalance(ctx, cfg, userAccount, tokenIndex)
+	balance, err := balance_service.GetUserBalance(ctx, cfg, log, userAccount, tokenIndex)
 	if err != nil {
 		return fmt.Errorf(ErrFailedToGetBalance.Error()+": %v", err)
 	}
@@ -131,7 +131,7 @@ func TransferTransaction(
 	}
 
 	var dataBlockInfo *BlockInfoResponseData
-	dataBlockInfo, err = GetBlockInfo(ctx, cfg)
+	dataBlockInfo, err = GetBlockInfo(ctx, cfg, log)
 	if err != nil {
 		return fmt.Errorf("failed to get the block info data: %w", err)
 	}
@@ -216,6 +216,7 @@ func TransferTransaction(
 	err = SendTransferTransaction(
 		ctx,
 		cfg,
+		log,
 		userAccount,
 		transfersHash,
 		nonce,
@@ -229,7 +230,7 @@ func TransferTransaction(
 	// Get proposed block
 	var proposedBlock *BlockProposedResponseData
 	proposedBlock, err = GetBlockProposed(
-		ctx, cfg, userAccount, transfersHash, nonce,
+		ctx, cfg, log, userAccount, transfersHash, nonce,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to send transaction: %v", err)
@@ -310,7 +311,7 @@ func TransferTransaction(
 
 	// Accept proposed block
 	err = SendSignedProposedBlock(
-		ctx, cfg, userAccount, proposedBlock.TxTreeRoot, *txHash, proposedBlock.PublicKeys,
+		ctx, cfg, log, userAccount, proposedBlock.TxTreeRoot, *txHash, proposedBlock.PublicKeys,
 		backupTx, backupTransfers,
 	)
 	if err != nil {

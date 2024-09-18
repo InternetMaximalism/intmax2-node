@@ -64,7 +64,7 @@ func WithdrawalTransaction(
 
 	fmt.Printf("User's INTMAX Address: %s\n", userAccount.ToAddress().String())
 	fmt.Println("Fetching balances...")
-	balance, err := balance_service.GetUserBalance(ctx, cfg, userAccount, tokenIndex)
+	balance, err := balance_service.GetUserBalance(ctx, cfg, log, userAccount, tokenIndex)
 	if err != nil {
 		return fmt.Errorf(ErrFailedToGetBalance.Error()+": %v", err)
 	}
@@ -134,7 +134,7 @@ func WithdrawalTransaction(
 
 	// Get proposed block
 	proposedBlock, err := tx_transfer_service.GetBlockProposed(
-		ctx, cfg, userAccount, transfersHash, nonce,
+		ctx, cfg, log, userAccount, transfersHash, nonce,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to send transaction: %v", err)
@@ -201,7 +201,7 @@ func WithdrawalTransaction(
 
 	// Accept proposed block
 	err = tx_transfer_service.SendSignedProposedBlock(
-		ctx, cfg, userAccount, proposedBlock.TxTreeRoot, *txHash, proposedBlock.PublicKeys,
+		ctx, cfg, log, userAccount, proposedBlock.TxTreeRoot, *txHash, proposedBlock.PublicKeys,
 		backupTx, backupTransfers,
 	)
 	if err != nil {
@@ -239,7 +239,7 @@ func ResumeWithdrawalRequest(
 	recipientAddressHex string,
 	resumeIncompleteWithdrawals bool,
 ) {
-	backupWithdrawals, err := GetBackupWithdrawal(ctx, cfg, common.HexToAddress(recipientAddressHex))
+	backupWithdrawals, err := GetBackupWithdrawal(ctx, cfg, log, common.HexToAddress(recipientAddressHex))
 	if err != nil {
 		log.Fatalf("failed to get backup withdrawal: %v", err)
 	}
@@ -400,9 +400,10 @@ func SendWithdrawalRequest(
 func GetBackupWithdrawal(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 	userAddress common.Address,
 ) ([]*tx_transfer_service.BackupWithdrawal, error) {
-	userAllData, err := balance_service.GetUserBalancesRawRequest(ctx, cfg, userAddress.Hex())
+	userAllData, err := balance_service.GetUserBalancesRawRequest(ctx, cfg, log, userAddress.Hex())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user balances: %w", err)
 	}

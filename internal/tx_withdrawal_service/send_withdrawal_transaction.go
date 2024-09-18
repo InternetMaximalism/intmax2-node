@@ -78,7 +78,7 @@ func SendWithdrawalTransaction(
 	}
 
 	err = tx_transfer_service.SendTransactionWithRawRequest(
-		ctx, cfg, senderAccount, transfersHash, nonce, expiration, powNonceStr, signatureInput,
+		ctx, cfg, log, senderAccount, transfersHash, nonce, expiration, powNonceStr, signatureInput,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to send transaction: %w", err)
@@ -181,8 +181,6 @@ func sendWithdrawalRawRequest(
 	}
 
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -222,6 +220,7 @@ func sendWithdrawalRawRequest(
 		err = fmt.Errorf("failed to get response")
 		log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
 			"response":    resp.String(),
 		}).WithError(err).Errorf("Unexpected status code")
 		return err
@@ -267,8 +266,6 @@ func FindWithdrawalsByTransferHashes(
 	}
 
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -293,6 +290,7 @@ func FindWithdrawalsByTransferHashes(
 		err = fmt.Errorf("failed to get response")
 		log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
 			"response":    resp.String(),
 		}).WithError(err).Errorf("Unexpected status code")
 		return nil, err

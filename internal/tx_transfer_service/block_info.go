@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
+	"intmax2-node/internal/logger"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/block_info"
 	"net/http"
@@ -28,6 +29,7 @@ type BlockInfoResponseData struct {
 func GetBlockInfo(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 ) (*BlockInfoResponseData, error) {
 	const (
 		contentType = "Content-Type"
@@ -60,7 +62,14 @@ func GetBlockInfo(
 			return nil, errors.New(respJSON.Message)
 		}
 
-		return nil, fmt.Errorf("failed to get response")
+		err = fmt.Errorf("failed to get response")
+		log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+
+		return nil, err
 	}
 
 	defer func() {

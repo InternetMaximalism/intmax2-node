@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/logger"
 	"intmax2-node/internal/pow"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/transaction"
@@ -20,6 +21,7 @@ import (
 func SendTransferTransaction(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 	senderAccount *intMaxAcc.PrivateKey,
 	transfersHash intMaxTypes.PoseidonHashOut,
 	nonce uint32,
@@ -68,13 +70,14 @@ func SendTransferTransaction(
 	}
 
 	return SendTransactionWithRawRequest(
-		ctx, cfg, senderAccount, transfersHash, nonce, expiration, powNonceStr, signatureInput,
+		ctx, cfg, log, senderAccount, transfersHash, nonce, expiration, powNonceStr, signatureInput,
 	)
 }
 
 func SendTransactionWithRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 	senderAccount *intMaxAcc.PrivateKey,
 	transfersHash intMaxTypes.PoseidonHashOut,
 	nonce uint32,
@@ -85,6 +88,7 @@ func SendTransactionWithRawRequest(
 	return sendTransactionRawRequest(
 		ctx,
 		cfg,
+		log,
 		senderAccount.ToAddress().String(),
 		transfersHash.String(),
 		nonce,
@@ -97,6 +101,7 @@ func SendTransactionWithRawRequest(
 func sendTransactionRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 	senderAddress, transfersHash string,
 	nonce uint32,
 	expiration time.Time,
@@ -117,8 +122,6 @@ func sendTransactionRawRequest(
 	}
 
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -141,7 +144,13 @@ func sendTransactionRawRequest(
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return fmt.Errorf("failed to get response")
+		err = fmt.Errorf("failed to get response")
+		log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return err
 	}
 
 	response := new(SendTransactionResponse)

@@ -491,7 +491,7 @@ func SyncLocally(
 		log.Fatalf(msg, err.Error())
 	}
 
-	userAllData, err := balance_prover_service.NewBalanceTransitionData(ctx, cfg, intMaxPrivateKey)
+	userAllData, err := balance_prover_service.NewBalanceTransitionData(ctx, cfg, log, intMaxPrivateKey)
 	if err != nil {
 		const msg = "failed to start Balance Prover Service: %+v"
 		log.Fatalf(msg, err.Error())

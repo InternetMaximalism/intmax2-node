@@ -87,7 +87,7 @@ func (s *balanceSynchronizer) Sync(
 
 func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.PrivateKey) (err error) {
 	var userAllData *balance_prover_service.BalanceTransitionData
-	userAllData, err = balance_prover_service.NewBalanceTransitionData(s.ctx, s.cfg, intMaxPrivateKey)
+	userAllData, err = balance_prover_service.NewBalanceTransitionData(s.ctx, s.cfg, s.log, intMaxPrivateKey)
 	if err != nil {
 		return errors.Join(ErrNewBalanceTransitionDataFail, err)
 	}

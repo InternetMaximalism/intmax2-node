@@ -436,8 +436,6 @@ func (p *balanceProcessor) requestUpdateBalanceValidityProof(
 	p.log.Debugf("size of requestUpdateBalanceValidityProof: %d bytes\n", len(bd))
 
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -503,8 +501,6 @@ func (p *balanceProcessor) requestReceiveDepositBalanceValidityProof(
 	p.log.Debugf("size of requestReceiveDepositBalanceValidityProof: %d bytes\n", len(bd))
 
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -573,8 +569,6 @@ func (p *balanceProcessor) requestSendBalanceValidityProof(
 	p.log.Debugf("size of requestSendBalanceValidityProof: %d bytes\n", len(bd))
 
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -637,8 +631,6 @@ func (p *balanceProcessor) requestSpendProof(
 	p.log.Debugf("size of requestSpendProof: %d bytes\n", len(bd))
 
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -705,8 +697,6 @@ func (p *balanceProcessor) requestReceiveTransferBalanceValidityProof(
 	p.log.Debugf("size of requestReceiveTransferBalanceValidityProof: %d bytes\n", len(bd))
 
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -762,8 +752,6 @@ type BalanceValidityProofResponse struct {
 // curl $API_BALANCE_VALIDITY_PROVER_URL/proof/{:intMaxAddress}/update/{:blockHash} | jq
 func (p *balanceProcessor) fetchUpdateBalanceValidityProof(publicKey *intMaxAcc.PublicKey, requestID string) (*BalanceValidityProofResponse, error) {
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -824,8 +812,6 @@ func (p *balanceProcessor) fetchUpdateBalanceValidityProof(publicKey *intMaxAcc.
 // curl $API_BALANCE_VALIDITY_PROVER_URL/proof/{:intMaxAddress}/deposit/{:depositIndex} | jq
 func (p *balanceProcessor) fetchReceiveDepositBalanceValidityProof(publicKey *intMaxAcc.PublicKey, requestID string) (*BalanceValidityProofResponse, error) {
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -882,8 +868,6 @@ func (p *balanceProcessor) fetchReceiveDepositBalanceValidityProof(publicKey *in
 // curl $API_BALANCE_VALIDITY_PROVER_URL/proof/{:intMaxAddress}/send/{:blockHash} | jq
 func (p *balanceProcessor) fetchSendBalanceValidityProof(publicKey *intMaxAcc.PublicKey, requestID string) (*BalanceValidityProofResponse, error) {
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -938,8 +922,6 @@ func (p *balanceProcessor) fetchSendBalanceValidityProof(publicKey *intMaxAcc.Pu
 
 func (p *balanceProcessor) fetchSpendBalanceValidityProof(publicKey *intMaxAcc.PublicKey, requestID string) (*BalanceValidityProofResponse, error) {
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -996,8 +978,6 @@ func (p *balanceProcessor) fetchSpendBalanceValidityProof(publicKey *intMaxAcc.P
 // curl $API_BALANCE_VALIDITY_PROVER_URL/proof/{:intMaxAddress}/send/{:blockHash} | jq
 func (p *balanceProcessor) fetchReceiveTransferBalanceValidityProof(publicKey *intMaxAcc.PublicKey, requestID string) (*BalanceValidityProofResponse, error) {
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)

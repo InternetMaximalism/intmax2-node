@@ -64,8 +64,6 @@ func (p *blockValidityProver) requestBlockValidityProof(blockHash common.Hash, v
 	// p.log.Debugf("encodedValidityWitness: %s\n", encodedValidityWitness)
 
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -91,6 +89,7 @@ func (p *blockValidityProver) requestBlockValidityProof(blockHash common.Hash, v
 		err = fmt.Errorf("failed to get response")
 		p.log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
 			"response":    resp.String(),
 		}).WithError(err).Errorf("Unexpected status code")
 		return err

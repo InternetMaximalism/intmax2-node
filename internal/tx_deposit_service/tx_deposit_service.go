@@ -12,6 +12,7 @@ import (
 	"intmax2-node/internal/bindings"
 	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/hash/goldenposeidon"
+	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
 	node "intmax2-node/internal/pb/gen/store_vault_service/node"
 	intMaxTree "intmax2-node/internal/tree"
@@ -46,11 +47,17 @@ var ErrFailedToUnmarshal = errors.New("failed to unmarshal")
 type TxDepositService struct {
 	ctx       context.Context
 	cfg       *configs.Config
+	log       logger.Logger
 	client    *ethclient.Client
 	liquidity *bindings.Liquidity
 }
 
-func NewTxDepositService(ctx context.Context, cfg *configs.Config, _ ServiceBlockchain) (*TxDepositService, error) {
+func NewTxDepositService(
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
+	_ ServiceBlockchain,
+) (*TxDepositService, error) {
 	client, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new client: %w", err)
@@ -64,6 +71,7 @@ func NewTxDepositService(ctx context.Context, cfg *configs.Config, _ ServiceBloc
 	return &TxDepositService{
 		ctx:       ctx,
 		cfg:       cfg,
+		log:       log,
 		client:    client,
 		liquidity: liquidity,
 	}, nil
@@ -471,6 +479,7 @@ func (d *TxDepositService) BackupDeposit(
 	err = backupDepositRawRequest(
 		d.ctx,
 		d.cfg,
+		d.log,
 		depositHash.String(),
 		encodedEncryptedText,
 		recipientPublicKey.ToAddress().String(),
@@ -487,6 +496,7 @@ func (d *TxDepositService) BackupDeposit(
 func backupDepositRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 	depositHash string,
 	encodedEncryptedText string,
 	recipient string,
@@ -505,8 +515,6 @@ func backupDepositRawRequest(
 	}
 
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -528,7 +536,13 @@ func backupDepositRawRequest(
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return fmt.Errorf("failed to get response")
+		err = fmt.Errorf("failed to get response")
+		log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return err
 	}
 
 	response := new(node.BackupDepositResponse)
