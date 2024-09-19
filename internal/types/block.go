@@ -3,6 +3,7 @@ package types
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
@@ -129,6 +130,7 @@ func NewBlockContent(
 	publicKeysHash := crypto.Keccak256(senderPublicKeys)
 
 	aggregatedPublicKey := new(accounts.PublicKey)
+	// aggregatedPublicKey.Pk = new(bn254.G1Affine)
 	for _, sender := range bc.Senders {
 		if sender.IsSigned {
 			aggregatedPublicKey.Add(aggregatedPublicKey, sender.PublicKey.WeightByHash(publicKeysHash))
@@ -239,6 +241,7 @@ func (bc *BlockContent) IsValid() error {
 
 				publicKeysHash := crypto.Keccak256(senderPublicKeysBytes)
 				aggregatedPublicKey := new(accounts.PublicKey)
+				aggregatedPublicKey.Pk = new(bn254.G1Affine)
 				for key := range bc.Senders {
 					if bc.Senders[key].IsSigned {
 						aggregatedPublicKey.Add(
@@ -248,6 +251,8 @@ func (bc *BlockContent) IsValid() error {
 					}
 				}
 
+				fmt.Printf("aggregatedPublicKey: %v\n", aggregatedPublicKey)
+				fmt.Printf("bc.AggregatedPublicKey: %v\n", bc.AggregatedPublicKey)
 				if !aggregatedPublicKey.Equal(bc.AggregatedPublicKey) {
 					return ErrBlockContentAggPubKeyInvalid
 				}
@@ -536,7 +541,7 @@ func MakePostNonRegistrationBlockInput(blockContent *BlockContent) (*PostNonRegi
 	senderPublicKeys := make([][]byte, len(blockContent.Senders))
 	for i, sender := range blockContent.Senders {
 		address := sender.PublicKey.ToAddress()
-		senderPublicKeys[i] = address[:]
+		copy(senderPublicKeys[i], address[:])
 	}
 
 	publicKeysHash := [NumPublicKeyBytes]byte{}

@@ -30,6 +30,11 @@ func NewPublicKey(pk *bn254.G1Affine) (*PublicKey, error) {
 }
 
 func (pk *PublicKey) Set(other *PublicKey) *PublicKey {
+	if other.Pk == nil {
+		pk.Pk = new(bn254.G1Affine)
+		return pk
+	}
+
 	pk.Pk = new(bn254.G1Affine).Set(other.Pk)
 
 	return pk

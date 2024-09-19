@@ -197,7 +197,7 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, startBlock ui
 				}
 			}
 
-			fmt.Printf("blockContent: %v\n", blockContent)
+			// p.log.Debugf("blockContent: %v\n", blockContent)
 			err := setAuxInfo(
 				p.blockBuilder,
 				postedBlock,

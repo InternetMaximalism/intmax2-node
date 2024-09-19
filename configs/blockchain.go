@@ -24,6 +24,7 @@ type Blockchain struct {
 	MaxCounterOfTransaction int `env:"BLOCKCHAIN_MAX_COUNTER_OF_TRANSACTION" envDefault:"128"`
 
 	BuilderPrivateKeyHex         string `env:"BLOCKCHAIN_ETHEREUM_BUILDER_KEY_HEX"`
+	BlockSynchronizerHex         string `env:"BLOCKCHAIN_ETHEREUM_BLOCK_SYNCHRONIZER_KEY_HEX"`
 	DepositAnalyzerPrivateKeyHex string `env:"BLOCKCHAIN_ETHEREUM_DEPOSIT_ANALYZER_PRIVATE_KEY_HEX"`
 	WithdrawalPrivateKeyHex      string `env:"BLOCKCHAIN_ETHEREUM_WITHDRAWAL_PRIVATE_KEY_HEX"`
 	MessengerMockPrivateKeyHex   string `env:"BLOCKCHAIN_ETHEREUM_MESSENEGER_MOCK_PRIVATE_KEY_HEX"`

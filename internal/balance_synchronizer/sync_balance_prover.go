@@ -330,6 +330,10 @@ func (s *SyncBalanceProver) SyncNoSend(
 	fmt.Printf("-----SyncNoSend %s------\n", wallet.PublicKey())
 
 	lastUpdatedBlockNumber := s.LastUpdatedBlockNumber()
+	if lastUpdatedBlockNumber == 0 {
+		return errors.New("last updated block number is 0")
+	}
+
 	allBlockNumbers := wallet.GetAllBlockNumbers()
 	for _, blockNumber := range allBlockNumbers {
 		fmt.Printf("s.LastUpdatedBlockNumber after GetAllBlockNumbers: %d\n", s.LastUpdatedBlockNumber())
@@ -629,7 +633,7 @@ func SyncLocally(
 			log.Fatalf(msg, err.Error())
 		}
 	}
-	fmt.Println("end GetBackupBalance")
+	log.Debugf("end GetBackupBalance\n")
 
 	err = syncBalanceProver.SetEncryptedBalanceData(userWalletState, storedBalanceData)
 	if err != nil {
@@ -640,7 +644,7 @@ func SyncLocally(
 	timeout := 1 * time.Second
 	ticker := time.NewTicker(timeout)
 	for {
-		fmt.Println("start SyncLocally loop")
+		log.Debugf("start SyncLocally loop\n")
 		select {
 		case <-ctx.Done():
 			ticker.Stop()
@@ -655,18 +659,23 @@ func SyncLocally(
 
 			// When the sync is done, we should stop the loop.
 			latestSynchronizedBlockNumber := validityProverInfo.BlockNumber
-			fmt.Printf("latestSynchronizedBlockNumber: %d", latestSynchronizedBlockNumber)
-			fmt.Printf("syncBalanceProver.LastUpdatedBlockNumber(): %d", syncBalanceProver.LastUpdatedBlockNumber())
-			if latestSynchronizedBlockNumber <= syncBalanceProver.LastUpdatedBlockNumber() {
+			log.Debugf("latestSynchronizedBlockNumber: %d\n", latestSynchronizedBlockNumber)
+			log.Debugf("syncBalanceProver.LastUpdatedBlockNumber(): %d\n", syncBalanceProver.LastUpdatedBlockNumber())
+			if latestSynchronizedBlockNumber == 0 {
+				log.Debugf("latestSynchronizedBlockNumber is 0\n")
+				continue
+			}
+
+			if latestSynchronizedBlockNumber <= syncBalanceProver.LastUpdatedBlockNumber() && syncBalanceProver.LastUpdatedBlockNumber() != 0 {
 				return balanceSynchronizer, nil
 			}
 
 			for _, transition := range sortedValidUserData {
-				fmt.Printf("valid transition: %v\n", transition)
+				log.Debugf("valid transition: %v\n", transition)
 
 				switch transition := transition.(type) {
 				case balance_prover_service.ValidSentTx:
-					fmt.Printf("valid sent transaction: %v\n", transition.TxHash)
+					log.Debugf("valid sent transaction: %v\n", transition.TxHash)
 					err := applySentTransactionTransition(
 						log,
 						transition.Tx,
@@ -682,9 +691,9 @@ func SyncLocally(
 						continue
 					}
 				case balance_prover_service.ValidReceivedDeposit:
-					fmt.Printf("valid received deposit: %v\n", transition.DepositHash)
+					log.Debugf("valid received deposit: %v\n", transition.DepositHash)
 					transitionBlockNumber := transition.BlockNumber()
-					fmt.Printf("transitionBlockNumber: %d", transitionBlockNumber)
+					log.Debugf("transitionBlockNumber: %d", transitionBlockNumber)
 					err = syncBalanceProver.SyncNoSend(
 						log,
 						blockValidityService,
@@ -710,9 +719,9 @@ func SyncLocally(
 						continue
 					}
 				case balance_prover_service.ValidReceivedTransfer:
-					fmt.Printf("valid received transfer: %v\n", transition.TransferHash)
+					log.Debugf("valid received transfer: %v\n", transition.TransferHash)
 					transitionBlockNumber := transition.BlockNumber()
-					fmt.Printf("transitionBlockNumber: %d", transitionBlockNumber)
+					log.Debugf("transitionBlockNumber: %d", transitionBlockNumber)
 					err = syncBalanceProver.SyncNoSend(
 						log,
 						blockValidityService,

@@ -2,71 +2,79 @@ package deposit_synchronizer
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
-	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/bindings"
+	"intmax2-node/internal/block_post_service"
 	errorsB "intmax2-node/internal/blockchain/errors"
-	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/pkg/utils"
-	"math/big"
-	"sort"
 	"time"
 
-	"github.com/consensys/gnark-crypto/ecc/bn254"
-	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/event"
-)
-
-const (
-	int32Key  = 32
-	int128Key = 128
 )
 
 var ErrStatCurrentFileFail = errors.New("stat current file fail")
 
 type depositSynchronizer struct {
-	cfg                       *configs.Config
-	log                       logger.Logger
-	dbApp                     SQLDriverApp
-	sb                        ServiceBlockchain
-	lastSeenScrollBlockNumber uint64
+	ctx          context.Context
+	cfg          *configs.Config
+	log          logger.Logger
+	dbApp        SQLDriverApp
+	sb           ServiceBlockchain
+	scrollClient *ethclient.Client
+	rollup       *bindings.Rollup
 }
 
 func New(
+	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
 	dbApp SQLDriverApp,
 	sb ServiceBlockchain,
-) DepositSynchronizer {
-	const startScrollBlockNumber uint64 = 5691248
-	return &depositSynchronizer{
-		cfg:                       cfg,
-		log:                       log,
-		dbApp:                     dbApp,
-		sb:                        sb,
-		lastSeenScrollBlockNumber: startScrollBlockNumber,
+) (DepositSynchronizer, error) {
+	scrollLink, err := sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Scroll network chain link: %w", err)
 	}
+
+	scrollClient, err := utils.NewClient(scrollLink)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new scrollClient: %w", err)
+	}
+	defer scrollClient.Close()
+
+	rollup, err := bindings.NewRollup(common.HexToAddress(cfg.Blockchain.RollupContractAddress), scrollClient)
+	if err != nil {
+		return nil, fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
+	}
+
+	return &depositSynchronizer{
+		ctx:          ctx,
+		cfg:          cfg,
+		log:          log,
+		dbApp:        dbApp,
+		sb:           sb,
+		scrollClient: scrollClient,
+		rollup:       rollup,
+	}, nil
 }
 
-func (w *depositSynchronizer) Init(ctx context.Context) (err error) {
+func (w *depositSynchronizer) Init(
+	ctx context.Context,
+) (err error) {
 	const (
 		hName = "DepositSynchronizer func:Init"
 	)
 
-	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
+	spanCtx, span := open_telemetry.Tracer().Start(w.ctx, hName)
 	defer span.End()
 
-	err = w.sb.SetupScrollNetworkChainID(ctx)
+	err = w.sb.SetupScrollNetworkChainID(w.ctx)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
 		return errors.Join(errorsB.ErrSetupScrollNetworkChainIDFail, err)
@@ -76,14 +84,13 @@ func (w *depositSynchronizer) Init(ctx context.Context) (err error) {
 }
 
 func (w *depositSynchronizer) Start(
-	ctx context.Context,
 	tickerEventWatcher *time.Ticker,
 ) (err error) {
 	const (
 		hName = "DepositSynchronizer func:Start"
 	)
 
-	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
+	spanCtx, span := open_telemetry.Tracer().Start(w.ctx, hName)
 	defer span.End()
 
 	err = w.Init(spanCtx)
@@ -100,39 +107,35 @@ func (w *depositSynchronizer) Start(
 	}
 
 	rollupCfg := intMaxTypes.NewRollupContractConfigFromEnv(w.cfg, link)
-
-	var scrollClient *ethclient.Client
-	scrollClient, err = utils.NewClient(rollupCfg.NetworkRpcUrl)
-	if err != nil {
-		open_telemetry.MarkSpanError(spanCtx, err)
-		return errors.Join(ErrNewClientFail, err)
+	if w.cfg.Blockchain.BlockSynchronizerHex != "" {
+		rollupCfg.EthereumPrivateKeyHex = w.cfg.Blockchain.BlockSynchronizerHex
 	}
-	defer scrollClient.Close()
 
 	for {
 		select {
-		case <-ctx.Done():
+		case <-w.ctx.Done():
 			return nil
 		case <-tickerEventWatcher.C:
 			shouldProcess := func() (bool, error) {
-				/*
-					// latestBlock, err := intMaxTypes.FetchLatestIntMaxBlock(rollupCfg, ctx)
-					// if err != nil {
-					// 	if err.Error() != "no posted blocks found" {
-					// 		return false, err
-					// 	}
+				latestBlock, err := intMaxTypes.FetchLatestIntMaxBlock(rollupCfg, w.ctx)
+				if err != nil {
+					if err.Error() != "no posted blocks found" {
+						return false, err
+					}
 
-					// 	return true, nil
-					// }
-					// latestDepositTreeRoot, err := intMaxTypes.FetchDepositRoot(rollupCfg, ctx)
-					// if err != nil {
-					// 	return false, err
-					// }
+					return true, nil
+				}
+				latestDepositTreeRoot, err := intMaxTypes.FetchDepositRoot(rollupCfg, w.ctx)
+				if err != nil {
+					return false, err
+				}
 
-					// if latestBlock.DepositTreeRoot == latestDepositTreeRoot {
-					// 	return false, nil
-					// }
-				*/
+				if latestBlock.DepositTreeRoot == latestDepositTreeRoot {
+					return false, nil
+				}
+
+				// TODO: Check that no new blocks have been created for 15 minutes
+				// after the deposit tree root has been communicated to the Rollup contract.
 
 				return true, nil
 			}
@@ -147,91 +150,9 @@ func (w *depositSynchronizer) Start(
 				continue
 			}
 
-			// Generate a new block to reflect new deposits.
-			// This block includes the transaction of a random generated address.
+			// Generate a new empty block to reflect new deposits.
 			// TODO: If there is a block already in the process of being created, there is no need to post this block.
-			keyPairs := make([]*intMaxAcc.PrivateKey, 1)
-			for i := 0; i < len(keyPairs); i++ {
-				var privateKey *big.Int
-				privateKey, err = rand.Int(rand.Reader, new(big.Int).Sub(fr.Modulus(), big.NewInt(1)))
-				if err != nil {
-					return err
-				}
-
-				privateKey.Add(privateKey, big.NewInt(1))
-				keyPairs[i], err = intMaxAcc.NewPrivateKeyWithReCalcPubKeyIfPkNegates(privateKey)
-				if err != nil {
-					return err
-				}
-			}
-
-			// Sort by x-coordinate of public key
-			sort.Slice(keyPairs, func(i, j int) bool {
-				return keyPairs[i].Pk.X.Cmp(&keyPairs[j].Pk.X) > 0
-			})
-
-			senders := make([]intMaxTypes.Sender, int128Key)
-			for i, keyPair := range keyPairs {
-				senders[i] = intMaxTypes.Sender{
-					PublicKey: keyPair.Public(),
-					AccountID: 0,
-					IsSigned:  true,
-				}
-			}
-
-			defaultSender := intMaxTypes.NewDummySender()
-			for i := len(keyPairs); i < len(senders); i++ {
-				senders[i] = defaultSender
-			}
-
-			var txRoot *intMaxTypes.PoseidonHashOut
-			txRoot, err = new(intMaxTypes.PoseidonHashOut).SetRandom()
-			if err != nil {
-				return err
-			}
-
-			senderPublicKeysBytes := make([]byte, len(senders)*intMaxTypes.NumPublicKeyBytes)
-			for i, sender := range senders {
-				if sender.IsSigned {
-					senderPublicKey := sender.PublicKey.Pk.X.Bytes() // Only x coordinate is used
-					copy(senderPublicKeysBytes[int32Key*i:int32Key*(i+1)], senderPublicKey[:])
-				}
-			}
-
-			publicKeysHash := crypto.Keccak256(senderPublicKeysBytes)
-			aggregatedPublicKey := new(intMaxAcc.PublicKey)
-			for _, sender := range senders {
-				if sender.IsSigned {
-					aggregatedPublicKey.Add(aggregatedPublicKey, sender.PublicKey.WeightByHash(publicKeysHash))
-				}
-			}
-
-			message := finite_field.BytesToFieldElementSlice(txRoot.Marshal())
-
-			aggregatedSignature := new(bn254.G2Affine)
-			for i, keyPair := range keyPairs {
-				if senders[i].IsSigned {
-					var signature *bn254.G2Affine
-					signature, err = keyPair.WeightByHash(publicKeysHash).Sign(message)
-					if err != nil {
-						return err
-					}
-					aggregatedSignature.Add(aggregatedSignature, signature)
-				}
-			}
-
-			txRootBytes := [32]byte{}
-			copy(txRootBytes[:], txRoot.Marshal())
-
-			blockContent := intMaxTypes.NewBlockContent(
-				intMaxTypes.PublicKeySenderType,
-				senders,
-				txRootBytes,
-				aggregatedSignature,
-			)
-			if innerErr := blockContent.IsValid(); innerErr != nil {
-				return innerErr
-			}
+			blockContent := block_post_service.MakeEmptyBlock()
 
 			_, err = intMaxTypes.MakePostRegistrationBlockInput(
 				blockContent,
@@ -240,7 +161,7 @@ func (w *depositSynchronizer) Start(
 				return err
 			}
 
-			_, err = intMaxTypes.PostRegistrationBlock(rollupCfg, ctx, w.log, scrollClient, blockContent)
+			_, err = intMaxTypes.PostRegistrationBlock(rollupCfg, w.ctx, w.log, w.scrollClient, blockContent)
 			if err != nil {
 				return err
 			}
@@ -248,32 +169,63 @@ func (w *depositSynchronizer) Start(
 	}
 }
 
-func SubscribeDepositsProcessed(
-	ctx context.Context,
-	cfg *intMaxTypes.RollupContractConfig,
-) (
-	eventChan chan *bindings.RollupDepositsProcessed,
-	subscription event.Subscription,
-	err error,
-) {
-	client, err := utils.NewClient(cfg.NetworkRpcUrl)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create new client: %w", err)
-	}
-	defer client.Close()
+// func FetchLatestIntMaxBlockNumber(rollup *bindings.Rollup, ctx context.Context) (uint32, error) {
+// 	opts := bind.CallOpts{
+// 		Pending: false,
+// 		Context: ctx,
+// 	}
+// 	latestBlockNumber, err := rollup.GetLatestBlockNumber(&opts)
 
-	rollup, err := bindings.NewRollup(common.HexToAddress(cfg.RollupContractAddressHex), client)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
-	}
+// 	return latestBlockNumber, err
+// }
 
-	opts := &bind.WatchOpts{Context: context.Background()}
-	eventChan = make(chan *bindings.RollupDepositsProcessed)
+// const int32Key = 32
 
-	subscription, err = rollup.WatchDepositsProcessed(opts, eventChan, []*big.Int{})
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to subscribe to event: %w", err)
-	}
+// func FetchLatestIntMaxBlock(rollup *bindings.Rollup, ctx context.Context) (*bindings.RollupBlockPosted, error) {
+// 	latestBlockNumber, err := FetchLatestIntMaxBlockNumber(rollup, ctx)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to fetch latest block number: %w", err)
+// 	}
+// 	if latestBlockNumber == 0 {
+// 		defaultDepositTreeRoot := [int32Key]byte{}
+// 		var decodedDefaultDepositTreeRoot []byte
+// 		decodedDefaultDepositTreeRoot, err = hexutil.Decode("0xb6155ab566bbd2e341525fd88c43b4d69572bf4afe7df45cd74d6901a172e41c")
+// 		if err != nil {
+// 			return nil, fmt.Errorf("failed to decode default deposit tree root: %w", err)
+// 		}
 
-	return eventChan, subscription, nil
-}
+// 		copy(defaultDepositTreeRoot[:], decodedDefaultDepositTreeRoot)
+// 		return &bindings.RollupBlockPosted{
+// 			PrevBlockHash:   [int32Key]byte{},
+// 			BlockBuilder:    common.Address{},
+// 			BlockNumber:     big.NewInt(0),
+// 			DepositTreeRoot: defaultDepositTreeRoot,
+// 			SignatureHash:   [int32Key]byte{},
+// 		}, nil
+// 	}
+
+// 	latestPrevBlockHash, err := FetchIntMaxBlock(cfg, ctx, latestBlockNumber-1)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to fetch latest block: %w", err)
+// 	}
+
+// 	blocks, _, err := FetchPostedBlocks(cfg, ctx, cfg.RollupContractDeployedBlockNumber, [][int32Key]byte{latestPrevBlockHash}, nil)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to fetch posted blocks: %w", err)
+// 	}
+// 	if len(blocks) == 0 {
+// 		return nil, errors.New("no posted blocks found")
+// 	}
+
+// 	return blocks[0], nil
+// }
+
+// func FetchDepositRoot(ctx context.Context, rollup *bindings.Rollup) (*bindings.RollupBlockPosted, error) {
+// 	opts := bind.CallOpts{
+// 		Pending: false,
+// 		Context: ctx,
+// 	}
+// 	latestDepositTreeRoot, err := rollup.GetLatestDepositTreeRoot(&opts)
+
+// 	return latestDepositTreeRoot, err
+// }

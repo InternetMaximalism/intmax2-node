@@ -197,6 +197,51 @@ func MakeRegistrationBlock(
 	return blockContent, nil
 }
 
+func MakeEmptyBlock() *intMaxTypes.BlockContent {
+	senders := make([]intMaxTypes.Sender, numOfSenders)
+	defaultSender := intMaxTypes.NewDummySender()
+	for i := 0; i < len(senders); i++ {
+		senders[i] = defaultSender
+	}
+
+	const numPublicKeyBytes = intMaxTypes.NumPublicKeyBytes
+
+	senderPublicKeysBytes := make([]byte, len(senders)*numPublicKeyBytes)
+	for i, sender := range senders {
+		senderPublicKey := sender.PublicKey.Pk.X.Bytes() // Only x coordinate is used
+		copy(senderPublicKeysBytes[numPublicKeyBytes*i:numPublicKeyBytes*(i+1)], senderPublicKey[:])
+	}
+
+	zeroTx := new(intMaxTypes.Tx).SetZero()
+	txTree, err := intMaxTree.NewTxTree(intMaxTree.TX_TREE_HEIGHT, nil, zeroTx.Hash())
+	if err != nil {
+		panic(fmt.Errorf("failed to create tx tree: %w", err))
+	}
+	txRoot, _, _ := txTree.GetCurrentRootCountAndSiblings()
+
+	aggregatedSignature := new(bn254.G2Affine)
+
+	txRootBytes := [32]byte{}
+	copy(txRootBytes[:], txRoot.Marshal())
+
+	fmt.Printf("Empty block created senderType: %v\n", intMaxTypes.PublicKeySenderType)
+	fmt.Printf("Empty block created senders : %v\n", senders)
+	fmt.Printf("Empty block created txRoot: %v\n", txRootBytes)
+	fmt.Printf("Empty block created aggregatedSignature: %v\n", aggregatedSignature)
+	blockContent := intMaxTypes.NewBlockContent(
+		intMaxTypes.PublicKeySenderType,
+		senders,
+		txRootBytes,
+		aggregatedSignature,
+	)
+
+	if err = blockContent.IsValid(); err != nil {
+		panic(fmt.Errorf("invalid registration block content: %w", err))
+	}
+
+	return blockContent
+}
+
 // MakeNonRegistrationBlock creates a block content for non-registration block.
 // txRoot - root of the transaction tree.
 // accountIDs - list of account IDs for each sender.
