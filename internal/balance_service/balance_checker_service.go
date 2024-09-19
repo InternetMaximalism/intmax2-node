@@ -279,7 +279,7 @@ func GetUserBalancesRawRequest(
 		contentType: appJSON,
 	}).Get(apiUrl)
 	if err != nil {
-		const msg = "failed to send of the transaction request: %w"
+		const msg = "failed to get user balances request: %w"
 		return nil, fmt.Errorf(msg, err)
 	}
 
@@ -320,13 +320,13 @@ func GetDepositValidityRawRequest(
 		contentType: appJSON,
 	}).Get(apiUrl)
 	if err != nil {
-		const msg = "failed to send of the transaction request: %w"
+		const msg = "failed to get deposit validity request: %w"
 		return false, fmt.Errorf(msg, err)
 	}
 
 	if resp == nil {
 		const msg = "send request error occurred"
-		return false, fmt.Errorf(msg)
+		return false, errors.New(msg)
 	}
 
 	if resp.StatusCode() != http.StatusOK {

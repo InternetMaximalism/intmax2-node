@@ -78,7 +78,7 @@ func (p *blockValidityProver) requestBlockValidityProof(blockHash common.Hash, v
 		contentType: appJSON,
 	}).SetBody(bd).Post(apiUrl)
 	if err != nil {
-		const msg = "failed to send of the transaction request: %w"
+		const msg = "failed to send block validity proof request: %w"
 		return fmt.Errorf(msg, err)
 	}
 

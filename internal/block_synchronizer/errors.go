@@ -118,3 +118,6 @@ var ErrInvalidRegistrationBlockContent = errors.New("invalid registration block 
 
 // ErrInvalidNonRegistrationBlockContent error: invalid non-registration block content.
 var ErrInvalidNonRegistrationBlockContent = errors.New("invalid non-registration block content")
+
+// ErrNoAssetsFound error: no assets found.
+var ErrNoAssetsFound = errors.New("no assets found")

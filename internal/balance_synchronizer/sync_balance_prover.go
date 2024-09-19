@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
-	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_prover_service"
 	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/block_validity_prover"
@@ -149,6 +148,10 @@ func (s *SyncBalanceProver) UploadLastBalanceProof(blockNumber uint32, balancePr
 }
 
 func (s *SyncBalanceProver) SetEncryptedBalanceData(wallet UserState, storedBalanceData *block_synchronizer.BackupBalanceData) error {
+	if storedBalanceData.EncryptedBalanceData == "" {
+		return nil
+	}
+
 	balanceData, err := wallet.DecryptBalanceData(storedBalanceData.EncryptedBalanceData)
 	if err != nil {
 		return err
@@ -573,7 +576,7 @@ func SyncLocally(
 	log logger.Logger,
 	sb block_validity_prover.ServiceBlockchain,
 	blockValidityService block_validity_prover.BlockValidityService,
-	intMaxPrivateKey *intMaxAcc.PrivateKey,
+	userWalletState UserState,
 ) (*balanceSynchronizer, error) {
 	blockSynchronizer, err := block_synchronizer.NewBlockSynchronizer(
 		ctx, cfg, log,
@@ -583,25 +586,19 @@ func SyncLocally(
 		return nil, fmt.Errorf(msg, err.Error())
 	}
 
-	userWalletState, err := NewMockWallet(intMaxPrivateKey)
-	if err != nil {
-		const msg = "failed to get Mock Wallet: %+v"
-		return nil, fmt.Errorf(msg, err.Error())
-	}
-
 	syncBalanceProver := NewSyncBalanceProver(ctx, cfg, log)
 
 	balanceProcessor := balance_prover_service.NewBalanceProcessor(
 		ctx, cfg, log,
 	)
 	balanceSynchronizer := NewSynchronizer(ctx, cfg, log, sb, blockSynchronizer, blockValidityService, balanceProcessor, syncBalanceProver, userWalletState)
-	err = balanceSynchronizer.Sync(intMaxPrivateKey)
-	if err != nil {
-		const msg = "failed to sync: %+v"
-		log.Fatalf(msg, err.Error())
-	}
+	// err = balanceSynchronizer.Sync(userWalletState.PrivateKey())
+	// if err != nil {
+	// 	const msg = "failed to sync: %+v"
+	// 	log.Fatalf(msg, err.Error())
+	// }
 
-	balanceTransitionData, err := balance_prover_service.NewBalanceTransitionData(ctx, cfg, intMaxPrivateKey)
+	balanceTransitionData, err := balance_prover_service.NewBalanceTransitionData(ctx, cfg, userWalletState.PrivateKey())
 	if err != nil {
 		const msg = "failed to start Balance Prover Service: %+v"
 		log.Fatalf(msg, err.Error())
@@ -617,10 +614,20 @@ func SyncLocally(
 		fmt.Printf("transition block number: %d\n", transition.BlockNumber())
 	}
 
-	storedBalanceData, err := block_synchronizer.GetBackupBalance(ctx, cfg, intMaxPrivateKey.Public())
+	storedBalanceData, err := block_synchronizer.GetBackupBalance(ctx, cfg, userWalletState.PublicKey())
 	if err != nil {
-		const msg = "failed to start Balance Prover Service: %+v"
-		log.Fatalf(msg, err.Error())
+		if err.Error() != "failed to start Balance Prover Service: no assets found" {
+			// default value
+			storedBalanceData = &block_synchronizer.BackupBalanceData{
+				ID:                   "",
+				BalanceProofBody:     "",
+				EncryptedBalanceData: "",
+				BlockNumber:          0,
+			}
+		} else {
+			const msg = "failed to start Balance Prover Service: %+v"
+			log.Fatalf(msg, err.Error())
+		}
 	}
 	fmt.Println("end GetBackupBalance")
 
@@ -633,6 +640,7 @@ func SyncLocally(
 	timeout := 1 * time.Second
 	ticker := time.NewTicker(timeout)
 	for {
+		fmt.Println("start SyncLocally loop")
 		select {
 		case <-ctx.Done():
 			ticker.Stop()
@@ -647,6 +655,8 @@ func SyncLocally(
 
 			// When the sync is done, we should stop the loop.
 			latestSynchronizedBlockNumber := validityProverInfo.BlockNumber
+			fmt.Printf("latestSynchronizedBlockNumber: %d", latestSynchronizedBlockNumber)
+			fmt.Printf("syncBalanceProver.LastUpdatedBlockNumber(): %d", syncBalanceProver.LastUpdatedBlockNumber())
 			if latestSynchronizedBlockNumber <= syncBalanceProver.LastUpdatedBlockNumber() {
 				return balanceSynchronizer, nil
 			}

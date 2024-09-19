@@ -101,22 +101,32 @@ func TransferTransaction(
 	if err != nil {
 		return fmt.Errorf("failed to create block validity service: %w", err)
 	}
+
+	userWalletState, err := balance_synchronizer.NewMockWallet(userAccount)
+	if err != nil {
+		const msg = "failed to get Mock Wallet: %+v"
+		return fmt.Errorf(msg, err.Error())
+	}
+
+	fmt.Println("start SyncLocally")
 	balanceSynchronizer, err := balance_synchronizer.SyncLocally(
 		ctx,
 		cfg,
 		log,
 		sb,
 		blockValidityService,
-		userAccount,
+		userWalletState,
 	)
+	fmt.Println("end SyncLocally")
 	if err != nil {
 		return fmt.Errorf("failed to sync balance proof: %w", err)
 	}
 
-	balance, err := balance_service.GetUserBalance(ctx, cfg, userAccount, tokenIndex)
-	if err != nil {
-		return fmt.Errorf(ErrFailedToGetBalance.Error()+": %v", err)
-	}
+	balance := userWalletState.Balance(tokenIndex).BigInt()
+	// balance, err := balance_service.GetUserBalance(ctx, cfg, userAccount, tokenIndex)
+	// if err != nil {
+	// 	return fmt.Errorf(ErrFailedToGetBalance.Error()+": %v", err)
+	// }
 
 	if strings.TrimSpace(amountStr) == "" {
 		return fmt.Errorf("amount is required")

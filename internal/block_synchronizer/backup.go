@@ -81,7 +81,7 @@ func backupTransactionRawRequest(
 		contentType: appJSON,
 	}).SetBody(bd).Post(apiUrl)
 	if err != nil {
-		const msg = "failed to send of the transaction request: %w"
+		const msg = "failed to get backup transaction: %w"
 		return fmt.Errorf(msg, err)
 	}
 
@@ -174,7 +174,7 @@ func backupTransferRawRequest(
 		contentType: appJSON,
 	}).SetBody(bd).Post(apiUrl)
 	if err != nil {
-		const msg = "failed to send of the transaction request: %w"
+		const msg = "failed to get backup transaction: %w"
 		return fmt.Errorf(msg, err)
 	}
 
@@ -261,7 +261,7 @@ func backupWithdrawalRawRequest(
 		contentType: appJSON,
 	}).SetBody(bd).Post(apiUrl)
 	if err != nil {
-		const msg = "failed to send of the transaction request: %w"
+		const msg = "failed to get backup transaction: %w"
 		return fmt.Errorf(msg, err)
 	}
 
@@ -445,7 +445,7 @@ func getBackupBalanceRawRequest(
 		contentType: appJSON,
 	}).Get(apiUrl)
 	if err != nil {
-		const msg = "failed to send of the transaction request: %w"
+		const msg = "failed to get backup transaction: %w"
 		return nil, fmt.Errorf(msg, err)
 	}
 
@@ -475,7 +475,7 @@ func getBackupBalanceRawRequest(
 	}
 
 	if len(response.Data.Balances) == 0 {
-		return nil, fmt.Errorf("failed to get balance data")
+		return nil, ErrNoAssetsFound
 	}
 
 	result := new(GetBackupBalanceResponse)

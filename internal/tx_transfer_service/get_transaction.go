@@ -173,7 +173,7 @@ func getTransactionsListRawRequest(
 		contentType: appJSON,
 	}).SetBody(body).Post(apiUrl)
 	if err != nil {
-		const msg = "failed to send of the transaction request: %w"
+		const msg = "failed to get transaction list request: %w"
 		return nil, fmt.Errorf(msg, err)
 	}
 
@@ -326,7 +326,7 @@ func getTransactionByHashRawRequest(
 		"sender": senderAccount.ToAddress().String(),
 	}).Get(apiUrl)
 	if err != nil {
-		const msg = "failed to send of the transaction request: %w"
+		const msg = "failed to get transaction by hash request: %w"
 		return nil, fmt.Errorf(msg, err)
 	}
 

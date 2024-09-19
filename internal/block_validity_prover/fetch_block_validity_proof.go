@@ -37,7 +37,7 @@ func (p *blockValidityProver) fetchBlockValidityProof(blockHash common.Hash) (st
 		contentType: appJSON,
 	}).Get(apiUrl)
 	if err != nil {
-		const msg = "failed to send of the transaction request: %w"
+		const msg = "failed to get validity proof request: %w"
 		return "", fmt.Errorf(msg, err)
 	}
 

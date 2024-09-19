@@ -79,6 +79,7 @@ type UserState interface {
 		senderLastBalanceProof string,
 		senderBalanceTransitionProof string,
 	) (*balance_prover_service.ReceiveTransferWitness, error)
+	PrivateKey() *intMaxAcc.PrivateKey
 }
 
 func (w *mockWallet) AddDepositCase(depositIndex uint32, depositCase *balance_prover_service.DepositCase) error {
@@ -475,6 +476,10 @@ func NewMockWallet(privateKey *intMaxAcc.PrivateKey) (*mockWallet, error) {
 	}, nil
 }
 
+func (s *mockWallet) PrivateKey() *intMaxAcc.PrivateKey {
+	return &s.privateKey
+}
+
 func (s *mockWallet) PublicKey() *intMaxAcc.PublicKey {
 	return s.privateKey.Public()
 }
@@ -485,6 +490,10 @@ func (s *mockWallet) Nonce() uint32 {
 
 func (s *mockWallet) Salt() balance_prover_service.Salt {
 	return s.salt
+}
+
+func (s *mockWallet) Balance(tokenIndex uint32) *intMaxTypes.Uint256 {
+	return s.assetTree.GetLeaf(tokenIndex).Amount
 }
 
 func (s *mockWallet) GenericAddress() (*intMaxTypes.GenericAddress, error) {
