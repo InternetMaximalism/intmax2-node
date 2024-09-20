@@ -3,7 +3,6 @@ package types
 import (
 	"context"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"intmax2-node/configs"

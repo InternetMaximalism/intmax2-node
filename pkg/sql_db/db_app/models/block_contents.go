@@ -19,3 +19,8 @@ type BlockContent struct {
 	IsRegistrationBlock bool
 	CreatedAt           time.Time
 }
+
+type BlockContentWithProof struct {
+	BlockContent
+	ValidityProof []byte
+}

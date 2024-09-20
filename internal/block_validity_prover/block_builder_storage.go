@@ -24,19 +24,20 @@ import (
 )
 
 type mockBlockBuilder struct {
-	db                            SQLDriverApp
-	LastPostedBlockNumber         uint32
+	AccountTree       *intMaxTree.AccountTree
+	BlockTree         *intMaxTree.BlockHashTree
+	DepositTree       *intMaxTree.KeccakMerkleTree
+	MerkleTreeHistory map[uint32]*MerkleTrees
+
+	db SQLDriverApp
+	// LastPostedBlockNumber         uint32
 	LastGeneratedProofBlockNumber uint32
-	AccountTree                   *intMaxTree.AccountTree
-	BlockTree                     *intMaxTree.BlockHashTree
-	DepositTree                   *intMaxTree.KeccakMerkleTree
 	DepositLeaves                 []*intMaxTree.DepositLeaf
-	LastSeenProcessedDepositId    uint64
-	ValidityProofs                map[uint32]string
-	AuxInfo                       map[uint32]*mDBApp.BlockContent
-	validityWitnesses             map[uint32]*ValidityWitness
-	latestWitnessBlockNumber      uint32
-	MerkleTreeHistory             map[uint32]*MerkleTrees
+	// LastSeenProcessedDepositId    uint64
+	ValidityProofs           map[uint32]string
+	AuxInfo                  map[uint32]*mDBApp.BlockContent
+	validityWitnesses        map[uint32]*ValidityWitness
+	latestWitnessBlockNumber uint32
 	// DepositTreeRoots           []common.Hash
 	// DepositTreeHistory         map[string]*intMaxTree.KeccakMerkleTree // deposit hash -> deposit tree
 }
@@ -49,13 +50,13 @@ type MockBlockBuilder interface {
 	AppendAccountTreeLeaf(sender *big.Int, lastBlockNumber uint64) (*intMaxTree.IndexedInsertionProof, error)
 	AppendBlockTreeLeaf(block *block_post_service.PostedBlock) error
 	AppendDepositTreeLeaf(depositHash common.Hash, depositLeaf *intMaxTree.DepositLeaf) (root common.Hash, err error)
-	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContent, error)
-	BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContent, error)
+	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
+	BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContentWithProof, error)
 	BlockNumberByDepositIndex(depositIndex uint32) (uint32, error)
 	BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.MerkleProof, error)
 	BlockTreeRoot() (*intMaxGP.PoseidonHashOut, error)
 	ConstructSignature(txTreeRoot intMaxTypes.Bytes32, publicKeysHash intMaxTypes.Bytes32, accountIDHash intMaxTypes.Bytes32, isRegistrationBlock bool, sortedTxs []*MockTxRequest) (*SignatureContent, error)
-	CreateBlockContent(postedBlock *block_post_service.PostedBlock, blockContent *intMaxTypes.BlockContent) (*mDBApp.BlockContent, error)
+	CreateBlockContent(postedBlock *block_post_service.PostedBlock, blockContent *intMaxTypes.BlockContent) (*mDBApp.BlockContentWithProof, error)
 	CurrentBlockTreeProof(blockNumber uint32) (*intMaxTree.MerkleProof, error)
 	DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error)
 	EventBlockNumberByEventNameForValidityProver(eventName string) (*mDBApp.EventBlockNumberForValidityProver, error)
@@ -1238,7 +1239,7 @@ func (b *mockBlockBuilder) SetValidityProof(blockNumber uint32, proof string) er
 	}
 
 	fmt.Printf("s.LastBlockNumber before SetValidityProof = %d\n", b.LastGeneratedProofBlockNumber)
-	fmt.Printf("s.LastValidityProofBlockNumber before SetValidityProof = %d\n", b.LastPostedBlockNumber)
+	// fmt.Printf("s.LastValidityProofBlockNumber before SetValidityProof = %d\n", b.LastPostedBlockNumber)
 	b.ValidityProofs[blockNumber] = proof
 	b.LastGeneratedProofBlockNumber = blockNumber
 	// b.LastPostedBlockNumber = blockNumber
@@ -1247,7 +1248,7 @@ func (b *mockBlockBuilder) SetValidityProof(blockNumber uint32, proof string) er
 	return nil
 }
 
-func (b *mockBlockBuilder) BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContent, error) {
+func (b *mockBlockBuilder) BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error) {
 	return b.db.BlockContentByBlockNumber(blockNumber)
 
 	// auxInfo, ok := b.AuxInfo[blockNumber]
@@ -1376,14 +1377,14 @@ func setAuxInfo(
 func (b *mockBlockBuilder) CreateBlockContent(
 	postedBlock *block_post_service.PostedBlock,
 	blockContent *intMaxTypes.BlockContent,
-) (*mDBApp.BlockContent, error) {
+) (*mDBApp.BlockContentWithProof, error) {
 	return b.db.CreateBlockContent(
 		postedBlock,
 		blockContent,
 	)
 }
 
-func (b *mockBlockBuilder) BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContent, error) {
+func (b *mockBlockBuilder) BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContentWithProof, error) {
 	return b.db.BlockContentByTxRoot(txRoot)
 }
 

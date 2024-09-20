@@ -135,9 +135,9 @@ type BlockContents interface {
 	CreateBlockContent(
 		postedBlock *block_post_service.PostedBlock,
 		blockContent *intMaxTypes.BlockContent,
-	) (*mDBApp.BlockContent, error)
-	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContent, error)
-	BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContent, error)
+	) (*mDBApp.BlockContentWithProof, error)
+	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
+	BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContentWithProof, error)
 	// SetValidityWitness(blockNumber uint32, witness *block_validity_prover.ValidityWitness) error
 	// LastValidityWitness() (*block_validity_prover.ValidityWitness, error)
 	// SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error

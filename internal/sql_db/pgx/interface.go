@@ -237,9 +237,9 @@ type BlockContents interface {
 	CreateBlockContent(
 		postedBlock *block_post_service.PostedBlock,
 		blockContent *intMaxTypes.BlockContent,
-	) (*mDBApp.BlockContent, error)
-	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContent, error)
-	BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContent, error)
+	) (*mDBApp.BlockContentWithProof, error)
+	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
+	BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContentWithProof, error)
 }
 
 type CtrlProcessingJobs interface {

@@ -67,12 +67,10 @@ type UserState interface {
 		nullifier intMaxTypes.Bytes32,
 	) (*balance_prover_service.PrivateWitness, error)
 	ReceiveDepositAndUpdate(
-		// blockBuilder MockBlockBuilder,
 		blockValidityService block_validity_prover.BlockValidityService,
 		depositIndex uint32,
 	) (*balance_prover_service.ReceiveDepositWitness, error)
 	ReceiveTransferAndUpdate(
-		// blockBuilder MockBlockBuilder,
 		blockValidityService block_validity_prover.BlockValidityService,
 		lastBlockNumber uint32,
 		transferWitness *intMaxTypes.TransferWitness,
@@ -746,10 +744,9 @@ func (s *mockWallet) updateOnReceive(witness *balance_prover_service.PrivateWitn
 	return nil
 }
 
-type MockBlockBuilder = block_validity_prover.BlockBuilderStorage
+// type MockBlockBuilder = block_validity_prover.BlockBuilderStorage
 
 func (s *mockWallet) ReceiveDepositAndUpdate(
-	// blockBuilder MockBlockBuilder,
 	blockValidityService block_validity_prover.BlockValidityService,
 	depositIndex uint32,
 ) (*balance_prover_service.ReceiveDepositWitness, error) {
@@ -826,7 +823,6 @@ func (s *mockWallet) ReceiveDepositAndUpdate(
 }
 
 func (s *mockWallet) ReceiveTransferAndUpdate(
-	// blockBuilder MockBlockBuilder,
 	blockValidityService block_validity_prover.BlockValidityService,
 	lastBlockNumber uint32,
 	transferWitness *intMaxTypes.TransferWitness,
@@ -854,7 +850,6 @@ func (s *mockWallet) ReceiveTransferAndUpdate(
 }
 
 func (s *mockWallet) GenerateReceiveTransferWitness(
-	// blockBuilder MockBlockBuilder,
 	blockValidityService block_validity_prover.BlockValidityService,
 	receiverBlockNumber uint32,
 	transferWitness *intMaxTypes.TransferWitness,
@@ -936,34 +931,6 @@ func (s *mockWallet) GenerateReceiveTransferWitness(
 		BlockMerkleProof:       blockMerkleProof,
 	}, nil
 }
-
-// /// Deposit tokens on the layer 1.
-// pub fn deposit<R: Rng>(
-//     &mut self,
-//     rng: &mut R,
-//     block_builder: &mut MockBlockBuilder,
-//     token_index: u32,
-//     amount: U256,
-// ) -> usize {
-//     let pubkey = self.get_pubkey();
-//     let salt = Salt::rand(rng);
-//     let pubkey_salt_hash = get_pubkey_salt_hash(pubkey, salt);
-
-//     let deposit = Deposit {
-//         pubkey_salt_hash,
-//         token_index,
-//         amount,
-//     };
-//     let deposit_index = block_builder.deposit(&deposit);
-
-//     let deposit_case = DepositCase {
-//         deposit_salt: salt,
-//         deposit_index,
-//         deposit,
-//     };
-//     self.deposit_cases.insert(deposit_index, deposit_case);
-//     deposit_index
-// }
 
 func (w *mockWallet) Deposit(b *block_validity_prover.MockBlockBuilderMemory, salt balance_prover_service.Salt, tokenIndex uint32, amount *big.Int) uint32 {
 	recipientSaltHash := intMaxAcc.GetPublicKeySaltHash(w.PublicKey().BigInt(), &salt)

@@ -17,5 +17,6 @@ type BlockContent struct {
 	AggregatedPublicKey string
 	MessagePoint        string
 	Senders             []byte
+	ValidityProof       []byte
 	CreatedAt           time.Time
 }

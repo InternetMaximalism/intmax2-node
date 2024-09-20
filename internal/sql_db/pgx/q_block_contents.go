@@ -17,7 +17,7 @@ import (
 func (p *pgx) CreateBlockContent(
 	postedBlock *block_post_service.PostedBlock,
 	blockContent *intMaxTypes.BlockContent,
-) (*mDBApp.BlockContent, error) {
+) (*mDBApp.BlockContentWithProof, error) {
 	blockNumber := int64(postedBlock.BlockNumber)
 	blockHash := postedBlock.Hash().Hex()[2:]
 	prevBlockHash := postedBlock.PrevBlockHash.Hex()[2:]
@@ -74,7 +74,7 @@ func (p *pgx) CreateBlockContent(
 		return nil, errPgx.Err(err)
 	}
 
-	var bDBApp *mDBApp.BlockContent
+	var bDBApp *mDBApp.BlockContentWithProof
 	bDBApp, err = p.BlockContent(s.BlockContentID)
 	if err != nil {
 		return nil, err
@@ -83,13 +83,16 @@ func (p *pgx) CreateBlockContent(
 	return bDBApp, nil
 }
 
-func (p *pgx) BlockContent(blockContentID string) (*mDBApp.BlockContent, error) {
+func (p *pgx) BlockContent(blockContentID string) (*mDBApp.BlockContentWithProof, error) {
 	const (
 		q = `SELECT
-             id ,block_hash ,prev_block_hash ,deposit_root ,signature_hash
-			 ,is_registration_block ,senders ,tx_tree_root ,aggregated_public_key
-			 ,aggregated_signature ,message_point ,created_at ,block_number
-             FROM block_contents WHERE id = $1`
+             bc.id ,bc.block_hash ,bc.prev_block_hash ,bc.deposit_root ,bc.signature_hash
+			 ,bc.is_registration_block ,bc.senders ,bc.tx_tree_root ,bc.aggregated_public_key
+			 ,bc.aggregated_signature ,bc.message_point ,bc.created_at ,bc.block_number
+			 ,bp.validity_proof
+             FROM block_contents bc
+			 LEFT JOIN block_proofs bp ON bc.id = bp.block_content_id
+			 WHERE bc.id = $1`
 	)
 
 	var tmp models.BlockContent
@@ -108,6 +111,7 @@ func (p *pgx) BlockContent(blockContentID string) (*mDBApp.BlockContent, error) 
 			&tmp.MessagePoint,
 			&tmp.CreatedAt,
 			&tmp.BlockNumber,
+			&tmp.ValidityProof,
 		))
 	if err != nil {
 		return nil, err
@@ -118,13 +122,16 @@ func (p *pgx) BlockContent(blockContentID string) (*mDBApp.BlockContent, error) 
 	return bDBApp, nil
 }
 
-func (p *pgx) BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContent, error) {
+func (p *pgx) BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error) {
 	const (
 		q = `SELECT
-             id ,block_hash ,prev_block_hash ,deposit_root ,signature_hash
-			 ,is_registration_block ,senders ,tx_tree_root ,aggregated_public_key
-			 ,aggregated_signature ,message_point ,created_at ,block_number
-             FROM block_contents WHERE block_number = $1`
+             bc.id ,bc.block_hash ,bc.prev_block_hash ,bc.deposit_root ,bc.signature_hash
+			 ,bc.is_registration_block ,bc.senders ,bc.tx_tree_root ,bc.aggregated_public_key
+			 ,bc.aggregated_signature ,bc.message_point ,bc.created_at ,bc.block_number
+			 ,bp.validity_proof
+             FROM block_contents bc
+			 LEFT JOIN block_proofs bp ON bc.id = bp.block_content_id
+			 WHERE bc.number = $1`
 	)
 
 	var tmp models.BlockContent
@@ -143,6 +150,7 @@ func (p *pgx) BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockConten
 			&tmp.MessagePoint,
 			&tmp.CreatedAt,
 			&tmp.BlockNumber,
+			&tmp.ValidityProof,
 		))
 	if err != nil {
 		return nil, err
@@ -153,13 +161,16 @@ func (p *pgx) BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockConten
 	return bDBApp, nil
 }
 
-func (p *pgx) BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContent, error) {
+func (p *pgx) BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContentWithProof, error) {
 	const (
 		q = `SELECT
-			 id ,block_hash ,prev_block_hash ,deposit_root ,signature_hash
-			 ,is_registration_block ,senders ,tx_tree_root ,aggregated_public_key
-			 ,aggregated_signature ,message_point ,created_at ,block_number
-			 FROM block_contents WHERE tx_tree_root = $1`
+             bc.id ,bc.block_hash ,bc.prev_block_hash ,bc.deposit_root ,bc.signature_hash
+			 ,bc.is_registration_block ,bc.senders ,bc.tx_tree_root ,bc.aggregated_public_key
+			 ,bc.aggregated_signature ,bc.message_point ,bc.created_at ,bc.block_number
+			 ,bp.validity_proof
+             FROM block_contents bc
+			 LEFT JOIN block_proofs bp ON bc.id = bp.block_content_id
+			 WHERE bc.tx_tree_root = $1`
 	)
 
 	var tmp models.BlockContent
@@ -178,6 +189,7 @@ func (p *pgx) BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContent, error) 
 			&tmp.MessagePoint,
 			&tmp.CreatedAt,
 			&tmp.BlockNumber,
+			&tmp.ValidityProof,
 		))
 	if err != nil {
 		return nil, err
@@ -188,22 +200,25 @@ func (p *pgx) BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContent, error) 
 	return bDBApp, nil
 }
 
-func (p *pgx) blockContentToDBApp(tmp *models.BlockContent) *mDBApp.BlockContent {
+func (p *pgx) blockContentToDBApp(tmp *models.BlockContent) *mDBApp.BlockContentWithProof {
 	blockNumber := uint32(tmp.BlockNumber)
-	m := mDBApp.BlockContent{
-		BlockContentID:      tmp.BlockContentID,
-		BlockNumber:         blockNumber,
-		BlockHash:           tmp.BlockHash,
-		PrevBlockHash:       tmp.PrevBlockHash,
-		DepositRoot:         tmp.DepositRoot,
-		SignatureHash:       tmp.SignatureHash,
-		IsRegistrationBlock: tmp.IsRegistrationBlock,
-		Senders:             tmp.Senders,
-		TxRoot:              tmp.TxRoot,
-		AggregatedPublicKey: tmp.AggregatedPublicKey,
-		AggregatedSignature: tmp.AggregatedSignature,
-		MessagePoint:        tmp.MessagePoint,
-		CreatedAt:           tmp.CreatedAt,
+	m := mDBApp.BlockContentWithProof{
+		BlockContent: mDBApp.BlockContent{
+			BlockContentID:      tmp.BlockContentID,
+			BlockNumber:         blockNumber,
+			BlockHash:           tmp.BlockHash,
+			PrevBlockHash:       tmp.PrevBlockHash,
+			DepositRoot:         tmp.DepositRoot,
+			SignatureHash:       tmp.SignatureHash,
+			IsRegistrationBlock: tmp.IsRegistrationBlock,
+			Senders:             tmp.Senders,
+			TxRoot:              tmp.TxRoot,
+			AggregatedPublicKey: tmp.AggregatedPublicKey,
+			AggregatedSignature: tmp.AggregatedSignature,
+			MessagePoint:        tmp.MessagePoint,
+			CreatedAt:           tmp.CreatedAt,
+		},
+		ValidityProof: tmp.ValidityProof,
 	}
 
 	return &m
