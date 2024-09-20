@@ -79,7 +79,7 @@ func main() {
 	}
 
 	w := worker.New(cfg, log, dbApp)
-	bc := blockchain.New(ctx, cfg)
+	bc := blockchain.New(ctx, cfg, log)
 	depositSynchronizer := deposit_synchronizer.New(cfg, log, dbApp, bc)
 	blockPostService := block_post_service.New(cfg, log, dbApp, bc)
 	ns := network_service.New(cfg)

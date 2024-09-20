@@ -21,6 +21,12 @@ const Err520ScrollWebServerStr = "520: Web server is returning an unknown error"
 // Err502ScrollWebServerStr error: 502: Bad gateway.
 const Err502ScrollWebServerStr = "502: Bad gateway"
 
+// Err502EthereumWevServerStr error: 502 Bad Gateway.
+const Err502EthereumWevServerStr = "502 Bad Gateway"
+
+// Err503EthereumWebServerStr error: 503 Service Unavailable.
+const Err503EthereumWebServerStr = "503 Service Unavailable"
+
 // ErrBlockBuilderNotFoundStr error: Block builder not found.
 const ErrBlockBuilderNotFoundStr = "Block builder not found"
 

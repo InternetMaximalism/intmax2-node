@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	errorsB "intmax2-node/internal/blockchain/errors"
+	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
 	modelsMW "intmax2-node/internal/mnemonic_wallet/models"
 	"intmax2-node/internal/open_telemetry"
@@ -23,15 +24,18 @@ import (
 type serviceBlockchain struct {
 	ctx context.Context
 	cfg *configs.Config
+	log logger.Logger
 }
 
 func New(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 ) ServiceBlockchain {
 	return &serviceBlockchain{
 		ctx: ctx,
 		cfg: cfg,
+		log: log,
 	}
 }
 
