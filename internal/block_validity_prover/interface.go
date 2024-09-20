@@ -24,7 +24,10 @@ type BlockValidityProver interface {
 	) (lastEventSeenBlockNumber uint64, err error)
 	SyncBlockProverWithBlockNumber(blockNumber uint32) error
 	SyncBlockProver() error
-	UpdateValidityWitness(blockContent *intMaxTypes.BlockContent) (*ValidityWitness, error)
+	UpdateValidityWitness(
+		blockContent *intMaxTypes.BlockContent,
+		prevValidityWitness *ValidityWitness,
+	) (*ValidityWitness, error)
 	LastSeenBlockPostedEventBlockNumber() (uint64, error)
 	SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error
 }

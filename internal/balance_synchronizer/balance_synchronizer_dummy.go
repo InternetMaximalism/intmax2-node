@@ -3,6 +3,7 @@ package balance_synchronizer
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
@@ -113,7 +114,12 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 		s.log.Fatalf("failed to create block content: %+v", err)
 	}
 
-	_, err = blockBuilder.UpdateValidityWitness(emptyBlockContent)
+	lastValidityWitness, err := blockBuilder.LastValidityWitness()
+	if err != nil {
+		var ErrLastValidityWitnessNotFound = errors.New("last validity witness not found")
+		return nil, errors.Join(ErrLastValidityWitnessNotFound, err)
+	}
+	_, err = blockBuilder.UpdateValidityWitness(emptyBlockContent, lastValidityWitness)
 	if err != nil {
 		s.log.Fatalf("failed to post block: %+v", err)
 	}

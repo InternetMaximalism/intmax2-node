@@ -1442,7 +1442,6 @@ func (vw *ValidityWitness) ValidityPublicInputs() *ValidityPublicInputs {
 
 // AuxInfo is a structure for recording past tree states.
 type AuxInfo struct {
-	// ValidityWitness *ValidityWitness
 	BlockContent *intMaxTypes.BlockContent
 	PostedBlock  *block_post_service.PostedBlock
 }
@@ -1451,8 +1450,7 @@ type MerkleTrees struct {
 	AccountTree   *intMaxTree.AccountTree
 	BlockHashTree *intMaxTree.BlockHashTree
 	DepositLeaves []*intMaxTree.DepositLeaf
-	DepositRoots  []common.Hash
-	// TxTree        *intMaxTree.PoseidonMerkleTree
+	// DepositRoots  []common.Hash
 }
 
 type CircuitData interface{}

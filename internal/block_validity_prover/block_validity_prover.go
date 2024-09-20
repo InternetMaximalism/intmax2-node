@@ -260,8 +260,9 @@ func (d *blockValidityProver) BlockTreeProof(rootBlockNumber uint32, leafBlockNu
 
 func (d *blockValidityProver) UpdateValidityWitness(
 	blockContent *intMaxTypes.BlockContent,
+	prevValidityWitness *ValidityWitness,
 ) (*ValidityWitness, error) {
-	return d.blockBuilder.UpdateValidityWitness(blockContent)
+	return d.blockBuilder.UpdateValidityWitness(blockContent, prevValidityWitness)
 }
 
 func (d *blockValidityProver) ValidityWitness(
@@ -304,8 +305,14 @@ func (d *blockValidityProver) ValidityWitness(
 		aggregatedSignature,
 	)
 
+	lastValidityWitness, err := d.blockBuilder.LastValidityWitness()
+	if err != nil {
+		var ErrLastValidityWitnessNotFound = errors.New("last validity witness not found")
+		return nil, errors.Join(ErrLastValidityWitnessNotFound, err)
+	}
 	blockWitness, err := d.blockBuilder.GenerateBlockWithTxTreeFromBlockContent(
 		blockContent,
+		lastValidityWitness.BlockWitness.Block,
 	)
 	if err != nil {
 		panic(err)

@@ -198,9 +198,15 @@ func (w *mockWallet) SendTx(
 		return nil, nil, err
 	}
 
+	lastValidityWitness, err := blockValidityProver.BlockBuilder().LastValidityWitness()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	fmt.Printf("IMPORTANT PostBlock")
 	validityWitness, err := blockValidityProver.UpdateValidityWitness(
 		blockContent,
+		lastValidityWitness,
 	)
 	if err != nil {
 		return nil, nil, err
