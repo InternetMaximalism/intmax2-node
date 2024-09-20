@@ -24,19 +24,20 @@ import (
 )
 
 type mockBlockBuilder struct {
-	AccountTree       *intMaxTree.AccountTree
-	BlockTree         *intMaxTree.BlockHashTree
-	DepositTree       *intMaxTree.KeccakMerkleTree
-	MerkleTreeHistory map[uint32]*MerkleTrees
+	AccountTree   *intMaxTree.AccountTree
+	BlockTree     *intMaxTree.BlockHashTree
+	DepositTree   *intMaxTree.KeccakMerkleTree
+	DepositLeaves []*intMaxTree.DepositLeaf
 
 	db SQLDriverApp
 	// LastPostedBlockNumber         uint32
 	LastGeneratedProofBlockNumber uint32
-	DepositLeaves                 []*intMaxTree.DepositLeaf
-	// LastSeenProcessedDepositId    uint64
-	ValidityProofs           map[uint32]string
-	AuxInfo                  map[uint32]*mDBApp.BlockContent
+	ValidityProofs                map[uint32]string
+
 	latestWitnessBlockNumber uint32
+	MerkleTreeHistory        map[uint32]*MerkleTrees
+	// LastSeenProcessedDepositId    uint64
+	// auxInfo                  map[uint32]*mDBApp.BlockContent
 	// validityWitnesses        map[uint32]*ValidityWitness
 	// DepositTreeRoots           []common.Hash
 	// DepositTreeHistory         map[string]*intMaxTree.KeccakMerkleTree // deposit hash -> deposit tree
@@ -50,13 +51,14 @@ type MockBlockBuilder interface {
 	AppendAccountTreeLeaf(sender *big.Int, lastBlockNumber uint64) (*intMaxTree.IndexedInsertionProof, error)
 	AppendBlockTreeLeaf(block *block_post_service.PostedBlock) error
 	AppendDepositTreeLeaf(depositHash common.Hash, depositLeaf *intMaxTree.DepositLeaf) (root common.Hash, err error)
-	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
+	// BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
+	BlockAuxInfo(blockNumber uint32) (*AuxInfo, error)
 	BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContentWithProof, error)
 	BlockNumberByDepositIndex(depositIndex uint32) (uint32, error)
 	BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.MerkleProof, error)
 	BlockTreeRoot() (*intMaxGP.PoseidonHashOut, error)
 	ConstructSignature(txTreeRoot intMaxTypes.Bytes32, publicKeysHash intMaxTypes.Bytes32, accountIDHash intMaxTypes.Bytes32, isRegistrationBlock bool, sortedTxs []*MockTxRequest) (*SignatureContent, error)
-	CreateBlockContent(postedBlock *block_post_service.PostedBlock, blockContent *intMaxTypes.BlockContent) (*mDBApp.BlockContentWithProof, error)
+	// CreateBlockContent(postedBlock *block_post_service.PostedBlock, blockContent *intMaxTypes.BlockContent) (*mDBApp.BlockContentWithProof, error)
 	CurrentBlockTreeProof(blockNumber uint32) (*intMaxTree.MerkleProof, error)
 	DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error)
 	EventBlockNumberByEventNameForValidityProver(eventName string) (*mDBApp.EventBlockNumberForValidityProver, error)
@@ -175,7 +177,7 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 	// validityWitness := new(ValidityWitness).Genesis()
 	// validityWitnesses := make(map[uint32]*ValidityWitness)
 	// validityWitnesses[0] = new(ValidityWitness).Genesis()
-	auxInfo := make(map[uint32]*mDBApp.BlockContent)
+	// auxInfo := make(map[uint32]*mDBApp.BlockContent)
 
 	deposits, err := db.ScanDeposits()
 	if err != nil {
@@ -220,8 +222,8 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 		BlockTree:                     blockTree,
 		DepositTree:                   depositTree,
 		DepositLeaves:                 depositLeaves,
-		AuxInfo:                       auxInfo,
-		MerkleTreeHistory:             merkleTreeHistory,
+		// auxInfo:                       auxInfo,
+		MerkleTreeHistory: merkleTreeHistory,
 		// validityWitnesses:             validityWitnesses,
 	}
 }
@@ -435,12 +437,7 @@ func (db *mockBlockBuilder) ValidityWitnessByBlockNumber(blockNumber uint32) (*V
 		return genesisValidityWitness, nil
 	}
 
-	rawAuxInfo, err := db.BlockContentByBlockNumber(blockNumber)
-	if err != nil {
-		return nil, errors.New("block content by block number error")
-	}
-
-	auxInfo, err := BlockAuxInfoFromBlockContent(rawAuxInfo)
+	auxInfo, err := db.BlockAuxInfo(blockNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -1255,27 +1252,29 @@ func (b *mockBlockBuilder) SetValidityProof(blockNumber uint32, proof string) er
 	return nil
 }
 
-func (b *mockBlockBuilder) BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error) {
-	return b.db.BlockContentByBlockNumber(blockNumber)
+// func (b *mockBlockBuilder) blockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error) {
+// 	return b.db.BlockContentByBlockNumber(blockNumber)
+// }
 
-	// auxInfo, ok := b.AuxInfo[blockNumber]
-	// if !ok {
-	// 	return nil, false
-	// }
-
-	// return auxInfo, true
-}
-
-func BlockAuxInfo(db BlockBuilderStorage, blockNumber uint32) (*AuxInfo, error) {
-	auxInfo, err := db.BlockContentByBlockNumber(blockNumber)
+func (b *mockBlockBuilder) BlockAuxInfo(blockNumber uint32) (*AuxInfo, error) {
+	auxInfo, err := b.db.BlockContentByBlockNumber(blockNumber)
 	if err != nil {
 		return nil, errors.New("block content by block number error")
 	}
 
-	return BlockAuxInfoFromBlockContent(auxInfo)
+	return blockAuxInfoFromBlockContent(auxInfo)
 }
 
-func BlockAuxInfoFromBlockContent(auxInfo *mDBApp.BlockContentWithProof) (*AuxInfo, error) {
+// func BlockAuxInfo(db BlockBuilderStorage, blockNumber uint32) (*AuxInfo, error) {
+// 	auxInfo, err := db.BlockContentByBlockNumber(blockNumber)
+// 	if err != nil {
+// 		return nil, errors.New("block content by block number error")
+// 	}
+
+// 	return BlockAuxInfoFromBlockContent(auxInfo)
+// }
+
+func blockAuxInfoFromBlockContent(auxInfo *mDBApp.BlockContentWithProof) (*AuxInfo, error) {
 	decodedAggregatedPublicKeyPoint, err := hexutil.Decode("0x" + auxInfo.AggregatedPublicKey)
 	if err != nil {
 		return nil, fmt.Errorf("aggregated public key hex decode error: %w", err)
@@ -1362,27 +1361,6 @@ func BlockAuxInfoFromBlockContent(auxInfo *mDBApp.BlockContentWithProof) (*AuxIn
 		PostedBlock:  &postedBlock,
 		BlockContent: &blockContent,
 	}, nil
-}
-
-func setAuxInfo(
-	db BlockBuilderStorage,
-	postedBlock *block_post_service.PostedBlock,
-	blockContent *intMaxTypes.BlockContent,
-) error {
-	storedBlockContent, err := db.CreateBlockContent(
-		postedBlock,
-		blockContent,
-	)
-	if err != nil {
-		return err
-	}
-
-	if storedBlockContent.BlockNumber != postedBlock.BlockNumber {
-		// Fatal error
-		panic(fmt.Sprintf("block %d is ErrBlockNumberMismatch", postedBlock.BlockNumber))
-	}
-
-	return nil
 }
 
 func (b *mockBlockBuilder) CreateBlockContent(

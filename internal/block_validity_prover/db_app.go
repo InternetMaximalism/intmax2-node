@@ -68,11 +68,11 @@ type AccountInfo interface {
 }
 
 type BuilderBlockContents interface {
-	CreateBlockContent(
-		postedBlock *block_post_service.PostedBlock,
-		blockContent *intMaxTypes.BlockContent,
-	) (*mDBApp.BlockContentWithProof, error)
-	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
+	// CreateBlockContent(
+	// 	postedBlock *block_post_service.PostedBlock,
+	// 	blockContent *intMaxTypes.BlockContent,
+	// ) (*mDBApp.BlockContentWithProof, error)
+	// BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
 	// BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContent, error)
 }
 

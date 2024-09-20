@@ -198,11 +198,7 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, startBlock ui
 			}
 
 			// p.log.Debugf("blockContent: %v\n", blockContent)
-			err := setAuxInfo(
-				p.blockBuilder,
-				postedBlock,
-				blockContent,
-			)
+			_, err := p.blockBuilder.CreateBlockContent(postedBlock, blockContent)
 			if err != nil {
 				panic(err)
 				// return errors.Join(ErrCreateBlockContentFail, err)
@@ -217,7 +213,7 @@ func (p *blockValidityProver) SyncBlockProverWithBlockNumber(
 	blockNumber uint32,
 ) error {
 	fmt.Printf("SyncBlockProverWithBlockNumber %d proof is synchronizing\n", blockNumber)
-	result, err := BlockAuxInfo(p.blockBuilder, blockNumber)
+	result, err := p.blockBuilder.BlockAuxInfo(blockNumber)
 	if err != nil {
 		return errors.New("block content by block number error")
 	}
