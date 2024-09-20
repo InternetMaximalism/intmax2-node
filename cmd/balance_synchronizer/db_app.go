@@ -126,22 +126,14 @@ type Deposits interface {
 }
 
 type BlockContents interface {
-	// CreateBlockContent(
-	// 	blockNumber uint32,
-	// 	blockHash, prevBlockHash, depositRoot, txRoot, aggregatedSignature, aggregatedPublicKey, messagePoint string,
-	// 	isRegistrationBlock bool,
-	// 	senders []intMaxTypes.ColumnSender,
-	// ) (*mDBApp.BlockContent, error)
 	CreateBlockContent(
 		postedBlock *block_post_service.PostedBlock,
 		blockContent *intMaxTypes.BlockContent,
 	) (*mDBApp.BlockContentWithProof, error)
 	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
 	BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContentWithProof, error)
-	// SetValidityWitness(blockNumber uint32, witness *block_validity_prover.ValidityWitness) error
-	// LastValidityWitness() (*block_validity_prover.ValidityWitness, error)
-	// SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error
-	// LastSeenBlockPostedEventBlockNumber() (blockNumber uint64, err error)
+	CreateValidityProof(blockHash string, validityProof []byte) (*mDBApp.BlockProof, error)
+	LastBlockValidityProof() (*mDBApp.BlockContentWithProof, error)
 }
 
 type Withdrawals interface {

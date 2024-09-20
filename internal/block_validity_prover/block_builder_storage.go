@@ -2,6 +2,7 @@ package block_validity_prover
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -31,8 +32,8 @@ type mockBlockBuilder struct {
 
 	db SQLDriverApp
 	// LastPostedBlockNumber         uint32
-	LastGeneratedProofBlockNumber uint32
-	ValidityProofs                map[uint32]string
+	// LastGeneratedProofBlockNumber uint32
+	// ValidityProofs                map[uint32]string
 
 	latestWitnessBlockNumber uint32
 	MerkleTreeHistory        map[uint32]*MerkleTrees
@@ -206,7 +207,6 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 
 	merkleTreeHistory := make(map[uint32]*MerkleTrees)
 	merkleTreeHistory[0] = &MerkleTrees{
-		// txTree: TxTree::new(TX_TREE_HEIGHT),
 		// ValidityWitness: validityWitness,
 		AccountTree:   new(intMaxTree.AccountTree).Set(accountTree),
 		BlockHashTree: new(intMaxTree.BlockHashTree).Set(blockTree),
@@ -215,15 +215,15 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 	copy(merkleTreeHistory[0].DepositLeaves, depositLeaves)
 
 	return &mockBlockBuilder{
-		db:                            db,
-		LastGeneratedProofBlockNumber: 0,
-		ValidityProofs:                make(map[uint32]string),
-		AccountTree:                   accountTree,
-		BlockTree:                     blockTree,
-		DepositTree:                   depositTree,
-		DepositLeaves:                 depositLeaves,
-		// auxInfo:                       auxInfo,
+		db:                db,
+		AccountTree:       accountTree,
+		BlockTree:         blockTree,
+		DepositTree:       depositTree,
+		DepositLeaves:     depositLeaves,
 		MerkleTreeHistory: merkleTreeHistory,
+		// auxInfo:                       auxInfo,
+		// LastGeneratedProofBlockNumber: 0,
+		// ValidityProofs:                make(map[uint32]string),
 		// validityWitnesses:             validityWitnesses,
 	}
 }
@@ -1179,7 +1179,6 @@ func calculateValidityWitnessWithMerkleProofs(
 
 	fmt.Printf("validity_witness prev_account_tree_root: %v\n", blockWitness.PrevAccountTreeRoot.String())
 	fmt.Printf("validity_witness accountRegistrationProofsWitness: %v\n", accountRegistrationProofsWitness)
-	// fmt.Printf("validity_witness accountUpdateProofsWitness: %v\n", accountUpdateProofsWitness)
 	return &ValidityWitness{
 		BlockWitness: blockWitness,
 		ValidityTransitionWitness: &ValidityTransitionWitness{
@@ -1207,8 +1206,6 @@ func (b *mockBlockBuilder) LastSeenBlockPostedEventBlockNumber() (uint64, error)
 func (b *mockBlockBuilder) SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error {
 	_, err := b.db.UpsertEventBlockNumberForValidityProver("BlockPosted", blockNumber)
 
-	// b.lastSeenBlockPostedEventBlockNumber = blockNumber
-
 	return err
 }
 
@@ -1222,34 +1219,38 @@ func (b *mockBlockBuilder) ValidityProofByBlockNumber(blockNumber uint32) (*stri
 	// 	return nil, ErrNoValidityProofByBlockNumber
 	// }
 
-	validityProofs, ok := b.ValidityProofs[blockNumber]
-	if !ok {
+	blockContent, err := b.db.BlockContentByBlockNumber(blockNumber)
+	if err != nil {
 		fmt.Printf("blockNumber (GetValidityProof): %d\n", blockNumber)
-		return nil, ErrNoValidityProofByBlockNumber
+		return nil, errors.New("block content by block number error")
 	}
 
-	return &validityProofs, nil
+	encodedValidityProof := base64.StdEncoding.EncodeToString(blockContent.ValidityProof)
+
+	return &encodedValidityProof, nil
 }
 
-func (b *mockBlockBuilder) SetValidityProof(blockNumber uint32, proof string) error {
-	fmt.Printf("blockNumber (SetValidityProof): %d\n", blockNumber)
-	// if blockNumber != uint32(len(b.ValidityProofs)) {
-	// 	return errors.New("block number should be equal to the last block number + 1")
-	// }
-
-	if _, ok := b.ValidityProofs[blockNumber]; ok {
-		fmt.Printf("already exists block number %d\n", blockNumber)
-		return nil
+func (b *mockBlockBuilder) LastGeneratedProofBlockNumber() (uint32, error) {
+	lastValidityProof, err := b.db.LastBlockValidityProof()
+	if err != nil {
+		return 0, err
 	}
 
-	fmt.Printf("s.LastBlockNumber before SetValidityProof = %d\n", b.LastGeneratedProofBlockNumber)
-	// fmt.Printf("s.LastValidityProofBlockNumber before SetValidityProof = %d\n", b.LastPostedBlockNumber)
-	b.ValidityProofs[blockNumber] = proof
-	b.LastGeneratedProofBlockNumber = blockNumber
-	// b.LastPostedBlockNumber = blockNumber
-	fmt.Printf("s.LastBlockNumber after SetValidityProof= %d\n", b.LastGeneratedProofBlockNumber)
+	return lastValidityProof.BlockNumber, nil
+}
 
-	return nil
+func (b *mockBlockBuilder) SetValidityProof(blockHash common.Hash, proof string) error {
+	validityProof, err := base64.StdEncoding.DecodeString(proof)
+	if err != nil {
+		return err
+	}
+
+	_, err = b.db.CreateValidityProof(blockHash.Hex(), validityProof)
+	if err != nil {
+		return err
+	}
+
+	return err
 }
 
 // func (b *mockBlockBuilder) blockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error) {

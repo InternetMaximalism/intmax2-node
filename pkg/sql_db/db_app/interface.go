@@ -240,6 +240,8 @@ type BlockContents interface {
 	) (*models.BlockContentWithProof, error)
 	BlockContentByBlockNumber(blockNumber uint32) (*models.BlockContentWithProof, error)
 	BlockContentByTxRoot(txRoot string) (*models.BlockContentWithProof, error)
+	CreateValidityProof(blockHash string, validityProof []byte) (*models.BlockProof, error)
+	LastBlockValidityProof() (*models.BlockContentWithProof, error)
 }
 
 type CtrlProcessingJobs interface {

@@ -268,7 +268,11 @@ func (p *blockValidityProver) SyncBlockProverWithAuxInfo(
 
 func (p *blockValidityProver) SyncBlockProver() error {
 	currentBlockNumber := p.blockBuilder.LatestIntMaxBlockNumber()
-	lastGeneratedBlockNumber := p.blockBuilder.LastGeneratedProofBlockNumber
+	lastGeneratedBlockNumber, err := p.blockBuilder.LastGeneratedProofBlockNumber()
+	if err != nil {
+		var ErrLastGeneratedProofBlockNumberFail = errors.New("last generated proof block number fail")
+		return errors.Join(ErrLastGeneratedProofBlockNumberFail, err)
+	}
 	// if lastGeneratedBlockNumber >= currentBlockNumber {
 	// 	fmt.Printf("Block %d is already done\n", lastGeneratedBlockNumber)
 	// 	fmt.Printf("prepared witness\n", currentBlockNumber)
@@ -326,7 +330,7 @@ func (p *blockValidityProver) SyncBlockProver() error {
 		fmt.Printf("SyncBlockProver block_proof prev account tree root: %s\n", validityPubicInputs.PublicState.PrevAccountTreeRoot.String())
 		fmt.Printf("SyncBlockProver block_proof account tree root: %s\n", validityPubicInputs.PublicState.AccountTreeRoot.String())
 
-		err = p.blockBuilder.SetValidityProof(validityWitness.BlockWitness.Block.BlockNumber, validityProof)
+		err = p.blockBuilder.SetValidityProof(validityWitness.BlockWitness.Block.Hash(), validityProof)
 		if err != nil {
 			panic(err)
 		}

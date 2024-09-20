@@ -220,7 +220,7 @@ func (d *blockValidityProver) BlockNumberByDepositIndex(depositIndex uint32) (ui
 }
 
 func (d *blockValidityProver) LatestSynchronizedBlockNumber() (uint32, error) {
-	return d.blockBuilder.LastGeneratedProofBlockNumber, nil
+	return d.blockBuilder.LastGeneratedProofBlockNumber()
 }
 
 type ValidityProverInfo struct {

@@ -20,6 +20,11 @@ type BlockContent struct {
 	CreatedAt           time.Time
 }
 
+type BlockProof struct {
+	BlockContentID string
+	ValidityProof  []byte
+}
+
 type BlockContentWithProof struct {
 	BlockContent
 	ValidityProof []byte

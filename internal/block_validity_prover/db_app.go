@@ -34,6 +34,8 @@ type BlockContents interface {
 	) (*mDBApp.BlockContentWithProof, error)
 	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
 	BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContentWithProof, error)
+	CreateValidityProof(blockHash string, validityProof []byte) (*mDBApp.BlockProof, error)
+	LastBlockValidityProof() (*mDBApp.BlockContentWithProof, error)
 }
 
 type EventBlockNumbersForValidityProver interface {
