@@ -65,11 +65,12 @@ func NewSyncBalanceProver(
 	cfg *configs.Config,
 	log logger.Logger,
 ) *SyncBalanceProver {
+	storedBalanceData := new(block_synchronizer.BackupBalanceData)
 	return &SyncBalanceProver{
 		ctx:               ctx,
 		cfg:               cfg,
 		log:               log,
-		storedBalanceData: nil,
+		storedBalanceData: storedBalanceData,
 		balanceData:       nil,
 		// LastUpdatedBlockNumber: 0,
 		lastBalanceProofBody: nil,
@@ -113,16 +114,43 @@ func NewSyncBalanceProver(
 // 	return nil
 // }
 
-func (s *SyncBalanceProver) UploadLastBalanceProof(blockNumber uint32, balanceProof string, wallet UserState) error {
-	s.setLastBalanceProof(blockNumber, balanceProof)
+// func (s *SyncBalanceProver) setLastBalanceProof(blockNumber uint32, balanceProof string) {
+// 	compressedBalanceProof, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(balanceProof)
+// 	if err != nil {
+// 		log.Fatalf("failed to set last balance proof: %+v", err.Error())
+// 	}
 
+// 	s.balanceData.PublicState.BlockNumber = blockNumber
+// 	s.lastBalanceProofBody = compressedBalanceProof.Proof
+// 	s.balanceData.BalanceProofPublicInputs = compressedBalanceProof.PublicInputs
+// }
+
+func (s *SyncBalanceProver) UploadLastBalanceProof(blockNumber uint32, balanceProof string, wallet UserState) error {
+	// s.setLastBalanceProof(blockNumber, balanceProof)
+	fmt.Printf("size of balanceProof: %d\n", len(balanceProof))
+	compressedBalanceProof, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(balanceProof)
+	if err != nil {
+		log.Fatalf("failed to set last balance proof: %+v", err.Error())
+	}
+	fmt.Printf("size of compressedBalanceProof.Proof: %d\n", len(compressedBalanceProof.Proof))
+
+	// s.balanceData.PublicState.BlockNumber = blockNumber
+	s.lastBalanceProofBody = compressedBalanceProof.Proof
+	if s.balanceData == nil {
+		fmt.Printf("s.balanceData is initialized\n")
+		s.balanceData = new(block_synchronizer.BalanceData)
+	}
+
+	s.balanceData.BalanceProofPublicInputs = compressedBalanceProof.PublicInputs
 	s.balanceData.NullifierLeaves = wallet.Nullifiers()
 	s.balanceData.AssetLeaves = wallet.AssetLeaves()
 	s.balanceData.Nonce = wallet.Nonce()
 	s.balanceData.Salt = wallet.Salt()
 	s.balanceData.PublicState = wallet.PublicState()
+	fmt.Printf("s.balanceData.PublicState: %+v\n", s.balanceData.PublicState)
 
 	newBalanceData := new(block_synchronizer.BalanceData).Set(s.balanceData)
+	fmt.Printf("newBalanceData: %+v\n", newBalanceData)
 
 	encryptedNewBalanceData, err := newBalanceData.Encrypt(wallet.PublicKey())
 	if err != nil {
@@ -161,17 +189,6 @@ func (s *SyncBalanceProver) SetEncryptedBalanceData(wallet UserState, storedBala
 	s.balanceData = balanceData
 
 	return nil
-}
-
-func (s *SyncBalanceProver) setLastBalanceProof(blockNumber uint32, balanceProof string) {
-	compressedBalanceProof, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(balanceProof)
-	if err != nil {
-		log.Fatalf("failed to set last balance proof: %+v", err.Error())
-	}
-
-	s.balanceData.PublicState.BlockNumber = blockNumber
-	s.lastBalanceProofBody = compressedBalanceProof.Proof
-	s.balanceData.BalanceProofPublicInputs = compressedBalanceProof.PublicInputs
 }
 
 func (s *SyncBalanceProver) LastBalanceProof() *string {
@@ -310,8 +327,8 @@ func (s *SyncBalanceProver) SyncSend(
 
 		fmt.Printf("s.LastUpdatedBlockNumber before SyncSend: %d\n", s.LastUpdatedBlockNumber())
 		// s.LastUpdatedBlockNumber = blockNumber
-		fmt.Printf("s.LastUpdatedBlockNumber after SyncSend: %d\n", s.LastUpdatedBlockNumber())
 		s.UploadLastBalanceProof(blockNumber, balanceProof.Proof, wallet)
+		fmt.Printf("s.LastUpdatedBlockNumber after SyncSend: %d\n", s.LastUpdatedBlockNumber())
 		wallet.UpdatePublicState(balanceProof.PublicInputs.PublicState)
 	}
 
@@ -329,20 +346,19 @@ func (s *SyncBalanceProver) SyncNoSend(
 ) error {
 	fmt.Printf("-----SyncNoSend %s------\n", wallet.PublicKey())
 
-	lastUpdatedBlockNumber := s.LastUpdatedBlockNumber()
-	if lastUpdatedBlockNumber == 0 {
-		return errors.New("last updated block number is 0")
-	}
+	lastUpdatedBlockNumber := s.LastUpdatedBlockNumber() // XXX
+	// if lastUpdatedBlockNumber == 0 {
+	// 	return errors.New("last updated block number is 0")
+	// }
 
 	allBlockNumbers := wallet.GetAllBlockNumbers()
+	fmt.Printf("s.LastUpdatedBlockNumber after GetAllBlockNumbers: %d\n", lastUpdatedBlockNumber)
 	for _, blockNumber := range allBlockNumbers {
-		fmt.Printf("s.LastUpdatedBlockNumber after GetAllBlockNumbers: %d\n", s.LastUpdatedBlockNumber())
 		if lastUpdatedBlockNumber < blockNumber {
 			return errors.New("sync send tx first")
 		}
 	}
 
-	fmt.Printf("s.LastUpdatedBlockNumber before FetchUpdateWitness: %d\n", lastUpdatedBlockNumber)
 	updateWitness, err := blockValidityService.FetchUpdateWitness(
 		wallet.PublicKey(),
 		nil, // latest
@@ -412,7 +428,7 @@ func (s *SyncBalanceProver) SyncNoSend(
 		s.LastBalanceProof(),
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to prove update: %w", err)
 	}
 
 	// balancePublicInputs, err := new(BalancePublicInputs).FromPublicInputs(balanceProof.PublicInputs)
@@ -426,7 +442,10 @@ func (s *SyncBalanceProver) SyncNoSend(
 	// s.LastUpdatedBlockNumber = currentBlockNumber
 	fmt.Printf("s.LastUpdatedBlockNumber after SyncNoSend: %d\n", s.LastUpdatedBlockNumber())
 	wallet.UpdatePublicState(balanceProof.PublicInputs.PublicState)
-	s.UploadLastBalanceProof(currentBlockNumber, balanceProof.Proof, wallet)
+	err = s.UploadLastBalanceProof(currentBlockNumber, balanceProof.Proof, wallet)
+	if err != nil {
+		return fmt.Errorf("failed to upload last balance proof: %w", err)
+	}
 
 	return nil
 }
@@ -693,7 +712,7 @@ func SyncLocally(
 				case balance_prover_service.ValidReceivedDeposit:
 					log.Debugf("valid received deposit: %v\n", transition.DepositHash)
 					transitionBlockNumber := transition.BlockNumber()
-					log.Debugf("transitionBlockNumber: %d", transitionBlockNumber)
+					log.Debugf("transitionBlockNumber: %d\n", transitionBlockNumber)
 					err = syncBalanceProver.SyncNoSend(
 						log,
 						blockValidityService,
@@ -721,7 +740,7 @@ func SyncLocally(
 				case balance_prover_service.ValidReceivedTransfer:
 					log.Debugf("valid received transfer: %v\n", transition.TransferHash)
 					transitionBlockNumber := transition.BlockNumber()
-					log.Debugf("transitionBlockNumber: %d", transitionBlockNumber)
+					log.Debugf("transitionBlockNumber: %d\n", transitionBlockNumber)
 					err = syncBalanceProver.SyncNoSend(
 						log,
 						blockValidityService,

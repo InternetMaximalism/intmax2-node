@@ -43,7 +43,7 @@ func (bd *BalanceData) Set(other *BalanceData) *BalanceData {
 
 	bd.Nonce = other.Nonce
 	bd.Salt.Set(&other.Salt)
-	bd.PublicState.Set(other.PublicState)
+	bd.PublicState = new(block_validity_prover.PublicState).Set(other.PublicState)
 
 	return bd
 }

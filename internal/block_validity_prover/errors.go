@@ -129,7 +129,7 @@ var ErrLastSeenBlockPostedEventBlockNumberFail = errors.New("failed to get last 
 // ErrNoLastValidityProof error: no last validity proof.
 var ErrNoLastValidityProof = errors.New("no last validity proof")
 
-// ErrNoLastValidityWitness error: genesis validity proof error.
+// ErrGenesisValidityProof error: genesis validity proof error.
 var ErrGenesisValidityProof = errors.New("genesis validity proof error")
 
 // ErrNoLastValidityWitness error: no validity proof by block number.

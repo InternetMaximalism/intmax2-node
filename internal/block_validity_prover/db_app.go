@@ -33,9 +33,9 @@ type BlockContents interface {
 		blockContent *intMaxTypes.BlockContent,
 	) (*mDBApp.BlockContentWithProof, error)
 	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
-	BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContentWithProof, error)
+	BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWithProof, error)
 	ScanBlockHashAndSenders() (blockHashAndSendersMap map[uint32]mDBApp.BlockHashAndSenders, lastBlockNumber uint32, err error)
-	CreateValidityProof(blockHash string, validityProof []byte) (*mDBApp.BlockProof, error)
+	CreateValidityProof(blockHash common.Hash, validityProof []byte) (*mDBApp.BlockProof, error)
 	LastBlockValidityProof() (*mDBApp.BlockContentWithProof, error)
 	LastBlockNumberGeneratedValidityProof() (uint32, error)
 	LastPostedBlockNumber() (uint32, error)

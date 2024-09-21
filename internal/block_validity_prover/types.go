@@ -63,6 +63,11 @@ func (ps *PublicState) Genesis() *PublicState {
 }
 
 func (ps *PublicState) Set(other *PublicState) *PublicState {
+	if other == nil {
+		ps = nil
+		return nil
+	}
+
 	ps.BlockTreeRoot = new(intMaxGP.PoseidonHashOut).Set(other.BlockTreeRoot)
 	ps.PrevAccountTreeRoot = new(intMaxGP.PoseidonHashOut).Set(other.PrevAccountTreeRoot)
 	ps.AccountTreeRoot = new(intMaxGP.PoseidonHashOut).Set(other.AccountTreeRoot)

@@ -3,6 +3,7 @@ package pgx
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"intmax2-node/internal/block_post_service"
 	errPgx "intmax2-node/internal/sql_db/pgx/errors"
 	"intmax2-node/internal/sql_db/pgx/models"
@@ -85,9 +86,10 @@ func (p *pgx) CreateBlockContent(
 
 // Insert a new validity proof or do nothing if it already exists
 func (p *pgx) CreateValidityProof(
-	blockHash string,
+	blockHash common.Hash,
 	validityProof []byte,
 ) (*mDBApp.BlockProof, error) {
+	fmt.Printf("(CreateValidityProof) blockHash: %s\n", blockHash)
 	// 1. If a block_content corresponding to the specified block_hash exists,
 	//    and there is no row in block_validity_proofs corresponding to that block_content_id:
 	//    A new row is inserted.
@@ -108,7 +110,9 @@ func (p *pgx) CreateValidityProof(
 			 ON CONFLICT (block_content_id) DO NOTHING;`
 	)
 
-	_, err := p.exec(p.ctx, q, blockHash, validityProof)
+	blockHashHex := blockHash.Hex()[2:]
+
+	_, err := p.exec(p.ctx, q, blockHashHex, validityProof)
 	if err != nil {
 		return nil, errPgx.Err(err)
 	}
@@ -203,7 +207,7 @@ func (p *pgx) ScanBlockHashAndSenders() (blockHashAndSendersMap map[uint32]mDBAp
 	return blockHashAndSendersMap, lastBlockNumber, nil
 }
 
-func (p *pgx) BlockValidityProofByBlockHash(blockHash string) (*mDBApp.BlockProof, error) {
+func (p *pgx) BlockValidityProofByBlockHash(blockHash common.Hash) (*mDBApp.BlockProof, error) {
 	const (
 		q = `SELECT
 			 bp.block_content_id ,bp.validity_proof
@@ -212,8 +216,10 @@ func (p *pgx) BlockValidityProofByBlockHash(blockHash string) (*mDBApp.BlockProo
 			 WHERE bc.block_hash = $1`
 	)
 
+	blockHashHex := blockHash.Hex()[2:]
+
 	var tmp models.BlockProof
-	err := errPgx.Err(p.queryRow(p.ctx, q, blockHash).
+	err := errPgx.Err(p.queryRow(p.ctx, q, blockHashHex).
 		Scan(
 			&tmp.BlockContentID,
 			&tmp.ValidityProof,
@@ -348,7 +354,7 @@ func (p *pgx) BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockConten
 	return bDBApp, nil
 }
 
-func (p *pgx) BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContentWithProof, error) {
+func (p *pgx) BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWithProof, error) {
 	const (
 		q = `SELECT
              bc.id ,bc.block_hash ,bc.prev_block_hash ,bc.deposit_root ,bc.signature_hash

@@ -247,7 +247,14 @@ func (d *blockValidityProver) FetchValidityProverInfo() (*ValidityProverInfo, er
 
 func (d *blockValidityProver) FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber *uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error) {
 	if currentBlockNumber == nil {
-		latestBlockNumber := d.blockBuilder.LatestIntMaxBlockNumber()
+		// panic("currentBlockNumber == nil")
+		latestBlockNumber, err := d.blockBuilder.db.LastPostedBlockNumber()
+		fmt.Printf("(FetchUpdateWitness) latestBlockNumber: %d\n", latestBlockNumber)
+		if err != nil {
+			var ErrLastPostedBlockNumberFail = errors.New("failed to get last posted block number")
+			return nil, errors.Join(ErrLastPostedBlockNumberFail, err)
+		}
+
 		return d.blockBuilder.FetchUpdateWitness(publicKey, latestBlockNumber, targetBlockNumber, isPrevAccountTree)
 	}
 
@@ -266,7 +273,7 @@ func (d *blockValidityProver) UpdateValidityWitness(
 }
 
 func (d *blockValidityProver) ValidityWitness(
-	txRoot string,
+	txRoot common.Hash,
 ) (*ValidityWitness, error) {
 	rawBlockContent, err := d.blockBuilder.BlockContentByTxRoot(txRoot)
 	if err != nil {
@@ -322,7 +329,7 @@ func (d *blockValidityProver) ValidityWitness(
 }
 
 // TODO: multiple response
-func (d *blockValidityProver) BlockContentByTxRoot(txRoot string) (*block_post_service.PostedBlock, error) {
+func (d *blockValidityProver) BlockContentByTxRoot(txRoot common.Hash) (*block_post_service.PostedBlock, error) {
 	blockContent, err := d.blockBuilder.BlockContentByTxRoot(txRoot)
 	if err != nil {
 		var ErrBlockContentByTxRoot = errors.New("failed to get block content by tx root")
@@ -355,7 +362,7 @@ func (d *blockValidityProver) BlockContentByTxRoot(txRoot string) (*block_post_s
 	), nil
 }
 
-func (d *blockValidityProver) ValidityPublicInputs(txRoot string) (*ValidityPublicInputs, []SenderLeaf, error) {
+func (d *blockValidityProver) ValidityPublicInputs(txRoot common.Hash) (*ValidityPublicInputs, []SenderLeaf, error) {
 	validityWitness, err := d.ValidityWitness(txRoot)
 	if err != nil {
 		return nil, nil, err

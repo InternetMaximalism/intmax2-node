@@ -308,7 +308,7 @@ func MakeTxWitness(
 	// }
 
 	fmt.Printf("IMPORTANT PostBlock")
-	validityPublicInputs, senderLeaves, err := blockValidityService.ValidityPublicInputs(txDetails.TxTreeRoot.String())
+	validityPublicInputs, senderLeaves, err := blockValidityService.ValidityPublicInputs(common.BytesToHash(txDetails.TxTreeRoot.Marshal()))
 	// validityWitness, err := blockValidityService.UpdateValidityWitness(
 	// 	blockContent,
 	// )

@@ -151,7 +151,7 @@ func (s *balanceSynchronizer) Sync(
 				case balance_prover_service.ValidReceivedDeposit:
 					fmt.Printf("valid received deposit: %v\n", transition.DepositHash)
 					transitionBlockNumber := transition.BlockNumber()
-					fmt.Printf("transitionBlockNumber: %d", transitionBlockNumber)
+					fmt.Printf("transitionBlockNumber: %d\n", transitionBlockNumber)
 					err = s.syncBalanceProver.SyncNoSend(
 						s.log,
 						s.blockValidityService,
@@ -186,7 +186,7 @@ func (s *balanceSynchronizer) Sync(
 				case balance_prover_service.ValidReceivedTransfer:
 					fmt.Printf("valid received transfer: %v\n", transition.TransferHash)
 					transitionBlockNumber := transition.BlockNumber()
-					fmt.Printf("transitionBlockNumber: %d", transitionBlockNumber)
+					fmt.Printf("transitionBlockNumber: %d\n", transitionBlockNumber)
 					err = s.syncBalanceProver.SyncNoSend(
 						s.log,
 						s.blockValidityService,

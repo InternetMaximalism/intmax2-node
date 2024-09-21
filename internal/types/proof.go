@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 
 	"github.com/iden3/go-iden3-crypto/ffg"
@@ -144,8 +145,7 @@ func NewCompressedPlonky2ProofFromBase64String(proof string) (*Plonky2Proof, err
 		return nil, err
 	}
 
-	proofBytes := []byte{}
-	_, err = reader.Read(proofBytes)
+	proofBytes, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, err
 	}

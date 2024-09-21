@@ -24,7 +24,7 @@ func NewExternalBlockValidityProver(ctx context.Context, cfg *configs.Config) bl
 	}
 }
 
-func (s *externalBlockValidityService) BlockContentByTxRoot(txRoot string) (*block_post_service.PostedBlock, error) {
+func (s *externalBlockValidityService) BlockContentByTxRoot(txRoot common.Hash) (*block_post_service.PostedBlock, error) {
 	return nil, errors.New("not implemented")
 }
 
@@ -53,6 +53,6 @@ func (s *externalBlockValidityService) BlockTreeProof(rootBlockNumber uint32, le
 	return nil, errors.New("not implemented")
 }
 
-func (s *externalBlockValidityService) ValidityPublicInputs(txRoot string) (*block_validity_prover.ValidityPublicInputs, []block_validity_prover.SenderLeaf, error) {
+func (s *externalBlockValidityService) ValidityPublicInputs(txRoot common.Hash) (*block_validity_prover.ValidityPublicInputs, []block_validity_prover.SenderLeaf, error) {
 	return nil, nil, errors.New("not implemented")
 }

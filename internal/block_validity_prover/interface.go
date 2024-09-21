@@ -33,14 +33,14 @@ type BlockValidityProver interface {
 }
 
 type BlockValidityService interface {
-	BlockContentByTxRoot(txRoot string) (*block_post_service.PostedBlock, error)
+	BlockContentByTxRoot(txRoot common.Hash) (*block_post_service.PostedBlock, error)
 	GetDepositInfoByHash(depositHash common.Hash) (depositInfo *DepositInfo, err error)
 	FetchValidityProverInfo() (*ValidityProverInfo, error)
 	FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber *uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error)
 	DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error)
 	BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.PoseidonMerkleProof, error)
 	// ValidityWitness(txRoot string) (*ValidityWitness, error)
-	ValidityPublicInputs(txRoot string) (validityPublicInputs *ValidityPublicInputs, senderLeaves []SenderLeaf, err error)
+	ValidityPublicInputs(txRoot common.Hash) (validityPublicInputs *ValidityPublicInputs, senderLeaves []SenderLeaf, err error)
 }
 
 // validityWitness.ValidityTransitionWitness.SenderLeaves

@@ -54,7 +54,7 @@ type MockBlockBuilder interface {
 	AppendDepositTreeLeaf(depositHash common.Hash, depositLeaf *intMaxTree.DepositLeaf) (root common.Hash, err error)
 	// BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
 	BlockAuxInfo(blockNumber uint32) (*AuxInfo, error)
-	BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContentWithProof, error)
+	BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWithProof, error)
 	BlockNumberByDepositIndex(depositIndex uint32) (uint32, error)
 	BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.PoseidonMerkleProof, error)
 	BlockTreeRoot(blockNumber *uint32) (*intMaxGP.PoseidonHashOut, error)
@@ -1396,7 +1396,7 @@ func (b *mockBlockBuilder) SetValidityProof(blockHash common.Hash, proof string)
 		return err
 	}
 
-	_, err = b.db.CreateValidityProof(blockHash.Hex(), validityProof)
+	_, err = b.db.CreateValidityProof(blockHash, validityProof)
 	if err != nil {
 		return err
 	}
@@ -1526,7 +1526,7 @@ func (b *mockBlockBuilder) CreateBlockContent(
 	)
 }
 
-func (b *mockBlockBuilder) BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContentWithProof, error) {
+func (b *mockBlockBuilder) BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWithProof, error) {
 	return b.db.BlockContentByTxRoot(txRoot)
 }
 

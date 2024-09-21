@@ -335,6 +335,7 @@ func backupBalanceProofRawRequest(
 	user string,
 	blockNumber uint32,
 ) (*BackupBalanceData, error) {
+	fmt.Printf("size of balanceProofBody: %d", len(balanceProofBody))
 	ucInput := node.BackupBalanceRequest{
 		User:                  user,
 		EncryptedBalanceProof: balanceProofBody,
@@ -351,6 +352,7 @@ func backupBalanceProofRawRequest(
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
 	}
+	fmt.Printf("bd: %s", bd)
 
 	const (
 		httpKey     = "http"

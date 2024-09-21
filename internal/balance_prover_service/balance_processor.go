@@ -462,7 +462,7 @@ func (p *balanceProcessor) requestUpdateBalanceValidityProof(
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		err = fmt.Errorf("failed to get response")
+		err = fmt.Errorf("failed to get response: status code %d, response: %v", resp.StatusCode(), resp.String())
 		p.log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
 			"response":    resp.String(),
@@ -782,7 +782,8 @@ func (p *balanceProcessor) fetchUpdateBalanceValidityProof(publicKey *intMaxAcc.
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("failed to get response")
+		err = fmt.Errorf("failed to get response: status code %d, response: %v", resp.StatusCode(), resp.String())
+		return nil, fmt.Errorf("failed to get response from fetchUpdateBalanceValidityProof")
 	}
 
 	response := new(BalanceValidityProofResponse)
