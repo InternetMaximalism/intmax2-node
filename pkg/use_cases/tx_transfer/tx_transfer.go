@@ -84,5 +84,5 @@ func (u *uc) Do(ctx context.Context, args []string, amount, recipientAddressStr,
 		return ErrEmptyAmount
 	}
 
-	return service.TransferTransaction(spanCtx, u.cfg, u.sb, u.db, args, amount, recipientAddressStr, userEthPrivateKey)
+	return service.TransferTransaction(spanCtx, u.cfg, u.log, u.sb, u.db, args, amount, recipientAddressStr, userEthPrivateKey)
 }

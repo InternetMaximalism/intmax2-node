@@ -35,6 +35,7 @@ var (
 // uc describes use case
 type uc struct {
 	cfg *configs.Config
+	log logger.Logger
 	sb  ServiceBlockchain
 	ds  *txDepositService.TxDepositService
 }
@@ -46,6 +47,7 @@ func New(
 ) tx_deposit.UseCaseTxDeposit {
 	return &uc{
 		cfg: cfg,
+		log: log,
 		sb:  sb,
 	}
 }
@@ -99,7 +101,7 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressStr, amount,
 	}
 
 	u.ds, err = txDepositService.NewTxDepositService(
-		ctx, u.cfg, u.sb,
+		ctx, u.cfg, u.log, u.sb,
 	)
 	if err != nil {
 		return err

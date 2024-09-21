@@ -71,152 +71,181 @@ func (s *balanceSynchronizer) Sync(
 			s.log.Warnf("Received cancel signal from context, stopping...")
 			return nil
 		case <-ticker.C:
-			balanceTransitionData, err := balance_prover_service.NewBalanceTransitionData(s.ctx, s.cfg, intMaxPrivateKey)
+			err := s.syncProcessing(intMaxPrivateKey)
 			if err != nil {
-				const msg = "failed to start Balance Prover Service: %+v"
-				s.log.Fatalf(msg, err.Error())
-			}
-			sortedValidUserData, err := balanceTransitionData.SortValidUserData(
-				s.log,
-				s.blockValidityService,
-			)
-			if err != nil {
-				const msg = "failed to sort valid user data: %+v"
-				s.log.Fatalf(msg, err.Error())
-			}
-			fmt.Printf("size of sortedValidUserData: %v\n", len(sortedValidUserData))
-			for _, transition := range sortedValidUserData {
-				fmt.Printf("transition block number: %d\n", transition.BlockNumber())
-			}
-
-			// storedBalanceData, err := block_synchronizer.GetBackupBalance(s.ctx, s.cfg, intMaxPrivateKey.Public())
-			// if err != nil {
-			// 	const msg = "failed to start Balance Prover Service: %+v"
-			// 	log.Fatalf(msg, err.Error())
-			// }
-			// err = block_synchronizer.BackupBalanceProof(s.ctx, s.cfg, s.log,
-			// 	intMaxPrivateKey.ToAddress(), storedBalanceData.BalanceProofBody, storedBalanceData.EncryptedBalanceData,
-			// 	storedBalanceData.EncryptedTxs, storedBalanceData.EncryptedTransfers, storedBalanceData.EncryptedDeposits,
-			// 	storedBalanceData.Signature, storedBalanceData.BlockNumber)
-			// if err != nil {
-			// 	const msg = "failed to start Balance Prover Service: %+v"
-			// 	log.Fatalf(msg, err.Error())
-			// }
-
-			validityProverInfo, err := s.blockValidityService.FetchValidityProverInfo()
-			if err != nil {
-				const msg = "failed to fetch validity prover info: %+v"
-				s.log.Fatalf(msg, err.Error())
-			}
-
-			latestSynchronizedBlockNumber := validityProverInfo.BlockNumber
-			if latestSynchronizedBlockNumber <= s.syncBalanceProver.LastUpdatedBlockNumber() {
-				// return errors.New("block content by block number error")
-				time.Sleep(1 * time.Second)
-				continue
-			}
-
-			// err = balanceProverService.SyncBalanceProver.SyncNoSend(
-			// 	syncValidityProver,
-			// 	userWalletState,
-			// 	balanceProverService.BalanceProcessor,
-			// )
-			// if err != nil {
-			// 	const msg = "failed to sync balance prover: %+v"
-			// 	s.log.Fatalf(msg, err.Error())
-			// }
-
-			for _, transition := range sortedValidUserData {
-				fmt.Printf("wallet private state commitment (before): %s\n", s.userState.PrivateState().Commitment().String())
-				fmt.Printf("valid transition: %v\n", transition)
-
-				switch transition := transition.(type) {
-				case balance_prover_service.ValidSentTx:
-					fmt.Printf("valid sent transaction: %v\n", transition.TxHash)
-					err := applySentTransactionTransition(
-						s.log,
-						transition.Tx,
-						s.blockValidityService,
-						s.blockSynchronizer,
-						s.balanceProcessor,
-						s.syncBalanceProver,
-						s.userState,
-					)
-
-					if err != nil {
-						const msg = "failed to send transaction: %+v"
-						s.log.Warnf(msg, err.Error())
-						continue
-					}
-				case balance_prover_service.ValidReceivedDeposit:
-					fmt.Printf("valid received deposit: %v\n", transition.DepositHash)
-					transitionBlockNumber := transition.BlockNumber()
-					fmt.Printf("transitionBlockNumber: %d\n", transitionBlockNumber)
-					err = s.syncBalanceProver.SyncNoSend(
-						s.log,
-						s.blockValidityService,
-						s.blockSynchronizer,
-						s.userState,
-						s.balanceProcessor,
-					)
-					if err != nil {
-						var ErrNoValidityProofByBlockNumber = errors.New("no validity proof by block number")
-						if err.Error() == ErrNoValidityProofByBlockNumber.Error() {
-							const msg = "failed to receive deposit: %+v"
-							s.log.Warnf(msg, err.Error())
-							continue
-						}
-
-						const msg = "failed to sync balance prover: %+v"
-						s.log.Fatalf(msg, err.Error())
-					}
-
-					err := applyReceivedDepositTransition(
-						transition.Deposit,
-						s.blockValidityService,
-						s.balanceProcessor,
-						s.syncBalanceProver,
-						s.userState,
-					)
-					if err != nil {
-						const msg = "failed to receive deposit: %+v"
-						s.log.Warnf(msg, err.Error())
-						continue
-					}
-				case balance_prover_service.ValidReceivedTransfer:
-					fmt.Printf("valid received transfer: %v\n", transition.TransferHash)
-					transitionBlockNumber := transition.BlockNumber()
-					fmt.Printf("transitionBlockNumber: %d\n", transitionBlockNumber)
-					err = s.syncBalanceProver.SyncNoSend(
-						s.log,
-						s.blockValidityService,
-						s.blockSynchronizer,
-						s.userState,
-						s.balanceProcessor,
-					)
-					if err != nil {
-						const msg = "failed to sync balance prover: %+v"
-						s.log.Fatalf(msg, err.Error())
-					}
-
-					err := applyReceivedTransferTransition(
-						transition.Transfer,
-						s.blockValidityService,
-						s.balanceProcessor,
-						s.syncBalanceProver,
-						s.userState,
-					)
-					if err != nil {
-						const msg = "failed to receive transfer: %+v"
-						s.log.Warnf(msg, err.Error())
-						continue
-					}
-				default:
-					fmt.Printf("unknown transition: %v\n", transition)
+				if errors.Is(err, ErrLatestSynchronizedBlockNumberLassOrEqualLastUpdatedBlockNumber) ||
+					errors.Is(err, block_validity_prover.ErrBlockUnSynchronization) {
+					continue
 				}
+
+				const msg = "failed to start sync processing: %+v"
+				s.log.Fatalf(msg, err.Error())
 			}
 		}
 	}
+}
+
+func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.PrivateKey) (err error) {
+	balanceTransitionData, err := balance_prover_service.NewBalanceTransitionData(s.ctx, s.cfg, s.log, intMaxPrivateKey)
+	if err != nil {
+		const msg = "failed to start Balance Prover Service: %+v"
+		s.log.Fatalf(msg, err.Error())
+	}
+	sortedValidUserData, err := balanceTransitionData.SortValidUserData(
+		s.log,
+		s.blockValidityService,
+	)
+	if err != nil {
+		const msg = "failed to sort valid user data: %+v"
+		s.log.Fatalf(msg, err.Error())
+	}
+	fmt.Printf("size of sortedValidUserData: %v\n", len(sortedValidUserData))
+	for _, transition := range sortedValidUserData {
+		fmt.Printf("transition block number: %d\n", transition.BlockNumber())
+	}
+
+	validityProverInfo, err := s.blockValidityService.FetchValidityProverInfo()
+	if err != nil {
+		const msg = "failed to fetch validity prover info: %+v"
+		s.log.Fatalf(msg, err.Error())
+		return errors.Join(ErrLatestSynchronizedBlockNumberFail, err)
+	}
+
+	latestSynchronizedBlockNumber := validityProverInfo.BlockNumber
+	if latestSynchronizedBlockNumber <= s.syncBalanceProver.LastUpdatedBlockNumber() {
+		return ErrLatestSynchronizedBlockNumberLassOrEqualLastUpdatedBlockNumber
+	}
+
+	for _, transition := range sortedValidUserData {
+		fmt.Printf("wallet private state commitment (before): %s\n", s.userState.PrivateState().Commitment().String())
+		fmt.Printf("valid transition: %v\n", transition)
+
+		switch transition := transition.(type) {
+		case balance_prover_service.ValidSentTx:
+			err = s.validSentTx(&transition)
+			if err != nil {
+				const msg = "failed to send transaction: %+v"
+				s.log.Warnf(msg, err.Error())
+				continue
+			}
+		case balance_prover_service.ValidReceivedDeposit:
+			err = s.validReceivedDeposit(&transition)
+			if err != nil {
+				if errors.Is(err, block_validity_prover.ErrNoValidityProofByBlockNumber) ||
+					errors.Is(err, ErrApplyReceivedDepositTransitionFail) {
+					const msg = "failed to receive deposit: %+v"
+					s.log.Warnf(msg, err.Error())
+					continue
+				} else if errors.Is(err, block_validity_prover.ErrBlockUnSynchronization) {
+					return err
+				}
+
+				const msg = "failed to sync balance prover: %+v"
+				s.log.Fatalf(msg, err.Error())
+			}
+		case balance_prover_service.ValidReceivedTransfer:
+			err = s.validReceivedTransfer(&transition)
+			if err != nil {
+				if errors.Is(err, block_validity_prover.ErrNoValidityProofByBlockNumber) ||
+					errors.Is(err, ErrApplyReceivedTransferTransitionFail) {
+					const msg = "failed to receive deposit: %+v"
+					s.log.Warnf(msg, err.Error())
+					continue
+				} else if errors.Is(err, block_validity_prover.ErrBlockUnSynchronization) {
+					return err
+				}
+
+				const msg = "failed to sync balance prover: %+v"
+				s.log.Fatalf(msg, err.Error())
+			}
+		default:
+			fmt.Printf("unknown transition: %v\n", transition)
+		}
+	}
+
+	return nil
+}
+
+func (s *balanceSynchronizer) validSentTx(transition *balance_prover_service.ValidSentTx) error {
+	fmt.Printf("valid sent transaction: %v\n", transition.TxHash)
+	err := applySentTransactionTransition(
+		s.log,
+		transition.Tx,
+		s.blockValidityService,
+		s.blockSynchronizer,
+		s.balanceProcessor,
+		s.syncBalanceProver,
+		s.userState,
+	)
+
+	if err != nil {
+		return errors.Join(ErrValidSentTxFail, err)
+	}
+
+	return nil
+}
+
+func (s *balanceSynchronizer) validReceivedDeposit(
+	transition *balance_prover_service.ValidReceivedDeposit,
+) (err error) {
+	fmt.Printf("valid received deposit: %v\n", transition.DepositHash)
+	transitionBlockNumber := transition.BlockNumber()
+	fmt.Printf("transitionBlockNumber: %d", transitionBlockNumber)
+	err = s.syncBalanceProver.SyncNoSend(
+		s.log,
+		s.blockValidityService,
+		s.blockSynchronizer,
+		s.userState,
+		s.balanceProcessor,
+	)
+	if err != nil {
+		return errors.Join(ErrValidReceivedDepositFail, err)
+	}
+
+	err = applyReceivedDepositTransition(
+		transition.Deposit,
+		s.blockValidityService,
+		s.balanceProcessor,
+		s.syncBalanceProver,
+		s.userState,
+	)
+	if err != nil {
+		return errors.Join(ErrApplyReceivedDepositTransitionFail, err)
+	}
+
+	return nil
+}
+
+func (s *balanceSynchronizer) validReceivedTransfer(
+	transition *balance_prover_service.ValidReceivedTransfer,
+) (err error) {
+	fmt.Printf("valid received transfer: %v\n", transition.TransferHash)
+	transitionBlockNumber := transition.BlockNumber()
+	fmt.Printf("transitionBlockNumber: %d\n", transitionBlockNumber)
+	err = s.syncBalanceProver.SyncNoSend(
+		s.log,
+		s.blockValidityService,
+		s.blockSynchronizer,
+		s.userState,
+		s.balanceProcessor,
+	)
+	if err != nil {
+		const msg = "failed to sync balance prover: %+v"
+		s.log.Fatalf(msg, err.Error())
+	}
+
+	err = applyReceivedTransferTransition(
+		transition.Transfer,
+		s.blockValidityService,
+		s.balanceProcessor,
+		s.syncBalanceProver,
+		s.userState,
+	)
+	if err != nil {
+		return errors.Join(ErrApplyReceivedTransferTransitionFail, err)
+	}
+
+	return nil
 }
 
 func applyReceivedDepositTransition(

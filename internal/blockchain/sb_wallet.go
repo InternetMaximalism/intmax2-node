@@ -6,7 +6,6 @@ import (
 	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/open_telemetry"
 	"math/big"
-	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -45,14 +44,16 @@ func (sb *serviceBlockchain) walletBalance(
 	for {
 		bn, err = c.BlockNumber(spanCtx)
 		if err != nil {
-			if strings.Contains(err.Error(), errorsB.Err520ScrollWebServerStr) ||
-				strings.Contains(err.Error(), errorsB.Err502ScrollWebServerStr) {
+			switch {
+			case errorsB.ErrScrollProcessing(
+				err, sb.log, errorsB.ErrMostBlockNumberFail.Error(),
+			):
 				<-time.After(time.Second)
 				continue
+			default:
+				open_telemetry.MarkSpanError(spanCtx, err)
+				return nil, errors.Join(errorsB.ErrMostBlockNumberFail, err)
 			}
-
-			open_telemetry.MarkSpanError(spanCtx, err)
-			return nil, errors.Join(errorsB.ErrMostBlockNumberFail, err)
 		}
 		break
 	}
@@ -60,14 +61,16 @@ func (sb *serviceBlockchain) walletBalance(
 	for {
 		bal, err = c.BalanceAt(spanCtx, address, new(big.Int).SetUint64(bn))
 		if err != nil {
-			if strings.Contains(err.Error(), errorsB.Err520ScrollWebServerStr) ||
-				strings.Contains(err.Error(), errorsB.Err502ScrollWebServerStr) {
+			switch {
+			case errorsB.ErrScrollProcessing(
+				err, sb.log, errorsB.ErrGetWalletBalanceFail.Error(),
+			):
 				<-time.After(time.Second)
 				continue
+			default:
+				open_telemetry.MarkSpanError(spanCtx, err)
+				return nil, errors.Join(errorsB.ErrGetWalletBalanceFail, err)
 			}
-
-			open_telemetry.MarkSpanError(spanCtx, err)
-			return nil, errors.Join(errorsB.ErrGetWalletBalanceFail, err)
 		}
 		break
 	}

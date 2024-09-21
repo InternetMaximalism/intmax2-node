@@ -8,6 +8,7 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/hash/goldenposeidon"
+	"intmax2-node/internal/logger"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/block_proposed"
 	"net/http"
@@ -24,6 +25,7 @@ const signTimeout = 60 * time.Minute
 func GetBlockProposed(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 	senderAccount *intMaxAcc.PrivateKey,
 	transfersHash goldenposeidon.PoseidonHashOut,
 	nonce uint32,
@@ -51,7 +53,7 @@ func GetBlockProposed(
 	}
 
 	res, err := retryRequest(
-		ctx, cfg, senderAccount.ToAddress(), *txHash, expiration, signature,
+		ctx, cfg, log, senderAccount.ToAddress(), *txHash, expiration, signature,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get proposed block (retry): %w", err)
@@ -68,6 +70,7 @@ const (
 func retryRequest(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 	senderAddress intMaxAcc.Address,
 	txHash goldenposeidon.PoseidonHashOut,
 	expiration time.Time,
@@ -88,6 +91,7 @@ func retryRequest(
 			response, err := GetBlockProposedRawRequest(
 				ctx,
 				cfg,
+				log,
 				senderAddress,
 				txHash,
 				expiration,
@@ -126,19 +130,21 @@ type BlockProposedResponse struct {
 func GetBlockProposedRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 	senderAddress intMaxAcc.Address,
 	txHash goldenposeidon.PoseidonHashOut,
 	expiration time.Time,
 	signature *bn254.G2Affine,
 ) (*BlockProposedResponseData, error) {
 	return getBlockProposedRawRequest(
-		ctx, cfg, senderAddress.String(), hexutil.Encode(txHash.Marshal()), expiration, hexutil.Encode(signature.Marshal()),
+		ctx, cfg, log, senderAddress.String(), hexutil.Encode(txHash.Marshal()), expiration, hexutil.Encode(signature.Marshal()),
 	)
 }
 
 func getBlockProposedRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 	senderAddress, txHash string,
 	expiration time.Time,
 	signature string,
@@ -156,8 +162,6 @@ func getBlockProposedRawRequest(
 	}
 
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -189,7 +193,14 @@ func getBlockProposedRawRequest(
 			return nil, errors.New(respJSON.Message)
 		}
 
-		return nil, fmt.Errorf("failed to get response")
+		err = fmt.Errorf("failed to get response")
+		log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+
+		return nil, err
 	}
 
 	defer func() {

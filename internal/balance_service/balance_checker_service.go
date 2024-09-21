@@ -101,7 +101,7 @@ func GetBalance(
 		return ErrFailedToGetTokenIndex
 	}
 
-	l2Balance, err := GetUserBalance(ctx, cfg, userPk, tokenIndex)
+	l2Balance, err := GetUserBalance(ctx, cfg, lg, userPk, tokenIndex)
 	if err != nil {
 		return errors.Join(fmt.Errorf(ErrFailedToGetBalance, "INTMAX"), err)
 	}
@@ -238,14 +238,15 @@ func GetTokenIndexFromLiquidityContract(
 func GetUserBalance(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 	userPrivateKey *intMaxAcc.PrivateKey,
 	tokenIndex uint32,
 ) (*big.Int, error) {
-	userAllData, err := GetUserBalancesRawRequest(ctx, cfg, userPrivateKey.ToAddress().String())
+	userAllData, err := GetUserBalancesRawRequest(ctx, cfg, log, userPrivateKey.ToAddress().String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user balances: %w", err)
 	}
-	balanceData, err := CalculateBalance(ctx, cfg, userAllData, tokenIndex, *userPrivateKey)
+	balanceData, err := CalculateBalance(ctx, cfg, log, userAllData, tokenIndex, *userPrivateKey)
 	if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
 		return nil, ErrFetchBalanceByUserAddressAndTokenInfoWithDBApp
 	}
@@ -263,11 +264,10 @@ func GetUserBalance(
 func GetUserBalancesRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 	address string,
 ) (*GetBalancesResponse, error) {
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -289,7 +289,13 @@ func GetUserBalancesRawRequest(
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("failed to get response")
+		err = fmt.Errorf("failed to get response")
+		log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return nil, err
 	}
 
 	response := new(GetBalancesResponse)
@@ -303,11 +309,10 @@ func GetUserBalancesRawRequest(
 func GetDepositValidityRawRequest(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 	depositID string,
 ) (bool, error) {
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -330,7 +335,13 @@ func GetDepositValidityRawRequest(
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return false, fmt.Errorf("failed to get response")
+		err = fmt.Errorf("failed to get response")
+		log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return false, err
 	}
 
 	response := new(GetVerifyDepositConfirmationResponse)
@@ -348,6 +359,7 @@ func GetDepositValidityRawRequest(
 func CalculateBalance(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 	userAllData *GetBalancesResponse,
 	tokenIndex uint32,
 	userPrivateKey intMaxAcc.PrivateKey,
@@ -378,6 +390,7 @@ func CalculateBalance(
 		ok, err := GetDepositValidityRawRequest(
 			ctx,
 			cfg,
+			log,
 			depositID,
 		)
 		if err != nil {

@@ -79,8 +79,13 @@ func main() {
 	}
 
 	w := worker.New(cfg, log, dbApp)
-	bc := blockchain.New(ctx, cfg)
+	bc := blockchain.New(ctx, cfg, log)
 	depositSynchronizer, err := deposit_synchronizer.New(ctx, cfg, log, dbApp, bc)
+	if err != nil {
+		const msg = "deposit synchronizer init: %v"
+		log.Errorf(msg, err)
+		return
+	}
 	blockPostService := block_post_service.New(cfg, log, dbApp, bc)
 	ns := network_service.New(cfg)
 	hc := health.NewHandler()

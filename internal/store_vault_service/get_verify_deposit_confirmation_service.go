@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/bindings"
+	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/logger"
 	verifyDepositConfirmation "intmax2-node/internal/use_cases/verify_deposit_confirmation"
 	"intmax2-node/pkg/utils"
 	"math/big"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -113,29 +115,52 @@ func GetVerifyDepositConfirmation(
 	return true, nil
 }
 
-func (v *VerifyDepositConfirmationService) getLastProcessedDepositId() (*big.Int, error) {
-	result, err := v.rollup.LastProcessedDepositId(&bind.CallOpts{
-		Pending: false,
-		Context: v.ctx,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get last processed depositId: %w", err)
+func (v *VerifyDepositConfirmationService) getLastProcessedDepositId() (result *big.Int, err error) {
+	for {
+		result, err = v.rollup.LastProcessedDepositId(&bind.CallOpts{
+			Pending: false,
+			Context: v.ctx,
+		})
+		if err != nil {
+			if errorsB.ErrScrollProcessing(err, v.log, "failed to get last processed depositId from rollup") {
+				<-time.After(time.Second)
+				continue
+			}
+
+			return nil, fmt.Errorf("failed to get last processed depositId: %w", err)
+		}
+
+		break
 	}
+
 	return result, nil
 }
 
-func (v *VerifyDepositConfirmationService) checkDepositDataExists(depositId *big.Int) (bool, error) {
-	result, err := v.liquidity.GetDepositData(&bind.CallOpts{
-		Pending: false,
-		Context: v.ctx,
-	}, depositId)
-	if err != nil {
-		if strings.Contains(err.Error(), "execution reverted: out-of-bounds access of an array or bytesN") {
-			return false, nil
+func (v *VerifyDepositConfirmationService) checkDepositDataExists(depositId *big.Int) (exists bool, err error) {
+	var result bindings.DepositQueueLibDepositData
+	for {
+		result, err = v.liquidity.GetDepositData(&bind.CallOpts{
+			Pending: false,
+			Context: v.ctx,
+		}, depositId)
+		if err != nil {
+			switch {
+			case errorsB.ErrEthereumProcessing(err, v.log, "failed to get deposit data from liquidity"):
+				<-time.After(time.Second)
+				continue
+			case strings.Contains(err.Error(), "execution reverted: out-of-bounds access of an array or bytesN"):
+				return false, nil
+			default:
+				return false, fmt.Errorf("failed to get deposit data: %w", err)
+			}
 		}
-		return false, fmt.Errorf("failed to get deposit data: %w", err)
+
+		break
 	}
-	return !result.IsRejected, nil
+
+	exists = !result.IsRejected
+
+	return exists, nil
 }
 
 func (v *VerifyDepositConfirmationService) checkIfDepositCanceled(depositId *big.Int) (bool, error) {

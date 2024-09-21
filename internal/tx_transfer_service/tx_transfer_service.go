@@ -39,7 +39,7 @@ const (
 func TransferTransaction(
 	ctx context.Context,
 	cfg *configs.Config,
-	// log logger.Logger,
+	log logger.Logger,
 	sb ServiceBlockchain,
 	db block_validity_prover.SQLDriverApp,
 	args []string,
@@ -95,7 +95,6 @@ func TransferTransaction(
 	// }
 
 	fmt.Println("Fetching balances...")
-	log := logger.NewCommandLineLogger()
 	// blockValidityProver, err := block_validity_prover.NewBlockValidityProver(ctx, cfg, log, sb, db)
 	// if err != nil {
 	// 	const msg = "failed to start Block Validity Prover: %+v"
@@ -194,7 +193,7 @@ func TransferTransaction(
 		return fmt.Errorf("failed to sync balance proof: %w", err)
 	}
 
-	balance := userWalletState.Balance(tokenIndex).BigInt()
+	l1Balance := userWalletState.Balance(tokenIndex).BigInt()
 	// balance, err := balance_service.GetUserBalance(ctx, cfg, userAccount, tokenIndex)
 	// if err != nil {
 	// 	return fmt.Errorf(ErrFailedToGetBalance.Error()+": %v", err)
@@ -210,12 +209,12 @@ func TransferTransaction(
 		return fmt.Errorf("failed to convert amount to int: %v", amountStr)
 	}
 
-	if balance.Cmp(amount) < 0 {
-		return fmt.Errorf("insufficient funds for total amount: balance %s, total amount %s", balance, amount)
+	if l1Balance.Cmp(amount) < 0 {
+		return fmt.Errorf("insufficient funds for total amount: balance %s, total amount %s", l1Balance, amount)
 	}
 
 	var dataBlockInfo *BlockInfoResponseData
-	dataBlockInfo, err = GetBlockInfo(ctx, cfg)
+	dataBlockInfo, err = GetBlockInfo(ctx, cfg, log)
 	if err != nil {
 		return fmt.Errorf("failed to get the block info data: %w", err)
 	}
@@ -259,8 +258,8 @@ func TransferTransaction(
 		return fmt.Errorf("failed to convert gas fee to int: %w", err)
 	}
 	totalAmountWithGas := new(big.Int).Add(amount, gasFeeInt)
-	if balance.Cmp(totalAmountWithGas) < 0 {
-		return fmt.Errorf("insufficient funds for tx cost: balance %s, tx cost %s", balance, totalAmountWithGas)
+	if l1Balance.Cmp(totalAmountWithGas) < 0 {
+		return fmt.Errorf("insufficient funds for tx cost: l1Balance %s, tx cost %s", l1Balance, totalAmountWithGas)
 	}
 
 	// Send transfer transaction
@@ -300,6 +299,7 @@ func TransferTransaction(
 	err = SendTransferTransaction(
 		ctx,
 		cfg,
+		log,
 		userAccount,
 		transfersHash,
 		nonce,
@@ -313,7 +313,7 @@ func TransferTransaction(
 	// Get proposed block
 	var proposedBlock *BlockProposedResponseData
 	proposedBlock, err = GetBlockProposed(
-		ctx, cfg, userAccount, transfersHash, nonce,
+		ctx, cfg, log, userAccount, transfersHash, nonce,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to send transaction: %v", err)
@@ -394,7 +394,7 @@ func TransferTransaction(
 
 	// Accept proposed block
 	err = SendSignedProposedBlock(
-		ctx, cfg, userAccount, proposedBlock.TxTreeRoot, *txHash, proposedBlock.PublicKeys,
+		ctx, cfg, log, userAccount, proposedBlock.TxTreeRoot, *txHash, proposedBlock.PublicKeys,
 		backupTx, backupTransfers,
 	)
 	if err != nil {
@@ -689,6 +689,7 @@ func MakeWithdrawalBackupData(
 	}
 
 	return &transaction.BackupTransferInput{
+		TransferHash:             transfer.Hash().String(),
 		Recipient:                hexutil.Encode(transfer.Recipient.Marshal()),
 		EncodedEncryptedTransfer: base64.StdEncoding.EncodeToString(encryptedTransfer),
 	}, nil

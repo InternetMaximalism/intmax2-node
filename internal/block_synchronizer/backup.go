@@ -67,8 +67,6 @@ func backupTransactionRawRequest(
 	}
 
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -94,6 +92,7 @@ func backupTransactionRawRequest(
 		err = fmt.Errorf("failed to get response")
 		log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
 			"response":    resp.String(),
 		}).WithError(err).Errorf("Unexpected status code")
 		return err
@@ -160,8 +159,6 @@ func backupTransferRawRequest(
 	}
 
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -187,6 +184,7 @@ func backupTransferRawRequest(
 		err = fmt.Errorf("failed to get response")
 		log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
 			"response":    resp.String(),
 		}).WithError(err).Errorf("Unexpected status code")
 		return err
@@ -247,8 +245,6 @@ func backupWithdrawalRawRequest(
 	}
 
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -274,6 +270,7 @@ func backupWithdrawalRawRequest(
 		err = fmt.Errorf("failed to get response")
 		log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
 			"response":    resp.String(),
 		}).WithError(err).Errorf("Unexpected status code")
 		return err
@@ -352,7 +349,7 @@ func backupBalanceProofRawRequest(
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
 	}
-	fmt.Printf("bd: %s", bd)
+	// fmt.Printf("bd: %s", bd)
 
 	const (
 		httpKey     = "http"

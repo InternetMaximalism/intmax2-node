@@ -101,8 +101,6 @@ func getBlockStatusRawRequest(
 	txTreeRoot string,
 ) (*block_status.UCBlockStatus, error) {
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -138,7 +136,14 @@ func getBlockStatusRawRequest(
 			return nil, errors.New(respJSON.Message)
 		}
 
-		return nil, fmt.Errorf("failed to get response")
+		err = fmt.Errorf("failed to get response")
+		log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+
+		return nil, err
 	}
 
 	defer func() {

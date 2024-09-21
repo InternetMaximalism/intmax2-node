@@ -66,7 +66,7 @@ func (s *WithdrawalServer) WithdrawalRequest(
 		return &resp, utils.BadRequest(spanCtx, err)
 	}
 
-	bc := blockchain.New(ctx, s.config)
+	bc := blockchain.New(ctx, s.config, s.log)
 
 	err = s.dbApp.Exec(spanCtx, nil, func(d interface{}, _ interface{}) (err error) {
 		q, _ := d.(SQLDriverApp)

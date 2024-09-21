@@ -20,8 +20,6 @@ import (
 
 const timeoutForFetchingBalanceValidityProof = 3 * time.Second
 
-var ErrBalanceProofNotGenerated = errors.New("balance proof is not generated")
-
 type SenderProofWithPublicInputs struct {
 	Proof        string
 	PublicInputs *SenderPublicInputs
@@ -80,7 +78,8 @@ func (s *balanceProcessor) ProveUpdate(
 		case <-ticker.C:
 			proof, err := s.fetchUpdateBalanceValidityProof(publicKey, requestID)
 			if err != nil {
-				if errors.Is(err, ErrBalanceProofNotGenerated) {
+				if errors.Is(err, ErrBalanceProofNotGenerated) ||
+					errors.Is(err, ErrStatusRequestTimeout) {
 					continue
 				}
 
@@ -437,8 +436,6 @@ func (p *balanceProcessor) requestUpdateBalanceValidityProof(
 	p.log.Debugf("size of requestUpdateBalanceValidityProof: %d bytes\n", len(bd))
 
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -465,6 +462,7 @@ func (p *balanceProcessor) requestUpdateBalanceValidityProof(
 		err = fmt.Errorf("failed to get response: status code %d, response: %v", resp.StatusCode(), resp.String())
 		p.log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
 			"response":    resp.String(),
 		}).WithError(err).Errorf("Unexpected status code")
 		return "", err
@@ -503,8 +501,6 @@ func (p *balanceProcessor) requestReceiveDepositBalanceValidityProof(
 	p.log.Debugf("size of requestReceiveDepositBalanceValidityProof: %d bytes\n", len(bd))
 
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -531,6 +527,7 @@ func (p *balanceProcessor) requestReceiveDepositBalanceValidityProof(
 		err = fmt.Errorf("failed to get response")
 		p.log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
 			"response":    resp.String(),
 		}).WithError(err).Errorf("Unexpected status code")
 		return "", err
@@ -572,8 +569,6 @@ func (p *balanceProcessor) requestSendBalanceValidityProof(
 	p.log.Debugf("size of requestSendBalanceValidityProof: %d bytes\n", len(bd))
 
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -600,6 +595,7 @@ func (p *balanceProcessor) requestSendBalanceValidityProof(
 		err = fmt.Errorf("failed to get response")
 		p.log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
 			"response":    resp.String(),
 		}).WithError(err).Errorf("Unexpected status code")
 		return "", err
@@ -635,8 +631,6 @@ func (p *balanceProcessor) requestSpendProof(
 	p.log.Debugf("size of requestSpendProof: %d bytes\n", len(bd))
 
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -663,6 +657,7 @@ func (p *balanceProcessor) requestSpendProof(
 		err = fmt.Errorf("failed to get response")
 		p.log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
 			"response":    resp.String(),
 		}).WithError(err).Errorf("Unexpected status code")
 		return "", err
@@ -702,8 +697,6 @@ func (p *balanceProcessor) requestReceiveTransferBalanceValidityProof(
 	p.log.Debugf("size of requestReceiveTransferBalanceValidityProof: %d bytes\n", len(bd))
 
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -730,6 +723,7 @@ func (p *balanceProcessor) requestReceiveTransferBalanceValidityProof(
 		err = fmt.Errorf("failed to get response")
 		p.log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
 			"response":    resp.String(),
 		}).WithError(err).Errorf("Unexpected status code")
 		return "", err
@@ -758,8 +752,6 @@ type BalanceValidityProofResponse struct {
 // curl $API_BALANCE_VALIDITY_PROVER_URL/proof/{:intMaxAddress}/update/{:blockHash} | jq
 func (p *balanceProcessor) fetchUpdateBalanceValidityProof(publicKey *intMaxAcc.PublicKey, requestID string) (*BalanceValidityProofResponse, error) {
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -781,9 +773,19 @@ func (p *balanceProcessor) fetchUpdateBalanceValidityProof(publicKey *intMaxAcc.
 		return nil, errors.New(msg)
 	}
 
+	if resp.StatusCode() == http.StatusRequestTimeout {
+		return nil, ErrStatusRequestTimeout
+	}
+
 	if resp.StatusCode() != http.StatusOK {
 		err = fmt.Errorf("failed to get response: status code %d, response: %v", resp.StatusCode(), resp.String())
-		return nil, fmt.Errorf("failed to get response from fetchUpdateBalanceValidityProof")
+		err = fmt.Errorf("failed to get response")
+		p.log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return nil, err
 	}
 
 	response := new(BalanceValidityProofResponse)
@@ -811,8 +813,6 @@ func (p *balanceProcessor) fetchUpdateBalanceValidityProof(publicKey *intMaxAcc.
 // curl $API_BALANCE_VALIDITY_PROVER_URL/proof/{:intMaxAddress}/deposit/{:depositIndex} | jq
 func (p *balanceProcessor) fetchReceiveDepositBalanceValidityProof(publicKey *intMaxAcc.PublicKey, requestID string) (*BalanceValidityProofResponse, error) {
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -835,7 +835,13 @@ func (p *balanceProcessor) fetchReceiveDepositBalanceValidityProof(publicKey *in
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("failed to get response")
+		err = fmt.Errorf("failed to get response")
+		p.log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return nil, err
 	}
 
 	response := new(BalanceValidityProofResponse)
@@ -863,8 +869,6 @@ func (p *balanceProcessor) fetchReceiveDepositBalanceValidityProof(publicKey *in
 // curl $API_BALANCE_VALIDITY_PROVER_URL/proof/{:intMaxAddress}/send/{:blockHash} | jq
 func (p *balanceProcessor) fetchSendBalanceValidityProof(publicKey *intMaxAcc.PublicKey, requestID string) (*BalanceValidityProofResponse, error) {
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -887,7 +891,13 @@ func (p *balanceProcessor) fetchSendBalanceValidityProof(publicKey *intMaxAcc.Pu
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("failed to get response")
+		err = fmt.Errorf("failed to get response")
+		p.log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return nil, err
 	}
 
 	response := new(BalanceValidityProofResponse)
@@ -913,8 +923,6 @@ func (p *balanceProcessor) fetchSendBalanceValidityProof(publicKey *intMaxAcc.Pu
 
 func (p *balanceProcessor) fetchSpendBalanceValidityProof(publicKey *intMaxAcc.PublicKey, requestID string) (*BalanceValidityProofResponse, error) {
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -937,7 +945,13 @@ func (p *balanceProcessor) fetchSpendBalanceValidityProof(publicKey *intMaxAcc.P
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("failed to get response")
+		err = fmt.Errorf("failed to get response")
+		p.log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return nil, err
 	}
 
 	response := new(BalanceValidityProofResponse)
@@ -965,8 +979,6 @@ func (p *balanceProcessor) fetchSpendBalanceValidityProof(publicKey *intMaxAcc.P
 // curl $API_BALANCE_VALIDITY_PROVER_URL/proof/{:intMaxAddress}/send/{:blockHash} | jq
 func (p *balanceProcessor) fetchReceiveTransferBalanceValidityProof(publicKey *intMaxAcc.PublicKey, requestID string) (*BalanceValidityProofResponse, error) {
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -989,7 +1001,13 @@ func (p *balanceProcessor) fetchReceiveTransferBalanceValidityProof(publicKey *i
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return nil, fmt.Errorf("failed to get response")
+		err = fmt.Errorf("failed to get response")
+		p.log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return nil, err
 	}
 
 	response := new(BalanceValidityProofResponse)

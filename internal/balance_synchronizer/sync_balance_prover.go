@@ -346,7 +346,7 @@ func (s *SyncBalanceProver) SyncNoSend(
 ) error {
 	fmt.Printf("-----SyncNoSend %s------\n", wallet.PublicKey())
 
-	lastUpdatedBlockNumber := s.LastUpdatedBlockNumber() // XXX
+	lastUpdatedBlockNumber := s.LastUpdatedBlockNumber()
 	// if lastUpdatedBlockNumber == 0 {
 	// 	return errors.New("last updated block number is 0")
 	// }
@@ -621,7 +621,7 @@ func SyncLocally(
 	// 	log.Fatalf(msg, err.Error())
 	// }
 
-	balanceTransitionData, err := balance_prover_service.NewBalanceTransitionData(ctx, cfg, userWalletState.PrivateKey())
+	balanceTransitionData, err := balance_prover_service.NewBalanceTransitionData(ctx, cfg, log, userWalletState.PrivateKey())
 	if err != nil {
 		const msg = "failed to start Balance Prover Service: %+v"
 		log.Fatalf(msg, err.Error())

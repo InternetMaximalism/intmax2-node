@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"intmax2-node/internal/logger"
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -24,8 +25,6 @@ type FetchBlockValidityProofInput struct {
 // curl $BLOCK_VALIDITY_PROVER_URL/proof/{:blockHash} | jq
 func (p *blockValidityProver) fetchBlockValidityProof(blockHash common.Hash) (string, error) {
 	const (
-		httpKey     = "http"
-		httpsKey    = "https"
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
@@ -47,7 +46,13 @@ func (p *blockValidityProver) fetchBlockValidityProof(blockHash common.Hash) (st
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		return "", fmt.Errorf("failed to get response")
+		err = fmt.Errorf("failed to get response")
+		p.log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"api_url":     apiUrl,
+			"response":    resp.String(),
+		}).WithError(err).Errorf("Unexpected status code")
+		return "", err
 	}
 
 	response := new(FetchBlockValidityProof)

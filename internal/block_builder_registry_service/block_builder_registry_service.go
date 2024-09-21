@@ -92,14 +92,15 @@ func (bbr *blockBuilderRegistryService) GetBlockBuilder(
 		blockBuilderInfo, err = callerBBR.BlockBuilders(&opts, *w.WalletAddress)
 		if err != nil {
 			switch {
-			case
-				strings.Contains(err.Error(), errorsB.Err520ScrollWebServerStr),
-				strings.Contains(err.Error(), errorsB.Err502ScrollWebServerStr):
+			case errorsB.ErrScrollProcessing(
+				err, bbr.log, ErrProcessingFuncUpdateBlockBuilderOfBlockBuilderRegistryFail.Error(),
+			):
+				<-time.After(time.Second)
 				continue
+			default:
+				open_telemetry.MarkSpanError(spanCtx, err)
+				return nil, errors.Join(ErrProcessingFuncUpdateBlockBuilderOfBlockBuilderRegistryFail, err)
 			}
-
-			open_telemetry.MarkSpanError(spanCtx, err)
-			return nil, errors.Join(ErrProcessingFuncUpdateBlockBuilderOfBlockBuilderRegistryFail, err)
 		}
 
 		return &blockBuilderInfo, nil
@@ -204,10 +205,10 @@ func (bbr *blockBuilderRegistryService) UpdateBlockBuilder(
 		tx, err = transactorBBR.UpdateBlockBuilder(transactOpts, url)
 		if err != nil {
 			switch {
-			case
-				strings.Contains(err.Error(), errorsB.Err520ScrollWebServerStr),
-				strings.Contains(err.Error(), errorsB.Err502ScrollWebServerStr),
-				strings.Contains(err.Error(), errorsB.ErrInvalidSequenceStr):
+			case errorsB.ErrScrollProcessing(
+				err, bbr.log, ErrProcessingFuncUpdateBlockBuilderOfBlockBuilderRegistryFail.Error(),
+			):
+				<-time.After(time.Second)
 				continue
 			case strings.Contains(err.Error(), errorsB.ErrInsufficientStakeAmountStr):
 				value = &bbr.cfg.Blockchain.ScrollNetworkStakeBalance
@@ -294,10 +295,9 @@ func (bbr *blockBuilderRegistryService) StopBlockBuilder(
 		_, err = transactorBBR.StopBlockBuilder(transactOpts)
 		if err != nil {
 			switch {
-			case
-				strings.Contains(err.Error(), errorsB.Err520ScrollWebServerStr),
-				strings.Contains(err.Error(), errorsB.Err502ScrollWebServerStr),
-				strings.Contains(err.Error(), errorsB.ErrInvalidSequenceStr):
+			case errorsB.ErrScrollProcessing(
+				err, bbr.log, ErrProcessingFuncStopOfBlockBuilderRegistryFail.Error(),
+			):
 				<-time.After(time.Second)
 				continue
 			case strings.Contains(err.Error(), errorsB.ErrBlockBuilderNotFoundStr):
@@ -359,10 +359,9 @@ func (bbr *blockBuilderRegistryService) UnStakeBlockBuilder(
 		_, err = transactorBBR.Unstake(transactOpts)
 		if err != nil {
 			switch {
-			case
-				strings.Contains(err.Error(), errorsB.Err520ScrollWebServerStr),
-				strings.Contains(err.Error(), errorsB.Err502ScrollWebServerStr),
-				strings.Contains(err.Error(), errorsB.ErrInvalidSequenceStr):
+			case errorsB.ErrScrollProcessing(
+				err, bbr.log, ErrProcessingFuncUnStakeOfBlockBuilderRegistryFail.Error(),
+			):
 				<-time.After(time.Second)
 				continue
 			case strings.Contains(err.Error(), errorsB.ErrBlockBuilderNotFoundStr):

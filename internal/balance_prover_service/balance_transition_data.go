@@ -13,7 +13,6 @@ import (
 	"intmax2-node/internal/logger"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
-	"log"
 	"math/big"
 	"sort"
 	"strconv"
@@ -38,17 +37,22 @@ type BalanceTransitionData struct {
 	Transfers    []*intMaxTypes.TransferDetailsWithProofBody
 }
 
-func NewBalanceTransitionData(ctx context.Context, cfg *configs.Config, userPrivateKey *intMaxAcc.PrivateKey) (*BalanceTransitionData, error) {
+func NewBalanceTransitionData(
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
+	userPrivateKey *intMaxAcc.PrivateKey,
+) (*BalanceTransitionData, error) {
 	intMaxWalletAddress := userPrivateKey.ToAddress()
 	fmt.Printf("Starting balance prover service: %s\n", intMaxWalletAddress)
 
-	storedTransitionData, err := balance_service.GetUserBalancesRawRequest(ctx, cfg, intMaxWalletAddress.String())
+	storedTransitionData, err := balance_service.GetUserBalancesRawRequest(ctx, cfg, log, intMaxWalletAddress.String())
 	if err != nil {
 		const msg = "failed to get user all data: %+v"
 		panic(fmt.Sprintf(msg, err.Error()))
 	}
 
-	decodedUserAllData, err := DecodeBackupData(ctx, cfg, storedTransitionData, userPrivateKey)
+	decodedUserAllData, err := DecodeBackupData(ctx, cfg, log, storedTransitionData, userPrivateKey)
 	if err != nil {
 		fmt.Printf("Error in DecodeBackupData: %v\n", err)
 		return nil, fmt.Errorf("failed to decode backup data: %v", err)
@@ -64,6 +68,7 @@ func NewBalanceTransitionData(ctx context.Context, cfg *configs.Config, userPriv
 func DecodeBackupData(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 	userAllData *balance_service.GetBalancesResponse,
 	userPrivateKey *intMaxAcc.PrivateKey,
 ) (*BalanceTransitionData, error) {
@@ -104,6 +109,7 @@ func DecodeBackupData(
 		ok, err := balance_service.GetDepositValidityRawRequest(
 			ctx,
 			cfg,
+			log,
 			depositIDStr,
 		)
 		if err != nil {
