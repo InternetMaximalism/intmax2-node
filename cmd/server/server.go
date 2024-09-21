@@ -244,7 +244,7 @@ func NewServerCmd(s *Server) *cobra.Command {
 			}()
 
 			s.Log.Infof("Start Block Validity Prover")
-			blockNumber := uint32(1)
+			// blockNumber := uint32(1)
 			var blockValidityProver block_validity_prover.BlockValidityProver
 			blockValidityProver, err = block_validity_prover.NewBlockValidityProver(s.Context, s.Config, s.Log, s.SB, s.DbApp)
 			if err != nil {
@@ -256,6 +256,14 @@ func NewServerCmd(s *Server) *cobra.Command {
 				const msg = "failed to start Block Validity Service: %+v"
 				s.Log.Fatalf(msg, err.Error())
 			}
+
+			blockNumber, err := blockValidityService.LatestSynchronizedBlockNumber()
+			if err != nil {
+				const msg = "failed to get the latest synchronized block number: %+v"
+				s.Log.Fatalf(msg, err.Error())
+			}
+			blockNumber += 1
+			fmt.Printf("blockNumber (server): %d\n", blockNumber)
 
 			wg.Add(1)
 			s.WG.Add(1)
@@ -276,8 +284,8 @@ func NewServerCmd(s *Server) *cobra.Command {
 					case <-ticker.C:
 						fmt.Printf("===============blockNumber: %d\n", blockNumber)
 						err = blockValidityService.SyncBlockProverWithBlockNumber(blockNumber)
-						fmt.Printf("===============err: %v\n", err)
 						if err != nil {
+							fmt.Printf("===============err: %v\n", err.Error())
 							if err.Error() == block_validity_prover.ErrNoValidityProofByBlockNumber.Error() {
 								s.Log.Warnf("no last validity proof")
 								time.Sleep(5 * time.Second)
@@ -292,7 +300,7 @@ func NewServerCmd(s *Server) *cobra.Command {
 								continue
 							}
 
-							if err.Error() == "block content by block number error" {
+							if strings.HasPrefix(err.Error(), "block content by block number error") {
 								s.Log.Warnf("block content by block number error")
 								time.Sleep(5 * time.Second)
 

@@ -244,6 +244,7 @@ type BlockContents interface {
 	CreateValidityProof(blockHash string, validityProof []byte) (*models.BlockProof, error)
 	LastBlockValidityProof() (*models.BlockContentWithProof, error)
 	LastBlockNumberGeneratedValidityProof() (uint32, error)
+	LastPostedBlockNumber() (uint32, error)
 }
 
 type CtrlProcessingJobs interface {

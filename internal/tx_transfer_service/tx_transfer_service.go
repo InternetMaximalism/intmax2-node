@@ -13,7 +13,6 @@ import (
 	intMaxAccTypes "intmax2-node/internal/accounts/types"
 	"intmax2-node/internal/balance_service"
 	"intmax2-node/internal/balance_synchronizer"
-	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/block_validity_prover"
 	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/hash/goldenposeidon"
@@ -25,8 +24,6 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common"
@@ -99,83 +96,83 @@ func TransferTransaction(
 
 	fmt.Println("Fetching balances...")
 	log := logger.NewCommandLineLogger()
-	blockValidityProver, err := block_validity_prover.NewBlockValidityProver(ctx, cfg, log, sb, db)
-	if err != nil {
-		const msg = "failed to start Block Validity Prover: %+v"
-		log.Fatalf(msg, err.Error())
-	}
+	// blockValidityProver, err := block_validity_prover.NewBlockValidityProver(ctx, cfg, log, sb, db)
+	// if err != nil {
+	// 	const msg = "failed to start Block Validity Prover: %+v"
+	// 	log.Fatalf(msg, err.Error())
+	// }
 	blockValidityService, err := block_validity_prover.NewBlockValidityService(ctx, cfg, log, sb, db)
 	if err != nil {
 		const msg = "failed to start Block Validity Service: %+v"
 		log.Fatalf(msg, err.Error())
 	}
 
-	wg := sync.WaitGroup{}
+	// wg := sync.WaitGroup{}
 
-	wg.Add(1)
-	go func() {
-		defer func() {
-			wg.Done()
-		}()
+	// wg.Add(1)
+	// go func() {
+	// 	defer func() {
+	// 		wg.Done()
+	// 	}()
 
-		var blockSynchronizer block_synchronizer.BlockSynchronizer
-		blockSynchronizer, err = block_synchronizer.NewBlockSynchronizer(ctx, cfg, log)
-		if err != nil {
-			const msg = "failed to start Block Synchronizer: %+v"
-			log.Fatalf(msg, err.Error())
-		}
+	// 	var blockSynchronizer block_synchronizer.BlockSynchronizer
+	// 	blockSynchronizer, err = block_synchronizer.NewBlockSynchronizer(ctx, cfg, log)
+	// 	if err != nil {
+	// 		const msg = "failed to start Block Synchronizer: %+v"
+	// 		log.Fatalf(msg, err.Error())
+	// 	}
 
-		latestSynchronizedDepositIndex, err := blockValidityService.FetchLastDepositIndex()
-		if err != nil {
-			const msg = "failed to fetch last deposit index: %+v"
-			log.Fatalf(msg, err.Error())
-		}
+	// 	latestSynchronizedDepositIndex, err := blockValidityService.FetchLastDepositIndex()
+	// 	if err != nil {
+	// 		const msg = "failed to fetch last deposit index: %+v"
+	// 		log.Fatalf(msg, err.Error())
+	// 	}
 
-		timeout := 5 * time.Second
-		ticker := time.NewTicker(timeout)
-		for {
-			fmt.Printf("block validity ticker\n")
-			select {
-			case <-ctx.Done():
-				ticker.Stop()
-				return
-			case <-ticker.C:
-				fmt.Println("block validity ticker.C")
-				err = blockValidityProver.SyncDepositedEvents()
-				if err != nil {
-					const msg = "failed to sync deposited events: %+v"
-					log.Fatalf(msg, err.Error())
-				}
+	// 	timeout := 5 * time.Second
+	// 	ticker := time.NewTicker(timeout)
+	// 	for {
+	// 		fmt.Printf("block validity ticker\n")
+	// 		select {
+	// 		case <-ctx.Done():
+	// 			ticker.Stop()
+	// 			return
+	// 		case <-ticker.C:
+	// 			fmt.Println("block validity ticker.C")
+	// 			err = blockValidityProver.SyncDepositedEvents()
+	// 			if err != nil {
+	// 				const msg = "failed to sync deposited events: %+v"
+	// 				log.Fatalf(msg, err.Error())
+	// 			}
 
-				err = blockValidityProver.SyncDepositTree(nil, latestSynchronizedDepositIndex)
-				if err != nil {
-					const msg = "failed to sync deposit tree: %+v"
-					log.Fatalf(msg, err.Error())
-				}
+	// 			err = blockValidityProver.SyncDepositTree(nil, latestSynchronizedDepositIndex)
+	// 			if err != nil {
+	// 				const msg = "failed to sync deposit tree: %+v"
+	// 				log.Fatalf(msg, err.Error())
+	// 			}
 
-				// sync block content
-				startBlock, err := blockValidityService.LastSeenBlockPostedEventBlockNumber()
-				if err != nil {
-					startBlock = cfg.Blockchain.RollupContractDeployedBlockNumber
-					// var ErrLastSeenBlockPostedEventBlockNumberFail = errors.New("last seen block posted event block number fail")
-					// panic(errors.Join(ErrLastSeenBlockPostedEventBlockNumberFail, err))
-				}
+	// 			// sync block content
+	// 			startBlock, err := blockValidityService.LastSeenBlockPostedEventBlockNumber()
+	// 			if err != nil {
+	// 				startBlock = cfg.Blockchain.RollupContractDeployedBlockNumber
+	// 				// var ErrLastSeenBlockPostedEventBlockNumberFail = errors.New("last seen block posted event block number fail")
+	// 				// panic(errors.Join(ErrLastSeenBlockPostedEventBlockNumberFail, err))
+	// 			}
 
-				endBlock, err := blockValidityProver.SyncBlockTree(blockSynchronizer, startBlock)
-				if err != nil {
-					panic(err)
-				}
+	// 			endBlock, err := blockValidityProver.SyncBlockTree(blockSynchronizer, startBlock)
+	// 			if err != nil {
+	// 				panic(err)
+	// 			}
 
-				err = blockValidityService.SetLastSeenBlockPostedEventBlockNumber(endBlock)
-				if err != nil {
-					var ErrSetLastSeenBlockPostedEventBlockNumberFail = errors.New("set last seen block posted event block number fail")
-					panic(errors.Join(ErrSetLastSeenBlockPostedEventBlockNumberFail, err))
-				}
+	// 			err = blockValidityService.SetLastSeenBlockPostedEventBlockNumber(endBlock)
+	// 			if err != nil {
+	// 				var ErrSetLastSeenBlockPostedEventBlockNumberFail = errors.New("set last seen block posted event block number fail")
+	// 				panic(errors.Join(ErrSetLastSeenBlockPostedEventBlockNumberFail, err))
+	// 			}
 
-				fmt.Printf("Block %d is searched\n", endBlock)
-			}
-		}
-	}()
+	// 			fmt.Printf("Block %d is searched\n", endBlock)
+	// 		}
+	// 	}
+	// }()
 
 	userWalletState, err := balance_synchronizer.NewMockWallet(userAccount)
 	if err != nil {

@@ -653,7 +653,7 @@ func SyncLocally(
 		case <-ticker.C:
 			validityProverInfo, err := blockValidityService.FetchValidityProverInfo()
 			if err != nil {
-				const msg = "failed to sync block prover: %+v"
+				const msg = "failed to fetch validity prover info: %+v"
 				panic(fmt.Sprintf(msg, err.Error()))
 			}
 

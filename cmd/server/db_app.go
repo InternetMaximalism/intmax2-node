@@ -137,6 +137,7 @@ type BlockContents interface {
 	CreateValidityProof(blockHash string, validityProof []byte) (*mDBApp.BlockProof, error)
 	LastBlockValidityProof() (*mDBApp.BlockContentWithProof, error)
 	LastBlockNumberGeneratedValidityProof() (uint32, error)
+	LastPostedBlockNumber() (uint32, error)
 }
 
 type CtrlProcessingJobs interface {

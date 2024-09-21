@@ -105,7 +105,7 @@ func (s *balanceSynchronizer) Sync(
 
 			validityProverInfo, err := s.blockValidityService.FetchValidityProverInfo()
 			if err != nil {
-				const msg = "failed to sync block prover: %+v"
+				const msg = "failed to fetch validity prover info: %+v"
 				s.log.Fatalf(msg, err.Error())
 			}
 

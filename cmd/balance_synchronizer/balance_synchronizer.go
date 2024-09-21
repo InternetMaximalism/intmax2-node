@@ -80,10 +80,10 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 						s.Log.Warnf("Received cancel signal from context, stopping...")
 						return
 					case <-ticker.C:
-						fmt.Printf("===============blockNumber: %d\n", blockNumber)
+						fmt.Printf("===============blockNumber (balance synchronizer): %d\n", blockNumber)
 						err = blockValidityService.SyncBlockProverWithBlockNumber(blockNumber)
-						fmt.Printf("===============err: %v\n", err)
 						if err != nil {
+							fmt.Printf("===============err (balance synchronizer): %v\n", err)
 							if err.Error() == block_validity_prover.ErrNoValidityProofByBlockNumber.Error() {
 								s.Log.Warnf("no last validity proof")
 								time.Sleep(5 * time.Second)

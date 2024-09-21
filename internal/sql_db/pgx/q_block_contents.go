@@ -83,23 +83,37 @@ func (p *pgx) CreateBlockContent(
 	return bDBApp, nil
 }
 
+// Insert a new validity proof or do nothing if it already exists
 func (p *pgx) CreateValidityProof(
-	blockContentID string,
+	blockHash string,
 	validityProof []byte,
 ) (*mDBApp.BlockProof, error) {
+	// 1. If a block_content corresponding to the specified block_hash exists,
+	//    and there is no row in block_validity_proofs corresponding to that block_content_id:
+	//    A new row is inserted.
+	// 2. If a block_content corresponding to the specified block_hash exists,
+	//    and there is already a row in block_validity_proofs corresponding to that block_content_id:
+	//    No changes are made (the old value is retained).
+	// 3. If no block_content corresponding to the specified block_hash exists:
+	//    Nothing is inserted.
 	const (
-		q = `INSERT INTO block_validity_proofs (
-			 block_content_id ,validity_proof
-			 ) VALUES ($1, $2)`
+		q = `WITH block_content AS (
+				 SELECT id
+				 FROM block_contents
+				 WHERE block_hash = $1
+			 )
+			 INSERT INTO block_validity_proofs (block_content_id, validity_proof)
+			 SELECT block_content.id, $2
+			 FROM block_content
+			 ON CONFLICT (block_content_id) DO NOTHING;`
 	)
 
-	_, err := p.exec(p.ctx, q, blockContentID, validityProof)
+	_, err := p.exec(p.ctx, q, blockHash, validityProof)
 	if err != nil {
 		return nil, errPgx.Err(err)
 	}
 
-	var bDBApp *mDBApp.BlockProof
-	bDBApp, err = p.BlockValidityProof(blockContentID)
+	bDBApp, err := p.BlockValidityProofByBlockHash(blockHash)
 	if err != nil {
 		return nil, err
 	}
@@ -189,16 +203,17 @@ func (p *pgx) ScanBlockHashAndSenders() (blockHashAndSendersMap map[uint32]mDBAp
 	return blockHashAndSendersMap, lastBlockNumber, nil
 }
 
-func (p *pgx) BlockValidityProof(blockContentID string) (*mDBApp.BlockProof, error) {
+func (p *pgx) BlockValidityProofByBlockHash(blockHash string) (*mDBApp.BlockProof, error) {
 	const (
 		q = `SELECT
-			 block_content_id ,validity_proof
-			 FROM block_validity_proofs
-			 WHERE block_content_id = $1`
+			 bp.block_content_id ,bp.validity_proof
+			 FROM block_validity_proofs bp
+			 JOIN block_contents bc ON bp.block_content_id = bc.id
+			 WHERE bc.block_hash = $1`
 	)
 
 	var tmp models.BlockProof
-	err := errPgx.Err(p.queryRow(p.ctx, q, blockContentID).
+	err := errPgx.Err(p.queryRow(p.ctx, q, blockHash).
 		Scan(
 			&tmp.BlockContentID,
 			&tmp.ValidityProof,
@@ -222,6 +237,24 @@ func (p *pgx) LastBlockNumberGeneratedValidityProof() (uint32, error) {
 			 FROM block_contents bc
 			 LEFT JOIN block_validity_proofs bp ON bc.id = bp.block_content_id
 			 WHERE bp.validity_proof IS NOT NULL
+			 ORDER BY bc.block_number DESC
+			 LIMIT 1`
+	)
+
+	var blockNumber int64
+	err := errPgx.Err(p.queryRow(p.ctx, q).Scan(&blockNumber))
+	if err != nil {
+		return 0, err
+	}
+
+	return uint32(blockNumber), nil
+}
+
+func (p *pgx) LastPostedBlockNumber() (uint32, error) {
+	const (
+		q = `SELECT
+			 bc.block_number
+			 FROM block_contents bc
 			 ORDER BY bc.block_number DESC
 			 LIMIT 1`
 	)
