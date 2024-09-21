@@ -881,6 +881,8 @@ func (bw *BlockWitness) Genesis() *BlockWitness {
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Printf("Genesis blockHashTree leaves: %v\n", blockHashTree.Leaves)
 	prevBlockTreeRoot, _, _ := blockHashTree.GetCurrentRootCountAndSiblings()
 	accountTree, err := intMaxTree.NewAccountTree(intMaxTree.ACCOUNT_TREE_HEIGHT)
 	if err != nil {

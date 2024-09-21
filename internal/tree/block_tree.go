@@ -121,8 +121,18 @@ func (t *BlockHashTree) Prove(index uint32) (proof MerkleProof, root PoseidonHas
 	}
 
 	siblings, root, err := t.inner.ComputeMerkleProof(uint64(index), leafHashes)
+	if err != nil {
+		return MerkleProof{}, PoseidonHashOut{}, err
+	}
+
 	proof = MerkleProof{
 		Siblings: siblings,
+	}
+
+	// debug
+	err = proof.Verify(&root, int(index), leafHashes[index])
+	if err != nil {
+		panic("proof.Verify failed")
 	}
 
 	return proof, root, err
@@ -132,4 +142,12 @@ func (t *BlockHashTree) GetRoot() *PoseidonHashOut {
 	root, _, _ := t.inner.GetCurrentRootCountAndSiblings()
 
 	return &root
+}
+
+func (t *BlockHashTree) GetLeaf(index uint32) *BlockHashLeaf {
+	if int(index) >= len(t.Leaves) {
+		return new(BlockHashLeaf).SetDefault()
+	}
+
+	return t.Leaves[index]
 }

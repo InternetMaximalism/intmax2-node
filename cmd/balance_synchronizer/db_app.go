@@ -132,8 +132,10 @@ type BlockContents interface {
 	) (*mDBApp.BlockContentWithProof, error)
 	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
 	BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContentWithProof, error)
+	ScanBlockHashAndSenders() (blockHashAndSendersMap map[uint32]mDBApp.BlockHashAndSenders, lastBlockNumber uint32, err error)
 	CreateValidityProof(blockHash string, validityProof []byte) (*mDBApp.BlockProof, error)
 	LastBlockValidityProof() (*mDBApp.BlockContentWithProof, error)
+	LastBlockNumberGeneratedValidityProof() (uint32, error)
 }
 
 type Withdrawals interface {

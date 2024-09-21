@@ -25,7 +25,7 @@ func (ai *mockBlockBuilder) RegisterPublicKey(pk *intMaxAcc.PublicKey, lastSentB
 
 	_, ok := ai.AccountTree.GetAccountID(publicKey)
 	if ok {
-		_, err = ai.AccountTree.Update(publicKey, uint64(0))
+		_, err = ai.AccountTree.Update(publicKey, uint32(0))
 		if err != nil {
 			var ErrUpdateAccountFail = errors.New("failed to update account")
 			return 0, errors.Join(ErrUpdateAccountFail, err)
@@ -35,7 +35,7 @@ func (ai *mockBlockBuilder) RegisterPublicKey(pk *intMaxAcc.PublicKey, lastSentB
 	}
 
 	var insertionProof *intMaxTree.IndexedInsertionProof
-	insertionProof, err = ai.AccountTree.Insert(publicKey, uint64(0))
+	insertionProof, err = ai.AccountTree.Insert(publicKey, uint32(0))
 	if err != nil {
 		return 0, errors.Join(ErrCreateAccountFail, err)
 	}
@@ -113,6 +113,7 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, startBlock ui
 	)
 
 	latestScrollBlockNumber, err := bps.FetchLatestBlockNumber(p.ctx)
+	fmt.Printf("latestScrollBlockNumber: %d\n", latestScrollBlockNumber)
 
 	const searchBlocksLimitAtOnce = 10000
 	endBlock := startBlock + searchBlocksLimitAtOnce
@@ -212,19 +213,23 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, startBlock ui
 func (p *blockValidityProver) SyncBlockProverWithBlockNumber(
 	blockNumber uint32,
 ) error {
+	if blockNumber == 0 {
+		return errors.New("genesis block number is not supported")
+	}
+
 	fmt.Printf("SyncBlockProverWithBlockNumber %d proof is synchronizing\n", blockNumber)
 	result, err := p.blockBuilder.BlockAuxInfo(blockNumber)
 	if err != nil {
-		return errors.New("block content by block number error")
+		return err
 	}
 
-	return p.SyncBlockProverWithAuxInfo(
+	return p.syncBlockProverWithAuxInfo(
 		result.BlockContent,
 		result.PostedBlock,
 	)
 }
 
-func (p *blockValidityProver) SyncBlockProverWithAuxInfo(
+func (p *blockValidityProver) syncBlockProverWithAuxInfo(
 	blockContent *intMaxTypes.BlockContent,
 	postedBlock *block_post_service.PostedBlock,
 ) error {
@@ -240,7 +245,7 @@ func (p *blockValidityProver) SyncBlockProverWithAuxInfo(
 		panic("last validity witness error")
 	}
 
-	fmt.Printf("blockWitness.Block.BlockNumber (SyncBlockProverWithAuxInfo): %d\n", blockWitness.Block.BlockNumber)
+	fmt.Printf("blockWitness.Block.BlockNumber (syncBlockProverWithAuxInfo): %d\n", blockWitness.Block.BlockNumber)
 	if blockWitness.Block.BlockNumber != p.blockBuilder.LatestIntMaxBlockNumber()+1 {
 		fmt.Printf("db.LatestIntMaxBlockNumber(): %d\n", p.blockBuilder.LatestIntMaxBlockNumber())
 		return errors.New("block number is not equal to the last block number + 1")
@@ -258,7 +263,7 @@ func (p *blockValidityProver) SyncBlockProverWithAuxInfo(
 		panic(err)
 	}
 
-	return p.SyncBlockProver()
+	return p.syncBlockProver()
 }
 
 // lastPostedBlockNumber: block content generated
@@ -266,7 +271,7 @@ func (p *blockValidityProver) SyncBlockProverWithAuxInfo(
 // lastGeneratedBlockNumber: validity proof generated
 // : balance proof generated
 
-func (p *blockValidityProver) SyncBlockProver() error {
+func (p *blockValidityProver) syncBlockProver() error {
 	currentBlockNumber := p.blockBuilder.LatestIntMaxBlockNumber()
 	lastGeneratedBlockNumber, err := p.blockBuilder.LastGeneratedProofBlockNumber()
 	if err != nil {
@@ -286,14 +291,12 @@ func (p *blockValidityProver) SyncBlockProver() error {
 	for blockNumber := lastGeneratedBlockNumber + 1; blockNumber <= currentBlockNumber; blockNumber++ {
 		// validityWitnessBlockNumber := p.blockBuilder.LatestIntMaxBlockNumber()
 		validityWitness, err := p.blockBuilder.ValidityWitnessByBlockNumber(blockNumber)
-		fmt.Printf("SenderFlag: %v\n", validityWitness.BlockWitness.Signature.SenderFlag)
-
-		// validityWitnessBlockNumber := validityWitness.BlockWitness.Block.BlockNumber
-		fmt.Printf("validityWitness.BlockWitness.Block.BlockNumber: %d\n", validityWitness.BlockWitness.Block.BlockNumber)
 		fmt.Printf("IMPORTANT: Block %d proof is processing\n", blockNumber)
 		if err != nil {
 			panic("last validity witness error")
 		}
+		fmt.Printf("SenderFlag: %v\n", validityWitness.BlockWitness.Signature.SenderFlag)
+		fmt.Printf("validityWitness.BlockWitness.Block.BlockNumber: %d\n", validityWitness.BlockWitness.Block.BlockNumber)
 
 		// encodedBlockWitness, err := json.Marshal(validityWitness.BlockWitness)
 		// if err != nil {

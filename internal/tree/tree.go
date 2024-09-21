@@ -75,6 +75,13 @@ func (t *PoseidonMerkleTree) getSiblingHash(nodeIndex int) *PoseidonHashOut {
 	return t.GetNodeHash(nodeIndex ^ 1)
 }
 
+func (t *PoseidonMerkleTree) UpdateLeaf(
+	index int,
+	leafHash *PoseidonHashOut,
+) {
+	t.updateLeaf(index, leafHash)
+}
+
 func (t *PoseidonMerkleTree) updateLeaf(
 	index int,
 	leafHash *PoseidonHashOut,

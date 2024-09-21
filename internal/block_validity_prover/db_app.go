@@ -34,8 +34,10 @@ type BlockContents interface {
 	) (*mDBApp.BlockContentWithProof, error)
 	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
 	BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContentWithProof, error)
+	ScanBlockHashAndSenders() (blockHashAndSendersMap map[uint32]mDBApp.BlockHashAndSenders, lastBlockNumber uint32, err error)
 	CreateValidityProof(blockHash string, validityProof []byte) (*mDBApp.BlockProof, error)
 	LastBlockValidityProof() (*mDBApp.BlockContentWithProof, error)
+	LastBlockNumberGeneratedValidityProof() (uint32, error)
 }
 
 type EventBlockNumbersForValidityProver interface {
@@ -91,15 +93,15 @@ type BlockHistory interface {
 
 	// GenerateValidityWitness(blockWitness *BlockWitness) (*ValidityWitness, error)
 	// NextAccountID() (uint64, error)
-	AppendAccountTreeLeaf(sender *big.Int, lastBlockNumber uint64) (*intMaxTree.IndexedInsertionProof, error)
+	AppendAccountTreeLeaf(sender *big.Int, lastBlockNumber uint32) (*intMaxTree.IndexedInsertionProof, error)
 	AccountTreeRoot() (*intMaxGP.PoseidonHashOut, error)
 	GetAccountTreeLeaf(sender *big.Int) (*intMaxTree.IndexedMerkleLeaf, error)
-	UpdateAccountTreeLeaf(sender *big.Int, lastBlockNumber uint64) (*intMaxTree.IndexedUpdateProof, error)
+	UpdateAccountTreeLeaf(sender *big.Int, lastBlockNumber uint32) (*intMaxTree.IndexedUpdateProof, error)
 	// GetAccountMembershipProof(currentBlockNumber uint32, publicKey *big.Int) (*intMaxTree.IndexedMembershipProof, error)
-	AppendBlockTreeLeaf(block *block_post_service.PostedBlock) error
-	BlockTreeRoot() (*intMaxGP.PoseidonHashOut, error)
-	// BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.MerkleProof, error)
-	CurrentBlockTreeProof(leafBlockNumber uint32) (*intMaxTree.MerkleProof, error)
+	AppendBlockTreeLeaf(block *block_post_service.PostedBlock) (uint32, error)
+	BlockTreeRoot(blockNumber *uint32) (*intMaxGP.PoseidonHashOut, error)
+	BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.MerkleProof, error)
+	// CurrentBlockTreeProof(leafBlockNumber uint32) (*intMaxTree.MerkleProof, error)
 }
 
 type BuilderDeposits interface {

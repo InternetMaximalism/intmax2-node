@@ -146,6 +146,49 @@ func (p *pgx) BlockContent(blockContentID string) (*mDBApp.BlockContentWithProof
 	return bDBApp, nil
 }
 
+// TODO: pagination
+func (p *pgx) ScanBlockHashAndSenders() (blockHashAndSendersMap map[uint32]mDBApp.BlockHashAndSenders, lastBlockNumber uint32, err error) {
+	const (
+		q = `SELECT block_number, block_hash, deposit_root, senders FROM block_contents
+			 ORDER BY block_number ASC`
+	)
+
+	rows, err := p.query(p.ctx, q)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	blockHashAndSendersMap = make(map[uint32]mDBApp.BlockHashAndSenders)
+	lastBlockNumber = uint32(0)
+	for rows.Next() {
+		var blockNumber uint32
+		var blockHash string
+		var depositTreeRoot string
+		var sendersJSON []byte
+		err = rows.Scan(&blockNumber, &blockHash, &depositTreeRoot, &sendersJSON)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		lastBlockNumber = blockNumber
+
+		var senders []intMaxTypes.ColumnSender
+		err = json.Unmarshal(sendersJSON, &senders)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		blockHashAndSendersMap[blockNumber] = mDBApp.BlockHashAndSenders{
+			BlockHash:       blockHash,
+			Senders:         senders,
+			DepositTreeRoot: depositTreeRoot,
+		}
+	}
+
+	return blockHashAndSendersMap, lastBlockNumber, nil
+}
+
 func (p *pgx) BlockValidityProof(blockContentID string) (*mDBApp.BlockProof, error) {
 	const (
 		q = `SELECT
@@ -170,6 +213,26 @@ func (p *pgx) BlockValidityProof(blockContentID string) (*mDBApp.BlockProof, err
 	}
 
 	return bDBApp, nil
+}
+
+func (p *pgx) LastBlockNumberGeneratedValidityProof() (uint32, error) {
+	const (
+		q = `SELECT
+			 bc.block_number
+			 FROM block_contents bc
+			 LEFT JOIN block_validity_proofs bp ON bc.id = bp.block_content_id
+			 WHERE bp.validity_proof IS NOT NULL
+			 ORDER BY bc.block_number DESC
+			 LIMIT 1`
+	)
+
+	var blockNumber int64
+	err := errPgx.Err(p.queryRow(p.ctx, q).Scan(&blockNumber))
+	if err != nil {
+		return 0, err
+	}
+
+	return uint32(blockNumber), nil
 }
 
 func (p *pgx) LastBlockValidityProof() (*mDBApp.BlockContentWithProof, error) {
@@ -222,7 +285,7 @@ func (p *pgx) BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockConten
 			 ,bp.validity_proof
              FROM block_contents bc
 			 LEFT JOIN block_validity_proofs bp ON bc.id = bp.block_content_id
-			 WHERE bc.number = $1`
+			 WHERE bc.block_number = $1`
 	)
 
 	var tmp models.BlockContent

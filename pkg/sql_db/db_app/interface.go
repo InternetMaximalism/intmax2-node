@@ -240,8 +240,10 @@ type BlockContents interface {
 	) (*models.BlockContentWithProof, error)
 	BlockContentByBlockNumber(blockNumber uint32) (*models.BlockContentWithProof, error)
 	BlockContentByTxRoot(txRoot string) (*models.BlockContentWithProof, error)
+	ScanBlockHashAndSenders() (blockHashAndSendersMap map[uint32]models.BlockHashAndSenders, lastBlockNumber uint32, err error)
 	CreateValidityProof(blockHash string, validityProof []byte) (*models.BlockProof, error)
 	LastBlockValidityProof() (*models.BlockContentWithProof, error)
+	LastBlockNumberGeneratedValidityProof() (uint32, error)
 }
 
 type CtrlProcessingJobs interface {

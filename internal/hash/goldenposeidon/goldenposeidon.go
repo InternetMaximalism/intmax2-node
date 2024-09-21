@@ -251,6 +251,10 @@ func (h *PoseidonHashOut) SetZero() *PoseidonHashOut {
 }
 
 func (h *PoseidonHashOut) Equal(other *PoseidonHashOut) bool {
+	if h == nil || other == nil {
+		return false
+	}
+
 	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
 		if !h.Elements[i].Equal(&other.Elements[i]) {
 			return false
