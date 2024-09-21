@@ -457,7 +457,7 @@ func (t *IndexedMerkleTree) Update(key *big.Int, value uint64) (*IndexedUpdatePr
 	}
 
 	return &IndexedUpdateProof{
-		LeafProof: IndexedMerkleProof{Siblings: leafProof.Siblings},
+		LeafProof: IndexedMerkleProof(leafProof),
 		LeafIndex: index,
 		PrevLeaf:  *prevLeaf,
 	}, nil

@@ -1,7 +1,9 @@
 package tree
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"math/bits"
 )
@@ -103,13 +105,14 @@ func (t *PoseidonMerkleTree) updateLeaf(
 	}
 }
 
-func (t *PoseidonMerkleTree) Prove(index int) (*PoseidonMerkleProof, error) {
+func (t *PoseidonMerkleTree) Prove(index int) (proof PoseidonMerkleProof, err error) {
 	if index < 0 || index >= 1<<int(t.height) {
 		var ErrMerkleTreeIndexOutOfRange = errors.New("the Merkle tree index out of range")
-		return nil, ErrMerkleTreeIndexOutOfRange
+		return proof, ErrMerkleTreeIndexOutOfRange
 	}
 
 	nodeIndex := 1<<int(t.height) + index
+	leafHash := t.GetNodeHash(nodeIndex)
 
 	siblings := make([]*PoseidonHashOut, 0)
 	for nodeIndex > 1 {
@@ -117,43 +120,88 @@ func (t *PoseidonMerkleTree) Prove(index int) (*PoseidonMerkleProof, error) {
 		nodeIndex >>= 1
 	}
 
-	return &PoseidonMerkleProof{
+	proof = PoseidonMerkleProof{
 		Siblings: siblings,
-	}, nil
+	}
+
+	root := t.GetRoot()
+	err = proof.Verify(leafHash, index, root)
+	if err != nil {
+		panic("MerkleProof proof.Verify failed")
+	}
+
+	return proof, nil
+}
+
+func (t *PoseidonMerkleTree) ProveWithLeaf(index int) (PoseidonMerkleProof, *PoseidonHashOut, *PoseidonHashOut, error) {
+	proof, err := t.Prove(index)
+	if err != nil {
+		return PoseidonMerkleProof{}, nil, nil, err
+	}
+
+	leaf := t.GetLeaf(index)
+	nodeIndex := 1<<int(t.height) + index
+	leafHash := t.GetNodeHash(nodeIndex)
+	if !leafHash.Equal(leaf) {
+		panic("leafHash != leaf")
+	}
+	root := t.GetRoot()
+
+	return proof, leaf, root, err
+}
+
+func (t *PoseidonMerkleTree) GetLeaf(index int) *PoseidonHashOut {
+	nodeIndex := 1<<int(t.height) + index
+
+	return t.GetNodeHash(nodeIndex)
 }
 
 type PoseidonMerkleProof struct {
-	Siblings []*PoseidonHashOut
+	Siblings []*goldenposeidon.PoseidonHashOut
 }
 
-func (proof *PoseidonMerkleProof) GetMerkleRoot(
-	index int,
-	leafHash *PoseidonHashOut,
-) *PoseidonHashOut {
-	nodeHash := new(PoseidonHashOut).Set(leafHash)
+func (proof *PoseidonMerkleProof) Set(other *PoseidonMerkleProof) *PoseidonMerkleProof {
+	proof.Siblings = make([]*goldenposeidon.PoseidonHashOut, len(other.Siblings))
+	copy(proof.Siblings, other.Siblings)
+	return proof
+}
 
-	for _, sibling := range proof.Siblings {
-		if index&1 == 1 {
-			nodeHash = goldenposeidon.Compress(sibling, nodeHash)
+func (proof *PoseidonMerkleProof) MarshalJSON() ([]byte, error) {
+	return json.Marshal(proof.Siblings)
+}
+
+func (proof *PoseidonMerkleProof) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &proof.Siblings)
+}
+
+func (proof *PoseidonMerkleProof) GetRoot(leafHash *goldenposeidon.PoseidonHashOut, index int) *goldenposeidon.PoseidonHashOut {
+	height := len(proof.Siblings)
+	if index >= 1<<uint(height) {
+		panic("index out of bounds")
+	}
+	nodeIndex := 1<<uint(height) + index
+	h := new(PoseidonHashOut).Set(leafHash)
+
+	for i := 0; i < height; i++ {
+		sibling := proof.Siblings[i]
+		if nodeIndex&1 == 1 {
+			h = goldenposeidon.Compress(sibling, h)
 		} else {
-			nodeHash = goldenposeidon.Compress(nodeHash, sibling)
+			h = goldenposeidon.Compress(h, sibling)
 		}
-		index >>= 1
+		nodeIndex >>= 1
+	}
+	if nodeIndex != 1 {
+		panic("invalid nodeIndex")
 	}
 
-	return nodeHash
+	return h
 }
 
-func (proof *PoseidonMerkleProof) Verify(
-	root *PoseidonHashOut,
-	index int,
-	leafHash *PoseidonHashOut,
-) error {
-	expectedRoot := proof.GetMerkleRoot(index, leafHash)
-
-	if !expectedRoot.Equal(root) {
-		var ErrMerkleProofVerifyFail = errors.New("the Merkle proof verify fail")
-		return ErrMerkleProofVerifyFail
+func (proof *PoseidonMerkleProof) Verify(leafHash *goldenposeidon.PoseidonHashOut, index int, root *goldenposeidon.PoseidonHashOut) error {
+	computedRoot := proof.GetRoot(leafHash, index)
+	if !computedRoot.Equal(root) {
+		return fmt.Errorf("invalid root: %v != %v", computedRoot, root)
 	}
 
 	return nil

@@ -49,7 +49,7 @@ func (s *externalBlockValidityService) DepositTreeProof(depositIndex uint32) (*i
 	return nil, common.Hash{}, errors.New("not implemented")
 }
 
-func (s *externalBlockValidityService) BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.MerkleProof, error) {
+func (s *externalBlockValidityService) BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.PoseidonMerkleProof, error) {
 	return nil, errors.New("not implemented")
 }
 

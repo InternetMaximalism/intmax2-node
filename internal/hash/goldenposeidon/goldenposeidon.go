@@ -265,13 +265,17 @@ func (h *PoseidonHashOut) Equal(other *PoseidonHashOut) bool {
 }
 
 func (h *PoseidonHashOut) Marshal() []byte {
-	a := []byte{}
-	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
-		b := h.Elements[i].Marshal() // big-endian
-		a = append(a, b...)
+	if h == nil {
+		panic("value is nil")
 	}
 
-	return a
+	result := []byte{}
+	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
+		b := h.Elements[i].Marshal() // big-endian
+		result = append(result, b...)
+	}
+
+	return result
 }
 
 func (h *PoseidonHashOut) String() string {

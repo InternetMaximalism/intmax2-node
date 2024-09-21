@@ -275,8 +275,12 @@ func (p *blockValidityProver) syncBlockProver() error {
 	currentBlockNumber := p.blockBuilder.LatestIntMaxBlockNumber()
 	lastGeneratedBlockNumber, err := p.blockBuilder.LastGeneratedProofBlockNumber()
 	if err != nil {
-		var ErrLastGeneratedProofBlockNumberFail = errors.New("last generated proof block number fail")
-		return errors.Join(ErrLastGeneratedProofBlockNumberFail, err)
+		if err.Error() != "not found" {
+			var ErrLastGeneratedProofBlockNumberFail = errors.New("last generated proof block number fail")
+			return errors.Join(ErrLastGeneratedProofBlockNumberFail, err)
+		}
+
+		lastGeneratedBlockNumber = 0
 	}
 	// if lastGeneratedBlockNumber >= currentBlockNumber {
 	// 	fmt.Printf("Block %d is already done\n", lastGeneratedBlockNumber)

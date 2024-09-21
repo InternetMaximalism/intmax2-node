@@ -93,7 +93,7 @@ func (proof *AssetMerkleProof) GetRoot(
 	leaf *AssetLeaf,
 	index uint32,
 ) *PoseidonHashOut {
-	merkleProof := MerkleProof{
+	merkleProof := PoseidonMerkleProof{
 		Siblings: proof.Siblings,
 	}
 	root := merkleProof.GetRoot(
@@ -109,7 +109,7 @@ func (proof *AssetMerkleProof) Verify(
 	index uint32,
 	root *PoseidonHashOut,
 ) error {
-	merkleProof := MerkleProof{
+	merkleProof := PoseidonMerkleProof{
 		Siblings: proof.Siblings,
 	}
 	return merkleProof.Verify(

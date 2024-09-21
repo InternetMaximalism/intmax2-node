@@ -137,3 +137,6 @@ var ErrNoValidityProofByBlockNumber = errors.New("no validity proof by block num
 
 // ErrAccountTreeGetAccountID error: account id not found in the account tree.
 var ErrAccountTreeGetAccountID = errors.New("account id not found in the account tree")
+
+// ErrBlockShouldBeValid error: the block should be valid if it is not an empty block.
+var ErrBlockShouldBeValid = errors.New("the block should be valid if it is not an empty block")

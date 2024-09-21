@@ -2,16 +2,21 @@ package tree_test
 
 import (
 	"errors"
+	"fmt"
+	"intmax2-node/internal/block_post_service"
 	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	tree "intmax2-node/internal/tree"
+	"testing"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/require"
 )
 
-const numHashBytes = 32
 const BLOCK_HASH_TREE_HEIGHT = 32
 
 type PoseidonHashOut = intMaxGP.PoseidonHashOut
 
-type BlockHashMerkleProof = tree.MerkleProof
+type BlockHashMerkleProof = tree.PoseidonMerkleProof
 
 type BlockHashTree struct {
 	Leaves          []*tree.BlockHashLeaf
@@ -96,26 +101,25 @@ func (t *BlockHashTree) ComputeMerkleProof(index uint32, leaves []tree.BlockHash
 	return proof.Siblings, *t.inner.GetRoot(), err
 }
 
-func (t *BlockHashTree) Prove(index uint32) (proof tree.MerkleProof, root PoseidonHashOut, err error) {
-	leafHashes := make([]*PoseidonHashOut, len(t.Leaves))
-	for i, leaf := range t.Leaves {
-		leafHashes[i] = leaf.Hash()
-	}
-
-	merkleProof, err := t.inner.Prove(int(index))
+func (t *BlockHashTree) Prove(index uint32) (proof tree.PoseidonMerkleProof, root *PoseidonHashOut, leafHash *PoseidonHashOut, err error) {
+	proof, err = t.inner.Prove(int(index))
 	if err != nil {
-		return tree.MerkleProof{}, PoseidonHashOut{}, err
+		return proof, root, leafHash, err
 	}
 
-	proof = tree.MerkleProof{Siblings: merkleProof.Siblings}
+	root = t.inner.GetRoot()
+	leafHash = t.inner.GetLeaf(int(index))
 
-	// debug
-	err = proof.Verify(&root, int(index), leafHashes[index])
+	err = proof.Verify(leafHash, int(index), root)
 	if err != nil {
-		panic("TEST proof.Verify failed")
+		panic(fmt.Errorf("Fatal Error: Merkle proof verification failed: %w", err))
 	}
 
-	return proof, *t.inner.GetRoot(), err
+	if !leafHash.Equal(t.GetLeaf(index).Hash()) {
+		panic(fmt.Errorf("Fatal Error: leafHash is mismatch %s != %s", leafHash.String(), t.GetLeaf(index).Hash().String()))
+	}
+
+	return proof, root, leafHash, err
 }
 
 func (t *BlockHashTree) GetRoot() *PoseidonHashOut {
@@ -128,4 +132,35 @@ func (t *BlockHashTree) GetLeaf(index uint32) *tree.BlockHashLeaf {
 	}
 
 	return t.Leaves[index]
+}
+
+func TestBlockTreeProof(t *testing.T) {
+	genesisBlock := new(block_post_service.PostedBlock).Genesis()
+	blockLeaf0 := tree.NewBlockHashLeaf(genesisBlock.Hash())
+	blockHash1 := common.HexToHash("0x4b44d51735ffd85fa54d6c3cc60352648ab093840fe4095b39afee145bf0c367")
+	blockLeaf1 := tree.NewBlockHashLeaf(blockHash1)
+
+	blockTree, err := NewBlockHashTreeWithInitialLeaves(2, []*tree.BlockHashLeaf{blockLeaf0})
+	require.NoError(t, err)
+	proof, root, leafHash, err := blockTree.Prove(0)
+	require.NoError(t, err)
+	t.Log("blockTree root:", blockTree.GetRoot().String())
+	t.Log("blockTree root:", root.String())
+	t.Log("blockTree proof:", proof)
+	// leaf0 := blockTree.GetLeaf(0)
+	err = proof.Verify(leafHash, 0, root)
+	require.NoError(t, err)
+	err = proof.Verify(blockLeaf0.Hash(), 0, root)
+	require.NoError(t, err)
+
+	proof, root, _, err = blockTree.Prove(1)
+	require.NoError(t, err)
+	leaf1 := blockTree.GetLeaf(1)
+	err = proof.Verify(leaf1.Hash(), 1, root)
+	require.NoError(t, err)
+	_, err = blockTree.AddLeaf(1, blockLeaf1)
+	require.NoError(t, err)
+	t.Log("blockTree root:", blockTree.GetRoot())
+	err = proof.Verify(blockLeaf1.Hash(), 1, blockTree.GetRoot())
+	require.NoError(t, err)
 }

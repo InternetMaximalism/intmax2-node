@@ -2,8 +2,6 @@ package tree_test
 
 import (
 	"encoding/hex"
-	"fmt"
-	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/tree"
 	"math/big"
 	"testing"
@@ -233,48 +231,19 @@ func TestDepositTreeWithoutInitialLeaves(t *testing.T) {
 	}
 
 	for i, leaf := range leaves {
-		fmt.Printf("--- leaves[%d] ---\n", i)
-		fmt.Printf("deposit ID: %d\n", rawLeaves[i].DepositId)
+		t.Logf("--- leaves[%d] ---\n", i)
+		t.Logf("deposit ID: %d\n", rawLeaves[i].DepositId)
 
 		_, count, siblings := mt.GetCurrentRootCountAndSiblings()
-		fmt.Printf("Siblings: %x\n", siblings)
+		t.Logf("Siblings: %x\n", siblings)
 
 		expectedRoot, err := mt.AddLeaf(count, *leaf)
 		require.NoError(t, err)
 
 		actualRoot, _, _ := mt.GetCurrentRootCountAndSiblings()
 		require.Equal(t, common.Hash(expectedRoot), actualRoot)
-		fmt.Printf("Root: %x\n", actualRoot)
+		t.Logf("Root: %x\n", actualRoot)
 	}
 
 	// root after inserted leaves[6]: 7c24c2a267c9415f6fc0fe161e0903de154a21ca2eedf54c9747d9d15d78342b, but got 19e091301c6758d623167ce8876f1477acbb44350f758a7e8e564b4464930bbf
-}
-
-func TestBlockTreeProof(t *testing.T) {
-	genesisBlock := new(block_post_service.PostedBlock).Genesis()
-	blockLeaf0 := tree.NewBlockHashLeaf(genesisBlock.Hash())
-	blockHash1 := common.HexToHash("0x4b44d51735ffd85fa54d6c3cc60352648ab093840fe4095b39afee145bf0c367")
-	blockLeaf1 := tree.NewBlockHashLeaf(blockHash1)
-
-	blockTree, err := NewBlockHashTreeWithInitialLeaves(32, []*tree.BlockHashLeaf{blockLeaf0})
-	require.NoError(t, err)
-	proof, root, err := blockTree.Prove(0)
-	require.NoError(t, err)
-	t.Log("blockTree root:", blockTree.GetRoot().String())
-	t.Log("blockTree root:", root.String())
-	t.Log("blockTree proof:", proof)
-	// leaf0 := blockTree.GetLeaf(0)
-	err = proof.Verify(&root, 0, blockLeaf0.Hash())
-	require.NoError(t, err)
-
-	proof, root, err = blockTree.Prove(1)
-	require.NoError(t, err)
-	leaf1 := blockTree.GetLeaf(1)
-	err = proof.Verify(&root, 1, leaf1.Hash())
-	require.NoError(t, err)
-	_, err = blockTree.AddLeaf(1, blockLeaf1)
-	require.NoError(t, err)
-	t.Log("blockTree root:", blockTree.GetRoot())
-	err = proof.Verify(blockTree.GetRoot(), 1, blockLeaf1.Hash())
-	require.NoError(t, err)
 }

@@ -780,7 +780,7 @@ func (s *mockWallet) ReceiveDepositAndUpdate(
 	for i, sibling := range depositMerkleProof.Siblings {
 		fmt.Printf("depositCase.Deposit Merkle proof: siblings[%d] = %s\n", i, common.Hash(sibling))
 	}
-	err = depositMerkleProof.Verify(depositTreeRoot, int(depositCase.DepositIndex), depositCase.Deposit.Hash())
+	err = depositMerkleProof.Verify(depositCase.Deposit.Hash(), int(depositCase.DepositIndex), depositTreeRoot)
 	if err != nil {
 		fmt.Printf("deposit Merkle proof verify error: %v\n", err)
 		return nil, err

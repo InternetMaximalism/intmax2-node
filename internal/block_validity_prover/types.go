@@ -324,15 +324,15 @@ func (arp *AccountUpdateProofs) Set(other *AccountUpdateProofs) *AccountUpdatePr
 }
 
 type ValidityTransitionWitness struct {
-	SenderLeaves              []SenderLeaf              `json:"senderLeaves"`
-	BlockMerkleProof          intMaxTree.MerkleProof    `json:"blockMerkleProof"`
-	AccountRegistrationProofs AccountRegistrationProofs `json:"accountRegistrationProofs"`
-	AccountUpdateProofs       AccountUpdateProofs       `json:"accountUpdateProofs"`
+	SenderLeaves              []SenderLeaf                   `json:"senderLeaves"`
+	BlockMerkleProof          intMaxTree.PoseidonMerkleProof `json:"blockMerkleProof"`
+	AccountRegistrationProofs AccountRegistrationProofs      `json:"accountRegistrationProofs"`
+	AccountUpdateProofs       AccountUpdateProofs            `json:"accountUpdateProofs"`
 }
 
 type ValidityTransitionWitnessFlatten struct {
 	SenderLeaves              []SenderLeaf                       `json:"senderLeaves"`
-	BlockMerkleProof          intMaxTree.MerkleProof             `json:"blockMerkleProof"`
+	BlockMerkleProof          intMaxTree.PoseidonMerkleProof     `json:"blockMerkleProof"`
 	AccountRegistrationProofs []intMaxTree.IndexedInsertionProof `json:"accountRegistrationProofs,omitempty"`
 	AccountUpdateProofs       []intMaxTree.IndexedUpdateProof    `json:"accountUpdateProofs,omitempty"`
 }
@@ -367,16 +367,16 @@ func (vtw *ValidityTransitionWitness) Set(other *ValidityTransitionWitness) *Val
 }
 
 type AccountRegistrationProofOrDummy struct {
-	LowLeafProof *intMaxTree.MerkleProof      `json:"lowLeafProof,omitempty"`
-	LeafProof    *intMaxTree.MerkleProof      `json:"leafProof,omitempty"`
-	Index        uint64                       `json:"index"`
-	LowLeafIndex uint64                       `json:"lowLeafIndex"`
-	PrevLowLeaf  intMaxTree.IndexedMerkleLeaf `json:"prevLowLeaf"`
+	LowLeafProof *intMaxTree.PoseidonMerkleProof `json:"lowLeafProof,omitempty"`
+	LeafProof    *intMaxTree.PoseidonMerkleProof `json:"leafProof,omitempty"`
+	Index        uint64                          `json:"index"`
+	LowLeafIndex uint64                          `json:"lowLeafIndex"`
+	PrevLowLeaf  intMaxTree.IndexedMerkleLeaf    `json:"prevLowLeaf"`
 }
 
 type CompressedValidityTransitionWitness struct {
 	SenderLeaves                         []SenderLeaf                       `json:"senderLeaves"`
-	BlockMerkleProof                     intMaxTree.MerkleProof             `json:"blockMerkleProof"`
+	BlockMerkleProof                     intMaxTree.PoseidonMerkleProof     `json:"blockMerkleProof"`
 	SignificantAccountRegistrationProofs *[]AccountRegistrationProofOrDummy `json:"significantAccountRegistrationProofs,omitempty"`
 	SignificantAccountUpdateProofs       *[]intMaxTree.IndexedUpdateProof   `json:"significantAccountUpdateProofs,omitempty"`
 	CommonAccountMerkleProof             []*intMaxGP.PoseidonHashOut        `json:"commonAccountMerkleProof"`
@@ -445,27 +445,27 @@ func (vtw *ValidityTransitionWitness) Compress(maxAccountID uint64) (compressed 
 		compressed.CommonAccountMerkleProof = accountRegistrationProofs[0].LowLeafProof.Siblings[significantHeight:]
 		significantAccountRegistrationProofs := make([]AccountRegistrationProofOrDummy, 0)
 		for _, proof := range accountRegistrationProofs {
-			var lowLeafProof *intMaxTree.MerkleProof = nil
+			var lowLeafProof *intMaxTree.PoseidonMerkleProof = nil
 			if !proof.LowLeafProof.IsDummy(intMaxTree.ACCOUNT_TREE_HEIGHT) {
 				for i := 0; i < int(intMaxTree.ACCOUNT_TREE_HEIGHT)-significantHeight; i++ {
 					if !proof.LowLeafProof.Siblings[significantHeight+i].Equal(compressed.CommonAccountMerkleProof[i]) {
 						panic("invalid low leaf proof")
 					}
 
-					lowLeafProof = &intMaxTree.MerkleProof{
+					lowLeafProof = &intMaxTree.PoseidonMerkleProof{
 						Siblings: proof.LowLeafProof.Siblings[:significantHeight],
 					}
 				}
 			}
 
-			var leafProof *intMaxTree.MerkleProof = nil
+			var leafProof *intMaxTree.PoseidonMerkleProof = nil
 			if !proof.LeafProof.IsDummy(intMaxTree.ACCOUNT_TREE_HEIGHT) {
 				for i := 0; i < int(intMaxTree.ACCOUNT_TREE_HEIGHT)-significantHeight; i++ {
 					if !proof.LeafProof.Siblings[significantHeight+i].Equal(compressed.CommonAccountMerkleProof[i]) {
 						panic("invalid leaf proof")
 					}
 
-					leafProof = &intMaxTree.MerkleProof{
+					leafProof = &intMaxTree.PoseidonMerkleProof{
 						Siblings: proof.LeafProof.Siblings[:significantHeight],
 					}
 				}
@@ -514,7 +514,7 @@ type AccountMerkleProof struct {
 	Leaf        intMaxTree.IndexedMerkleLeaf  `json:"leaf"`
 }
 
-func (proof *AccountMerkleProof) Verify(accountTreeRoot *intMaxGP.PoseidonHashOut, accountID uint64, publicKey intMaxTypes.Uint256) error {
+func (proof *AccountMerkleProof) Verify(publicKey intMaxTypes.Uint256, accountID uint64, accountTreeRoot *intMaxGP.PoseidonHashOut) error {
 	if publicKey.IsDummyPublicKey() {
 		return errors.New("public key is zero")
 	}
@@ -933,7 +933,7 @@ func (bw *BlockWitness) Compress(maxAccountID uint64) (compressed *CompressedBlo
 				significantMerkleProof := proof.MerkleProof.Siblings[:significantHeight]
 				significantAccountMerkleProofs = append(significantAccountMerkleProofs, AccountMerkleProof{
 					MerkleProof: intMaxTree.IndexedMerkleProof(
-						intMaxTree.MerkleProof{
+						intMaxTree.PoseidonMerkleProof{
 							Siblings: significantMerkleProof,
 						},
 					),
@@ -1107,7 +1107,7 @@ func NewAccountInclusionValue(
 		accountID := accountIDs[i]
 		proof := accountMerkleProofs[i]
 		publicKey := publicKeys[i]
-		err := proof.Verify(accountTreeRoot, accountID, publicKey)
+		err := proof.Verify(publicKey, accountID, accountTreeRoot)
 		result = result && err == nil
 	}
 

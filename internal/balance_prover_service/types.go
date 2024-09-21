@@ -728,7 +728,7 @@ func ValidateTxInclusionValue(
 	prevAccountMembershipProof *intMaxTree.IndexedMembershipProof,
 	senderIndex uint32,
 	tx intMaxTypes.Tx,
-	txMerkleProof *intMaxTree.MerkleProof,
+	txMerkleProof *intMaxTree.PoseidonMerkleProof,
 	// senderLeaf *intMaxTree.SenderLeaf,
 	// senderMerkleProof *intMaxTree.MerkleProof,
 	// newPublicState             *block_validity_prover.PublicState,

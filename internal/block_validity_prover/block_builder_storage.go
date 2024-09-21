@@ -56,11 +56,11 @@ type MockBlockBuilder interface {
 	BlockAuxInfo(blockNumber uint32) (*AuxInfo, error)
 	BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContentWithProof, error)
 	BlockNumberByDepositIndex(depositIndex uint32) (uint32, error)
-	BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.MerkleProof, error)
+	BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.PoseidonMerkleProof, error)
 	BlockTreeRoot(blockNumber *uint32) (*intMaxGP.PoseidonHashOut, error)
 	ConstructSignature(txTreeRoot intMaxTypes.Bytes32, publicKeysHash intMaxTypes.Bytes32, accountIDHash intMaxTypes.Bytes32, isRegistrationBlock bool, sortedTxs []*MockTxRequest) (*SignatureContent, error)
 	// CreateBlockContent(postedBlock *block_post_service.PostedBlock, blockContent *intMaxTypes.BlockContent) (*mDBApp.BlockContentWithProof, error)
-	CurrentBlockTreeProof(blockNumber uint32) (*intMaxTree.MerkleProof, error)
+	CurrentBlockTreeProof(blockNumber uint32) (*intMaxTree.PoseidonMerkleProof, error)
 	DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error)
 	EventBlockNumberByEventNameForValidityProver(eventName string) (*mDBApp.EventBlockNumberForValidityProver, error)
 	Exec(ctx context.Context, input interface{}, executor func(d interface{}, input interface{}) error) (err error)
@@ -567,7 +567,7 @@ func (db *mockBlockBuilder) BlockTreeRoot(blockNumber *uint32) (*intMaxGP.Poseid
 	}
 }
 
-func (db *mockBlockBuilder) BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.MerkleProof, error) {
+func (db *mockBlockBuilder) BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.PoseidonMerkleProof, error) {
 	if rootBlockNumber < leafBlockNumber {
 		return nil, errors.New("root block number should be greater than or equal to leaf block number")
 	}
@@ -653,8 +653,9 @@ func (db *mockBlockBuilder) AppendBlockTreeLeaf(block *block_post_service.Posted
 	blockHashLeaf := intMaxTree.NewBlockHashLeaf(block.Hash())
 	_, blockNumber, _ = db.BlockTree.GetCurrentRootCountAndSiblings()
 	fmt.Printf("block number (AppendBlockTreeLeaf): %d\n", blockNumber)
+	fmt.Printf("block hashes (AppendBlockTreeLeaf): %v\n", db.BlockTree.Leaves)
 	if blockNumber != block.BlockNumber {
-		return 0, errors.New("block number is not equal to the current block number")
+		return 0, fmt.Errorf("block number is not equal to the current block number: %d != %d", blockNumber, block.BlockNumber)
 	}
 	fmt.Printf("block hashes: %v", db.BlockTree.Leaves)
 
@@ -1023,7 +1024,8 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTreeFromBlockContent(
 	fmt.Printf("validationPis: %v\n", validationPis)
 	if !validationPis.IsValid && len(blockContent.Senders) > 0 {
 		// Despite non-empty block, the block is not valid.
-		panic("the block should be valid if it is not an empty block")
+		var ErrBlockShouldBeValid = errors.New("the block should be valid if it is not an empty block")
+		return nil, ErrBlockShouldBeValid
 	}
 
 	return blockWitness, nil
@@ -1150,7 +1152,7 @@ func calculateValidityWitness(db BlockBuilderStorage, blockWitness *BlockWitness
 func calculateValidityWitnessWithMerkleProofs(
 	db BlockBuilderStorage,
 	blockWitness *BlockWitness,
-	blockMerkleProof *intMaxTree.MerkleProof,
+	blockMerkleProof *intMaxTree.PoseidonMerkleProof,
 	prevBlockTreeRoot *intMaxGP.PoseidonHashOut,
 ) (*ValidityWitness, error) {
 	// Verify that the Merkle proof for the block hash tree is correct in its old state.
@@ -1166,7 +1168,7 @@ func calculateValidityWitnessWithMerkleProofs(
 
 	addedBlockNumber, err := db.AppendBlockTreeLeaf(blockWitness.Block)
 	if err != nil {
-		return nil, errors.New("append block tree leaf error")
+		return nil, fmt.Errorf("append block tree leaf error: %w", err)
 	}
 
 	if addedBlockNumber != blockWitness.Block.BlockNumber {
