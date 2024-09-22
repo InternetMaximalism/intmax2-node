@@ -129,13 +129,16 @@ func (u *uc) Do(
 			}
 			u.log.Printf("INTMAX Address: %s\n", intMaxAddress.String())
 
-			if len(encodedEncryptedTransfer.SenderLastBalanceProofBody) != 0 {
-				senderLastBalanceProofBody, err := hexutil.Decode(encodedEncryptedTransfer.SenderLastBalanceProofBody)
+			if encodedEncryptedTransfer.SenderLastBalanceProofBody != "" {
+				var senderLastBalanceProofBody []byte
+				senderLastBalanceProofBody, err = hexutil.Decode(encodedEncryptedTransfer.SenderLastBalanceProofBody)
 				if err != nil {
 					open_telemetry.MarkSpanError(spanCtx, err)
 					return errors.Join(ErrDecodeSenderLastBalanceProofBodyFail, err)
 				}
-				senderBalanceTransitionProofBody, err := hexutil.Decode(encodedEncryptedTransfer.SenderTransitionProofBody)
+
+				var senderBalanceTransitionProofBody []byte
+				senderBalanceTransitionProofBody, err = hexutil.Decode(encodedEncryptedTransfer.SenderTransitionProofBody)
 				if err != nil {
 					open_telemetry.MarkSpanError(spanCtx, err)
 					return errors.Join(ErrDecodeSenderTransitionProofBodyFail, err)

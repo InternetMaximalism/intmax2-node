@@ -42,7 +42,7 @@ func TestNewHistoricalPoseidonMerkleTree(t *testing.T) {
 
 	fmt.Printf("root = %s\n", root)
 	fmt.Printf("leaves[%d] = %v\n", index, leaves[index].LeafHash)
-	err = proof.Verify(root, index, leaves[index].LeafHash)
+	err = proof.Verify(leaves[index].LeafHash, index, root)
 	require.NoError(t, err)
 
 	// refresh the tree
@@ -70,7 +70,7 @@ func TestNewHistoricalPoseidonMerkleTree(t *testing.T) {
 
 	fmt.Printf("root = %s\n", root)
 	fmt.Printf("leaves[%d] = %v\n", index, leaves[index].LeafHash)
-	err = proof.Verify(root, index, leaves[index].LeafHash)
+	err = proof.Verify(leaves[index].LeafHash, index, root)
 	require.NoError(t, err)
 
 	root2 := mt.GetRoot()
@@ -81,7 +81,7 @@ func TestNewHistoricalPoseidonMerkleTree(t *testing.T) {
 
 	fmt.Printf("root2 = %s\n", root2)
 	fmt.Printf("leaves[%d] = %v\n", index, leaves[index].LeafHash)
-	err = proof2.Verify(root2, index, leaves[index].LeafHash)
+	err = proof2.Verify(leaves[index].LeafHash, index, root2)
 	require.NoError(t, err)
 
 	storage.ReportStats()

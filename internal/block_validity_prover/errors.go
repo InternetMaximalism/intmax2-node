@@ -138,5 +138,11 @@ var ErrNoValidityProofByBlockNumber = errors.New("no validity proof by block num
 // ErrAccountTreeGetAccountID error: account id not found in the account tree.
 var ErrAccountTreeGetAccountID = errors.New("account id not found in the account tree")
 
+// ErrBlockShouldBeValid error: the block should be valid if it is not an empty block.
+var ErrBlockShouldBeValid = errors.New("the block should be valid if it is not an empty block")
+
 // ErrBlockUnSynchronization error: not synchronized.
 var ErrBlockUnSynchronization = errors.New("not synchronized")
+
+// ErrAccountMembershipProof error: account membership proof error.
+var ErrAccountMembershipProof = errors.New("account membership proof error")

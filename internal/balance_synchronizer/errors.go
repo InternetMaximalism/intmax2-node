@@ -30,3 +30,12 @@ var ErrLatestSynchronizedBlockNumberFail = errors.New("failed to get latest sync
 var ErrLatestSynchronizedBlockNumberLassOrEqualLastUpdatedBlockNumber = errors.New(
 	"latest synchronized block number must be more last updated block number",
 )
+
+// ErrReceiveDepositAndUpdate error: failed to receive deposit and update
+var ErrReceiveDepositAndUpdate = errors.New("failed to receive deposit and update")
+
+// ErrNewCompressedPlonky2ProofFromBase64StringFail error: failed to create new compressed plonky2 proof from base64 string
+var ErrNewCompressedPlonky2ProofFromBase64StringFail = errors.New("failed to create new compressed plonky2 proof from base64 string")
+
+var ErrBalancePublicInputsFromPublicInputs = errors.New("failed to create new balance public inputs from public inputs")
+var ErrProveReceiveDeposit = errors.New("failed to prove receive deposit")

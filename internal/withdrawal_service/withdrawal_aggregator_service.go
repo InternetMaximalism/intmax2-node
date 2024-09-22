@@ -34,6 +34,9 @@ import (
 const (
 	base10   = 10
 	int32Key = 32
+
+	timeoutFetchingWithdrawalProof = 10
+	ErrFailedToDecodeJSONResponse  = "failed to decode JSON response: %w"
 )
 
 type WithdrawalAggregatorService struct {
@@ -297,7 +300,7 @@ func MakeWithdrawalInfo(
 
 // 	var res ProofsResponse
 // 	if err = json.NewDecoder(resp.Body).Decode(&res); err != nil {
-// 		return nil, fmt.Errorf("failed to decode JSON response: %w", err)
+// 		return nil, fmt.Errorf(ErrFailedToDecodeJSONResponse, err)
 // 	}
 
 // 	if !res.Success {
@@ -605,11 +608,13 @@ func (w *WithdrawalAggregatorService) buildMockSubmitWithdrawalProofData(pending
 		// 	transferMerkleSiblings = append(transferMerkleSiblings, s.String())
 		// }
 
-		recipientBytes, err := hexutil.Decode(pendingWithdrawals[i].TransferData.Recipient)
+		var recipientBytes []byte
+		recipientBytes, err = hexutil.Decode(pendingWithdrawals[i].TransferData.Recipient)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode recipient address: %w", err)
 		}
-		recipient, err := intMaxTypes.NewEthereumAddress(recipientBytes)
+		var recipient *intMaxTypes.GenericAddress
+		recipient, err = intMaxTypes.NewEthereumAddress(recipientBytes)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert recipient address: %w", err)
 		}
@@ -740,7 +745,8 @@ func (w *WithdrawalAggregatorService) RequestWithdrawalProofToProver(witness *Wi
 		return resGeneration, nil
 	}
 
-	ticker := time.NewTicker(5 * time.Second)
+	const intervalFetchingWithdrawalProof = 5
+	ticker := time.NewTicker(intervalFetchingWithdrawalProof * time.Second)
 	for {
 		select {
 		case <-w.ctx.Done():
@@ -751,7 +757,8 @@ func (w *WithdrawalAggregatorService) RequestWithdrawalProofToProver(witness *Wi
 				var ErrWrappedWithdrawalProofFetching = errors.New("failed to fetch wrapper withdrawal proof")
 				err = errors.Join(ErrWrappedWithdrawalProofFetching, errFetching)
 
-				time.Sleep(10 * time.Second)
+				const intervalFailedToFetchWithdrawalProof = 10
+				time.Sleep(intervalFailedToFetchWithdrawalProof * time.Second)
 
 				continue
 			}
@@ -795,7 +802,7 @@ func (w *WithdrawalAggregatorService) requestWithdrawalProofToProver(requestID s
 
 	var res ProofResponse
 	if err = json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return nil, fmt.Errorf("failed to decode JSON response: %w", err)
+		return nil, fmt.Errorf(ErrFailedToDecodeJSONResponse, err)
 	}
 
 	return res.Proof, nil
@@ -828,7 +835,7 @@ func (w *WithdrawalAggregatorService) fetchWithdrawalProofToProver(requestID str
 
 	var res ProofResponse
 	if err = json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return nil, fmt.Errorf("failed to decode JSON response: %w", err)
+		return nil, fmt.Errorf(ErrFailedToDecodeJSONResponse, err)
 	}
 
 	if !res.Success {
@@ -854,7 +861,7 @@ func (w *WithdrawalAggregatorService) RequestWithdrawalWrapperProofToProver(with
 		return []byte(*resGeneration), nil
 	}
 
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(timeoutFetchingWithdrawalProof * time.Second)
 	for {
 		select {
 		case <-w.ctx.Done():
@@ -900,7 +907,7 @@ func (w *WithdrawalAggregatorService) requestWithdrawalWrapperProofToProver(requ
 
 	var res ProofResponse
 	if err = json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return nil, fmt.Errorf("failed to decode JSON response: %w", err)
+		return nil, fmt.Errorf(ErrFailedToDecodeJSONResponse, err)
 	}
 
 	if !res.Success {
@@ -933,7 +940,7 @@ func (w *WithdrawalAggregatorService) fetchWithdrawalWrapperProofToProver(reques
 
 	var res ProofResponse
 	if err = json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return nil, fmt.Errorf("failed to decode JSON response: %w", err)
+		return nil, fmt.Errorf(ErrFailedToDecodeJSONResponse, err)
 	}
 
 	if !res.Success {
@@ -954,7 +961,8 @@ func (w *WithdrawalAggregatorService) RequestWithdrawalGnarkProofToProver(wrappe
 	}
 	w.log.Infof("Request Withdrawal Gnark Proof to Prover: %s\n", JobID)
 
-	ticker := time.NewTicker(10 * time.Second)
+	const intervalFetchingWithdrawalGnarkProof = 10
+	ticker := time.NewTicker(intervalFetchingWithdrawalGnarkProof * time.Second)
 	for {
 		select {
 		case <-w.ctx.Done():
@@ -991,7 +999,7 @@ func (w *WithdrawalAggregatorService) requestWithdrawalGnarkProofToProver(wrappe
 
 	var res GnarkStartProofResponse
 	if err = json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return "", fmt.Errorf("failed to decode JSON response: %w", err)
+		return "", fmt.Errorf(ErrFailedToDecodeJSONResponse, err)
 	}
 
 	return res.JobID, nil
@@ -1016,7 +1024,7 @@ func (w *WithdrawalAggregatorService) fetchWithdrawalGnarkProofToProver(jobID st
 
 	var res GnarkGetProofResponse
 	if err = json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return nil, fmt.Errorf("failed to decode JSON response: %w", err)
+		return nil, fmt.Errorf(ErrFailedToDecodeJSONResponse, err)
 	}
 
 	if res.Status != "done" {

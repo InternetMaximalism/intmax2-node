@@ -12,6 +12,8 @@ import (
 	intMaxAcc "intmax2-node/internal/accounts"
 	intMaxAccTypes "intmax2-node/internal/accounts/types"
 	"intmax2-node/internal/balance_service"
+	"intmax2-node/internal/balance_synchronizer"
+	"intmax2-node/internal/block_validity_prover"
 	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
@@ -39,6 +41,7 @@ func TransferTransaction(
 	cfg *configs.Config,
 	log logger.Logger,
 	sb ServiceBlockchain,
+	db block_validity_prover.SQLDriverApp,
 	args []string,
 	amountStr string,
 	recipientAddressStr string,
@@ -59,7 +62,7 @@ func TransferTransaction(
 		return fmt.Errorf("%s", err)
 	}
 
-	tokenIndex, err := balance_service.GetTokenIndexFromLiquidityContract(ctx, cfg, sb, *tokenInfo)
+	tokenIndex, err := balance_service.GetTokenIndexFromLiquidityContract(ctx, cfg, log, sb, *tokenInfo)
 	if err != nil {
 		return err
 	}
@@ -92,29 +95,109 @@ func TransferTransaction(
 	// }
 
 	fmt.Println("Fetching balances...")
-	// log := logger.NewCommandLineLogger()
-	// blockValidityService := balance_prover_service.NewExternalBlockValidityProver(ctx, cfg)
-	// balanceSynchronizer, err := balance_synchronizer.SyncLocally(
-	// 	ctx,
-	// 	cfg,
-	// 	log,
-	// 	sb,
-	// 	blockValidityService,
-	// 	userAccount,
-	// )
+	// blockValidityProver, err := block_validity_prover.NewBlockValidityProver(ctx, cfg, log, sb, db)
 	// if err != nil {
-	// 	return fmt.Errorf("failed to sync balance proof: %w", err)
+	// 	const msg = "failed to start Block Validity Prover: %+v"
+	// 	log.Fatalf(msg, err.Error())
 	// }
-
-	l1Balance, err := balance_service.GetTokenBalance(ctx, cfg, log, sb, *wallet.WalletAddress, *tokenInfo)
+	blockValidityService, err := block_validity_prover.NewBlockValidityService(ctx, cfg, log, sb, db)
 	if err != nil {
-		return fmt.Errorf(ErrFailedToGetBalanceEth, "Ethereum")
+		const msg = "failed to start Block Validity Service: %+v"
+		log.Fatalf(msg, err.Error())
 	}
 
-	balance, err := balance_service.GetUserBalance(ctx, cfg, log, userAccount, tokenIndex)
+	// wg := sync.WaitGroup{}
+
+	// wg.Add(1)
+	// go func() {
+	// 	defer func() {
+	// 		wg.Done()
+	// 	}()
+
+	// 	var blockSynchronizer block_synchronizer.BlockSynchronizer
+	// 	blockSynchronizer, err = block_synchronizer.NewBlockSynchronizer(ctx, cfg, log)
+	// 	if err != nil {
+	// 		const msg = "failed to start Block Synchronizer: %+v"
+	// 		log.Fatalf(msg, err.Error())
+	// 	}
+
+	// 	latestSynchronizedDepositIndex, err := blockValidityService.FetchLastDepositIndex()
+	// 	if err != nil {
+	// 		const msg = "failed to fetch last deposit index: %+v"
+	// 		log.Fatalf(msg, err.Error())
+	// 	}
+
+	// 	timeout := 5 * time.Second
+	// 	ticker := time.NewTicker(timeout)
+	// 	for {
+	// 		fmt.Printf("block validity ticker\n")
+	// 		select {
+	// 		case <-ctx.Done():
+	// 			ticker.Stop()
+	// 			return
+	// 		case <-ticker.C:
+	// 			fmt.Println("block validity ticker.C")
+	// 			err = blockValidityProver.SyncDepositedEvents()
+	// 			if err != nil {
+	// 				const msg = "failed to sync deposited events: %+v"
+	// 				log.Fatalf(msg, err.Error())
+	// 			}
+
+	// 			err = blockValidityProver.SyncDepositTree(nil, latestSynchronizedDepositIndex)
+	// 			if err != nil {
+	// 				const msg = "failed to sync deposit tree: %+v"
+	// 				log.Fatalf(msg, err.Error())
+	// 			}
+
+	// 			// sync block content
+	// 			startBlock, err := blockValidityService.LastSeenBlockPostedEventBlockNumber()
+	// 			if err != nil {
+	// 				startBlock = cfg.Blockchain.RollupContractDeployedBlockNumber
+	// 				// var ErrLastSeenBlockPostedEventBlockNumberFail = errors.New("last seen block posted event block number fail")
+	// 				// panic(errors.Join(ErrLastSeenBlockPostedEventBlockNumberFail, err))
+	// 			}
+
+	// 			endBlock, err := blockValidityProver.SyncBlockTree(blockSynchronizer, startBlock)
+	// 			if err != nil {
+	// 				panic(err)
+	// 			}
+
+	// 			err = blockValidityService.SetLastSeenBlockPostedEventBlockNumber(endBlock)
+	// 			if err != nil {
+	// 				var ErrSetLastSeenBlockPostedEventBlockNumberFail = errors.New("set last seen block posted event block number fail")
+	// 				panic(errors.Join(ErrSetLastSeenBlockPostedEventBlockNumberFail, err))
+	// 			}
+
+	// 			fmt.Printf("Block %d is searched\n", endBlock)
+	// 		}
+	// 	}
+	// }()
+
+	userWalletState, err := balance_synchronizer.NewMockWallet(userAccount)
 	if err != nil {
-		return fmt.Errorf(ErrFailedToGetBalance.Error()+": %v", err)
+		const msg = "failed to get Mock Wallet: %+v"
+		return fmt.Errorf(msg, err.Error())
 	}
+
+	fmt.Println("start SyncLocally")
+	balanceSynchronizer, err := balance_synchronizer.SyncLocally(
+		ctx,
+		cfg,
+		log,
+		sb,
+		blockValidityService,
+		userWalletState,
+	)
+	fmt.Println("end SyncLocally")
+	if err != nil {
+		return fmt.Errorf("failed to sync balance proof: %w", err)
+	}
+
+	l2Balance := userWalletState.Balance(tokenIndex).BigInt()
+	// balance, err := balance_service.GetUserBalance(ctx, cfg, userAccount, tokenIndex)
+	// if err != nil {
+	// 	return fmt.Errorf(ErrFailedToGetBalance.Error()+": %v", err)
+	// }
 
 	if strings.TrimSpace(amountStr) == "" {
 		return fmt.Errorf("amount is required")
@@ -126,8 +209,8 @@ func TransferTransaction(
 		return fmt.Errorf("failed to convert amount to int: %v", amountStr)
 	}
 
-	if balance.Cmp(amount) < 0 {
-		return fmt.Errorf("insufficient funds for total amount: balance %s, total amount %s", balance, amount)
+	if l2Balance.Cmp(amount) < 0 {
+		return fmt.Errorf("insufficient funds for total amount: balance %s, total amount %s", l2Balance, amount)
 	}
 
 	var dataBlockInfo *BlockInfoResponseData
@@ -175,8 +258,8 @@ func TransferTransaction(
 		return fmt.Errorf("failed to convert gas fee to int: %w", err)
 	}
 	totalAmountWithGas := new(big.Int).Add(amount, gasFeeInt)
-	if l1Balance.Cmp(totalAmountWithGas) < 0 {
-		return fmt.Errorf("insufficient funds for tx cost: l1Balance %s, tx cost %s", l1Balance, totalAmountWithGas)
+	if l2Balance.Cmp(totalAmountWithGas) < 0 {
+		return fmt.Errorf("insufficient funds for tx cost: l1Balance %s, tx cost %s", l2Balance, totalAmountWithGas)
 	}
 
 	// Send transfer transaction
@@ -210,8 +293,8 @@ func TransferTransaction(
 
 	// lastBalanceProof := ""
 	// balanceTransitionProof := ""
-	// nonce := balanceSynchronizer.CurrentNonce() + 1
-	nonce := uint32(1) // TODO: Get nonce from balance synchronizer
+	nonce := balanceSynchronizer.CurrentNonce() + 1
+	// nonce := uint32(1) // TODO: Get nonce from balance synchronizer
 
 	err = SendTransferTransaction(
 		ctx,
@@ -280,7 +363,8 @@ func TransferTransaction(
 
 	backupTransfers := make([]*transaction.BackupTransferInput, len(initialLeaves))
 	for i := range initialLeaves {
-		transferMerkleProof, _, err := transferTree.ComputeMerkleProof(uint64(i))
+		var transferMerkleProof []*intMaxTypes.PoseidonHashOut
+		transferMerkleProof, _, err = transferTree.ComputeMerkleProof(uint64(i))
 		if err != nil {
 			return fmt.Errorf("failed to compute merkle proof: %v", err)
 		}

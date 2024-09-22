@@ -59,12 +59,12 @@ func (t *AccountTree) ProveMembership(publicKey *big.Int) (proof *IndexedMembers
 	return t.inner.ProveMembership(publicKey)
 }
 
-func (t *AccountTree) Insert(publicKey *big.Int, lastSentBlockNumber uint64) (*IndexedInsertionProof, error) {
-	return t.inner.Insert(publicKey, lastSentBlockNumber)
+func (t *AccountTree) Insert(publicKey *big.Int, lastSentBlockNumber uint32) (*IndexedInsertionProof, error) {
+	return t.inner.Insert(publicKey, uint64(lastSentBlockNumber))
 }
 
-func (t *AccountTree) Update(publicKey *big.Int, lastSentBlockNumber uint64) (*IndexedUpdateProof, error) {
-	return t.inner.Update(publicKey, lastSentBlockNumber)
+func (t *AccountTree) Update(publicKey *big.Int, lastSentBlockNumber uint32) (*IndexedUpdateProof, error) {
+	return t.inner.Update(publicKey, uint64(lastSentBlockNumber))
 }
 
 func NewDummyAccountRegistrationProof(height uint8) *IndexedInsertionProof {

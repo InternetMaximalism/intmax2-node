@@ -130,9 +130,14 @@ type BlockContents interface {
 	CreateBlockContent(
 		postedBlock *block_post_service.PostedBlock,
 		blockContent *intMaxTypes.BlockContent,
-	) (*mDBApp.BlockContent, error)
-	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContent, error)
-	BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContent, error)
+	) (*mDBApp.BlockContentWithProof, error)
+	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
+	BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWithProof, error)
+	ScanBlockHashAndSenders() (blockHashAndSendersMap map[uint32]mDBApp.BlockHashAndSenders, lastBlockNumber uint32, err error)
+	CreateValidityProof(blockHash common.Hash, validityProof []byte) (*mDBApp.BlockProof, error)
+	LastBlockValidityProof() (*mDBApp.BlockContentWithProof, error)
+	LastBlockNumberGeneratedValidityProof() (uint32, error)
+	LastPostedBlockNumber() (uint32, error)
 }
 
 type CtrlProcessingJobs interface {

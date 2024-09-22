@@ -39,14 +39,18 @@ func (s *StoreVaultServer) BackupBalance(ctx context.Context, req *node.BackupBa
 
 	err := input.Valid()
 	if err != nil {
+		fmt.Printf("input: %+v", input)
+		fmt.Printf("input.EncryptedBalanceProof: %v", input.EncryptedBalanceProof)
+		fmt.Printf("input is invalid: %v", err)
 		open_telemetry.MarkSpanError(spanCtx, err)
 		return &resp, utils.BadRequest(spanCtx, err)
 	}
 
+	var newBackupBalance *node.BackupBalanceResponse_Data_Balance
 	err = s.dbApp.Exec(spanCtx, nil, func(d interface{}, _ interface{}) (err error) {
 		q, _ := d.(SQLDriverApp)
 
-		err = s.commands.PostBackupBalance(s.config, s.log, q).Do(spanCtx, &input)
+		newBackupBalance, err = s.commands.PostBackupBalance(s.config, s.log, q).Do(spanCtx, &input)
 		if err != nil {
 			open_telemetry.MarkSpanError(spanCtx, err)
 			const msg = "failed to post backup balance: %w"
@@ -61,7 +65,9 @@ func (s *StoreVaultServer) BackupBalance(ctx context.Context, req *node.BackupBa
 	}
 
 	resp.Success = true
-	resp.Data = &node.BackupBalanceResponse_Data{Message: backupBalance.SuccessMsg}
+	resp.Data = &node.BackupBalanceResponse_Data{
+		Balance: newBackupBalance,
+	}
 
 	return &resp, utils.OK(spanCtx)
 }

@@ -7,6 +7,8 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"os"
 
 	"github.com/iden3/go-iden3-crypto/ffg"
@@ -136,18 +138,22 @@ func NewCompressedPlonky2ProofFromBase64String(proof string) (*Plonky2Proof, err
 	numPublicInputs := uint32(0)
 	err = binary.Read(reader, binary.LittleEndian, &numPublicInputs)
 	if err != nil {
-		return nil, err
+		var ErrReadNumPublicInputsFail = errors.New("failed to read number of public inputs")
+		return nil, errors.Join(ErrReadNumPublicInputsFail, err)
 	}
+	fmt.Printf("numPublicInputs: %v\n", numPublicInputs)
 
 	publicInputs, err := DecodePublicInputs(reader, numPublicInputs)
 	if err != nil {
-		return nil, err
+		var ErrDecodePublicInputsFail = errors.New("failed to decode public inputs")
+		return nil, errors.Join(ErrDecodePublicInputsFail, err)
 	}
 
-	proofBytes := []byte{}
-	_, err = reader.Read(proofBytes)
+	proofBytes, err := io.ReadAll(reader)
 	if err != nil {
-		return nil, err
+		fmt.Printf("failed to read proof bytes: %v\n", err)
+		var ErrReadProofBytesFail = errors.New("failed to read proof bytes")
+		return nil, errors.Join(ErrReadProofBytesFail, err)
 	}
 
 	return &Plonky2Proof{
@@ -158,6 +164,7 @@ func NewCompressedPlonky2ProofFromBase64String(proof string) (*Plonky2Proof, err
 
 func (p *Plonky2Proof) PublicInputsBytes() []byte {
 	buf := new(bytes.Buffer)
+
 	for _, v := range p.PublicInputs {
 		binary.Write(buf, binary.LittleEndian, v.ToUint64Regular())
 	}
@@ -166,7 +173,20 @@ func (p *Plonky2Proof) PublicInputsBytes() []byte {
 }
 
 func (p *Plonky2Proof) ProofBase64String() string {
-	return base64.StdEncoding.EncodeToString(p.Proof)
+	buf := new(bytes.Buffer)
+	numPublicInputs := uint32(len(p.PublicInputs))
+	binary.Write(buf, binary.LittleEndian, numPublicInputs)
+
+	for _, v := range p.PublicInputs {
+		binary.Write(buf, binary.LittleEndian, v.ToUint64Regular())
+	}
+
+	_, err := buf.Write(p.Proof)
+	for err != nil {
+		panic(err)
+	}
+
+	return base64.StdEncoding.EncodeToString(buf.Bytes())
 }
 
 func MakeSamplePlonky2Proof() (*Plonky2Proof, error) {

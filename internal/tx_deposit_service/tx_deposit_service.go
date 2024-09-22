@@ -527,7 +527,7 @@ func backupDepositRawRequest(
 		contentType: appJSON,
 	}).SetBody(bd).Post(apiUrl)
 	if err != nil {
-		const msg = "failed to send of the transaction request: %w"
+		const msg = "failed to backup deposit request: %w"
 		return fmt.Errorf(msg, err)
 	}
 

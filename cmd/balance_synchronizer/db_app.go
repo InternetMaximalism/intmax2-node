@@ -126,22 +126,17 @@ type Deposits interface {
 }
 
 type BlockContents interface {
-	// CreateBlockContent(
-	// 	blockNumber uint32,
-	// 	blockHash, prevBlockHash, depositRoot, txRoot, aggregatedSignature, aggregatedPublicKey, messagePoint string,
-	// 	isRegistrationBlock bool,
-	// 	senders []intMaxTypes.ColumnSender,
-	// ) (*mDBApp.BlockContent, error)
 	CreateBlockContent(
 		postedBlock *block_post_service.PostedBlock,
 		blockContent *intMaxTypes.BlockContent,
-	) (*mDBApp.BlockContent, error)
-	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContent, error)
-	BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContent, error)
-	// SetValidityWitness(blockNumber uint32, witness *block_validity_prover.ValidityWitness) error
-	// LastValidityWitness() (*block_validity_prover.ValidityWitness, error)
-	// SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error
-	// LastSeenBlockPostedEventBlockNumber() (blockNumber uint64, err error)
+	) (*mDBApp.BlockContentWithProof, error)
+	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
+	BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWithProof, error)
+	ScanBlockHashAndSenders() (blockHashAndSendersMap map[uint32]mDBApp.BlockHashAndSenders, lastBlockNumber uint32, err error)
+	CreateValidityProof(blockHash common.Hash, validityProof []byte) (*mDBApp.BlockProof, error)
+	LastBlockValidityProof() (*mDBApp.BlockContentWithProof, error)
+	LastBlockNumberGeneratedValidityProof() (uint32, error)
+	LastPostedBlockNumber() (uint32, error)
 }
 
 type Withdrawals interface {

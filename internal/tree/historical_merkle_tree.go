@@ -7,6 +7,8 @@ import (
 	"math/bits"
 )
 
+const int16Key = 16
+
 type PoseidonSubTreePreimage struct {
 	Height             uint8
 	NonDefaultChildren []string
@@ -89,7 +91,7 @@ func (p *merkleTreeHistoryOnMemory) GetLeaves(version int, indices []int) (map[i
 	for _, index := range indices {
 		var hash *PoseidonHashOut
 		var v int
-		for v := version; v >= 0; v-- {
+		for v = version; v >= 0; v-- {
 			leaves := p.versionedLeaves[v]
 			var ok bool
 			foundHash, ok := leaves[index]
@@ -142,7 +144,7 @@ func (p *merkleTreeHistoryOnMemory) NextUnusedIndex() int {
 func (p *merkleTreeHistoryOnMemory) Size() int {
 	size := 0
 	for key, value := range p.preimages {
-		size += len(key) + len(value.PreimageJSON) + 16
+		size += len(key) + len(value.PreimageJSON) + int16Key
 	}
 
 	return size
@@ -214,7 +216,7 @@ func (t *HistoricalPoseidonMerkleTree) UpdateLeaves(
 ) (root *PoseidonHashOut, err error) {
 	tmpPreimages := make(map[string]*PreimageWithType)
 	for _, leaf := range leaves {
-		_, err := t.updateLeaf(leaf.Index, leaf.LeafHash, tmpPreimages)
+		_, err = t.updateLeaf(leaf.Index, leaf.LeafHash, tmpPreimages)
 		if err != nil {
 			return nil, err
 		}
@@ -288,9 +290,9 @@ func (t *HistoricalPoseidonMerkleTree) updateLeaf(
 	t.PoseidonMerkleTree.updateLeaf(index, new(PoseidonHashOut).Set(leafHash))
 
 	nextUnusedIndex := t.Storage.NextUnusedIndex()
-	if int(index) >= nextUnusedIndex {
-		nextUnusedIndex = int(index) + 1
-		t.Storage.SetUnusedIndex(int(index) + 1)
+	if index >= nextUnusedIndex {
+		nextUnusedIndex = index + 1
+		t.Storage.SetUnusedIndex(index + 1)
 	}
 
 	significantHeight := uint8(effectiveBits(uint(nextUnusedIndex - 1)))
@@ -396,7 +398,7 @@ func (t *HistoricalPoseidonMerkleTree) Prove(targetRoot *PoseidonHashOut, index 
 			leaves = append(leaves, leafHash)
 		}
 
-		mt, err := NewPoseidonIncrementalMerkleTree(uint8(preimage.Height), leaves, defaultChild)
+		mt, err := NewPoseidonIncrementalMerkleTree(preimage.Height, leaves, defaultChild)
 		if err != nil {
 			return nil, err
 		}

@@ -1,8 +1,8 @@
-package tree
+package tree_test
 
 import (
 	"encoding/hex"
-	"fmt"
+	"intmax2-node/internal/tree"
 	"math/big"
 	"testing"
 
@@ -124,7 +124,7 @@ import (
 // root: 0x6db2847aa710f29f822c203ec9f7873d51bfd08bc60e5182b52604091c21d249, count: 13
 
 func TestDepositTreeWithoutInitialLeaves(t *testing.T) {
-	mt, err := NewDepositTree(32)
+	mt, err := tree.NewDepositTree(32)
 	if err != nil {
 		t.Errorf("fail to create merkle tree")
 	}
@@ -214,9 +214,9 @@ func TestDepositTreeWithoutInitialLeaves(t *testing.T) {
 		},
 	}
 
-	leaves := make([]*DepositLeaf, len(rawLeaves))
+	leaves := make([]*tree.DepositLeaf, len(rawLeaves))
 	for i, rawLeaf := range rawLeaves {
-		leaf := DepositLeaf{
+		leaf := tree.DepositLeaf{
 			RecipientSaltHash: [32]byte{},
 			TokenIndex:        rawLeaf.TokenIndex,
 			Amount:            new(big.Int),
@@ -231,17 +231,18 @@ func TestDepositTreeWithoutInitialLeaves(t *testing.T) {
 	}
 
 	for i, leaf := range leaves {
-		fmt.Printf("--- leaves[%d] ---\n", i)
-		fmt.Printf("deposit ID: %d\n", rawLeaves[i].DepositId)
+		t.Logf("--- leaves[%d] ---\n", i)
+		t.Logf("deposit ID: %d\n", rawLeaves[i].DepositId)
 
 		_, count, siblings := mt.GetCurrentRootCountAndSiblings()
-		fmt.Printf("Siblings: %x\n", siblings)
+		t.Logf("Siblings: %x\n", siblings)
 
 		expectedRoot, err := mt.AddLeaf(count, *leaf)
 		require.NoError(t, err)
 
-		require.Equal(t, common.Hash(expectedRoot), mt.inner.currentRoot)
-		fmt.Printf("Root: %x\n", mt.inner.currentRoot)
+		actualRoot, _, _ := mt.GetCurrentRootCountAndSiblings()
+		require.Equal(t, common.Hash(expectedRoot), actualRoot)
+		t.Logf("Root: %x\n", actualRoot)
 	}
 
 	// root after inserted leaves[6]: 7c24c2a267c9415f6fc0fe161e0903de154a21ca2eedf54c9747d9d15d78342b, but got 19e091301c6758d623167ce8876f1477acbb44350f758a7e8e564b4464930bbf

@@ -146,7 +146,7 @@ func (b *Bytes32) FromPoseidonHashOut(value *PoseidonHashOut) *Bytes32 {
 	for i, e := range value.Elements {
 		rawValue := e.ToUint64Regular()
 		low := uint32(rawValue)
-		high := uint32(rawValue >> 32)
+		high := uint32(rawValue >> int32Key)
 
 		b[i*2] = high
 		b[i*2+1] = low
@@ -156,7 +156,7 @@ func (b *Bytes32) FromPoseidonHashOut(value *PoseidonHashOut) *Bytes32 {
 }
 
 func (b *Bytes32) PoseidonHashOut() *PoseidonHashOut {
-	elements := [4]ffg.Element{}
+	elements := [int4Key]ffg.Element{}
 	for i := 0; i < len(elements); i++ {
 		value := uint64(b[i*2])<<32 + uint64(b[i*2+1])
 		elements[i].SetUint64(value)

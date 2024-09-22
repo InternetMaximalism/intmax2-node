@@ -21,6 +21,8 @@ import (
 	"github.com/iden3/go-iden3-crypto/ffg"
 )
 
+const base10 = 10
+
 type DepositDetails struct {
 	Recipient         *intMaxAcc.PublicKey
 	TokenIndex        uint32
@@ -46,15 +48,16 @@ func NewBalanceTransitionData(
 	intMaxWalletAddress := userPrivateKey.ToAddress()
 	fmt.Printf("Starting balance prover service: %s\n", intMaxWalletAddress)
 
-	userAllData, err := balance_service.GetUserBalancesRawRequest(ctx, cfg, log, intMaxWalletAddress.String())
+	storedTransitionData, err := balance_service.GetUserBalancesRawRequest(ctx, cfg, log, intMaxWalletAddress.String())
 	if err != nil {
 		const msg = "failed to get user all data: %+v"
 		panic(fmt.Sprintf(msg, err.Error()))
 	}
 
-	decodedUserAllData, err := DecodeBackupData(ctx, cfg, log, userAllData, userPrivateKey)
+	decodedUserAllData, err := DecodeBackupData(ctx, cfg, log, storedTransitionData, userPrivateKey)
 	if err != nil {
-		return nil, err
+		fmt.Printf("Error in DecodeBackupData: %v\n", err)
+		return nil, fmt.Errorf("failed to decode backup data: %v", err)
 	}
 
 	fmt.Printf("user deposits: %d\n", len(decodedUserAllData.Deposits))
@@ -100,7 +103,7 @@ func DecodeBackupData(
 
 		// Request data store vault if deposit is valid
 		depositIDStr := deposit.BlockNumber
-		depositID, err := strconv.ParseUint(depositIDStr, 10, 32)
+		depositID, err := strconv.ParseUint(depositIDStr, base10, int32Key)
 		for err != nil {
 			log.Printf("failed to parse deposit ID: %v", err)
 		}
@@ -153,7 +156,8 @@ func DecodeBackupData(
 		// balances[tokenIndex] = new(big.Int).Add(balances[tokenIndex], decodedDeposit.Amount)
 	}
 
-	for _, transfer := range userAllData.Transfers {
+	fmt.Printf("num of received transfers: %d\n", len(userAllData.Transfers))
+	for i, transfer := range userAllData.Transfers {
 		encryptedTransferBytes, err := base64.StdEncoding.DecodeString(transfer.EncryptedTransfer)
 		if err != nil {
 			log.Printf("failed to decode transfer: %v", err)
@@ -167,7 +171,8 @@ func DecodeBackupData(
 		var decodedTransfer intMaxTypes.TransferDetails
 		err = decodedTransfer.Unmarshal(encodedTransfer)
 		if err != nil {
-			log.Printf("failed to unmarshal transfer: %v", err)
+			fmt.Printf("transfers[%d]: %v\n", i, transfer)
+			log.Printf("failed to unmarshal transfer in DecodeBackupData: %v", err)
 			continue
 		}
 
@@ -186,7 +191,9 @@ func DecodeBackupData(
 		// balances[tokenIndex] = new(big.Int).Add(balances[tokenIndex], decodedTransfer.Amount)
 	}
 
+	fmt.Printf("num of sent transactions: %d\n", len(userAllData.Transactions))
 	for _, transaction := range userAllData.Transactions {
+		fmt.Printf("transaction: %v\n", transaction)
 		encryptedTxBytes, err := base64.StdEncoding.DecodeString(transaction.EncryptedTx)
 		if err != nil {
 			log.Printf("failed to decode transaction: %v", err)
@@ -221,23 +228,23 @@ func DecodeBackupData(
 
 func (userAllData *BalanceTransitionData) SortValidUserData(
 	log logger.Logger,
-	blockValidityProver block_validity_prover.BlockValidityService,
+	blockValidityService block_validity_prover.BlockValidityService,
 ) ([]ValidBalanceTransition, error) {
-	validDeposits, invalidDeposits, err := ExtractValidReceivedDeposits(log, userAllData, blockValidityProver)
+	validDeposits, invalidDeposits, err := ExtractValidReceivedDeposits(log, userAllData, blockValidityService)
 	if err != nil {
 		fmt.Println("Error in ExtractValidReceivedDeposit")
 	}
 	fmt.Printf("num of valid deposits: %d\n", len(validDeposits))
 	fmt.Printf("num of invalid deposits: %d\n", len(invalidDeposits))
 
-	validTransfers, invalidTransfers, err := ExtractValidReceivedTransfers(log, userAllData, blockValidityProver)
+	validTransfers, invalidTransfers, err := ExtractValidReceivedTransfers(log, userAllData, blockValidityService)
 	if err != nil {
 		fmt.Println("Error in ExtractValidReceivedDeposit")
 	}
 	fmt.Printf("num of valid transfers: %d\n", len(validTransfers))
 	fmt.Printf("num of invalid transfers: %d\n", len(invalidTransfers))
 
-	validTransactions, invalidTransactions, err := ExtractValidSentTransactions(log, userAllData, blockValidityProver)
+	validTransactions, invalidTransactions, err := ExtractValidSentTransactions(log, userAllData, blockValidityService)
 	if err != nil {
 		fmt.Println("Error in ExtractValidReceivedDeposit")
 	}
@@ -308,14 +315,13 @@ func ExtractValidSentTransactions(
 
 		fmt.Printf("transaction hash: %s\n", txHash.String())
 		if tx.TxTreeRoot == nil {
-			// TODO: If TxTreeRoot is nil, the account is no longer valid.
+			// If TxTreeRoot is nil, the account is no longer valid.
 			log.Warnf("transaction tx tree root is nil\n")
 			invalidTxHashes = append(invalidTxHashes, txHash)
 			continue
 		}
 
-		txRoot := tx.TxTreeRoot.String()[:2]
-		blockContent, err := blockValidityService.BlockContentByTxRoot(txRoot)
+		blockContent, err := blockValidityService.BlockContentByTxRoot(common.BytesToHash(tx.TxTreeRoot.Marshal()))
 		if err != nil {
 			log.Warnf("failed to get block content by tx root %s: %v\n", txHash.String(), err)
 			continue
@@ -351,7 +357,7 @@ func ExtractValidReceivedDeposits(
 		depositHash := deposit.DepositHash // TODO: validate deposit
 		log.Debugf("deposit hash: %s\n", depositHash.String())
 
-		depositInfo, err := blockValidityService.GetDepositLeafAndIndexByHash(depositHash)
+		depositInfo, err := blockValidityService.GetDepositInfoByHash(depositHash)
 		if err != nil {
 			log.Warnf("failed to get deposit index by hash %s: %v\n", depositHash.String(), err)
 			continue
@@ -391,8 +397,7 @@ func ExtractValidReceivedTransfers(
 			continue
 		}
 
-		txRoot := transfer.TransferDetails.TxTreeRoot.String()[:2]
-		blockContent, err := blockValidityService.BlockContentByTxRoot(txRoot)
+		blockContent, err := blockValidityService.BlockContentByTxRoot(common.BytesToHash(transfer.TransferDetails.TxTreeRoot.Marshal()))
 		if err != nil {
 			log.Warnf("failed to get block content by transfer root %s: %v\n", transferHash.String(), err)
 			continue

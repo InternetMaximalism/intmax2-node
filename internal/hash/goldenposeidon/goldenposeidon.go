@@ -251,6 +251,10 @@ func (h *PoseidonHashOut) SetZero() *PoseidonHashOut {
 }
 
 func (h *PoseidonHashOut) Equal(other *PoseidonHashOut) bool {
+	if h == nil || other == nil {
+		return false
+	}
+
 	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
 		if !h.Elements[i].Equal(&other.Elements[i]) {
 			return false
@@ -261,13 +265,17 @@ func (h *PoseidonHashOut) Equal(other *PoseidonHashOut) bool {
 }
 
 func (h *PoseidonHashOut) Marshal() []byte {
-	a := []byte{}
-	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
-		b := h.Elements[i].Marshal() // big-endian
-		a = append(a, b...)
+	if h == nil {
+		panic("value is nil")
 	}
 
-	return a
+	result := []byte{}
+	for i := 0; i < NUM_HASH_OUT_ELTS; i++ {
+		b := h.Elements[i].Marshal() // big-endian
+		result = append(result, b...)
+	}
+
+	return result
 }
 
 func (h *PoseidonHashOut) String() string {
@@ -277,6 +285,7 @@ func (h *PoseidonHashOut) String() string {
 func (h *PoseidonHashOut) Unmarshal(data []byte) error {
 	const elementSize = 8
 	if len(data) != NUM_HASH_OUT_ELTS*elementSize {
+		fmt.Printf("Fail to unmarshal data: %v\n", data)
 		return fmt.Errorf("invalid data size: %d", len(data))
 	}
 

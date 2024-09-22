@@ -613,6 +613,8 @@ message BackupTransactionRequest {
   uint64 block_number = 40;
   // The signature for the transaction
   string signature = 50;
+  // The encoding version for the encrypted_tx
+  uint32 encoding_version = 60;
 }
 
 // BackupTransactionResponse is the response message for Backup method.
@@ -649,7 +651,8 @@ message GetBackupTransactionsResponse {
     string signature = 3;
     uint64 block_number = 4;
     string encrypted_tx = 5;
-    google.protobuf.Timestamp created_at = 6;
+    uint32 encoding_version = 6;
+    google.protobuf.Timestamp created_at = 7;
   }
 
   message Meta {
@@ -742,7 +745,8 @@ message GetBackupTransactionsListResponse {
     string signature = 3;
     uint64 block_number = 4;
     string encrypted_tx = 5;
-    google.protobuf.Timestamp created_at = 6;
+    uint32 encoding_version = 6;
+    google.protobuf.Timestamp created_at = 7;
   }
 }
 
@@ -765,7 +769,8 @@ message GetBackupTransactionByHashResponse {
     string signature = 3;
     uint64 block_number = 4;
     string encrypted_tx = 5;
-    google.protobuf.Timestamp created_at = 6;
+    uint32 encoding_version = 6;
+    google.protobuf.Timestamp created_at = 7;
   }
 }
 
@@ -957,7 +962,8 @@ message BackupTransaction {
 	string sender = 1;
 	string encrypted_tx = 2;
 	string block_number = 3;
-  google.protobuf.Timestamp created_at = 4;
+  uint32 encoding_version = 4;
+  google.protobuf.Timestamp created_at = 5;
 }
 
 message BackupBalanceRequest {
@@ -969,6 +975,7 @@ message BackupBalanceRequest {
   repeated string encrypted_deposits = 6;
   string signature = 7;
   uint64 block_number = 8;
+  string prev_id = 9;
 }
 
 message BackupBalanceResponse {
@@ -979,7 +986,20 @@ message BackupBalanceResponse {
   // Data is the nested message containing detailed response information
   message Data {
     // A message indicating the result of the backup transfer
-    string message = 1;
+    Balance balance = 1;
+
+    message Balance {
+      string id = 1;
+      string user_address = 2;
+      string encrypted_balance_proof = 3;
+      string encrypted_balance_data = 4;
+      repeated string encrypted_txs = 5;
+      repeated string encrypted_transfers = 6;
+      repeated string encrypted_deposits = 7;
+      uint64 block_number = 8;
+      string signature = 9;
+      google.protobuf.Timestamp created_at = 10;
+    }
   }
 }
 

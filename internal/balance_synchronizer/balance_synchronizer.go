@@ -17,7 +17,11 @@ import (
 	"time"
 )
 
-const int8Key = 8
+const (
+	int8Key = 8
+
+	messageBalanceProcessorNotInitialized = "balance processor not initialized"
+)
 
 type balanceSynchronizer struct {
 	ctx                  context.Context
@@ -86,33 +90,33 @@ func (s *balanceSynchronizer) Sync(
 }
 
 func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.PrivateKey) (err error) {
-	var userAllData *balance_prover_service.BalanceTransitionData
-	userAllData, err = balance_prover_service.NewBalanceTransitionData(s.ctx, s.cfg, s.log, intMaxPrivateKey)
+	balanceTransitionData, err := balance_prover_service.NewBalanceTransitionData(s.ctx, s.cfg, s.log, intMaxPrivateKey)
 	if err != nil {
-		return errors.Join(ErrNewBalanceTransitionDataFail, err)
+		const msg = "failed to start Balance Prover Service: %+v"
+		s.log.Fatalf(msg, err.Error())
 	}
-
-	var sortedValidUserData []balance_prover_service.ValidBalanceTransition
-	sortedValidUserData, err = userAllData.SortValidUserData(
+	sortedValidUserData, err := balanceTransitionData.SortValidUserData(
 		s.log,
 		s.blockValidityService,
 	)
 	if err != nil {
-		return errors.Join(ErrSortValidUserDataFail, err)
+		const msg = "failed to sort valid user data: %+v"
+		s.log.Fatalf(msg, err.Error())
 	}
-
 	fmt.Printf("size of sortedValidUserData: %v\n", len(sortedValidUserData))
 	for _, transition := range sortedValidUserData {
 		fmt.Printf("transition block number: %d\n", transition.BlockNumber())
 	}
 
-	var latestSynchronizedBlockNumber uint32
-	latestSynchronizedBlockNumber, err = s.blockValidityService.LatestSynchronizedBlockNumber()
+	validityProverInfo, err := s.blockValidityService.FetchValidityProverInfo()
 	if err != nil {
+		const msg = "failed to fetch validity prover info: %+v"
+		s.log.Fatalf(msg, err.Error())
 		return errors.Join(ErrLatestSynchronizedBlockNumberFail, err)
 	}
 
-	if latestSynchronizedBlockNumber <= s.syncBalanceProver.LastUpdatedBlockNumber {
+	latestSynchronizedBlockNumber := validityProverInfo.BlockNumber
+	if latestSynchronizedBlockNumber <= s.syncBalanceProver.LastUpdatedBlockNumber() {
 		return ErrLatestSynchronizedBlockNumberLassOrEqualLastUpdatedBlockNumber
 	}
 
@@ -197,6 +201,7 @@ func (s *balanceSynchronizer) validReceivedDeposit(
 		s.blockSynchronizer,
 		s.userState,
 		s.balanceProcessor,
+		transitionBlockNumber,
 	)
 	if err != nil {
 		return errors.Join(ErrValidReceivedDepositFail, err)
@@ -221,16 +226,18 @@ func (s *balanceSynchronizer) validReceivedTransfer(
 ) (err error) {
 	fmt.Printf("valid received transfer: %v\n", transition.TransferHash)
 	transitionBlockNumber := transition.BlockNumber()
-	fmt.Printf("transitionBlockNumber: %d", transitionBlockNumber)
+	fmt.Printf("transitionBlockNumber: %d\n", transitionBlockNumber)
 	err = s.syncBalanceProver.SyncNoSend(
 		s.log,
 		s.blockValidityService,
 		s.blockSynchronizer,
 		s.userState,
 		s.balanceProcessor,
+		transitionBlockNumber,
 	)
 	if err != nil {
-		return errors.Join(ErrValidReceivedTransferFail, err)
+		const msg = "failed to sync balance prover: %+v"
+		s.log.Fatalf(msg, err.Error())
 	}
 
 	err = applyReceivedTransferTransition(
@@ -259,7 +266,7 @@ func applyReceivedDepositTransition(
 	}
 
 	fmt.Printf("applyReceivedDepositTransition deposit ID: %d\n", deposit.DepositID)
-	depositInfo, err := blockValidityService.GetDepositLeafAndIndexByHash(deposit.DepositHash)
+	depositInfo, err := blockValidityService.GetDepositInfoByHash(deposit.DepositHash)
 	if err != nil {
 		const msg = "failed to get Deposit Leaf and Index by Hash: %+v"
 		return fmt.Errorf(msg, err.Error())
@@ -270,12 +277,7 @@ func applyReceivedDepositTransition(
 	}
 
 	depositIndex := *depositInfo.DepositIndex
-	IsSynchronizedDepositIndex, err := blockValidityService.IsSynchronizedDepositIndex(depositIndex) // TODO: should not use this method
-	if err != nil {
-		const msg = "failed to check IsSynchronizedDepositIndex: %+v"
-		return fmt.Errorf(msg, err.Error())
-	}
-	if !IsSynchronizedDepositIndex {
+	if !depositInfo.IsSynchronized {
 		const msg = "deposit index %d is not synchronized"
 		return fmt.Errorf(msg, depositIndex)
 	}
@@ -292,7 +294,12 @@ func applyReceivedDepositTransition(
 		DepositID:    deposit.DepositID,
 		DepositSalt:  *deposit.Salt,
 	}
-	userState.AddDepositCase(depositIndex, &depositCase)
+	err = userState.AddDepositCase(depositIndex, &depositCase)
+	if err != nil {
+		const msg = "failed to add deposit case: %+v"
+		return fmt.Errorf(msg, err.Error())
+	}
+
 	fmt.Printf("start to prove deposit\n")
 	err = syncBalanceProver.ReceiveDeposit(
 		userState,
@@ -302,8 +309,8 @@ func applyReceivedDepositTransition(
 	)
 	if err != nil {
 		fmt.Printf("prove deposit %v\n", err.Error())
-		if err.Error() == "balance processor not initialized" {
-			return errors.New("balance processor not initialized")
+		if err.Error() == messageBalanceProcessorNotInitialized {
+			return errors.New(messageBalanceProcessorNotInitialized)
 		}
 
 		return fmt.Errorf("failed to receive deposit: %+v", err.Error())
@@ -356,7 +363,7 @@ func applyReceivedTransferTransition(
 		return errors.Join(ErrEncodeSenderBalanceTransitionProof, err)
 	}
 
-	syncBalanceProver.ReceiveTransfer(
+	err = syncBalanceProver.ReceiveTransfer(
 		userState,
 		balanceProcessor,
 		blockValidityService,
@@ -364,6 +371,14 @@ func applyReceivedTransferTransition(
 		encodedSenderLastBalanceProof,
 		encodedSenderBalanceTransitionProof,
 	)
+	if err != nil {
+		fmt.Printf("prove received transfer %v\n", err.Error())
+		if err.Error() == messageBalanceProcessorNotInitialized {
+			return errors.New(messageBalanceProcessorNotInitialized)
+		}
+
+		return fmt.Errorf("failed to receive deposit: %+v", err.Error())
+	}
 
 	return nil
 }
@@ -376,16 +391,15 @@ func applySentTransactionTransition(
 	balanceProcessor balance_prover_service.BalanceProcessor,
 	syncBalanceProver *SyncBalanceProver,
 	userState UserState,
-	// syncValidityProver *syncValidityProver, // XXX
 ) error {
 	// syncValidityProver.Sync() // sync validity proofs
 	fmt.Printf("transaction hash: %d\n", tx.Hash())
 
 	// txMerkleProof := tx.TxMerkleProof
-	transfers := tx.Transfers
+	// transfers := tx.Transfers
 
 	// balanceProverService.SyncBalanceProver
-	txWitness, transferWitnesses, err := userState.SendTx(blockValidityService, transfers)
+	txWitness, transferWitnesses, err := MakeTxWitness(blockValidityService, tx)
 	if err != nil {
 		const msg = "failed to send transaction: %+v"
 		return fmt.Errorf(msg, err.Error())
@@ -410,8 +424,12 @@ func applySentTransactionTransition(
 		balanceProcessor,
 	)
 	if err != nil {
-		const msg = "failed to sync transaction: %+v"
-		panic(fmt.Sprintf(msg, err.Error()))
+		fmt.Printf("prove sent transaction %v\n", err.Error())
+		if err.Error() == messageBalanceProcessorNotInitialized {
+			return errors.New(messageBalanceProcessorNotInitialized)
+		}
+
+		return fmt.Errorf("failed to sync transaction:: %+v", err.Error())
 	}
 
 	return nil

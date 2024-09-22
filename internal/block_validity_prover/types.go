@@ -63,6 +63,11 @@ func (ps *PublicState) Genesis() *PublicState {
 }
 
 func (ps *PublicState) Set(other *PublicState) *PublicState {
+	if other == nil {
+		ps = nil
+		return nil
+	}
+
 	ps.BlockTreeRoot = new(intMaxGP.PoseidonHashOut).Set(other.BlockTreeRoot)
 	ps.PrevAccountTreeRoot = new(intMaxGP.PoseidonHashOut).Set(other.PrevAccountTreeRoot)
 	ps.AccountTreeRoot = new(intMaxGP.PoseidonHashOut).Set(other.AccountTreeRoot)
@@ -133,6 +138,61 @@ func (ps *PublicState) FromFieldElementSlice(value []ffg.Element) *PublicState {
 	ps.BlockNumber = uint32(value[blockNumberOffset].ToUint64Regular())
 
 	return ps
+}
+
+const NumPublicStateBytes = int32Key*int5Key + int4Key
+
+func (ps *PublicState) Marshal() []byte {
+	buf := make([]byte, NumPublicStateBytes)
+	offset := 0
+
+	copy(buf[offset:offset+int32Key], ps.BlockTreeRoot.Marshal())
+	offset += int32Key
+
+	copy(buf[offset:offset+int32Key], ps.PrevAccountTreeRoot.Marshal())
+	offset += int32Key
+
+	copy(buf[offset:offset+int32Key], ps.AccountTreeRoot.Marshal())
+	offset += int32Key
+
+	copy(buf[offset:offset+int32Key], ps.DepositTreeRoot.Bytes())
+	offset += int32Key
+
+	copy(buf[offset:offset+int32Key], ps.BlockHash.Bytes())
+
+	binary.BigEndian.PutUint32(buf, ps.BlockNumber)
+
+	return buf
+}
+
+func (ps *PublicState) Unmarshal(data []byte) error {
+	if len(data) < NumPublicStateBytes {
+		return errors.New("invalid data length")
+	}
+
+	offset := 0
+
+	ps.BlockTreeRoot = new(intMaxGP.PoseidonHashOut)
+	ps.BlockTreeRoot.Unmarshal(data[offset : offset+int32Key])
+	offset += int32Key
+
+	ps.PrevAccountTreeRoot = new(intMaxGP.PoseidonHashOut)
+	ps.PrevAccountTreeRoot.Unmarshal(data[offset : offset+int32Key])
+	offset += int32Key
+
+	ps.AccountTreeRoot = new(intMaxGP.PoseidonHashOut)
+	ps.AccountTreeRoot.Unmarshal(data[offset : offset+int32Key])
+	offset += int32Key
+
+	ps.DepositTreeRoot = common.BytesToHash(data[offset : offset+int32Key])
+	offset += int32Key
+
+	ps.BlockHash = common.BytesToHash(data[offset : offset+int32Key])
+	offset += int32Key
+
+	ps.BlockNumber = binary.BigEndian.Uint32(data[offset : offset+int4Key])
+
+	return nil
 }
 
 type ValidityPublicInputs struct {
@@ -268,15 +328,15 @@ func (arp *AccountUpdateProofs) Set(other *AccountUpdateProofs) *AccountUpdatePr
 }
 
 type ValidityTransitionWitness struct {
-	SenderLeaves              []SenderLeaf              `json:"senderLeaves"`
-	BlockMerkleProof          intMaxTree.MerkleProof    `json:"blockMerkleProof"`
-	AccountRegistrationProofs AccountRegistrationProofs `json:"accountRegistrationProofs"`
-	AccountUpdateProofs       AccountUpdateProofs       `json:"accountUpdateProofs"`
+	SenderLeaves              []SenderLeaf                   `json:"senderLeaves"`
+	BlockMerkleProof          intMaxTree.PoseidonMerkleProof `json:"blockMerkleProof"`
+	AccountRegistrationProofs AccountRegistrationProofs      `json:"accountRegistrationProofs"`
+	AccountUpdateProofs       AccountUpdateProofs            `json:"accountUpdateProofs"`
 }
 
 type ValidityTransitionWitnessFlatten struct {
 	SenderLeaves              []SenderLeaf                       `json:"senderLeaves"`
-	BlockMerkleProof          intMaxTree.MerkleProof             `json:"blockMerkleProof"`
+	BlockMerkleProof          intMaxTree.PoseidonMerkleProof     `json:"blockMerkleProof"`
 	AccountRegistrationProofs []intMaxTree.IndexedInsertionProof `json:"accountRegistrationProofs,omitempty"`
 	AccountUpdateProofs       []intMaxTree.IndexedUpdateProof    `json:"accountUpdateProofs,omitempty"`
 }
@@ -311,16 +371,16 @@ func (vtw *ValidityTransitionWitness) Set(other *ValidityTransitionWitness) *Val
 }
 
 type AccountRegistrationProofOrDummy struct {
-	LowLeafProof *intMaxTree.MerkleProof      `json:"lowLeafProof,omitempty"`
-	LeafProof    *intMaxTree.MerkleProof      `json:"leafProof,omitempty"`
-	Index        uint64                       `json:"index"`
-	LowLeafIndex uint64                       `json:"lowLeafIndex"`
-	PrevLowLeaf  intMaxTree.IndexedMerkleLeaf `json:"prevLowLeaf"`
+	LowLeafProof *intMaxTree.PoseidonMerkleProof `json:"lowLeafProof,omitempty"`
+	LeafProof    *intMaxTree.PoseidonMerkleProof `json:"leafProof,omitempty"`
+	Index        uint64                          `json:"index"`
+	LowLeafIndex uint64                          `json:"lowLeafIndex"`
+	PrevLowLeaf  intMaxTree.IndexedMerkleLeaf    `json:"prevLowLeaf"`
 }
 
 type CompressedValidityTransitionWitness struct {
 	SenderLeaves                         []SenderLeaf                       `json:"senderLeaves"`
-	BlockMerkleProof                     intMaxTree.MerkleProof             `json:"blockMerkleProof"`
+	BlockMerkleProof                     intMaxTree.PoseidonMerkleProof     `json:"blockMerkleProof"`
 	SignificantAccountRegistrationProofs *[]AccountRegistrationProofOrDummy `json:"significantAccountRegistrationProofs,omitempty"`
 	SignificantAccountUpdateProofs       *[]intMaxTree.IndexedUpdateProof   `json:"significantAccountUpdateProofs,omitempty"`
 	CommonAccountMerkleProof             []*intMaxGP.PoseidonHashOut        `json:"commonAccountMerkleProof"`
@@ -389,27 +449,27 @@ func (vtw *ValidityTransitionWitness) Compress(maxAccountID uint64) (compressed 
 		compressed.CommonAccountMerkleProof = accountRegistrationProofs[0].LowLeafProof.Siblings[significantHeight:]
 		significantAccountRegistrationProofs := make([]AccountRegistrationProofOrDummy, 0)
 		for _, proof := range accountRegistrationProofs {
-			var lowLeafProof *intMaxTree.MerkleProof = nil
+			var lowLeafProof *intMaxTree.PoseidonMerkleProof = nil
 			if !proof.LowLeafProof.IsDummy(intMaxTree.ACCOUNT_TREE_HEIGHT) {
 				for i := 0; i < int(intMaxTree.ACCOUNT_TREE_HEIGHT)-significantHeight; i++ {
 					if !proof.LowLeafProof.Siblings[significantHeight+i].Equal(compressed.CommonAccountMerkleProof[i]) {
 						panic("invalid low leaf proof")
 					}
 
-					lowLeafProof = &intMaxTree.MerkleProof{
+					lowLeafProof = &intMaxTree.PoseidonMerkleProof{
 						Siblings: proof.LowLeafProof.Siblings[:significantHeight],
 					}
 				}
 			}
 
-			var leafProof *intMaxTree.MerkleProof = nil
+			var leafProof *intMaxTree.PoseidonMerkleProof = nil
 			if !proof.LeafProof.IsDummy(intMaxTree.ACCOUNT_TREE_HEIGHT) {
 				for i := 0; i < int(intMaxTree.ACCOUNT_TREE_HEIGHT)-significantHeight; i++ {
 					if !proof.LeafProof.Siblings[significantHeight+i].Equal(compressed.CommonAccountMerkleProof[i]) {
 						panic("invalid leaf proof")
 					}
 
-					leafProof = &intMaxTree.MerkleProof{
+					leafProof = &intMaxTree.PoseidonMerkleProof{
 						Siblings: proof.LeafProof.Siblings[:significantHeight],
 					}
 				}
@@ -458,7 +518,7 @@ type AccountMerkleProof struct {
 	Leaf        intMaxTree.IndexedMerkleLeaf  `json:"leaf"`
 }
 
-func (proof *AccountMerkleProof) Verify(accountTreeRoot *intMaxGP.PoseidonHashOut, accountID uint64, publicKey intMaxTypes.Uint256) error {
+func (proof *AccountMerkleProof) Verify(publicKey intMaxTypes.Uint256, accountID uint64, accountTreeRoot *intMaxGP.PoseidonHashOut) error {
 	if publicKey.IsDummyPublicKey() {
 		return errors.New("public key is zero")
 	}
@@ -487,7 +547,7 @@ type AccountIdPacked [numAccountIDPackedBytes]uint32
 func (b *AccountIdPacked) Set(other *AccountIdPacked) *AccountIdPacked {
 	if other == nil {
 		b = nil
-		return nil
+		return b
 	}
 
 	for i := 0; i < numAccountIDPackedBytes; i++ {
@@ -825,6 +885,8 @@ func (bw *BlockWitness) Genesis() *BlockWitness {
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Printf("Genesis blockHashTree leaves: %v\n", blockHashTree.Leaves)
 	prevBlockTreeRoot, _, _ := blockHashTree.GetCurrentRootCountAndSiblings()
 	accountTree, err := intMaxTree.NewAccountTree(intMaxTree.ACCOUNT_TREE_HEIGHT)
 	if err != nil {
@@ -875,7 +937,7 @@ func (bw *BlockWitness) Compress(maxAccountID uint64) (compressed *CompressedBlo
 				significantMerkleProof := proof.MerkleProof.Siblings[:significantHeight]
 				significantAccountMerkleProofs = append(significantAccountMerkleProofs, AccountMerkleProof{
 					MerkleProof: intMaxTree.IndexedMerkleProof(
-						intMaxTree.MerkleProof{
+						intMaxTree.PoseidonMerkleProof{
 							Siblings: significantMerkleProof,
 						},
 					),
@@ -1049,7 +1111,7 @@ func NewAccountInclusionValue(
 		accountID := accountIDs[i]
 		proof := accountMerkleProofs[i]
 		publicKey := publicKeys[i]
-		err := proof.Verify(accountTreeRoot, accountID, publicKey)
+		err := proof.Verify(publicKey, accountID, accountTreeRoot)
 		result = result && err == nil
 	}
 
@@ -1286,13 +1348,16 @@ func (w *ValidityWitness) Compress(maxAccountID uint64) (*CompressedValidityWitn
 }
 
 func (vw *ValidityWitness) ValidityPublicInputs() *ValidityPublicInputs {
-	prevBlockTreeRoot := vw.BlockWitness.PrevBlockTreeRoot
+	blockWitness := vw.BlockWitness
+	validityTransitionWitness := vw.ValidityTransitionWitness
+
+	prevBlockTreeRoot := blockWitness.PrevBlockTreeRoot
 
 	// Check transition block tree root
-	block := vw.BlockWitness.Block
+	block := blockWitness.Block
 	defaultLeaf := new(intMaxTree.BlockHashLeaf).SetDefault()
 	fmt.Printf("old block root: %s\n", prevBlockTreeRoot.String())
-	err := vw.ValidityTransitionWitness.BlockMerkleProof.Verify(
+	err := validityTransitionWitness.BlockMerkleProof.Verify(
 		defaultLeaf.Hash(),
 		int(block.BlockNumber),
 		prevBlockTreeRoot,
@@ -1302,22 +1367,22 @@ func (vw *ValidityWitness) ValidityPublicInputs() *ValidityPublicInputs {
 		panic("Block merkle proof is invalid")
 	}
 	blockHashLeaf := intMaxTree.NewBlockHashLeaf(block.Hash())
-	blockTreeRoot := vw.ValidityTransitionWitness.BlockMerkleProof.GetRoot(blockHashLeaf.Hash(), int(block.BlockNumber))
+	blockTreeRoot := validityTransitionWitness.BlockMerkleProof.GetRoot(blockHashLeaf.Hash(), int(block.BlockNumber))
 	fmt.Printf("new block root: %s\n", blockTreeRoot.String())
 
-	mainValidationPis := vw.BlockWitness.MainValidationPublicInputs()
+	mainValidationPis := blockWitness.MainValidationPublicInputs()
 
 	// transition account tree root
-	prevAccountTreeRoot := vw.BlockWitness.PrevAccountTreeRoot
+	prevAccountTreeRoot := blockWitness.PrevAccountTreeRoot
 	accountTreeRoot := new(intMaxGP.PoseidonHashOut).Set(prevAccountTreeRoot)
 	fmt.Printf("mainValidationPis.IsValid: %v\n", mainValidationPis.IsValid)
 	fmt.Printf("mainValidationPis.IsRegistrationBlock: %v\n", mainValidationPis.IsRegistrationBlock)
 	if mainValidationPis.IsValid && mainValidationPis.IsRegistrationBlock {
-		accountRegistrationProofs := vw.ValidityTransitionWitness.AccountRegistrationProofs
+		accountRegistrationProofs := validityTransitionWitness.AccountRegistrationProofs
 		if !accountRegistrationProofs.IsValid {
 			panic("account registration proofs should be given")
 		}
-		for i, senderLeaf := range vw.ValidityTransitionWitness.SenderLeaves {
+		for i, senderLeaf := range validityTransitionWitness.SenderLeaves {
 			accountRegistrationProof := accountRegistrationProofs.Proofs[i]
 			var lastBlockNumber uint32 = 0
 			if senderLeaf.IsValid {
@@ -1339,11 +1404,11 @@ func (vw *ValidityWitness) ValidityPublicInputs() *ValidityPublicInputs {
 		}
 	}
 	if mainValidationPis.IsValid && !mainValidationPis.IsRegistrationBlock {
-		accountUpdateProofs := vw.ValidityTransitionWitness.AccountUpdateProofs
+		accountUpdateProofs := validityTransitionWitness.AccountUpdateProofs
 		if !accountUpdateProofs.IsValid {
 			panic("account update proofs should be given")
 		}
-		for i, senderLeaf := range vw.ValidityTransitionWitness.SenderLeaves {
+		for i, senderLeaf := range validityTransitionWitness.SenderLeaves {
 			accountUpdateProof := accountUpdateProofs.Proofs[i]
 			prevLastBlockNumber := uint32(accountUpdateProof.PrevLeaf.Value)
 			lastBlockNumber := prevLastBlockNumber
@@ -1383,7 +1448,6 @@ func (vw *ValidityWitness) ValidityPublicInputs() *ValidityPublicInputs {
 
 // AuxInfo is a structure for recording past tree states.
 type AuxInfo struct {
-	// ValidityWitness *ValidityWitness
 	BlockContent *intMaxTypes.BlockContent
 	PostedBlock  *block_post_service.PostedBlock
 }
@@ -1392,8 +1456,7 @@ type MerkleTrees struct {
 	AccountTree   *intMaxTree.AccountTree
 	BlockHashTree *intMaxTree.BlockHashTree
 	DepositLeaves []*intMaxTree.DepositLeaf
-	DepositRoots  []common.Hash
-	// TxTree        *intMaxTree.PoseidonMerkleTree
+	// DepositRoots  []common.Hash
 }
 
 type CircuitData interface{}

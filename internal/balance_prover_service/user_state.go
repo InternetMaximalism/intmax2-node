@@ -19,11 +19,11 @@ type UserWalletState struct {
 }
 
 type UserWalletStateInput struct {
-	Nullifiers  []string          `json:"nullifiers"`
-	Assets      []*AssetLeafInput `json:"assets"`
-	Nonce       uint32            `json:"nonce"`
-	Salt        SaltInput         `json:"salt"`
-	PublicState *PublicStateInput `json:"publicState"`
+	Nullifiers  []string               `json:"nullifiers"`
+	Assets      []*AssetLeafEntryInput `json:"assets"`
+	Nonce       uint32                 `json:"nonce"`
+	Salt        SaltInput              `json:"salt"`
+	PublicState *PublicStateInput      `json:"publicState"`
 }
 
 func (input *UserWalletStateInput) FromUserState(value *UserWalletState) *UserWalletStateInput {
@@ -32,12 +32,15 @@ func (input *UserWalletStateInput) FromUserState(value *UserWalletState) *UserWa
 		input.Nullifiers[i] = hex.EncodeToString(leaf.Bytes())
 	}
 
-	input.Assets = make([]*AssetLeafInput, len(value.AssetTree.Leaves))
-	for i, leaf := range value.AssetTree.Leaves {
-		input.Assets[i] = &AssetLeafInput{
-			IsInsufficient: leaf.IsInsufficient,
-			Amount:         leaf.Amount.BigInt().String(),
-		}
+	input.Assets = make([]*AssetLeafEntryInput, len(value.AssetTree.Leaves))
+	for tokenIndex, leaf := range value.AssetTree.Leaves {
+		input.Assets = append(input.Assets, &AssetLeafEntryInput{
+			TokenIndex: tokenIndex,
+			Leaf: &AssetLeafInput{
+				IsInsufficient: leaf.IsInsufficient,
+				Amount:         leaf.Amount.BigInt().String(),
+			},
+		})
 	}
 
 	input.Nonce = value.Nonce
@@ -58,17 +61,20 @@ func (input *UserWalletStateInput) UserState() (*UserWalletState, error) {
 	}
 
 	const base10 = 10
-	assetLeaves := make([]*intMaxTree.AssetLeaf, len(input.Assets))
-	for i, leaf := range input.Assets {
-		amountInt, ok := new(big.Int).SetString(leaf.Amount, base10)
+	assetLeaves := make([]*intMaxTree.AssetLeafEntry, len(input.Assets))
+	for i, leafEntry := range input.Assets {
+		amountInt, ok := new(big.Int).SetString(leafEntry.Leaf.Amount, base10)
 		if !ok {
 			return nil, errors.New("invalid amount in UserState")
 		}
 		amount := new(intMaxTypes.Uint256).FromBigInt(amountInt)
 
-		assetLeaves[i] = &intMaxTree.AssetLeaf{
-			IsInsufficient: leaf.IsInsufficient,
-			Amount:         amount,
+		assetLeaves[i] = &intMaxTree.AssetLeafEntry{
+			TokenIndex: leafEntry.TokenIndex,
+			Leaf: &intMaxTree.AssetLeaf{
+				IsInsufficient: leafEntry.Leaf.IsInsufficient,
+				Amount:         amount,
+			},
 		}
 	}
 
@@ -79,7 +85,7 @@ func (input *UserWalletStateInput) UserState() (*UserWalletState, error) {
 		return nil, err
 	}
 	for _, leaf := range nullifierLeaves {
-		if _, err := nullifierTree.Insert(leaf); err != nil {
+		if _, err = nullifierTree.Insert(leaf); err != nil {
 			return nil, err
 		}
 	}
@@ -89,9 +95,8 @@ func (input *UserWalletStateInput) UserState() (*UserWalletState, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, leaf := range assetLeaves {
-		_, nextIndex, _ := assetTree.GetCurrentRootCountAndSiblings()
-		if _, err := assetTree.AddLeaf(uint32(nextIndex), leaf); err != nil {
+	for _, leafEntry := range assetLeaves {
+		if _, err = assetTree.UpdateLeaf(leafEntry.TokenIndex, leafEntry.Leaf); err != nil {
 			return nil, err
 		}
 	}

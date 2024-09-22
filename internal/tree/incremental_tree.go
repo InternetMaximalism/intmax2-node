@@ -1,7 +1,6 @@
 package tree
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"intmax2-node/internal/hash/goldenposeidon"
@@ -256,55 +255,4 @@ func (mt *PoseidonIncrementalMerkleTree) GetCurrentRootCountAndSiblings() (root 
 
 func (mt *PoseidonIncrementalMerkleTree) CurrentRoot() PoseidonHashOut {
 	return mt.currentRoot
-}
-
-type MerkleProof struct {
-	Siblings []*goldenposeidon.PoseidonHashOut
-}
-
-func (proof *MerkleProof) Set(other *MerkleProof) *MerkleProof {
-	proof.Siblings = make([]*goldenposeidon.PoseidonHashOut, len(other.Siblings))
-	copy(proof.Siblings, other.Siblings)
-	return proof
-}
-
-func (proof *MerkleProof) MarshalJSON() ([]byte, error) {
-	return json.Marshal(proof.Siblings)
-}
-
-func (proof *MerkleProof) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &proof.Siblings)
-}
-
-func (proof *MerkleProof) GetRoot(leaf *goldenposeidon.PoseidonHashOut, index int) *goldenposeidon.PoseidonHashOut {
-	height := len(proof.Siblings)
-	if index >= 1<<uint(height) {
-		panic("index out of bounds")
-	}
-	nodeIndex := 1<<uint(height) + index
-	h := new(PoseidonHashOut).Set(leaf)
-
-	for i := 0; i < height; i++ {
-		sibling := proof.Siblings[i]
-		if nodeIndex&1 == 1 {
-			h = goldenposeidon.Compress(sibling, h)
-		} else {
-			h = goldenposeidon.Compress(h, sibling)
-		}
-		nodeIndex >>= 1
-	}
-	if nodeIndex != 1 {
-		panic("invalid nodeIndex")
-	}
-
-	return h
-}
-
-func (proof *MerkleProof) Verify(leaf *goldenposeidon.PoseidonHashOut, index int, root *goldenposeidon.PoseidonHashOut) error {
-	computedRoot := proof.GetRoot(leaf, index)
-	if !computedRoot.Equal(root) {
-		return fmt.Errorf("invalid root: %s != %s", computedRoot.String(), root.String())
-	}
-
-	return nil
 }

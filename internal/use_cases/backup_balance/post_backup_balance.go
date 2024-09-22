@@ -7,6 +7,7 @@ import (
 	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/hash/goldenposeidon"
+	node "intmax2-node/internal/pb/gen/store_vault_service/node"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/block_signature"
@@ -21,6 +22,7 @@ const (
 	numTransfersInTx     = 1 << intMaxTree.TRANSFER_TREE_HEIGHT
 	InsufficientFlagsLen = numTransfersInTx / 32
 	uint256LimbSize      = 8
+	int4Key              = 4
 	int32Key             = 32
 )
 
@@ -77,7 +79,7 @@ func (flags *InsufficientFlags) RandomAccess(index int) bool {
 }
 
 func (flags *InsufficientFlags) Bytes() []byte {
-	buf := make([]byte, InsufficientFlagsLen*4)
+	buf := make([]byte, InsufficientFlagsLen*int4Key)
 	for i, limb := range flags.Limbs {
 		binary.BigEndian.PutUint32(buf[i*4:], limb)
 	}
@@ -166,20 +168,28 @@ type EncryptedPlonky2Proof struct {
 }
 
 type UCPostBackupBalanceInput struct {
-	User                  string   `json:"user"`
-	EncryptedBalanceProof string   `json:"encrypted_balance_proof"`
-	EncryptedBalanceData  string   `json:"encrypted_balance_data"`
-	EncryptedTxs          []string `json:"encrypted_txs"`
-	EncryptedTransfers    []string `json:"encrypted_transfers"`
-	EncryptedDeposits     []string `json:"encrypted_deposits"`
-	Signature             string   `json:"signature"`
+	User                  string `json:"user"`
+	EncryptedBalanceProof string `json:"encrypted_balance_proof"`
+	EncryptedBalanceData  string `json:"encrypted_balance_data"`
+
+	// List of transaction hashes already reflected
+	EncryptedTxs []string `json:"encrypted_txs"`
+
+	// List of transfer hashes already reflected
+	EncryptedTransfers []string `json:"encrypted_transfers"`
+
+	// List of deposit hashes already reflected
+	EncryptedDeposits []string `json:"encrypted_deposits"`
+
+	Signature string `json:"signature"`
+
 	// DecodeUser            *intMaxAcc.PublicKey  `json:"-"`
 	BlockNumber uint32 `json:"block_number"`
 }
 
 // UseCasePostBackupBalance describes PostBackupBalance contract.
 type UseCasePostBackupBalance interface {
-	Do(ctx context.Context, input *UCPostBackupBalanceInput) error
+	Do(ctx context.Context, input *UCPostBackupBalanceInput) (*node.BackupBalanceResponse_Data_Balance, error)
 }
 
 func MakeMessage(

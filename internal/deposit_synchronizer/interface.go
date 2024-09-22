@@ -7,8 +7,5 @@ import (
 
 type DepositSynchronizer interface {
 	Init(ctx context.Context) error
-	Start(
-		ctx context.Context,
-		tickerEventWatcher *time.Ticker,
-	) (err error)
+	Start(tickerEventWatcher *time.Ticker) (err error)
 }

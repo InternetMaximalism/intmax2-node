@@ -2,6 +2,7 @@ package block_validity_prover
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
@@ -10,9 +11,12 @@ import (
 	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/logger"
 	intMaxTree "intmax2-node/internal/tree"
+	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/pkg/utils"
 
+	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
@@ -85,9 +89,9 @@ func NewBlockValidityProver(ctx context.Context, cfg *configs.Config, log logger
 	}, nil
 }
 
-func (d *blockValidityProver) RollupContractDeployedBlockNumber() (uint64, error) {
-	return d.cfg.Blockchain.RollupContractDeployedBlockNumber, nil
-}
+// func (d *blockValidityProver) RollupContractDeployedBlockNumber() (uint64, error) {
+// 	return d.cfg.Blockchain.RollupContractDeployedBlockNumber, nil
+// }
 
 func (d *blockValidityProver) FetchScrollCalldataByHash(txHash common.Hash) ([]byte, error) {
 	tx, isPending, err := d.scrollClient.TransactionByHash(context.Background(), txHash)
@@ -170,14 +174,19 @@ func (d *blockValidityProver) LatestIntMaxBlockNumber() (uint32, error) {
 	return d.blockBuilder.LatestIntMaxBlockNumber(), nil
 }
 
-type DepositInfo struct {
-	DepositId    uint32
-	DepositIndex *uint32
-	BlockNumber  *uint32
-	DepositLeaf  *intMaxTree.DepositLeaf
+func (d *blockValidityProver) LastPostedBlockNumber() (uint32, error) {
+	return d.blockBuilder.db.LastPostedBlockNumber()
 }
 
-func (d *blockValidityProver) GetDepositLeafAndIndexByHash(depositHash common.Hash) (*DepositInfo, error) {
+type DepositInfo struct {
+	DepositId      uint32
+	DepositIndex   *uint32
+	BlockNumber    *uint32
+	IsSynchronized bool
+	DepositLeaf    *intMaxTree.DepositLeaf
+}
+
+func (d *blockValidityProver) GetDepositInfoByHash(depositHash common.Hash) (*DepositInfo, error) {
 	depositLeafWithId, depositIndex, err := d.blockBuilder.GetDepositLeafAndIndexByHash(depositHash)
 	if err != nil {
 		var ErrGetDepositLeafAndIndexByHashFail = errors.New("failed to get deposit leaf and index by hash")
@@ -190,13 +199,22 @@ func (d *blockValidityProver) GetDepositLeafAndIndexByHash(depositHash common.Ha
 		DepositLeaf:  depositLeafWithId.DepositLeaf,
 	}
 	if depositIndex != nil {
-		blockNumber, err := d.blockBuilder.BlockNumberByDepositIndex(*depositIndex)
+		var blockNumber uint32
+		blockNumber, err = d.blockBuilder.BlockNumberByDepositIndex(*depositIndex)
 		if err != nil {
 			var ErrBlockNumberByDepositIndexFail = errors.New("failed to get block number by deposit index")
 			return nil, errors.Join(ErrBlockNumberByDepositIndexFail, err)
 		}
 
+		var isSynchronizedDepositIndex bool
+		isSynchronizedDepositIndex, err = d.blockBuilder.IsSynchronizedDepositIndex(*depositIndex)
+		if err != nil {
+			var ErrIsSynchronizedDepositIndexFail = errors.New("failed to check if deposit index is synchronized")
+			return nil, errors.Join(ErrIsSynchronizedDepositIndexFail, err)
+		}
+
 		depositInfo.BlockNumber = &blockNumber
+		depositInfo.IsSynchronized = isSynchronizedDepositIndex
 	}
 
 	return &depositInfo, nil
@@ -208,29 +226,116 @@ func (d *blockValidityProver) BlockNumberByDepositIndex(depositIndex uint32) (ui
 }
 
 func (d *blockValidityProver) LatestSynchronizedBlockNumber() (uint32, error) {
-	return d.blockBuilder.LastGeneratedProofBlockNumber, nil
+	return d.blockBuilder.LastGeneratedProofBlockNumber()
 }
 
-func (d *blockValidityProver) IsSynchronizedDepositIndex(depositIndex uint32) (bool, error) {
-	return d.blockBuilder.IsSynchronizedDepositIndex(depositIndex)
+type ValidityProverInfo struct {
+	DepositIndex uint32
+	BlockNumber  uint32
 }
 
-func (d *blockValidityProver) FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error) {
-	return d.blockBuilder.FetchUpdateWitness(publicKey, currentBlockNumber, targetBlockNumber, isPrevAccountTree)
+func (d *blockValidityProver) FetchValidityProverInfo() (*ValidityProverInfo, error) {
+	lastDepositIndex, err := d.FetchLastDepositIndex()
+	if err != nil {
+		return nil, err
+	}
+
+	lastBlockNumber, err := d.LatestSynchronizedBlockNumber()
+	if err != nil {
+		return nil, err
+	}
+
+	return &ValidityProverInfo{
+		DepositIndex: lastDepositIndex,
+		BlockNumber:  lastBlockNumber,
+	}, nil
 }
 
-func (d *blockValidityProver) BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.MerkleProof, error) {
+func (d *blockValidityProver) FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber *uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error) {
+	if currentBlockNumber == nil {
+		// panic("currentBlockNumber == nil")
+		latestBlockNumber, err := d.blockBuilder.db.LastPostedBlockNumber()
+		fmt.Printf("(FetchUpdateWitness) latestBlockNumber: %d\n", latestBlockNumber)
+		if err != nil {
+			var ErrLastPostedBlockNumberFail = errors.New("failed to get last posted block number")
+			return nil, errors.Join(ErrLastPostedBlockNumberFail, err)
+		}
+
+		return d.blockBuilder.FetchUpdateWitness(publicKey, latestBlockNumber, targetBlockNumber, isPrevAccountTree)
+	}
+
+	return d.blockBuilder.FetchUpdateWitness(publicKey, *currentBlockNumber, targetBlockNumber, isPrevAccountTree)
+}
+
+func (d *blockValidityProver) BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.PoseidonMerkleProof, error) {
 	return d.blockBuilder.BlockTreeProof(rootBlockNumber, leafBlockNumber)
 }
 
-func (d *blockValidityProver) PostBlock(
-	isRegistrationBlock bool,
-	txs []*MockTxRequest,
+func (d *blockValidityProver) UpdateValidityWitness(
+	blockContent *intMaxTypes.BlockContent,
+	prevValidityWitness *ValidityWitness,
 ) (*ValidityWitness, error) {
-	return d.blockBuilder.PostBlock(isRegistrationBlock, txs)
+	return d.blockBuilder.UpdateValidityWitness(blockContent, prevValidityWitness)
 }
 
-func (d *blockValidityProver) BlockContentByTxRoot(txRoot string) (*block_post_service.PostedBlock, error) {
+func (d *blockValidityProver) ValidityWitness(
+	txRoot common.Hash,
+) (*ValidityWitness, error) {
+	rawBlockContent, err := d.blockBuilder.BlockContentByTxRoot(txRoot)
+	if err != nil {
+		return nil, err
+	}
+
+	senderType := intMaxTypes.AccountIDSenderType
+	if rawBlockContent.IsRegistrationBlock {
+		senderType = intMaxTypes.PublicKeySenderType
+	}
+
+	var senders []intMaxTypes.Sender
+	err = json.Unmarshal(rawBlockContent.Senders, &senders)
+	if err != nil {
+		var ErrUnmarshalSendersFail = errors.New("failed to unmarshal senders")
+		return nil, errors.Join(ErrUnmarshalSendersFail, err)
+	}
+
+	aggregatedSignatureBytes, err := hexutil.Decode(rawBlockContent.AggregatedSignature)
+	if err != nil {
+		var ErrDecodeAggregatedSignatureFail = errors.New("failed to decode aggregated signature")
+		return nil, errors.Join(ErrDecodeAggregatedSignatureFail, err)
+	}
+
+	aggregatedSignature := new(bn254.G2Affine)
+	err = aggregatedSignature.Unmarshal(aggregatedSignatureBytes)
+	if err != nil {
+		var ErrUnmarshalAggregatedSignatureFail = errors.New("failed to unmarshal aggregated signature")
+		return nil, errors.Join(ErrUnmarshalAggregatedSignatureFail, err)
+	}
+
+	blockContent := intMaxTypes.NewBlockContent(
+		senderType,
+		senders,
+		common.HexToHash(rawBlockContent.TxRoot),
+		aggregatedSignature,
+	)
+
+	lastValidityWitness, err := d.blockBuilder.LastValidityWitness()
+	if err != nil {
+		var ErrLastValidityWitnessNotFound = errors.New("last validity witness not found")
+		return nil, errors.Join(ErrLastValidityWitnessNotFound, err)
+	}
+	blockWitness, err := d.blockBuilder.GenerateBlockWithTxTreeFromBlockContent(
+		blockContent,
+		lastValidityWitness.BlockWitness.Block,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	return calculateValidityWitness(d.blockBuilder, blockWitness)
+}
+
+// TODO: multiple response
+func (d *blockValidityProver) BlockContentByTxRoot(txRoot common.Hash) (*block_post_service.PostedBlock, error) {
 	blockContent, err := d.blockBuilder.BlockContentByTxRoot(txRoot)
 	if err != nil {
 		var ErrBlockContentByTxRoot = errors.New("failed to get block content by tx root")
@@ -263,13 +368,31 @@ func (d *blockValidityProver) BlockContentByTxRoot(txRoot string) (*block_post_s
 	), nil
 }
 
-func (d *blockValidityProver) DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error) {
-	lastValidityWitness, err := d.blockBuilder.LastValidityWitness()
+func (d *blockValidityProver) ValidityPublicInputs(txRoot common.Hash) (*ValidityPublicInputs, []SenderLeaf, error) {
+	validityWitness, err := d.ValidityWitness(txRoot)
 	if err != nil {
-		return nil, common.Hash{}, errors.New("last validity witness not found")
+		return nil, nil, err
 	}
-	blockNumber := lastValidityWitness.BlockWitness.Block.BlockNumber
-	depositMerkleProof, actualDepositRoot, err := d.blockBuilder.DepositTreeProof(blockNumber, depositIndex)
+
+	validityPublicInputs := validityWitness.ValidityPublicInputs()
+	senderLeaves := validityWitness.ValidityTransitionWitness.SenderLeaves
+
+	return validityPublicInputs, senderLeaves, nil
+}
+
+func (d *blockValidityProver) DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error) {
+	// lastValidityWitness, err := d.blockBuilder.LastValidityWitness()
+	// if err != nil {
+	// 	return nil, common.Hash{}, errors.New("last validity witness not found")
+	// }
+	// blockNumber := lastValidityWitness.BlockWitness.Block.BlockNumber
+	validityProverInfo, err := d.FetchValidityProverInfo()
+	if err != nil {
+		return nil, common.Hash{}, err
+	}
+
+	latestBlockNumber := validityProverInfo.BlockNumber
+	depositMerkleProof, actualDepositRoot, err := d.blockBuilder.DepositTreeProof(latestBlockNumber, depositIndex)
 	if err != nil {
 		return nil, common.Hash{}, err
 	}
@@ -285,38 +408,4 @@ func (d *blockValidityProver) DepositTreeProof(depositIndex uint32) (*intMaxTree
 	}
 
 	return depositMerkleProof, depositTreeRoot, err
-}
-
-// CheckBlockSynchronization checks synchronization of INTMAX blocks.
-func CheckBlockSynchronization(
-	blockValidityService BlockValidityService,
-	blockSynchronizer BlockSynchronizer,
-) (err error) {
-	// s.blockSynchronizer.SyncBlockTree(blockProverService)
-	startBlock, err := blockValidityService.LastSeenBlockPostedEventBlockNumber() // XXX
-	if err != nil {
-		var ErrNotFound = errors.New("not found")
-		if !errors.Is(err, ErrNotFound) {
-			panic(errors.Join(ErrLastSeenBlockPostedEventBlockNumberFail, err)) // TODO
-		}
-
-		startBlock, err = blockValidityService.RollupContractDeployedBlockNumber()
-		if err != nil {
-			var ErrRollupContractDeployedBlockNumberFail = errors.New("rollup contract deployed block number fail")
-			panic(errors.Join(ErrRollupContractDeployedBlockNumberFail, err)) // TODO
-		}
-	}
-
-	const searchBlocksLimitAtOnce = 10000
-	endBlock := startBlock + searchBlocksLimitAtOnce
-	events, _, err := blockSynchronizer.FetchNewPostedBlocks(startBlock, &endBlock)
-	if err != nil {
-		return errors.Join(ErrFetchNewPostedBlocksFail, err)
-	}
-
-	if len(events) != 0 {
-		return ErrBlockUnSynchronization
-	}
-
-	return nil
 }

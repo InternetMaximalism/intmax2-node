@@ -199,7 +199,7 @@ func sendWithdrawalRawRequest(
 
 	if resp == nil {
 		const msg = "send request error occurred"
-		return fmt.Errorf(msg)
+		return errors.New(msg)
 	}
 
 	if resp.StatusCode() == http.StatusBadRequest {
@@ -281,7 +281,7 @@ func FindWithdrawalsByTransferHashes(
 
 	if resp == nil {
 		const msg = "send request error occurred"
-		return nil, fmt.Errorf(msg)
+		return nil, errors.New(msg)
 	}
 
 	if resp.StatusCode() != http.StatusOK {

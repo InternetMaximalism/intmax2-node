@@ -59,4 +59,5 @@ type BackupBalances interface {
 	) (*mDBApp.BackupBalance, error)
 	GetBackupBalance(conditions []string, values []interface{}) (*mDBApp.BackupBalance, error)
 	GetBackupBalances(condition string, value interface{}) ([]*mDBApp.BackupBalance, error)
+	GetLatestBackupBalanceByUserAddress(userAddress string, limit int64) ([]*mDBApp.BackupBalance, error)
 }

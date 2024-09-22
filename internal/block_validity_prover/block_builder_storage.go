@@ -2,6 +2,7 @@ package block_validity_prover
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -24,19 +25,21 @@ import (
 )
 
 type mockBlockBuilder struct {
-	db                            SQLDriverApp
-	LastPostedBlockNumber         uint32
-	LastGeneratedProofBlockNumber uint32
-	AccountTree                   *intMaxTree.AccountTree
-	BlockTree                     *intMaxTree.BlockHashTree
-	DepositTree                   *intMaxTree.KeccakMerkleTree
-	DepositLeaves                 []*intMaxTree.DepositLeaf
-	LastSeenProcessedDepositId    uint64
-	ValidityProofs                map[uint32]string
-	AuxInfo                       map[uint32]*mDBApp.BlockContent
-	validityWitnesses             map[uint32]*ValidityWitness
-	latestWitnessBlockNumber      uint32
-	MerkleTreeHistory             map[uint32]*MerkleTrees
+	AccountTree   *intMaxTree.AccountTree
+	BlockTree     *intMaxTree.BlockHashTree
+	DepositTree   *intMaxTree.KeccakMerkleTree
+	DepositLeaves []*intMaxTree.DepositLeaf
+
+	db SQLDriverApp
+	// LastPostedBlockNumber         uint32
+	// LastGeneratedProofBlockNumber uint32
+	// ValidityProofs                map[uint32]string
+
+	latestWitnessBlockNumber uint32
+	MerkleTreeHistory        map[uint32]*MerkleTrees
+	// LastSeenProcessedDepositId    uint64
+	// auxInfo                  map[uint32]*mDBApp.BlockContent
+	// validityWitnesses        map[uint32]*ValidityWitness
 	// DepositTreeRoots           []common.Hash
 	// DepositTreeHistory         map[string]*intMaxTree.KeccakMerkleTree // deposit hash -> deposit tree
 }
@@ -47,16 +50,23 @@ type MockBlockBuilder interface {
 	AccountBySenderAddress(_ string) (*uint256.Int, error)
 	AccountTreeRoot() (*intMaxGP.PoseidonHashOut, error)
 	AppendAccountTreeLeaf(sender *big.Int, lastBlockNumber uint64) (*intMaxTree.IndexedInsertionProof, error)
-	AppendBlockTreeLeaf(block *block_post_service.PostedBlock) error
+	AppendBlockTreeLeaf(block *block_post_service.PostedBlock) (uint32, error)
 	AppendDepositTreeLeaf(depositHash common.Hash, depositLeaf *intMaxTree.DepositLeaf) (root common.Hash, err error)
-	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContent, error)
-	BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContent, error)
+	// BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
+	BlockAuxInfo(blockNumber uint32) (*AuxInfo, error)
+	BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWithProof, error)
 	BlockNumberByDepositIndex(depositIndex uint32) (uint32, error)
-	BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.MerkleProof, error)
-	BlockTreeRoot() (*intMaxGP.PoseidonHashOut, error)
-	ConstructSignature(txTreeRoot intMaxTypes.Bytes32, publicKeysHash intMaxTypes.Bytes32, accountIDHash intMaxTypes.Bytes32, isRegistrationBlock bool, sortedTxs []*MockTxRequest) (*SignatureContent, error)
-	CreateBlockContent(postedBlock *block_post_service.PostedBlock, blockContent *intMaxTypes.BlockContent) (*mDBApp.BlockContent, error)
-	CurrentBlockTreeProof(blockNumber uint32) (*intMaxTree.MerkleProof, error)
+	BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.PoseidonMerkleProof, error)
+	BlockTreeRoot(blockNumber *uint32) (*intMaxGP.PoseidonHashOut, error)
+	ConstructSignature(
+		txTreeRoot intMaxTypes.Bytes32,
+		publicKeysHash intMaxTypes.Bytes32,
+		accountIDHash intMaxTypes.Bytes32,
+		isRegistrationBlock bool,
+		sortedTxs []*MockTxRequest,
+	) (*SignatureContent, error)
+	// CreateBlockContent(postedBlock *block_post_service.PostedBlock, blockContent *intMaxTypes.BlockContent) (*mDBApp.BlockContentWithProof, error)
+	CurrentBlockTreeProof(blockNumber uint32) (*intMaxTree.PoseidonMerkleProof, error)
 	DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error)
 	EventBlockNumberByEventNameForValidityProver(eventName string) (*mDBApp.EventBlockNumberForValidityProver, error)
 	Exec(ctx context.Context, input interface{}, executor func(d interface{}, input interface{}) error) (err error)
@@ -70,10 +80,10 @@ type MockBlockBuilder interface {
 	IsSynchronizedDepositIndex(depositIndex uint32) (bool, error)
 	LastDepositTreeRoot() (common.Hash, error)
 	LastSeenBlockPostedEventBlockNumber() (uint64, error)
-	LastValidityWitness() (*ValidityWitness, error)
+	// LastValidityWitness() (*ValidityWitness, error)
 	LatestIntMaxBlockNumber() uint32
 	NextAccountID() (uint64, error)
-	PostBlock(isRegistrationBlock bool, txs []*MockTxRequest) (*ValidityWitness, error)
+	ValidityWitness(isRegistrationBlock bool, txs []*MockTxRequest) (*ValidityWitness, error)
 	ProveInclusion(accountId uint64) (*AccountMerkleProof, error)
 	PublicKeyByAccountID(accountID uint64) (pk *intMaxAcc.PublicKey, err error)
 	RegisterPublicKey(pk *intMaxAcc.PublicKey, lastSentBlockNumber uint32) (accountID uint64, err error)
@@ -145,21 +155,29 @@ func NewBlockHashTree(height uint8) (*intMaxTree.BlockHashTree, error) {
 }
 
 func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilderMemory {
+	lastProofGeneratedBlockNumber, err := db.LastBlockNumberGeneratedValidityProof()
+	if err != nil {
+		if err.Error() != "not found" {
+			panic(err)
+		}
+
+		lastProofGeneratedBlockNumber = 0
+	}
+
+	merkleTreeHistory := make(map[uint32]*MerkleTrees)
+
+	blockHashAndSendersMap, lastSynchronizedBlockNumber, err := db.ScanBlockHashAndSenders()
+	if err != nil {
+		panic(err)
+	}
+
 	accountTree, err := intMaxTree.NewAccountTree(intMaxTree.ACCOUNT_TREE_HEIGHT)
 	if err != nil {
 		panic(err)
 	}
 
-	blockHashes := make([][32]byte, 1)
-	blockHashes[0] = new(block_post_service.PostedBlock).Genesis().Hash()
-	blockTree, err := intMaxTree.NewBlockHashTreeWithInitialLeaves(intMaxTree.BLOCK_HASH_TREE_HEIGHT, nil)
-	if err != nil {
-		panic(err)
-	}
-
 	genesisBlock := new(block_post_service.PostedBlock).Genesis()
-	genesisBlockHash := intMaxTree.NewBlockHashLeaf(genesisBlock.Hash())
-	_, err = blockTree.AddLeaf(0, genesisBlockHash)
+	blockHashTree, err := intMaxTree.NewBlockHashTreeWithInitialLeaves(intMaxTree.BLOCK_HASH_TREE_HEIGHT, []*intMaxTree.BlockHashLeaf{intMaxTree.NewBlockHashLeaf(genesisBlock.Hash())})
 	if err != nil {
 		panic(err)
 	}
@@ -169,16 +187,84 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 	if err != nil {
 		panic(err)
 	}
-	// depositTreeRoot, _, _ := depositTree.GetCurrentRootCountAndSiblings()
+
+	merkleTreeHistory[0] = &MerkleTrees{
+		AccountTree:   new(intMaxTree.AccountTree).Set(accountTree),
+		BlockHashTree: new(intMaxTree.BlockHashTree).Set(blockHashTree),
+		DepositLeaves: make([]*intMaxTree.DepositLeaf, 0),
+	}
+	fmt.Printf("blockHashTree 0 root: %s\n", blockHashTree.GetRoot().String())
+
+	blockHashes := make([]*intMaxTree.BlockHashLeaf, lastSynchronizedBlockNumber+1)
+	defaultPublicKey := new(intMaxAcc.Address).String()                  // zero
+	dummyPublicKey := intMaxAcc.NewDummyPublicKey().ToAddress().String() // one
+	for blockNumber := uint32(1); blockNumber <= lastSynchronizedBlockNumber; blockNumber++ {
+		blockHashAndSenders, ok := blockHashAndSendersMap[blockNumber]
+		if !ok {
+			panic(fmt.Sprintf("block number %d not found", blockNumber))
+		}
+
+		merkleTreeHistory[blockNumber] = new(MerkleTrees)
+
+		fmt.Printf("blockHashAndSendersMap[%d].BlockHash: %s\n", blockNumber, blockHashAndSenders.BlockHash)
+		blockHashes[blockNumber] = intMaxTree.NewBlockHashLeaf(common.HexToHash("0x" + blockHashAndSenders.BlockHash))
+		_, err := blockHashTree.AddLeaf(uint32(blockNumber), blockHashes[blockNumber])
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("blockHashTree %d root: %s\n", blockNumber, blockHashTree.GetRoot().String())
+		merkleTreeHistory[blockNumber].BlockHashTree = new(intMaxTree.BlockHashTree).Set(blockHashTree)
+
+		count := 0
+		for i, sender := range blockHashAndSenders.Senders {
+			if sender.PublicKey == defaultPublicKey || sender.PublicKey == dummyPublicKey {
+				continue
+			}
+			fmt.Printf("blockHashAndSendersMap[%d].Senders[%d]: %s\n", blockNumber, i, sender.PublicKey)
+			count++
+
+			var senderPublicKey *intMaxAcc.PublicKey
+			senderPublicKey, err = intMaxAcc.NewPublicKeyFromAddressHex(sender.PublicKey)
+			if err != nil {
+				panic(err)
+			}
+
+			if _, ok = accountTree.GetAccountID(senderPublicKey.BigInt()); ok {
+				_, err = accountTree.Update(senderPublicKey.BigInt(), blockNumber)
+				if err != nil {
+					panic(err)
+				}
+			} else {
+				_, err = accountTree.Insert(senderPublicKey.BigInt(), blockNumber)
+				if err != nil {
+					panic(err)
+				}
+			}
+		}
+		fmt.Printf("blockHashAndSendersMap[%d].Senders count: %d\n", blockNumber, count)
+		merkleTreeHistory[blockNumber].AccountTree = new(intMaxTree.AccountTree).Set(accountTree)
+	}
+	fmt.Printf("blockHashTree leaves: %v\n", blockHashTree.Leaves)
+	for i, leaf := range blockHashTree.Leaves {
+		fmt.Printf("blockHashes[%d]: %x\n", i, leaf.Marshal())
+	}
 
 	// validityWitness := new(ValidityWitness).Genesis()
-	validityWitnesses := make(map[uint32]*ValidityWitness)
-	validityWitnesses[0] = new(ValidityWitness).Genesis()
-	auxInfo := make(map[uint32]*mDBApp.BlockContent)
+	// validityWitnesses := make(map[uint32]*ValidityWitness)
+	// validityWitnesses[0] = new(ValidityWitness).Genesis()
+	// auxInfo := make(map[uint32]*mDBApp.BlockContent)
 
 	deposits, err := db.ScanDeposits()
 	if err != nil {
 		panic(err)
+	}
+
+	blockNumber := uint32(1)
+	depositTreeRoot, _, _ := depositTree.GetCurrentRootCountAndSiblings()
+	depositTreeRootHex := depositTreeRoot.Hex()[2:]
+	for blockHashAndSendersMap[blockNumber].DepositTreeRoot == depositTreeRootHex && blockNumber <= lastProofGeneratedBlockNumber {
+		merkleTreeHistory[blockNumber].DepositLeaves = make([]*intMaxTree.DepositLeaf, 0)
+		blockNumber++
 	}
 
 	depositLeaves := make([]*intMaxTree.DepositLeaf, 0)
@@ -193,35 +279,31 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 		}
 
 		// depositIndex := *deposit.DepositIndex
-		_, err = depositTree.AddLeaf(uint32(depositIndex), depositLeaf.Hash())
+		depositTreeRoot, err = depositTree.AddLeaf(uint32(depositIndex), depositLeaf.Hash())
 		if err != nil {
 			panic(err)
 		}
 
+		depositTreeRootHex = depositTreeRoot.Hex()[2:]
 		depositLeaves = append(depositLeaves, &depositLeaf)
+		fmt.Printf("depositTreeRoot: %s\n", blockHashAndSendersMap[blockNumber].DepositTreeRoot)
+		for blockHashAndSendersMap[blockNumber].DepositTreeRoot == depositTreeRootHex && blockNumber <= lastProofGeneratedBlockNumber {
+			merkleTreeHistory[blockNumber].DepositLeaves = depositLeaves
+			blockNumber++
+		}
 	}
-
-	merkleTreeHistory := make(map[uint32]*MerkleTrees)
-	merkleTreeHistory[0] = &MerkleTrees{
-		// txTree: TxTree::new(TX_TREE_HEIGHT),
-		// ValidityWitness: validityWitness,
-		AccountTree:   new(intMaxTree.AccountTree).Set(accountTree),
-		BlockHashTree: new(intMaxTree.BlockHashTree).Set(blockTree),
-		DepositLeaves: make([]*intMaxTree.DepositLeaf, len(depositLeaves)),
-	}
-	copy(merkleTreeHistory[0].DepositLeaves, depositLeaves)
 
 	return &mockBlockBuilder{
-		db:                            db,
-		LastGeneratedProofBlockNumber: 0,
-		validityWitnesses:             validityWitnesses,
-		ValidityProofs:                make(map[uint32]string),
-		AccountTree:                   accountTree,
-		BlockTree:                     blockTree,
-		DepositTree:                   depositTree,
-		DepositLeaves:                 depositLeaves,
-		AuxInfo:                       auxInfo,
-		MerkleTreeHistory:             merkleTreeHistory,
+		db:                db,
+		AccountTree:       new(intMaxTree.AccountTree).Set(merkleTreeHistory[lastProofGeneratedBlockNumber].AccountTree),
+		BlockTree:         new(intMaxTree.BlockHashTree).Set(merkleTreeHistory[lastProofGeneratedBlockNumber].BlockHashTree),
+		DepositTree:       new(intMaxTree.KeccakMerkleTree).Set(depositTree),
+		DepositLeaves:     merkleTreeHistory[lastProofGeneratedBlockNumber].DepositLeaves,
+		MerkleTreeHistory: merkleTreeHistory,
+		// auxInfo:                       auxInfo,
+		// LastGeneratedProofBlockNumber: 0,
+		// ValidityProofs:                make(map[uint32]string),
+		// validityWitnesses:             validityWitnesses,
 	}
 }
 
@@ -234,10 +316,7 @@ type DepositLeafWithId struct {
 	DepositId   uint32
 }
 
-func (b *mockBlockBuilder) GenerateBlock(
-	blockContent *intMaxTypes.BlockContent,
-	postedBlock *block_post_service.PostedBlock,
-) (*BlockWitness, error) {
+func NewSignatureContentFromBlockContent(blockContent *intMaxTypes.BlockContent) *SignatureContent {
 	isRegistrationBlock := blockContent.SenderType == intMaxTypes.PublicKeySenderType
 
 	publicKeys := make([]intMaxTypes.Uint256, len(blockContent.Senders))
@@ -254,7 +333,7 @@ func (b *mockBlockBuilder) GenerateBlock(
 		senderFlagBytes[i/int8Key] |= flag << (int8Key - 1 - i%int8Key)
 	}
 
-	signature := SignatureContent{
+	signatureContent := SignatureContent{
 		IsRegistrationBlock: isRegistrationBlock,
 		TxTreeRoot:          intMaxTypes.Bytes32{},
 		SenderFlag:          intMaxTypes.Bytes16{},
@@ -264,13 +343,45 @@ func (b *mockBlockBuilder) GenerateBlock(
 		AggSignature:        intMaxTypes.FlattenG2Affine(blockContent.AggregatedSignature),
 		MessagePoint:        intMaxTypes.FlattenG2Affine(blockContent.MessagePoint),
 	}
-	copy(signature.TxTreeRoot[:], intMaxTypes.CommonHashToUint32Slice(blockContent.TxTreeRoot))
-	signature.SenderFlag.FromBytes(senderFlagBytes[:])
+	copy(signatureContent.TxTreeRoot[:], intMaxTypes.CommonHashToUint32Slice(blockContent.TxTreeRoot))
+	signatureContent.SenderFlag.FromBytes(senderFlagBytes[:])
+
+	return &signatureContent
+}
+
+func (b *mockBlockBuilder) GenerateBlock(
+	blockContent *intMaxTypes.BlockContent,
+	postedBlock *block_post_service.PostedBlock,
+) (*BlockWitness, error) {
+	// isRegistrationBlock := blockContent.SenderType == intMaxTypes.PublicKeySenderType
+
+	// publicKeys := make([]intMaxTypes.Uint256, len(blockContent.Senders))
+	// accountIDs := make([]uint64, len(blockContent.Senders))
+	// senderFlagBytes := [int16Key]byte{}
+	// for i, sender := range blockContent.Senders {
+	// 	publicKey := new(intMaxTypes.Uint256).FromBigInt(sender.PublicKey.BigInt())
+	// 	publicKeys[i] = *publicKey
+	// 	accountIDs[i] = sender.AccountID
+	// 	var flag uint8 = 0
+	// 	if sender.IsSigned {
+	// 		flag = 1
+	// 	}
+	// 	senderFlagBytes[i/int8Key] |= flag << (int8Key - 1 - i%int8Key)
+	// }
+
+	signature := NewSignatureContentFromBlockContent(blockContent)
+	publicKeys := make([]intMaxTypes.Uint256, len(blockContent.Senders))
+	// accountIDs := make([]uint64, len(blockContent.Senders))
+	for i, sender := range blockContent.Senders {
+		publicKey := new(intMaxTypes.Uint256).FromBigInt(sender.PublicKey.BigInt())
+		publicKeys[i] = *publicKey
+		// accountIDs[i] = sender.AccountID
+	}
 
 	prevAccountTreeRoot := b.AccountTree.GetRoot()
 	prevBlockTreeRoot := b.BlockTree.GetRoot()
 
-	if isRegistrationBlock {
+	if signature.IsRegistrationBlock {
 		accountMembershipProofs := make([]intMaxTree.IndexedMembershipProof, len(blockContent.Senders))
 		for i, sender := range blockContent.Senders {
 			accountMembershipProof, _, err := b.AccountTree.ProveMembership(sender.PublicKey.BigInt())
@@ -283,7 +394,7 @@ func (b *mockBlockBuilder) GenerateBlock(
 
 		blockWitness := &BlockWitness{
 			Block:                   postedBlock,
-			Signature:               signature,
+			Signature:               *signature,
 			PublicKeys:              publicKeys,
 			PrevAccountTreeRoot:     prevAccountTreeRoot,
 			PrevBlockTreeRoot:       prevBlockTreeRoot,
@@ -319,7 +430,7 @@ func (b *mockBlockBuilder) GenerateBlock(
 	accountIDPacked.FromBytes(accountIDPackedBytes)
 	blockWitness := &BlockWitness{
 		Block:                   postedBlock,
-		Signature:               signature,
+		Signature:               *signature,
 		PublicKeys:              publicKeys,
 		PrevAccountTreeRoot:     prevAccountTreeRoot,
 		PrevBlockTreeRoot:       prevBlockTreeRoot,
@@ -367,7 +478,7 @@ func (db *mockBlockBuilder) SetValidityWitness(blockNumber uint32, witness *Vali
 				Amount:            deposit.Amount,
 			}
 
-			_, err := depositTree.AddLeaf(uint32(i), depositLeaf)
+			_, err = depositTree.AddLeaf(uint32(i), depositLeaf)
 			if err != nil {
 				return err
 			}
@@ -384,30 +495,49 @@ func (db *mockBlockBuilder) SetValidityWitness(blockNumber uint32, witness *Vali
 	fmt.Printf("GetAccountMembershipProof root: %s\n", db.AccountTree.GetRoot().String())
 
 	db.latestWitnessBlockNumber = blockNumber
-	db.validityWitnesses[blockNumber] = new(ValidityWitness).Set(witness)
+	// db.validityWitnesses[blockNumber] = new(ValidityWitness).Set(witness)
 	db.MerkleTreeHistory[blockNumber] = &MerkleTrees{
 		AccountTree:   new(intMaxTree.AccountTree).Set(db.AccountTree),
 		BlockHashTree: new(intMaxTree.BlockHashTree).Set(db.BlockTree),
 		DepositLeaves: depositTree.Leaves,
-		// TxTree:        txTree,
+		// DepositTreeRoot: depositTreeRoot,
 	}
 
 	return nil
 }
 
 func (db *mockBlockBuilder) LastValidityWitness() (*ValidityWitness, error) {
-	// return db.db.LastValidityWitness()
-	// fmt.Printf("LastValidityWitness: %v\n", db.lastValidityWitness.BlockWitness.PrevBlockTreeRoot)
-
-	data, ok := db.validityWitnesses[uint32(len(db.validityWitnesses)-1)]
-	if !ok {
-		return nil, errors.New("last validity witness not found")
-	}
-	return data, nil
+	return db.ValidityWitnessByBlockNumber(db.latestWitnessBlockNumber)
 }
 
 func (db *mockBlockBuilder) ValidityWitnessByBlockNumber(blockNumber uint32) (*ValidityWitness, error) {
-	return db.validityWitnesses[blockNumber], nil
+	if blockNumber == 0 {
+		genesisValidityWitness := new(ValidityWitness).Genesis()
+		return genesisValidityWitness, nil
+	}
+
+	auxInfo, err := db.BlockAuxInfo(blockNumber)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("auxInfo.PostedBlock.BlockNumber (ValidityWitnessByBlockNumber): %d\n", auxInfo.PostedBlock.BlockNumber)
+	blockWitness, err := db.GenerateBlockWithTxTreeFromBlockContent(
+		auxInfo.BlockContent,
+		auxInfo.PostedBlock,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("blockNumber (ValidityWitnessByBlockNumber): %d\n", blockNumber)
+	fmt.Printf("blockWitness.Block.BlockNumber (ValidityWitnessByBlockNumber): %d\n", blockWitness.Block.BlockNumber)
+	validityWitness, err := calculateValidityWitness(db, blockWitness)
+	if err != nil {
+		return nil, err
+	}
+
+	return validityWitness, nil
 }
 
 func (db *mockBlockBuilder) AccountTreeRoot() (*intMaxGP.PoseidonHashOut, error) {
@@ -419,9 +549,9 @@ func (db *mockBlockBuilder) GetAccountMembershipProof(blockNumber uint32, public
 	if !ok {
 		return nil, fmt.Errorf("current block number %d not found", blockNumber)
 	}
-	proof, root, err := blockHistory.AccountTree.ProveMembership(publicKey)
-	fmt.Printf("blockNumber: %d\n", blockNumber)
-	fmt.Printf("GetAccountMembershipProof root: %s\n", root.String())
+	proof, _, err := blockHistory.AccountTree.ProveMembership(publicKey)
+	// fmt.Printf("blockNumber: %d\n", blockNumber)
+	// fmt.Printf("GetAccountMembershipProof root: %s\n", root.String())
 	// proof, _, err := db.AccountTree.ProveMembership(publicKey)
 	if err != nil {
 		return nil, errors.New("account membership proof error")
@@ -443,44 +573,59 @@ func (db *mockBlockBuilder) ProveInclusion(accountId uint64) (*AccountMerkleProo
 	}, nil
 }
 
-func (db *mockBlockBuilder) BlockTreeRoot() (*intMaxGP.PoseidonHashOut, error) {
-	return db.BlockTree.GetRoot(), nil
+func (db *mockBlockBuilder) BlockTreeRoot(blockNumber *uint32) (*intMaxGP.PoseidonHashOut, error) {
+	if blockNumber == nil {
+		return db.BlockTree.GetRoot(), nil
+	}
+
+	blockHistory, ok := db.MerkleTreeHistory[*blockNumber]
+	if !ok {
+		return nil, errors.New("block number not found")
+	}
+
+	return blockHistory.BlockHashTree.GetRoot(), nil
 }
 
-func (db *mockBlockBuilder) BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.MerkleProof, error) {
+func (db *mockBlockBuilder) BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.PoseidonMerkleProof, error) {
 	if rootBlockNumber < leafBlockNumber {
-		return nil, errors.New("root block number should be greater than or equal to leaf block number")
+		panic(fmt.Errorf("root block number should be greater than or equal to leaf block number: %d < %d", rootBlockNumber, leafBlockNumber))
+		// return nil, fmt.Errorf("root block number should be greater than or equal to leaf block number: %d < %d", rootBlockNumber, leafBlockNumber)
 	}
 
 	blockHistory, ok := db.MerkleTreeHistory[rootBlockNumber]
 	if !ok {
-		return nil, errors.New("current block number %d not found (BlockTreeProof)")
+		return nil, fmt.Errorf("root block number %d not found (BlockTreeProof)", rootBlockNumber)
 	}
 
 	proof, _, err := blockHistory.BlockHashTree.Prove(leafBlockNumber)
 	if err != nil {
-		return nil, errors.New("block tree proof error")
+		return nil, fmt.Errorf("leaf block number %d not found (BlockTreeProof)", leafBlockNumber)
 	}
 
 	return &proof, nil
 }
 
-func (db *mockBlockBuilder) CurrentBlockTreeProof(blockNumber uint32) (*intMaxTree.MerkleProof, error) {
-	proof, _, err := db.BlockTree.Prove(blockNumber)
-	if err != nil {
-		return nil, errors.New("block tree proof error")
-	}
+// func (db *mockBlockBuilder) CurrentBlockTreeProof(blockNumber uint32) (*intMaxTree.MerkleProof, error) {
+// 	proof, _, err := db.BlockTree.Prove(blockNumber)
+// 	if err != nil {
+// 		return nil, errors.New("block tree proof error")
+// 	}
 
-	return &proof, nil
-}
+// 	return &proof, nil
+// }
 
 func (db *mockBlockBuilder) IsSynchronizedDepositIndex(depositIndex uint32) (bool, error) {
-	lastValidityWitness, err := db.LastValidityWitness()
+	// lastValidityWitness, err := db.LastValidityWitness()
+	lastGeneratedProofBlockNumber, err := db.LastGeneratedProofBlockNumber()
 	if err != nil {
 		return false, err
 	}
-	lastBlockNumber := lastValidityWitness.BlockWitness.Block.BlockNumber
-	depositLeaves := db.MerkleTreeHistory[lastBlockNumber].DepositLeaves
+	fmt.Printf("lastPostedBlockNumber: %d\n", lastGeneratedProofBlockNumber)
+
+	depositLeaves := db.MerkleTreeHistory[lastGeneratedProofBlockNumber].DepositLeaves
+	fmt.Printf("lastGeneratedProofBlockNumber (IsSynchronizedDepositIndex): %d\n", lastGeneratedProofBlockNumber)
+	fmt.Printf("latest deposit index: %d\n", len(depositLeaves))
+	fmt.Printf("depositIndex: %d\n", depositIndex)
 
 	if depositIndex >= uint32(len(depositLeaves)) {
 		return false, nil
@@ -490,6 +635,7 @@ func (db *mockBlockBuilder) IsSynchronizedDepositIndex(depositIndex uint32) (boo
 }
 
 func (db *mockBlockBuilder) DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error) {
+	fmt.Printf("blockNumber (DepositTreeProof): %d\n", blockNumber)
 	depositLeaves := db.MerkleTreeHistory[blockNumber].DepositLeaves
 
 	if depositIndex >= uint32(len(depositLeaves)) {
@@ -509,33 +655,48 @@ func (db *mockBlockBuilder) DepositTreeProof(blockNumber uint32, depositIndex ui
 	return proof, root, nil
 }
 
+// TODO: refactor
 func (db *mockBlockBuilder) BlockNumberByDepositIndex(depositIndex uint32) (uint32, error) {
-	// depositRoots := db.MerkleTreeHistory[blockNumber].DepositRoots
-
-	// return db.MerkleTreeHistory[blockNumber].DepositTree, nil
-
-	return 0, nil
-}
-
-func (db *mockBlockBuilder) AppendBlockTreeLeaf(block *block_post_service.PostedBlock) error {
-	blockHashLeaf := intMaxTree.NewBlockHashLeaf(block.Hash())
-	_, count, _ := db.BlockTree.GetCurrentRootCountAndSiblings()
-	if count != block.BlockNumber {
-		return errors.New("block number is not equal to the current block number")
+	lastValidityWitness, err := db.LastValidityWitness()
+	if err != nil {
+		return 0, err
 	}
 
+	blockNumber := uint32(1)
+	fmt.Printf("lastValidityWitness.BlockWitness.Block.BlockNumber: %d\n", lastValidityWitness.BlockWitness.Block.BlockNumber)
+	for ; blockNumber <= lastValidityWitness.BlockWitness.Block.BlockNumber; blockNumber++ {
+		depositLeaves := db.MerkleTreeHistory[blockNumber].DepositLeaves
+		fmt.Printf("latest deposit index: %d\n", len(depositLeaves))
+		if depositIndex >= uint32(len(depositLeaves)) {
+			return 0, errors.New("deposit index is out of range")
+		}
+	}
+
+	return blockNumber, nil
+}
+
+func (db *mockBlockBuilder) AppendBlockTreeLeaf(block *block_post_service.PostedBlock) (blockNumber uint32, err error) {
+	blockHashLeaf := intMaxTree.NewBlockHashLeaf(block.Hash())
+	_, blockNumber, _ = db.BlockTree.GetCurrentRootCountAndSiblings()
+	fmt.Printf("next block number (AppendBlockTreeLeaf): %d\n", blockNumber)
+	fmt.Printf("block hashes (AppendBlockTreeLeaf): %v\n", db.BlockTree.Leaves)
+	if blockNumber != block.BlockNumber {
+		return 0, fmt.Errorf("block number is not equal to the current block number: %d != %d", blockNumber, block.BlockNumber)
+	}
+	fmt.Printf("block hashes: %v", db.BlockTree.Leaves)
+
 	fmt.Printf("old block root: %s\n", db.BlockTree.GetRoot().String())
-	newRoot, err := db.BlockTree.AddLeaf(count, blockHashLeaf)
+	newRoot, err := db.BlockTree.AddLeaf(blockNumber, blockHashLeaf)
 	if err != nil {
 		var ErrBlockTreeAddLeaf = errors.New("block tree add leaf error")
-		return errors.Join(ErrBlockTreeAddLeaf, err)
+		return 0, errors.Join(ErrBlockTreeAddLeaf, err)
 	}
 	fmt.Printf("new block root: %s\n", newRoot.String())
 
-	return nil
+	return blockNumber, nil
 }
 
-func (db *mockBlockBuilder) AppendAccountTreeLeaf(sender *big.Int, lastBlockNumber uint64) (*intMaxTree.IndexedInsertionProof, error) {
+func (db *mockBlockBuilder) AppendAccountTreeLeaf(sender *big.Int, lastBlockNumber uint32) (*intMaxTree.IndexedInsertionProof, error) {
 	proof, err := db.AccountTree.Insert(sender, lastBlockNumber)
 	if err != nil {
 		// invalid block
@@ -546,7 +707,7 @@ func (db *mockBlockBuilder) AppendAccountTreeLeaf(sender *big.Int, lastBlockNumb
 	return proof, nil
 }
 
-func (db *mockBlockBuilder) UpdateAccountTreeLeaf(sender *big.Int, lastBlockNumber uint64) (*intMaxTree.IndexedUpdateProof, error) {
+func (db *mockBlockBuilder) UpdateAccountTreeLeaf(sender *big.Int, lastBlockNumber uint32) (*intMaxTree.IndexedUpdateProof, error) {
 	proof, err := db.AccountTree.Update(sender, lastBlockNumber)
 	if err != nil {
 		var ErrAccountTreeUpdate = errors.New("account tree update error")
@@ -667,7 +828,7 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTree(
 	if err != nil {
 		panic(err)
 	}
-	blockNumber := lastValidityWitness.BlockWitness.Block.BlockNumber
+	postedBlock := lastValidityWitness.BlockWitness.Block
 
 	var accountIDPacked *AccountIdPacked
 	var accountMerkleProofs []AccountMerkleProof
@@ -688,9 +849,10 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTree(
 			// }
 
 			isDummy := publicKey.BigInt().Cmp(intMaxAcc.NewDummyPublicKey().BigInt()) == 0
-			fmt.Printf("isDummy: %v, ", isDummy)
+			// fmt.Printf("isDummy: %v, ", isDummy)
 
-			leaf, err := db.GetAccountTreeLeaf(publicKey.BigInt())
+			var leaf *intMaxTree.IndexedMerkleLeaf
+			leaf, err = db.GetAccountTreeLeaf(publicKey.BigInt())
 			if err != nil {
 				if err.Error() != ErrAccountTreeGetAccountID.Error() {
 					return nil, nil, errors.Join(errors.New("account tree leaf error"), err)
@@ -701,9 +863,10 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTree(
 				return nil, nil, errors.New("account already exists")
 			}
 
-			proof, err := db.GetAccountMembershipProof(blockNumber, publicKey.BigInt())
+			var proof *intMaxTree.IndexedMembershipProof
+			proof, err = db.GetAccountMembershipProof(postedBlock.BlockNumber, publicKey.BigInt())
 			if err != nil {
-				return nil, nil, errors.Join(errors.New("account membership proof error"), err)
+				return nil, nil, errors.Join(ErrAccountMembershipProof, err)
 			}
 
 			accountMembershipProofs[i] = *proof
@@ -716,7 +879,8 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTree(
 			if !ok {
 				return nil, nil, errors.New("account id not found")
 			}
-			proof, err := db.ProveInclusion(accountID)
+			var proof *AccountMerkleProof
+			proof, err = db.ProveInclusion(accountID)
 			if err != nil {
 				return nil, nil, errors.New("account inclusion proof error")
 			}
@@ -756,15 +920,11 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTree(
 	}
 
 	depositRoot, _, _ := db.DepositTree.GetCurrentRootCountAndSiblings()
-	lastValidityWitness, err = db.LastValidityWitness()
-	if err != nil {
-		panic(err)
-	}
 	block := &block_post_service.PostedBlock{
-		PrevBlockHash: lastValidityWitness.BlockWitness.Block.Hash(),
+		PrevBlockHash: postedBlock.Hash(),
 		DepositRoot:   depositRoot,
 		SignatureHash: signature.Hash(),
-		BlockNumber:   blockNumber + 1,
+		BlockNumber:   postedBlock.BlockNumber + 1,
 	}
 
 	prevAccountTreeRoot := db.AccountTree.GetRoot()
@@ -783,31 +943,136 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTree(
 	validationPis := blockWitness.MainValidationPublicInputs()
 	fmt.Printf("validationPis: %v\n", validationPis)
 	if !validationPis.IsValid && len(txs) > 0 {
-		panic("should be valid block") // XXX
+		panic("should be valid block")
 	}
 
 	return blockWitness, txTree, nil
 }
 
+func (db *mockBlockBuilder) GenerateBlockWithTxTreeFromBlockContent(
+	blockContent *intMaxTypes.BlockContent,
+	postedBlock *block_post_service.PostedBlock,
+) (*BlockWitness, error) {
+	const numOfSenders = 128
+	if len(blockContent.Senders) > numOfSenders {
+		// panic("too many txs")
+		return nil, errors.New("too many txs")
+	}
+
+	publicKeys := make([]intMaxTypes.Uint256, len(blockContent.Senders))
+	for i, sender := range blockContent.Senders {
+		publicKeys[i].FromBigInt(sender.PublicKey.BigInt())
+	}
+
+	dummyPublicKey := intMaxAcc.NewDummyPublicKey()
+	for i := len(publicKeys); i < numOfSenders; i++ {
+		publicKeys = append(publicKeys, *new(intMaxTypes.Uint256).FromBigInt(dummyPublicKey.BigInt()))
+	}
+
+	var accountIDPacked *AccountIdPacked
+	var accountMerkleProofs []AccountMerkleProof
+	var accountMembershipProofs []intMaxTree.IndexedMembershipProof
+	isRegistrationBlock := blockContent.SenderType == "PUBLIC_KEY"
+	if isRegistrationBlock {
+		accountMembershipProofs = make([]intMaxTree.IndexedMembershipProof, len(publicKeys))
+		fmt.Printf("size of publicKeys: %d\n", len(publicKeys))
+		for i, publicKey := range publicKeys {
+			isDummy := publicKey.BigInt().Cmp(intMaxAcc.NewDummyPublicKey().BigInt()) == 0
+			fmt.Printf("isDummy: %v, ", isDummy)
+
+			leaf, err := db.GetAccountTreeLeaf(publicKey.BigInt())
+			if err != nil {
+				if err.Error() != ErrAccountTreeGetAccountID.Error() {
+					return nil, errors.Join(errors.New("account tree leaf error"), err)
+				}
+			}
+
+			if !isDummy && leaf != nil {
+				return nil, errors.New("account already exists")
+			}
+
+			proof, err := db.GetAccountMembershipProof(postedBlock.BlockNumber, publicKey.BigInt())
+			if err != nil {
+				return nil, errors.Join(errors.New("account membership proof error"), err)
+			}
+
+			accountMembershipProofs[i] = *proof
+		}
+	} else {
+		accountIDs := make([]uint64, len(publicKeys))
+		accountMerkleProofs = make([]AccountMerkleProof, len(publicKeys))
+		for i, publicKey := range publicKeys {
+			accountID, ok := db.AccountTree.GetAccountID(publicKey.BigInt())
+			if !ok {
+				return nil, errors.New("account id not found")
+			}
+			proof, err := db.ProveInclusion(accountID)
+			if err != nil {
+				return nil, errors.New("account inclusion proof error")
+			}
+
+			accountIDs[i] = accountID
+			accountMerkleProofs[i] = AccountMerkleProof{
+				MerkleProof: proof.MerkleProof,
+				Leaf:        proof.Leaf,
+			}
+		}
+
+		accountIDPacked = new(AccountIdPacked).Pack(accountIDs)
+		// accountIDHash = GetAccountIDsHash(accountIDs)
+	}
+
+	txTreeRoot := intMaxTypes.Bytes32{}
+	txTreeRoot.FromBytes(blockContent.TxTreeRoot[:])
+	signature := NewSignatureContentFromBlockContent(blockContent)
+
+	prevAccountTreeRoot := db.AccountTree.GetRoot()
+	prevBlockTreeRoot := db.BlockTree.GetRoot()
+	blockWitness := &BlockWitness{
+		Block:                   postedBlock,
+		Signature:               *signature,
+		PublicKeys:              publicKeys,
+		PrevAccountTreeRoot:     prevAccountTreeRoot,
+		PrevBlockTreeRoot:       prevBlockTreeRoot,
+		AccountIdPacked:         accountIDPacked,
+		AccountMerkleProofs:     &accountMerkleProofs,
+		AccountMembershipProofs: &accountMembershipProofs,
+	}
+
+	// depositRoot, _, _ := db.DepositTree.GetCurrentRootCountAndSiblings()
+	// if depositRoot != postedBlock.DepositRoot {
+	// 	return nil, fmt.Errorf("deposit root is not equal to the last deposit root: %s != %s", depositRoot.Hex(), postedBlock.DepositRoot.Hex())
+	// }
+
+	// if signature.Hash() != postedBlock.SignatureHash {
+	// 	return nil, fmt.Errorf("signature hash is not equal to the last signature hash: %s != %s", signature.Hash().Hex(), postedBlock.SignatureHash.Hex())
+	// }
+
+	// validationPis := blockWitness.MainValidationPublicInputs()
+	// fmt.Printf("validationPis: %v\n", validationPis)
+	// if !validationPis.IsValid && len(blockContent.Senders) > 0 {
+	// 	// Despite non-empty block, the block is not valid.
+	// 	return nil, ErrBlockShouldBeValid
+	// }
+
+	return blockWitness, nil
+}
+
 type MockTxRequest struct {
 	Sender              *intMaxAcc.PrivateKey
+	AccountID           uint64
 	Tx                  *intMaxTypes.Tx
 	WillReturnSignature bool
 }
 
-func (db *mockBlockBuilder) PostBlock(
-	isRegistrationBlock bool,
-	txs []*MockTxRequest,
+func (db *mockBlockBuilder) UpdateValidityWitness(
+	blockContent *intMaxTypes.BlockContent,
+	prevValidityWitness *ValidityWitness,
 ) (*ValidityWitness, error) {
-	blockWitness, _, err := db.GenerateBlockWithTxTree(
-		isRegistrationBlock,
-		txs,
+	blockWitness, err := db.GenerateBlockWithTxTreeFromBlockContent(
+		blockContent,
+		prevValidityWitness.BlockWitness.Block,
 	)
-	if err != nil {
-		panic(err)
-	}
-
-	prevValidityWitness, err := db.LastValidityWitness()
 	if err != nil {
 		panic(err)
 	}
@@ -818,13 +1083,70 @@ func (db *mockBlockBuilder) PostBlock(
 		fmt.Printf("latestIntMaxBlockNumber: %d\n", latestIntMaxBlockNumber)
 		return nil, errors.New("block number is not equal to the last block number + 1")
 	}
-	validityWitness, err := generateValidityWitness(
+	validityWitness, err := updateValidityWitnessWithConsistencyCheck(
 		db,
 		blockWitness,
 		prevValidityWitness,
 	)
 	if err != nil {
 		panic(err)
+	}
+
+	return validityWitness, nil
+}
+
+func updateValidityWitnessWithConsistencyCheck(db BlockBuilderStorage, blockWitness *BlockWitness, prevValidityWitness *ValidityWitness) (*ValidityWitness, error) {
+	fmt.Printf("---------------------- updateValidityWitnessWithConsistencyCheck ----------------------\n")
+	// latestIntMaxBlockNumber := db.LatestIntMaxBlockNumber()
+	prevPis := prevValidityWitness.ValidityPublicInputs()
+	// blockWitness.Block.BlockNumber != latestIntMaxBlockNumber+1
+	if blockWitness.Block.BlockNumber > prevPis.PublicState.BlockNumber+1 {
+		fmt.Printf("blockWitness.Block.BlockNumber (generateValidityWitness): %d\n", blockWitness.Block.BlockNumber)
+		fmt.Printf("prevPis.PublicState.BlockNumber (generateValidityWitness): %d\n", prevPis.PublicState.BlockNumber)
+		return nil, errors.New("block number is not greater than the last block number")
+	}
+
+	accountTreeRoot, err := db.AccountTreeRoot()
+	if err != nil {
+		return nil, errors.New("account tree root error")
+	}
+	if !prevPis.PublicState.AccountTreeRoot.Equal(accountTreeRoot) {
+		fmt.Printf("prevPis.PublicState.AccountTreeRoot is not the same with accountTreeRoot, %s != %s", prevPis.PublicState.AccountTreeRoot.String(), accountTreeRoot.String())
+		return nil, errors.New("account tree root is not equal to the last account tree root")
+	}
+
+	prevBlockTreeRoot, err := db.BlockTreeRoot(&prevPis.PublicState.BlockNumber)
+	if err != nil {
+		return nil, errors.New("block tree root error")
+	}
+	if prevPis.IsValidBlock {
+		fmt.Printf("block number %d is valid\n", prevPis.PublicState.BlockNumber+1)
+	} else {
+		fmt.Printf("block number %d is invalid\n", prevPis.PublicState.BlockNumber+1)
+	}
+	fmt.Printf("prevBlockTreeRoot: %s\n", prevBlockTreeRoot.String())
+	if !prevPis.PublicState.BlockTreeRoot.Equal(prevBlockTreeRoot) {
+		fmt.Printf("prevPis.PublicState.BlockTreeRoot is not the same with blockTreeRoot, %s != %s", prevPis.PublicState.BlockTreeRoot.String(), prevBlockTreeRoot.String())
+		return nil, errors.New("block tree root is not equal to the last block tree root")
+	}
+	// blockMerkleProof, err := db.BlockTreeProof(prevPis.PublicState.BlockNumber+1, blockWitness.Block.BlockNumber)
+	// if err != nil {
+	// 	var ErrBlockTreeProve = errors.New("block tree prove error")
+	// 	return nil, errors.Join(ErrBlockTreeProve, err)
+	// }
+
+	addedBlockNumber, err := db.AppendBlockTreeLeaf(blockWitness.Block)
+	if err != nil {
+		return nil, fmt.Errorf("append block tree leaf error: %w", err)
+	}
+
+	if addedBlockNumber != blockWitness.Block.BlockNumber {
+		return nil, errors.New("block number is not equal to the added block number")
+	}
+
+	validityWitness, err := calculateValidityWitnessWithMerkleProofs(db, blockWitness, prevBlockTreeRoot)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate validity witness: %w", err)
 	}
 
 	fmt.Printf("blockWitness.Block.BlockNumber: %d\n", blockWitness.Block.BlockNumber)
@@ -847,19 +1169,21 @@ func (db *mockBlockBuilder) PostBlock(
 	db.SetValidityWitness(blockWitness.Block.BlockNumber, validityWitness)
 
 	fmt.Printf("post block #%d\n", validityWitness.BlockWitness.Block.BlockNumber)
+
 	return validityWitness, nil
 }
 
-func generateValidityWitness(db BlockBuilderStorage, blockWitness *BlockWitness, prevValidityWitness *ValidityWitness) (*ValidityWitness, error) {
-	fmt.Printf("---------------------- generateValidityWitness ----------------------\n")
-	latestIntMaxBlockNumber := db.LatestIntMaxBlockNumber()
-	if blockWitness.Block.BlockNumber != latestIntMaxBlockNumber+1 {
+func calculateValidityWitnessWithConsistencyCheck(db BlockBuilderStorage, blockWitness *BlockWitness, prevValidityWitness *ValidityWitness) (*ValidityWitness, error) {
+	fmt.Printf("---------------------- calculateValidityWitnessWithConsistencyCheck ----------------------\n")
+	// latestIntMaxBlockNumber := db.LatestIntMaxBlockNumber()
+	prevPis := prevValidityWitness.ValidityPublicInputs()
+	// blockWitness.Block.BlockNumber != latestIntMaxBlockNumber+1
+	if blockWitness.Block.BlockNumber > prevPis.PublicState.BlockNumber+1 {
 		fmt.Printf("blockWitness.Block.BlockNumber (generateValidityWitness): %d\n", blockWitness.Block.BlockNumber)
-		fmt.Printf("latestIntMaxBlockNumber (generateValidityWitness): %d\n", latestIntMaxBlockNumber)
-		return nil, errors.New("block number is not equal to the last block number + 1")
+		fmt.Printf("prevPis.PublicState.BlockNumber (generateValidityWitness): %d\n", prevPis.PublicState.BlockNumber)
+		return nil, errors.New("block number is not greater than the last block number")
 	}
 
-	prevPis := prevValidityWitness.ValidityPublicInputs()
 	accountTreeRoot, err := db.AccountTreeRoot()
 	if err != nil {
 		return nil, errors.New("account tree root error")
@@ -869,7 +1193,7 @@ func generateValidityWitness(db BlockBuilderStorage, blockWitness *BlockWitness,
 		return nil, errors.New("account tree root is not equal to the last account tree root")
 	}
 
-	blockTreeRoot, err := db.BlockTreeRoot()
+	prevBlockTreeRoot, err := db.BlockTreeRoot(&prevPis.PublicState.BlockNumber)
 	if err != nil {
 		return nil, errors.New("block tree root error")
 	}
@@ -878,38 +1202,70 @@ func generateValidityWitness(db BlockBuilderStorage, blockWitness *BlockWitness,
 	} else {
 		fmt.Printf("block number %d is invalid\n", prevPis.PublicState.BlockNumber+1)
 	}
-	fmt.Printf("blockTreeRoot: %s\n", blockTreeRoot.String())
-	if !prevPis.PublicState.BlockTreeRoot.Equal(blockTreeRoot) {
-		fmt.Printf("prevPis.PublicState.BlockTreeRoot is not the same with blockTreeRoot, %s != %s", prevPis.PublicState.BlockTreeRoot.String(), blockTreeRoot.String())
+	fmt.Printf("prevBlockTreeRoot: %s\n", prevBlockTreeRoot.String())
+	if !prevPis.PublicState.BlockTreeRoot.Equal(prevBlockTreeRoot) {
+		fmt.Printf("prevPis.PublicState.BlockTreeRoot is not the same with blockTreeRoot, %s != %s", prevPis.PublicState.BlockTreeRoot.String(), prevBlockTreeRoot.String())
 		return nil, errors.New("block tree root is not equal to the last block tree root")
 	}
 
-	defaultLeaf := new(intMaxTree.BlockHashLeaf).SetDefault()
-	prevBlockTreeRoot := prevPis.PublicState.BlockTreeRoot
-	blockMerkleProof, err := db.CurrentBlockTreeProof(blockWitness.Block.BlockNumber)
+	return calculateValidityWitnessWithMerkleProofs(db, blockWitness, prevBlockTreeRoot)
+}
+
+func calculateValidityWitness(db BlockBuilderStorage, blockWitness *BlockWitness) (*ValidityWitness, error) {
+	fmt.Printf("---------------------- calculateValidityWitness ----------------------\n")
+	mainValidationPublicInputs := blockWitness.MainValidationPublicInputs()
+	fmt.Printf("mainValidationPublicInputs.BlockNumber: %d\n", mainValidationPublicInputs.BlockNumber)
+	prevBlockNumber := mainValidationPublicInputs.BlockNumber - 1
+	prevBlockTreeRoot, err := db.BlockTreeRoot(&prevBlockNumber)
+	if err != nil {
+		return nil, fmt.Errorf("block tree root error: %w", err)
+	}
+
+	// blockMerkleProof, err := db.BlockTreeProof(prevBlockNumber, blockWitness.Block.BlockNumber)
+	// if err != nil {
+	// 	var ErrBlockTreeProve = errors.New("block tree prove error")
+	// 	return nil, errors.Join(ErrBlockTreeProve, err)
+	// }
+
+	return calculateValidityWitnessWithMerkleProofs(db, blockWitness, prevBlockTreeRoot)
+}
+
+// XXX: updateValidityWitnessWithMerkleProofs
+func calculateValidityWitnessWithMerkleProofs(
+	db BlockBuilderStorage,
+	blockWitness *BlockWitness,
+	// blockMerkleProof *intMaxTree.PoseidonMerkleProof,
+	prevBlockTreeRoot *intMaxGP.PoseidonHashOut,
+) (*ValidityWitness, error) {
+	// addedBlockNumber, err := db.AppendBlockTreeLeaf(blockWitness.Block)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("append block tree leaf error: %w", err)
+	// }
+
+	// if addedBlockNumber != blockWitness.Block.BlockNumber {
+	// 	return nil, errors.New("block number is not equal to the added block number")
+	// }
+
+	// debug
+	blockMerkleProof, err := db.BlockTreeProof(blockWitness.Block.BlockNumber, blockWitness.Block.BlockNumber)
 	if err != nil {
 		var ErrBlockTreeProve = errors.New("block tree prove error")
 		return nil, errors.Join(ErrBlockTreeProve, err)
 	}
 
-	// debug
+	// Verify that the Merkle proof for the block hash tree is correct in its old state.
+	defaultLeaf := new(intMaxTree.BlockHashLeaf).SetDefault()
 	err = blockMerkleProof.Verify(
 		defaultLeaf.Hash(),
 		int(blockWitness.Block.BlockNumber),
 		prevBlockTreeRoot,
 	)
 	if err != nil {
-		panic("old block merkle proof is invalid")
+		panic(fmt.Errorf("old block merkle proof is invalid: %w", err))
 	}
 
-	err = db.AppendBlockTreeLeaf(blockWitness.Block)
-	if err != nil {
-		return nil, errors.New("append block tree leaf error")
-	}
-
-	// debug
 	blockHashLeaf := intMaxTree.NewBlockHashLeaf(blockWitness.Block.Hash())
-	newBlockTreeRoot, err := db.BlockTreeRoot()
+	newBlockTreeRoot, err := db.BlockTreeRoot(&blockWitness.Block.BlockNumber)
 	if err != nil {
 		return nil, errors.New("block tree root error")
 	}
@@ -943,7 +1299,7 @@ func generateValidityWitness(db BlockBuilderStorage, blockWitness *BlockWitness,
 			if isDummy {
 				proof = intMaxTree.NewDummyAccountRegistrationProof(intMaxTree.ACCOUNT_TREE_HEIGHT)
 			} else {
-				proof, err = db.AppendAccountTreeLeaf(senderLeaf.Sender, uint64(lastBlockNumber))
+				proof, err = db.AppendAccountTreeLeaf(senderLeaf.Sender, lastBlockNumber)
 				if err != nil {
 					var ErrAppendAccountTreeLeaf = errors.New("append account tree leaf error")
 					return nil, errors.Join(ErrAppendAccountTreeLeaf, err)
@@ -966,7 +1322,8 @@ func generateValidityWitness(db BlockBuilderStorage, blockWitness *BlockWitness,
 	if blockPis.IsValid && !blockPis.IsRegistrationBlock {
 		accountUpdateProofs := make([]intMaxTree.IndexedUpdateProof, 0, len(senderLeaves))
 		for _, senderLeaf := range senderLeaves {
-			prevLeaf, err := db.GetAccountTreeLeaf(senderLeaf.Sender)
+			var prevLeaf *intMaxTree.IndexedMerkleLeaf
+			prevLeaf, err = db.GetAccountTreeLeaf(senderLeaf.Sender)
 			if err != nil {
 				var ErrAccountTreeLeaf = errors.New("account tree leaf error")
 				return nil, errors.Join(ErrAccountTreeLeaf, err)
@@ -978,7 +1335,7 @@ func generateValidityWitness(db BlockBuilderStorage, blockWitness *BlockWitness,
 				lastBlockNumber = blockPis.BlockNumber
 			}
 			var proof *intMaxTree.IndexedUpdateProof
-			proof, err = db.UpdateAccountTreeLeaf(senderLeaf.Sender, uint64(lastBlockNumber))
+			proof, err = db.UpdateAccountTreeLeaf(senderLeaf.Sender, lastBlockNumber)
 			if err != nil {
 				var ErrUpdateAccountTreeLeaf = errors.New("update account tree leaf error")
 				return nil, errors.Join(ErrUpdateAccountTreeLeaf, err)
@@ -994,7 +1351,6 @@ func generateValidityWitness(db BlockBuilderStorage, blockWitness *BlockWitness,
 
 	fmt.Printf("validity_witness prev_account_tree_root: %v\n", blockWitness.PrevAccountTreeRoot.String())
 	fmt.Printf("validity_witness accountRegistrationProofsWitness: %v\n", accountRegistrationProofsWitness)
-	// fmt.Printf("validity_witness accountUpdateProofsWitness: %v\n", accountUpdateProofsWitness)
 	return &ValidityWitness{
 		BlockWitness: blockWitness,
 		ValidityTransitionWitness: &ValidityTransitionWitness{
@@ -1022,8 +1378,6 @@ func (b *mockBlockBuilder) LastSeenBlockPostedEventBlockNumber() (uint64, error)
 func (b *mockBlockBuilder) SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error {
 	_, err := b.db.UpsertEventBlockNumberForValidityProver("BlockPosted", blockNumber)
 
-	// b.lastSeenBlockPostedEventBlockNumber = blockNumber
-
 	return err
 }
 
@@ -1037,53 +1391,68 @@ func (b *mockBlockBuilder) ValidityProofByBlockNumber(blockNumber uint32) (*stri
 	// 	return nil, ErrNoValidityProofByBlockNumber
 	// }
 
-	validityProofs, ok := b.ValidityProofs[blockNumber]
-	if !ok {
-		fmt.Printf("blockNumber (GetValidityProof): %d\n", blockNumber)
-		return nil, ErrNoValidityProofByBlockNumber
-	}
-
-	return &validityProofs, nil
-}
-
-func (b *mockBlockBuilder) SetValidityProof(blockNumber uint32, proof string) error {
-	fmt.Printf("blockNumber (SetValidityProof): %d\n", blockNumber)
-	// if blockNumber != uint32(len(b.ValidityProofs)) {
-	// 	return errors.New("block number should be equal to the last block number + 1")
-	// }
-
-	if _, ok := b.ValidityProofs[blockNumber]; ok {
-		fmt.Printf("already exists block number %d\n", blockNumber)
-		return nil
-	}
-
-	fmt.Printf("s.LastBlockNumber before SetValidityProof = %d\n", b.LastGeneratedProofBlockNumber)
-	fmt.Printf("s.LastValidityProofBlockNumber before SetValidityProof = %d\n", b.LastPostedBlockNumber)
-	b.ValidityProofs[blockNumber] = proof
-	b.LastGeneratedProofBlockNumber = blockNumber
-	// b.LastPostedBlockNumber = blockNumber
-	fmt.Printf("s.LastBlockNumber after SetValidityProof= %d\n", b.LastGeneratedProofBlockNumber)
-
-	return nil
-}
-
-func (b *mockBlockBuilder) BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContent, error) {
-	return b.db.BlockContentByBlockNumber(blockNumber)
-
-	// auxInfo, ok := b.AuxInfo[blockNumber]
-	// if !ok {
-	// 	return nil, false
-	// }
-
-	// return auxInfo, true
-}
-
-func BlockAuxInfo(db BlockBuilderStorage, blockNumber uint32) (*AuxInfo, error) {
-	auxInfo, err := db.BlockContentByBlockNumber(blockNumber)
+	blockContent, err := b.db.BlockContentByBlockNumber(blockNumber)
 	if err != nil {
+		fmt.Printf("blockNumber (GetValidityProof): %d\n", blockNumber)
 		return nil, errors.New("block content by block number error")
 	}
 
+	encodedValidityProof := base64.StdEncoding.EncodeToString(blockContent.ValidityProof)
+
+	return &encodedValidityProof, nil
+}
+
+func (b *mockBlockBuilder) LastGeneratedProofBlockNumber() (uint32, error) {
+	lastValidityProof, err := b.db.LastBlockValidityProof()
+	if err != nil {
+		if err.Error() == "not found" {
+			return 0, nil
+		}
+
+		return 0, err
+	}
+
+	return lastValidityProof.BlockNumber, nil
+}
+
+func (b *mockBlockBuilder) SetValidityProof(blockHash common.Hash, proof string) error {
+	validityProof, err := base64.StdEncoding.DecodeString(proof)
+	if err != nil {
+		return err
+	}
+
+	_, err = b.db.CreateValidityProof(blockHash, validityProof)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+// func (b *mockBlockBuilder) blockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error) {
+// 	return b.db.BlockContentByBlockNumber(blockNumber)
+// }
+
+func (b *mockBlockBuilder) BlockAuxInfo(blockNumber uint32) (*AuxInfo, error) {
+	auxInfo, err := b.db.BlockContentByBlockNumber(blockNumber)
+	if err != nil {
+		var ErrBlockContentByBlockNumber = errors.New("block content by block number error")
+		return nil, errors.Join(ErrBlockContentByBlockNumber, err)
+	}
+
+	return blockAuxInfoFromBlockContent(auxInfo)
+}
+
+// func BlockAuxInfo(db BlockBuilderStorage, blockNumber uint32) (*AuxInfo, error) {
+// 	auxInfo, err := db.BlockContentByBlockNumber(blockNumber)
+// 	if err != nil {
+// 		return nil, errors.New("block content by block number error")
+// 	}
+
+// 	return BlockAuxInfoFromBlockContent(auxInfo)
+// }
+
+func blockAuxInfoFromBlockContent(auxInfo *mDBApp.BlockContentWithProof) (*AuxInfo, error) {
 	decodedAggregatedPublicKeyPoint, err := hexutil.Decode("0x" + auxInfo.AggregatedPublicKey)
 	if err != nil {
 		return nil, fmt.Errorf("aggregated public key hex decode error: %w", err)
@@ -1172,38 +1541,17 @@ func BlockAuxInfo(db BlockBuilderStorage, blockNumber uint32) (*AuxInfo, error) 
 	}, nil
 }
 
-func setAuxInfo(
-	db BlockBuilderStorage,
-	postedBlock *block_post_service.PostedBlock,
-	blockContent *intMaxTypes.BlockContent,
-) error {
-	storedBlockContent, err := db.CreateBlockContent(
-		postedBlock,
-		blockContent,
-	)
-	if err != nil {
-		return err
-	}
-
-	if storedBlockContent.BlockNumber != postedBlock.BlockNumber {
-		// Fatal error
-		panic(fmt.Sprintf("block %d is ErrBlockNumberMismatch", postedBlock.BlockNumber))
-	}
-
-	return nil
-}
-
 func (b *mockBlockBuilder) CreateBlockContent(
 	postedBlock *block_post_service.PostedBlock,
 	blockContent *intMaxTypes.BlockContent,
-) (*mDBApp.BlockContent, error) {
+) (*mDBApp.BlockContentWithProof, error) {
 	return b.db.CreateBlockContent(
 		postedBlock,
 		blockContent,
 	)
 }
 
-func (b *mockBlockBuilder) BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContent, error) {
+func (b *mockBlockBuilder) BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWithProof, error) {
 	return b.db.BlockContentByTxRoot(txRoot)
 }
 

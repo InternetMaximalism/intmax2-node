@@ -40,6 +40,7 @@ const (
 	numG2PointLimbs               = 4
 	defaultAccountID       uint64 = 0
 	dummyAccountID         uint64 = 1
+	int2Key                       = 2
 	int8Key                       = 8
 	int32Key                      = 32
 	int10Key                      = 10
@@ -82,7 +83,7 @@ type BlockContent struct {
 	Senders []Sender
 
 	// TxRoot is the root hash of the transactions in the block
-	TxTreeRoot common.Hash
+	TxTreeRoot [int32Key]byte
 
 	// AggregatedSignature is the aggregated signature of the block
 	AggregatedSignature *bn254.G2Affine
@@ -96,7 +97,7 @@ type BlockContent struct {
 func NewBlockContent(
 	senderType string,
 	senders []Sender,
-	txTreeRoot PoseidonHashOut,
+	txTreeRoot [int32Key]byte,
 	aggregatedSignature *bn254.G2Affine,
 ) *BlockContent {
 	var bc BlockContent
@@ -107,7 +108,7 @@ func NewBlockContent(
 	bc.SenderType = senderType
 	bc.Senders = make([]Sender, len(senders))
 	copy(bc.Senders, senders)
-	copy(bc.TxTreeRoot[:], txTreeRoot.Marshal())
+	copy(bc.TxTreeRoot[:], txTreeRoot[:])
 	bc.AggregatedSignature = new(bn254.G2Affine).Set(aggregatedSignature)
 
 	defaultPublicKey := accounts.NewDummyPublicKey()
@@ -129,6 +130,7 @@ func NewBlockContent(
 	publicKeysHash := crypto.Keccak256(senderPublicKeys)
 
 	aggregatedPublicKey := new(accounts.PublicKey)
+	// aggregatedPublicKey.Pk = new(bn254.G1Affine)
 	for _, sender := range bc.Senders {
 		if sender.IsSigned {
 			aggregatedPublicKey.Add(aggregatedPublicKey, sender.PublicKey.WeightByHash(publicKeysHash))
@@ -239,6 +241,7 @@ func (bc *BlockContent) IsValid() error {
 
 				publicKeysHash := crypto.Keccak256(senderPublicKeysBytes)
 				aggregatedPublicKey := new(accounts.PublicKey)
+				aggregatedPublicKey.Pk = new(bn254.G1Affine)
 				for key := range bc.Senders {
 					if bc.Senders[key].IsSigned {
 						aggregatedPublicKey.Add(
@@ -248,6 +251,8 @@ func (bc *BlockContent) IsValid() error {
 					}
 				}
 
+				fmt.Printf("aggregatedPublicKey: %v\n", aggregatedPublicKey)
+				fmt.Printf("bc.AggregatedPublicKey: %v\n", bc.AggregatedPublicKey)
 				if !aggregatedPublicKey.Equal(bc.AggregatedPublicKey) {
 					return ErrBlockContentAggPubKeyInvalid
 				}
@@ -444,21 +449,21 @@ func (bc *BlockContent) Uint32Slice() []uint32 {
 }
 
 type PostRegistrationBlockInput struct {
-	TxTreeRoot          [32]byte
-	SenderFlags         [16]byte
-	AggregatedPublicKey [2][32]byte
-	AggregatedSignature [4][32]byte
-	MessagePoint        [4][32]byte
+	TxTreeRoot          [int32Key]byte
+	SenderFlags         [int16Key]byte
+	AggregatedPublicKey [int2Key][int32Key]byte
+	AggregatedSignature [int4Key][int32Key]byte
+	MessagePoint        [int4Key][int32Key]byte
 	SenderPublicKeys    []*big.Int
 }
 
 type PostNonRegistrationBlockInput struct {
-	TxTreeRoot          [32]byte
-	SenderFlags         [16]byte
-	AggregatedPublicKey [2][32]byte
-	AggregatedSignature [4][32]byte
-	MessagePoint        [4][32]byte
-	PublicKeysHash      [32]byte
+	TxTreeRoot          [int32Key]byte
+	SenderFlags         [int16Key]byte
+	AggregatedPublicKey [int2Key][int32Key]byte
+	AggregatedSignature [int4Key][int32Key]byte
+	MessagePoint        [int4Key][int32Key]byte
+	PublicKeysHash      [int32Key]byte
 	SenderAccountIds    []byte
 }
 
@@ -536,7 +541,7 @@ func MakePostNonRegistrationBlockInput(blockContent *BlockContent) (*PostNonRegi
 	senderPublicKeys := make([][]byte, len(blockContent.Senders))
 	for i, sender := range blockContent.Senders {
 		address := sender.PublicKey.ToAddress()
-		senderPublicKeys[i] = address[:]
+		copy(senderPublicKeys[i], address[:])
 	}
 
 	publicKeysHash := [NumPublicKeyBytes]byte{}

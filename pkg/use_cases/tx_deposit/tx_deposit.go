@@ -164,7 +164,7 @@ func (u *uc) processDeposit(ctx context.Context, tokenInfo *intMaxTypes.TokenInf
 
 	fmt.Printf("%s deposit is successful", tokenType)
 
-	tokenIndex, err := balanceService.GetTokenIndexFromLiquidityContract(ctx, u.cfg, u.sb, *tokenInfo)
+	tokenIndex, err := balanceService.GetTokenIndexFromLiquidityContract(ctx, u.cfg, u.log, u.sb, *tokenInfo)
 	if err != nil {
 		return err
 	}

@@ -12,11 +12,16 @@ import (
 	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
+	mDBApp "intmax2-node/internal/mnemonic_wallet/models"
 	"sync"
 	"time"
 
 	"github.com/dimiro1/health"
 	"github.com/spf13/cobra"
+)
+
+const (
+	int5Key = 5
 )
 
 type Synchronizer struct {
@@ -80,27 +85,27 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 						s.Log.Warnf("Received cancel signal from context, stopping...")
 						return
 					case <-ticker.C:
-						fmt.Printf("===============blockNumber: %d\n", blockNumber)
+						fmt.Printf("===============blockNumber (balance synchronizer): %d\n", blockNumber)
 						err = blockValidityService.SyncBlockProverWithBlockNumber(blockNumber)
-						fmt.Printf("===============err: %v\n", err)
 						if err != nil {
+							fmt.Printf("===============err (balance synchronizer): %v\n", err)
 							if err.Error() == block_validity_prover.ErrNoValidityProofByBlockNumber.Error() {
 								s.Log.Warnf("no last validity proof")
-								time.Sleep(5 * time.Second)
+								time.Sleep(int5Key * time.Second)
 
 								continue
 							}
 
 							if err.Error() == "block number is not equal to the last block number + 1" {
 								s.Log.Warnf("block number is not equal to the last block number + 1")
-								time.Sleep(5 * time.Second)
+								time.Sleep(int5Key * time.Second)
 
 								continue
 							}
 
 							if err.Error() == "block content by block number error" {
 								s.Log.Warnf("block content by block number error")
-								time.Sleep(5 * time.Second)
+								time.Sleep(int5Key * time.Second)
 
 								continue
 							}
@@ -123,7 +128,8 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 					s.WG.Done()
 				}()
 
-				userWallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(s.Config.Wallet.PrivateKeyHex)
+				var userWallet *mDBApp.Wallet
+				userWallet, err = mnemonic_wallet.New().WalletFromPrivateKeyHex(s.Config.Wallet.PrivateKeyHex)
 				if err != nil {
 					const msg = "failed to get Block Builder IntMax Address: %+v"
 					s.Log.Fatalf(msg, err.Error())
@@ -146,9 +152,9 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 				balanceProcessor := balance_prover_service.NewBalanceProcessor(
 					s.Context, s.Config, s.Log,
 				)
-				syncBalanceProver := service.NewSyncBalanceProver()
 
-				userPrivateKey, err := intMaxAcc.NewPrivateKeyFromString(userWallet.IntMaxPrivateKey)
+				var userPrivateKey *intMaxAcc.PrivateKey
+				userPrivateKey, err = intMaxAcc.NewPrivateKeyFromString(userWallet.IntMaxPrivateKey)
 				if err != nil {
 					const msg = "failed to get IntMax Private Key: %+v"
 					s.Log.Fatalf(msg, err.Error())
@@ -160,6 +166,8 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 					const msg = "failed to get Mock Wallet: %+v"
 					s.Log.Fatalf(msg, err.Error())
 				}
+
+				syncBalanceProver := service.NewSyncBalanceProver(s.Context, s.Config, s.Log)
 
 				balanceSynchronizer := service.NewSynchronizer(s.Context, s.Config, s.Log, s.SB, blockSynchronizer, blockValidityService, balanceProcessor, syncBalanceProver, userWalletState)
 				err = balanceSynchronizer.Sync(userPrivateKey)

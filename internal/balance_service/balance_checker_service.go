@@ -8,15 +8,13 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
-
-	// "intmax2-node/internal/balance_prover_service"
 	"intmax2-node/internal/bindings"
+	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
 	intMaxTypes "intmax2-node/internal/types"
-	errorsDB "intmax2-node/pkg/sql_db/errors"
 	"intmax2-node/pkg/utils"
-	"log"
+
 	"math/big"
 	"net/http"
 
@@ -40,7 +38,7 @@ const (
 func GetBalance(
 	ctx context.Context,
 	cfg *configs.Config,
-	lg logger.Logger,
+	log logger.Logger,
 	sb ServiceBlockchain,
 	args []string,
 	userEthPrivateKey string,
@@ -63,7 +61,7 @@ func GetBalance(
 		return ErrInvalidTokenType
 	}
 
-	l1Balance, err := GetTokenBalance(ctx, cfg, lg, sb, *wallet.WalletAddress, *tokenInfo)
+	l1Balance, err := GetTokenBalance(ctx, cfg, log, sb, *wallet.WalletAddress, *tokenInfo)
 	if err != nil {
 		return fmt.Errorf(ErrFailedToGetBalance, "Ethereum")
 	}
@@ -92,7 +90,7 @@ func GetBalance(
 		fmt.Printf("Balance on Ethereum: %s\n", l1Balance)
 	}
 
-	tokenIndex, err := GetTokenIndexFromLiquidityContract(ctx, cfg, sb, *tokenInfo)
+	tokenIndex, err := GetTokenIndexFromLiquidityContract(ctx, cfg, log, sb, *tokenInfo)
 	if err != nil {
 		if errors.Is(err, ErrTokenNotFoundOnIntMax) {
 			return errors.New("specified token is not found in INTMAX network")
@@ -101,7 +99,7 @@ func GetBalance(
 		return ErrFailedToGetTokenIndex
 	}
 
-	l2Balance, err := GetUserBalance(ctx, cfg, lg, userPk, tokenIndex)
+	l2Balance, err := GetUserBalance(ctx, cfg, log, userPk, tokenIndex)
 	if err != nil {
 		return errors.Join(fmt.Errorf(ErrFailedToGetBalance, "INTMAX"), err)
 	}
@@ -123,7 +121,7 @@ func GetBalance(
 func GetTokenBalance(
 	ctx context.Context,
 	cfg *configs.Config,
-	lg logger.Logger,
+	log logger.Logger,
 	sb ServiceBlockchain,
 	owner common.Address,
 	tokenInfo intMaxTypes.TokenInfo,
@@ -202,6 +200,7 @@ func GetTokenBalance(
 func GetTokenIndexFromLiquidityContract(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 	sb ServiceBlockchain,
 	tokenInfo intMaxTypes.TokenInfo,
 ) (uint32, error) {
@@ -242,23 +241,37 @@ func GetUserBalance(
 	userPrivateKey *intMaxAcc.PrivateKey,
 	tokenIndex uint32,
 ) (*big.Int, error) {
-	userAllData, err := GetUserBalancesRawRequest(ctx, cfg, log, userPrivateKey.ToAddress().String())
+	storedBalanceData, err := block_synchronizer.GetBackupBalance(ctx, cfg, userPrivateKey.Public())
 	if err != nil {
-		return nil, fmt.Errorf("failed to get user balances: %w", err)
+		return nil, fmt.Errorf("failed to get backup balance: %w", err)
 	}
-	balanceData, err := CalculateBalance(ctx, cfg, log, userAllData, tokenIndex, *userPrivateKey)
-	if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
-		return nil, ErrFetchBalanceByUserAddressAndTokenInfoWithDBApp
-	}
-	if errors.Is(err, errorsDB.ErrNotFound) {
-		fmt.Printf("Balance not found for user %s and token index %d\n", userPrivateKey.ToAddress().String(), tokenIndex)
-		return big.NewInt(0), nil
-	}
-	if balanceData.Amount.Cmp(big.NewInt(0)) < 0 {
-		return nil, fmt.Errorf("balance is negative: %v", balanceData.Amount)
+	fmt.Printf("size of StoredBalanceData: %v\n", len(storedBalanceData.EncryptedBalanceData))
+
+	balanceData := new(block_synchronizer.BalanceData)
+	if err = balanceData.Decrypt(userPrivateKey, storedBalanceData.EncryptedBalanceData); err != nil {
+		if err.Error() == "empty encrypted balance data" {
+			return big.NewInt(0), nil
+		}
+
+		return nil, err
 	}
 
-	return balanceData.Amount, nil
+	amount := big.NewInt(0)
+	fmt.Printf("tokenIndex: %v\n", tokenIndex)
+	for _, asset := range balanceData.AssetLeafEntries {
+		fmt.Printf("asset.tokenIndex: %v\n", asset.TokenIndex)
+		if asset.TokenIndex == tokenIndex {
+			amount = asset.Leaf.Amount.BigInt()
+			fmt.Printf("amount: %v\n", amount)
+			break
+		}
+	}
+
+	if amount.Cmp(big.NewInt(0)) < 0 {
+		return nil, fmt.Errorf("balance is negative: %v", amount)
+	}
+
+	return amount, nil
 }
 
 func GetUserBalancesRawRequest(
@@ -279,13 +292,13 @@ func GetUserBalancesRawRequest(
 		contentType: appJSON,
 	}).Get(apiUrl)
 	if err != nil {
-		const msg = "failed to send of the transaction request: %w"
+		const msg = "failed to get user balances request: %w"
 		return nil, fmt.Errorf(msg, err)
 	}
 
 	if resp == nil {
 		const msg = "send request error occurred"
-		return nil, fmt.Errorf(msg)
+		return nil, errors.New(msg)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
@@ -325,13 +338,13 @@ func GetDepositValidityRawRequest(
 		contentType: appJSON,
 	}).Get(apiUrl)
 	if err != nil {
-		const msg = "failed to send of the transaction request: %w"
+		const msg = "failed to get deposit validity request: %w"
 		return false, fmt.Errorf(msg, err)
 	}
 
 	if resp == nil {
 		const msg = "send request error occurred"
-		return false, fmt.Errorf(msg)
+		return false, errors.New(msg)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
@@ -425,7 +438,7 @@ func CalculateBalance(
 		var decodedTransfer intMaxTypes.Transfer
 		err = decodedTransfer.Unmarshal(encodedTransfer)
 		if err != nil {
-			log.Printf("failed to unmarshal transfer: %v", err)
+			log.Printf("failed to unmarshal transfer in CalculateBalance: %v", err)
 			continue
 		}
 

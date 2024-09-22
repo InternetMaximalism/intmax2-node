@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"intmax2-node/configs"
+	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/logger"
 	txClaim "intmax2-node/internal/use_cases/tx_claim"
 	txDeposit "intmax2-node/internal/use_cases/tx_deposit"
@@ -26,6 +27,7 @@ type Commands interface {
 		cfg *configs.Config,
 		log logger.Logger,
 		sb ServiceBlockchain,
+		dbApp block_validity_prover.SQLDriverApp,
 	) txTransfer.UseCaseTxTransfer
 	SenderTransactionsList(
 		cfg *configs.Config,
@@ -74,8 +76,9 @@ func (c *commands) SendTransferTransaction(
 	cfg *configs.Config,
 	log logger.Logger,
 	sb ServiceBlockchain,
+	db block_validity_prover.SQLDriverApp,
 ) txTransfer.UseCaseTxTransfer {
-	return ucTxTransfer.New(cfg, log, sb)
+	return ucTxTransfer.New(cfg, log, sb, db)
 }
 
 func (c *commands) SenderTransactionsList(

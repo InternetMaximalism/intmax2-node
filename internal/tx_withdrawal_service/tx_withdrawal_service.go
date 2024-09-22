@@ -57,7 +57,7 @@ func WithdrawalTransaction(
 		return fmt.Errorf("%s", err)
 	}
 
-	tokenIndex, err := balance_service.GetTokenIndexFromLiquidityContract(ctx, cfg, sb, *tokenInfo)
+	tokenIndex, err := balance_service.GetTokenIndexFromLiquidityContract(ctx, cfg, log, sb, *tokenInfo)
 	if err != nil {
 		return fmt.Errorf("%s", errors.Join(ErrTokenNotFound, err))
 	}

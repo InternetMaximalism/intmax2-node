@@ -1,6 +1,7 @@
 package models
 
 import (
+	intMaxTypes "intmax2-node/internal/types"
 	"time"
 )
 
@@ -18,4 +19,20 @@ type BlockContent struct {
 	Senders             []byte
 	IsRegistrationBlock bool
 	CreatedAt           time.Time
+}
+
+type BlockProof struct {
+	BlockContentID string
+	ValidityProof  []byte
+}
+
+type BlockContentWithProof struct {
+	BlockContent
+	ValidityProof []byte
+}
+
+type BlockHashAndSenders struct {
+	BlockHash       string
+	Senders         []intMaxTypes.ColumnSender
+	DepositTreeRoot string
 }

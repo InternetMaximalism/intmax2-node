@@ -20,6 +20,10 @@ import (
 	"github.com/tidwall/sjson"
 )
 
+const (
+	twoSpaces = "  "
+)
+
 type GetTransactionsListFilter struct {
 	Name      string `json:"name"`
 	Condition string `json:"condition"`
@@ -66,7 +70,7 @@ func GetTransactionsListWithRawRequest(
 				Code:    resp.Error.Code,
 				Message: resp.Error.Message,
 			},
-		}, "", "  ")
+		}, "", twoSpaces)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal txList: %w", err)
 		}
@@ -98,7 +102,7 @@ func GetTransactionsListWithRawRequest(
 	}
 
 	var js []byte
-	js, err = json.MarshalIndent(txList, "", "  ")
+	js, err = json.MarshalIndent(txList, "", twoSpaces)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal txList: %w", err)
 	}
@@ -173,7 +177,7 @@ func getTransactionsListRawRequest(
 		contentType: appJSON,
 	}).SetBody(body).Post(apiUrl)
 	if err != nil {
-		const msg = "failed to send of the transaction request: %w"
+		const msg = "failed to get transaction list request: %w"
 		return nil, fmt.Errorf(msg, err)
 	}
 
@@ -228,7 +232,7 @@ func GetTransactionByHashWithRawRequest(
 				Code:    resp.Error.Code,
 				Message: resp.Error.Message,
 			},
-		}, "", "  ")
+		}, "", twoSpaces)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal transaction by hash: %w", err)
 		}
@@ -265,7 +269,7 @@ func GetTransactionByHashWithRawRequest(
 			TxDetails:   txDetails,
 			CreatedAt:   resp.Data.Transaction.CreatedAt,
 		},
-	}, "", "  ")
+	}, "", twoSpaces)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal transaction by hash: %w", err)
 	}
@@ -326,7 +330,7 @@ func getTransactionByHashRawRequest(
 		"sender": senderAccount.ToAddress().String(),
 	}).Get(apiUrl)
 	if err != nil {
-		const msg = "failed to send of the transaction request: %w"
+		const msg = "failed to get transaction by hash request: %w"
 		return nil, fmt.Errorf(msg, err)
 	}
 
