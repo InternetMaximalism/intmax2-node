@@ -221,9 +221,17 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 			if err != nil {
 				panic(err)
 			}
-			_, err = accountTree.Update(senderPublicKey.BigInt(), uint32(blockNumber))
-			if err != nil {
-				panic(err)
+
+			if _, ok := accountTree.GetAccountID(senderPublicKey.BigInt()); ok {
+				_, err = accountTree.Update(senderPublicKey.BigInt(), uint32(blockNumber))
+				if err != nil {
+					panic(err)
+				}
+			} else {
+				_, err = accountTree.Insert(senderPublicKey.BigInt(), uint32(blockNumber))
+				if err != nil {
+					panic(err)
+				}
 			}
 		}
 		fmt.Printf("blockHashAndSendersMap[%d].Senders count: %d\n", blockNumber, count)

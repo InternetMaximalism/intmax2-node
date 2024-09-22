@@ -354,7 +354,7 @@ func applyReceivedTransferTransition(
 		return errors.Join(ErrEncodeSenderBalanceTransitionProof, err)
 	}
 
-	syncBalanceProver.ReceiveTransfer(
+	err = syncBalanceProver.ReceiveTransfer(
 		userState,
 		balanceProcessor,
 		blockValidityService,
@@ -362,6 +362,14 @@ func applyReceivedTransferTransition(
 		encodedSenderLastBalanceProof,
 		encodedSenderBalanceTransitionProof,
 	)
+	if err != nil {
+		fmt.Printf("prove received transfer %v\n", err.Error())
+		if err.Error() == "balance processor not initialized" {
+			return errors.New("balance processor not initialized")
+		}
+
+		return fmt.Errorf("failed to receive deposit: %+v", err.Error())
+	}
 
 	return nil
 }
@@ -407,8 +415,12 @@ func applySentTransactionTransition(
 		balanceProcessor,
 	)
 	if err != nil {
-		const msg = "failed to sync transaction: %+v"
-		panic(fmt.Sprintf(msg, err.Error()))
+		fmt.Printf("prove sent transaction %v\n", err.Error())
+		if err.Error() == "balance processor not initialized" {
+			return errors.New("balance processor not initialized")
+		}
+
+		return fmt.Errorf("failed to sync transaction:: %+v", err.Error())
 	}
 
 	return nil
