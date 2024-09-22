@@ -600,12 +600,17 @@ func (db *mockBlockBuilder) BlockTreeProof(rootBlockNumber uint32, leafBlockNumb
 // }
 
 func (db *mockBlockBuilder) IsSynchronizedDepositIndex(depositIndex uint32) (bool, error) {
-	lastValidityWitness, err := db.LastValidityWitness()
+	// lastValidityWitness, err := db.LastValidityWitness()
+	lastGeneratedProofBlockNumber, err := db.LastGeneratedProofBlockNumber()
 	if err != nil {
 		return false, err
 	}
-	lastBlockNumber := lastValidityWitness.BlockWitness.Block.BlockNumber
-	depositLeaves := db.MerkleTreeHistory[lastBlockNumber].DepositLeaves
+	fmt.Printf("lastPostedBlockNumber: %d\n", lastGeneratedProofBlockNumber)
+
+	depositLeaves := db.MerkleTreeHistory[lastGeneratedProofBlockNumber].DepositLeaves
+	fmt.Printf("lastGeneratedProofBlockNumber (IsSynchronizedDepositIndex): %d\n", lastGeneratedProofBlockNumber)
+	fmt.Printf("latest deposit index: %d\n", len(depositLeaves))
+	fmt.Printf("depositIndex: %d\n", depositIndex)
 
 	if depositIndex >= uint32(len(depositLeaves)) {
 		return false, nil
@@ -615,6 +620,7 @@ func (db *mockBlockBuilder) IsSynchronizedDepositIndex(depositIndex uint32) (boo
 }
 
 func (db *mockBlockBuilder) DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error) {
+	fmt.Printf("blockNumber (DepositTreeProof): %d\n", blockNumber)
 	depositLeaves := db.MerkleTreeHistory[blockNumber].DepositLeaves
 
 	if depositIndex >= uint32(len(depositLeaves)) {

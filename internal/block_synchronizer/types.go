@@ -6,8 +6,8 @@ import (
 	"encoding/binary"
 	"errors"
 	intMaxAcc "intmax2-node/internal/accounts"
-	"intmax2-node/internal/balance_prover_service"
 	"intmax2-node/internal/block_validity_prover"
+	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 
@@ -20,12 +20,14 @@ const (
 	int8Key = 8
 )
 
+type poseidonHashOut = intMaxGP.PoseidonHashOut
+
 type BalanceData struct {
 	BalanceProofPublicInputs []ffg.Element
 	NullifierLeaves          []intMaxTypes.Bytes32
-	AssetLeaves              []*intMaxTree.AssetLeaf
+	AssetLeafEntries         []*intMaxTree.AssetLeafEntry
 	Nonce                    uint32
-	Salt                     balance_prover_service.Salt
+	Salt                     poseidonHashOut
 	PublicState              *block_validity_prover.PublicState
 }
 
@@ -36,9 +38,9 @@ func (bd *BalanceData) Set(other *BalanceData) *BalanceData {
 	bd.NullifierLeaves = make([]intMaxTypes.Bytes32, len(other.NullifierLeaves))
 	copy(bd.NullifierLeaves, other.NullifierLeaves)
 
-	bd.AssetLeaves = make([]*intMaxTree.AssetLeaf, len(other.AssetLeaves))
-	for i, leaf := range other.AssetLeaves {
-		bd.AssetLeaves[i].Set(leaf)
+	bd.AssetLeafEntries = make([]*intMaxTree.AssetLeafEntry, len(other.AssetLeafEntries))
+	for i := range other.AssetLeafEntries {
+		bd.AssetLeafEntries[i] = new(intMaxTree.AssetLeafEntry).Set(other.AssetLeafEntries[i])
 	}
 
 	bd.Nonce = other.Nonce
@@ -50,7 +52,7 @@ func (bd *BalanceData) Set(other *BalanceData) *BalanceData {
 
 func (bd *BalanceData) Marshal() ([]byte, error) {
 	bufSize := int4Key + int32Key + int4Key + int8Key*len(bd.BalanceProofPublicInputs) +
-		int4Key + int32Key*len(bd.NullifierLeaves) + int4Key + (int32Key+1)*len(bd.AssetLeaves) +
+		int4Key + int32Key*len(bd.NullifierLeaves) + int4Key + (int32Key+1)*len(bd.AssetLeafEntries) +
 		block_validity_prover.NumPublicStateBytes
 	buf := make([]byte, bufSize)
 	offset := 0
@@ -78,10 +80,10 @@ func (bd *BalanceData) Marshal() ([]byte, error) {
 		offset += int32Key
 	}
 
-	binary.BigEndian.PutUint32(buf[offset:offset+int4Key], uint32(len(bd.AssetLeaves)))
+	binary.BigEndian.PutUint32(buf[offset:offset+int4Key], uint32(len(bd.AssetLeafEntries)))
 	offset += int4Key
-	for _, assetLeaf := range bd.AssetLeaves {
-		b := assetLeaf.Marshal()
+	for _, assetLeafEntry := range bd.AssetLeafEntries {
+		b := assetLeafEntry.Marshal()
 		copy(buf[offset:offset+int32Key+1], b)
 		offset += int32Key + 1
 	}
@@ -100,7 +102,7 @@ func (bd *BalanceData) Unmarshal(data []byte) error {
 	bd.Nonce = binary.BigEndian.Uint32(data[offset : offset+int4Key])
 	offset += int4Key
 
-	b := new(balance_prover_service.Salt)
+	b := new(poseidonHashOut)
 	err := b.Unmarshal(data[offset : offset+int32Key])
 	if err != nil {
 		return err
@@ -151,19 +153,18 @@ func (bd *BalanceData) Unmarshal(data []byte) error {
 	numAssetLeaves := binary.BigEndian.Uint32(data[offset : offset+int4Key])
 	offset += int4Key
 
-	bd.AssetLeaves = make([]*intMaxTree.AssetLeaf, numAssetLeaves)
+	bd.AssetLeafEntries = make([]*intMaxTree.AssetLeafEntry, numAssetLeaves)
 	for i := 0; i < int(numAssetLeaves); i++ {
 		if len(data) < offset+int32Key+1 {
 			return errors.New("invalid data length")
 		}
 
-		assetLeaf := new(intMaxTree.AssetLeaf)
-		err = assetLeaf.Unmarshal(data[offset : offset+int32Key+1])
+		assetLeafEntry, err := new(intMaxTree.AssetLeafEntry).Unmarshal(data[offset : offset+int32Key+1])
 		if err != nil {
 			return err
 		}
 
-		bd.AssetLeaves[i] = assetLeaf
+		bd.AssetLeafEntries[i] = assetLeafEntry
 		offset += int32Key + 1
 	}
 

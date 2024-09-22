@@ -416,6 +416,17 @@ func GetBackupBalance(
 		userPublicKey.ToAddress().String(),
 	)
 	if err != nil {
+		fmt.Printf("fail to GetBackupBalance: %v\n", err.Error())
+		if err.Error() == "failed to start Balance Prover Service: no assets found" {
+			// default value
+			return &BackupBalanceData{
+				ID:                   "",
+				BalanceProofBody:     "",
+				EncryptedBalanceData: "",
+				BlockNumber:          0,
+			}, nil
+		}
+
 		return nil, err
 	}
 

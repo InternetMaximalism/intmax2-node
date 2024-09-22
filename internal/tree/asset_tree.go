@@ -1,8 +1,8 @@
 package tree
 
 import (
+	"encoding/binary"
 	"errors"
-	"fmt"
 	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	intMaxTypes "intmax2-node/internal/types"
 	"math/big"
@@ -85,63 +85,98 @@ func (l *AssetLeaf) Sub(amount *big.Int) *AssetLeaf {
 	}
 }
 
-type AssetMerkleProof struct {
-	Siblings []*PoseidonHashOut `json:"siblings"`
+// type AssetMerkleProof struct {
+// 	Siblings []*PoseidonHashOut `json:"siblings"`
+// }
+
+type AssetMerkleProof = PoseidonMerkleProof
+
+// func (proof *AssetMerkleProof) GetRoot(
+// 	leaf *AssetLeaf,
+// 	index uint32,
+// ) *PoseidonHashOut {
+// 	merkleProof := PoseidonMerkleProof{
+// 		Siblings: proof.Siblings,
+// 	}
+// 	root := merkleProof.GetRoot(
+// 		leaf.Hash(),
+// 		int(index),
+// 	)
+
+// 	return root
+// }
+
+// func (proof *AssetMerkleProof) Verify(
+// 	leaf *AssetLeaf,
+// 	index uint32,
+// 	root *PoseidonHashOut,
+// ) error {
+// 	merkleProof := PoseidonMerkleProof{
+// 		Siblings: proof.Siblings,
+// 	}
+// 	return merkleProof.Verify(
+// 		leaf.Hash(),
+// 		int(index),
+// 		root,
+// 	)
+// }
+
+type AssetLeafEntry struct {
+	TokenIndex uint32
+	Leaf       *AssetLeaf
 }
 
-func (proof *AssetMerkleProof) GetRoot(
-	leaf *AssetLeaf,
-	index uint32,
-) *PoseidonHashOut {
-	merkleProof := PoseidonMerkleProof{
-		Siblings: proof.Siblings,
-	}
-	root := merkleProof.GetRoot(
-		leaf.Hash(),
-		int(index),
-	)
+func (entry *AssetLeafEntry) Set(other *AssetLeafEntry) *AssetLeafEntry {
+	entry.TokenIndex = other.TokenIndex
+	entry.Leaf = new(AssetLeaf).Set(other.Leaf)
 
-	return root
+	return entry
 }
 
-func (proof *AssetMerkleProof) Verify(
-	leaf *AssetLeaf,
-	index uint32,
-	root *PoseidonHashOut,
-) error {
-	merkleProof := PoseidonMerkleProof{
-		Siblings: proof.Siblings,
+func (entry *AssetLeafEntry) Marshal() []byte {
+	tokenIndexBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(tokenIndexBytes, entry.TokenIndex)
+	leaf := entry.Leaf.Marshal()
+
+	return append(tokenIndexBytes, leaf...)
+}
+
+func (entry *AssetLeafEntry) Unmarshal(data []byte) (*AssetLeafEntry, error) {
+	if len(data) < 4 {
+		return nil, errors.New("invalid data length")
 	}
-	return merkleProof.Verify(
-		leaf.Hash(),
-		int(index),
-		root,
-	)
+
+	entry.TokenIndex = binary.BigEndian.Uint32(data[:4])
+	entry.Leaf = new(AssetLeaf)
+	if err := entry.Leaf.Unmarshal(data[4:]); err != nil {
+		return nil, err
+	}
+
+	return entry, nil
 }
 
 type AssetTree struct {
-	Leaves []*AssetLeaf
-	inner  *PoseidonIncrementalMerkleTree
+	Leaves map[uint32]*AssetLeaf
+	inner  *PoseidonMerkleTree
 }
 
 func NewAssetTree(
 	height uint8,
-	initialLeaves []*AssetLeaf,
+	initialLeaves []*AssetLeafEntry,
 	zeroHash *PoseidonHashOut,
 ) (*AssetTree, error) {
-	initialLeafHashes := make([]*PoseidonHashOut, len(initialLeaves))
-	for key := range initialLeaves {
-		initialLeafHashes[key] = initialLeaves[key].Hash()
-	}
-
-	t, err := NewPoseidonIncrementalMerkleTree(height, initialLeafHashes, zeroHash)
+	t, err := NewPoseidonMerkleTree(height, zeroHash)
 	if err != nil {
 		return nil, errors.Join(ErrNewPoseidonMerkleTreeFail, err)
 	}
 
-	leaves := make([]*AssetLeaf, len(initialLeaves))
-	for key := range initialLeaves {
-		leaves[key] = new(AssetLeaf).Set(initialLeaves[key])
+	for _, value := range initialLeaves {
+		t.UpdateLeaf(int(value.TokenIndex), value.Leaf.Hash())
+	}
+
+	leaves := make(map[uint32]*AssetLeaf, len(initialLeaves))
+	for _, value := range initialLeaves {
+		leaves[value.TokenIndex] = new(AssetLeaf).Set(value.Leaf)
 	}
 
 	return &AssetTree{
@@ -151,88 +186,83 @@ func NewAssetTree(
 }
 
 func (t *AssetTree) Set(other *AssetTree) *AssetTree {
-	t.Leaves = make([]*AssetLeaf, len(other.Leaves))
+	t.Leaves = make(map[uint32]*AssetLeaf, len(other.Leaves))
 	for key := range other.Leaves {
 		t.Leaves[key] = new(AssetLeaf).Set(other.Leaves[key])
 	}
 
-	t.inner = new(PoseidonIncrementalMerkleTree).Set(other.inner)
+	t.inner = new(PoseidonMerkleTree).Set(other.inner)
 
 	return t
 }
 
-func (t *AssetTree) BuildMerkleRoot(leaves []*AssetLeaf) (root *PoseidonHashOut, err error) {
-	leafHashes := make([]*PoseidonHashOut, len(leaves))
-	for key := range leaves {
-		leafHashes[key] = leaves[key].Hash()
-	}
+// func (t *AssetTree) BuildMerkleRoot(leaves []*AssetLeaf) (root *PoseidonHashOut, err error) {
+// 	leafHashes := make([]*PoseidonHashOut, len(leaves))
+// 	for key := range leaves {
+// 		leafHashes[key] = leaves[key].Hash()
+// 	}
 
-	return t.inner.BuildMerkleRoot(leafHashes)
-}
+// 	return t.inner.BuildMerkleRoot(leafHashes)
+// }
 
-// GetCurrentRootCountAndSiblings returns the latest root, count and siblings
-func (t *AssetTree) GetCurrentRootCountAndSiblings() (root PoseidonHashOut, count uint64, siblings []*PoseidonHashOut) {
-	return t.inner.GetCurrentRootCountAndSiblings()
-}
+// // GetCurrentRootCountAndSiblings returns the latest root, count and siblings
+// func (t *AssetTree) GetCurrentRootCountAndSiblings() (root PoseidonHashOut, count uint64, siblings []*PoseidonHashOut) {
+// 	return t.inner.GetCurrentRootCountAndSiblings()
+// }
 
-func (t *AssetTree) AddLeaf(index uint32, leaf *AssetLeaf) (root *PoseidonHashOut, err error) {
-	leafHash := leaf.Hash()
-	root, err = t.inner.AddLeaf(uint64(index), leafHash)
-	if err != nil {
-		return nil, errors.Join(ErrAddLeafFail, err)
-	}
+// func (t *AssetTree) AddLeaf(index uint32, leaf *AssetLeaf) (root *PoseidonHashOut, err error) {
+// 	leafHash := leaf.Hash()
+// 	root, err = t.inner.AddLeaf(uint64(index), leafHash)
+// 	if err != nil {
+// 		return nil, errors.Join(ErrAddLeafFail, err)
+// 	}
 
-	if int(index) != len(t.Leaves) {
-		return nil, errors.Join(ErrAssetLeafInputIndexInvalid, errors.New("asset tree AddLeaf"))
-	}
-	t.Leaves = append(t.Leaves, new(AssetLeaf).Set(leaf))
+// 	if int(index) != len(t.Leaves) {
+// 		return nil, errors.Join(ErrAssetLeafInputIndexInvalid, errors.New("asset tree AddLeaf"))
+// 	}
+// 	t.Leaves = append(t.Leaves, new(AssetLeaf).Set(leaf))
 
-	return root, nil
-}
+// 	return root, nil
+// }
 
-func (t *AssetTree) ComputeMerkleProof(
-	index uint32,
-) (siblings []*PoseidonHashOut, root PoseidonHashOut, err error) {
-	leaves := make([]*PoseidonHashOut, len(t.Leaves))
-	for i, leaf := range t.Leaves {
-		leaves[i] = leaf.Hash()
-	}
-	// for i := len(t.Leaves); i < len(leaves); i++ {
-	// 	leaves[i] = t.inner.zeroHashes[0]
-	// }
+// func (t *AssetTree) ComputeMerkleProof(
+// 	index uint32,
+// ) (siblings []*PoseidonHashOut, root PoseidonHashOut, err error) {
+// 	leaves := make([]*PoseidonHashOut, len(t.Leaves))
+// 	for i, leaf := range t.Leaves {
+// 		leaves[i] = leaf.Hash()
+// 	}
+// 	// for i := len(t.Leaves); i < len(leaves); i++ {
+// 	// 	leaves[i] = t.inner.zeroHashes[0]
+// 	// }
 
-	return t.inner.ComputeMerkleProof(uint64(index), leaves)
-}
+// 	return t.inner.ComputeMerkleProof(uint64(index), leaves)
+// }
 
 func (t *AssetTree) GetLeaf(index uint32) *AssetLeaf {
-	if index >= uint32(len(t.Leaves)) {
-		return new(AssetLeaf).SetDefault()
+	if leaf, ok := t.Leaves[index]; ok {
+		return leaf
 	}
 
-	return t.Leaves[index]
+	return new(AssetLeaf).SetDefault()
 }
 
 func (t *AssetTree) GetRoot() *PoseidonHashOut {
-	root, _, _ := t.inner.GetCurrentRootCountAndSiblings()
-	return &root
+	return t.inner.GetRoot()
 }
 
-func (t *AssetTree) UpdateLeaf(index uint32, leaf *AssetLeaf) (root *PoseidonHashOut, err error) {
-	if index >= uint32(len(t.Leaves)) {
-		fmt.Printf("index: %d, len(t.Leaves): %d\n", index, len(t.Leaves))
-		return nil, errors.Join(ErrAssetLeafInputIndexInvalid, errors.New("asset tree UpdateLeaf"))
-	}
+func (t *AssetTree) UpdateLeaf(tokenIndex uint32, leaf *AssetLeaf) (root *PoseidonHashOut, err error) {
+	t.Leaves[tokenIndex] = leaf
+	t.inner.UpdateLeaf(int(tokenIndex), leaf.Hash())
 
-	t.Leaves[index] = leaf
-	return t.inner.UpdateLeaf(uint64(index), leaf.Hash())
+	return t.inner.GetRoot(), nil
 }
 
-func (t *AssetTree) Prove(index uint32) (proof *AssetMerkleProof, root PoseidonHashOut, err error) {
-	proof = new(AssetMerkleProof)
-	proof.Siblings, root, err = t.ComputeMerkleProof(index)
+func (t *AssetTree) Prove(tokenIndex uint32) (proof AssetMerkleProof, root PoseidonHashOut, err error) {
+	proof, err = t.inner.Prove(int(tokenIndex))
 	if err != nil {
 		var ErrComputeMerkleProofFail = errors.New("compute merkle proof fail")
-		return nil, PoseidonHashOut{}, errors.Join(ErrComputeMerkleProofFail, err)
+		return AssetMerkleProof{}, PoseidonHashOut{}, errors.Join(ErrComputeMerkleProofFail, err)
 	}
 
 	return proof, root, nil

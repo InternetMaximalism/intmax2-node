@@ -174,6 +174,10 @@ func (d *blockValidityProver) LatestIntMaxBlockNumber() (uint32, error) {
 	return d.blockBuilder.LatestIntMaxBlockNumber(), nil
 }
 
+func (d *blockValidityProver) LastPostedBlockNumber() (uint32, error) {
+	return d.blockBuilder.db.LastPostedBlockNumber()
+}
+
 type DepositInfo struct {
 	DepositId      uint32
 	DepositIndex   *uint32
@@ -375,12 +379,18 @@ func (d *blockValidityProver) ValidityPublicInputs(txRoot common.Hash) (*Validit
 }
 
 func (d *blockValidityProver) DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error) {
-	lastValidityWitness, err := d.blockBuilder.LastValidityWitness()
+	// lastValidityWitness, err := d.blockBuilder.LastValidityWitness()
+	// if err != nil {
+	// 	return nil, common.Hash{}, errors.New("last validity witness not found")
+	// }
+	// blockNumber := lastValidityWitness.BlockWitness.Block.BlockNumber
+	validityProverInfo, err := d.FetchValidityProverInfo()
 	if err != nil {
-		return nil, common.Hash{}, errors.New("last validity witness not found")
+		return nil, common.Hash{}, err
 	}
-	blockNumber := lastValidityWitness.BlockWitness.Block.BlockNumber
-	depositMerkleProof, actualDepositRoot, err := d.blockBuilder.DepositTreeProof(blockNumber, depositIndex)
+
+	latestBlockNumber := validityProverInfo.BlockNumber
+	depositMerkleProof, actualDepositRoot, err := d.blockBuilder.DepositTreeProof(latestBlockNumber, depositIndex)
 	if err != nil {
 		return nil, common.Hash{}, err
 	}

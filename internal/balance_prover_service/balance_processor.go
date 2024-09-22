@@ -163,7 +163,7 @@ func (s *balanceProcessor) ProveReceiveDeposit(
 		case <-ticker.C:
 			proof, err := s.fetchReceiveDepositBalanceValidityProof(publicKey, requestID)
 			if err != nil {
-				if errors.Is(err, ErrBalanceProofNotGenerated) {
+				if errors.Is(err, ErrBalanceProofNotGenerated) || errors.Is(err, ErrStatusRequestTimeout) {
 					continue
 				}
 
@@ -778,7 +778,6 @@ func (p *balanceProcessor) fetchUpdateBalanceValidityProof(publicKey *intMaxAcc.
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		err = fmt.Errorf("failed to get response: status code %d, response: %v", resp.StatusCode(), resp.String())
 		err = fmt.Errorf("failed to get response")
 		p.log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
@@ -832,6 +831,10 @@ func (p *balanceProcessor) fetchReceiveDepositBalanceValidityProof(publicKey *in
 	if resp == nil {
 		const msg = "send request error occurred"
 		return nil, errors.New(msg)
+	}
+
+	if resp.StatusCode() == http.StatusRequestTimeout {
+		return nil, ErrStatusRequestTimeout
 	}
 
 	if resp.StatusCode() != http.StatusOK {

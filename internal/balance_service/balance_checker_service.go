@@ -8,13 +8,11 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
-
-	// "intmax2-node/internal/balance_prover_service"
 	"intmax2-node/internal/bindings"
+	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
 	intMaxTypes "intmax2-node/internal/types"
-	errorsDB "intmax2-node/pkg/sql_db/errors"
 	"intmax2-node/pkg/utils"
 	"log"
 	"math/big"
@@ -242,23 +240,31 @@ func GetUserBalance(
 	userPrivateKey *intMaxAcc.PrivateKey,
 	tokenIndex uint32,
 ) (*big.Int, error) {
-	userAllData, err := GetUserBalancesRawRequest(ctx, cfg, log, userPrivateKey.ToAddress().String())
+	storedBalanceData, err := block_synchronizer.GetBackupBalance(ctx, cfg, userPrivateKey.Public())
 	if err != nil {
-		return nil, fmt.Errorf("failed to get user balances: %w", err)
-	}
-	balanceData, err := CalculateBalance(ctx, cfg, log, userAllData, tokenIndex, *userPrivateKey)
-	if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
-		return nil, ErrFetchBalanceByUserAddressAndTokenInfoWithDBApp
-	}
-	if errors.Is(err, errorsDB.ErrNotFound) {
-		fmt.Printf("Balance not found for user %s and token index %d\n", userPrivateKey.ToAddress().String(), tokenIndex)
-		return big.NewInt(0), nil
-	}
-	if balanceData.Amount.Cmp(big.NewInt(0)) < 0 {
-		return nil, fmt.Errorf("balance is negative: %v", balanceData.Amount)
+		return nil, fmt.Errorf("failed to get backup balance: %w", err)
 	}
 
-	return balanceData.Amount, nil
+	balanceData := new(block_synchronizer.BalanceData)
+	if err := balanceData.Decrypt(userPrivateKey, storedBalanceData.EncryptedBalanceData); err != nil {
+		return nil, err
+	}
+	fmt.Printf("BalanceData: %v\n", balanceData)
+
+	amount := big.NewInt(0)
+	for _, asset := range balanceData.AssetLeafEntries {
+		if asset.TokenIndex == tokenIndex {
+			amount = asset.Leaf.Amount.BigInt()
+			fmt.Printf("amount: %v\n", amount)
+			break
+		}
+	}
+
+	if amount.Cmp(big.NewInt(0)) < 0 {
+		return nil, fmt.Errorf("balance is negative: %v", amount)
+	}
+
+	return amount, nil
 }
 
 func GetUserBalancesRawRequest(
@@ -285,7 +291,7 @@ func GetUserBalancesRawRequest(
 
 	if resp == nil {
 		const msg = "send request error occurred"
-		return nil, fmt.Errorf(msg)
+		return nil, errors.New(msg)
 	}
 
 	if resp.StatusCode() != http.StatusOK {

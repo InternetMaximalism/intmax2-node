@@ -193,7 +193,7 @@ func TransferTransaction(
 		return fmt.Errorf("failed to sync balance proof: %w", err)
 	}
 
-	l1Balance := userWalletState.Balance(tokenIndex).BigInt()
+	l2Balance := userWalletState.Balance(tokenIndex).BigInt()
 	// balance, err := balance_service.GetUserBalance(ctx, cfg, userAccount, tokenIndex)
 	// if err != nil {
 	// 	return fmt.Errorf(ErrFailedToGetBalance.Error()+": %v", err)
@@ -209,8 +209,8 @@ func TransferTransaction(
 		return fmt.Errorf("failed to convert amount to int: %v", amountStr)
 	}
 
-	if l1Balance.Cmp(amount) < 0 {
-		return fmt.Errorf("insufficient funds for total amount: balance %s, total amount %s", l1Balance, amount)
+	if l2Balance.Cmp(amount) < 0 {
+		return fmt.Errorf("insufficient funds for total amount: balance %s, total amount %s", l2Balance, amount)
 	}
 
 	var dataBlockInfo *BlockInfoResponseData
@@ -258,8 +258,8 @@ func TransferTransaction(
 		return fmt.Errorf("failed to convert gas fee to int: %w", err)
 	}
 	totalAmountWithGas := new(big.Int).Add(amount, gasFeeInt)
-	if l1Balance.Cmp(totalAmountWithGas) < 0 {
-		return fmt.Errorf("insufficient funds for tx cost: l1Balance %s, tx cost %s", l1Balance, totalAmountWithGas)
+	if l2Balance.Cmp(totalAmountWithGas) < 0 {
+		return fmt.Errorf("insufficient funds for tx cost: l1Balance %s, tx cost %s", l2Balance, totalAmountWithGas)
 	}
 
 	// Send transfer transaction

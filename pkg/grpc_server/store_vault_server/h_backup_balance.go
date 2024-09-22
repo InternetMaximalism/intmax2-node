@@ -2,7 +2,6 @@ package store_vault_server
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"intmax2-node/internal/open_telemetry"
 	node "intmax2-node/internal/pb/gen/store_vault_service/node"
@@ -14,12 +13,6 @@ import (
 )
 
 func (s *StoreVaultServer) BackupBalance(ctx context.Context, req *node.BackupBalanceRequest) (*node.BackupBalanceResponse, error) {
-	ss, err := json.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Printf("node.BackupBalanceRequest: %s", ss)
 	resp := node.BackupBalanceResponse{}
 
 	const (
@@ -44,7 +37,7 @@ func (s *StoreVaultServer) BackupBalance(ctx context.Context, req *node.BackupBa
 		BlockNumber:           uint32(req.BlockNumber),
 	}
 
-	err = input.Valid()
+	err := input.Valid()
 	if err != nil {
 		fmt.Printf("input: %+v", input)
 		fmt.Printf("input.EncryptedBalanceProof: %v", input.EncryptedBalanceProof)

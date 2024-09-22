@@ -197,6 +197,7 @@ func (s *balanceSynchronizer) validReceivedDeposit(
 		s.blockSynchronizer,
 		s.userState,
 		s.balanceProcessor,
+		transitionBlockNumber,
 	)
 	if err != nil {
 		return errors.Join(ErrValidReceivedDepositFail, err)
@@ -228,6 +229,7 @@ func (s *balanceSynchronizer) validReceivedTransfer(
 		s.blockSynchronizer,
 		s.userState,
 		s.balanceProcessor,
+		transitionBlockNumber,
 	)
 	if err != nil {
 		const msg = "failed to sync balance prover: %+v"

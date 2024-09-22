@@ -267,9 +267,9 @@ func (proof *KeccakMerkleProof) GetMerkleRoot(
 }
 
 func (proof *KeccakMerkleProof) Verify(
-	root common.Hash,
-	index int,
 	leafHash common.Hash,
+	index int,
+	root common.Hash,
 ) error {
 	expectedRoot := proof.GetMerkleRoot(index, leafHash)
 

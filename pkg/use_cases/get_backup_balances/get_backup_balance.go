@@ -2,6 +2,8 @@ package get_backup_balances
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
@@ -47,14 +49,17 @@ func (u *uc) Do(
 
 	balances, err := service.GetBackupBalances(ctx, u.cfg, u.log, u.db, input)
 	if err != nil {
-		return nil, err
+		var ErrGetBackupBalances = errors.New("failed to get backup balances")
+		return nil, errors.Join(ErrGetBackupBalances, err)
 	}
+
+	fmt.Printf("UseCaseGetBackupBalances balances: %v\n", balances)
 
 	data := node.GetBackupBalancesResponse_Data{
 		Balances: generateBackupBalances(balances),
 		Meta: &node.GetBackupBalancesResponse_Meta{
 			StartBlockNumber: input.StartBlockNumber,
-			EndBlockNumber:   0,
+			EndBlockNumber:   input.StartBlockNumber,
 		},
 	}
 
