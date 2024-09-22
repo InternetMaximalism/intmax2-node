@@ -198,6 +198,11 @@ func (bd *BalanceData) Encrypt(intMaxPublicKey *intMaxAcc.PublicKey) (string, er
 }
 
 func (bd *BalanceData) Decrypt(intMaxPrivateKey *intMaxAcc.PrivateKey, encryptedBalanceData string) error {
+	if encryptedBalanceData == "" {
+		var ErrEmptyEncryptedBalanceData = errors.New("empty encrypted balance data")
+		return ErrEmptyEncryptedBalanceData
+	}
+
 	ciphertext, err := base64.StdEncoding.DecodeString(encryptedBalanceData)
 
 	if err != nil {

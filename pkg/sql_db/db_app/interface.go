@@ -221,6 +221,7 @@ type BackupBalances interface {
 	) (*models.BackupBalance, error)
 	GetBackupBalance(conditions []string, values []interface{}) (*models.BackupBalance, error)
 	GetBackupBalances(condition string, value interface{}) ([]*models.BackupBalance, error)
+	GetLatestBackupBalanceByUserAddress(user string, limit int64) ([]*models.BackupBalance, error)
 }
 
 type Deposits interface {

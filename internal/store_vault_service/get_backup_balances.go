@@ -16,7 +16,7 @@ func GetBackupBalances(
 	db SQLDriverApp,
 	input *backupBalance.UCGetBackupBalancesInput,
 ) ([]*mDBApp.BackupBalance, error) {
-	balances, err := db.GetBackupBalances("user_address", input.Sender)
+	balances, err := db.GetLatestBackupBalanceByUserAddress(input.Sender, 1)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get backup balances from db: %w", err)
 	}

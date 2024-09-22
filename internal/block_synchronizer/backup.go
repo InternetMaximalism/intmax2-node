@@ -1,6 +1,7 @@
 package block_synchronizer
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -14,6 +15,8 @@ import (
 	"intmax2-node/internal/use_cases/post_backup_transfer"
 	"net/http"
 	"strings"
+
+	"github.com/golang/protobuf/jsonpb"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/go-resty/resty/v2"
@@ -480,7 +483,7 @@ func getBackupBalanceRawRequest(
 	}
 
 	response := new(node.GetBackupBalancesResponse)
-	if err = json.Unmarshal(resp.Body(), response); err != nil {
+	if err = jsonpb.Unmarshal(bytes.NewReader(resp.Body()), response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 

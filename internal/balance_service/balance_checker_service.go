@@ -244,15 +244,21 @@ func GetUserBalance(
 	if err != nil {
 		return nil, fmt.Errorf("failed to get backup balance: %w", err)
 	}
+	fmt.Printf("size of StoredBalanceData: %v\n", len(storedBalanceData.EncryptedBalanceData))
 
 	balanceData := new(block_synchronizer.BalanceData)
 	if err := balanceData.Decrypt(userPrivateKey, storedBalanceData.EncryptedBalanceData); err != nil {
+		if err.Error() == "empty encrypted balance data" {
+			return big.NewInt(0), nil
+		}
+
 		return nil, err
 	}
-	fmt.Printf("BalanceData: %v\n", balanceData)
 
 	amount := big.NewInt(0)
+	fmt.Printf("tokenIndex: %v\n", tokenIndex)
 	for _, asset := range balanceData.AssetLeafEntries {
+		fmt.Printf("asset.tokenIndex: %v\n", asset.TokenIndex)
 		if asset.TokenIndex == tokenIndex {
 			amount = asset.Leaf.Amount.BigInt()
 			fmt.Printf("amount: %v\n", amount)

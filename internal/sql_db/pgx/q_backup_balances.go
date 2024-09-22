@@ -191,6 +191,63 @@ func (p *pgx) GetBackupBalances(condition string, value interface{}) ([]*mDBApp.
 	return balances, nil
 }
 
+func (p *pgx) GetLatestBackupBalanceByUserAddress(userAddress string, limit int64) ([]*mDBApp.BackupBalance, error) {
+	const (
+		baseQuery = `
+        SELECT
+		    id, user_address, encrypted_balance_proof, encrypted_balance_data,
+			encrypted_txs, encrypted_transfers, encrypted_deposits,
+			signature, block_number, created_at
+        FROM backup_balances
+        WHERE user_address = $1
+		ORDER BY created_at DESC
+		LIMIT %d
+`
+	)
+
+	query := fmt.Sprintf(baseQuery, limit)
+
+	var balances []*mDBApp.BackupBalance
+	err := p.getBackupEntries(query, userAddress, func(rows *sql.Rows) (err error) {
+		var (
+			b models.BackupBalance
+
+			encryptedTxs, encryptedTransfers, encryptedDeposits []byte
+		)
+		err = rows.Scan(
+			&b.ID,
+			&b.UserAddress,
+			&b.EncryptedBalanceProof,
+			&b.EncryptedBalanceData,
+			&encryptedTxs,
+			&encryptedTransfers,
+			&encryptedDeposits,
+			&b.Signature,
+			&b.BlockNumber,
+			&b.CreatedAt,
+		)
+		if err != nil {
+			return err
+		}
+
+		err = unmarshalBackupBalanceData(&b, encryptedTxs, encryptedTransfers, encryptedDeposits)
+		if err != nil {
+			return err
+		}
+
+		balance := p.backupBalanceToDBApp(&b)
+
+		balances = append(balances, &balance)
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return balances, nil
+}
+
 func (p *pgx) backupBalanceToDBApp(b *models.BackupBalance) mDBApp.BackupBalance {
 	return mDBApp.BackupBalance{
 		ID:                    b.ID,

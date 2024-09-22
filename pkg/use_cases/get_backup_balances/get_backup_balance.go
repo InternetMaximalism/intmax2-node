@@ -53,7 +53,9 @@ func (u *uc) Do(
 		return nil, errors.Join(ErrGetBackupBalances, err)
 	}
 
-	fmt.Printf("UseCaseGetBackupBalances balances: %v\n", balances)
+	for _, balance := range balances {
+		fmt.Printf("UseCaseGetBackupBalances balance: %v, %v\n", balance.CreatedAt, balance.EncryptedBalanceData)
+	}
 
 	data := node.GetBackupBalancesResponse_Data{
 		Balances: generateBackupBalances(balances),
@@ -84,6 +86,7 @@ func generateBackupBalances(balances []*models.BackupBalance) []*node.GetBackupB
 				Nanos:   int32(balance.CreatedAt.Nanosecond()),
 			},
 		}
+		fmt.Printf("generateBackupBalances backupBalance: %s, %v\n", backupBalance.Id, backupBalance.EncryptedBalanceData)
 		results = append(results, backupBalance)
 	}
 	return results
