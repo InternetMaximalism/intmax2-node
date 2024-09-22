@@ -23,6 +23,10 @@ import (
 	"github.com/tidwall/gjson"
 )
 
+const ErrFailedToUnmarshalResponse = "failed to unmarshal response: %w"
+const unexpectedStatusCode = "unexpected status code"
+const ErrFailedToMarshalJSON = "failed to marshal JSON: %w"
+
 func (d *blockSynchronizer) BackupTransaction(
 	sender intMaxAcc.Address,
 	txHash, encodedEncryptedTx string,
@@ -66,7 +70,7 @@ func backupTransactionRawRequest(
 
 	bd, err := json.Marshal(ucInput)
 	if err != nil {
-		return fmt.Errorf("failed to marshal JSON: %w", err)
+		return fmt.Errorf(ErrFailedToMarshalJSON, err)
 	}
 
 	const (
@@ -97,13 +101,13 @@ func backupTransactionRawRequest(
 			"status_code": resp.StatusCode(),
 			"api_url":     apiUrl,
 			"response":    resp.String(),
-		}).WithError(err).Errorf("Unexpected status code")
+		}).WithError(err).Errorf(unexpectedStatusCode)
 		return err
 	}
 
 	response := new(node.BackupTransactionResponse)
 	if err = json.Unmarshal(resp.Body(), response); err != nil {
-		return fmt.Errorf("failed to unmarshal response: %w", err)
+		return fmt.Errorf(ErrFailedToUnmarshalResponse, err)
 	}
 
 	if !response.Success {
@@ -158,7 +162,7 @@ func backupTransferRawRequest(
 
 	bd, err := json.Marshal(ucInput)
 	if err != nil {
-		return fmt.Errorf("failed to marshal JSON: %w", err)
+		return fmt.Errorf(ErrFailedToMarshalJSON, err)
 	}
 
 	const (
@@ -189,13 +193,13 @@ func backupTransferRawRequest(
 			"status_code": resp.StatusCode(),
 			"api_url":     apiUrl,
 			"response":    resp.String(),
-		}).WithError(err).Errorf("Unexpected status code")
+		}).WithError(err).Errorf(unexpectedStatusCode)
 		return err
 	}
 
 	response := new(node.BackupTransferResponse)
 	if err = json.Unmarshal(resp.Body(), response); err != nil {
-		return fmt.Errorf("failed to unmarshal response: %w", err)
+		return fmt.Errorf(ErrFailedToUnmarshalResponse, err)
 	}
 
 	if !response.Success {
@@ -244,7 +248,7 @@ func backupWithdrawalRawRequest(
 
 	bd, err := json.Marshal(ucInput)
 	if err != nil {
-		return fmt.Errorf("failed to marshal JSON: %w", err)
+		return fmt.Errorf(ErrFailedToMarshalJSON, err)
 	}
 
 	const (
@@ -275,13 +279,13 @@ func backupWithdrawalRawRequest(
 			"status_code": resp.StatusCode(),
 			"api_url":     apiUrl,
 			"response":    resp.String(),
-		}).WithError(err).Errorf("Unexpected status code")
+		}).WithError(err).Errorf(unexpectedStatusCode)
 		return err
 	}
 
 	response := new(node.BackupTransferResponse)
 	if err = json.Unmarshal(resp.Body(), response); err != nil {
-		return fmt.Errorf("failed to unmarshal response: %w", err)
+		return fmt.Errorf(ErrFailedToUnmarshalResponse, err)
 	}
 
 	if !response.Success {
@@ -350,7 +354,7 @@ func backupBalanceProofRawRequest(
 
 	bd, err := json.Marshal(&ucInput)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
+		return nil, fmt.Errorf(ErrFailedToMarshalJSON, err)
 	}
 	// fmt.Printf("bd: %s", bd)
 
@@ -383,13 +387,13 @@ func backupBalanceProofRawRequest(
 		log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
 			"response":    resp.String(),
-		}).WithError(err).Errorf("Unexpected status code")
+		}).WithError(err).Errorf(unexpectedStatusCode)
 		return nil, err
 	}
 
 	response := new(node.BackupBalanceResponse)
 	if err = json.Unmarshal(resp.Body(), response); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+		return nil, fmt.Errorf(ErrFailedToUnmarshalResponse, err)
 	}
 
 	if !response.Success {
@@ -484,7 +488,7 @@ func getBackupBalanceRawRequest(
 
 	response := new(node.GetBackupBalancesResponse)
 	if err = jsonpb.Unmarshal(bytes.NewReader(resp.Body()), response); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+		return nil, fmt.Errorf(ErrFailedToUnmarshalResponse, err)
 	}
 
 	if len(response.Data.Balances) == 0 {

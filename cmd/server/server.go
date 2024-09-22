@@ -30,6 +30,8 @@ import (
 	"google.golang.org/grpc"
 )
 
+const timeoutFailedToSyncBlockProver = 5
+
 type Server struct {
 	Context             context.Context
 	Cancel              context.CancelFunc
@@ -48,6 +50,7 @@ type Server struct {
 	BlockPostService    BlockPostService
 }
 
+// nolint: gocyclo
 func NewServerCmd(s *Server) *cobra.Command {
 	const (
 		use   = "run"
@@ -288,21 +291,21 @@ func NewServerCmd(s *Server) *cobra.Command {
 							fmt.Printf("===============err: %v\n", err.Error())
 							if err.Error() == block_validity_prover.ErrNoValidityProofByBlockNumber.Error() {
 								s.Log.Warnf("no last validity proof")
-								time.Sleep(5 * time.Second)
+								time.Sleep(timeoutFailedToSyncBlockProver * time.Second)
 
 								continue
 							}
 
 							if err.Error() == "block number is not equal to the last block number + 1" {
 								s.Log.Warnf("block number is not equal to the last block number + 1")
-								time.Sleep(5 * time.Second)
+								time.Sleep(timeoutFailedToSyncBlockProver * time.Second)
 
 								continue
 							}
 
 							if strings.HasPrefix(err.Error(), "block content by block number error") {
 								s.Log.Warnf("block content by block number error")
-								time.Sleep(5 * time.Second)
+								time.Sleep(timeoutFailedToSyncBlockProver * time.Second)
 
 								continue
 							}
@@ -332,7 +335,8 @@ func NewServerCmd(s *Server) *cobra.Command {
 					s.Log.Fatalf(msg, err.Error())
 				}
 
-				latestSynchronizedDepositIndex, err := blockValidityService.FetchLastDepositIndex()
+				var latestSynchronizedDepositIndex uint32
+				latestSynchronizedDepositIndex, err = blockValidityService.FetchLastDepositIndex()
 				if err != nil {
 					const msg = "failed to fetch last deposit index: %+v"
 					s.Log.Fatalf(msg, err.Error())
@@ -360,14 +364,16 @@ func NewServerCmd(s *Server) *cobra.Command {
 						}
 
 						// sync block content
-						startBlock, err := blockValidityService.LastSeenBlockPostedEventBlockNumber()
+						var startBlock uint64
+						startBlock, err = blockValidityService.LastSeenBlockPostedEventBlockNumber()
 						if err != nil {
 							startBlock = s.Config.Blockchain.RollupContractDeployedBlockNumber
 							// var ErrLastSeenBlockPostedEventBlockNumberFail = errors.New("last seen block posted event block number fail")
 							// panic(errors.Join(ErrLastSeenBlockPostedEventBlockNumberFail, err))
 						}
 
-						endBlock, err := blockValidityProver.SyncBlockTree(blockSynchronizer, startBlock)
+						var endBlock uint64
+						endBlock, err = blockValidityProver.SyncBlockTree(blockSynchronizer, startBlock)
 						if err != nil {
 							panic(err)
 						}

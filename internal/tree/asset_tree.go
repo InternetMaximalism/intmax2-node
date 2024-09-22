@@ -10,7 +10,11 @@ import (
 	"github.com/iden3/go-iden3-crypto/ffg"
 )
 
-const ASSET_TREE_HEIGHT = 32
+const (
+	ASSET_TREE_HEIGHT = 32
+
+	int4Key = 4
+)
 
 type AssetLeaf struct {
 	IsInsufficient bool
@@ -142,7 +146,7 @@ func (entry *AssetLeafEntry) Marshal() []byte {
 }
 
 func (entry *AssetLeafEntry) Unmarshal(data []byte) (*AssetLeafEntry, error) {
-	if len(data) < 4 {
+	if len(data) < int4Key {
 		return nil, errors.New("invalid data length")
 	}
 

@@ -19,6 +19,17 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+const (
+	int2Key   = 2
+	int4Key   = 4
+	int10Key  = 10
+	int40Key  = 40
+	int50Key  = 50
+	int100Key = 100
+
+	messageFailedToSyncAll = "failed to sync all: %+v"
+)
+
 type balanceSynchronizerDummy struct {
 	ctx context.Context
 	cfg *configs.Config
@@ -88,7 +99,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 	balanceProcessor := balance_prover_service.NewBalanceProcessor(s.ctx, s.cfg, s.log)
 	blockBuilder := blockValidityProver.BlockBuilder()
 
-	alicePrivateKey, err := intMaxAcc.NewPrivateKey(big.NewInt(2))
+	alicePrivateKey, err := intMaxAcc.NewPrivateKey(big.NewInt(int2Key))
 	if err != nil {
 		s.log.Fatalf("failed to create private key: %+v", err)
 	}
@@ -106,7 +117,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 	}
 
 	// depost 100wei ETH to alice wallet
-	depositIndex := aliceWallet.Deposit(blockBuilder, *salt, 0, big.NewInt(100))
+	depositIndex := aliceWallet.Deposit(blockBuilder, *salt, 0, big.NewInt(int100Key))
 
 	// post dummy block to reflect the deposit tree
 	emptyBlockContent, err := NewBlockContentFromTxRequests(true, []*block_validity_prover.MockTxRequest{})
@@ -127,7 +138,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 	// sync alice wallet to the latest block, which includes the deposit
 	err = aliceProver.SyncAll(s.log, blockValidityProver, blockSynchronizer, aliceWallet, balanceProcessor)
 	if err != nil {
-		s.log.Fatalf("failed to sync all: %+v", err)
+		s.log.Fatalf(messageFailedToSyncAll, err)
 	}
 
 	balancePis, err := aliceProver.LastBalancePublicInputs()
@@ -146,11 +157,11 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 		s.log.Fatalf("failed to receive deposit: %+v", err)
 	}
 
-	if GetAssetBalance(aliceWallet, 0).Cmp(big.NewInt(100)) != 0 {
+	if GetAssetBalance(aliceWallet, 0).Cmp(big.NewInt(int100Key)) != 0 {
 		s.log.Fatalf("ETH balance 1")
 	}
 
-	bobPrivateKey, err := intMaxAcc.NewPrivateKey(big.NewInt(4))
+	bobPrivateKey, err := intMaxAcc.NewPrivateKey(big.NewInt(int4Key))
 	if err != nil {
 		s.log.Fatalf("failed to create private key: %+v", err)
 	}
@@ -174,7 +185,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 	transferToBob := intMaxTypes.Transfer{
 		Recipient:  recipientAddress,
 		TokenIndex: 0,
-		Amount:     big.NewInt(50),
+		Amount:     big.NewInt(int50Key),
 		Salt:       salt,
 	}
 
@@ -193,10 +204,10 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 	fmt.Printf("-----------------SyncAll alice----------------------")
 	err = aliceProver.SyncAll(s.log, blockValidityProver, blockSynchronizer, aliceWallet, balanceProcessor)
 	if err != nil {
-		s.log.Fatalf("failed to sync all: %+v", err)
+		s.log.Fatalf(messageFailedToSyncAll, err)
 	}
 
-	if GetAssetBalance(aliceWallet, 0).Cmp(big.NewInt(50)) != 0 {
+	if GetAssetBalance(aliceWallet, 0).Cmp(big.NewInt(int50Key)) != 0 {
 		s.log.Fatalf("ETH balance 2")
 	}
 
@@ -208,7 +219,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 	fmt.Printf("-----------------SyncAll bob----------------------")
 	err = bobProver.SyncAll(s.log, blockValidityProver, blockSynchronizer, bobWallet, balanceProcessor)
 	if err != nil {
-		s.log.Fatalf("failed to sync all: %+v", err)
+		s.log.Fatalf(messageFailedToSyncAll, err)
 	}
 
 	// receive transfer and update bob balance proof
@@ -218,7 +229,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 		s.log.Fatalf("failed to receive transfer: %+v", err)
 	}
 
-	if GetAssetBalance(bobWallet, 0).Cmp(big.NewInt(50)) != 0 {
+	if GetAssetBalance(bobWallet, 0).Cmp(big.NewInt(int50Key)) != 0 {
 		s.log.Fatalf("ETH balance 3")
 	}
 
@@ -246,7 +257,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 	withdrawal := intMaxTypes.Transfer{
 		Recipient:  bobGenericEthAddress,
 		TokenIndex: 0,
-		Amount:     big.NewInt(10),
+		Amount:     big.NewInt(int10Key),
 		Salt:       salt,
 	}
 
@@ -260,10 +271,10 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 	// update bob balance proof
 	err = bobProver.SyncAll(s.log, blockValidityProver, blockSynchronizer, bobWallet, balanceProcessor)
 	if err != nil {
-		s.log.Fatalf("failed to sync all: %+v", err)
+		s.log.Fatalf(messageFailedToSyncAll, err)
 	}
 
-	if GetAssetBalance(bobWallet, 0).Cmp(big.NewInt(40)) != 0 {
+	if GetAssetBalance(bobWallet, 0).Cmp(big.NewInt(int40Key)) != 0 {
 		s.log.Fatalf("ETH balance 4")
 	}
 

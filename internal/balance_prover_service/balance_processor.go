@@ -18,7 +18,16 @@ import (
 	"github.com/google/uuid"
 )
 
-const timeoutForFetchingBalanceValidityProof = 3 * time.Second
+const (
+	timeoutForFetchingBalanceValidityProof = 3 * time.Second
+
+	messageErrorMessage                   = "ErrorMessage: %v\n"
+	messageBalanceProofIsNotGenerated     = "balance proof is not generated"
+	msgFailedToGetResponse                = "failed to get response"
+	messageFailedToUnmarshalResponse      = "failed to unmarshal response: %w"
+	messageFailedToMarshalJSONRequestBody = "failed to marshal JSON request body: %w"
+	unexpectedStatusCode                  = "Unexpected status code"
+)
 
 type SenderProofWithPublicInputs struct {
 	Proof        string
@@ -76,7 +85,8 @@ func (s *balanceProcessor) ProveUpdate(
 		case <-s.ctx.Done():
 			return nil, s.ctx.Err()
 		case <-ticker.C:
-			proof, err := s.fetchUpdateBalanceValidityProof(publicKey, requestID)
+			var proof *BalanceValidityProofResponse
+			proof, err = s.fetchUpdateBalanceValidityProof(publicKey, requestID)
 			if err != nil {
 				if errors.Is(err, ErrBalanceProofNotGenerated) ||
 					errors.Is(err, ErrStatusRequestTimeout) {
@@ -86,12 +96,14 @@ func (s *balanceProcessor) ProveUpdate(
 				return nil, err
 			}
 
-			balanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*proof.Proof)
+			var balanceProofWithPis *intMaxTypes.Plonky2Proof
+			balanceProofWithPis, err = intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*proof.Proof)
 			if err != nil {
 				return nil, err
 			}
 
-			balancePublicInputs, err := new(BalancePublicInputs).FromPublicInputs(balanceProofWithPis.PublicInputs)
+			var balancePublicInputs *BalancePublicInputs
+			balancePublicInputs, err = new(BalancePublicInputs).FromPublicInputs(balanceProofWithPis.PublicInputs)
 			if err != nil {
 				return nil, err
 			}
@@ -161,6 +173,7 @@ func (s *balanceProcessor) ProveReceiveDeposit(
 		case <-s.ctx.Done():
 			return nil, s.ctx.Err()
 		case <-ticker.C:
+			var proof *BalanceValidityProofResponse
 			proof, err := s.fetchReceiveDepositBalanceValidityProof(publicKey, requestID)
 			if err != nil {
 				if errors.Is(err, ErrBalanceProofNotGenerated) || errors.Is(err, ErrStatusRequestTimeout) {
@@ -208,7 +221,8 @@ func (s *balanceProcessor) ProveSendTransition(
 		case <-s.ctx.Done():
 			return nil, s.ctx.Err()
 		case <-ticker.C:
-			proof, err := s.fetchSendBalanceValidityProof(publicKey, requestID)
+			var proof *BalanceValidityProofResponse
+			proof, err = s.fetchSendBalanceValidityProof(publicKey, requestID)
 			if err != nil {
 				if errors.Is(err, ErrBalanceProofNotGenerated) {
 					continue
@@ -255,7 +269,8 @@ func (s *balanceProcessor) ProveSend(
 		case <-s.ctx.Done():
 			return nil, s.ctx.Err()
 		case <-ticker.C:
-			proof, err := s.fetchSendBalanceValidityProof(publicKey, requestID)
+			var proof *BalanceValidityProofResponse
+			proof, err = s.fetchSendBalanceValidityProof(publicKey, requestID)
 			if err != nil {
 				if errors.Is(err, ErrBalanceProofNotGenerated) {
 					continue
@@ -264,12 +279,14 @@ func (s *balanceProcessor) ProveSend(
 				return nil, err
 			}
 
-			balanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*proof.Proof)
+			var balanceProofWithPis *intMaxTypes.Plonky2Proof
+			balanceProofWithPis, err = intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*proof.Proof)
 			if err != nil {
 				return nil, err
 			}
 
-			balancePublicInputs, err := new(BalancePublicInputs).FromPublicInputs(balanceProofWithPis.PublicInputs)
+			var balancePublicInputs *BalancePublicInputs
+			balancePublicInputs, err = new(BalancePublicInputs).FromPublicInputs(balanceProofWithPis.PublicInputs)
 			if err != nil {
 				return nil, err
 			}
@@ -301,7 +318,8 @@ func (s *balanceProcessor) ProveReceiveTransfer(
 		case <-s.ctx.Done():
 			return nil, s.ctx.Err()
 		case <-ticker.C:
-			proof, err := s.fetchReceiveTransferBalanceValidityProof(publicKey, requestID)
+			var proof *BalanceValidityProofResponse
+			proof, err = s.fetchReceiveTransferBalanceValidityProof(publicKey, requestID)
 
 			if err != nil {
 				if errors.Is(err, ErrBalanceProofNotGenerated) {
@@ -311,12 +329,14 @@ func (s *balanceProcessor) ProveReceiveTransfer(
 				return nil, err
 			}
 
-			balanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*proof.Proof)
+			var balanceProofWithPis *intMaxTypes.Plonky2Proof
+			balanceProofWithPis, err = intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*proof.Proof)
 			if err != nil {
 				return nil, err
 			}
 
-			balancePublicInputs, err := new(BalancePublicInputs).FromPublicInputs(balanceProofWithPis.PublicInputs)
+			var balancePublicInputs *BalancePublicInputs
+			balancePublicInputs, err = new(BalancePublicInputs).FromPublicInputs(balanceProofWithPis.PublicInputs)
 			if err != nil {
 				return nil, err
 			}
@@ -431,7 +451,7 @@ func (p *balanceProcessor) requestUpdateBalanceValidityProof(
 
 	bd, err := json.Marshal(requestBody)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal JSON request body: %w", err)
+		return "", fmt.Errorf(messageFailedToMarshalJSONRequestBody, err)
 	}
 	p.log.Debugf("size of requestUpdateBalanceValidityProof: %d bytes\n", len(bd))
 
@@ -464,13 +484,13 @@ func (p *balanceProcessor) requestUpdateBalanceValidityProof(
 			"status_code": resp.StatusCode(),
 			"api_url":     apiUrl,
 			"response":    resp.String(),
-		}).WithError(err).Errorf("Unexpected status code")
+		}).WithError(err).Errorf(unexpectedStatusCode)
 		return "", err
 	}
 
 	response := new(BalanceValidityResponse)
 	if err = json.Unmarshal(resp.Body(), response); err != nil {
-		return "", fmt.Errorf("failed to unmarshal response: %w", err)
+		return "", fmt.Errorf(messageFailedToUnmarshalResponse, err)
 	}
 
 	if !response.Success {
@@ -496,7 +516,7 @@ func (p *balanceProcessor) requestReceiveDepositBalanceValidityProof(
 	}
 	bd, err := json.Marshal(requestBody)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal JSON request body: %w", err)
+		return "", fmt.Errorf(messageFailedToMarshalJSONRequestBody, err)
 	}
 	p.log.Debugf("size of requestReceiveDepositBalanceValidityProof: %d bytes\n", len(bd))
 
@@ -524,18 +544,18 @@ func (p *balanceProcessor) requestReceiveDepositBalanceValidityProof(
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		err = fmt.Errorf("failed to get response")
+		err = errors.New(msgFailedToGetResponse)
 		p.log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
 			"api_url":     apiUrl,
 			"response":    resp.String(),
-		}).WithError(err).Errorf("Unexpected status code")
+		}).WithError(err).Errorf(unexpectedStatusCode)
 		return "", err
 	}
 
 	response := new(BalanceValidityResponse)
 	if err = json.Unmarshal(resp.Body(), response); err != nil {
-		return "", fmt.Errorf("failed to unmarshal response: %w", err)
+		return "", fmt.Errorf(messageFailedToUnmarshalResponse, err)
 	}
 
 	if !response.Success {
@@ -564,7 +584,7 @@ func (p *balanceProcessor) requestSendBalanceValidityProof(
 	}
 	bd, err := json.Marshal(requestBody)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal JSON request body: %w", err)
+		return "", fmt.Errorf(messageFailedToMarshalJSONRequestBody, err)
 	}
 	p.log.Debugf("size of requestSendBalanceValidityProof: %d bytes\n", len(bd))
 
@@ -592,18 +612,18 @@ func (p *balanceProcessor) requestSendBalanceValidityProof(
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		err = fmt.Errorf("failed to get response")
+		err = errors.New(msgFailedToGetResponse)
 		p.log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
 			"api_url":     apiUrl,
 			"response":    resp.String(),
-		}).WithError(err).Errorf("Unexpected status code")
+		}).WithError(err).Errorf(unexpectedStatusCode)
 		return "", err
 	}
 
 	response := new(BalanceValidityResponse)
 	if err = json.Unmarshal(resp.Body(), response); err != nil {
-		return "", fmt.Errorf("failed to unmarshal response: %w", err)
+		return "", fmt.Errorf(messageFailedToUnmarshalResponse, err)
 	}
 
 	if !response.Success {
@@ -626,7 +646,7 @@ func (p *balanceProcessor) requestSpendProof(
 	}
 	bd, err := json.Marshal(requestBody)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal JSON request body: %w", err)
+		return "", fmt.Errorf(messageFailedToMarshalJSONRequestBody, err)
 	}
 	p.log.Debugf("size of requestSpendProof: %d bytes\n", len(bd))
 
@@ -654,18 +674,18 @@ func (p *balanceProcessor) requestSpendProof(
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		err = fmt.Errorf("failed to get response")
+		err = errors.New(msgFailedToGetResponse)
 		p.log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
 			"api_url":     apiUrl,
 			"response":    resp.String(),
-		}).WithError(err).Errorf("Unexpected status code")
+		}).WithError(err).Errorf(unexpectedStatusCode)
 		return "", err
 	}
 
 	response := new(BalanceValidityResponse)
 	if err = json.Unmarshal(resp.Body(), response); err != nil {
-		return "", fmt.Errorf("failed to unmarshal response: %w", err)
+		return "", fmt.Errorf(messageFailedToUnmarshalResponse, err)
 	}
 
 	if !response.Success {
@@ -692,7 +712,7 @@ func (p *balanceProcessor) requestReceiveTransferBalanceValidityProof(
 	}
 	bd, err := json.Marshal(requestBody)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal JSON request body: %w", err)
+		return "", fmt.Errorf(messageFailedToMarshalJSONRequestBody, err)
 	}
 	p.log.Debugf("size of requestReceiveTransferBalanceValidityProof: %d bytes\n", len(bd))
 
@@ -720,18 +740,18 @@ func (p *balanceProcessor) requestReceiveTransferBalanceValidityProof(
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		err = fmt.Errorf("failed to get response")
+		err = errors.New(msgFailedToGetResponse)
 		p.log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
 			"api_url":     apiUrl,
 			"response":    resp.String(),
-		}).WithError(err).Errorf("Unexpected status code")
+		}).WithError(err).Errorf(unexpectedStatusCode)
 		return "", err
 	}
 
 	response := new(BalanceValidityResponse)
 	if err = json.Unmarshal(resp.Body(), response); err != nil {
-		return "", fmt.Errorf("failed to unmarshal response: %w", err)
+		return "", fmt.Errorf(messageFailedToUnmarshalResponse, err)
 	}
 
 	if !response.Success {
@@ -778,26 +798,26 @@ func (p *balanceProcessor) fetchUpdateBalanceValidityProof(publicKey *intMaxAcc.
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		err = fmt.Errorf("failed to get response")
+		err = errors.New(msgFailedToGetResponse)
 		p.log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
 			"api_url":     apiUrl,
 			"response":    resp.String(),
-		}).WithError(err).Errorf("Unexpected status code")
+		}).WithError(err).Errorf(unexpectedStatusCode)
 		return nil, err
 	}
 
 	response := new(BalanceValidityProofResponse)
 	if err = json.Unmarshal(resp.Body(), response); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+		return nil, fmt.Errorf(messageFailedToUnmarshalResponse, err)
 	}
 
 	if !response.Success {
-		if response.ErrorMessage != nil && strings.HasPrefix(*response.ErrorMessage, "balance proof is not generated") {
+		if response.ErrorMessage != nil && strings.HasPrefix(*response.ErrorMessage, messageBalanceProofIsNotGenerated) {
 			return nil, ErrBalanceProofNotGenerated
 		}
 
-		p.log.Warnf("ErrorMessage: %v\n", response.ErrorMessage)
+		p.log.Warnf(messageErrorMessage, response.ErrorMessage)
 		return nil, fmt.Errorf("failed to get updateWitness balance proof response: %v", response)
 	}
 
@@ -838,26 +858,26 @@ func (p *balanceProcessor) fetchReceiveDepositBalanceValidityProof(publicKey *in
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		err = fmt.Errorf("failed to get response")
+		err = errors.New(msgFailedToGetResponse)
 		p.log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
 			"api_url":     apiUrl,
 			"response":    resp.String(),
-		}).WithError(err).Errorf("Unexpected status code")
+		}).WithError(err).Errorf(unexpectedStatusCode)
 		return nil, err
 	}
 
 	response := new(BalanceValidityProofResponse)
 	if err = json.Unmarshal(resp.Body(), response); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+		return nil, fmt.Errorf(messageFailedToUnmarshalResponse, err)
 	}
 
 	if !response.Success {
-		if response.ErrorMessage != nil && strings.HasPrefix(*response.ErrorMessage, "balance proof is not generated") {
+		if response.ErrorMessage != nil && strings.HasPrefix(*response.ErrorMessage, messageBalanceProofIsNotGenerated) {
 			return nil, ErrBalanceProofNotGenerated
 		}
 
-		p.log.Warnf("ErrorMessage: %v\n", response.ErrorMessage)
+		p.log.Warnf(messageErrorMessage, response.ErrorMessage)
 		return nil, fmt.Errorf("failed to get depositWitness balance proof response: %v", response)
 	}
 
@@ -894,26 +914,26 @@ func (p *balanceProcessor) fetchSendBalanceValidityProof(publicKey *intMaxAcc.Pu
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		err = fmt.Errorf("failed to get response")
+		err = errors.New(msgFailedToGetResponse)
 		p.log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
 			"api_url":     apiUrl,
 			"response":    resp.String(),
-		}).WithError(err).Errorf("Unexpected status code")
+		}).WithError(err).Errorf(unexpectedStatusCode)
 		return nil, err
 	}
 
 	response := new(BalanceValidityProofResponse)
 	if err = json.Unmarshal(resp.Body(), response); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+		return nil, fmt.Errorf(messageFailedToUnmarshalResponse, err)
 	}
 
 	if !response.Success {
-		if response.ErrorMessage != nil && strings.HasPrefix(*response.ErrorMessage, "balance proof is not generated") {
+		if response.ErrorMessage != nil && strings.HasPrefix(*response.ErrorMessage, messageBalanceProofIsNotGenerated) {
 			return nil, ErrBalanceProofNotGenerated
 		}
 
-		p.log.Warnf("ErrorMessage: %v\n", response.ErrorMessage)
+		p.log.Warnf(messageErrorMessage, response.ErrorMessage)
 		return nil, fmt.Errorf("failed to get sendWitness balance proof response: %v", response)
 	}
 
@@ -948,26 +968,26 @@ func (p *balanceProcessor) fetchSpendBalanceValidityProof(publicKey *intMaxAcc.P
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		err = fmt.Errorf("failed to get response")
+		err = errors.New(msgFailedToGetResponse)
 		p.log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
 			"api_url":     apiUrl,
 			"response":    resp.String(),
-		}).WithError(err).Errorf("Unexpected status code")
+		}).WithError(err).Errorf(unexpectedStatusCode)
 		return nil, err
 	}
 
 	response := new(BalanceValidityProofResponse)
 	if err = json.Unmarshal(resp.Body(), response); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+		return nil, fmt.Errorf(messageFailedToUnmarshalResponse, err)
 	}
 
 	if !response.Success {
-		if response.ErrorMessage != nil && strings.HasPrefix(*response.ErrorMessage, "balance proof is not generated") {
+		if response.ErrorMessage != nil && strings.HasPrefix(*response.ErrorMessage, messageBalanceProofIsNotGenerated) {
 			return nil, ErrBalanceProofNotGenerated
 		}
 
-		p.log.Warnf("ErrorMessage: %v\n", response.ErrorMessage)
+		p.log.Warnf(messageErrorMessage, response.ErrorMessage)
 		return nil, fmt.Errorf("failed to get spendWitness balance proof response: %v", response)
 	}
 
@@ -1004,26 +1024,26 @@ func (p *balanceProcessor) fetchReceiveTransferBalanceValidityProof(publicKey *i
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		err = fmt.Errorf("failed to get response")
+		err = errors.New(msgFailedToGetResponse)
 		p.log.WithFields(logger.Fields{
 			"status_code": resp.StatusCode(),
 			"api_url":     apiUrl,
 			"response":    resp.String(),
-		}).WithError(err).Errorf("Unexpected status code")
+		}).WithError(err).Errorf(unexpectedStatusCode)
 		return nil, err
 	}
 
 	response := new(BalanceValidityProofResponse)
 	if err = json.Unmarshal(resp.Body(), response); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+		return nil, fmt.Errorf(messageFailedToUnmarshalResponse, err)
 	}
 
 	if !response.Success {
-		if response.ErrorMessage != nil && strings.HasPrefix(*response.ErrorMessage, "balance proof is not generated") {
+		if response.ErrorMessage != nil && strings.HasPrefix(*response.ErrorMessage, messageBalanceProofIsNotGenerated) {
 			return nil, ErrBalanceProofNotGenerated
 		}
 
-		p.log.Warnf("ErrorMessage: %v\n", response.ErrorMessage)
+		p.log.Warnf(messageErrorMessage, response.ErrorMessage)
 		return nil, fmt.Errorf("failed to get transferWitness balance proof response: %v", response)
 	}
 

@@ -120,7 +120,8 @@ func (p *blockValidityProver) SyncDepositTree(latestBlock *uint64, depositIndex 
 				for i := range processDepositsCalldata.DepositHashes {
 					depositHash := processDepositsCalldata.DepositHashes[i]
 
-					depositLeafWithId, _, err := b.GetDepositLeafAndIndexByHash(common.Hash(depositHash))
+					var depositLeafWithId *DepositLeafWithId
+					depositLeafWithId, _, err = b.GetDepositLeafAndIndexByHash(common.Hash(depositHash))
 					if err != nil {
 						return fmt.Errorf("failed to get deposit leaf by hash: %v", err.Error())
 					}

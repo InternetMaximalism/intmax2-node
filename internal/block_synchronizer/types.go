@@ -20,6 +20,8 @@ const (
 	int8Key = 8
 )
 
+var ErrInvalidDataLength = errors.New("invalid data length")
+
 type poseidonHashOut = intMaxGP.PoseidonHashOut
 
 type BalanceData struct {
@@ -60,31 +62,27 @@ func (bd *BalanceData) Marshal() ([]byte, error) {
 	binary.BigEndian.PutUint32(buf[offset:offset+int4Key], bd.Nonce)
 	offset += int4Key
 
-	b := bd.Salt.Marshal()
-	copy(buf[offset:offset+int32Key], b)
+	copy(buf[offset:offset+int32Key], bd.Salt.Marshal())
 	offset += int32Key
 
 	binary.BigEndian.PutUint32(buf[offset:offset+int4Key], uint32(len(bd.BalanceProofPublicInputs)))
 	offset += int4Key
 	for _, publicInput := range bd.BalanceProofPublicInputs {
-		b := publicInput.ToUint64Regular()
-		binary.BigEndian.PutUint64(buf[offset:offset+int8Key], b)
+		binary.BigEndian.PutUint64(buf[offset:offset+int8Key], publicInput.ToUint64Regular())
 		offset += int8Key
 	}
 
 	binary.BigEndian.PutUint32(buf[offset:offset+int4Key], uint32(len(bd.NullifierLeaves)))
 	offset += int4Key
 	for _, nullifierLeaf := range bd.NullifierLeaves {
-		b := nullifierLeaf.Bytes()
-		copy(buf[offset:offset+int32Key], b)
+		copy(buf[offset:offset+int32Key], nullifierLeaf.Bytes())
 		offset += int32Key
 	}
 
 	binary.BigEndian.PutUint32(buf[offset:offset+int4Key], uint32(len(bd.AssetLeafEntries)))
 	offset += int4Key
 	for _, assetLeafEntry := range bd.AssetLeafEntries {
-		b := assetLeafEntry.Marshal()
-		copy(buf[offset:offset+int32Key+1], b)
+		copy(buf[offset:offset+int32Key+1], assetLeafEntry.Marshal())
 		offset += int32Key + 1
 	}
 
@@ -95,7 +93,7 @@ func (bd *BalanceData) Marshal() ([]byte, error) {
 
 func (bd *BalanceData) Unmarshal(data []byte) error {
 	if len(data) < int4Key {
-		return errors.New("invalid data length")
+		return ErrInvalidDataLength
 	}
 
 	offset := 0
@@ -112,7 +110,7 @@ func (bd *BalanceData) Unmarshal(data []byte) error {
 	offset += int32Key
 
 	if len(data) < offset+int4Key {
-		return errors.New("invalid data length")
+		return ErrInvalidDataLength
 	}
 
 	numBalanceProofPublicInputs := binary.BigEndian.Uint32(data[offset : offset+int4Key])
@@ -121,7 +119,7 @@ func (bd *BalanceData) Unmarshal(data []byte) error {
 	bd.BalanceProofPublicInputs = make([]ffg.Element, numBalanceProofPublicInputs)
 	for i := 0; i < int(numBalanceProofPublicInputs); i++ {
 		if len(data) < offset+int8Key {
-			return errors.New("invalid data length")
+			return ErrInvalidDataLength
 		}
 
 		bd.BalanceProofPublicInputs[i].SetUint64(binary.BigEndian.Uint64(data[offset : offset+int8Key]))
@@ -129,7 +127,7 @@ func (bd *BalanceData) Unmarshal(data []byte) error {
 	}
 
 	if len(data) < offset+int4Key {
-		return errors.New("invalid data length")
+		return ErrInvalidDataLength
 	}
 
 	numNullifierLeaves := binary.BigEndian.Uint32(data[offset : offset+int4Key])
@@ -138,7 +136,7 @@ func (bd *BalanceData) Unmarshal(data []byte) error {
 	bd.NullifierLeaves = make([]intMaxTypes.Bytes32, numNullifierLeaves)
 	for i := 0; i < int(numNullifierLeaves); i++ {
 		if len(data) < offset+int32Key {
-			return errors.New("invalid data length")
+			return ErrInvalidDataLength
 		}
 
 		bd.NullifierLeaves[i] = intMaxTypes.Bytes32{}
@@ -147,7 +145,7 @@ func (bd *BalanceData) Unmarshal(data []byte) error {
 	}
 
 	if len(data) < offset+int4Key {
-		return errors.New("invalid data length")
+		return ErrInvalidDataLength
 	}
 
 	numAssetLeaves := binary.BigEndian.Uint32(data[offset : offset+int4Key])
@@ -156,10 +154,11 @@ func (bd *BalanceData) Unmarshal(data []byte) error {
 	bd.AssetLeafEntries = make([]*intMaxTree.AssetLeafEntry, numAssetLeaves)
 	for i := 0; i < int(numAssetLeaves); i++ {
 		if len(data) < offset+int32Key+1 {
-			return errors.New("invalid data length")
+			return ErrInvalidDataLength
 		}
 
-		assetLeafEntry, err := new(intMaxTree.AssetLeafEntry).Unmarshal(data[offset : offset+int32Key+1])
+		var assetLeafEntry *intMaxTree.AssetLeafEntry
+		assetLeafEntry, err = new(intMaxTree.AssetLeafEntry).Unmarshal(data[offset : offset+int32Key+1])
 		if err != nil {
 			return err
 		}
@@ -169,7 +168,7 @@ func (bd *BalanceData) Unmarshal(data []byte) error {
 	}
 
 	if len(data) < offset+block_validity_prover.NumPublicStateBytes {
-		return errors.New("invalid data length")
+		return ErrInvalidDataLength
 	}
 
 	bd.PublicState = new(block_validity_prover.PublicState)

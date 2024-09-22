@@ -17,7 +17,11 @@ import (
 	"time"
 )
 
-const int8Key = 8
+const (
+	int8Key = 8
+
+	messageBalanceProcessorNotInitialized = "balance processor not initialized"
+)
 
 type balanceSynchronizer struct {
 	ctx                  context.Context
@@ -290,7 +294,12 @@ func applyReceivedDepositTransition(
 		DepositID:    deposit.DepositID,
 		DepositSalt:  *deposit.Salt,
 	}
-	userState.AddDepositCase(depositIndex, &depositCase)
+	err = userState.AddDepositCase(depositIndex, &depositCase)
+	if err != nil {
+		const msg = "failed to add deposit case: %+v"
+		return fmt.Errorf(msg, err.Error())
+	}
+
 	fmt.Printf("start to prove deposit\n")
 	err = syncBalanceProver.ReceiveDeposit(
 		userState,
@@ -300,8 +309,8 @@ func applyReceivedDepositTransition(
 	)
 	if err != nil {
 		fmt.Printf("prove deposit %v\n", err.Error())
-		if err.Error() == "balance processor not initialized" {
-			return errors.New("balance processor not initialized")
+		if err.Error() == messageBalanceProcessorNotInitialized {
+			return errors.New(messageBalanceProcessorNotInitialized)
 		}
 
 		return fmt.Errorf("failed to receive deposit: %+v", err.Error())
@@ -364,8 +373,8 @@ func applyReceivedTransferTransition(
 	)
 	if err != nil {
 		fmt.Printf("prove received transfer %v\n", err.Error())
-		if err.Error() == "balance processor not initialized" {
-			return errors.New("balance processor not initialized")
+		if err.Error() == messageBalanceProcessorNotInitialized {
+			return errors.New(messageBalanceProcessorNotInitialized)
 		}
 
 		return fmt.Errorf("failed to receive deposit: %+v", err.Error())
@@ -416,8 +425,8 @@ func applySentTransactionTransition(
 	)
 	if err != nil {
 		fmt.Printf("prove sent transaction %v\n", err.Error())
-		if err.Error() == "balance processor not initialized" {
-			return errors.New("balance processor not initialized")
+		if err.Error() == messageBalanceProcessorNotInitialized {
+			return errors.New(messageBalanceProcessorNotInitialized)
 		}
 
 		return fmt.Errorf("failed to sync transaction:: %+v", err.Error())

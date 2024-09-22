@@ -2,9 +2,10 @@ package balance_checker
 
 import (
 	"context"
-	"github.com/spf13/cobra"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
+
+	"github.com/spf13/cobra"
 )
 
 type Balance struct {

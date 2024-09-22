@@ -16,6 +16,8 @@ import (
 	"github.com/tidwall/sjson"
 )
 
+const twoSpaces = "  "
+
 type GetDepositsListFilter struct {
 	Name      string `json:"name"`
 	Condition string `json:"condition"`
@@ -62,7 +64,7 @@ func GetDepositsListWithRawRequest(
 				Code:    resp.Error.Code,
 				Message: resp.Error.Message,
 			},
-		}, "", "  ")
+		}, "", twoSpaces)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal depositsList: %w", err)
 		}
@@ -101,7 +103,7 @@ func GetDepositsListWithRawRequest(
 	}
 
 	var js []byte
-	js, err = json.MarshalIndent(depositsList, "", "  ")
+	js, err = json.MarshalIndent(depositsList, "", twoSpaces)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal depositsList: %w", err)
 	}
@@ -229,7 +231,7 @@ func GetDepositByHashIncomingWithRawRequest(
 		js, err = json.MarshalIndent(&GetDepositTxByHashIncomingResponse{
 			Success:                       false,
 			GetDepositByHashIncomingError: *resp.Error,
-		}, "", "  ")
+		}, "", twoSpaces)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal deposit by hash (incoming): %w", err)
 		}
@@ -256,7 +258,7 @@ func GetDepositByHashIncomingWithRawRequest(
 			Deposit:     deposit,
 			CreatedAt:   resp.Data.Deposit.CreatedAt,
 		},
-	}, "", "  ")
+	}, "", twoSpaces)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal deposit by hash (incoming): %w", err)
 	}

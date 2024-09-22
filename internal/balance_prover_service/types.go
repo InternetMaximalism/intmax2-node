@@ -21,10 +21,11 @@ const (
 	SENDER_TREE_HEIGHT     = 7
 	balancePublicInputsLen = 47
 
-	int2Key = 2
-	int3Key = 3
-	int4Key = 4
-	int8Key = 8
+	int2Key  = 2
+	int3Key  = 3
+	int4Key  = 4
+	int8Key  = 8
+	int32Key = 32
 )
 
 type poseidonHashOut = intMaxTypes.PoseidonHashOut
@@ -645,7 +646,8 @@ func (s *PrivateState) SetDefault() *PrivateState {
 }
 
 func (s *PrivateState) ToFieldElementSlice() []ffg.Element {
-	buf := make([]ffg.Element, 0, 32+32+1+32)
+	const numPrivateStateElements = int32Key + int32Key + 1 + int32Key
+	buf := make([]ffg.Element, 0, numPrivateStateElements)
 	buf = append(buf, s.AssetTreeRoot.Elements[:]...)
 	buf = append(buf, s.NullifierTreeRoot.Elements[:]...)
 	buf = append(buf, *new(ffg.Element).SetUint64(uint64(s.Nonce)))

@@ -62,7 +62,7 @@ func TransferTransaction(
 		return fmt.Errorf("%s", err)
 	}
 
-	tokenIndex, err := balance_service.GetTokenIndexFromLiquidityContract(ctx, cfg, sb, *tokenInfo)
+	tokenIndex, err := balance_service.GetTokenIndexFromLiquidityContract(ctx, cfg, log, sb, *tokenInfo)
 	if err != nil {
 		return err
 	}
@@ -363,7 +363,8 @@ func TransferTransaction(
 
 	backupTransfers := make([]*transaction.BackupTransferInput, len(initialLeaves))
 	for i := range initialLeaves {
-		transferMerkleProof, _, err := transferTree.ComputeMerkleProof(uint64(i))
+		var transferMerkleProof []*intMaxTypes.PoseidonHashOut
+		transferMerkleProof, _, err = transferTree.ComputeMerkleProof(uint64(i))
 		if err != nil {
 			return fmt.Errorf("failed to compute merkle proof: %v", err)
 		}

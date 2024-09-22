@@ -159,7 +159,6 @@ func (ps *PublicState) Marshal() []byte {
 	offset += int32Key
 
 	copy(buf[offset:offset+int32Key], ps.BlockHash.Bytes())
-	offset += int32Key
 
 	binary.BigEndian.PutUint32(buf, ps.BlockNumber)
 
@@ -548,7 +547,7 @@ type AccountIdPacked [numAccountIDPackedBytes]uint32
 func (b *AccountIdPacked) Set(other *AccountIdPacked) *AccountIdPacked {
 	if other == nil {
 		b = nil
-		return nil
+		return b
 	}
 
 	for i := 0; i < numAccountIDPackedBytes; i++ {

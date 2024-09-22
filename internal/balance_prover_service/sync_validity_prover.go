@@ -12,6 +12,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
+var ErrNotImplemented = errors.New("not implemented")
+
 type externalBlockValidityService struct {
 	ctx context.Context
 	cfg *configs.Config
@@ -25,15 +27,15 @@ func NewExternalBlockValidityProver(ctx context.Context, cfg *configs.Config) bl
 }
 
 func (s *externalBlockValidityService) BlockContentByTxRoot(txRoot common.Hash) (*block_post_service.PostedBlock, error) {
-	return nil, errors.New("not implemented")
+	return nil, ErrNotImplemented
 }
 
 func (s *externalBlockValidityService) GetDepositInfoByHash(depositHash common.Hash) (*block_validity_prover.DepositInfo, error) {
-	return nil, errors.New("not implemented")
+	return nil, ErrNotImplemented
 }
 
 func (s *externalBlockValidityService) FetchValidityProverInfo() (*block_validity_prover.ValidityProverInfo, error) {
-	return nil, errors.New("not implemented")
+	return nil, ErrNotImplemented
 }
 
 func (s *externalBlockValidityService) FetchUpdateWitness(
@@ -42,17 +44,17 @@ func (s *externalBlockValidityService) FetchUpdateWitness(
 	targetBlockNumber uint32,
 	isPrevAccountTree bool,
 ) (*block_validity_prover.UpdateWitness, error) {
-	return nil, errors.New("not implemented")
+	return nil, ErrNotImplemented
 }
 
 func (s *externalBlockValidityService) DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error) {
-	return nil, common.Hash{}, errors.New("not implemented")
+	return nil, common.Hash{}, ErrNotImplemented
 }
 
-func (s *externalBlockValidityService) BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.PoseidonMerkleProof, error) {
-	return nil, errors.New("not implemented")
+func (s *externalBlockValidityService) BlockTreeProof(rootBlockNumber, leafBlockNumber uint32) (*intMaxTree.PoseidonMerkleProof, error) {
+	return nil, ErrNotImplemented
 }
 
 func (s *externalBlockValidityService) ValidityPublicInputs(txRoot common.Hash) (*block_validity_prover.ValidityPublicInputs, []block_validity_prover.SenderLeaf, error) {
-	return nil, nil, errors.New("not implemented")
+	return nil, nil, ErrNotImplemented
 }

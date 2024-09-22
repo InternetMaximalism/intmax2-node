@@ -21,6 +21,8 @@ import (
 	"github.com/iden3/go-iden3-crypto/ffg"
 )
 
+const base10 = 10
+
 type DepositDetails struct {
 	Recipient         *intMaxAcc.PublicKey
 	TokenIndex        uint32
@@ -101,7 +103,7 @@ func DecodeBackupData(
 
 		// Request data store vault if deposit is valid
 		depositIDStr := deposit.BlockNumber
-		depositID, err := strconv.ParseUint(depositIDStr, 10, 32)
+		depositID, err := strconv.ParseUint(depositIDStr, base10, int32Key)
 		for err != nil {
 			log.Printf("failed to parse deposit ID: %v", err)
 		}

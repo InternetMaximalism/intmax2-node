@@ -69,7 +69,7 @@ func (b *pgx) UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIn
 	return nil
 }
 
-func (p *pgx) Deposit(ID string) (*mDBApp.Deposit, error) {
+func (p *pgx) Deposit(Id string) (*mDBApp.Deposit, error) {
 	const (
 		q = `SELECT
              id ,deposit_index ,deposit_hash ,recipient_salt_hash
@@ -78,7 +78,7 @@ func (p *pgx) Deposit(ID string) (*mDBApp.Deposit, error) {
 	)
 
 	var tmp models.Deposit
-	err := errPgx.Err(p.queryRow(p.ctx, q, ID).
+	err := errPgx.Err(p.queryRow(p.ctx, q, Id).
 		Scan(
 			&tmp.ID,
 			&tmp.DepositIndex,

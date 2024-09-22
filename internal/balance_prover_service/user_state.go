@@ -85,7 +85,7 @@ func (input *UserWalletStateInput) UserState() (*UserWalletState, error) {
 		return nil, err
 	}
 	for _, leaf := range nullifierLeaves {
-		if _, err := nullifierTree.Insert(leaf); err != nil {
+		if _, err = nullifierTree.Insert(leaf); err != nil {
 			return nil, err
 		}
 	}
@@ -96,7 +96,7 @@ func (input *UserWalletStateInput) UserState() (*UserWalletState, error) {
 		return nil, err
 	}
 	for _, leafEntry := range assetLeaves {
-		if _, err := assetTree.UpdateLeaf(leafEntry.TokenIndex, leafEntry.Leaf); err != nil {
+		if _, err = assetTree.UpdateLeaf(leafEntry.TokenIndex, leafEntry.Leaf); err != nil {
 			return nil, err
 		}
 	}

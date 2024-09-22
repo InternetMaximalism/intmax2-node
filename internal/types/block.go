@@ -40,6 +40,7 @@ const (
 	numG2PointLimbs               = 4
 	defaultAccountID       uint64 = 0
 	dummyAccountID         uint64 = 1
+	int2Key                       = 2
 	int8Key                       = 8
 	int32Key                      = 32
 	int10Key                      = 10
@@ -82,7 +83,7 @@ type BlockContent struct {
 	Senders []Sender
 
 	// TxRoot is the root hash of the transactions in the block
-	TxTreeRoot [32]byte
+	TxTreeRoot [int32Key]byte
 
 	// AggregatedSignature is the aggregated signature of the block
 	AggregatedSignature *bn254.G2Affine
@@ -96,7 +97,7 @@ type BlockContent struct {
 func NewBlockContent(
 	senderType string,
 	senders []Sender,
-	txTreeRoot [32]byte,
+	txTreeRoot [int32Key]byte,
 	aggregatedSignature *bn254.G2Affine,
 ) *BlockContent {
 	var bc BlockContent
@@ -448,21 +449,21 @@ func (bc *BlockContent) Uint32Slice() []uint32 {
 }
 
 type PostRegistrationBlockInput struct {
-	TxTreeRoot          [32]byte
-	SenderFlags         [16]byte
-	AggregatedPublicKey [2][32]byte
-	AggregatedSignature [4][32]byte
-	MessagePoint        [4][32]byte
+	TxTreeRoot          [int32Key]byte
+	SenderFlags         [int16Key]byte
+	AggregatedPublicKey [int2Key][int32Key]byte
+	AggregatedSignature [int4Key][int32Key]byte
+	MessagePoint        [int4Key][int32Key]byte
 	SenderPublicKeys    []*big.Int
 }
 
 type PostNonRegistrationBlockInput struct {
-	TxTreeRoot          [32]byte
-	SenderFlags         [16]byte
-	AggregatedPublicKey [2][32]byte
-	AggregatedSignature [4][32]byte
-	MessagePoint        [4][32]byte
-	PublicKeysHash      [32]byte
+	TxTreeRoot          [int32Key]byte
+	SenderFlags         [int16Key]byte
+	AggregatedPublicKey [int2Key][int32Key]byte
+	AggregatedSignature [int4Key][int32Key]byte
+	MessagePoint        [int4Key][int32Key]byte
+	PublicKeysHash      [int32Key]byte
 	SenderAccountIds    []byte
 }
 

@@ -143,3 +143,6 @@ var ErrBlockShouldBeValid = errors.New("the block should be valid if it is not a
 
 // ErrBlockUnSynchronization error: not synchronized.
 var ErrBlockUnSynchronization = errors.New("not synchronized")
+
+// ErrAccountMembershipProof error: account membership proof error.
+var ErrAccountMembershipProof = errors.New("account membership proof error")

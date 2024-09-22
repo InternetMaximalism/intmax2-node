@@ -199,13 +199,15 @@ func (d *blockValidityProver) GetDepositInfoByHash(depositHash common.Hash) (*De
 		DepositLeaf:  depositLeafWithId.DepositLeaf,
 	}
 	if depositIndex != nil {
-		blockNumber, err := d.blockBuilder.BlockNumberByDepositIndex(*depositIndex)
+		var blockNumber uint32
+		blockNumber, err = d.blockBuilder.BlockNumberByDepositIndex(*depositIndex)
 		if err != nil {
 			var ErrBlockNumberByDepositIndexFail = errors.New("failed to get block number by deposit index")
 			return nil, errors.Join(ErrBlockNumberByDepositIndexFail, err)
 		}
 
-		isSynchronizedDepositIndex, err := d.blockBuilder.IsSynchronizedDepositIndex(*depositIndex)
+		var isSynchronizedDepositIndex bool
+		isSynchronizedDepositIndex, err = d.blockBuilder.IsSynchronizedDepositIndex(*depositIndex)
 		if err != nil {
 			var ErrIsSynchronizedDepositIndexFail = errors.New("failed to check if deposit index is synchronized")
 			return nil, errors.Join(ErrIsSynchronizedDepositIndexFail, err)

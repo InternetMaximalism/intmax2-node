@@ -22,6 +22,7 @@ const (
 	numTransfersInTx     = 1 << intMaxTree.TRANSFER_TREE_HEIGHT
 	InsufficientFlagsLen = numTransfersInTx / 32
 	uint256LimbSize      = 8
+	int4Key              = 4
 	int32Key             = 32
 )
 
@@ -78,7 +79,7 @@ func (flags *InsufficientFlags) RandomAccess(index int) bool {
 }
 
 func (flags *InsufficientFlags) Bytes() []byte {
-	buf := make([]byte, InsufficientFlagsLen*4)
+	buf := make([]byte, InsufficientFlagsLen*int4Key)
 	for i, limb := range flags.Limbs {
 		binary.BigEndian.PutUint32(buf[i*4:], limb)
 	}

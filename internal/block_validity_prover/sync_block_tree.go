@@ -113,6 +113,9 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, startBlock ui
 	)
 
 	latestScrollBlockNumber, err := bps.FetchLatestBlockNumber(p.ctx)
+	if err != nil {
+		return startBlock, errors.Join(ErrFetchLatestBlockNumberFail, err)
+	}
 	fmt.Printf("latestScrollBlockNumber: %d\n", latestScrollBlockNumber)
 
 	const searchBlocksLimitAtOnce = 10000
@@ -199,7 +202,7 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, startBlock ui
 			}
 
 			// p.log.Debugf("blockContent: %v\n", blockContent)
-			_, err := p.blockBuilder.CreateBlockContent(postedBlock, blockContent)
+			_, err = p.blockBuilder.CreateBlockContent(postedBlock, blockContent)
 			if err != nil {
 				panic(err)
 				// return errors.Join(ErrCreateBlockContentFail, err)
@@ -297,7 +300,8 @@ func (p *blockValidityProver) syncBlockProver() error {
 	fmt.Printf("lastPostedBlockNumber (SyncBlockProver): %d\n", lastPostedBlockNumber)
 	for blockNumber := lastGeneratedBlockNumber + 1; blockNumber <= lastPostedBlockNumber; blockNumber++ {
 		// validityWitnessBlockNumber := p.blockBuilder.LatestIntMaxBlockNumber()
-		validityWitness, err := p.blockBuilder.ValidityWitnessByBlockNumber(blockNumber)
+		var validityWitness *ValidityWitness
+		validityWitness, err = p.blockBuilder.ValidityWitnessByBlockNumber(blockNumber)
 		fmt.Printf("IMPORTANT: Block %d proof is processing\n", blockNumber)
 		if err != nil {
 			panic(fmt.Errorf("last validity witness error: %w", err))
@@ -311,7 +315,8 @@ func (p *blockValidityProver) syncBlockProver() error {
 		// }
 		// fmt.Printf("encodedBlockWitness (SyncBlockProver): %s\n", encodedBlockWitness)
 
-		lastValidityProof, err := p.blockBuilder.ValidityProofByBlockNumber(blockNumber - 1)
+		var lastValidityProof *string
+		lastValidityProof, err = p.blockBuilder.ValidityProofByBlockNumber(blockNumber - 1)
 		if err != nil && err.Error() != ErrGenesisValidityProof.Error() {
 			// if err.Error() != ErrGenesisValidityProof.Error() {
 			//  var ErrLastValidityProofFail = errors.New("last validity proof fail")
@@ -373,7 +378,6 @@ func (p *blockValidityProver) requestAndFetchBlockValidityProof(validityWitness 
 		case <-p.ctx.Done():
 			return "", p.ctx.Err()
 		case <-tickerBlockValidityProof.C:
-			var validityProof string
 			validityProof, err = p.fetchBlockValidityProof(blockHash)
 			if err != nil {
 				continue

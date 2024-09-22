@@ -13,7 +13,7 @@ import (
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
-	"log"
+
 	"sort"
 	"time"
 )
@@ -131,7 +131,7 @@ func (s *SyncBalanceProver) UploadLastBalanceProof(blockNumber uint32, balancePr
 	fmt.Printf("size of balanceProof: %d\n", len(balanceProof))
 	compressedBalanceProof, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(balanceProof)
 	if err != nil {
-		log.Fatalf("failed to set last balance proof: %+v", err.Error())
+		s.log.Fatalf("failed to set last balance proof: %+v", err.Error())
 	}
 	fmt.Printf("size of compressedBalanceProof.Proof: %d\n", len(compressedBalanceProof.Proof))
 
@@ -272,12 +272,13 @@ func (s *SyncBalanceProver) SyncSend(
 		if err != nil {
 			return errors.New("send witness not found")
 		}
-		blockNumber := sendWitness.GetIncludedBlockNumber()
+		// sentBlockNumber := sendWitness.GetIncludedBlockNumber()
 		prevBalancePisBlockNumber := sendWitness.GetPrevBalancePisBlockNumber()
 		fmt.Printf("FetchUpdateWitness blockNumber: %d\n", blockNumber)
+		currentBlockNumber := blockNumber
 		updateWitness, err := blockValidityService.FetchUpdateWitness(
 			wallet.PublicKey(),
-			&blockNumber,
+			&currentBlockNumber,
 			prevBalancePisBlockNumber,
 			true,
 		)
@@ -304,7 +305,7 @@ func (s *SyncBalanceProver) SyncSend(
 			return errors.New("update witness validity proof is not equal to send witness validity proof")
 		}
 
-		// TODO
+		// TODO: ValidateTxInclusionValue
 		// _, err = ValidateTxInclusionValue(
 		// 	sendWitness.PrevBalancePis.PubKey,
 		// 	sendWitness.PrevBalancePis.PublicState,
@@ -338,7 +339,11 @@ func (s *SyncBalanceProver) SyncSend(
 
 		fmt.Printf("s.LastUpdatedBlockNumber before SyncSend: %d\n", s.LastUpdatedBlockNumber())
 		// s.LastUpdatedBlockNumber = blockNumber
-		s.UploadLastBalanceProof(blockNumber, balanceProof.Proof, wallet)
+		err = s.UploadLastBalanceProof(blockNumber, balanceProof.Proof, wallet)
+		if err != nil {
+			return err
+		}
+
 		fmt.Printf("s.LastUpdatedBlockNumber after SyncSend: %d\n", s.LastUpdatedBlockNumber())
 		wallet.UpdatePublicState(balanceProof.PublicInputs.PublicState)
 	}
@@ -413,7 +418,8 @@ func (s *SyncBalanceProver) SyncNoSend(
 	var prevBalancePis *balance_prover_service.BalancePublicInputs
 	if s.LastBalanceProof() != nil {
 		fmt.Println("s.LastBalanceProof != nil")
-		lastBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*s.LastBalanceProof())
+		var lastBalanceProofWithPis *intMaxTypes.Plonky2Proof
+		lastBalanceProofWithPis, err = intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*s.LastBalanceProof())
 		if err != nil {
 			return err
 		}
@@ -546,9 +552,7 @@ func (s *SyncBalanceProver) ReceiveDeposit(
 
 	fmt.Println("finish ProveReceiveDeposit")
 
-	s.UploadLastBalanceProof(s.LastUpdatedBlockNumber(), balanceProof.Proof, wallet)
-
-	return nil
+	return s.UploadLastBalanceProof(s.LastUpdatedBlockNumber(), balanceProof.Proof, wallet)
 }
 
 func (s *SyncBalanceProver) ReceiveTransfer(
@@ -581,9 +585,7 @@ func (s *SyncBalanceProver) ReceiveTransfer(
 	}
 
 	// s.LastBalanceProof = &balanceProof.Proof
-	s.UploadLastBalanceProof(s.LastUpdatedBlockNumber(), balanceProof.Proof, wallet)
-
-	return nil
+	return s.UploadLastBalanceProof(s.LastUpdatedBlockNumber(), balanceProof.Proof, wallet)
 }
 
 // func (s *SyncBalanceProver) SyncBalanceProof(
@@ -680,7 +682,8 @@ func SyncLocally(
 			log.Warnf("Received cancel signal from context, stopping...")
 			return nil, errors.New("received cancel signal from context")
 		case <-ticker.C:
-			validityProverInfo, err := blockValidityService.FetchValidityProverInfo()
+			var validityProverInfo *block_validity_prover.ValidityProverInfo
+			validityProverInfo, err = blockValidityService.FetchValidityProverInfo()
 			if err != nil {
 				const msg = "failed to fetch validity prover info: %+v"
 				panic(fmt.Sprintf(msg, err.Error()))
@@ -705,7 +708,7 @@ func SyncLocally(
 				switch transition := transition.(type) {
 				case balance_prover_service.ValidSentTx:
 					log.Debugf("valid sent transaction: %v\n", transition.TxHash)
-					err := applySentTransactionTransition(
+					err = applySentTransactionTransition(
 						log,
 						transition.Tx,
 						blockValidityService,
@@ -736,7 +739,7 @@ func SyncLocally(
 						panic(fmt.Sprintf(msg, err.Error()))
 					}
 
-					err := applyReceivedDepositTransition(
+					err = applyReceivedDepositTransition(
 						transition.Deposit,
 						blockValidityService,
 						balanceProcessor,
@@ -765,7 +768,7 @@ func SyncLocally(
 						panic(fmt.Sprintf(msg, err.Error()))
 					}
 
-					err := applyReceivedTransferTransition(
+					err = applyReceivedTransferTransition(
 						transition.Transfer,
 						blockValidityService,
 						balanceProcessor,

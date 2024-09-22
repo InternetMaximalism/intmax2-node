@@ -14,7 +14,7 @@ import (
 	"intmax2-node/internal/mnemonic_wallet"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/pkg/utils"
-	"log"
+
 	"math/big"
 	"net/http"
 
@@ -38,7 +38,7 @@ const (
 func GetBalance(
 	ctx context.Context,
 	cfg *configs.Config,
-	lg logger.Logger,
+	log logger.Logger,
 	sb ServiceBlockchain,
 	args []string,
 	userEthPrivateKey string,
@@ -61,7 +61,7 @@ func GetBalance(
 		return ErrInvalidTokenType
 	}
 
-	l1Balance, err := GetTokenBalance(ctx, cfg, lg, sb, *wallet.WalletAddress, *tokenInfo)
+	l1Balance, err := GetTokenBalance(ctx, cfg, log, sb, *wallet.WalletAddress, *tokenInfo)
 	if err != nil {
 		return fmt.Errorf(ErrFailedToGetBalance, "Ethereum")
 	}
@@ -90,7 +90,7 @@ func GetBalance(
 		fmt.Printf("Balance on Ethereum: %s\n", l1Balance)
 	}
 
-	tokenIndex, err := GetTokenIndexFromLiquidityContract(ctx, cfg, sb, *tokenInfo)
+	tokenIndex, err := GetTokenIndexFromLiquidityContract(ctx, cfg, log, sb, *tokenInfo)
 	if err != nil {
 		if errors.Is(err, ErrTokenNotFoundOnIntMax) {
 			return errors.New("specified token is not found in INTMAX network")
@@ -99,7 +99,7 @@ func GetBalance(
 		return ErrFailedToGetTokenIndex
 	}
 
-	l2Balance, err := GetUserBalance(ctx, cfg, lg, userPk, tokenIndex)
+	l2Balance, err := GetUserBalance(ctx, cfg, log, userPk, tokenIndex)
 	if err != nil {
 		return errors.Join(fmt.Errorf(ErrFailedToGetBalance, "INTMAX"), err)
 	}
@@ -121,7 +121,7 @@ func GetBalance(
 func GetTokenBalance(
 	ctx context.Context,
 	cfg *configs.Config,
-	lg logger.Logger,
+	log logger.Logger,
 	sb ServiceBlockchain,
 	owner common.Address,
 	tokenInfo intMaxTypes.TokenInfo,
@@ -200,6 +200,7 @@ func GetTokenBalance(
 func GetTokenIndexFromLiquidityContract(
 	ctx context.Context,
 	cfg *configs.Config,
+	log logger.Logger,
 	sb ServiceBlockchain,
 	tokenInfo intMaxTypes.TokenInfo,
 ) (uint32, error) {
@@ -247,7 +248,7 @@ func GetUserBalance(
 	fmt.Printf("size of StoredBalanceData: %v\n", len(storedBalanceData.EncryptedBalanceData))
 
 	balanceData := new(block_synchronizer.BalanceData)
-	if err := balanceData.Decrypt(userPrivateKey, storedBalanceData.EncryptedBalanceData); err != nil {
+	if err = balanceData.Decrypt(userPrivateKey, storedBalanceData.EncryptedBalanceData); err != nil {
 		if err.Error() == "empty encrypted balance data" {
 			return big.NewInt(0), nil
 		}
