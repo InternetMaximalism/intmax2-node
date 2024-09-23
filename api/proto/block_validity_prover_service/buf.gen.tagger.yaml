@@ -1,0 +1,7 @@
+version: v1
+plugins:
+  - name: gotag
+    out: .
+    opt:
+      - paths=import
+      - outdir=internal/pb/gen/block_validity_prover_service/node

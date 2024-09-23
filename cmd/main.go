@@ -5,6 +5,7 @@ import (
 	"intmax2-node/cmd/balance_checker"
 	"intmax2-node/cmd/balance_synchronizer"
 	"intmax2-node/cmd/block_builder"
+	"intmax2-node/cmd/block_validity_prover"
 	"intmax2-node/cmd/deposit"
 	"intmax2-node/cmd/ethereum_private_key_wallet"
 	"intmax2-node/cmd/generate_account"
@@ -101,21 +102,19 @@ func main() {
 	err = cli.Run(
 		ctx,
 		server.NewServerCmd(&server.Server{
-			Context:             ctx,
-			Cancel:              cancel,
-			Config:              cfg,
-			Log:                 log,
-			DbApp:               dbApp,
-			WG:                  &wg,
-			BBR:                 bbr,
-			SB:                  bc,
-			NS:                  ns,
-			HC:                  &hc,
-			PoW:                 pwNonce,
-			Worker:              w,
-			BlockPostService:    blockPostService,
-			DepositSynchronizer: depositSynchronizer,
-			GPOStorage:          storeGPO,
+			Context:    ctx,
+			Cancel:     cancel,
+			Config:     cfg,
+			Log:        log,
+			DbApp:      dbApp,
+			WG:         &wg,
+			BBR:        bbr,
+			SB:         bc,
+			NS:         ns,
+			HC:         &hc,
+			PoW:        pwNonce,
+			Worker:     w,
+			GPOStorage: storeGPO,
 		}),
 		balance_synchronizer.NewSynchronizerCmd(&balance_synchronizer.Synchronizer{
 			Context: ctx,
@@ -186,15 +185,17 @@ func main() {
 			DbApp:   dbApp,
 			SB:      bc,
 		}),
-		balance_synchronizer.NewSynchronizerCmd(&balance_synchronizer.Synchronizer{
-			Context: ctx,
-			Cancel:  cancel,
-			Config:  cfg,
-			Log:     log,
-			DbApp:   dbApp,
-			WG:      &wg,
-			SB:      bc,
-			HC:      &hc,
+		block_validity_prover.NewCmd(&block_validity_prover.Settings{
+			Context:             ctx,
+			Cancel:              cancel,
+			WG:                  &wg,
+			Config:              cfg,
+			Log:                 log,
+			DbApp:               dbApp,
+			SB:                  bc,
+			HC:                  &hc,
+			BlockPostService:    blockPostService,
+			DepositSynchronizer: depositSynchronizer,
 		}),
 	)
 	if err != nil {

@@ -14,6 +14,9 @@ const (
 	SwaggerWithdrawalPath        = "withdrawal/apidocs.swagger.json"
 	SwaggerOpenAPIWithdrawalPath = "OpenAPI/withdrawal_service"
 
+	SwaggerBlockValidityProverPath        = "block_validity_prover/apidocs.swagger.json"
+	SwaggerOpenAPIBlockValidityProverPath = "OpenAPI/block_validity_prover_service"
+
 	swaggerBuildVersion = `SWAGGER_VERSION`
 	swaggerHostURL      = `SWAGGER_HOST_URL`
 	swaggerBasePATH     = `SWAGGER_BASE_PATH`

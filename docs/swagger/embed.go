@@ -10,3 +10,6 @@ var FsSwaggerStoreVault embed.FS
 
 //go:embed withdrawal/*
 var FsSwaggerWithdrawal embed.FS
+
+//go:embed block_validity_prover/*
+var FsSwaggerBlockValidityProver embed.FS

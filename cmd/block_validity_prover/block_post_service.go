@@ -1,4 +1,4 @@
-package server
+package block_validity_prover
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-//go:generate mockgen -destination=mock_block_post_service.go -package=server -source=block_post_service.go
+//go:generate mockgen -destination=mock_block_post_service.go -package=block_validity_prover -source=block_post_service.go
 
 type BlockPostService interface {
 	Init(ctx context.Context) (err error)

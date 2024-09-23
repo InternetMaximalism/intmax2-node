@@ -8,7 +8,6 @@ import (
 )
 
 //go:generate mockgen -destination=mock_network_service.go -package=server -source=network_service.go
-//go:generate mockgen -destination=mock_external_address.go -package=server -source=../../internal/network_service/interface_ea.go
 
 type NetworkService interface {
 	GenericCommandsNS

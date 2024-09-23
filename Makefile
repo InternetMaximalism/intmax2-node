@@ -40,6 +40,8 @@ gen: format-proto
 	buf generate -v --debug --timeout=2m --template api/proto/store_vault_service/buf.gen.tagger.yaml api/proto/store_vault_service
 	buf generate -v --debug --timeout=2m --template api/proto/withdrawal_service/buf.gen.yaml api/proto/withdrawal_service
 	buf generate -v --debug --timeout=2m --template api/proto/withdrawal_service/buf.gen.tagger.yaml api/proto/withdrawal_service
+	buf generate -v --debug --timeout=2m --template api/proto/block_validity_prover_service/buf.gen.yaml api/proto/block_validity_prover_service
+	buf generate -v --debug --timeout=2m --template api/proto/block_validity_prover_service/buf.gen.tagger.yaml api/proto/block_validity_prover_service
 	go generate -v ./...
 	cp -rf docs/swagger/block_builder third_party/OpenAPI/block_builder_service
 	cp -rf third_party/OpenAPI/_default/* third_party/OpenAPI/block_builder_service
@@ -47,6 +49,8 @@ gen: format-proto
 	cp -rf third_party/OpenAPI/_default/* third_party/OpenAPI/store_vault_service
 	cp -rf docs/swagger/withdrawal third_party/OpenAPI/withdrawal_service
 	cp -rf third_party/OpenAPI/_default/* third_party/OpenAPI/withdrawal_service
+	cp -rf docs/swagger/block_validity_prover third_party/OpenAPI/block_validity_prover_service
+	cp -rf third_party/OpenAPI/_default/* third_party/OpenAPI/block_validity_prover_service
 # node
 ifneq (${SWAGGER_USE},)
 ifneq (${SWAGGER_BUILD_MODE},)
@@ -101,12 +105,31 @@ else
 	$(SED_COMMAND) -i "s/SWAGGER_BASE_PATH/\//g" third_party/OpenAPI/withdrawal_service/withdrawal/apidocs.swagger.json
 endif
 endif
+# block_validity_prover
+ifneq (${SWAGGER_USE},)
+ifneq (${SWAGGER_BUILD_MODE},)
+	$(SED_COMMAND) -i "s/SWAGGER_VERSION/$(VERSION)/g" third_party/OpenAPI/block_validity_prover_service/block_validity_prover/apidocs.swagger.json
+else
+	$(SED_COMMAND) -i "s/SWAGGER_VERSION/v0.0.0/g" third_party/OpenAPI/block_validity_prover_service/block_validity_prover/apidocs.swagger.json
+endif
+ifneq (${SWAGGER_HOST_URL},)
+	$(SED_COMMAND) -i "s/SWAGGER_HOST_URL/${SWAGGER_HOST_URL}/g" third_party/OpenAPI/block_validity_prover_service/block_validity_prover/apidocs.swagger.json
+else
+	$(SED_COMMAND) -i "s/SWAGGER_HOST_URL//g" third_party/OpenAPI/block_validity_prover_service/block_validity_prover/apidocs.swagger.json
+endif
+ifneq (${SWAGGER_BASE_PATH},)
+	$(SED_COMMAND) -i "s/SWAGGER_BASE_PATH/${SWAGGER_BASE_PATH}/g" third_party/OpenAPI/block_validity_prover_service/block_validity_prover/apidocs.swagger.json
+else
+	$(SED_COMMAND) -i "s/SWAGGER_BASE_PATH/\//g" third_party/OpenAPI/block_validity_prover_service/block_validity_prover/apidocs.swagger.json
+endif
+endif
 
 .PHONY: format-proto
 format-proto: ## format all protos
 	clang-format -i api/proto/block_builder_service/block_builder/v1/block_builder.proto
 	clang-format -i api/proto/store_vault_service/store_vault/v1/store_vault.proto
 	clang-format -i api/proto/withdrawal_service/withdrawal/v1/withdrawal.proto
+	clang-format -i api/proto/block_validity_prover_service/block_validity_prover/v1/block_validity_prover.proto
 
 .PHONY: tools
 tools:
@@ -124,6 +147,7 @@ run: gen ## starting application and dependency services
 # translate `SWAGGER_USE=true GIT_USE=true HTTP_PORT=8080 GRPC_PORT=10000 CMD_RUN="run" make run` => ./intmax2-node run
 # translate `SWAGGER_USE=true GIT_USE=true HTTP_PORT=8081 GRPC_PORT=10001 CMD_RUN="store-vault-server run" make run` => ./intmax2-node store-vault-server run
 # translate `SWAGGER_USE=true GIT_USE=true HTTP_PORT=8082 GRPC_PORT=10002 CMD_RUN="withdrawal-server" make run` => ./intmax2-node withdrawal-server
+# translate `SWAGGER_USE=true GIT_USE=true HTTP_PORT=8083 GRPC_PORT=10003 CMD_RUN="block-validity-prover run" make run` => ./intmax2-node withdrawal-server
 	go run $(GOFLAGS) ./cmd ${CMD_RUN}
 
 .PHONY: cp
@@ -178,4 +202,5 @@ lint:
 	buf lint api/proto/block_builder_service
 	buf lint api/proto/store_vault_service
 	buf lint api/proto/withdrawal_service
+	buf lint api/proto/block_validity_prover_service
 	golangci-lint run --timeout=20m --fix ./...

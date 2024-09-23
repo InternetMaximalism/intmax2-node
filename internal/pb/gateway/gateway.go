@@ -177,6 +177,38 @@ func Run(ctx context.Context, config *Params) (Gateway, chan error) { // nolint:
 		return nil, errCh
 	}
 
+	err = gwMux.HandlePath(http.MethodGet, healthPath, func(w http.ResponseWriter, r *http.Request, _ map[string]string) {
+		config.HealthCheckHandler.ServeHTTP(w, r)
+	})
+	if err != nil {
+		const msg = "failed to register HandlePath (%s %s): %w"
+		errCh <- fmt.Errorf(msg, http.MethodGet, healthPath, err)
+		return nil, errCh
+	}
+
+	err = gwMux.HandlePath(http.MethodGet, statusPath, gw.statusHandler())
+	if err != nil {
+		const msg = "failed to register HandlePath (%s %s): %w"
+		errCh <- fmt.Errorf(msg, http.MethodGet, statusPath, err)
+		return nil, errCh
+	}
+
+	err = gwMux.HandlePath(http.MethodGet, swaggerURI, gw.swaggerHandler(jsonSwagger))
+	if err != nil {
+		const msg = "failed to register HandlePath (%s %s): %w"
+		errCh <- fmt.Errorf(msg, http.MethodGet, swaggerURI, err)
+		return nil, errCh
+	}
+
+	err = gwMux.HandlePath(http.MethodGet, prometheusPath, func(w http.ResponseWriter, r *http.Request, _ map[string]string) {
+		promhttp.Handler().ServeHTTP(w, r)
+	})
+	if err != nil {
+		const msg = "failed to register HandlePath (%s %s): %w"
+		errCh <- fmt.Errorf(msg, http.MethodGet, prometheusPath, err)
+		return nil, errCh
+	}
+
 	const readHeaderTimeout = 300 * time.Millisecond
 	gwServer := &http.Server{
 		BaseContext: func(_ net.Listener) context.Context {
@@ -196,30 +228,6 @@ func Run(ctx context.Context, config *Params) (Gateway, chan error) { // nolint:
 			// GET /swagger/
 			if strings.HasPrefix(r.URL.Path, openAPIPath) {
 				http.StripPrefix(openAPIPath, oa).ServeHTTP(w, r)
-				return
-			}
-
-			err = gwMux.HandlePath(http.MethodGet, healthPath, func(w http.ResponseWriter, r *http.Request, _ map[string]string) {
-				config.HealthCheckHandler.ServeHTTP(w, r)
-			})
-
-			err = gwMux.HandlePath(http.MethodGet, statusPath, gw.statusHandler())
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-
-			err = gwMux.HandlePath(http.MethodGet, swaggerURI, gw.swaggerHandler(jsonSwagger))
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-
-			err = gwMux.HandlePath(http.MethodGet, prometheusPath, func(w http.ResponseWriter, r *http.Request, _ map[string]string) {
-				promhttp.Handler().ServeHTTP(w, r)
-			})
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 

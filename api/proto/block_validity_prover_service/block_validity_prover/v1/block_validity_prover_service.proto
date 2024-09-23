@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package block_validity_prover.v1;
+
+import "google/api/annotations.proto";
+import "tagger/tagger.proto";
+
+// Defines the import path that should be used to import the generated package,
+// and the package name.
+option go_package = ".;block_validity_prover";
+
+service BlockValidityProverService {
+  // DepositTreeProof returns the deposit Merkle proof
+  //
+  // ## DepositTreeProof returns the deposit Merkle proof
+  rpc DepositTreeProof(DepositTreeProofRequest) returns (DepositTreeProofResponse) {
+    option (google.api.http) = {
+      get: "/v1/deposit-tree-proof/{deposit_index}"
+    };
+  }
+}
+
+// DepositTreeProofRequest describes request to get info about the deposit Merkle proof
+message DepositTreeProofRequest {
+  // the deposit index in the latest deposit tree
+  string deposit_index = 10 [json_name="depositIndex", (tagger.tags)="json:\"depositIndex,omitempty\""];
+}
+
+// DepositTreeProofResponse describes response to get info about the deposit Merkle proof
+message DepositTreeProofResponse {
+}

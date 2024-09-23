@@ -3,6 +3,8 @@ package balance_synchronizer
 import (
 	"context"
 	"fmt"
+	"github.com/dimiro1/health"
+	"github.com/spf13/cobra"
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
 	intMaxAcc "intmax2-node/internal/accounts"
@@ -14,10 +16,6 @@ import (
 	"intmax2-node/internal/mnemonic_wallet"
 	mDBApp "intmax2-node/internal/mnemonic_wallet/models"
 	"sync"
-	"time"
-
-	"github.com/dimiro1/health"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -67,6 +65,7 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 				s.Log.Fatalf(msg, err.Error())
 			}
 
+			/**
 			wg.Add(1)
 			s.WG.Add(1)
 			go func() {
@@ -103,7 +102,7 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 								continue
 							}
 
-							if err.Error() == "block content by block number error" {
+							if strings.Contains(err.Error(), "block content by block number error") {
 								s.Log.Warnf("block content by block number error")
 								time.Sleep(int5Key * time.Second)
 
@@ -119,6 +118,7 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 					}
 				}
 			}()
+			*/
 
 			wg.Add(1)
 			s.WG.Add(1)
