@@ -212,7 +212,7 @@ func (input *SendWitnessInput) FromSendWitness(value *SendWitness) *SendWitnessI
 	input.PrevPrivateState = &PrivateStateInput{
 		AssetTreeRoot:     value.PrevPrivateState.AssetTreeRoot,
 		NullifierTreeRoot: value.PrevPrivateState.NullifierTreeRoot,
-		Nonce:             value.PrevPrivateState.Nonce,
+		Nonce:             value.PrevPrivateState.TransactionCount,
 		Salt:              value.PrevPrivateState.Salt,
 	}
 	input.PrevBalances = make([]*AssetLeafEntryInput, len(value.PrevBalances))
@@ -311,10 +311,9 @@ func NewSpentValue(
 	}
 
 	insufficientFlags = backup_balance.InsufficientFlags(insufficientFlags)
-	isValid := uint32(txNonce) == prevPrivateState.Nonce
 	newPrivateState := PrivateState{
 		AssetTreeRoot:     assetTreeRoot,
-		Nonce:             prevPrivateState.Nonce + 1,
+		TransactionCount:  prevPrivateState.TransactionCount + 1,
 		Salt:              newPrivateStateSalt,
 		NullifierTreeRoot: prevPrivateState.NullifierTreeRoot,
 	}
@@ -341,7 +340,7 @@ func NewSpentValue(
 		NewPrivateCommitment:  newPrivateState.Commitment(),
 		Tx:                    tx,
 		InsufficientFlags:     insufficientFlags,
-		IsValid:               isValid,
+		IsValid:               uint32(txNonce) == prevPrivateState.TransactionCount,
 	}, nil
 }
 
@@ -495,7 +494,7 @@ func (input *PrivateWitnessInput) FromPrivateWitness(value *PrivateWitness) *Pri
 		PrevPrivateState: &PrivateStateInput{
 			AssetTreeRoot:     value.PrevPrivateState.AssetTreeRoot,
 			NullifierTreeRoot: value.PrevPrivateState.NullifierTreeRoot,
-			Nonce:             value.PrevPrivateState.Nonce,
+			Nonce:             value.PrevPrivateState.TransactionCount,
 			Salt:              value.PrevPrivateState.Salt,
 		},
 		NullifierProof: &IndexedInsertionProofInput{
@@ -611,7 +610,7 @@ type DepositCase struct {
 type PrivateState struct {
 	AssetTreeRoot     *poseidonHashOut `json:"assetTreeRoot"`
 	NullifierTreeRoot *poseidonHashOut `json:"nullifierTreeRoot"`
-	Nonce             uint32           `json:"nonce"`
+	TransactionCount  uint32           `json:"nonce"`
 	Salt              Salt             `json:"salt"`
 }
 
@@ -640,7 +639,7 @@ func (s *PrivateState) SetDefault() *PrivateState {
 	return &PrivateState{
 		AssetTreeRoot:     assetTreeRoot,
 		NullifierTreeRoot: nullifierTreeRoot,
-		Nonce:             0,
+		TransactionCount:  0,
 		Salt:              Salt{},
 	}
 }
@@ -650,7 +649,7 @@ func (s *PrivateState) ToFieldElementSlice() []ffg.Element {
 	buf := make([]ffg.Element, 0, numPrivateStateElements)
 	buf = append(buf, s.AssetTreeRoot.Elements[:]...)
 	buf = append(buf, s.NullifierTreeRoot.Elements[:]...)
-	buf = append(buf, *new(ffg.Element).SetUint64(uint64(s.Nonce)))
+	buf = append(buf, *new(ffg.Element).SetUint64(uint64(s.TransactionCount)))
 	buf = append(buf, s.Salt.Elements[:]...)
 
 	return buf

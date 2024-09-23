@@ -193,9 +193,19 @@ func makeSampleData(t *testing.T) *block_signature.UCBlockSignatureInput {
 
 	publicKeysHash := crypto.Keccak256(senderPublicKeysBytes)
 
+	prevBalanceProof := block_signature.Plonky2Proof{
+		Proof:        []byte{0},
+		PublicInputs: []uint64{0, 0, 0, 0},
+	} // TODO: This is dummy
+	transferStepProof := block_signature.Plonky2Proof{
+		Proof:        []byte{1},
+		PublicInputs: []uint64{1, 1, 1, 1},
+	} // TODO: This is dummy
+
 	var res *block_signature.UCBlockSignatureInput
 	res, err = tx_transfer_service.MakePostBlockSignatureRawRequest(
 		senderAccount, txTreeRoot, publicKeysHash,
+		prevBalanceProof, transferStepProof,
 	)
 	require.NoError(t, err)
 

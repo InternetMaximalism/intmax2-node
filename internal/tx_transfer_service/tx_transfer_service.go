@@ -11,6 +11,7 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	intMaxAccTypes "intmax2-node/internal/accounts/types"
+	"intmax2-node/internal/balance_prover_service"
 	"intmax2-node/internal/balance_service"
 	"intmax2-node/internal/balance_synchronizer"
 	"intmax2-node/internal/block_validity_prover"
@@ -20,6 +21,7 @@ import (
 	"intmax2-node/internal/mnemonic_wallet"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
+	"intmax2-node/internal/use_cases/block_signature"
 	"intmax2-node/internal/use_cases/transaction"
 	"math/big"
 	"strconv"
@@ -41,7 +43,7 @@ func TransferTransaction(
 	cfg *configs.Config,
 	log logger.Logger,
 	sb ServiceBlockchain,
-	db block_validity_prover.SQLDriverApp,
+	db block_validity_prover.SQLDriverApp, // TODO: Remove this
 	args []string,
 	amountStr string,
 	recipientAddressStr string,
@@ -341,6 +343,47 @@ func TransferTransaction(
 		TxTreeRoot:    &proposedBlock.TxTreeRoot,
 		TxMerkleProof: proposedBlock.TxTreeMerkleProof,
 	}
+
+	lastBalanceProofWithPis := balanceSynchronizer.LastBalanceProof()
+
+	txWitness, transferWitnesses, err := balance_synchronizer.MakeTxWitness(blockValidityService, &txDetails)
+	if err != nil {
+		const msg = "failed to send transaction: %+v"
+		return fmt.Errorf(msg, err.Error())
+	}
+	newSalt, err := new(balance_prover_service.Salt).SetRandom()
+	if err != nil {
+		const msg = "failed to set random: %+v"
+		return fmt.Errorf(msg, err.Error())
+	}
+	sendWitness, err := userWalletState.UpdateOnSendTx(
+		*newSalt, txWitness, transferWitnesses,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update on send tx: %v", err)
+	}
+
+	prevBalancePisBlockNumber := sendWitness.GetPrevBalancePisBlockNumber()
+	currentBlockNumber := sendWitness.GetIncludedBlockNumber()
+	updateWitness, err := blockValidityService.FetchUpdateWitness(
+		userWalletState.PublicKey(),
+		&currentBlockNumber,
+		prevBalancePisBlockNumber,
+		true,
+	)
+	if err != nil {
+		return err
+	}
+
+	balanceTransitionProof, err := balanceSynchronizer.ProveSendTransition(sendWitness, updateWitness)
+	if err != nil {
+		return fmt.Errorf("failed to create balance transition proof: %v", err)
+	}
+	balanceTransitionProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(balanceTransitionProof.Proof)
+	if err != nil {
+		return fmt.Errorf("failed to create balance transition proof with pis: %v", err)
+	}
+
 	backupTx, err := transaction.NewBackupTransactionData(
 		userAccount.Public(),
 		txDetails,
@@ -375,16 +418,16 @@ func TransferTransaction(
 			TransferMerkleProof: transferMerkleProof,
 		}
 		transferDetails := intMaxTypes.TransferDetails{
-			TransferWitness: &transferWitness,
-			TxTreeRoot:      &proposedBlock.TxTreeRoot,
-			TxMerkleProof:   proposedBlock.TxTreeMerkleProof,
-			// SenderLastBalancePublicInputs:       lastBalanceProofWithPis.PublicInputsBytes(),
-			// SenderBalanceTransitionPublicInputs: balanceTransitionProofWithPis.PublicInputsBytes(),
+			TransferWitness:                     &transferWitness,
+			TxTreeRoot:                          &proposedBlock.TxTreeRoot,
+			TxMerkleProof:                       proposedBlock.TxTreeMerkleProof,
+			SenderLastBalancePublicInputs:       lastBalanceProofWithPis.PublicInputsBytes(),
+			SenderBalanceTransitionPublicInputs: balanceTransitionProofWithPis.PublicInputsBytes(),
 		}
 		backupTransfers[i], err = MakeTransferBackupData(
 			&transferDetails,
-			// lastBalanceProofWithPis.ProofBase64String(),
-			// balanceTransitionProofWithPis.ProofBase64String(),
+			// lastBalanceProofBodyId,
+			// balanceTransitionProofBodyId,
 		)
 		if err != nil {
 			return fmt.Errorf("failed to make backup transfer data: %v", err)
@@ -393,10 +436,15 @@ func TransferTransaction(
 		fmt.Printf("SenderTransitionProofBody[%d]: %v\n", i, backupTransfers[i].SenderTransitionProofBody)
 	}
 
+	enoughBalanceProof := new(block_signature.EnoughBalanceProofBodyInput).Set(&block_signature.EnoughBalanceProofBodyInput{
+		PrevBalanceProofBody:  base64.StdEncoding.EncodeToString(lastBalanceProofWithPis.Proof),
+		TransferStepProofBody: base64.StdEncoding.EncodeToString(balanceTransitionProofWithPis.Proof),
+	})
+
 	// Accept proposed block
 	err = SendSignedProposedBlock(
 		ctx, cfg, log, userAccount, proposedBlock.TxTreeRoot, *txHash, proposedBlock.PublicKeys,
-		backupTx, backupTransfers,
+		backupTx, backupTransfers, enoughBalanceProof,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to send transaction: %v", err)
@@ -416,8 +464,8 @@ var ErrFailedToUnmarshal = errors.New("failed to unmarshal")
 
 func MakeTransferBackupData(
 	transferDetails *intMaxTypes.TransferDetails,
-	// senderLastBalanceProofBody string,
-	// senderBalanceTransitionProofBody string,
+	// senderLastBalanceProofBodyId string,
+	// senderBalanceTransitionProofBodyId string,
 ) (backupTransfer *transaction.BackupTransferInput, _ error) {
 	// if len(senderLastBalanceProofBody) == 0 {
 	// 	return nil, errors.New("sender last balance proof body is empty")

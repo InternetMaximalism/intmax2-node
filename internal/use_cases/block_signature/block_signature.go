@@ -2,6 +2,7 @@ package block_signature
 
 import (
 	"context"
+	"encoding/base64"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/use_cases/transaction"
 	"intmax2-node/internal/worker"
@@ -39,6 +40,25 @@ func (dst *EnoughBalanceProofInput) Set(src *EnoughBalanceProofInput) *EnoughBal
 	return dst
 }
 
+type EnoughBalanceProofBodyInput struct {
+	PrevBalanceProofBody  string `json:"prevBalanceProof"`
+	TransferStepProofBody string `json:"transferStepProof"`
+}
+
+func (dst *EnoughBalanceProofBodyInput) Set(src *EnoughBalanceProofBodyInput) *EnoughBalanceProofBodyInput {
+	dst.PrevBalanceProofBody = src.PrevBalanceProofBody
+	dst.TransferStepProofBody = src.TransferStepProofBody
+
+	return dst
+}
+
+func (dst *EnoughBalanceProofBodyInput) FromEnoughBalanceProofInput(src *EnoughBalanceProofInput) *EnoughBalanceProofBodyInput {
+	dst.PrevBalanceProofBody = base64.StdEncoding.EncodeToString(src.PrevBalanceProof.Proof)
+	dst.TransferStepProofBody = base64.StdEncoding.EncodeToString(src.TransferStepProof.Proof)
+
+	return dst
+}
+
 type UCBlockSignatureInput struct {
 	Sender             string                                     `json:"sender"`
 	DecodeSender       *intMaxAcc.PublicKey                       `json:"-"`
@@ -46,7 +66,7 @@ type UCBlockSignatureInput struct {
 	TxTree             *worker.TxTree                             `json:"-"`
 	TxInfo             *worker.TransactionHashesWithSenderAndFile `json:"-"`
 	Signature          string                                     `json:"signature"`
-	EnoughBalanceProof *EnoughBalanceProofInput                   `json:"enoughBalanceProof"`
+	EnoughBalanceProof *EnoughBalanceProofBodyInput               `json:"enoughBalanceProof"`
 	BackupTx           *transaction.BackupTransactionData         `json:"backupTx"`
 	BackupTransfers    []*transaction.BackupTransferInput         `json:"backupTransfers"`
 }

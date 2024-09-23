@@ -27,24 +27,24 @@ type uc struct {
 	cfg *configs.Config
 	log logger.Logger
 	sb  ServiceBlockchain
-	db  block_validity_prover.SQLDriverApp
 }
 
 func New(
 	cfg *configs.Config,
 	log logger.Logger,
 	sb ServiceBlockchain,
-	db block_validity_prover.SQLDriverApp,
 ) txTransfer.UseCaseTxTransfer {
 	return &uc{
 		cfg: cfg,
 		log: log,
 		sb:  sb,
-		db:  db,
 	}
 }
 
-func (u *uc) Do(ctx context.Context, args []string, amount, recipientAddressStr, userEthPrivateKey string) (err error) {
+func (u *uc) Do(
+	ctx context.Context, args []string, amount, recipientAddressStr, userEthPrivateKey string,
+	db block_validity_prover.SQLDriverApp, // TODO: Remove this dependency
+) (err error) {
 	const (
 		hName     = "UseCase TxTransfer"
 		senderKey = "sender"
@@ -84,5 +84,5 @@ func (u *uc) Do(ctx context.Context, args []string, amount, recipientAddressStr,
 		return ErrEmptyAmount
 	}
 
-	return service.TransferTransaction(spanCtx, u.cfg, u.log, u.sb, u.db, args, amount, recipientAddressStr, userEthPrivateKey)
+	return service.TransferTransaction(spanCtx, u.cfg, u.log, u.sb, db, args, amount, recipientAddressStr, userEthPrivateKey)
 }

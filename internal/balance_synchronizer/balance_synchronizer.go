@@ -63,6 +63,27 @@ func (s *balanceSynchronizer) CurrentNonce() uint32 {
 	return s.userState.Nonce()
 }
 
+func (s *balanceSynchronizer) LastBalanceProof() *intMaxTypes.Plonky2Proof {
+	return &intMaxTypes.Plonky2Proof{
+		Proof:        s.syncBalanceProver.lastBalanceProofBody,
+		PublicInputs: s.syncBalanceProver.balanceData.BalanceProofPublicInputs,
+	}
+}
+
+func (s *balanceSynchronizer) ProveSendTransition(
+	sendWitness *balance_prover_service.SendWitness,
+	updateWitness *block_validity_prover.UpdateWitness,
+) (*balance_prover_service.SenderProofWithPublicInputs, error) {
+	publicKey := s.userState.PublicKey()
+	lastBalanceProof := s.LastBalanceProof().ProofBase64String()
+	return s.balanceProcessor.ProveSendTransition(
+		publicKey,
+		sendWitness,
+		updateWitness,
+		&lastBalanceProof,
+	)
+}
+
 func (s *balanceSynchronizer) Sync(
 	intMaxPrivateKey *intMaxAcc.PrivateKey,
 ) error {

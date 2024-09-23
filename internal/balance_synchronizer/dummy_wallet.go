@@ -157,6 +157,7 @@ func NewBlockContentFromTxRequests(isRegistrationBlock bool, txs []*block_validi
 	return blockContent, nil
 }
 
+// NOTE: This function is used for testing only
 func (w *mockWallet) SendTx(
 	blockValidityProver *block_validity_prover.BlockValidityProverMemory,
 	transfers []*intMaxTypes.Transfer,
@@ -193,7 +194,7 @@ func (w *mockWallet) SendTx(
 	txRequest0 := block_validity_prover.MockTxRequest{
 		Tx:                  &tx,
 		Sender:              &w.privateKey,
-		AccountID:           2,
+		AccountID:           2, // XXX: Use correct account ID
 		WillReturnSignature: true,
 	}
 	txRequests := []*block_validity_prover.MockTxRequest{&txRequest0}
@@ -370,7 +371,7 @@ func MakeTxWitness(
 }
 
 func (w *mockWallet) UpdateOnSendTx(
-	salt balance_prover_service.Salt,
+	newSalt balance_prover_service.Salt,
 	txWitness *balance_prover_service.TxWitness,
 	transferWitnesses []*intMaxTypes.TransferWitness,
 ) (*balance_prover_service.SendWitness, error) {
@@ -385,7 +386,7 @@ func (w *mockWallet) UpdateOnSendTx(
 	}
 
 	w.nonce += 1
-	w.salt = salt
+	w.salt = newSalt
 	w.publicState = txWitness.ValidityPis.PublicState
 
 	transfers := make([]*intMaxTypes.Transfer, 0, len(transferWitnesses))
@@ -426,7 +427,7 @@ func (w *mockWallet) UpdateOnSendTx(
 		InsufficientFlags:   *insufficientFlags,
 		Transfers:           transfers,
 		TxWitness:           *txWitness,
-		NewPrivateStateSalt: salt,
+		NewPrivateStateSalt: newSalt,
 	}
 
 	w.sendWitnesses[sendWitness.GetIncludedBlockNumber()] = &sendWitness
@@ -510,7 +511,7 @@ func (s *mockWallet) PrivateState() *balance_prover_service.PrivateState {
 	return &balance_prover_service.PrivateState{
 		AssetTreeRoot:     s.assetTree.GetRoot(),
 		NullifierTreeRoot: s.nullifierTree.GetRoot(),
-		Nonce:             s.nonce,
+		TransactionCount:  s.nonce,
 		Salt:              s.salt,
 	}
 }

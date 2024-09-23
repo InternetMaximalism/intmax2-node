@@ -2,10 +2,17 @@ package tx_withdrawal
 
 import (
 	"context"
+	"intmax2-node/internal/block_validity_prover"
 )
 
 //go:generate mockgen -destination=../mocks/mock_tx_withdrawal.go -package=mocks -source=tx_withdrawal.go
 
 type UseCaseTxWithdrawal interface {
-	Do(ctx context.Context, args []string, recipientAddressHex, amount, userPrivateKey string, resumeIncompleteWithdrawals bool) error
+	Do(
+		ctx context.Context,
+		args []string,
+		recipientAddressHex, amount, userPrivateKey string,
+		resumeIncompleteWithdrawals bool,
+		db block_validity_prover.SQLDriverApp,
+	) error
 }

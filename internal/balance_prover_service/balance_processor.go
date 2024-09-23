@@ -30,12 +30,13 @@ const (
 )
 
 type SenderProofWithPublicInputs struct {
+	// Proof is a base64 encoded string with public inputs
 	Proof        string
 	PublicInputs *SenderPublicInputs
 }
 
 type BalanceProofWithPublicInputs struct {
-	// NOTICE: include public inputs
+	// Proof is a base64 encoded string with public inputs
 	Proof        string
 	PublicInputs *BalancePublicInputs
 }

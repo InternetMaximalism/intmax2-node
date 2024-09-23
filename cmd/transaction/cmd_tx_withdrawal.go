@@ -49,7 +49,7 @@ func txWithdrawalCmd(b *Transaction) *cobra.Command {
 			os.Exit(1)
 		}
 
-		err = newCommands().SendWithdrawalTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, recipientAddressStr, amount, utils.RemoveZeroX(userEthPrivateKey), resume)
+		err = newCommands().SendWithdrawalTransaction(b.Config, b.Log, b.SB).Do(b.Context, args, recipientAddressStr, amount, utils.RemoveZeroX(userEthPrivateKey), resume, b.DbApp)
 		if err != nil {
 			const msg = "Fatal: %v\n"
 			_, _ = fmt.Fprintf(os.Stderr, msg, err)
