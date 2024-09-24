@@ -35,8 +35,8 @@ type mockBlockBuilder struct {
 	// LastGeneratedProofBlockNumber uint32
 	// ValidityProofs                map[uint32]string
 
-	latestWitnessBlockNumber uint32
-	MerkleTreeHistory        map[uint32]*MerkleTrees
+	// latestWitnessBlockNumber uint32
+	MerkleTreeHistory MerkleTreeHistory
 	// LastSeenProcessedDepositId    uint64
 	// auxInfo                  map[uint32]*mDBApp.BlockContent
 	// validityWitnesses        map[uint32]*ValidityWitness
@@ -164,7 +164,7 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 		lastProofGeneratedBlockNumber = 0
 	}
 
-	merkleTreeHistory := make(map[uint32]*MerkleTrees)
+	merkleTrees := make(map[uint32]*MerkleTrees)
 
 	blockHashAndSendersMap, lastSynchronizedBlockNumber, err := db.ScanBlockHashAndSenders()
 	if err != nil {
@@ -188,7 +188,7 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 		panic(err)
 	}
 
-	merkleTreeHistory[0] = &MerkleTrees{
+	merkleTrees[0] = &MerkleTrees{
 		AccountTree:   new(intMaxTree.AccountTree).Set(accountTree),
 		BlockHashTree: new(intMaxTree.BlockHashTree).Set(blockHashTree),
 		DepositLeaves: make([]*intMaxTree.DepositLeaf, 0),
@@ -204,7 +204,7 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 			panic(fmt.Sprintf("block number %d not found", blockNumber))
 		}
 
-		merkleTreeHistory[blockNumber] = new(MerkleTrees)
+		merkleTrees[blockNumber] = new(MerkleTrees)
 
 		fmt.Printf("blockHashAndSendersMap[%d].BlockHash: %s\n", blockNumber, blockHashAndSenders.BlockHash)
 		blockHashes[blockNumber] = intMaxTree.NewBlockHashLeaf(common.HexToHash("0x" + blockHashAndSenders.BlockHash))
@@ -213,7 +213,7 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 			panic(err)
 		}
 		fmt.Printf("blockHashTree %d root: %s\n", blockNumber, blockHashTree.GetRoot().String())
-		merkleTreeHistory[blockNumber].BlockHashTree = new(intMaxTree.BlockHashTree).Set(blockHashTree)
+		merkleTrees[blockNumber].BlockHashTree = new(intMaxTree.BlockHashTree).Set(blockHashTree)
 
 		count := 0
 		for i, sender := range blockHashAndSenders.Senders {
@@ -242,7 +242,7 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 			}
 		}
 		fmt.Printf("blockHashAndSendersMap[%d].Senders count: %d\n", blockNumber, count)
-		merkleTreeHistory[blockNumber].AccountTree = new(intMaxTree.AccountTree).Set(accountTree)
+		merkleTrees[blockNumber].AccountTree = new(intMaxTree.AccountTree).Set(accountTree)
 	}
 	fmt.Printf("blockHashTree leaves: %v\n", blockHashTree.Leaves)
 	for i, leaf := range blockHashTree.Leaves {
@@ -262,10 +262,14 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 	blockNumber := uint32(1)
 	depositTreeRoot, _, _ := depositTree.GetCurrentRootCountAndSiblings()
 	depositTreeRootHex := depositTreeRoot.Hex()[2:]
+	fmt.Printf("lastProofGeneratedBlockNumber: %d\n", lastProofGeneratedBlockNumber)
+	fmt.Printf("depositTreeRootHex: %s\n", depositTreeRootHex)
 	for blockHashAndSendersMap[blockNumber].DepositTreeRoot == depositTreeRootHex && blockNumber <= lastProofGeneratedBlockNumber {
-		merkleTreeHistory[blockNumber].DepositLeaves = make([]*intMaxTree.DepositLeaf, 0)
+		fmt.Printf("DepositTreeRoots[%d]: %s\n", blockNumber, blockHashAndSendersMap[blockNumber].DepositTreeRoot)
+		merkleTrees[blockNumber].DepositLeaves = make([]*intMaxTree.DepositLeaf, 0)
 		blockNumber++
 	}
+	fmt.Printf("blockNumber (DepositTreeRoot): %d\n", blockNumber)
 
 	depositLeaves := make([]*intMaxTree.DepositLeaf, 0)
 	for depositIndex, deposit := range deposits {
@@ -286,20 +290,23 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 
 		depositTreeRootHex = depositTreeRoot.Hex()[2:]
 		depositLeaves = append(depositLeaves, &depositLeaf)
-		fmt.Printf("depositTreeRoot: %s\n", blockHashAndSendersMap[blockNumber].DepositTreeRoot)
+		fmt.Printf("depositTreeRoots[%d]: %s\n", blockNumber, blockHashAndSendersMap[blockNumber].DepositTreeRoot)
 		for blockHashAndSendersMap[blockNumber].DepositTreeRoot == depositTreeRootHex && blockNumber <= lastProofGeneratedBlockNumber {
-			merkleTreeHistory[blockNumber].DepositLeaves = depositLeaves
+			merkleTrees[blockNumber].DepositLeaves = depositLeaves
 			blockNumber++
 		}
 	}
 
 	return &mockBlockBuilder{
-		db:                db,
-		AccountTree:       new(intMaxTree.AccountTree).Set(merkleTreeHistory[lastProofGeneratedBlockNumber].AccountTree),
-		BlockTree:         new(intMaxTree.BlockHashTree).Set(merkleTreeHistory[lastProofGeneratedBlockNumber].BlockHashTree),
-		DepositTree:       new(intMaxTree.KeccakMerkleTree).Set(depositTree),
-		DepositLeaves:     merkleTreeHistory[lastProofGeneratedBlockNumber].DepositLeaves,
-		MerkleTreeHistory: merkleTreeHistory,
+		db:            db,
+		AccountTree:   new(intMaxTree.AccountTree).Set(merkleTrees[lastProofGeneratedBlockNumber].AccountTree),
+		BlockTree:     new(intMaxTree.BlockHashTree).Set(merkleTrees[lastProofGeneratedBlockNumber].BlockHashTree),
+		DepositTree:   new(intMaxTree.KeccakMerkleTree).Set(depositTree),
+		DepositLeaves: merkleTrees[lastProofGeneratedBlockNumber].DepositLeaves,
+		MerkleTreeHistory: *NewMerkleTreeHistory(
+			lastSynchronizedBlockNumber,
+			merkleTrees,
+		),
 		// auxInfo:                       auxInfo,
 		// LastGeneratedProofBlockNumber: 0,
 		// ValidityProofs:                make(map[uint32]string),
@@ -494,20 +501,24 @@ func (db *mockBlockBuilder) SetValidityWitness(blockNumber uint32, witness *Vali
 	fmt.Printf("blockNumber: %d\n", blockNumber)
 	fmt.Printf("GetAccountMembershipProof root: %s\n", db.AccountTree.GetRoot().String())
 
-	db.latestWitnessBlockNumber = blockNumber
-	// db.validityWitnesses[blockNumber] = new(ValidityWitness).Set(witness)
-	db.MerkleTreeHistory[blockNumber] = &MerkleTrees{
+	if blockNumber != db.MerkleTreeHistory.lastBlockNumber+1 {
+		return fmt.Errorf("new block number is not equal to the last block number + 1: %d != %d + 1", blockNumber, db.MerkleTreeHistory.lastBlockNumber)
+	}
+	db.MerkleTreeHistory.PushHistory(&MerkleTrees{
 		AccountTree:   new(intMaxTree.AccountTree).Set(db.AccountTree),
 		BlockHashTree: new(intMaxTree.BlockHashTree).Set(db.BlockTree),
 		DepositLeaves: depositTree.Leaves,
-		// DepositTreeRoot: depositTreeRoot,
-	}
+	})
 
 	return nil
 }
 
 func (db *mockBlockBuilder) LastValidityWitness() (*ValidityWitness, error) {
-	return db.ValidityWitnessByBlockNumber(db.latestWitnessBlockNumber)
+	lastGeneratedProofBlockNumber, err := db.LastGeneratedProofBlockNumber()
+	if err != nil {
+		return nil, err
+	}
+	return db.ValidityWitnessByBlockNumber(lastGeneratedProofBlockNumber)
 }
 
 func (db *mockBlockBuilder) ValidityWitnessByBlockNumber(blockNumber uint32) (*ValidityWitness, error) {
@@ -545,7 +556,7 @@ func (db *mockBlockBuilder) AccountTreeRoot() (*intMaxGP.PoseidonHashOut, error)
 }
 
 func (db *mockBlockBuilder) GetAccountMembershipProof(blockNumber uint32, publicKey *big.Int) (*intMaxTree.IndexedMembershipProof, error) {
-	blockHistory, ok := db.MerkleTreeHistory[blockNumber]
+	blockHistory, ok := db.MerkleTreeHistory.MerkleTrees[blockNumber]
 	if !ok {
 		return nil, fmt.Errorf("current block number %d not found", blockNumber)
 	}
@@ -578,7 +589,7 @@ func (db *mockBlockBuilder) BlockTreeRoot(blockNumber *uint32) (*intMaxGP.Poseid
 		return db.BlockTree.GetRoot(), nil
 	}
 
-	blockHistory, ok := db.MerkleTreeHistory[*blockNumber]
+	blockHistory, ok := db.MerkleTreeHistory.MerkleTrees[*blockNumber]
 	if !ok {
 		return nil, errors.New("block number not found")
 	}
@@ -592,7 +603,7 @@ func (db *mockBlockBuilder) BlockTreeProof(rootBlockNumber uint32, leafBlockNumb
 		// return nil, fmt.Errorf("root block number should be greater than or equal to leaf block number: %d < %d", rootBlockNumber, leafBlockNumber)
 	}
 
-	blockHistory, ok := db.MerkleTreeHistory[rootBlockNumber]
+	blockHistory, ok := db.MerkleTreeHistory.MerkleTrees[rootBlockNumber]
 	if !ok {
 		return nil, fmt.Errorf("root block number %d not found (BlockTreeProof)", rootBlockNumber)
 	}
@@ -622,7 +633,7 @@ func (db *mockBlockBuilder) IsSynchronizedDepositIndex(depositIndex uint32) (boo
 	}
 	fmt.Printf("lastPostedBlockNumber: %d\n", lastGeneratedProofBlockNumber)
 
-	depositLeaves := db.MerkleTreeHistory[lastGeneratedProofBlockNumber].DepositLeaves
+	depositLeaves := db.MerkleTreeHistory.MerkleTrees[lastGeneratedProofBlockNumber].DepositLeaves
 	fmt.Printf("lastGeneratedProofBlockNumber (IsSynchronizedDepositIndex): %d\n", lastGeneratedProofBlockNumber)
 	fmt.Printf("latest deposit index: %d\n", len(depositLeaves))
 	fmt.Printf("depositIndex: %d\n", depositIndex)
@@ -636,7 +647,7 @@ func (db *mockBlockBuilder) IsSynchronizedDepositIndex(depositIndex uint32) (boo
 
 func (db *mockBlockBuilder) DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error) {
 	fmt.Printf("blockNumber (DepositTreeProof): %d\n", blockNumber)
-	depositLeaves := db.MerkleTreeHistory[blockNumber].DepositLeaves
+	depositLeaves := db.MerkleTreeHistory.MerkleTrees[blockNumber].DepositLeaves
 
 	if depositIndex >= uint32(len(depositLeaves)) {
 		return nil, common.Hash{}, errors.New("block number is out of range")
@@ -665,7 +676,7 @@ func (db *mockBlockBuilder) BlockNumberByDepositIndex(depositIndex uint32) (uint
 	blockNumber := uint32(1)
 	fmt.Printf("lastValidityWitness.BlockWitness.Block.BlockNumber: %d\n", lastValidityWitness.BlockWitness.Block.BlockNumber)
 	for ; blockNumber <= lastValidityWitness.BlockWitness.Block.BlockNumber; blockNumber++ {
-		depositLeaves := db.MerkleTreeHistory[blockNumber].DepositLeaves
+		depositLeaves := db.MerkleTreeHistory.MerkleTrees[blockNumber].DepositLeaves
 		fmt.Printf("latest deposit index: %d\n", len(depositLeaves))
 		if depositIndex >= uint32(len(depositLeaves)) {
 			return 0, errors.New("deposit index is out of range")
@@ -1366,7 +1377,7 @@ func calculateValidityWitnessWithMerkleProofs(
 }
 
 func (b *mockBlockBuilder) LatestIntMaxBlockNumber() uint32 {
-	return b.latestWitnessBlockNumber
+	return b.MerkleTreeHistory.lastBlockNumber
 }
 
 func (b *mockBlockBuilder) LastSeenBlockPostedEventBlockNumber() (uint64, error) {

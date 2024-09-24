@@ -249,8 +249,23 @@ func (p *blockValidityProver) syncBlockProverWithAuxInfo(
 	}
 
 	fmt.Printf("blockWitness.Block.BlockNumber (syncBlockProverWithAuxInfo): %d\n", blockWitness.Block.BlockNumber)
-	if blockWitness.Block.BlockNumber != p.blockBuilder.LatestIntMaxBlockNumber()+1 {
-		fmt.Printf("db.LatestIntMaxBlockNumber(): %d\n", p.blockBuilder.LatestIntMaxBlockNumber())
+
+	{
+		fmt.Printf("block.BlockNumber: %d\n", blockWitness.Block.BlockNumber)
+		fmt.Printf("prevBlockTreeRoot: %s\n", blockWitness.PrevBlockTreeRoot.String())
+		for i, blockHashes := range p.blockBuilder.BlockTree.Leaves {
+			fmt.Printf("block tree leaves[%d]: %x\n", i, blockHashes.Marshal())
+		}
+		defaultBlockLeafHash := new(intMaxTree.BlockHashLeaf).SetDefault()
+		fmt.Printf("block tree default leaf: %x\n", defaultBlockLeafHash.Marshal())
+		fmt.Printf("block tree default leaf hash: %x\n", defaultBlockLeafHash.Hash().Marshal())
+		for i, sibling := range latestValidityWitness.ValidityTransitionWitness.BlockMerkleProof.Siblings {
+			fmt.Printf("validity transition sibling[%d]: %s\n", i, sibling.String())
+		}
+	}
+	prevPis := latestValidityWitness.ValidityPublicInputs()
+	if blockWitness.Block.BlockNumber != prevPis.PublicState.BlockNumber+1 {
+		fmt.Printf("latestValidityWitness.BlockWitness.Block.BlockNumber: %d\n", latestValidityWitness.BlockWitness.Block.BlockNumber)
 		return errors.New("block number is not equal to the last block number + 1")
 	}
 	_, err = calculateValidityWitnessWithConsistencyCheck(p.blockBuilder, blockWitness, latestValidityWitness)

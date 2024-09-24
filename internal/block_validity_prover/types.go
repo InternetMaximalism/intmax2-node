@@ -1362,10 +1362,10 @@ func (vw *ValidityWitness) ValidityPublicInputs() *ValidityPublicInputs {
 		int(block.BlockNumber),
 		prevBlockTreeRoot,
 	)
-
 	if err != nil {
 		panic("Block merkle proof is invalid")
 	}
+
 	blockHashLeaf := intMaxTree.NewBlockHashLeaf(block.Hash())
 	blockTreeRoot := validityTransitionWitness.BlockMerkleProof.GetRoot(blockHashLeaf.Hash(), int(block.BlockNumber))
 	fmt.Printf("new block root: %s\n", blockTreeRoot.String())
@@ -1456,16 +1456,26 @@ type MerkleTrees struct {
 	AccountTree   *intMaxTree.AccountTree
 	BlockHashTree *intMaxTree.BlockHashTree
 	DepositLeaves []*intMaxTree.DepositLeaf
-	// DepositRoots  []common.Hash
 }
 
-type CircuitData interface{}
+type MerkleTreeHistory struct {
+	MerkleTrees     map[uint32]*MerkleTrees
+	lastBlockNumber uint32
+}
 
-// / A dummy implementation of the transition wrapper circuit used for testing balance proof.
-type TransitionWrapperCircuit interface {
-	Prove(
-		prevPis *ValidityPublicInputs,
-		validity_witness *ValidityWitness,
-	) (*intMaxTypes.Plonky2Proof, error)
-	CircuitData() *CircuitData
+func NewMerkleTreeHistory(lastBlockNumber uint32, merkleTrees map[uint32]*MerkleTrees) *MerkleTreeHistory {
+	return &MerkleTreeHistory{
+		MerkleTrees:     merkleTrees,
+		lastBlockNumber: lastBlockNumber,
+	}
+}
+
+func (history *MerkleTreeHistory) LastBlockNumber() uint32 {
+	return history.lastBlockNumber
+}
+
+func (history *MerkleTreeHistory) PushHistory(merkleTrees *MerkleTrees) {
+	newBlockNumber := history.lastBlockNumber + 1
+	history.MerkleTrees[newBlockNumber] = merkleTrees
+	history.lastBlockNumber = newBlockNumber
 }
