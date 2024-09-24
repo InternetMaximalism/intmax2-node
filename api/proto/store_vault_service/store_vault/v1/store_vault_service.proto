@@ -513,6 +513,15 @@ service StoreVaultService {
     };
   }
 
+  // GetBackupBalanceProofs retrieves sender's balance proofs for a given hashes
+  //
+  // ## This method retrieves the sender's balance proofs for the provided hashes.
+  rpc GetBackupBalanceProofs(GetBackupBalanceProofsRequest) returns (GetBackupBalanceProofsResponse) {
+    option (google.api.http) = {
+      get: "/v1/backups/proof"
+    };
+  }
+
   // GetBalances retrieves balances for a given address
   //
   // ## This method retrieves the balance for the provided address.
@@ -542,10 +551,8 @@ message BackupTransferRequest {
   string recipient = 30;
   // The block number associated with the transfer
   uint64 block_number = 40;
-  // The balance proof from the sender
-  string sender_last_balance_proof_body = 50;
-  // The balance proof from the sender
-  string sender_balance_transition_proof_body = 60;
+  // The hash of the sender balance proof
+  string sender_enough_balance_proof_body_hash = 50;
 }
 
 // BackupTransferResponse is the response message for Backup method.
@@ -582,10 +589,6 @@ message GetBackupTransfersResponse {
     string recipient = 3;
     string encrypted_transfer = 4;
     google.protobuf.Timestamp created_at = 5;
-    // The balance proof from the sender
-    string sender_last_balance_proof_body = 6;
-    // The balance proof from the sender
-    string sender_balance_transition_proof_body = 7;
   }
 
   message Meta {
@@ -615,6 +618,13 @@ message BackupTransactionRequest {
   string signature = 50;
   // The encoding version for the encrypted_tx
   uint32 encoding_version = 60;
+  // The balance proof from the sender
+  EnoughBalanceProofBody sender_enough_balance_proof_body = 70;
+
+  message EnoughBalanceProofBody {
+    string prev_balance_proof = 1;
+    string transition_step_proof = 2;
+  }
 }
 
 // BackupTransactionResponse is the response message for Backup method.
@@ -1047,6 +1057,27 @@ message GetBackupBalancesResponse {
   }
 
   StoreVaultError error = 3;
+}
+
+message GetBackupBalanceProofsRequest {
+  repeated string hashes = 1;
+}
+
+message GetBackupBalanceProofsResponse {
+  bool success = 1;
+  Data data = 2;
+  StoreVaultError error = 3;
+
+  message Data {
+    repeated Proof proofs = 1;
+  }
+
+  message Proof {
+    string id = 1;
+    string enough_balance_proof_body_hash = 2;
+    string last_balance_proof_body = 3;
+    string balance_transition_proof_body = 4;
+  }
 }
 
 // The request message for verifying deposit confirmation

@@ -4,7 +4,7 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 	backupBalance "intmax2-node/internal/use_cases/backup_balance"
-	backupBalanceProof "intmax2-node/internal/use_cases/backup_proof"
+	backupBalanceProof "intmax2-node/internal/use_cases/backup_balance_proof"
 	getBackupDepositByHash "intmax2-node/internal/use_cases/get_backup_deposit_by_hash"
 	getBackupDeposits "intmax2-node/internal/use_cases/get_backup_deposits"
 	getBackupDepositsList "intmax2-node/internal/use_cases/get_backup_deposits_list"
