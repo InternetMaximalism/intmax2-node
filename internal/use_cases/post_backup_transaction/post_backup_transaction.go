@@ -11,11 +11,13 @@ const (
 )
 
 type UCPostBackupTransactionInput struct {
-	TxHash      string `json:"txHash"`
-	EncryptedTx string `json:"encryptedTx"`
-	Sender      string `json:"sender"`
-	BlockNumber uint32 `json:"blockNumber"`
-	Signature   string `json:"signature"`
+	TxHash                           string `json:"txHash"`
+	EncryptedTx                      string `json:"encryptedTx"`
+	SenderLastBalanceProofBody       []byte `json:"senderLastBalanceProofBody"`
+	SenderBalanceTransitionProofBody []byte `json:"senderBalanceTransitionProofBody"`
+	Sender                           string `json:"sender"`
+	BlockNumber                      uint32 `json:"blockNumber"`
+	Signature                        string `json:"signature"`
 }
 
 // UseCasePostBackupTransaction describes PostBackupTransaction contract.

@@ -27,6 +27,7 @@ type SQLDb interface {
 	BackupTransfers
 	BackupTransactions
 	BackupDeposits
+	BackupSenderProofs
 	CtrlEventBlockNumbersJobs
 	EventBlockNumbersErrors
 	EventBlockNumbersForValidityProver
@@ -129,7 +130,6 @@ type Withdrawals interface {
 type BackupTransfers interface {
 	CreateBackupTransfer(
 		recipient, encryptedTransferHash, encryptedTransfer string,
-		senderLastBalanceProofBody, senderBalanceTransitionProofBody []byte,
 		blockNumber int64,
 	) (*models.BackupTransfer, error)
 	GetBackupTransfer(condition string, value string) (*models.BackupTransfer, error)
@@ -176,6 +176,14 @@ type BackupDeposits interface {
 		listDBApp models.ListOfBackupDeposit,
 		err error,
 	)
+}
+
+type BackupSenderProofs interface {
+	CreateBackupSenderProof(
+		lastBalanceProofBody, balanceTransitionProofBody []byte,
+		enoughBalanceProofBodyHash string,
+	) (*models.BackupSenderProof, error)
+	GetBackupSenderProofsByHashes(enoughBalanceProofBodyHashes []string) ([]*models.BackupSenderProof, error)
 }
 
 type CtrlEventBlockNumbersJobs interface {

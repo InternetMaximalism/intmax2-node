@@ -127,8 +127,6 @@ func SendSignedProposedBlock(
 	backupTx *transaction.BackupTransactionData,
 	backupTransfers []*transaction.BackupTransferInput,
 	enoughBalanceProof *block_signature.EnoughBalanceProofBodyInput,
-	// prevBalanceProofBody []byte,
-	// transferStepProofBody []byte,
 ) error {
 	defaultPublicKey := intMaxAcc.NewDummyPublicKey()
 
@@ -184,7 +182,6 @@ func SendSignedProposedBlock(
 		ctx, cfg, log,
 		senderAccount.ToAddress(), txHash, signature,
 		backupTx, backupTransfers, enoughBalanceProof,
-		// prevBalanceProofBody, transferStepProofBody,
 	)
 }
 
@@ -198,8 +195,6 @@ func PostBlockSignatureRawRequest(
 	backupTx *transaction.BackupTransactionData,
 	backupTransfers []*transaction.BackupTransferInput,
 	enoughBalanceProof *block_signature.EnoughBalanceProofBodyInput,
-	// prevBalanceProofBody []byte,
-	// transferStepProofBody []byte,
 ) error {
 	return postBlockSignatureRawRequest(
 		ctx, cfg, log,
@@ -209,8 +204,6 @@ func PostBlockSignatureRawRequest(
 		backupTx,
 		backupTransfers,
 		enoughBalanceProof,
-		// prevBalanceProofBody,
-		// transferStepProofBody,
 	)
 }
 
@@ -222,8 +215,6 @@ func postBlockSignatureRawRequest(
 	backupTx *transaction.BackupTransactionData,
 	backupTransfers []*transaction.BackupTransferInput,
 	enoughBalanceProof *block_signature.EnoughBalanceProofBodyInput,
-	// prevBalanceProofBody block_signature.Plonky2Proof,
-	// transferStepProofBody block_signature.Plonky2Proof,
 ) error {
 	ucInput := block_signature.UCBlockSignatureInput{
 		Sender:             senderAddress,

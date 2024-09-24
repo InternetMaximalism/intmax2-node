@@ -394,15 +394,12 @@ func TransferTransaction(
 		return fmt.Errorf("failed to make backup transaction data: %v", err)
 	}
 
-	// lastBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(lastBalanceProof)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to create last balance proof: %v", err)
-	// }
-
-	// balanceTransitionProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(balanceTransitionProof)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to create balance transition proof: %v", err)
-	// }
+	enoughBalanceProofBody := block_signature.EnoughBalanceProofBody{
+		PrevBalanceProofBody:  lastBalanceProofWithPis.Proof,
+		TransferStepProofBody: balanceTransitionProofWithPis.Proof,
+	}
+	enoughBalanceProof := new(block_signature.EnoughBalanceProofBodyInput).FromEnoughBalanceProofBody(&enoughBalanceProofBody)
+	enoughBalanceProofHash := enoughBalanceProofBody.Hash()
 
 	backupTransfers := make([]*transaction.BackupTransferInput, len(initialLeaves))
 	for i := range initialLeaves {
@@ -423,23 +420,15 @@ func TransferTransaction(
 			TxMerkleProof:                       proposedBlock.TxTreeMerkleProof,
 			SenderLastBalancePublicInputs:       lastBalanceProofWithPis.PublicInputsBytes(),
 			SenderBalanceTransitionPublicInputs: balanceTransitionProofWithPis.PublicInputsBytes(),
+			SenderEnoughBalanceProofBodyHash:    enoughBalanceProofHash,
 		}
 		backupTransfers[i], err = MakeTransferBackupData(
 			&transferDetails,
-			// lastBalanceProofBodyId,
-			// balanceTransitionProofBodyId,
 		)
 		if err != nil {
 			return fmt.Errorf("failed to make backup transfer data: %v", err)
 		}
-		fmt.Printf("SenderLastBalanceProofBody[%d]: %v\n", i, backupTransfers[i].SenderLastBalanceProofBody)
-		fmt.Printf("SenderTransitionProofBody[%d]: %v\n", i, backupTransfers[i].SenderTransitionProofBody)
 	}
-
-	enoughBalanceProof := new(block_signature.EnoughBalanceProofBodyInput).Set(&block_signature.EnoughBalanceProofBodyInput{
-		PrevBalanceProofBody:  base64.StdEncoding.EncodeToString(lastBalanceProofWithPis.Proof),
-		TransferStepProofBody: base64.StdEncoding.EncodeToString(balanceTransitionProofWithPis.Proof),
-	})
 
 	// Accept proposed block
 	err = SendSignedProposedBlock(
@@ -464,17 +453,7 @@ var ErrFailedToUnmarshal = errors.New("failed to unmarshal")
 
 func MakeTransferBackupData(
 	transferDetails *intMaxTypes.TransferDetails,
-	// senderLastBalanceProofBodyId string,
-	// senderBalanceTransitionProofBodyId string,
 ) (backupTransfer *transaction.BackupTransferInput, _ error) {
-	// if len(senderLastBalanceProofBody) == 0 {
-	// 	return nil, errors.New("sender last balance proof body is empty")
-	// }
-
-	// if len(senderBalanceTransitionProofBody) == 0 {
-	// 	return nil, errors.New("sender balance transition proof body is empty")
-	// }
-
 	transfer := transferDetails.TransferWitness.Transfer
 	if transfer.Recipient.TypeOfAddress != intMaxAccTypes.INTMAXAddressType {
 		return nil, errors.New("recipient address should be INTMAX")
@@ -502,10 +481,6 @@ func MakeTransferBackupData(
 		Recipient:                hexutil.Encode(transfer.Recipient.Marshal()),
 		TransferHash:             transfer.Hash().String(),
 		EncodedEncryptedTransfer: base64.StdEncoding.EncodeToString(encryptedTransfer),
-		// SenderLastBalanceProofBody: senderLastBalanceProofBody,
-		// SenderTransitionProofBody:  senderBalanceTransitionProofBody,
-		SenderLastBalanceProofBody: "",
-		SenderTransitionProofBody:  "",
 	}, nil
 }
 

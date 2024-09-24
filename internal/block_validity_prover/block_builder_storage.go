@@ -1166,7 +1166,10 @@ func updateValidityWitnessWithConsistencyCheck(db BlockBuilderStorage, blockWitn
 	fmt.Printf("validityPis (PostBlock): %s\n", encodedValidityPis)
 
 	fmt.Printf("SetValidityWitness SenderFlag: %v\n", validityWitness.BlockWitness.Signature.SenderFlag)
-	db.SetValidityWitness(blockWitness.Block.BlockNumber, validityWitness)
+	err = db.SetValidityWitness(blockWitness.Block.BlockNumber, validityWitness)
+	if err != nil {
+		panic(err)
+	}
 
 	fmt.Printf("post block #%d\n", validityWitness.BlockWitness.Block.BlockNumber)
 

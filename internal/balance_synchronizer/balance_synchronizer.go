@@ -10,6 +10,7 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_prover_service"
+	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/logger"
 	intMaxTree "intmax2-node/internal/tree"
@@ -349,7 +350,20 @@ func applyReceivedTransferTransition(
 ) error {
 	fmt.Printf("transfer hash: %d\n", transfer.TransferDetails.TransferWitness.Transfer.Hash())
 
-	senderLastBalanceProofBody, err := base64.StdEncoding.DecodeString(transfer.SenderLastBalanceProofBody)
+	senderEnoughBalanceProofResponse, err := block_synchronizer.GetBackupSenderBalanceProofs(
+		syncBalanceProver.ctx,
+		syncBalanceProver.cfg,
+		syncBalanceProver.log,
+		[]string{transfer.TransferDetails.SenderEnoughBalanceProofBodyHash},
+	)
+	if err != nil {
+		var ErrGetSenderEnoughBalanceProofBodyFail = errors.New("failed to get sender enough balance proof body")
+		return errors.Join(ErrGetSenderEnoughBalanceProofBodyFail, err)
+	}
+
+	senderEnoughBalanceProofBody := senderEnoughBalanceProofResponse.Proofs[0]
+
+	senderLastBalanceProofBody, err := base64.StdEncoding.DecodeString(senderEnoughBalanceProofBody.LastBalanceProofBody)
 	if err != nil {
 		var ErrDecodeSenderBalanceProofBody = errors.New("failed to decode sender balance proof body")
 		return errors.Join(ErrDecodeSenderBalanceProofBody, err)
@@ -373,9 +387,22 @@ func applyReceivedTransferTransition(
 		return errors.Join(ErrEncodeSenderBalanceProof, err)
 	}
 
+	senderBalanceTransitionProofBody, err := base64.StdEncoding.DecodeString(senderEnoughBalanceProofBody.BalanceTransitionProofBody)
+	if err != nil {
+		var ErrDecodeSenderBalanceProofBody = errors.New("failed to decode sender balance proof body")
+		return errors.Join(ErrDecodeSenderBalanceProofBody, err)
+	}
+
+	reader = bufio.NewReader(bytes.NewReader(transfer.TransferDetails.SenderBalanceTransitionPublicInputs))
+	senderBalanceTransitionPublicInputs, err := intMaxTypes.DecodePublicInputs(reader, uint32(len(transfer.TransferDetails.SenderBalanceTransitionPublicInputs))/int8Key)
+	if err != nil {
+		var ErrDecodeSenderBalancePublicInputs = errors.New("failed to decode sender balance public inputs")
+		return errors.Join(ErrDecodeSenderBalancePublicInputs, err)
+	}
+
 	senderBalanceTransitionProof := intMaxTypes.Plonky2Proof{
-		Proof:        senderLastBalanceProofBody,
-		PublicInputs: senderLastBalancePublicInputs,
+		Proof:        senderBalanceTransitionProofBody,
+		PublicInputs: senderBalanceTransitionPublicInputs,
 	}
 
 	encodedSenderBalanceTransitionProof, err := senderBalanceTransitionProof.Base64String()

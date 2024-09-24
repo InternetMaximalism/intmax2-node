@@ -27,6 +27,7 @@ type PGX interface {
 	BackupTransfers
 	BackupTransactions
 	BackupDeposits
+	BackupSenderProofs
 	CtrlEventBlockNumbersJobs
 	EventBlockNumbersErrors
 	EventBlockNumbersForValidityProver
@@ -124,7 +125,6 @@ type Withdrawals interface {
 type BackupTransfers interface {
 	CreateBackupTransfer(
 		recipient, encryptedTransferHash, encryptedTransfer string,
-		senderLastBalanceProofBody, senderBalanceTransitionProofBody []byte,
 		blockNumber int64,
 	) (*mDBApp.BackupTransfer, error)
 	GetBackupTransfer(condition string, value string) (*mDBApp.BackupTransfer, error)
@@ -171,6 +171,14 @@ type BackupDeposits interface {
 		listDBApp mDBApp.ListOfBackupDeposit,
 		err error,
 	)
+}
+
+type BackupSenderProofs interface {
+	CreateBackupSenderProof(
+		lastBalanceProofBody, balanceTransitionProofBody []byte,
+		enoughBalanceProofBodyHash string,
+	) (*mDBApp.BackupSenderProof, error)
+	GetBackupSenderProofsByHashes(enoughBalanceProofBodyHashes []string) ([]*mDBApp.BackupSenderProof, error)
 }
 
 type CtrlEventBlockNumbersJobs interface {

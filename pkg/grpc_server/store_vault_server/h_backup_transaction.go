@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"intmax2-node/internal/open_telemetry"
 	node "intmax2-node/internal/pb/gen/store_vault_service/node"
-	postBackupTransction "intmax2-node/internal/use_cases/post_backup_transaction"
+	block_signature "intmax2-node/internal/use_cases/block_signature"
+	postBackupTransaction "intmax2-node/internal/use_cases/post_backup_transaction"
 	"intmax2-node/pkg/grpc_server/utils"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -29,15 +30,26 @@ func (s *StoreVaultServer) BackupTransaction(
 		))
 	defer span.End()
 
-	input := postBackupTransction.UCPostBackupTransactionInput{
-		TxHash:      req.TxHash,
-		EncryptedTx: req.EncryptedTx,
-		Sender:      req.Sender,
-		Signature:   req.Signature,
-		BlockNumber: uint32(req.BlockNumber),
+	senderLastBalanceProofBodyInput := block_signature.EnoughBalanceProofBodyInput{
+		PrevBalanceProofBody:  req.SenderEnoughBalanceProofBody.PrevBalanceProof,
+		TransferStepProofBody: req.SenderEnoughBalanceProofBody.TransitionStepProof,
+	}
+	senderLastBalanceProofBody, err := senderLastBalanceProofBodyInput.EnoughBalanceProofBody()
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return &resp, utils.BadRequest(spanCtx, err)
+	}
+	input := postBackupTransaction.UCPostBackupTransactionInput{
+		TxHash:                           req.TxHash,
+		EncryptedTx:                      req.EncryptedTx,
+		SenderLastBalanceProofBody:       senderLastBalanceProofBody.PrevBalanceProofBody,
+		SenderBalanceTransitionProofBody: senderLastBalanceProofBody.TransferStepProofBody,
+		Sender:                           req.Sender,
+		Signature:                        req.Signature,
+		BlockNumber:                      uint32(req.BlockNumber),
 	}
 
-	err := input.Valid()
+	err = input.Valid()
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
 		return &resp, utils.BadRequest(spanCtx, err)
@@ -61,7 +73,7 @@ func (s *StoreVaultServer) BackupTransaction(
 	}
 
 	resp.Success = true
-	resp.Data = &node.BackupTransactionResponse_Data{Message: postBackupTransction.SuccessMsg}
+	resp.Data = &node.BackupTransactionResponse_Data{Message: postBackupTransaction.SuccessMsg}
 
 	return &resp, utils.OK(spanCtx)
 }
