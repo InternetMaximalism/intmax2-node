@@ -103,6 +103,7 @@ type BlockHistory interface {
 	BlockTreeRoot(blockNumber *uint32) (*intMaxGP.PoseidonHashOut, error)
 	BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.PoseidonMerkleProof, error)
 	// CurrentBlockTreeProof(leafBlockNumber uint32) (*intMaxTree.MerkleProof, error)
+	CopyAccountTree(dst *intMaxTree.AccountTree, blockNumber uint32) error
 }
 
 type BuilderDeposits interface {

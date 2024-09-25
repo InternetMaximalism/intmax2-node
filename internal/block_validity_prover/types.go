@@ -1056,27 +1056,38 @@ func NewAccountExclusionValue(
 	accountMembershipProofs []intMaxTree.IndexedMembershipProof,
 	publicKeys []intMaxTypes.Uint256,
 ) (*AccountExclusionValue, error) {
-	result := true
+	isValid := true
 	for i, proof := range accountMembershipProofs {
 		err := proof.Verify(publicKeys[i].BigInt(), accountTreeRoot)
 		if err != nil {
+			for i, sibling := range proof.LeafProof.Siblings {
+				fmt.Printf("sibling[%d]: %v\n", i, sibling)
+			}
+			fmt.Printf("leaf index: %v\n", proof.LeafIndex)
+			fmt.Printf("leaf: %v\n", proof.Leaf)
+			fmt.Printf("accountTreeRoot: %s\n", accountTreeRoot.String())
+
 			var ErrAccountMembershipProofInvalid = errors.New("account membership proof is invalid")
-			return nil, errors.Join(ErrAccountMembershipProofInvalid, err)
+			// return nil, errors.Join(ErrAccountMembershipProofInvalid, err)
+			panic(errors.Join(ErrAccountMembershipProofInvalid, err))
 		}
 
 		isDummy := publicKeys[i].IsDummyPublicKey()
+		fmt.Printf("isDummy: %v, ", isDummy)
+		fmt.Printf("proof.IsIncluded: %v\n", proof.IsIncluded)
 		isExcluded := !proof.IsIncluded || isDummy
-		result = result && isExcluded
+		isValid = isValid && isExcluded
 	}
 
 	publicKeyCommitment := getPublicKeyCommitment(publicKeys)
 
+	fmt.Printf("NewAccountExclusionValue isValid: %v\n", isValid)
 	return &AccountExclusionValue{
 		AccountTreeRoot:         accountTreeRoot,
 		AccountMembershipProofs: accountMembershipProofs,
 		PublicKeys:              publicKeys,
 		PublicKeyCommitment:     publicKeyCommitment,
-		IsValid:                 result,
+		IsValid:                 isValid,
 	}, nil
 }
 
@@ -1348,6 +1359,7 @@ func (w *ValidityWitness) Compress(maxAccountID uint64) (*CompressedValidityWitn
 }
 
 func (vw *ValidityWitness) ValidityPublicInputs() *ValidityPublicInputs {
+	fmt.Printf("ValidityWitness.ValidityPublicInputs\n")
 	blockWitness := vw.BlockWitness
 	validityTransitionWitness := vw.ValidityTransitionWitness
 

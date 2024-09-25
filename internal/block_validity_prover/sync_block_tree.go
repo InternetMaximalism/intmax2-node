@@ -243,7 +243,8 @@ func (p *blockValidityProver) syncBlockProverWithAuxInfo(
 		panic(fmt.Errorf("failed to generate block: %w", err))
 	}
 
-	latestValidityWitness, err := p.blockBuilder.LastValidityWitness()
+	// TODO: Reduce DB access
+	latestValidityWitness, err := calculateValidityWitness(p.blockBuilder, blockWitness)
 	if err != nil {
 		panic(fmt.Errorf("failed to get last validity witness: %w", err))
 	}
@@ -251,7 +252,7 @@ func (p *blockValidityProver) syncBlockProverWithAuxInfo(
 	fmt.Printf("blockWitness.Block.BlockNumber (syncBlockProverWithAuxInfo): %d\n", blockWitness.Block.BlockNumber)
 
 	{
-		fmt.Printf("block.BlockNumber: %d\n", blockWitness.Block.BlockNumber)
+		// fmt.Printf("block.BlockNumber: %d\n", blockWitness.Block.BlockNumber)
 		fmt.Printf("prevBlockTreeRoot: %s\n", blockWitness.PrevBlockTreeRoot.String())
 		for i, blockHashes := range p.blockBuilder.BlockTree.Leaves {
 			fmt.Printf("block tree leaves[%d]: %x\n", i, blockHashes.Marshal())
@@ -263,15 +264,16 @@ func (p *blockValidityProver) syncBlockProverWithAuxInfo(
 			fmt.Printf("validity transition sibling[%d]: %s\n", i, sibling.String())
 		}
 	}
-	prevPis := latestValidityWitness.ValidityPublicInputs()
-	if blockWitness.Block.BlockNumber != prevPis.PublicState.BlockNumber+1 {
-		fmt.Printf("latestValidityWitness.BlockWitness.Block.BlockNumber: %d\n", latestValidityWitness.BlockWitness.Block.BlockNumber)
-		return errors.New("block number is not equal to the last block number + 1")
-	}
-	_, err = calculateValidityWitnessWithConsistencyCheck(p.blockBuilder, blockWitness, latestValidityWitness)
-	if err != nil {
-		panic(fmt.Errorf("failed to calculate validity witness with consistency check: %w", err))
-	}
+	fmt.Printf("latestValidityWitness.BlockWitness.Block.BlockNumber: %d\n", latestValidityWitness.BlockWitness.Block.BlockNumber)
+	// prevPis := latestValidityWitness.ValidityPublicInputs()
+	// if blockWitness.Block.BlockNumber != prevPis.PublicState.BlockNumber+1 {
+	// 	fmt.Printf("latestValidityWitness.BlockWitness.Block.BlockNumber: %d\n", latestValidityWitness.BlockWitness.Block.BlockNumber)
+	// 	return errors.New("block number is not equal to the last block number + 1")
+	// }
+	// _, err = calculateValidityWitness(p.blockBuilder, blockWitness, latestValidityWitness)
+	// if err != nil {
+	// 	panic(fmt.Errorf("failed to calculate validity witness with consistency check: %w", err))
+	// }
 
 	return p.syncBlockProver()
 }
@@ -316,8 +318,8 @@ func (p *blockValidityProver) syncBlockProver() error {
 	for blockNumber := lastGeneratedBlockNumber + 1; blockNumber <= lastPostedBlockNumber; blockNumber++ {
 		// validityWitnessBlockNumber := p.blockBuilder.LatestIntMaxBlockNumber()
 		var validityWitness *ValidityWitness
-		validityWitness, err = p.blockBuilder.ValidityWitnessByBlockNumber(blockNumber)
 		fmt.Printf("IMPORTANT: Block %d proof is processing\n", blockNumber)
+		validityWitness, err = p.blockBuilder.ValidityWitnessByBlockNumber(blockNumber)
 		if err != nil {
 			panic(fmt.Errorf("last validity witness error: %w", err))
 		}

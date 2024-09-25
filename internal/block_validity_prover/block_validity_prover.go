@@ -220,10 +220,10 @@ func (d *blockValidityProver) GetDepositInfoByHash(depositHash common.Hash) (*De
 	return &depositInfo, nil
 }
 
-func (d *blockValidityProver) BlockNumberByDepositIndex(depositIndex uint32) (uint32, error) {
-	// TODO: implement this method
-	return d.blockBuilder.BlockNumberByDepositIndex(depositIndex)
-}
+// func (d *blockValidityProver) BlockNumberByDepositIndex(depositIndex uint32) (uint32, error) {
+// 	// TODO: implement this method
+// 	return d.blockBuilder.BlockNumberByDepositIndex(depositIndex)
+// }
 
 func (d *blockValidityProver) LatestSynchronizedBlockNumber() (uint32, error) {
 	return d.blockBuilder.LastGeneratedProofBlockNumber()
@@ -323,7 +323,7 @@ func (d *blockValidityProver) ValidityWitness(
 		var ErrLastValidityWitnessNotFound = errors.New("last validity witness not found")
 		return nil, errors.Join(ErrLastValidityWitnessNotFound, err)
 	}
-	blockWitness, err := d.blockBuilder.GenerateBlockWithTxTreeFromBlockContent(
+	blockWitness, err := d.blockBuilder.GenerateBlockWithTxTreeFromBlockContentAndPrevBlock(
 		blockContent,
 		lastValidityWitness.BlockWitness.Block,
 	)

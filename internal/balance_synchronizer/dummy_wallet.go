@@ -203,7 +203,11 @@ func (w *mockWallet) SendTx(
 		return nil, nil, err
 	}
 
-	lastValidityWitness, err := blockValidityProver.BlockBuilder().LastValidityWitness()
+	lastGeneratedProofBlockNumber, err := blockValidityProver.BlockBuilder().LastGeneratedProofBlockNumber() // XXX: Is this correct block number?
+	if err != nil {
+		return nil, nil, err
+	}
+	lastValidityWitness, err := blockValidityProver.BlockBuilder().ValidityWitnessByBlockNumber(lastGeneratedProofBlockNumber)
 	if err != nil {
 		return nil, nil, err
 	}

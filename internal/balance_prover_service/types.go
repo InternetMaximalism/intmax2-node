@@ -799,12 +799,14 @@ func ValidateTxInclusionValue(
 		return false, err
 	}
 
-	fmt.Printf("prevAccountMembershipProof: %v\n", prevAccountMembershipProof)
-	fmt.Printf("publicKey: %v\n", publicKey.BigInt())
-	fmt.Printf("prevPublicState.PrevAccountTreeRoot: %v\n", prevPublicState.PrevAccountTreeRoot)
 	err = prevAccountMembershipProof.Verify(publicKey.BigInt(), prevPublicState.PrevAccountTreeRoot)
 	if err != nil {
 		// prev account membership proof is invalid
+		fmt.Printf("publicKey: %v\n", publicKey.BigInt())
+		fmt.Printf("prevPublicState.PrevAccountTreeRoot: %s\n", prevPublicState.PrevAccountTreeRoot.String())
+		for i, sibling := range prevAccountMembershipProof.LeafProof.Siblings {
+			fmt.Printf("sibling[%d]: %v\n", i, sibling)
+		}
 		var ErrInvalidMembershipProof = errors.New("prev account membership proof is invalid")
 		return false, errors.Join(ErrInvalidMembershipProof, err)
 	}
