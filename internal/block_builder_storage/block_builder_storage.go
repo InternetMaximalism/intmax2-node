@@ -211,6 +211,10 @@ func (bbs *blockBuilderStorage) Init(db SQLDriverApp) (err error) {
 		}
 	}
 
+	bbs.DepositTree = depositTree
+	bbs.AccountTree = accountTree
+	bbs.BlockTree = blockHashTree
+
 	return nil
 }
 
