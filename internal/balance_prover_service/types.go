@@ -5,7 +5,7 @@ import (
 	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
 	intMaxAccTypes "intmax2-node/internal/accounts/types"
-	"intmax2-node/internal/block_validity_prover"
+	bbsTypes "intmax2-node/internal/block_builder_storage/types"
 	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
@@ -31,11 +31,11 @@ const (
 type poseidonHashOut = intMaxTypes.PoseidonHashOut
 
 type TxWitness struct {
-	ValidityPis   block_validity_prover.ValidityPublicInputs `json:"validityPis"`
-	SenderLeaves  []*intMaxTree.SenderLeaf                   `json:"senderLeaves"`
-	Tx            intMaxTypes.Tx                             `json:"tx"`
-	TxIndex       uint32                                     `json:"txIndex"`
-	TxMerkleProof []*poseidonHashOut                         `json:"txMerkleProof"`
+	ValidityPis   bbsTypes.ValidityPublicInputs `json:"validityPis"`
+	SenderLeaves  []*intMaxTree.SenderLeaf      `json:"senderLeaves"`
+	Tx            intMaxTypes.Tx                `json:"tx"`
+	TxIndex       uint32                        `json:"txIndex"`
+	TxMerkleProof []*poseidonHashOut            `json:"txMerkleProof"`
 }
 
 func (w *TxWitness) GetSenderTree() (*intMaxTree.SenderTree, error) {
@@ -87,7 +87,7 @@ type PublicStateInput struct {
 	BlockNumber         uint32           `json:"blockNumber"`
 }
 
-func (input *PublicStateInput) FromPublicState(value *block_validity_prover.PublicState) *PublicStateInput {
+func (input *PublicStateInput) FromPublicState(value *bbsTypes.PublicState) *PublicStateInput {
 	input.BlockTreeRoot = value.BlockTreeRoot
 	input.PrevAccountTreeRoot = value.PrevAccountTreeRoot
 	input.AccountTreeRoot = value.AccountTreeRoot
@@ -98,8 +98,8 @@ func (input *PublicStateInput) FromPublicState(value *block_validity_prover.Publ
 	return input
 }
 
-func (input *PublicStateInput) PublicState() *block_validity_prover.PublicState {
-	return &block_validity_prover.PublicState{
+func (input *PublicStateInput) PublicState() *bbsTypes.PublicState {
+	return &bbsTypes.PublicState{
 		BlockTreeRoot:       input.BlockTreeRoot,
 		PrevAccountTreeRoot: input.PrevAccountTreeRoot,
 		AccountTreeRoot:     input.AccountTreeRoot,
@@ -116,7 +116,7 @@ type ValidityPublicInputsInput struct {
 	IsValidBlock   bool              `json:"isValidBlock"`
 }
 
-func (input *ValidityPublicInputsInput) FromValidityPublicInputs(value *block_validity_prover.ValidityPublicInputs) *ValidityPublicInputsInput {
+func (input *ValidityPublicInputsInput) FromValidityPublicInputs(value *bbsTypes.ValidityPublicInputs) *ValidityPublicInputsInput {
 	input.PublicState = new(PublicStateInput).FromPublicState(value.PublicState)
 	input.TxTreeRoot = hexutil.Encode(value.TxTreeRoot.Bytes())
 	input.SenderTreeRoot = *value.SenderTreeRoot
@@ -661,7 +661,7 @@ func (s *PrivateState) Commitment() *poseidonHashOut {
 }
 
 type BalanceValidityAuxInfo struct {
-	ValidityWitness *block_validity_prover.ValidityWitness
+	ValidityWitness *bbsTypes.ValidityWitness
 }
 
 type BalancePublicInputs struct {
@@ -669,7 +669,7 @@ type BalancePublicInputs struct {
 	PrivateCommitment       *intMaxTypes.PoseidonHashOut
 	LastTxHash              *intMaxTypes.PoseidonHashOut
 	LastTxInsufficientFlags backup_balance.InsufficientFlags
-	PublicState             *block_validity_prover.PublicState
+	PublicState             *bbsTypes.PublicState
 }
 
 func NewBalancePublicInputsWithPublicKey(publicKey *intMaxAcc.PublicKey) *BalancePublicInputs {
@@ -677,7 +677,7 @@ func NewBalancePublicInputsWithPublicKey(publicKey *intMaxAcc.PublicKey) *Balanc
 	privateCommitment := new(PrivateState).SetDefault().Commitment()
 	lastTxHash := new(intMaxTypes.PoseidonHashOut).SetZero()
 	lastTxInsufficientFlags := backup_balance.InsufficientFlags{}
-	publicState := new(block_validity_prover.PublicState).Genesis()
+	publicState := new(bbsTypes.PublicState).Genesis()
 
 	pis := new(BalancePublicInputs)
 	pis.PubKey = publicKey
@@ -696,7 +696,7 @@ const (
 	lastTxHashOffset              = privateCommitmentOffset + numHashOutElts
 	lastTxInsufficientFlagsOffset = lastTxHashOffset + numHashOutElts
 	publicStateOffset             = lastTxInsufficientFlagsOffset + backup_balance.InsufficientFlagsLen
-	sizeOfBalancePublicInputs     = publicStateOffset + block_validity_prover.PublicStateLimbSize
+	sizeOfBalancePublicInputs     = publicStateOffset + bbsTypes.PublicStateLimbSize
 )
 
 func (s *BalancePublicInputs) FromPublicInputs(publicInputs []ffg.Element) (*BalancePublicInputs, error) {
@@ -728,7 +728,7 @@ func (s *BalancePublicInputs) FromPublicInputs(publicInputs []ffg.Element) (*Bal
 	lastTxInsufficientFlags := new(backup_balance.InsufficientFlags).FromFieldElementSlice(
 		publicInputs[lastTxInsufficientFlagsOffset:publicStateOffset],
 	)
-	publicState := new(block_validity_prover.PublicState).FromFieldElementSlice(
+	publicState := new(bbsTypes.PublicState).FromFieldElementSlice(
 		publicInputs[publicStateOffset:sizeOfBalancePublicInputs],
 	)
 
@@ -743,7 +743,7 @@ func (s *BalancePublicInputs) FromPublicInputs(publicInputs []ffg.Element) (*Bal
 
 func ValidateTxInclusionValue(
 	publicKey *intMaxAcc.PublicKey,
-	prevPublicState *block_validity_prover.PublicState,
+	prevPublicState *bbsTypes.PublicState,
 	validityProof string,
 	blockMerkleProof *intMaxTree.BlockHashMerkleProof,
 	prevAccountMembershipProof *intMaxTree.IndexedMembershipProof,
@@ -752,7 +752,7 @@ func ValidateTxInclusionValue(
 	txMerkleProof *intMaxTree.PoseidonMerkleProof,
 	// senderLeaf *intMaxTree.SenderLeaf,
 	// senderMerkleProof *intMaxTree.MerkleProof,
-	// newPublicState             *block_validity_prover.PublicState,
+	// newPublicState             *bbsTypes.PublicState,
 	// isValid                    bool,
 ) (bool, error) {
 	// let validity_pis = ValidityPublicInputs::from_u64_slice(
@@ -789,7 +789,7 @@ func ValidateTxInclusionValue(
 	if err != nil {
 		return false, err
 	}
-	validityPis := new(block_validity_prover.ValidityPublicInputs).FromPublicInputs(validityProofWithPis.PublicInputs)
+	validityPis := new(bbsTypes.ValidityPublicInputs).FromPublicInputs(validityProofWithPis.PublicInputs)
 	err = blockMerkleProof.Verify(
 		intMaxTree.NewBlockHashLeaf(prevPublicState.BlockHash).Hash(),
 		int(prevPublicState.BlockNumber),

@@ -55,7 +55,7 @@ func NewSynchronizerDummy(
 }
 
 func (s *balanceSynchronizerDummy) TestE2E(
-	blockValidityProver *block_validity_prover.BlockValidityProverMemory,
+	blockValidityProver block_validity_prover.BlockValidityProver,
 	blockSynchronizer block_validity_prover.BlockSynchronizer,
 	blockBuilderWallet *models.Wallet,
 	withdrawalAggregator *withdrawal_service.WithdrawalAggregatorService,
@@ -91,7 +91,7 @@ func (s *balanceSynchronizerDummy) TestE2E(
 }
 
 func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
-	blockValidityProver *block_validity_prover.BlockValidityProverMemory,
+	blockValidityProver block_validity_prover.BlockValidityProver,
 	blockSynchronizer block_validity_prover.BlockSynchronizer,
 	blockBuilderWallet *models.Wallet,
 	withdrawalAggregator *withdrawal_service.WithdrawalAggregatorService,
@@ -105,7 +105,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 	}
 	fmt.Printf("alice public key: %v\n", alicePrivateKey.Public().ToAddress().String())
 
-	aliceWallet, err := NewMockWallet(alicePrivateKey)
+	aliceWallet, err := NewMockWallet(s.log, alicePrivateKey)
 	if err != nil {
 		s.log.Fatalf("failed to create mock wallet: %+v", err)
 	}
@@ -125,7 +125,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 		s.log.Fatalf("failed to create block content: %+v", err)
 	}
 
-	lastValidityWitness, err := blockBuilder.LastValidityWitness()
+	lastValidityWitness, err := blockBuilder.LastValidityWitness(s.db)
 	if err != nil {
 		var ErrLastValidityWitnessNotFound = errors.New("last validity witness not found")
 		return nil, errors.Join(ErrLastValidityWitnessNotFound, err)
@@ -136,7 +136,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 	}
 
 	// sync alice wallet to the latest block, which includes the deposit
-	err = aliceProver.SyncAll(s.log, blockValidityProver, blockSynchronizer, aliceWallet, balanceProcessor)
+	err = aliceProver.SyncAll(s.log, s.db, blockValidityProver, blockSynchronizer, aliceWallet, balanceProcessor)
 	if err != nil {
 		s.log.Fatalf(messageFailedToSyncAll, err)
 	}
@@ -152,7 +152,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 
 	// receive deposit and update alice balance proof
 	fmt.Printf("-----------------ReceiveDeposit----------------------")
-	err = aliceProver.ReceiveDeposit(aliceWallet, balanceProcessor, blockValidityProver, depositIndex)
+	err = aliceProver.ReceiveDeposit(s.log, s.db, aliceWallet, balanceProcessor, blockValidityProver, depositIndex)
 	if err != nil {
 		s.log.Fatalf("failed to receive deposit: %+v", err)
 	}
@@ -167,7 +167,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 	}
 	fmt.Printf("bob public key: %v\n", bobPrivateKey.Public().ToAddress().String())
 
-	bobWallet, err := NewMockWallet(bobPrivateKey)
+	bobWallet, err := NewMockWallet(s.log, bobPrivateKey)
 	if err != nil {
 		s.log.Fatalf("failed to create mock wallet: %+v", err)
 	}
@@ -190,7 +190,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 	}
 
 	fmt.Printf("-----------------SendTxAndUpdate----------------------")
-	sendWitness, err := aliceWallet.SendTxAndUpdate(blockValidityProver, []*intMaxTypes.Transfer{&transferToBob})
+	sendWitness, err := aliceWallet.SendTxAndUpdate(s.db, blockValidityProver, []*intMaxTypes.Transfer{&transferToBob})
 	if err != nil {
 		s.log.Fatalf("failed to send tx and update: %+v", err)
 	}
@@ -202,7 +202,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 
 	// update alice balance proof
 	fmt.Printf("-----------------SyncAll alice----------------------")
-	err = aliceProver.SyncAll(s.log, blockValidityProver, blockSynchronizer, aliceWallet, balanceProcessor)
+	err = aliceProver.SyncAll(s.log, s.db, blockValidityProver, blockSynchronizer, aliceWallet, balanceProcessor)
 	if err != nil {
 		s.log.Fatalf(messageFailedToSyncAll, err)
 	}
@@ -217,7 +217,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 	// sync bob wallet to the latest block
 
 	fmt.Printf("-----------------SyncAll bob----------------------")
-	err = bobProver.SyncAll(s.log, blockValidityProver, blockSynchronizer, bobWallet, balanceProcessor)
+	err = bobProver.SyncAll(s.log, s.db, blockValidityProver, blockSynchronizer, bobWallet, balanceProcessor)
 	if err != nil {
 		s.log.Fatalf(messageFailedToSyncAll, err)
 	}
@@ -261,7 +261,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 		Salt:       salt,
 	}
 
-	withdrawalSendWitness, err := bobWallet.SendTxAndUpdate(blockValidityProver, []*intMaxTypes.Transfer{&withdrawal})
+	withdrawalSendWitness, err := bobWallet.SendTxAndUpdate(s.db, blockValidityProver, []*intMaxTypes.Transfer{&withdrawal})
 	if err != nil {
 		s.log.Fatalf("failed to send tx and update: %+v", err)
 	}
@@ -269,7 +269,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 	fmt.Printf("size of withdrawalTransferWitnesses: %v\n", len(withdrawalTransferWitnesses))
 
 	// update bob balance proof
-	err = bobProver.SyncAll(s.log, blockValidityProver, blockSynchronizer, bobWallet, balanceProcessor)
+	err = bobProver.SyncAll(s.log, s.db, blockValidityProver, blockSynchronizer, bobWallet, balanceProcessor)
 	if err != nil {
 		s.log.Fatalf(messageFailedToSyncAll, err)
 	}

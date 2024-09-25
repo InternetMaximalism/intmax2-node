@@ -1,7 +1,8 @@
 package models
 
 const (
-	DepositsProcessedEvent = "DepositsProcessedEvent"
+	DepositsProcessedEvent = "DepositsProcessed"
+	BlockPostedEvent       = "BlockPosted"
 )
 
 type EventBlockNumberForValidityProver struct {

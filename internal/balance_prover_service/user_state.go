@@ -3,7 +3,7 @@ package balance_prover_service
 import (
 	"encoding/hex"
 	"errors"
-	"intmax2-node/internal/block_validity_prover"
+	bbsTypes "intmax2-node/internal/block_builder_storage/types"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"math/big"
@@ -15,7 +15,7 @@ type UserWalletState struct {
 	AssetTree       *intMaxTree.AssetTree
 	Nonce           uint32
 	Salt            Salt
-	PublicState     *block_validity_prover.PublicState
+	PublicState     *bbsTypes.PublicState
 }
 
 type UserWalletStateInput struct {

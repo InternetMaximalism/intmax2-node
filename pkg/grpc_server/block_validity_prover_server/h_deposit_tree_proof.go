@@ -2,11 +2,12 @@ package block_validity_prover_server
 
 import (
 	"context"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 	"intmax2-node/internal/open_telemetry"
 	node "intmax2-node/internal/pb/gen/block_validity_prover_service/node"
 	"intmax2-node/pkg/grpc_server/utils"
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func (s *BlockValidityProverServer) DepositTreeProof(

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	bbsTypes "intmax2-node/internal/block_builder_storage/types"
 	"intmax2-node/internal/logger"
 	"net/http"
 
@@ -18,9 +19,9 @@ type ProveBlockValidity struct {
 }
 
 type ProveBlockValidityInput struct {
-	BlockHash            string                     `json:"blockHash"`
-	ValidityWitness      *CompressedValidityWitness `json:"validityWitness"`
-	PlainValidityWitness *ValidityWitness           `json:"plainValidityWitness"`
+	BlockHash            string                              `json:"blockHash"`
+	ValidityWitness      *bbsTypes.CompressedValidityWitness `json:"validityWitness"`
+	PlainValidityWitness *bbsTypes.ValidityWitness           `json:"plainValidityWitness"`
 
 	// base64 encoded string
 	PrevValidityProof *string `json:"prevValidityProof,omitempty"`
@@ -29,7 +30,11 @@ type ProveBlockValidityInput struct {
 // Execute the following request:
 // curl -X POST -d '{"blockHash":"0x01", "validityWitness":'$(cat data/validity_witness_1.json)', "prevValidityProof":null }'
 // -H "Content-Type: application/json" $BLOCK_VALIDITY_PROVER_URL/proof | jq
-func (p *blockValidityProver) requestBlockValidityProof(blockHash common.Hash, validityWitness *ValidityWitness, prevValidityProof *string) error {
+func (p *blockValidityProver) requestBlockValidityProof(
+	blockHash common.Hash,
+	validityWitness *bbsTypes.ValidityWitness,
+	prevValidityProof *string,
+) error {
 	nextAccountID, err := p.blockBuilder.NextAccountID()
 	if err != nil {
 		return fmt.Errorf("failed to get next account ID: %w", err)
@@ -40,7 +45,7 @@ func (p *blockValidityProver) requestBlockValidityProof(blockHash common.Hash, v
 		return fmt.Errorf("failed to compress validity witness: %w", err)
 	}
 
-	nextValidityPis := validityWitness.ValidityPublicInputs()
+	nextValidityPis := validityWitness.ValidityPublicInputs(p.log)
 	p.log.Debugf("nextValidityPis block_proof block number: %d\n", nextValidityPis.PublicState.BlockNumber)
 	p.log.Debugf("nextValidityPis block_proof prev account tree root: %s\n", nextValidityPis.PublicState.PrevAccountTreeRoot.String())
 	p.log.Debugf("nextValidityPis block_proof account tree root: %s\n", nextValidityPis.PublicState.AccountTreeRoot.String())

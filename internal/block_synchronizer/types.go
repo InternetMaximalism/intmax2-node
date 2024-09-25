@@ -6,7 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	intMaxAcc "intmax2-node/internal/accounts"
-	"intmax2-node/internal/block_validity_prover"
+	bbsTypes "intmax2-node/internal/block_builder_storage/types"
 	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
@@ -30,7 +30,7 @@ type BalanceData struct {
 	AssetLeafEntries         []*intMaxTree.AssetLeafEntry
 	Nonce                    uint32
 	Salt                     poseidonHashOut
-	PublicState              *block_validity_prover.PublicState
+	PublicState              *bbsTypes.PublicState
 }
 
 func (bd *BalanceData) Set(other *BalanceData) *BalanceData {
@@ -47,7 +47,7 @@ func (bd *BalanceData) Set(other *BalanceData) *BalanceData {
 
 	bd.Nonce = other.Nonce
 	bd.Salt.Set(&other.Salt)
-	bd.PublicState = new(block_validity_prover.PublicState).Set(other.PublicState)
+	bd.PublicState = new(bbsTypes.PublicState).Set(other.PublicState)
 
 	return bd
 }
@@ -55,7 +55,7 @@ func (bd *BalanceData) Set(other *BalanceData) *BalanceData {
 func (bd *BalanceData) Marshal() ([]byte, error) {
 	bufSize := int4Key + int32Key + int4Key + int8Key*len(bd.BalanceProofPublicInputs) +
 		int4Key + int32Key*len(bd.NullifierLeaves) + int4Key + (int32Key+1)*len(bd.AssetLeafEntries) +
-		block_validity_prover.NumPublicStateBytes
+		bbsTypes.NumPublicStateBytes
 	buf := make([]byte, bufSize)
 	offset := 0
 
@@ -86,7 +86,7 @@ func (bd *BalanceData) Marshal() ([]byte, error) {
 		offset += int32Key + 1
 	}
 
-	copy(buf[offset:offset+block_validity_prover.NumPublicStateBytes], bd.PublicState.Marshal())
+	copy(buf[offset:offset+bbsTypes.NumPublicStateBytes], bd.PublicState.Marshal())
 
 	return buf, nil
 }
@@ -167,12 +167,12 @@ func (bd *BalanceData) Unmarshal(data []byte) error {
 		offset += int32Key + 1
 	}
 
-	if len(data) < offset+block_validity_prover.NumPublicStateBytes {
+	if len(data) < offset+bbsTypes.NumPublicStateBytes {
 		return ErrInvalidDataLength
 	}
 
-	bd.PublicState = new(block_validity_prover.PublicState)
-	err = bd.PublicState.Unmarshal(data[offset : offset+block_validity_prover.NumPublicStateBytes])
+	bd.PublicState = new(bbsTypes.PublicState)
+	err = bd.PublicState.Unmarshal(data[offset : offset+bbsTypes.NumPublicStateBytes])
 	if err != nil {
 		return err
 	}

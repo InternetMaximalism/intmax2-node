@@ -173,7 +173,7 @@ func TransferTransaction(
 	// 	}
 	// }()
 
-	userWalletState, err := balance_synchronizer.NewMockWallet(userAccount)
+	userWalletState, err := balance_synchronizer.NewMockWallet(log, userAccount)
 	if err != nil {
 		const msg = "failed to get Mock Wallet: %+v"
 		return fmt.Errorf(msg, err.Error())
@@ -184,6 +184,7 @@ func TransferTransaction(
 		ctx,
 		cfg,
 		log,
+		db,
 		sb,
 		blockValidityService,
 		userWalletState,

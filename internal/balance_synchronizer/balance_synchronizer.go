@@ -27,6 +27,7 @@ type balanceSynchronizer struct {
 	ctx                  context.Context
 	cfg                  *configs.Config
 	log                  logger.Logger
+	db                   SQLDriverApp
 	sb                   block_validity_prover.ServiceBlockchain
 	blockSynchronizer    block_validity_prover.BlockSynchronizer
 	blockValidityService block_validity_prover.BlockValidityService
@@ -39,6 +40,7 @@ func NewSynchronizer(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
+	db SQLDriverApp,
 	sb block_validity_prover.ServiceBlockchain,
 	blockSynchronizer block_validity_prover.BlockSynchronizer,
 	blockValidityService block_validity_prover.BlockValidityService,
@@ -50,6 +52,7 @@ func NewSynchronizer(
 		ctx:                  ctx,
 		cfg:                  cfg,
 		log:                  log,
+		db:                   db,
 		sb:                   sb,
 		blockSynchronizer:    blockSynchronizer,
 		blockValidityService: blockValidityService,
@@ -97,6 +100,7 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 	}
 	sortedValidUserData, err := balanceTransitionData.SortValidUserData(
 		s.log,
+		s.db,
 		s.blockValidityService,
 	)
 	if err != nil {
@@ -108,7 +112,7 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 		fmt.Printf("transition block number: %d\n", transition.BlockNumber())
 	}
 
-	validityProverInfo, err := s.blockValidityService.FetchValidityProverInfo()
+	validityProverInfo, err := s.blockValidityService.FetchValidityProverInfo(s.db)
 	if err != nil {
 		const msg = "failed to fetch validity prover info: %+v"
 		s.log.Fatalf(msg, err.Error())
@@ -171,9 +175,10 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 }
 
 func (s *balanceSynchronizer) validSentTx(transition *balance_prover_service.ValidSentTx) error {
-	fmt.Printf("valid sent transaction: %v\n", transition.TxHash)
+	s.log.Debugf("valid sent transaction: %v", transition.TxHash)
 	err := applySentTransactionTransition(
 		s.log,
+		s.db,
 		transition.Tx,
 		s.blockValidityService,
 		s.blockSynchronizer,
@@ -197,6 +202,7 @@ func (s *balanceSynchronizer) validReceivedDeposit(
 	fmt.Printf("transitionBlockNumber: %d", transitionBlockNumber)
 	err = s.syncBalanceProver.SyncNoSend(
 		s.log,
+		s.db,
 		s.blockValidityService,
 		s.blockSynchronizer,
 		s.userState,
@@ -208,6 +214,8 @@ func (s *balanceSynchronizer) validReceivedDeposit(
 	}
 
 	err = applyReceivedDepositTransition(
+		s.log,
+		s.db,
 		transition.Deposit,
 		s.blockValidityService,
 		s.balanceProcessor,
@@ -229,6 +237,7 @@ func (s *balanceSynchronizer) validReceivedTransfer(
 	fmt.Printf("transitionBlockNumber: %d\n", transitionBlockNumber)
 	err = s.syncBalanceProver.SyncNoSend(
 		s.log,
+		s.db,
 		s.blockValidityService,
 		s.blockSynchronizer,
 		s.userState,
@@ -255,6 +264,8 @@ func (s *balanceSynchronizer) validReceivedTransfer(
 }
 
 func applyReceivedDepositTransition(
+	log logger.Logger,
+	db SQLDriverApp,
 	deposit *balance_prover_service.DepositDetails,
 	blockValidityService block_validity_prover.BlockValidityService,
 	balanceProcessor balance_prover_service.BalanceProcessor,
@@ -265,8 +276,8 @@ func applyReceivedDepositTransition(
 		return errors.New("deposit is not found")
 	}
 
-	fmt.Printf("applyReceivedDepositTransition deposit ID: %d\n", deposit.DepositID)
-	depositInfo, err := blockValidityService.GetDepositInfoByHash(deposit.DepositHash)
+	log.Debugf("applyReceivedDepositTransition deposit ID: %d", deposit.DepositID)
+	depositInfo, err := blockValidityService.GetDepositInfoByHash(db, deposit.DepositHash)
 	if err != nil {
 		const msg = "failed to get Deposit Leaf and Index by Hash: %+v"
 		return fmt.Errorf(msg, err.Error())
@@ -282,7 +293,7 @@ func applyReceivedDepositTransition(
 		return fmt.Errorf(msg, depositIndex)
 	}
 
-	fmt.Printf("deposit index: %d\n", depositIndex)
+	log.Debugf("deposit index: %d", depositIndex)
 
 	depositCase := balance_prover_service.DepositCase{
 		Deposit: intMaxTree.DepositLeaf{
@@ -300,15 +311,17 @@ func applyReceivedDepositTransition(
 		return fmt.Errorf(msg, err.Error())
 	}
 
-	fmt.Printf("start to prove deposit\n")
+	log.Debugf("start to prove deposit")
 	err = syncBalanceProver.ReceiveDeposit(
+		log,
+		db,
 		userState,
 		balanceProcessor,
 		blockValidityService,
 		depositIndex,
 	)
 	if err != nil {
-		fmt.Printf("prove deposit %v\n", err.Error())
+		log.Debugf("prove deposit %v", err.Error())
 		if err.Error() == messageBalanceProcessorNotInitialized {
 			return errors.New(messageBalanceProcessorNotInitialized)
 		}
@@ -385,6 +398,7 @@ func applyReceivedTransferTransition(
 
 func applySentTransactionTransition(
 	log logger.Logger,
+	db SQLDriverApp,
 	tx *intMaxTypes.TxDetails,
 	blockValidityService block_validity_prover.BlockValidityService,
 	blockSynchronizer block_validity_prover.BlockSynchronizer,
@@ -399,7 +413,7 @@ func applySentTransactionTransition(
 	// transfers := tx.Transfers
 
 	// balanceProverService.SyncBalanceProver
-	txWitness, transferWitnesses, err := MakeTxWitness(blockValidityService, tx)
+	txWitness, transferWitnesses, err := MakeTxWitness(log, db, blockValidityService, tx)
 	if err != nil {
 		const msg = "failed to send transaction: %+v"
 		return fmt.Errorf(msg, err.Error())
@@ -418,6 +432,7 @@ func applySentTransactionTransition(
 
 	err = syncBalanceProver.SyncSend(
 		log,
+		db,
 		blockValidityService,
 		blockSynchronizer,
 		userState,

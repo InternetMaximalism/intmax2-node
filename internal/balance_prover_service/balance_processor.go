@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
-	"intmax2-node/internal/block_validity_prover"
+	bbsTypes "intmax2-node/internal/block_builder_storage/types"
 	"intmax2-node/internal/logger"
 	intMaxTypes "intmax2-node/internal/types"
 	"net/http"
@@ -49,9 +49,9 @@ type balanceProcessor struct {
 type BalanceProcessor interface {
 	ProveReceiveDeposit(publicKey *intMaxAcc.PublicKey, receiveDepositWitness *ReceiveDepositWitness, lastBalanceProof *string) (*BalanceProofWithPublicInputs, error)
 	ProveReceiveTransfer(publicKey *intMaxAcc.PublicKey, receiveTransferWitness *ReceiveTransferWitness, lastBalanceProof *string) (*BalanceProofWithPublicInputs, error)
-	ProveSendTransition(publicKey *intMaxAcc.PublicKey, sendWitness *SendWitness, updateWitness *block_validity_prover.UpdateWitness, lastBalanceProof *string) (*SenderProofWithPublicInputs, error)
-	ProveSend(publicKey *intMaxAcc.PublicKey, sendWitness *SendWitness, updateWitness *block_validity_prover.UpdateWitness, lastBalanceProof *string) (*BalanceProofWithPublicInputs, error)
-	ProveUpdate(publicKey *intMaxAcc.PublicKey, updateWitness *block_validity_prover.UpdateWitness, lastBalanceProof *string) (*BalanceProofWithPublicInputs, error)
+	ProveSendTransition(publicKey *intMaxAcc.PublicKey, sendWitness *SendWitness, updateWitness *bbsTypes.UpdateWitness, lastBalanceProof *string) (*SenderProofWithPublicInputs, error)
+	ProveSend(publicKey *intMaxAcc.PublicKey, sendWitness *SendWitness, updateWitness *bbsTypes.UpdateWitness, lastBalanceProof *string) (*BalanceProofWithPublicInputs, error)
+	ProveUpdate(publicKey *intMaxAcc.PublicKey, updateWitness *bbsTypes.UpdateWitness, lastBalanceProof *string) (*BalanceProofWithPublicInputs, error)
 }
 
 func NewBalanceProcessor(
@@ -68,12 +68,12 @@ func NewBalanceProcessor(
 
 func (s *balanceProcessor) ProveUpdate(
 	publicKey *intMaxAcc.PublicKey,
-	updateWitness *block_validity_prover.UpdateWitness,
+	updateWitness *bbsTypes.UpdateWitness,
 	lastBalanceProof *string,
 ) (*BalanceProofWithPublicInputs, error) {
 	// request balance prover
-	s.log.Debugf("ProveUpdate\n")
-	s.log.Debugf("publicKey: %v\n", publicKey)
+	s.log.Debugf("ProveUpdate")
+	s.log.Debugf("publicKey: %v", publicKey)
 	requestID, err := s.requestUpdateBalanceValidityProof(publicKey, updateWitness, lastBalanceProof)
 	if err != nil {
 		return nil, err
@@ -122,8 +122,8 @@ func (s *balanceProcessor) ProveReceiveDeposit(
 	lastBalanceProof *string,
 ) (*BalanceProofWithPublicInputs, error) {
 	// request balance prover
-	s.log.Debugf("ProveReceiveDeposit\n")
-	s.log.Debugf("publicKey: %v\n", publicKey)
+	s.log.Debugf("ProveReceiveDeposit")
+	s.log.Debugf("publicKey: %v", publicKey)
 
 	if lastBalanceProof != nil {
 		lastBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*lastBalanceProof)
@@ -139,13 +139,13 @@ func (s *balanceProcessor) ProveReceiveDeposit(
 		if err != nil {
 			return nil, err
 		}
-		fmt.Printf("encodedLastBalancePublicInputs: %s\n", encodedLastBalancePublicInputs)
+		s.log.Debugf("encodedLastBalancePublicInputs: %s", encodedLastBalancePublicInputs)
 
 		lastBalanceProofPrivateCommitment := lastBalancePublicInputs.PrivateCommitment
 		receiveDepositWitnessPrivateCommitment := receiveDepositWitness.PrivateWitness.PrevPrivateState.Commitment()
-		fmt.Printf("last balance proof commitment: %s\n", lastBalanceProofPrivateCommitment.String())
-		fmt.Printf("receive deposit commitment: %s\n", receiveDepositWitnessPrivateCommitment.String())
-		fmt.Printf("receive deposit private state: %v\n", receiveDepositWitness.PrivateWitness.PrevPrivateState)
+		s.log.Debugf("last balance proof commitment: %s", lastBalanceProofPrivateCommitment.String())
+		s.log.Debugf("receive deposit commitment: %s", receiveDepositWitnessPrivateCommitment.String())
+		s.log.Debugf("receive deposit private state: %v", receiveDepositWitness.PrivateWitness.PrevPrivateState)
 		if !receiveDepositWitnessPrivateCommitment.Equal(lastBalanceProofPrivateCommitment) {
 			return nil, fmt.Errorf("last balance proof commitment is not equal to receive deposit commitment")
 		}
@@ -153,14 +153,14 @@ func (s *balanceProcessor) ProveReceiveDeposit(
 		fmt.Println("private state should be equal to default private state")
 		lastBalanceProofPrivateCommitment := new(PrivateState).SetDefault().Commitment()
 		receiveDepositWitnessPrivateCommitment := receiveDepositWitness.PrivateWitness.PrevPrivateState.Commitment()
-		fmt.Printf("last balance proof commitment: %s\n", lastBalanceProofPrivateCommitment.String())
-		fmt.Printf("receive deposit commitment: %s\n", receiveDepositWitnessPrivateCommitment.String())
+		s.log.Debugf("last balance proof commitment: %s", lastBalanceProofPrivateCommitment.String())
+		s.log.Debugf("receive deposit commitment: %s", receiveDepositWitnessPrivateCommitment.String())
 		if !receiveDepositWitnessPrivateCommitment.Equal(lastBalanceProofPrivateCommitment) {
 			return nil, fmt.Errorf("last balance proof commitment is not equal to receive deposit commitment")
 		}
 	}
 
-	fmt.Printf("default PrivateState: %v\n", new(PrivateState).SetDefault().Commitment())
+	s.log.Debugf("default PrivateState: %v", new(PrivateState).SetDefault().Commitment())
 
 	requestID, err := s.requestReceiveDepositBalanceValidityProof(publicKey, receiveDepositWitness, lastBalanceProof)
 	if err != nil {
@@ -174,17 +174,18 @@ func (s *balanceProcessor) ProveReceiveDeposit(
 			return nil, s.ctx.Err()
 		case <-ticker.C:
 			var proof *BalanceValidityProofResponse
-			proof, err := s.fetchReceiveDepositBalanceValidityProof(publicKey, requestID)
+			proof, err = s.fetchReceiveDepositBalanceValidityProof(publicKey, requestID)
 			if err != nil {
 				if errors.Is(err, ErrBalanceProofNotGenerated) || errors.Is(err, ErrStatusRequestTimeout) {
 					continue
 				}
 
-				fmt.Printf("err: %v\n", err)
+				s.log.Debugf("err: %v\n", err)
 				return nil, err
 			}
 
-			balanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*proof.Proof)
+			var balanceProofWithPis *intMaxTypes.Plonky2Proof
+			balanceProofWithPis, err = intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*proof.Proof)
 			if err != nil {
 				return nil, err
 			}
@@ -205,11 +206,11 @@ func (s *balanceProcessor) ProveReceiveDeposit(
 func (s *balanceProcessor) ProveSendTransition(
 	publicKey *intMaxAcc.PublicKey,
 	sendWitness *SendWitness,
-	updateWitness *block_validity_prover.UpdateWitness,
+	updateWitness *bbsTypes.UpdateWitness,
 	lastBalanceProof *string,
 ) (*SenderProofWithPublicInputs, error) {
-	s.log.Debugf("ProveSend\n")
-	s.log.Debugf("publicKey: %v\n", publicKey)
+	s.log.Debugf("ProveSend")
+	s.log.Debugf("publicKey: %v", publicKey)
 	requestID, err := s.requestSendBalanceValidityProof(publicKey, sendWitness, updateWitness, lastBalanceProof)
 	if err != nil {
 		return nil, err
@@ -231,12 +232,14 @@ func (s *balanceProcessor) ProveSendTransition(
 				return nil, err
 			}
 
-			senderProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*proof.Proof)
+			var senderProofWithPis *intMaxTypes.Plonky2Proof
+			senderProofWithPis, err = intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*proof.Proof)
 			if err != nil {
 				return nil, err
 			}
 
-			senderPublicInputs, err := new(SenderPublicInputs).FromPublicInputs(senderProofWithPis.PublicInputs)
+			var senderPublicInputs *SenderPublicInputs
+			senderPublicInputs, err = new(SenderPublicInputs).FromPublicInputs(senderProofWithPis.PublicInputs)
 			if err != nil {
 				return nil, err
 			}
@@ -252,7 +255,7 @@ func (s *balanceProcessor) ProveSendTransition(
 func (s *balanceProcessor) ProveSend(
 	publicKey *intMaxAcc.PublicKey,
 	sendWitness *SendWitness,
-	updateWitness *block_validity_prover.UpdateWitness,
+	updateWitness *bbsTypes.UpdateWitness,
 	lastBalanceProof *string,
 ) (*BalanceProofWithPublicInputs, error) {
 	// request balance prover
@@ -378,7 +381,7 @@ type UpdateBalanceValidityInput struct {
 	PrevBalanceProof *string `json:"prevBalanceProof,omitempty"`
 }
 
-func (input *UpdateWitnessInput) FromUpdateWitness(updateWitness *block_validity_prover.UpdateWitness) *UpdateWitnessInput {
+func (input *UpdateWitnessInput) FromUpdateWitness(updateWitness *bbsTypes.UpdateWitness) *UpdateWitnessInput {
 	input.ValidityProof = updateWitness.ValidityProof
 	input.BlockMerkleProof = make(MerkleProofInput, len(updateWitness.BlockMerkleProof.Siblings))
 	for i := range updateWitness.BlockMerkleProof.Siblings {
@@ -437,7 +440,7 @@ type ReceiveTransferBalanceValidityInput struct {
 // -H "Content-Type: application/json" $API_BALANCE_VALIDITY_PROVER_URL/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/send | jq
 func (p *balanceProcessor) requestUpdateBalanceValidityProof(
 	publicKey *intMaxAcc.PublicKey,
-	updateWitness *block_validity_prover.UpdateWitness,
+	updateWitness *bbsTypes.UpdateWitness,
 	prevBalanceProof *string,
 ) (string, error) {
 	requestID := uuid.New().String()
@@ -572,7 +575,7 @@ func (p *balanceProcessor) requestReceiveDepositBalanceValidityProof(
 func (p *balanceProcessor) requestSendBalanceValidityProof(
 	publicKey *intMaxAcc.PublicKey,
 	sendWitness *SendWitness,
-	updateWitness *block_validity_prover.UpdateWitness,
+	updateWitness *bbsTypes.UpdateWitness,
 	prevBalanceProof *string,
 ) (string, error) {
 	requestID := uuid.New().String()
@@ -636,7 +639,7 @@ func (p *balanceProcessor) requestSendBalanceValidityProof(
 func (p *balanceProcessor) requestSpendProof(
 	publicKey *intMaxAcc.PublicKey,
 	sendWitness *SendWitness,
-	updateWitness *block_validity_prover.UpdateWitness,
+	updateWitness *bbsTypes.UpdateWitness,
 ) (string, error) {
 	requestID := uuid.New().String()
 	requestBody := SpendProofInput{

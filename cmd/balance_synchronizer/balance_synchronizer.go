@@ -3,8 +3,6 @@ package balance_synchronizer
 import (
 	"context"
 	"fmt"
-	"github.com/dimiro1/health"
-	"github.com/spf13/cobra"
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
 	intMaxAcc "intmax2-node/internal/accounts"
@@ -16,6 +14,9 @@ import (
 	"intmax2-node/internal/mnemonic_wallet"
 	mDBApp "intmax2-node/internal/mnemonic_wallet/models"
 	"sync"
+
+	"github.com/dimiro1/health"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -161,7 +162,7 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 				}
 
 				// userWalletState := service.NewUserWalletState(userPrivateKey)
-				userWalletState, err := service.NewMockWallet(userPrivateKey)
+				userWalletState, err := service.NewMockWallet(s.Log, userPrivateKey)
 				if err != nil {
 					const msg = "failed to get Mock Wallet: %+v"
 					s.Log.Fatalf(msg, err.Error())
@@ -169,7 +170,7 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 
 				syncBalanceProver := service.NewSyncBalanceProver(s.Context, s.Config, s.Log)
 
-				balanceSynchronizer := service.NewSynchronizer(s.Context, s.Config, s.Log, s.SB, blockSynchronizer, blockValidityService, balanceProcessor, syncBalanceProver, userWalletState)
+				balanceSynchronizer := service.NewSynchronizer(s.Context, s.Config, s.Log, s.DbApp, s.SB, blockSynchronizer, blockValidityService, balanceProcessor, syncBalanceProver, userWalletState)
 				err = balanceSynchronizer.Sync(userPrivateKey)
 				if err != nil {
 					const msg = "failed to sync: %+v"

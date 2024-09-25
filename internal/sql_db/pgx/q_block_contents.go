@@ -1,6 +1,7 @@
 package pgx
 
 import (
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -165,17 +166,24 @@ func (p *pgx) BlockContent(blockContentID string) (*mDBApp.BlockContentWithProof
 }
 
 // TODO: pagination
-func (p *pgx) ScanBlockHashAndSenders() (blockHashAndSendersMap map[uint32]mDBApp.BlockHashAndSenders, lastBlockNumber uint32, err error) {
+func (p *pgx) ScanBlockHashAndSenders() (
+	blockHashAndSendersMap map[uint32]mDBApp.BlockHashAndSenders,
+	lastBlockNumber uint32,
+	err error,
+) {
 	const (
-		q = `SELECT block_number, block_hash, deposit_root, senders FROM block_contents
-			 ORDER BY block_number ASC`
+		q = ` SELECT block_number, block_hash, deposit_root, senders
+			  FROM block_contents ORDER BY block_number ASC `
 	)
 
-	rows, err := p.query(p.ctx, q)
+	var rows *sql.Rows
+	rows, err = p.query(p.ctx, q)
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	blockHashAndSendersMap = make(map[uint32]mDBApp.BlockHashAndSenders)
 	lastBlockNumber = uint32(0)

@@ -4,9 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/dimiro1/health"
-	"github.com/rs/cors"
-	"google.golang.org/grpc"
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
 	"intmax2-node/docs/swagger"
@@ -22,6 +19,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/dimiro1/health"
+	"github.com/rs/cors"
+	"google.golang.org/grpc"
 
 	"github.com/spf13/cobra"
 )
@@ -82,7 +83,7 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 				s.Log.Fatalf(msg, err.Error())
 			}
 
-			blockNumber, err := blockValidityService.LatestSynchronizedBlockNumber()
+			blockNumber, err := blockValidityService.LatestSynchronizedBlockNumber(s.DbApp)
 			if err != nil {
 				const msg = "failed to get the latest synchronized block number: %+v"
 				s.Log.Fatalf(msg, err.Error())
@@ -108,7 +109,7 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 						return
 					case <-ticker.C:
 						s.Log.Debugf("===============blockNumber: %d", blockNumber)
-						err = blockValidityService.SyncBlockProverWithBlockNumber(blockNumber)
+						err = blockValidityService.SyncBlockProverWithBlockNumber(s.DbApp, blockNumber)
 						if err != nil {
 							s.Log.Debugf("===============err: %s", err.Error())
 							if err.Error() == block_validity_prover.ErrNoValidityProofByBlockNumber.Error() {
@@ -158,7 +159,7 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 				}
 
 				var latestSynchronizedDepositIndex uint32
-				latestSynchronizedDepositIndex, err = blockValidityService.FetchLastDepositIndex()
+				latestSynchronizedDepositIndex, err = blockValidityService.FetchLastDepositIndex(s.DbApp)
 				if err != nil {
 					const msg = "failed to fetch last deposit index: %+v"
 					s.Log.Fatalf(msg, err.Error())
@@ -173,13 +174,13 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 						return
 					case <-ticker.C:
 						s.Log.Debugf("balance validity ticker.C")
-						err = blockValidityProver.SyncDepositedEvents()
+						err = blockValidityProver.SyncDepositedEvents(s.DbApp)
 						if err != nil {
 							const msg = "failed to sync deposited events: %+v"
 							s.Log.Fatalf(msg, err.Error())
 						}
 
-						err = blockValidityProver.SyncDepositTree(nil, latestSynchronizedDepositIndex)
+						err = blockValidityProver.SyncDepositTree(s.DbApp, nil, latestSynchronizedDepositIndex)
 						if err != nil {
 							const msg = "failed to sync deposit tree: %+v"
 							s.Log.Fatalf(msg, err.Error())
@@ -187,18 +188,18 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 
 						// sync block content
 						var startBlock uint64
-						startBlock, err = blockValidityService.LastSeenBlockPostedEventBlockNumber()
+						startBlock, err = blockValidityService.LastSeenBlockPostedEventBlockNumber(s.DbApp)
 						if err != nil {
 							startBlock = s.Config.Blockchain.RollupContractDeployedBlockNumber
 						}
 
 						var endBlock uint64
-						endBlock, err = blockValidityProver.SyncBlockTree(blockSynchronizer, startBlock)
+						endBlock, err = blockValidityProver.SyncBlockTree(s.DbApp, blockSynchronizer, startBlock)
 						if err != nil {
 							panic(err)
 						}
 
-						err = blockValidityService.SetLastSeenBlockPostedEventBlockNumber(endBlock)
+						err = blockValidityService.SetLastSeenBlockPostedEventBlockNumber(s.DbApp, endBlock)
 						if err != nil {
 							var ErrSetLastSeenBlockPostedEventBlockNumberFail = errors.New("set last seen block posted event block number fail")
 							panic(errors.Join(ErrSetLastSeenBlockPostedEventBlockNumberFail, err))

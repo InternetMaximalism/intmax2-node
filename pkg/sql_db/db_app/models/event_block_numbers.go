@@ -5,7 +5,6 @@ const (
 	WithdrawalSentMessageEvent      = "WithdrawalSentMessage"
 	MessengerSentMessageEvent       = "MessengerSentMessage"
 	WithdrawalsQueuedEvent          = "WithdrawalsQueued"
-	BlockPostedEvent                = "BlockPosted"
 )
 
 type EventBlockNumber struct {

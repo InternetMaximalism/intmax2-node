@@ -110,7 +110,9 @@ func (p *pgx) ScanDeposits() ([]*mDBApp.Deposit, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	var bDBApp []*mDBApp.Deposit
 	for rows.Next() {

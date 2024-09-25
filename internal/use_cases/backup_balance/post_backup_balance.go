@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	intMaxAcc "intmax2-node/internal/accounts"
-	"intmax2-node/internal/block_validity_prover"
+	bbsTypes "intmax2-node/internal/block_builder_storage/types"
 	"intmax2-node/internal/finite_field"
 	"intmax2-node/internal/hash/goldenposeidon"
 	node "intmax2-node/internal/pb/gen/store_vault_service/node"
@@ -88,11 +88,11 @@ func (flags *InsufficientFlags) Bytes() []byte {
 }
 
 type BalancePublicInputs struct {
-	PublicKey               *big.Int                           `json:"pubkey"`
-	PrivateCommitment       goldenposeidon.PoseidonHashOut     `json:"privateCommitment"`
-	LastTxHash              goldenposeidon.PoseidonHashOut     `json:"lastTxHash"`
-	LastTxInsufficientFlags InsufficientFlags                  `json:"lastTxInsufficientFlags"`
-	PublicState             *block_validity_prover.PublicState `json:"publicState"`
+	PublicKey               *big.Int                       `json:"pubkey"`
+	PrivateCommitment       goldenposeidon.PoseidonHashOut `json:"privateCommitment"`
+	LastTxHash              goldenposeidon.PoseidonHashOut `json:"lastTxHash"`
+	LastTxInsufficientFlags InsufficientFlags              `json:"lastTxInsufficientFlags"`
+	PublicState             *bbsTypes.PublicState          `json:"publicState"`
 }
 
 func (pis *BalancePublicInputs) Equal(other *BalancePublicInputs) bool {
@@ -136,7 +136,7 @@ func (pis *BalancePublicInputs) FromPublicInputs(publicInputs []ffg.Element) *Ba
 	const lastTxHashIndex = startPrivateCommitmentIndex + goldenposeidon.NUM_HASH_OUT_ELTS
 	const lastTxInsufficientFlagsIndex = lastTxHashIndex + goldenposeidon.NUM_HASH_OUT_ELTS
 	const publicStateIndex = lastTxInsufficientFlagsIndex + InsufficientFlagsLen
-	const endIndex = publicStateIndex + block_validity_prover.PublicStateLimbSize
+	const endIndex = publicStateIndex + bbsTypes.PublicStateLimbSize
 	if len(publicInputs) != endIndex {
 		panic("Invalid public inputs length")
 	}
@@ -147,7 +147,7 @@ func (pis *BalancePublicInputs) FromPublicInputs(publicInputs []ffg.Element) *Ba
 	lastTxHash := new(goldenposeidon.PoseidonHashOut)
 	copy(lastTxHash.Elements[:], publicInputs[lastTxHashIndex:lastTxInsufficientFlagsIndex])
 	lastTxInsufficientFlags := new(InsufficientFlags).FromFieldElementSlice(publicInputs[lastTxInsufficientFlagsIndex:publicStateIndex])
-	publicState := new(block_validity_prover.PublicState).FromFieldElementSlice(publicInputs[publicStateIndex:endIndex])
+	publicState := new(bbsTypes.PublicState).FromFieldElementSlice(publicInputs[publicStateIndex:endIndex])
 
 	return &BalancePublicInputs{
 		PublicKey:               publicKey.BigInt(),

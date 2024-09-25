@@ -46,7 +46,7 @@ func NewBalanceTransitionData(
 	userPrivateKey *intMaxAcc.PrivateKey,
 ) (*BalanceTransitionData, error) {
 	intMaxWalletAddress := userPrivateKey.ToAddress()
-	fmt.Printf("Starting balance prover service: %s\n", intMaxWalletAddress)
+	log.Debugf("Starting balance prover service: %s", intMaxWalletAddress)
 
 	storedTransitionData, err := balance_service.GetUserBalancesRawRequest(ctx, cfg, log, intMaxWalletAddress.String())
 	if err != nil {
@@ -56,14 +56,14 @@ func NewBalanceTransitionData(
 
 	decodedUserAllData, err := DecodeBackupData(ctx, cfg, log, storedTransitionData, userPrivateKey)
 	if err != nil {
-		fmt.Printf("Error in DecodeBackupData: %v\n", err)
-		return nil, fmt.Errorf("failed to decode backup data: %v", err)
+		log.Debugf("Error in DecodeBackupData: %v", err)
+		return nil, fmt.Errorf("failed to decode backup data: %w", err)
 	}
 
-	fmt.Printf("user deposits: %d\n", len(decodedUserAllData.Deposits))
-	fmt.Printf("user transfers: %d\n", len(decodedUserAllData.Transfers))
-	fmt.Printf("user transactions: %d\n", len(decodedUserAllData.Transactions))
-	fmt.Println("Finished balance prover service")
+	log.Debugf("user deposits: %d", len(decodedUserAllData.Deposits))
+	log.Debugf("user transfers: %d", len(decodedUserAllData.Transfers))
+	log.Debugf("user transactions: %d", len(decodedUserAllData.Transactions))
+	log.Debugf("Finished balance prover service")
 	return decodedUserAllData, nil
 }
 
@@ -228,28 +228,29 @@ func DecodeBackupData(
 
 func (userAllData *BalanceTransitionData) SortValidUserData(
 	log logger.Logger,
+	db SQLDriverApp,
 	blockValidityService block_validity_prover.BlockValidityService,
 ) ([]ValidBalanceTransition, error) {
-	validDeposits, invalidDeposits, err := ExtractValidReceivedDeposits(log, userAllData, blockValidityService)
+	validDeposits, invalidDeposits, err := ExtractValidReceivedDeposits(log, db, userAllData, blockValidityService)
 	if err != nil {
 		fmt.Println("Error in ExtractValidReceivedDeposit")
 	}
-	fmt.Printf("num of valid deposits: %d\n", len(validDeposits))
-	fmt.Printf("num of invalid deposits: %d\n", len(invalidDeposits))
+	log.Debugf("num of valid deposits: %d", len(validDeposits))
+	log.Debugf("num of invalid deposits: %d", len(invalidDeposits))
 
-	validTransfers, invalidTransfers, err := ExtractValidReceivedTransfers(log, userAllData, blockValidityService)
+	validTransfers, invalidTransfers, err := ExtractValidReceivedTransfers(log, db, userAllData, blockValidityService)
 	if err != nil {
-		fmt.Println("Error in ExtractValidReceivedDeposit")
+		log.Debugf("Error in ExtractValidReceivedDeposit")
 	}
-	fmt.Printf("num of valid transfers: %d\n", len(validTransfers))
-	fmt.Printf("num of invalid transfers: %d\n", len(invalidTransfers))
+	log.Debugf("num of valid transfers: %d", len(validTransfers))
+	log.Debugf("num of invalid transfers: %d", len(invalidTransfers))
 
-	validTransactions, invalidTransactions, err := ExtractValidSentTransactions(log, userAllData, blockValidityService)
+	validTransactions, invalidTransactions, err := ExtractValidSentTransactions(log, db, userAllData, blockValidityService)
 	if err != nil {
-		fmt.Println("Error in ExtractValidReceivedDeposit")
+		log.Debugf("Error in ExtractValidReceivedDeposit")
 	}
-	fmt.Printf("num of valid transactions: %d\n", len(validTransactions))
-	fmt.Printf("num of invalid transactions: %d\n", len(invalidTransactions))
+	log.Debugf("num of valid transactions: %d", len(validTransactions))
+	log.Debugf("num of invalid transactions: %d", len(invalidTransactions))
 
 	validBalanceTransitions := make([]ValidBalanceTransition, 0, len(validDeposits)+len(validTransfers)+len(validTransactions))
 	for _, transaction := range validTransactions {
@@ -305,6 +306,7 @@ func (v ValidReceivedTransfer) BlockNumber() uint32 {
 
 func ExtractValidSentTransactions(
 	log logger.Logger,
+	db SQLDriverApp,
 	userData *BalanceTransitionData,
 	blockValidityService block_validity_prover.BlockValidityService,
 ) ([]ValidSentTx, []*poseidonHashOut, error) {
@@ -313,17 +315,17 @@ func ExtractValidSentTransactions(
 	for _, tx := range userData.Transactions {
 		txHash := tx.Tx.Hash() // TODO: validate transaction
 
-		fmt.Printf("transaction hash: %s\n", txHash.String())
+		log.Debugf("transaction hash: %s", txHash.String())
 		if tx.TxTreeRoot == nil {
 			// If TxTreeRoot is nil, the account is no longer valid.
-			log.Warnf("transaction tx tree root is nil\n")
+			log.Warnf("transaction tx tree root is nil")
 			invalidTxHashes = append(invalidTxHashes, txHash)
 			continue
 		}
 
-		blockContent, err := blockValidityService.BlockContentByTxRoot(common.BytesToHash(tx.TxTreeRoot.Marshal()))
+		blockContent, err := blockValidityService.BlockContentByTxRoot(db, common.BytesToHash(tx.TxTreeRoot.Marshal()))
 		if err != nil {
-			log.Warnf("failed to get block content by tx root %s: %v\n", txHash.String(), err)
+			log.Warnf("failed to get block content by tx root %s: %v", txHash.String(), err)
 			continue
 		}
 
@@ -334,7 +336,7 @@ func ExtractValidSentTransactions(
 			Tx:          tx,
 		})
 
-		log.Debugf("valid transaction: %s\n", txHash.String())
+		log.Debugf("valid transaction: %s", txHash.String())
 	}
 
 	return sentBlockNumbers, invalidTxHashes, nil
@@ -342,6 +344,7 @@ func ExtractValidSentTransactions(
 
 func ExtractValidReceivedDeposits(
 	log logger.Logger,
+	db SQLDriverApp,
 	userData *BalanceTransitionData,
 	blockValidityService block_validity_prover.BlockValidityService,
 ) ([]ValidReceivedDeposit, []common.Hash, error) {
@@ -350,21 +353,21 @@ func ExtractValidReceivedDeposits(
 	for _, deposit := range userData.Deposits {
 		defaultDepositHash := common.Hash{}
 		if deposit.DepositHash == defaultDepositHash {
-			log.Warnf("deposit hash should not be zero\n")
+			log.Warnf("deposit hash should not be zero")
 			continue
 		}
 
 		depositHash := deposit.DepositHash // TODO: validate deposit
-		log.Debugf("deposit hash: %s\n", depositHash.String())
+		log.Debugf("deposit hash: %s", depositHash.String())
 
-		depositInfo, err := blockValidityService.GetDepositInfoByHash(depositHash)
+		depositInfo, err := blockValidityService.GetDepositInfoByHash(db, depositHash)
 		if err != nil {
-			log.Warnf("failed to get deposit index by hash %s: %v\n", depositHash.String(), err)
+			log.Warnf("failed to get deposit index by hash %s: %v", depositHash.String(), err)
 			continue
 		}
 
 		if depositInfo.BlockNumber == nil {
-			log.Warnf("deposit block number is nil\n")
+			log.Warnf("deposit block number is nil")
 			continue
 		}
 
@@ -374,7 +377,7 @@ func ExtractValidReceivedDeposits(
 			Deposit:     deposit,
 		})
 
-		log.Debugf("valid deposit: %s\n", depositHash.String())
+		log.Debugf("valid deposit: %s", depositHash.String())
 	}
 
 	return sentBlockNumbers, invalidDepositHashes, nil
@@ -382,6 +385,7 @@ func ExtractValidReceivedDeposits(
 
 func ExtractValidReceivedTransfers(
 	log logger.Logger,
+	db SQLDriverApp,
 	userData *BalanceTransitionData,
 	blockValidityService block_validity_prover.BlockValidityService,
 ) ([]ValidReceivedTransfer, []*poseidonHashOut, error) {
@@ -390,16 +394,16 @@ func ExtractValidReceivedTransfers(
 	for _, transfer := range userData.Transfers {
 		transferHash := transfer.TransferDetails.TransferWitness.Transfer.Hash() // TODO: validate transfer
 
-		log.Debugf("transfer hash: %s\n", transferHash.String())
+		log.Debugf("transfer hash: %s", transferHash.String())
 		if transfer.TransferDetails.TxTreeRoot == nil {
-			log.Warnf("transfer tx tree root is nil\n")
+			log.Warnf("transfer tx tree root is nil")
 			invalidTransferHashes = append(invalidTransferHashes, transferHash)
 			continue
 		}
 
-		blockContent, err := blockValidityService.BlockContentByTxRoot(common.BytesToHash(transfer.TransferDetails.TxTreeRoot.Marshal()))
+		blockContent, err := blockValidityService.BlockContentByTxRoot(db, common.BytesToHash(transfer.TransferDetails.TxTreeRoot.Marshal()))
 		if err != nil {
-			log.Warnf("failed to get block content by transfer root %s: %v\n", transferHash.String(), err)
+			log.Warnf("failed to get block content by transfer root %s: %v", transferHash.String(), err)
 			continue
 		}
 
@@ -410,7 +414,7 @@ func ExtractValidReceivedTransfers(
 			Transfer:     transfer,
 		})
 
-		log.Debugf("valid transfer: %s\n", transferHash.String())
+		log.Debugf("valid transfer: %s", transferHash.String())
 	}
 
 	return receivedBlockNumbers, invalidTransferHashes, nil

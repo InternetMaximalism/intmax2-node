@@ -146,3 +146,22 @@ var ErrBlockUnSynchronization = errors.New("not synchronized")
 
 // ErrAccountMembershipProof error: account membership proof error.
 var ErrAccountMembershipProof = errors.New("account membership proof error")
+
+// ErrNewBlockBuilderStorageFail error: failed to create new block builder storage.
+var ErrNewBlockBuilderStorageFail = errors.New("failed to create new block builder storage")
+
+// ErrInitBlockBuilderStorageFail error: failed to init block builder storage.
+var ErrInitBlockBuilderStorageFail = errors.New("failed to init block builder storage")
+
+// ErrUpsertEventBlockNumberForValidityProverFail error: failed to upsert event block number for validity prover.
+var ErrUpsertEventBlockNumberForValidityProverFail = errors.New(
+	"failed to upsert event block number for validity prover",
+)
+
+// ErrLastGeneratedProofBlockNumberFail error: last generated proof block number fail.
+var ErrLastGeneratedProofBlockNumberFail = errors.New("last generated proof block number fail")
+
+// ErrNewCompressedPlonky2ProofFromBase64StringFail error: new compressed plonky2 proof from base64 string fail.
+var ErrNewCompressedPlonky2ProofFromBase64StringFail = errors.New(
+	"new compressed plonky2 proof from base64 string fail",
+)
