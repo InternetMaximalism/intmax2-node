@@ -1054,23 +1054,35 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTreeFromBlockContent(
 	var accountIDPacked *AccountIdPacked
 	var accountMerkleProofs []AccountMerkleProof
 	var accountMembershipProofs []intMaxTree.IndexedMembershipProof
-	accountTree := db.MerkleTreeHistory.MerkleTrees[prevBlockNumber].AccountTree
+	accountTree := new(intMaxTree.AccountTree)
+	err := db.CopyAccountTree(accountTree, prevBlockNumber)
+	if err != nil {
+		var ErrCopyAccountTree = errors.New("copy account tree error")
+		return nil, ErrCopyAccountTree
+	}
 	isRegistrationBlock := blockContent.SenderType == "PUBLIC_KEY"
-	if isRegistrationBlock {
-		accountMembershipProofs = make([]intMaxTree.IndexedMembershipProof, len(publicKeys))
-		fmt.Printf("size of publicKeys: %d\n", len(publicKeys))
-		for i, publicKey := range publicKeys {
-			isDummy := publicKey.BigInt().Cmp(intMaxAcc.NewDummyPublicKey().BigInt()) == 0
-			fmt.Printf("isDummy: %v, ", isDummy)
 
-			leaf, err := db.GetAccountTreeLeaf(publicKey.BigInt())
-			if err != nil {
-				if err.Error() != ErrAccountTreeGetAccountID.Error() {
-					return nil, errors.Join(errors.New("account tree leaf error"), err)
-				}
+	fmt.Printf("blockContent.IsValid(): %v\n", blockContent.IsValid())
+
+	if isRegistrationBlock {
+		fmt.Printf("size of publicKeys: %d\n", len(publicKeys))
+		accountMembershipProofs = make([]intMaxTree.IndexedMembershipProof, len(publicKeys))
+		for i, publicKey := range publicKeys {
+			accountID, ok := accountTree.GetAccountID(publicKey.BigInt())
+			if !ok {
+				return nil, ErrAccountTreeGetAccountID
 			}
 
-			if !isDummy && leaf != nil {
+			// leaf, err := db.GetAccountTreeLeafByAccountId(prevBlockNumber, publicKey.BigInt())
+			// if err != nil {
+			// 	if err.Error() != ErrAccountTreeGetAccountID.Error() {
+			// 		return nil, errors.Join(errors.New("account tree leaf error"), err)
+			// 	}
+			// }
+
+			isDummy := publicKey.BigInt().Cmp(intMaxAcc.NewDummyPublicKey().BigInt()) == 0
+			if leaf := accountTree.GetLeaf(accountID); !isDummy && leaf != nil {
+				fmt.Printf("isDummy: %v, leaf: %+v\n", isDummy, leaf)
 				panic("account already exists")
 				// return nil, errors.New("account already exists")
 			}
@@ -1086,8 +1098,8 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTreeFromBlockContent(
 
 			err = proof.Verify(publicKey.BigInt(), accountTreeRoot)
 			if err != nil {
-				fmt.Printf("length of account leaves: %d\n", len(db.AccountTree.Leaves()))
-				for key, leaf := range db.AccountTree.Leaves() {
+				fmt.Printf("length of account leaves: %d\n", len(accountTree.Leaves()))
+				for key, leaf := range accountTree.Leaves() {
 					fmt.Printf("leaves[%d]: %+v\n", key, leaf)
 				}
 				for i, sibling := range proof.LeafProof.Siblings {
