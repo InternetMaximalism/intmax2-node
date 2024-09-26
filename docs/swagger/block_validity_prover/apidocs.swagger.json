@@ -57,7 +57,8 @@
             "description": "the deposit index in the latest deposit tree",
             "in": "path",
             "required": true,
-            "type": "string"
+            "type": "string",
+            "format": "int64"
           }
         ],
         "tags": [
@@ -97,6 +98,31 @@
     }
   },
   "definitions": {
+    "DepositTreeProofResponseData": {
+      "type": "object",
+      "properties": {
+        "merkleProof": {
+          "$ref": "#/definitions/DepositTreeProofResponseMerkleProof"
+        },
+        "rootHash": {
+          "type": "string"
+        }
+      },
+      "title": "Data is the nested message containing detailed response information"
+    },
+    "DepositTreeProofResponseMerkleProof": {
+      "type": "object",
+      "properties": {
+        "siblings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "the siblings of the deposit merkle proof"
+        }
+      },
+      "title": "MerkleProof is the deposit merkle proof"
+    },
     "protobufAny": {
       "type": "object",
       "properties": {
@@ -138,6 +164,16 @@
     },
     "v1DepositTreeProofResponse": {
       "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "the success flag"
+        },
+        "data": {
+          "$ref": "#/definitions/DepositTreeProofResponseData",
+          "title": "Additional data related to the response"
+        }
+      },
       "title": "DepositTreeProofResponse describes response to get info about the deposit Merkle proof"
     },
     "v1VersionResponse": {

@@ -35,6 +35,7 @@ func TestHandlerVersion(t *testing.T) {
 	dbApp := NewMockSQLDriverApp(ctrl)
 	hc := health.NewHandler()
 	sb := NewMockServiceBlockchain(ctrl)
+	bvs := NewMockBlockValidityService(ctrl)
 
 	const (
 		path1 = "../../../"
@@ -54,7 +55,7 @@ func TestHandlerVersion(t *testing.T) {
 
 	cmd := NewMockCommands(ctrl)
 
-	grpcServerStop, gwServer := Start(cmd, ctx, cfg, log, dbApp, &hc, sb)
+	grpcServerStop, gwServer := Start(cmd, ctx, cfg, log, dbApp, &hc, sb, bvs)
 	defer grpcServerStop()
 
 	getVer := mocks.NewMockUseCaseGetVersion(ctrl)

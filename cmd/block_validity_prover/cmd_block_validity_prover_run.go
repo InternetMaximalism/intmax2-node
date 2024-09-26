@@ -235,7 +235,7 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 					wg.Done()
 					s.WG.Done()
 				}()
-				if err = s.Init(); err != nil {
+				if err = s.Init(blockValidityService); err != nil {
 					const msg = "failed to start api: %+v"
 					s.Log.Fatalf(msg, err.Error())
 				}
@@ -246,7 +246,7 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 	}
 }
 
-func (s *Settings) Init() error {
+func (s *Settings) Init(bvs BlockValidityService) error {
 	tm := time.Duration(s.Config.HTTP.Timeout) * time.Second
 
 	var c *cors.Cors
@@ -272,6 +272,7 @@ func (s *Settings) Init() error {
 		s.Config.HTTP.CookieForAuthUse,
 		s.HC,
 		s.SB,
+		bvs,
 	)
 	ctx := context.WithValue(s.Context, consts.AppConfigs, s.Config)
 

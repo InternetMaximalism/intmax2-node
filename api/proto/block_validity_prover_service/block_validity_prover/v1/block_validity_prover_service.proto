@@ -15,7 +15,7 @@ service BlockValidityProverService {
   // ## DepositTreeProof returns the deposit Merkle proof
   rpc DepositTreeProof(DepositTreeProofRequest) returns (DepositTreeProofResponse) {
     option (google.api.http) = {
-      get: "/v1/deposit-tree-proof/{deposit_index}"
+      get: "/v1/deposit-tree-proof/{depositIndex}"
     };
   }
 }
@@ -23,9 +23,23 @@ service BlockValidityProverService {
 // DepositTreeProofRequest describes request to get info about the deposit Merkle proof
 message DepositTreeProofRequest {
   // the deposit index in the latest deposit tree
-  string deposit_index = 10 [json_name="depositIndex", (tagger.tags)="json:\"depositIndex,omitempty\""];
+  int64 depositIndex = 10 [json_name="depositIndex", (tagger.tags)="json:\"depositIndex,omitempty\""];
 }
 
 // DepositTreeProofResponse describes response to get info about the deposit Merkle proof
 message DepositTreeProofResponse {
+  // the success flag
+  bool success = 10 [json_name="success", (tagger.tags)="json:\"success,omitempty\""];
+  // Additional data related to the response
+  Data data = 20 [json_name="data", (tagger.tags)="json:\"data,omitempty\""];
+  // Data is the nested message containing detailed response information
+  message Data {
+    MerkleProof merkle_proof = 10 [json_name="merkleProof", (tagger.tags)="json:\"merkleProof,omitempty\""];
+    string rootHash = 20 [json_name="rootHash", (tagger.tags)="json:\"rootHash,omitempty\""];
+  }
+  // MerkleProof is the deposit merkle proof
+  message MerkleProof {
+    // the siblings of the deposit merkle proof
+    repeated string siblings = 10 [json_name="siblings", (tagger.tags)="json:\"siblings,omitempty\""];
+  }
 }

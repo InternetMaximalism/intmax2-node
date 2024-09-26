@@ -15,6 +15,7 @@ type BlockValidityProverServer struct {
 	cookieForAuthUse bool
 	hc               *health.Handler
 	sb               ServiceBlockchain
+	bvs              BlockValidityService
 }
 
 // New initializes a new Server struct.
@@ -26,6 +27,7 @@ func New(
 	cookieForAuthUse bool,
 	hc *health.Handler,
 	sb ServiceBlockchain,
+	bvs BlockValidityService,
 ) *BlockValidityProverServer {
 	const (
 		srv  = "blockValidityProverServer"
@@ -40,6 +42,7 @@ func New(
 		cookieForAuthUse: cookieForAuthUse,
 		hc:               hc,
 		sb:               sb,
+		bvs:              bvs,
 	}
 }
 

@@ -31,6 +31,7 @@ func Start(
 	dbApp server.SQLDriverApp,
 	hc *health.Handler,
 	sb server.ServiceBlockchain,
+	bvs server.BlockValidityService,
 ) (gRPCServerStop func(), gwServer *http.Server) {
 	s := httptest.NewServer(nil)
 	s.Close()
@@ -54,7 +55,7 @@ func Start(
 		OptionsSuccessStatus: cfg.HTTP.CORSStatusCode,
 	})
 
-	srv := server.New(log, cfg, dbApp, commands, cfg.HTTP.CookieForAuthUse, hc, sb)
+	srv := server.New(log, cfg, dbApp, commands, cfg.HTTP.CookieForAuthUse, hc, sb, bvs)
 	ctx = context.WithValue(ctx, consts.AppConfigs, cfg)
 
 	const (
@@ -72,6 +73,7 @@ func Start(
 		addr, // listen incoming host:port for gRPC server
 		func(sr grpc.ServiceRegistrar) {
 			node.RegisterInfoServiceServer(sr, srv)
+			node.RegisterBlockValidityProverServiceServer(sr, srv)
 		},
 	)
 
@@ -93,6 +95,7 @@ func Start(
 			HealthCheckHandler: hc,
 			Services: []gateway.RegisterServiceHandlerFunc{
 				node.RegisterInfoServiceHandler,
+				node.RegisterBlockValidityProverServiceHandler,
 			},
 			CorsHandler: c.Handler,
 			Swagger: &gateway.Swagger{
