@@ -243,8 +243,7 @@ func (p *blockValidityProver) syncBlockProverWithAuxInfo(
 		panic(fmt.Errorf("failed to generate block: %w", err))
 	}
 
-	// TODO: Reduce DB access
-	latestValidityWitness, err := calculateValidityWitness(p.blockBuilder, blockWitness)
+	latestValidityWitness, _, err := calculateValidityWitness(p.blockBuilder, blockWitness)
 	if err != nil {
 		panic(fmt.Errorf("failed to get last validity witness: %w", err))
 	}

@@ -87,7 +87,7 @@ type BlockHistory interface {
 	// SetValidityProof(blockNumber uint32, proof string) error
 	// ValidityProofByBlockNumber(blockNumber uint32) (*string, error)
 
-	SetValidityWitness(blockNumber uint32, witness *ValidityWitness) error
+	SetValidityWitness(blockNumber uint32, witness *ValidityWitness, newAccountTree *intMaxTree.AccountTree) error
 	LastValidityWitness() (*ValidityWitness, error)
 	// SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error
 	// LastSeenBlockPostedEventBlockNumber() (blockNumber uint64, err error)

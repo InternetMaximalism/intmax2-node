@@ -48,10 +48,15 @@ type balanceProcessor struct {
 }
 
 type BalanceProcessor interface {
+	// Generates a balance proof with public inputs for a deposit received by a given public key.
 	ProveReceiveDeposit(publicKey *intMaxAcc.PublicKey, receiveDepositWitness *ReceiveDepositWitness, lastBalanceProof *string) (*BalanceProofWithPublicInputs, error)
+	// Generates a balance proof with public inputs for a transfer received by a given public key.
 	ProveReceiveTransfer(publicKey *intMaxAcc.PublicKey, receiveTransferWitness *ReceiveTransferWitness, lastBalanceProof *string) (*BalanceProofWithPublicInputs, error)
+	// Generates a sender proof with public inputs for a transition involving sending funds.
 	ProveSendTransition(publicKey *intMaxAcc.PublicKey, sendWitness *SendWitness, updateWitness *block_validity_prover.UpdateWitness, lastBalanceProof *string) (*SenderProofWithPublicInputs, error)
+	// Generates a balance proof with public inputs for a send operation initiated by a given public key.
 	ProveSend(publicKey *intMaxAcc.PublicKey, sendWitness *SendWitness, updateWitness *block_validity_prover.UpdateWitness, lastBalanceProof *string) (*BalanceProofWithPublicInputs, error)
+	// Generates a balance proof with public inputs for a given public key and update witness.
 	ProveUpdate(publicKey *intMaxAcc.PublicKey, updateWitness *block_validity_prover.UpdateWitness, lastBalanceProof *string) (*BalanceProofWithPublicInputs, error)
 }
 
@@ -67,6 +72,9 @@ func NewBalanceProcessor(
 	}
 }
 
+// ProveUpdate generates a balance proof with public inputs for a given public key and update witness.
+// It requests the balance prover service to generate a validity proof for the balance update and
+// repeatedly polls for the proof until it is available or the context is canceled.
 func (s *balanceProcessor) ProveUpdate(
 	publicKey *intMaxAcc.PublicKey,
 	updateWitness *block_validity_prover.UpdateWitness,
@@ -117,6 +125,9 @@ func (s *balanceProcessor) ProveUpdate(
 	}
 }
 
+// ProveReceiveDeposit generates a balance proof with public inputs for a deposit received by a given public key.
+// It validates the consistency of the previous and current private commitments and requests the balance prover service
+// to generate a validity proof for the deposit. The method polls for the proof until it is available or the context is canceled.
 func (s *balanceProcessor) ProveReceiveDeposit(
 	publicKey *intMaxAcc.PublicKey,
 	receiveDepositWitness *ReceiveDepositWitness,
@@ -203,6 +214,9 @@ func (s *balanceProcessor) ProveReceiveDeposit(
 	}
 }
 
+// ProveSendTransition generates a sender proof with public inputs for a transition involving sending funds.
+// It requests the balance prover service to generate a validity proof for the send operation and polls for the proof
+// until it is available or the context is canceled.
 func (s *balanceProcessor) ProveSendTransition(
 	publicKey *intMaxAcc.PublicKey,
 	sendWitness *SendWitness,
@@ -250,6 +264,9 @@ func (s *balanceProcessor) ProveSendTransition(
 	}
 }
 
+// ProveSend generates a balance proof with public inputs for a send operation initiated by a given public key.
+// It requests the balance prover service to generate a validity proof for the send operation and polls for the proof
+// until it is available or the context is canceled.
 func (s *balanceProcessor) ProveSend(
 	publicKey *intMaxAcc.PublicKey,
 	sendWitness *SendWitness,
@@ -300,6 +317,9 @@ func (s *balanceProcessor) ProveSend(
 	}
 }
 
+// ProveReceiveTransfer generates a balance proof with public inputs for a transfer received by a given public key.
+// It requests the balance prover service to generate a validity proof for the receive transfer operation and polls
+// for the proof until it is available or the context is canceled.
 func (s *balanceProcessor) ProveReceiveTransfer(
 	publicKey *intMaxAcc.PublicKey,
 	receiveTransferWitness *ReceiveTransferWitness,

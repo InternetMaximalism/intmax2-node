@@ -53,7 +53,9 @@ type UserState interface {
 	PrivateState() *balance_prover_service.PrivateState
 	PublicState() *block_validity_prover.PublicState
 	Nullifiers() []intMaxTypes.Bytes32
+	IsIncludedInNullifierTree(nullifier intMaxTypes.Bytes32) (bool, error)
 	AssetLeaves() map[uint32]*intMaxTree.AssetLeaf
+	// Returns all block numbers in which the user has made transfers.
 	GetAllBlockNumbers() []uint32
 	DecryptBalanceData(encryptedBalanceData string) (*block_synchronizer.BalanceData, error)
 	UpdatePublicState(publicState *block_validity_prover.PublicState)
@@ -528,6 +530,15 @@ func (s *mockWallet) Nullifiers() []intMaxTypes.Bytes32 {
 	return s.nullifierTree.Nullifiers()
 }
 
+func (s *mockWallet) IsIncludedInNullifierTree(nullifier intMaxTypes.Bytes32) (bool, error) {
+	membershipProof, _, err := s.nullifierTree.ProveMembership(nullifier)
+	if err != nil {
+		return false, err
+	}
+
+	return membershipProof.IsIncluded, nil
+}
+
 func (s *mockWallet) AssetLeaves() map[uint32]*intMaxTree.AssetLeaf {
 	return s.assetTree.Leaves
 }
@@ -647,9 +658,14 @@ func (s *mockWallet) GeneratePrivateWitness(
 	oldNullifierTreeRoot := nullifierTree.GetRoot()
 	// fmt.Printf("old nullifier tree root: %v\n", oldNullifierTreeRoot)
 	// fmt.Printf("inserting nullifier: %v\n", nullifier)
+	fmt.Printf("Adding nullifier: %x\n", nullifier.Bytes())
+	for i, nullifierLeaf := range nullifierTree.GetLeaves() {
+		fmt.Printf("nullifier leaf[%d]: %x\n", i, nullifierLeaf.Key.Bytes())
+	}
+
 	nullifierProof, err := nullifierTree.Insert(nullifier)
 	if err != nil {
-		fmt.Printf("insert nullifier error: %v\n", err)
+		fmt.Printf("(GeneratePrivateWitness) insert nullifier error: %v\n", err)
 		return nil, errors.New("nullifier already exists")
 	}
 	// expectedNewNullifierTreeRoot := nullifierTree.GetRoot()
@@ -681,9 +697,11 @@ func (s *mockWallet) GeneratePrivateWitness(
 	}, nil
 }
 
-func (s *mockWallet) updateOnReceive(witness *balance_prover_service.PrivateWitness) error {
-	fmt.Printf("s.assetTree: %v\n", s.assetTree)
+var ErrNullifierTreeProof = errors.New("failed to generate nullifier tree proof")
 
+var ErrNullifierAlreadyExists = errors.New("nullifier already exists")
+
+func (s *mockWallet) updateOnReceive(witness *balance_prover_service.PrivateWitness) error {
 	nullifier := new(intMaxTypes.Uint256).FromFieldElementSlice(witness.Nullifier.ToFieldElementSlice())
 	oldNullifierTreeRoot := s.nullifierTree.GetRoot()
 	// fmt.Printf("old nullifier tree root: %v\n", oldNullifierTreeRoot)
@@ -699,6 +717,18 @@ func (s *mockWallet) updateOnReceive(witness *balance_prover_service.PrivateWitn
 		return errors.Join(errors.New("invalid nullifier proof"), err)
 	}
 
+	fmt.Printf("nullifier tree root before Insert: %v\n", s.nullifierTree.GetRoot())
+	fmt.Printf("inserting nullifier: %s\n", witness.Nullifier.Hex())
+	membershipProof, _, err := s.nullifierTree.ProveMembership(witness.Nullifier)
+	if err != nil {
+		fmt.Printf("nullifier tree proof error: %v\n", err)
+		return errors.Join(ErrNullifierTreeProof, err)
+	}
+	if membershipProof.IsIncluded {
+		fmt.Printf("nullifier already exists: %s\n", witness.Nullifier.Hex())
+		return ErrNullifierAlreadyExists
+	}
+
 	assetMerkleProof := witness.AssetMerkleProof
 	err = assetMerkleProof.Verify(
 		witness.PrevAssetLeaf.Hash(),
@@ -712,12 +742,10 @@ func (s *mockWallet) updateOnReceive(witness *balance_prover_service.PrivateWitn
 	newAssetLeaf := witness.PrevAssetLeaf.Add(witness.Amount)
 	newAssetTreeRoot := witness.AssetMerkleProof.GetRoot(newAssetLeaf.Hash(), int(witness.TokenIndex))
 
-	fmt.Printf("nullifier tree root before Insert: %v\n", s.nullifierTree.GetRoot())
-	fmt.Printf("inserting nullifier: %s\n", witness.Nullifier.Hex())
 	_, err = s.nullifierTree.Insert(witness.Nullifier)
 	if err != nil {
-		fmt.Printf("insert nullifier error: %v\n", err)
-		return errors.New("nullifier already exists")
+		fmt.Printf("Fatal: nullifier already exists: %s\n", witness.Nullifier.Hex())
+		panic(errors.New("nullifier already exists"))
 	}
 	fmt.Printf("nullifier tree root after Insert: %v\n", s.nullifierTree.GetRoot())
 	_, err = s.assetTree.UpdateLeaf(witness.TokenIndex, newAssetLeaf)
@@ -764,10 +792,11 @@ func (s *mockWallet) ReceiveDepositAndUpdate(
 		return nil, err
 	}
 
-	fmt.Printf("expected deposit tree root: %s\n", depositTreeRoot.String())
-	fmt.Printf("deposit index: %d\n", depositIndex)
 	fmt.Printf("ReceiveDepositAndUpdate deposit tree root: %s\n", depositTreeRoot.String())
+	fmt.Printf("deposit index: %d\n", depositIndex)
+	fmt.Printf("depositCase.DepositIndex: %d\n", depositCase.DepositIndex)
 	fmt.Printf("depositCase.Deposit: %v\n", depositCase.Deposit)
+	fmt.Printf("depositCase.Deposit RecipientSaltHash: %v\n", common.Hash(depositCase.Deposit.RecipientSaltHash).String())
 	fmt.Printf("depositCase.Deposit hash: %v\n", depositCase.Deposit.Hash())
 	for i, sibling := range depositMerkleProof.Siblings {
 		fmt.Printf("depositCase.Deposit Merkle proof: siblings[%d] = %s\n", i, common.Hash(sibling))
@@ -787,7 +816,7 @@ func (s *mockWallet) ReceiveDepositAndUpdate(
 	}
 	deposit := depositWitness.Deposit
 	nullifier := deposit.Nullifier()
-	fmt.Printf("deposit: %v\n", deposit)
+	fmt.Printf("deposit: %+v\n", deposit)
 	fmt.Printf("deposit (nullifier) dummy: %v\n", nullifier)
 
 	newSalt, err := new(poseidonHashOut).SetRandom()
@@ -809,6 +838,10 @@ func (s *mockWallet) ReceiveDepositAndUpdate(
 	// update
 	err = s.updateOnReceive(privateWitness)
 	if err != nil {
+		if err.Error() == ErrNullifierAlreadyExists.Error() {
+			return nil, ErrNullifierAlreadyExists
+		}
+
 		fmt.Printf("updateOnReceive error: %v\n", err)
 		return nil, err
 	}
@@ -841,6 +874,10 @@ func (s *mockWallet) ReceiveTransferAndUpdate(
 
 	err = s.updateOnReceive(receiveTransferWitness.PrivateWitness)
 	if err != nil {
+		if err.Error() == ErrNullifierAlreadyExists.Error() {
+			return nil, ErrNullifierAlreadyExists
+		}
+
 		return nil, err
 	}
 
@@ -953,6 +990,7 @@ func (w *mockWallet) Deposit(b *block_validity_prover.MockBlockBuilderMemory, sa
 		DepositIndex: depositIndex,
 		Deposit:      depositLeaf,
 	}
+	fmt.Printf("(Deposit.AddDepositCase): %+v\n", depositCase)
 	err = w.AddDepositCase(depositIndex, &depositCase)
 	if err != nil {
 		panic(err)

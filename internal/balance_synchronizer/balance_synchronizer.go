@@ -158,7 +158,7 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 			err = s.validReceivedDeposit(&transition)
 			if err != nil {
 				if errors.Is(err, block_validity_prover.ErrNoValidityProofByBlockNumber) ||
-					errors.Is(err, ErrApplyReceivedDepositTransitionFail) {
+					errors.Is(err, ErrApplyReceivedDepositTransitionFail) || errors.Is(err, ErrNullifierAlreadyExists) {
 					const msg = "failed to receive deposit: %+v"
 					s.log.Warnf(msg, err.Error())
 					continue
@@ -173,7 +173,7 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 			err = s.validReceivedTransfer(&transition)
 			if err != nil {
 				if errors.Is(err, block_validity_prover.ErrNoValidityProofByBlockNumber) ||
-					errors.Is(err, ErrApplyReceivedTransferTransitionFail) {
+					errors.Is(err, ErrApplyReceivedTransferTransitionFail) || errors.Is(err, ErrNullifierAlreadyExists) {
 					const msg = "failed to receive deposit: %+v"
 					s.log.Warnf(msg, err.Error())
 					continue
@@ -217,6 +217,21 @@ func (s *balanceSynchronizer) validReceivedDeposit(
 	fmt.Printf("valid received deposit: %v\n", transition.DepositHash)
 	transitionBlockNumber := transition.BlockNumber()
 	fmt.Printf("transitionBlockNumber: %d", transitionBlockNumber)
+
+	// nullifier already exists
+	nullifierBytes := intMaxTypes.Bytes32{}
+	nullifierBytes.FromBytes(transition.DepositHash[:])
+	isIncluded, err := s.userState.IsIncludedInNullifierTree(nullifierBytes)
+	if err != nil {
+		const msg = "failed to check nullifier: %+v"
+		return fmt.Errorf(msg, err.Error())
+	}
+	if isIncluded {
+		fmt.Printf("WARNING: nullifier %s already exists\n", transition.DepositHash.String())
+		var ErrNullifierAlreadyExists = errors.New("nullifier already exists")
+		return errors.Join(ErrNullifierAlreadyExists, err)
+	}
+
 	err = s.syncBalanceProver.SyncNoSend(
 		s.log,
 		s.blockValidityService,
@@ -249,6 +264,21 @@ func (s *balanceSynchronizer) validReceivedTransfer(
 	fmt.Printf("valid received transfer: %v\n", transition.TransferHash)
 	transitionBlockNumber := transition.BlockNumber()
 	fmt.Printf("transitionBlockNumber: %d\n", transitionBlockNumber)
+
+	// nullifier already exists
+	nullifierBytes := intMaxTypes.Bytes32{}
+	nullifierBytes.FromBytes(transition.TransferHash.Marshal())
+	isIncluded, err := s.userState.IsIncludedInNullifierTree(nullifierBytes)
+	if err != nil {
+		const msg = "failed to check nullifier: %+v"
+		return fmt.Errorf(msg, err.Error())
+	}
+	if isIncluded {
+		fmt.Printf("WARNING: nullifier %x already exists\n", transition.TransferHash.Marshal())
+		var ErrNullifierAlreadyExists = errors.New("nullifier already exists")
+		return errors.Join(ErrNullifierAlreadyExists, err)
+	}
+
 	err = s.syncBalanceProver.SyncNoSend(
 		s.log,
 		s.blockValidityService,
@@ -316,6 +346,7 @@ func applyReceivedDepositTransition(
 		DepositID:    deposit.DepositID,
 		DepositSalt:  *deposit.Salt,
 	}
+	fmt.Printf("(applyReceivedDepositTransition.AddDepositCase): %+v\n", depositCase)
 	err = userState.AddDepositCase(depositIndex, &depositCase)
 	if err != nil {
 		const msg = "failed to add deposit case: %+v"
@@ -333,6 +364,10 @@ func applyReceivedDepositTransition(
 		fmt.Printf("prove deposit %v\n", err.Error())
 		if err.Error() == messageBalanceProcessorNotInitialized {
 			return errors.New(messageBalanceProcessorNotInitialized)
+		}
+		if err.Error() == ErrNullifierAlreadyExists.Error() {
+			fmt.Printf("WARNING: nullifier %s already exists\n", depositCase.Deposit.Nullifier().String())
+			return nil
 		}
 
 		return fmt.Errorf("failed to receive deposit: %+v", err.Error())

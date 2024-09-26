@@ -251,6 +251,10 @@ func (d *blockValidityProver) FetchValidityProverInfo() (*ValidityProverInfo, er
 	}, nil
 }
 
+// Returns an update witness for a given public key and block numbers.
+// If the current block number is not provided, it fetches the latest posted block number from the database.
+// It then uses this block number, or the provided current block number, to fetch the update witness
+// from the block builder. The function returns the update witness or an error if the operation fails.
 func (d *blockValidityProver) FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber *uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error) {
 	if currentBlockNumber == nil {
 		// panic("currentBlockNumber == nil")
@@ -331,7 +335,13 @@ func (d *blockValidityProver) ValidityWitness(
 		panic(err)
 	}
 
-	return calculateValidityWitness(d.blockBuilder, blockWitness)
+	validityWitness, _, err := calculateValidityWitness(d.blockBuilder, blockWitness)
+	if err != nil {
+		var ErrCalculateValidityWitnessFail = errors.New("failed to calculate validity witness")
+		return nil, errors.Join(ErrCalculateValidityWitnessFail, err)
+	}
+
+	return validityWitness, err
 }
 
 // TODO: multiple response
@@ -396,16 +406,26 @@ func (d *blockValidityProver) DepositTreeProof(depositIndex uint32) (*intMaxTree
 	if err != nil {
 		return nil, common.Hash{}, err
 	}
-	depositTreeRoot, err := d.blockBuilder.LastDepositTreeRoot()
+	d.log.Debugf("actual deposit tree root: %s\n", actualDepositRoot.String())
+	// depositTreeRoot, err := d.blockBuilder.LastDepositTreeRoot()
+	// if err != nil {
+	// 	return nil, common.Hash{}, err
+	// }
+	// if depositTreeRoot != actualDepositRoot {
+	// 	d.log.Debugf("expected deposit tree root: %s\n", depositTreeRoot.String())
+	// 	return nil, common.Hash{}, errors.New("deposit tree root mismatch")
+	// }
+
+	// debug
+	depositLeaf := d.blockBuilder.MerkleTreeHistory.MerkleTrees[latestBlockNumber].DepositLeaves[depositIndex]
+	fmt.Printf("depositIndex: %+v\n", depositIndex)
+	fmt.Printf("depositLeaf: %+v\n", depositLeaf)
+	fmt.Printf("depositLeaf RecipientSaltHash: %v\n", common.Hash(depositLeaf.RecipientSaltHash).String())
+	fmt.Printf("depositLeaf hash: %s\n", depositLeaf.Hash().String())
+	err = depositMerkleProof.Verify(depositLeaf.Hash(), int(depositIndex), actualDepositRoot)
 	if err != nil {
-		return nil, common.Hash{}, err
+		panic(err)
 	}
 
-	fmt.Printf("actual deposit tree root: %s\n", actualDepositRoot.String())
-
-	if depositTreeRoot != actualDepositRoot {
-		return nil, common.Hash{}, errors.New("deposit tree root mismatch")
-	}
-
-	return depositMerkleProof, depositTreeRoot, err
+	return depositMerkleProof, actualDepositRoot, err
 }

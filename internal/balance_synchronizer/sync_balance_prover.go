@@ -3,7 +3,6 @@ package balance_synchronizer
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
@@ -216,6 +215,7 @@ func (s *SyncBalanceProver) LastBalanceProof() *string {
 	return &encodedProof
 }
 
+// Returns the most recent block number that has been reflected in the balance data.
 func (s *SyncBalanceProver) LastUpdatedBlockNumber() uint32 {
 	if s.balanceData == nil {
 		return 0
@@ -351,8 +351,9 @@ func (s *SyncBalanceProver) SyncSend(
 	return nil
 }
 
-// Sync balance proof public state to the latest block
-// assuming that there is no un-synced send tx.
+// SyncNoSend synchronizes the balance prover state without sending any transactions.
+// It verifies that the balance prover's last updated block number is consistent with the wallet's block numbers
+// and updates the balance prover state if necessary.
 func (s *SyncBalanceProver) SyncNoSend(
 	log logger.Logger,
 	blockValidityService block_validity_prover.BlockValidityService,
@@ -399,22 +400,6 @@ func (s *SyncBalanceProver) SyncNoSend(
 	validityPis := new(block_validity_prover.ValidityPublicInputs).FromPublicInputs(validityProofWithPis.PublicInputs)
 	currentBlockNumber := validityPis.PublicState.BlockNumber
 
-	// let prev_balance_pis = if prev_balance_proof.is_some() {
-	//     BalancePublicInputs::from_pis(&prev_balance_proof.as_ref().unwrap().public_inputs)
-	// } else {
-	//     BalancePublicInputs::new(public_key)
-	// };
-	// let last_block_number = balance_update_witness.account_membership_proof.get_value();
-	// let prev_public_state = &prev_balance_pis.public_state;
-	// println!("last_block_number: {}", last_block_number);
-	// println!(
-	//     "prev_public_state.block_number: {}",
-	//     prev_public_state.block_number
-	// );
-	// if last_block_number > prev_balance_pis.public_state.block_number as u64 {
-	// 	return Err("last_block_number is greater than prev_public_state.block_number");
-	// }
-
 	var prevBalancePis *balance_prover_service.BalancePublicInputs
 	if s.LastBalanceProof() != nil {
 		fmt.Println("s.LastBalanceProof != nil")
@@ -431,11 +416,13 @@ func (s *SyncBalanceProver) SyncNoSend(
 		fmt.Println("NewBalancePublicInputsWithPublicKey")
 		prevBalancePis = balance_prover_service.NewBalancePublicInputsWithPublicKey(wallet.PublicKey())
 	}
-	prevBalancePisJSON, err := json.Marshal(prevBalancePis)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("prevBalancePisJSON: %s", prevBalancePisJSON)
+
+	// DEBUG
+	// prevBalancePisJSON, err := json.Marshal(prevBalancePis)
+	// if err != nil {
+	// 	return err
+	// }
+	// fmt.Printf("prevBalancePisJSON: %s", prevBalancePisJSON)
 
 	lastSentTxBlockNumber := updateWitness.AccountMembershipProof.GetLeaf()
 	prevPublicState := prevBalancePis.PublicState
@@ -443,6 +430,7 @@ func (s *SyncBalanceProver) SyncNoSend(
 	fmt.Printf("lastSentTxBlockNumber: %d\n", lastSentTxBlockNumber)
 	fmt.Printf("prevPublicState.BlockNumber: %d\n", prevPublicState.BlockNumber)
 	if lastSentTxBlockNumber > uint64(prevPublicState.BlockNumber) {
+		// This indicates that there are unsynchronized transitions that need to be processed in advance.
 		return errors.New("last block number is greater than prev public state block number")
 	}
 
@@ -509,6 +497,10 @@ func (s *SyncBalanceProver) ReceiveDeposit(
 ) error {
 	receiveDepositWitness, err := wallet.ReceiveDepositAndUpdate(blockValidityService, depositIndex)
 	if err != nil {
+		if err.Error() == ErrNullifierAlreadyExists.Error() {
+			return ErrNullifierAlreadyExists
+		}
+
 		return errors.Join(ErrReceiveDepositAndUpdate, err)
 	}
 	fmt.Println("start ProveReceiveDeposit")
@@ -573,6 +565,10 @@ func (s *SyncBalanceProver) ReceiveTransfer(
 		senderBalanceTransitionProof,
 	)
 	if err != nil {
+		if err.Error() == ErrNullifierAlreadyExists.Error() {
+			return ErrNullifierAlreadyExists
+		}
+
 		return err
 	}
 	balanceProof, err := balanceProcessor.ProveReceiveTransfer(

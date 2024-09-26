@@ -528,7 +528,7 @@ func GetBackupBalance(
 	)
 	if err != nil {
 		fmt.Printf("fail to GetBackupBalance: %v\n", err.Error())
-		if err.Error() == "failed to start Balance Prover Service: no assets found" {
+		if err.Error() == "no assets found" || err.Error() == "failed to start Balance Prover Service: no assets found" {
 			// default value
 			return &BackupBalanceData{
 				ID:                   "",
