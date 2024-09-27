@@ -114,6 +114,36 @@
         ]
       }
     },
+    "/v1/info": {
+      "get": {
+        "summary": "BlockValidityProverInfo returns info of the block validity prover",
+        "description": "## BlockValidityProverInfo returns info of the block validity prover",
+        "operationId": "BlockValidityProverService_BlockValidityProverInfo",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BlockValidityProverInfoResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "tags": [
+          "BlockValidityProverService"
+        ]
+      }
+    },
     "/v1/version": {
       "get": {
         "summary": "Version returns the build service info",
@@ -225,6 +255,36 @@
         }
       },
       "title": "MerkleProof is the block merkle proof"
+    },
+    "v1BlockValidityProverInfoResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "the success flag"
+        },
+        "data": {
+          "$ref": "#/definitions/v1BlockValidityProverInfoResponseData",
+          "title": "Additional data related to the response"
+        }
+      },
+      "title": "BlockValidityProverInfoResponse describes response to get info about the block validity prover"
+    },
+    "v1BlockValidityProverInfoResponseData": {
+      "type": "object",
+      "properties": {
+        "depositIndex": {
+          "type": "string",
+          "format": "int64",
+          "title": "the last synchronized deposit index of the block validity prover"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "int64",
+          "title": "the latest block number for which block validity proof has been created"
+        }
+      },
+      "title": "Data is the nested message containing detailed response information"
     },
     "v1DepositTreeProofResponse": {
       "type": "object",

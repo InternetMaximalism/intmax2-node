@@ -26,6 +26,14 @@ service BlockValidityProverService {
       get: "/v1/block-merkle-tree/{root_block_number}/{leaf_block_number}"
     };
   }
+  // BlockValidityProverInfo returns info of the block validity prover
+  //
+  // ## BlockValidityProverInfo returns info of the block validity prover
+  rpc BlockValidityProverInfo(BlockValidityProverInfoRequest) returns (BlockValidityProverInfoResponse) {
+    option (google.api.http) = {
+      get: "/v1/info"
+    };
+  }
 }
 
 // DepositTreeProofRequest describes request to get info about the deposit Merkle proof
@@ -79,5 +87,23 @@ message BlockTreeProofResponse {
   message MerkleProof {
     // the siblings of the block merkle proof
     repeated string siblings = 10 [json_name="siblings", (tagger.tags)="json:\"siblings,omitempty\""];
+  }
+}
+
+// BlockValidityProverInfoRequest describes request to get info about the block validity prover
+message BlockValidityProverInfoRequest {}
+
+// BlockValidityProverInfoResponse describes response to get info about the block validity prover
+message BlockValidityProverInfoResponse {
+  // the success flag
+  bool success = 10 [json_name="success", (tagger.tags)="json:\"success,omitempty\""];
+  // Additional data related to the response
+  Data data = 20 [json_name="data", (tagger.tags)="json:\"data,omitempty\""];
+  // Data is the nested message containing detailed response information
+  message Data {
+    // the last synchronized deposit index of the block validity prover
+    int64 deposit_index = 10 [json_name="depositIndex", (tagger.tags)="json:\"depositIndex,omitempty\""];
+    // the latest block number for which block validity proof has been created
+    int64 block_number = 20 [json_name="blockNumber", (tagger.tags)="json:\"rootHash,omitempty\""];
   }
 }

@@ -1,6 +1,7 @@
 package block_validity_prover
 
 import (
+	"intmax2-node/internal/block_validity_prover"
 	intMaxTree "intmax2-node/internal/tree"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -17,4 +18,5 @@ type BlockValidityService interface {
 		*intMaxTree.PoseidonHashOut,
 		error,
 	)
+	FetchValidityProverInfo() (*block_validity_prover.ValidityProverInfo, error)
 }
