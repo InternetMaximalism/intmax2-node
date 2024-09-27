@@ -2,10 +2,11 @@ package block_validity_prover
 
 import (
 	"context"
-	"github.com/dimiro1/health"
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 	"sync"
+
+	"github.com/dimiro1/health"
 
 	"github.com/spf13/cobra"
 )

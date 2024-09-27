@@ -4,21 +4,21 @@ import (
 	"context"
 	"intmax2-node/internal/open_telemetry"
 	node "intmax2-node/internal/pb/gen/block_validity_prover_service/node"
-	depositTreeProofByDepositIndex "intmax2-node/internal/use_cases/deposit_tree_proof_by_deposit_index"
+	blockTreeProofByRootAndLeafBlockNumbers "intmax2-node/internal/use_cases/block_tree_proof_by_root_and_leaf_block_numbers"
 	"intmax2-node/pkg/grpc_server/utils"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
-func (s *BlockValidityProverServer) DepositTreeProof(
+func (s *BlockValidityProverServer) BlockTreeProof(
 	ctx context.Context,
-	req *node.DepositTreeProofRequest,
-) (*node.DepositTreeProofResponse, error) {
-	resp := node.DepositTreeProofResponse{}
+	req *node.BlockTreeProofRequest,
+) (*node.BlockTreeProofResponse, error) {
+	resp := node.BlockTreeProofResponse{}
 
 	const (
-		hName      = "Handler DepositTreeProof"
+		hName      = "Handler BlockTreeProof"
 		requestKey = "request"
 	)
 
@@ -28,8 +28,9 @@ func (s *BlockValidityProverServer) DepositTreeProof(
 		))
 	defer span.End()
 
-	input := depositTreeProofByDepositIndex.UCDepositTreeProofByDepositIndexInput{
-		DepositIndex: req.DepositIndex,
+	input := blockTreeProofByRootAndLeafBlockNumbers.UCBlockTreeProofByRootAndLeafBlockNumbersInput{
+		RootBlockNumber: req.RootBlockNumber,
+		LeafBlockNumber: req.LeafBlockNumber,
 	}
 
 	err := input.Valid()
@@ -38,17 +39,17 @@ func (s *BlockValidityProverServer) DepositTreeProof(
 		return &resp, utils.BadRequest(spanCtx, err)
 	}
 
-	var info *depositTreeProofByDepositIndex.UCDepositTreeProofByDepositIndex
-	info, err = s.Commands().DepositTreeProofByDepositIndex(s.config, s.log, s.bvs).Do(spanCtx, &input)
+	var info *blockTreeProofByRootAndLeafBlockNumbers.UCBlockTreeProofByRootAndLeafBlockNumbers
+	info, err = s.Commands().BlockTreeProofByRootAndLeafBlockNumbers(s.config, s.log, s.bvs).Do(spanCtx, &input)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
-		const msg = "failed to get deposit tree proof by deposit index: %+v"
+		const msg = "failed to get block tree proof by root and lead block numbers: %+v"
 		return &resp, utils.Internal(spanCtx, s.log, msg, err)
 	}
 
 	resp.Success = true
-	resp.Data = &node.DepositTreeProofResponse_Data{
-		MerkleProof: &node.DepositTreeProofResponse_MerkleProof{
+	resp.Data = &node.BlockTreeProofResponse_Data{
+		MerkleProof: &node.BlockTreeProofResponse_MerkleProof{
 			Siblings: make([]string, len(info.MerkleProof.Siblings)),
 		},
 		RootHash: info.RootHash,

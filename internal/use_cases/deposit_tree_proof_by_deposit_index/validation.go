@@ -9,6 +9,7 @@ import (
 // ErrValueInvalid error: value must be valid.
 var ErrValueInvalid = errors.New("must be a valid value")
 
+// ErrValueLessOne error: must not be less than one.
 var ErrValueLessOne = errors.New("must not be less than one")
 
 func (input *UCDepositTreeProofByDepositIndexInput) Valid() error {

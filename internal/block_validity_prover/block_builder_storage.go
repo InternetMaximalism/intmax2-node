@@ -56,7 +56,13 @@ type MockBlockBuilder interface {
 	BlockAuxInfo(blockNumber uint32) (*AuxInfo, error)
 	BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWithProof, error)
 	BlockNumberByDepositIndex(depositIndex uint32) (uint32, error)
-	BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.PoseidonMerkleProof, error)
+	BlockTreeProof(
+		rootBlockNumber, leafBlockNumber uint32,
+	) (
+		*intMaxTree.PoseidonMerkleProof,
+		*intMaxTree.PoseidonHashOut,
+		error,
+	)
 	BlockTreeRoot(blockNumber *uint32) (*intMaxGP.PoseidonHashOut, error)
 	ConstructSignature(
 		txTreeRoot intMaxTypes.Bytes32,
@@ -118,7 +124,7 @@ func (b *mockBlockBuilder) FetchUpdateWitness(
 	}
 
 	// blockMerkleProof := blockBuilder.GetBlockMerkleProof(currentBlockNumber, targetBlockNumber)
-	blockMerkleProof, err := b.BlockTreeProof(currentBlockNumber, targetBlockNumber)
+	blockMerkleProof, _, err := b.BlockTreeProof(currentBlockNumber, targetBlockNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -586,32 +592,44 @@ func (db *mockBlockBuilder) BlockTreeRoot(blockNumber *uint32) (*intMaxGP.Poseid
 	return blockHistory.BlockHashTree.GetRoot(), nil
 }
 
-func (db *mockBlockBuilder) BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.PoseidonMerkleProof, error) {
+func (db *mockBlockBuilder) BlockTreeProof(
+	rootBlockNumber, leafBlockNumber uint32,
+) (
+	*intMaxTree.PoseidonMerkleProof,
+	*intMaxTree.PoseidonHashOut,
+	error,
+) {
 	if rootBlockNumber < leafBlockNumber {
 		panic(fmt.Errorf("root block number should be greater than or equal to leaf block number: %d < %d", rootBlockNumber, leafBlockNumber))
-		// return nil, fmt.Errorf("root block number should be greater than or equal to leaf block number: %d < %d", rootBlockNumber, leafBlockNumber)
+		// return nil, nil, fmt.Errorf("root block number should be greater than or equal to leaf block number: %d < %d", rootBlockNumber, leafBlockNumber)
 	}
 
 	blockHistory, ok := db.MerkleTreeHistory[rootBlockNumber]
 	if !ok {
-		return nil, fmt.Errorf("root block number %d not found (BlockTreeProof)", rootBlockNumber)
+		return nil, nil, fmt.Errorf("root block number %d not found (BlockTreeProof)", rootBlockNumber)
 	}
 
-	proof, _, err := blockHistory.BlockHashTree.Prove(leafBlockNumber)
+	proof, root, err := blockHistory.BlockHashTree.Prove(leafBlockNumber)
 	if err != nil {
-		return nil, fmt.Errorf("leaf block number %d not found (BlockTreeProof)", leafBlockNumber)
+		return nil, nil, fmt.Errorf("leaf block number %d not found (BlockTreeProof)", leafBlockNumber)
 	}
 
-	return &proof, nil
+	return &proof, root, nil
 }
 
-// func (db *mockBlockBuilder) CurrentBlockTreeProof(blockNumber uint32) (*intMaxTree.MerkleProof, error) {
-// 	proof, _, err := db.BlockTree.Prove(blockNumber)
+// func (db *mockBlockBuilder) BlockTreeProof(
+//	rootBlockNumber, leafBlockNumber uint32,
+// ) (
+//	*intMaxTree.PoseidonMerkleProof,
+//	*intMaxTree.PoseidonHashOut,
+//	error,
+// ) {
+// 	proof, root, err := db.BlockTree.Prove(blockNumber)
 // 	if err != nil {
-// 		return nil, errors.New("block tree proof error")
-// 	}
-
-// 	return &proof, nil
+// 		return nil, nil, errors.New("block tree proof error")
+// }
+//
+// 	return &proof, root, nil
 // }
 
 func (db *mockBlockBuilder) IsSynchronizedDepositIndex(depositIndex uint32) (bool, error) {
@@ -1129,7 +1147,7 @@ func updateValidityWitnessWithConsistencyCheck(db BlockBuilderStorage, blockWitn
 		fmt.Printf("prevPis.PublicState.BlockTreeRoot is not the same with blockTreeRoot, %s != %s", prevPis.PublicState.BlockTreeRoot.String(), prevBlockTreeRoot.String())
 		return nil, errors.New("block tree root is not equal to the last block tree root")
 	}
-	// blockMerkleProof, err := db.BlockTreeProof(prevPis.PublicState.BlockNumber+1, blockWitness.Block.BlockNumber)
+	// blockMerkleProof, _, err := db.BlockTreeProof(prevPis.PublicState.BlockNumber+1, blockWitness.Block.BlockNumber)
 	// if err != nil {
 	// 	var ErrBlockTreeProve = errors.New("block tree prove error")
 	// 	return nil, errors.Join(ErrBlockTreeProve, err)
@@ -1221,7 +1239,7 @@ func calculateValidityWitness(db BlockBuilderStorage, blockWitness *BlockWitness
 		return nil, fmt.Errorf("block tree root error: %w", err)
 	}
 
-	// blockMerkleProof, err := db.BlockTreeProof(prevBlockNumber, blockWitness.Block.BlockNumber)
+	// blockMerkleProof, _, err := db.BlockTreeProof(prevBlockNumber, blockWitness.Block.BlockNumber)
 	// if err != nil {
 	// 	var ErrBlockTreeProve = errors.New("block tree prove error")
 	// 	return nil, errors.Join(ErrBlockTreeProve, err)
@@ -1247,7 +1265,7 @@ func calculateValidityWitnessWithMerkleProofs(
 	// }
 
 	// debug
-	blockMerkleProof, err := db.BlockTreeProof(blockWitness.Block.BlockNumber, blockWitness.Block.BlockNumber)
+	blockMerkleProof, _, err := db.BlockTreeProof(blockWitness.Block.BlockNumber, blockWitness.Block.BlockNumber)
 	if err != nil {
 		var ErrBlockTreeProve = errors.New("block tree prove error")
 		return nil, errors.Join(ErrBlockTreeProve, err)

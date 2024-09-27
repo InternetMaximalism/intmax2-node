@@ -4,9 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/dimiro1/health"
-	"github.com/rs/cors"
-	"google.golang.org/grpc"
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
 	"intmax2-node/docs/swagger"
@@ -22,6 +19,10 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/dimiro1/health"
+	"github.com/rs/cors"
+	"google.golang.org/grpc"
 
 	"github.com/spf13/cobra"
 )

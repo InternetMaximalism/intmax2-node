@@ -2,9 +2,10 @@ package server
 
 import (
 	"context"
+	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
+
 	"github.com/dimiro1/health"
 	"github.com/ethereum/go-ethereum/common"
-	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 )
 
 //go:generate mockgen -destination=mock_db_app.go -package=server -source=db_app.go

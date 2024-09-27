@@ -267,7 +267,13 @@ func (d *blockValidityProver) FetchUpdateWitness(publicKey *intMaxAcc.PublicKey,
 	return d.blockBuilder.FetchUpdateWitness(publicKey, *currentBlockNumber, targetBlockNumber, isPrevAccountTree)
 }
 
-func (d *blockValidityProver) BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.PoseidonMerkleProof, error) {
+func (d *blockValidityProver) BlockTreeProof(
+	rootBlockNumber, leafBlockNumber uint32,
+) (
+	*intMaxTree.PoseidonMerkleProof,
+	*intMaxTree.PoseidonHashOut,
+	error,
+) {
 	return d.blockBuilder.BlockTreeProof(rootBlockNumber, leafBlockNumber)
 }
 

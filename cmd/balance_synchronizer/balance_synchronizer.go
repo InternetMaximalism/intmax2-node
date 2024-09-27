@@ -3,8 +3,6 @@ package balance_synchronizer
 import (
 	"context"
 	"fmt"
-	"github.com/dimiro1/health"
-	"github.com/spf13/cobra"
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
 	intMaxAcc "intmax2-node/internal/accounts"
@@ -16,6 +14,9 @@ import (
 	"intmax2-node/internal/mnemonic_wallet"
 	mDBApp "intmax2-node/internal/mnemonic_wallet/models"
 	"sync"
+
+	"github.com/dimiro1/health"
+	"github.com/spf13/cobra"
 )
 
 const (

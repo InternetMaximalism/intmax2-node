@@ -13,8 +13,8 @@ type UCDepositTreeProofByDepositIndexMerkleProof struct {
 }
 
 type UCDepositTreeProofByDepositIndex struct {
-	MerkleProof UCDepositTreeProofByDepositIndexMerkleProof `json:"merkleProof"`
-	RootHash    string                                      `json:"rootHash"`
+	MerkleProof *UCDepositTreeProofByDepositIndexMerkleProof `json:"merkleProof"`
+	RootHash    string                                       `json:"rootHash"`
 }
 
 type UseCaseDepositTreeProofByDepositIndex interface {

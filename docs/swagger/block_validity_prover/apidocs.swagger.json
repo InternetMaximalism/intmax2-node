@@ -26,6 +26,54 @@
     "application/json"
   ],
   "paths": {
+    "/v1/block-merkle-tree/{rootBlockNumber}/{leafBlockNumber}": {
+      "get": {
+        "summary": "BlockTreeProof returns the block Merkle proof",
+        "description": "## BlockTreeProof returns the block Merkle proof",
+        "operationId": "BlockValidityProverService_BlockTreeProof",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BlockTreeProofResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "rootBlockNumber",
+            "description": "the root block number of the block Merkle proof",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "leafBlockNumber",
+            "description": "the leaf block number of the block Merkle proof",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "BlockValidityProverService"
+        ]
+      }
+    },
     "/v1/deposit-tree-proof/{depositIndex}": {
       "get": {
         "summary": "DepositTreeProof returns the deposit Merkle proof",
@@ -54,7 +102,7 @@
         "parameters": [
           {
             "name": "depositIndex",
-            "description": "the deposit index in the latest deposit tree",
+            "description": "the deposit index of deposit",
             "in": "path",
             "required": true,
             "type": "string",
@@ -98,31 +146,6 @@
     }
   },
   "definitions": {
-    "DepositTreeProofResponseData": {
-      "type": "object",
-      "properties": {
-        "merkleProof": {
-          "$ref": "#/definitions/DepositTreeProofResponseMerkleProof"
-        },
-        "rootHash": {
-          "type": "string"
-        }
-      },
-      "title": "Data is the nested message containing detailed response information"
-    },
-    "DepositTreeProofResponseMerkleProof": {
-      "type": "object",
-      "properties": {
-        "siblings": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "title": "the siblings of the deposit merkle proof"
-        }
-      },
-      "title": "MerkleProof is the deposit merkle proof"
-    },
     "protobufAny": {
       "type": "object",
       "properties": {
@@ -162,6 +185,47 @@
       },
       "description": "The `Status` type defines a logical error model that is suitable for\ndifferent programming environments, including REST APIs and RPC APIs. It is\nused by [gRPC](https://github.com/grpc). Each `Status` message contains\nthree pieces of data: error code, error message, and error details.\n\nYou can find out more about this error model and how to work with it in the\n[API Design Guide](https://cloud.google.com/apis/design/errors)."
     },
+    "v1BlockTreeProofResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "the success flag"
+        },
+        "data": {
+          "$ref": "#/definitions/v1BlockTreeProofResponseData",
+          "title": "Additional data related to the response"
+        }
+      },
+      "title": "BlockTreeProofResponse describes response to get info about the block Merkle proof"
+    },
+    "v1BlockTreeProofResponseData": {
+      "type": "object",
+      "properties": {
+        "merkleProof": {
+          "$ref": "#/definitions/v1BlockTreeProofResponseMerkleProof",
+          "title": "the merkle proof of block"
+        },
+        "rootHash": {
+          "type": "string",
+          "title": "the root hash of block"
+        }
+      },
+      "title": "Data is the nested message containing detailed response information"
+    },
+    "v1BlockTreeProofResponseMerkleProof": {
+      "type": "object",
+      "properties": {
+        "siblings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "the siblings of the block merkle proof"
+        }
+      },
+      "title": "MerkleProof is the block merkle proof"
+    },
     "v1DepositTreeProofResponse": {
       "type": "object",
       "properties": {
@@ -170,11 +234,38 @@
           "title": "the success flag"
         },
         "data": {
-          "$ref": "#/definitions/DepositTreeProofResponseData",
+          "$ref": "#/definitions/v1DepositTreeProofResponseData",
           "title": "Additional data related to the response"
         }
       },
       "title": "DepositTreeProofResponse describes response to get info about the deposit Merkle proof"
+    },
+    "v1DepositTreeProofResponseData": {
+      "type": "object",
+      "properties": {
+        "merkleProof": {
+          "$ref": "#/definitions/v1DepositTreeProofResponseMerkleProof",
+          "title": "the merkle proof of deposit"
+        },
+        "rootHash": {
+          "type": "string",
+          "title": "the root hash of deposit"
+        }
+      },
+      "title": "Data is the nested message containing detailed response information"
+    },
+    "v1DepositTreeProofResponseMerkleProof": {
+      "type": "object",
+      "properties": {
+        "siblings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "the siblings of the deposit merkle proof"
+        }
+      },
+      "title": "MerkleProof is the deposit merkle proof"
     },
     "v1VersionResponse": {
       "type": "object",

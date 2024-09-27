@@ -52,7 +52,7 @@ func (u *uc) Do(
 	}
 
 	resp := ucDepositTreeProofByDepositIndex.UCDepositTreeProofByDepositIndex{
-		MerkleProof: ucDepositTreeProofByDepositIndex.UCDepositTreeProofByDepositIndexMerkleProof{
+		MerkleProof: &ucDepositTreeProofByDepositIndex.UCDepositTreeProofByDepositIndexMerkleProof{
 			Siblings: make([]string, len(depositMerkleProof.Siblings)),
 		},
 		RootHash: depositTreeRoot.String(),

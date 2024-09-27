@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -61,13 +60,13 @@ func TestHandlerDepositTreeProof(t *testing.T) {
 	grpcServerStop, gwServer := Start(cmd, ctx, cfg, log, dbApp, &hc, sb, bvs)
 	defer grpcServerStop()
 
-	ucDepositTreeProofByDepositIndex := mocks.NewMockUseCaseDepositTreeProofByDepositIndex(ctrl)
+	uc := mocks.NewMockUseCaseDepositTreeProofByDepositIndex(ctrl)
 
 	cases := []struct {
 		desc         string
 		depositIndex string
 		info         *depositTreeProofByDepositIndex.UCDepositTreeProofByDepositIndex
-		prepare      func(depositIndex uint32, info *depositTreeProofByDepositIndex.UCDepositTreeProofByDepositIndex)
+		prepare      func(info *depositTreeProofByDepositIndex.UCDepositTreeProofByDepositIndex)
 		success      bool
 		message      string
 		wantStatus   int
@@ -75,14 +74,14 @@ func TestHandlerDepositTreeProof(t *testing.T) {
 		{
 			desc:       "empty depositIndex",
 			success:    false,
-			message:    `type mismatch, parameter: depositIndex, error: strconv.ParseInt: parsing "": invalid syntax`,
+			message:    `type mismatch, parameter: deposit_index, error: strconv.ParseInt: parsing "": invalid syntax`,
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			desc:         `error with depositIndex = 0.5`,
 			depositIndex: "0.5",
 			success:      false,
-			message:      `type mismatch, parameter: depositIndex, error: strconv.ParseInt: parsing "0.5": invalid syntax`,
+			message:      `type mismatch, parameter: deposit_index, error: strconv.ParseInt: parsing "0.5": invalid syntax`,
 			wantStatus:   http.StatusBadRequest,
 		},
 		{
@@ -99,36 +98,24 @@ func TestHandlerDepositTreeProof(t *testing.T) {
 			message:      `depositIndex: must not be less than one.`,
 			wantStatus:   http.StatusBadRequest,
 		},
-		// TODO: remove this test after fixed BlockValidityService.DepositTreeProof()
-		{
-			desc:         fmt.Sprintf("error with status %d", http.StatusInternalServerError),
-			depositIndex: "1",
-			success:      false,
-			prepare: func(depositIndex uint32, _ *depositTreeProofByDepositIndex.UCDepositTreeProofByDepositIndex) {
-				cmd.EXPECT().
-					DepositTreeProofByDepositIndex(gomock.Any(), gomock.Any(), gomock.Any())
-			},
-			message:    `(node) panic triggered: runtime error: invalid memory address or nil pointer dereference`,
-			wantStatus: http.StatusInternalServerError,
-		},
-		// TODO: edited this test after fixed BlockValidityService.DepositTreeProof()
+		// TODO: added test for use_case depositTreeProofByDepositIndex after fixed BlockValidityService.DepositTreeProof()
 		{
 			desc:         "success",
 			depositIndex: "1",
 			success:      true,
 			info: &depositTreeProofByDepositIndex.UCDepositTreeProofByDepositIndex{
-				MerkleProof: depositTreeProofByDepositIndex.UCDepositTreeProofByDepositIndexMerkleProof{
+				MerkleProof: &depositTreeProofByDepositIndex.UCDepositTreeProofByDepositIndexMerkleProof{
 					Siblings: []string{
 						uuid.New().String(),
 					},
 				},
 				RootHash: uuid.New().String(),
 			},
-			prepare: func(depositIndex uint32, info *depositTreeProofByDepositIndex.UCDepositTreeProofByDepositIndex) {
+			prepare: func(info *depositTreeProofByDepositIndex.UCDepositTreeProofByDepositIndex) {
 				cmd.EXPECT().
 					DepositTreeProofByDepositIndex(gomock.Any(), gomock.Any(), gomock.Any()).
-					Return(ucDepositTreeProofByDepositIndex)
-				ucDepositTreeProofByDepositIndex.EXPECT().Do(gomock.Any(), gomock.Any()).Return(info, nil)
+					Return(uc)
+				uc.EXPECT().Do(gomock.Any(), gomock.Any()).Return(info, nil)
 			},
 			wantStatus: http.StatusOK,
 		},
@@ -137,9 +124,7 @@ func TestHandlerDepositTreeProof(t *testing.T) {
 	for i := range cases {
 		t.Run(cases[i].desc, func(t *testing.T) {
 			if cases[i].prepare != nil {
-				di, err := strconv.Atoi(cases[i].depositIndex)
-				assert.NoError(t, err)
-				cases[i].prepare(uint32(di), cases[i].info)
+				cases[i].prepare(cases[i].info)
 			}
 
 			w := httptest.NewRecorder()

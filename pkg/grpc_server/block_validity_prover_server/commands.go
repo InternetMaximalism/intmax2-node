@@ -3,8 +3,10 @@ package block_validity_prover_server
 import (
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
+	blockTreeProofByRootAndLeafBlockNumbers "intmax2-node/internal/use_cases/block_tree_proof_by_root_and_leaf_block_numbers"
 	depositTreeProofByDepositIndex "intmax2-node/internal/use_cases/deposit_tree_proof_by_deposit_index"
 	getVersion "intmax2-node/internal/use_cases/get_version"
+	ucBlockTreeProofByRootAndLeafBlockNumbers "intmax2-node/pkg/use_cases/block_tree_proof_by_root_and_leaf_block_numbers"
 	ucDepositTreeProofByDepositIndex "intmax2-node/pkg/use_cases/deposit_tree_proof_by_deposit_index"
 	ucGetVersion "intmax2-node/pkg/use_cases/get_version"
 )
@@ -18,6 +20,11 @@ type Commands interface {
 		log logger.Logger,
 		bvs BlockValidityService,
 	) depositTreeProofByDepositIndex.UseCaseDepositTreeProofByDepositIndex
+	BlockTreeProofByRootAndLeafBlockNumbers(
+		cfg *configs.Config,
+		log logger.Logger,
+		bvs BlockValidityService,
+	) blockTreeProofByRootAndLeafBlockNumbers.UseCaseBlockTreeProofByRootAndLeafBlockNumbers
 }
 
 type commands struct{}
@@ -36,4 +43,12 @@ func (c *commands) DepositTreeProofByDepositIndex(
 	bvs BlockValidityService,
 ) depositTreeProofByDepositIndex.UseCaseDepositTreeProofByDepositIndex {
 	return ucDepositTreeProofByDepositIndex.New(cfg, log, bvs)
+}
+
+func (c *commands) BlockTreeProofByRootAndLeafBlockNumbers(
+	cfg *configs.Config,
+	log logger.Logger,
+	bvs BlockValidityService,
+) blockTreeProofByRootAndLeafBlockNumbers.UseCaseBlockTreeProofByRootAndLeafBlockNumbers {
+	return ucBlockTreeProofByRootAndLeafBlockNumbers.New(cfg, log, bvs)
 }

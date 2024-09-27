@@ -10,4 +10,11 @@ import (
 
 type BlockValidityService interface {
 	DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error)
+	BlockTreeProof(
+		rootBlockNumber, leafBlockNumber uint32,
+	) (
+		*intMaxTree.PoseidonMerkleProof,
+		*intMaxTree.PoseidonHashOut,
+		error,
+	)
 }
