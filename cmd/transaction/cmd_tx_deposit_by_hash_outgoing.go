@@ -2,7 +2,7 @@ package transaction
 
 import "github.com/spf13/cobra"
 
-func txDepositByHashOutgoingCmd(b *Transaction) *cobra.Command {
+func txDepositByHashOutgoingCmd(_ *Transaction) *cobra.Command {
 	const (
 		use   = "outgoing"
 		short = "Get deposit by hash (outgoing); coming soon"

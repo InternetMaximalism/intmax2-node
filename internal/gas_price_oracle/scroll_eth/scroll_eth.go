@@ -76,6 +76,7 @@ func (s *scrollEth) l1GasFee(ctx context.Context) (l1GasFee *big.Int, err error)
 		new(big.Int).SetInt64(int64(math.Ceil(float64(nonZeroPart*addPercent/int100Key)))),
 	)
 
+	// nolint:gocritic
 	// l1Gas = zeros * TX_DATA_ZERO_GAS + (nonzeros + 4) * TX_DATA_NON_ZERO_GAS
 	l1Gas := new(big.Int).Add(
 		new(big.Int).Mul(new(big.Int).SetInt64(zeros), new(big.Int).SetInt64(txDataZeroGas)),
@@ -154,6 +155,7 @@ func (s *scrollEth) l1GasFee(ctx context.Context) (l1GasFee *big.Int, err error)
 		return nil, errors.Join(ErrL1BaseFeeFail, err)
 	}
 
+	// nolint:gocritic
 	// l1GasFee = ((l1Gas + overhead) * l1BaseFee * scalar) / PRECISION
 	l1BaseFee = new(big.Int).Div(
 		new(big.Int).Mul(
@@ -166,7 +168,7 @@ func (s *scrollEth) l1GasFee(ctx context.Context) (l1GasFee *big.Int, err error)
 	return l1BaseFee, nil
 }
 
-func (s *scrollEth) l2GasFee(_ context.Context) (l1GasFee *big.Int, err error) {
+func (s *scrollEth) l2GasFee(_ context.Context) (l1GasFee *big.Int, err error) { // nolint:unparam
 	const int0Key = 0
 	return new(big.Int).SetInt64(int0Key), nil
 }

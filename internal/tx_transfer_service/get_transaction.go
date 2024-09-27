@@ -49,6 +49,11 @@ func GetTransactionsListWithRawRequest(
 	input *GetTransactionsListInput,
 	senderAccount *intMaxAcc.PrivateKey,
 ) (json.RawMessage, error) {
+	const (
+		emptyKey  = ""
+		indentKey = "  "
+	)
+
 	resp, err := getTransactionsListRawRequest(
 		ctx,
 		cfg,
@@ -66,7 +71,7 @@ func GetTransactionsListWithRawRequest(
 				Code:    resp.Error.Code,
 				Message: resp.Error.Message,
 			},
-		}, "", "  ")
+		}, emptyKey, indentKey)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal txList: %w", err)
 		}
@@ -98,7 +103,7 @@ func GetTransactionsListWithRawRequest(
 	}
 
 	var js []byte
-	js, err = json.MarshalIndent(txList, "", "  ")
+	js, err = json.MarshalIndent(txList, emptyKey, indentKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal txList: %w", err)
 	}
@@ -211,6 +216,11 @@ func GetTransactionByHashWithRawRequest(
 	txHash string,
 	senderAccount *intMaxAcc.PrivateKey,
 ) (json.RawMessage, error) {
+	const (
+		emptyKey  = ""
+		indentKey = "  "
+	)
+
 	resp, err := getTransactionByHashRawRequest(
 		ctx,
 		cfg,
@@ -228,7 +238,7 @@ func GetTransactionByHashWithRawRequest(
 				Code:    resp.Error.Code,
 				Message: resp.Error.Message,
 			},
-		}, "", "  ")
+		}, emptyKey, indentKey)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal transaction by hash: %w", err)
 		}
@@ -265,7 +275,7 @@ func GetTransactionByHashWithRawRequest(
 			TxDetails:   txDetails,
 			CreatedAt:   resp.Data.Transaction.CreatedAt,
 		},
-	}, "", "  ")
+	}, emptyKey, indentKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal transaction by hash: %w", err)
 	}

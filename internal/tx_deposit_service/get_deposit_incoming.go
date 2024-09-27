@@ -45,6 +45,11 @@ func GetDepositsListWithRawRequest(
 	input *GetDepositsListInput,
 	receiverAccount *intMaxAcc.PrivateKey,
 ) (json.RawMessage, error) {
+	const (
+		emptyKey  = ""
+		indentKey = "  "
+	)
+
 	resp, err := getDepositsListRawRequest(
 		ctx,
 		cfg,
@@ -62,7 +67,7 @@ func GetDepositsListWithRawRequest(
 				Code:    resp.Error.Code,
 				Message: resp.Error.Message,
 			},
-		}, "", "  ")
+		}, emptyKey, indentKey)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal depositsList: %w", err)
 		}
@@ -101,7 +106,7 @@ func GetDepositsListWithRawRequest(
 	}
 
 	var js []byte
-	js, err = json.MarshalIndent(depositsList, "", "  ")
+	js, err = json.MarshalIndent(depositsList, emptyKey, indentKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal depositsList: %w", err)
 	}
@@ -214,6 +219,11 @@ func GetDepositByHashIncomingWithRawRequest(
 	depositHash string,
 	recipientAccount *intMaxAcc.PrivateKey,
 ) (json.RawMessage, error) {
+	const (
+		emptyKey  = ""
+		indentKey = "  "
+	)
+
 	resp, err := getDepositByHashIncomingRawRequest(
 		ctx,
 		cfg,
@@ -229,7 +239,7 @@ func GetDepositByHashIncomingWithRawRequest(
 		js, err = json.MarshalIndent(&GetDepositTxByHashIncomingResponse{
 			Success:                       false,
 			GetDepositByHashIncomingError: *resp.Error,
-		}, "", "  ")
+		}, emptyKey, indentKey)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal deposit by hash (incoming): %w", err)
 		}
@@ -256,7 +266,7 @@ func GetDepositByHashIncomingWithRawRequest(
 			Deposit:     deposit,
 			CreatedAt:   resp.Data.Deposit.CreatedAt,
 		},
-	}, "", "  ")
+	}, emptyKey, indentKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal deposit by hash (incoming): %w", err)
 	}
