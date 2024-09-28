@@ -371,12 +371,14 @@ func NewServerCmd(s *Server) *cobra.Command {
 							// var ErrLastSeenBlockPostedEventBlockNumberFail = errors.New("last seen block posted event block number fail")
 							// panic(errors.Join(ErrLastSeenBlockPostedEventBlockNumberFail, err))
 						}
+						fmt.Printf("startBlock of LastSeenBlockPostedEventBlockNumber: %d\n", startBlock)
 
 						var endBlock uint64
 						endBlock, err = blockValidityProver.SyncBlockTree(blockSynchronizer, startBlock)
 						if err != nil {
 							panic(err)
 						}
+						fmt.Printf("endBlock of LastSeenBlockPostedEventBlockNumber: %d\n", endBlock)
 
 						err = blockValidityService.SetLastSeenBlockPostedEventBlockNumber(endBlock)
 						if err != nil {

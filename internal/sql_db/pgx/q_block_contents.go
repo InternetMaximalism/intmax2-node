@@ -167,7 +167,7 @@ func (p *pgx) BlockContent(blockContentID string) (*mDBApp.BlockContentWithProof
 // TODO: pagination
 func (p *pgx) ScanBlockHashAndSenders() (blockHashAndSendersMap map[uint32]mDBApp.BlockHashAndSenders, lastBlockNumber uint32, err error) {
 	const (
-		q = `SELECT block_number, block_hash, deposit_root, senders FROM block_contents
+		q = `SELECT block_number, block_hash, deposit_root, senders, is_registration_block FROM block_contents
 			 ORDER BY block_number ASC`
 	)
 
@@ -184,7 +184,8 @@ func (p *pgx) ScanBlockHashAndSenders() (blockHashAndSendersMap map[uint32]mDBAp
 		var blockHash string
 		var depositTreeRoot string
 		var sendersJSON []byte
-		err = rows.Scan(&blockNumber, &blockHash, &depositTreeRoot, &sendersJSON)
+		var isRegistrationBlock bool
+		err = rows.Scan(&blockNumber, &blockHash, &depositTreeRoot, &sendersJSON, &isRegistrationBlock)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -198,9 +199,10 @@ func (p *pgx) ScanBlockHashAndSenders() (blockHashAndSendersMap map[uint32]mDBAp
 		}
 
 		blockHashAndSendersMap[blockNumber] = mDBApp.BlockHashAndSenders{
-			BlockHash:       blockHash,
-			Senders:         senders,
-			DepositTreeRoot: depositTreeRoot,
+			BlockHash:           blockHash,
+			Senders:             senders,
+			DepositTreeRoot:     depositTreeRoot,
+			IsRegistrationBlock: isRegistrationBlock,
 		}
 	}
 
@@ -252,6 +254,7 @@ func (p *pgx) LastBlockNumberGeneratedValidityProof() (uint32, error) {
 	if err != nil {
 		return 0, err
 	}
+	fmt.Printf("(LastBlockNumberGeneratedValidityProof) blockNumber: %d\n", blockNumber)
 
 	return uint32(blockNumber), nil
 }

@@ -150,6 +150,15 @@ func (bc *BlockContent) IsValid() error {
 		int1Key = 1
 	)
 
+	// for i, sender := range bc.Senders {
+	// 	publicKey := sender.PublicKey
+	// 	_, ok := prevAccountTree.GetAccountID(publicKey.BigInt())
+	// 	if ok {
+	// 		// Fatal: If it fails here, the block is not valid and does not enter this process.
+	// 		return nil, errors.New("account already exists")
+	// 	}
+	// }
+
 	return validation.ValidateStruct(bc,
 		validation.Field(&bc.SenderType,
 			validation.Required.Error(ErrBlockContentSenderTypeInvalid.Error()),

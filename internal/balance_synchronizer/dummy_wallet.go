@@ -640,7 +640,7 @@ func (s *mockWallet) GeneratePrivateWitness(
 
 	assetRoot := assetTree.GetRoot()
 	fmt.Printf("prev asset leaf isInsufficient: %v\n", prevAssetLeaf.IsInsufficient)
-	fmt.Printf("prev asset leaf amount: %v\n", prevAssetLeaf.Amount)
+	fmt.Printf("prev asset leaf amount: %v\n", prevAssetLeaf.Amount.BigInt())
 	fmt.Printf("prev asset leaf hash: %v\n", prevAssetLeaf.Hash())
 	fmt.Printf("prev asset root hash: %s\n", assetRoot.String())
 	// fmt.Printf("prev asset root hash: %s\n", assetRoot.String())

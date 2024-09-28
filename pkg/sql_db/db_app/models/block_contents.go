@@ -32,7 +32,8 @@ type BlockContentWithProof struct {
 }
 
 type BlockHashAndSenders struct {
-	BlockHash       string
-	Senders         []intMaxTypes.ColumnSender
-	DepositTreeRoot string
+	BlockHash           string
+	Senders             []intMaxTypes.ColumnSender
+	DepositTreeRoot     string
+	IsRegistrationBlock bool
 }

@@ -668,7 +668,7 @@ func SyncLocally(
 		log.Fatalf(msg, err.Error())
 	}
 
-	timeout := 1 * time.Second
+	timeout := 5 * time.Second
 	ticker := time.NewTicker(timeout)
 	for {
 		log.Debugf("start SyncLocally loop\n")
@@ -695,6 +695,10 @@ func SyncLocally(
 			}
 
 			if latestSynchronizedBlockNumber <= syncBalanceProver.LastUpdatedBlockNumber() && syncBalanceProver.LastUpdatedBlockNumber() != 0 {
+				return balanceSynchronizer, nil
+			}
+
+			if len(sortedValidUserData) == 0 {
 				return balanceSynchronizer, nil
 			}
 

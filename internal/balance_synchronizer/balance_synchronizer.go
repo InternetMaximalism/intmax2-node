@@ -227,7 +227,7 @@ func (s *balanceSynchronizer) validReceivedDeposit(
 		return fmt.Errorf(msg, err.Error())
 	}
 	if isIncluded {
-		fmt.Printf("WARNING: nullifier %s already exists\n", transition.DepositHash.String())
+		fmt.Printf("WARNING: (validReceiveDeposit) nullifier %s already exists\n", transition.DepositHash.String())
 		var ErrNullifierAlreadyExists = errors.New("nullifier already exists")
 		return errors.Join(ErrNullifierAlreadyExists, err)
 	}
@@ -346,7 +346,8 @@ func applyReceivedDepositTransition(
 		DepositID:    deposit.DepositID,
 		DepositSalt:  *deposit.Salt,
 	}
-	fmt.Printf("(applyReceivedDepositTransition.AddDepositCase): %+v\n", depositCase)
+	fmt.Printf("(applyReceivedDepositTransition.AddDepositCase) depositIndex: %+v\n", depositIndex)
+	fmt.Printf("(applyReceivedDepositTransition.AddDepositCase) depositCase: %+v\n", depositCase)
 	err = userState.AddDepositCase(depositIndex, &depositCase)
 	if err != nil {
 		const msg = "failed to add deposit case: %+v"
@@ -366,7 +367,7 @@ func applyReceivedDepositTransition(
 			return errors.New(messageBalanceProcessorNotInitialized)
 		}
 		if err.Error() == ErrNullifierAlreadyExists.Error() {
-			fmt.Printf("WARNING: nullifier %s already exists\n", depositCase.Deposit.Nullifier().String())
+			fmt.Printf("WARNING: (applyReceivedReceiveDepositTransition) nullifier %s already exists\n", depositCase.Deposit.Nullifier().String())
 			return nil
 		}
 

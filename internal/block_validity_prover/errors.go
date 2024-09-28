@@ -135,6 +135,9 @@ var ErrGenesisValidityProof = errors.New("genesis validity proof error")
 // ErrNoValidityProofByBlockNumber error: no validity proof by block number.
 var ErrNoValidityProofByBlockNumber = errors.New("no validity proof by block number")
 
+// ErrAccountAlreadyExists error: account already exists.
+var ErrAccountAlreadyExists = errors.New("account already exists")
+
 // ErrAccountTreeGetAccountID error: account id not found in the account tree.
 var ErrAccountTreeGetAccountID = errors.New("account id not found in the account tree")
 
@@ -146,3 +149,9 @@ var ErrBlockUnSynchronization = errors.New("not synchronized")
 
 // ErrAccountMembershipProof error: account membership proof error.
 var ErrAccountMembershipProof = errors.New("account membership proof error")
+
+// ErrRootBlockNumberNotFound error: root block number not found.
+var ErrRootBlockNumberNotFound = errors.New("root block number not found")
+
+// ErrLeafBlockNumberNotFound error: leaf block number not found.
+var ErrLeafBlockNumberNotFound = errors.New("leaf block number not found")

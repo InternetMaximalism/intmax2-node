@@ -335,6 +335,7 @@ func (d *blockValidityProver) ValidityWitness(
 		panic(err)
 	}
 
+	fmt.Printf("(validityWitness) blockWitness.AccountMembershipProofs: %v\n", blockWitness.AccountMembershipProofs.IsSome)
 	validityWitness, _, err := calculateValidityWitness(d.blockBuilder, blockWitness)
 	if err != nil {
 		var ErrCalculateValidityWitnessFail = errors.New("failed to calculate validity witness")
