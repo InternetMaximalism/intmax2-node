@@ -1284,18 +1284,11 @@ func (w *BlockWitness) MainValidationPublicInputs() (*MainValidationPublicInputs
 
 	publicKeysHash := GetPublicKeysHash(publicKeys)
 	isRegistrationBlock := signature.IsRegistrationBlock
-	isPubkeyEq := signature.PublicKeyHash == publicKeysHash
+	isPublicKeyEq := signature.PublicKeyHash == publicKeysHash
 	if isRegistrationBlock {
-		if !isPubkeyEq {
+		if !isPublicKeyEq {
 			panic("pubkey hash mismatch")
 		}
-	} else {
-		if result && !isPubkeyEq {
-			invalidReason = "public key is invalid"
-		}
-		result = result && isPubkeyEq
-	}
-	if isRegistrationBlock {
 		fmt.Printf("blockWitness blockNumber: %v\n", w.Block.BlockNumber)
 		fmt.Printf("blockWitness accountMembershipProof2: %v\n", w.AccountMembershipProofs.IsSome)
 		fmt.Printf("blockWitness accountMerkleProof2: %v\n", w.AccountMerkleProofs.IsSome)
@@ -1321,6 +1314,11 @@ func (w *BlockWitness) MainValidationPublicInputs() (*MainValidationPublicInputs
 		}
 		result = result && accountExclusionValue.IsValid
 	} else {
+		if result && !isPublicKeyEq {
+			invalidReason = "public key is invalid"
+		}
+		result = result && isPublicKeyEq
+
 		if w.AccountIdPacked != nil {
 			panic("account id packed should be given")
 		}

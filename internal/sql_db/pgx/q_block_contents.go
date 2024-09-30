@@ -349,6 +349,8 @@ func (p *pgx) BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockConten
 			&tmp.ValidityProof,
 		))
 	if err != nil {
+		fmt.Printf("(BlockContentByBlockNumber) err: %v\n", err)
+
 		return nil, err
 	}
 

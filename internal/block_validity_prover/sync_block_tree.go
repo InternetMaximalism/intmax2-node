@@ -7,9 +7,11 @@ import (
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/block_post_service"
+	"intmax2-node/internal/logger"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
-	"math/big"
+	"intmax2-node/pkg/sql_db/db_app/models"
+	"sync"
 	"time"
 
 	"github.com/holiman/uint256"
@@ -106,12 +108,115 @@ func (p *blockValidityProver) BlockBuilder() *mockBlockBuilder {
 // 	}()
 // }
 
-func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, startBlock uint64) (lastEventSeenBlockNumber uint64, err error) {
-	var (
-		events []*bindings.RollupBlockPosted
-		nextBN *big.Int
-	)
+func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, wg *sync.WaitGroup) (err error) {
+	wg.Add(1)
+	go func() {
+		defer func() {
+			wg.Done()
+		}()
 
+		var latestSynchronizedDepositIndex uint32
+		latestSynchronizedDepositIndex, err = p.FetchLastDepositIndex()
+		if err != nil {
+			const msg = "failed to fetch last deposit index: %+v"
+			p.log.Fatalf(msg, err.Error())
+		}
+
+		timeout := 5 * time.Second
+		ticker := time.NewTicker(timeout)
+		for {
+			select {
+			case <-p.ctx.Done():
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				fmt.Println("balance validity ticker.C")
+				err = p.SyncDepositedEvents()
+				if err != nil {
+					const msg = "failed to sync deposited events: %+v"
+					p.log.Fatalf(msg, err.Error())
+				}
+
+				err = p.SyncDepositTree(nil, latestSynchronizedDepositIndex)
+				if err != nil {
+					const msg = "failed to sync deposit tree: %+v"
+					p.log.Fatalf(msg, err.Error())
+				}
+			}
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer func() {
+			wg.Done()
+		}()
+
+		timeout := 5 * time.Second
+		ticker := time.NewTicker(timeout)
+		for {
+			select {
+			case <-p.ctx.Done():
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				fmt.Println("block content ticker.C")
+				// sync block content
+				var startBlock uint64
+				startBlock, err := p.LastSeenBlockPostedEventBlockNumber()
+				if err != nil {
+					startBlock = p.cfg.Blockchain.RollupContractDeployedBlockNumber
+				}
+				fmt.Printf("startBlock of LastSeenBlockPostedEventBlockNumber: %d\n", startBlock)
+
+				var endBlock uint64
+				endBlock, err = p.syncBlockContent(bps, startBlock)
+				if err != nil {
+					panic(err)
+				}
+				fmt.Printf("endBlock of LastSeenBlockPostedEventBlockNumber: %d\n", endBlock)
+
+				err = p.SetLastSeenBlockPostedEventBlockNumber(endBlock)
+				if err != nil {
+					var ErrSetLastSeenBlockPostedEventBlockNumberFail = errors.New("set last seen block posted event block number fail")
+					panic(errors.Join(ErrSetLastSeenBlockPostedEventBlockNumberFail, err))
+				}
+
+				fmt.Printf("Block %d is searched\n", endBlock)
+			}
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer func() {
+			wg.Done()
+		}()
+
+		err = p.SyncBlockValidityWitness()
+		if err != nil {
+			var ErrSyncBlockProverWithBlockNumberFail = errors.New("failed to sync block validity witness")
+			panic(errors.Join(ErrSyncBlockProverWithBlockNumberFail, err))
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer func() {
+			wg.Done()
+		}()
+
+		err = p.syncBlockValidityProof()
+		if err != nil {
+			var ErrSyncBlockValidityProofFail = errors.New("failed to sync block validity proof")
+			panic(errors.Join(ErrSyncBlockValidityProofFail, err))
+		}
+	}()
+
+	return nil
+}
+
+func (p *blockValidityProver) syncBlockContent(bps BlockSynchronizer, startBlock uint64) (lastEventSeenBlockNumber uint64, err error) {
 	latestScrollBlockNumber, err := bps.FetchLatestBlockNumber(p.ctx)
 	if err != nil {
 		return startBlock, errors.Join(ErrFetchLatestBlockNumberFail, err)
@@ -124,7 +229,8 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, startBlock ui
 		endBlock = latestScrollBlockNumber
 	}
 
-	events, nextBN, err = bps.FetchNewPostedBlocks(startBlock, &endBlock)
+	var events []*bindings.RollupBlockPosted
+	events, _, err = bps.FetchNewPostedBlocks(startBlock, &endBlock)
 	if err != nil {
 		return startBlock, errors.Join(ErrFetchNewPostedBlocksFail, err)
 	}
@@ -141,6 +247,7 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, startBlock ui
 		}
 	}()
 
+	nextBN := startBlock
 	for key := range events {
 		select {
 		case <-p.ctx.Done():
@@ -148,161 +255,254 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, startBlock ui
 			return startBlock, p.ctx.Err()
 		case <-tickerEventWatcher.C:
 			fmt.Println("tickerEventWatcher.C")
-			_, err := p.blockBuilder.db.BlockContentByBlockNumber(uint32(events[key].BlockNumber.Uint64()))
-			if err != nil && err.Error() != "not found" {
-				return startBlock, errors.Join(ErrProcessingBlocksFail, err)
+			_, err := syncBlockContentWithEvent(p.blockBuilder, bps, p.log, events[key])
+			if err != nil {
+				return nextBN, errors.Join(ErrProcessingBlocksFail, err)
 			}
+			nextBN = events[key].Raw.BlockNumber
+		}
+	}
 
-			if err == nil {
-				blockNumber := uint32(events[key].BlockNumber.Uint64())
-				lastGeneratedProofBlockNumber, err := p.blockBuilder.LastGeneratedProofBlockNumber()
-				if err != nil {
-					var ErrLastGeneratedProofBlockNumberFail = errors.New("last generated proof block number fail")
-					return startBlock, errors.Join(ErrLastGeneratedProofBlockNumberFail, err)
+	return nextBN, nil
+}
+
+func syncBlockContentWithEvent(
+	blockBuilder *mockBlockBuilder,
+	bps BlockSynchronizer,
+	log logger.Logger,
+	event *bindings.RollupBlockPosted,
+) (*models.BlockContentWithProof, error) {
+	intMaxBlockNumber := uint32(event.BlockNumber.Uint64())
+	newBlockContent, err := blockBuilder.db.BlockContentByBlockNumber(intMaxBlockNumber)
+	if err == nil {
+		return newBlockContent, nil
+	}
+
+	if err.Error() != "not found" {
+		return nil, errors.Join(ErrProcessingBlocksFail, err)
+	}
+
+	var cd []byte
+	cd, err = bps.FetchScrollCalldataByHash(event.Raw.TxHash)
+	if err != nil {
+		return nil, errors.Join(ErrFetchScrollCalldataByHashFail, err)
+	}
+
+	postedBlock := block_post_service.NewPostedBlock(
+		event.PrevBlockHash,
+		event.DepositTreeRoot,
+		intMaxBlockNumber,
+		event.SignatureHash,
+	)
+
+	// Update account tree
+	var blockContent *intMaxTypes.BlockContent
+	blockContent, err = FetchIntMaxBlockContentByCalldata(cd, postedBlock, blockBuilder)
+	if err != nil {
+		err = errors.Join(ErrFetchIntMaxBlockContentByCalldataFail, err)
+		switch {
+		case errors.Is(err, ErrUnknownAccountID):
+			const msg = "block %d is ErrUnknownAccountID"
+			log.WithError(err).Errorf(msg, intMaxBlockNumber)
+		case errors.Is(err, ErrCannotDecodeAddress):
+			const msg = "block %d is ErrCannotDecodeAddress"
+			log.WithError(err).Errorf(msg, intMaxBlockNumber)
+		default:
+			const msg = "block %d processing error occurred"
+			log.WithError(err).Errorf(msg, intMaxBlockNumber)
+		}
+
+		const msg = "processing of block %d error occurred"
+		log.Debugf(msg, intMaxBlockNumber)
+	} else {
+		const msg = "block %d is found (SyncBlockTree, Scroll block number: %d)"
+		log.Debugf(msg, intMaxBlockNumber, event.Raw.BlockNumber)
+	}
+
+	senders := make([]intMaxTypes.ColumnSender, len(blockContent.Senders))
+	for i, sender := range blockContent.Senders {
+		senders[i] = intMaxTypes.ColumnSender{
+			PublicKey: hex.EncodeToString(sender.PublicKey.ToAddress().Bytes()),
+			AccountID: sender.AccountID,
+			IsSigned:  sender.IsSigned,
+		}
+	}
+
+	newBlockContent, err = blockBuilder.CreateBlockContent(postedBlock, blockContent)
+	if err != nil {
+		return nil, errors.Join(ErrCreateBlockContentFail, err)
+	}
+
+	return newBlockContent, nil
+}
+
+func (p *blockValidityProver) SyncBlockValidityWitness() error {
+	lastValidityWitnessBlockNumber := uint32(0)
+	lastValidityWitness, err := p.blockBuilder.LastValidityWitness()
+	if err != nil {
+		if err.Error() != "not found" {
+			var ErrLastValidityWitnessFail = errors.New("last validity witness fail")
+			return errors.Join(ErrLastValidityWitnessFail, err)
+		}
+	} else {
+		lastValidityWitnessBlockNumber = lastValidityWitness.BlockWitness.Block.BlockNumber
+	}
+
+	timeout := 5 * time.Second
+	tickerValidityProver := time.NewTicker(timeout)
+	defer func() {
+		if tickerValidityProver != nil {
+			tickerValidityProver.Stop()
+		}
+	}()
+
+	for {
+		select {
+		case <-p.ctx.Done():
+			p.log.Warnf("Received cancel signal from context, stopping...")
+			return p.ctx.Err()
+		case <-tickerValidityProver.C:
+			fmt.Println("tickerValidityProver.C")
+			blockContent, err := p.blockBuilder.db.BlockContentByBlockNumber(lastValidityWitnessBlockNumber + 1)
+			if err != nil {
+				if err.Error() != "not found" {
+					return errors.Join(ErrProcessingBlocksFail, err)
 				}
 
-				if lastGeneratedProofBlockNumber >= blockNumber {
-					fmt.Printf("Block %d is already done\n", blockNumber)
-					continue
-				}
-
-				if err = p.generateValidityProof(blockNumber); err != nil {
-					return startBlock, err
-				}
-
-				fmt.Printf("Block %d is done\n", blockNumber)
+				p.log.Warnf("WARNING: block content %d is not found\n", lastValidityWitnessBlockNumber+1)
 				continue
 			}
 
-			var blN uint256.Int
-			_ = blN.SetFromBig(new(big.Int).SetUint64(events[key].Raw.BlockNumber))
-
-			time.Sleep(1 * time.Second)
-
-			var cd []byte
-			cd, err = bps.FetchScrollCalldataByHash(events[key].Raw.TxHash)
+			auxInfo, err := blockAuxInfoFromBlockContent(blockContent)
 			if err != nil {
-				return startBlock, errors.Join(ErrFetchScrollCalldataByHashFail, err)
+				return errors.Join(ErrProcessingBlocksFail, err)
 			}
 
-			postedBlock := block_post_service.NewPostedBlock(
-				events[key].PrevBlockHash,
-				events[key].DepositTreeRoot,
-				uint32(events[key].BlockNumber.Uint64()),
-				events[key].SignatureHash,
-			)
-
-			intMaxBlockNumber := events[key].BlockNumber
-
-			// Update account tree
-			var blockContent *intMaxTypes.BlockContent
-			blockContent, err = FetchIntMaxBlockContentByCalldata(cd, postedBlock, p.blockBuilder)
-			if err != nil {
-				err = errors.Join(ErrFetchIntMaxBlockContentByCalldataFail, err)
-				switch {
-				case errors.Is(err, ErrUnknownAccountID):
-					const msg = "block %q is ErrUnknownAccountID"
-					p.log.WithError(err).Errorf(msg, intMaxBlockNumber.String())
-				case errors.Is(err, ErrCannotDecodeAddress):
-					const msg = "block %q is ErrCannotDecodeAddress"
-					p.log.WithError(err).Errorf(msg, intMaxBlockNumber.String())
-				default:
-					const msg = "block %q processing error occurred"
-					p.log.WithError(err).Errorf(msg, intMaxBlockNumber.String())
-				}
-
-				const msg = "processing of block %q error occurred"
-				p.log.Debugf(msg, intMaxBlockNumber.String())
-			} else {
-				const msg = "block %q is found (SyncBlockTree, Scroll block number: %s)"
-				p.log.Debugf(msg, intMaxBlockNumber.String(), blN.String())
-			}
-
-			senders := make([]intMaxTypes.ColumnSender, len(blockContent.Senders))
-			for i, sender := range blockContent.Senders {
-				senders[i] = intMaxTypes.ColumnSender{
-					PublicKey: hex.EncodeToString(sender.PublicKey.ToAddress().Bytes()),
-					AccountID: sender.AccountID,
-					IsSigned:  sender.IsSigned,
-				}
-			}
-
-			// p.log.Debugf("blockContent: %v\n", blockContent)
-			_, err = p.blockBuilder.CreateBlockContent(postedBlock, blockContent)
+			// prevBlockNumber := uint32(events[key].BlockNumber.Uint64()) - 1
+			prevBlockNumber := blockContent.BlockNumber - 1
+			prevValidityWitness, err := p.blockBuilder.ValidityWitnessByBlockNumber(prevBlockNumber)
 			if err != nil {
 				panic(err)
-				// return errors.Join(ErrCreateBlockContentFail, err)
 			}
+			_, err = p.UpdateValidityWitness(auxInfo.BlockContent, prevValidityWitness)
+			if err != nil {
+				if errors.Is(err, ErrRootBlockNumberNotFound) {
+					fmt.Printf("WARNING: root block number %d not found\n", blockContent.BlockNumber)
+					continue
+				}
+
+				panic(err)
+			}
+
+			lastValidityWitnessBlockNumber++
 		}
 	}
-
-	return nextBN.Uint64(), nil
 }
 
-func (p *blockValidityProver) SyncBlockProverWithBlockNumber(
-	blockNumber uint32,
-) error {
-	if blockNumber == 0 {
-		return errors.New("genesis block number is not supported")
-	}
-
-	fmt.Printf("SyncBlockProverWithBlockNumber %d proof is synchronizing\n", blockNumber)
-	result, err := p.blockBuilder.BlockAuxInfo(blockNumber)
+func (p *blockValidityProver) syncBlockValidityProof() error {
+	lastGeneratedProofBlockNumber, err := p.blockBuilder.LastGeneratedProofBlockNumber()
 	if err != nil {
-		return err
+		var ErrLastGeneratedProofBlockNumberFail = errors.New("last generated proof block number fail")
+		return errors.Join(ErrLastGeneratedProofBlockNumberFail, err)
 	}
 
-	return p.syncBlockProverWithAuxInfo(
-		result.BlockContent,
-		result.PostedBlock,
-	)
-}
-
-func (p *blockValidityProver) syncBlockProverWithAuxInfo(
-	blockContent *intMaxTypes.BlockContent,
-	postedBlock *block_post_service.PostedBlock,
-) error {
-	fmt.Printf("IMPORTANT: Block %d proof is synchronizing\n", postedBlock.BlockNumber)
-
-	blockWitness, err := p.blockBuilder.GenerateBlock(blockContent, postedBlock)
-	if err != nil {
-		panic(fmt.Errorf("failed to generate block: %w", err))
-	}
-
-	fmt.Printf("blockWitness.AccountMembershipProofs (syncBlockProverWithAuxInfo): %v\n", blockWitness.AccountMembershipProofs.IsSome)
-	latestValidityWitness, _, err := calculateValidityWitness(p.blockBuilder, blockWitness)
-	if err != nil {
-		panic(fmt.Errorf("failed to get last validity witness: %w", err))
-	}
-
-	fmt.Printf("blockWitness.Block.BlockNumber (syncBlockProverWithAuxInfo): %d\n", blockWitness.Block.BlockNumber)
-
-	{
-		// fmt.Printf("block.BlockNumber: %d\n", blockWitness.Block.BlockNumber)
-		fmt.Printf("prevBlockTreeRoot: %s\n", blockWitness.PrevBlockTreeRoot.String())
-		for i, blockHashes := range p.blockBuilder.BlockTree.Leaves {
-			fmt.Printf("block tree leaves[%d]: %x\n", i, blockHashes.Marshal())
+	timeout := 5 * time.Second
+	tickerValidityProver := time.NewTicker(timeout)
+	defer func() {
+		if tickerValidityProver != nil {
+			tickerValidityProver.Stop()
 		}
-		defaultBlockLeafHash := new(intMaxTree.BlockHashLeaf).SetDefault()
-		fmt.Printf("block tree default leaf: %x\n", defaultBlockLeafHash.Marshal())
-		fmt.Printf("block tree default leaf hash: %x\n", defaultBlockLeafHash.Hash().Marshal())
-		for i, sibling := range latestValidityWitness.ValidityTransitionWitness.BlockMerkleProof.Siblings {
-			fmt.Printf("validity transition sibling[%d]: %s\n", i, sibling.String())
+	}()
+
+	for {
+		select {
+		case <-p.ctx.Done():
+			p.log.Warnf("Received cancel signal from context, stopping...")
+			return p.ctx.Err()
+		case <-tickerValidityProver.C:
+			fmt.Println("tickerValidityProver.C")
+			if err := p.generateValidityProof(lastGeneratedProofBlockNumber + 1); err != nil {
+				if errors.Is(err, ErrBlockContentByBlockNumber) || errors.Is(err, ErrRootBlockNumberNotFound) {
+					continue
+				}
+
+				return err
+			}
+
+			fmt.Printf("Block %d is done (syncBlockValidityProof)\n", lastGeneratedProofBlockNumber+1)
+			lastGeneratedProofBlockNumber++
 		}
 	}
-	fmt.Printf("latestValidityWitness.BlockWitness.Block.BlockNumber: %d\n", latestValidityWitness.BlockWitness.Block.BlockNumber)
-	// prevPis := latestValidityWitness.ValidityPublicInputs()
-	// if blockWitness.Block.BlockNumber != prevPis.PublicState.BlockNumber+1 {
-	// 	fmt.Printf("latestValidityWitness.BlockWitness.Block.BlockNumber: %d\n", latestValidityWitness.BlockWitness.Block.BlockNumber)
-	// 	return errors.New("block number is not equal to the last block number + 1")
-	// }
-	// _, err = calculateValidityWitness(p.blockBuilder, blockWitness, latestValidityWitness)
-	// if err != nil {
-	// 	panic(fmt.Errorf("failed to calculate validity witness with consistency check: %w", err))
-	// }
-
-	return p.syncBlockProver()
 }
+
+// func (p *blockValidityProver) SyncBlockProverWithBlockNumber(
+// 	blockNumber uint32,
+// ) error {
+// 	if blockNumber == 0 {
+// 		return errors.New("genesis block number is not supported")
+// 	}
+
+// 	fmt.Printf("SyncBlockProverWithBlockNumber %d proof is synchronizing\n", blockNumber)
+// 	result, err := p.blockBuilder.BlockAuxInfo(blockNumber)
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	return p.syncBlockProverWithAuxInfo(
+// 		result.BlockContent,
+// 		result.PostedBlock,
+// 	)
+// }
+
+// func (p *blockValidityProver) syncBlockProverWithAuxInfo(
+// 	blockContent *intMaxTypes.BlockContent,
+// 	postedBlock *block_post_service.PostedBlock,
+// ) error {
+// 	fmt.Printf("IMPORTANT: Block %d proof is synchronizing\n", postedBlock.BlockNumber)
+
+// 	blockWitness, err := p.blockBuilder.GenerateBlock(blockContent, postedBlock)
+// 	if err != nil {
+// 		panic(fmt.Errorf("failed to generate block: %w", err))
+// 	}
+
+// 	fmt.Printf("blockWitness.AccountMembershipProofs (syncBlockProverWithAuxInfo): %v\n", blockWitness.AccountMembershipProofs.IsSome)
+// 	latestValidityWitness, _, err := calculateValidityWitness(p.blockBuilder, blockWitness)
+// 	if err != nil {
+// 		if errors.Is(err, ErrRootBlockNumberNotFound) {
+// 			return ErrRootBlockNumberNotFound
+// 		}
+
+// 		panic(fmt.Errorf("failed to get last validity witness: %w", err))
+// 	}
+
+// 	fmt.Printf("blockWitness.Block.BlockNumber (syncBlockProverWithAuxInfo): %d\n", blockWitness.Block.BlockNumber)
+
+// 	{
+// 		// fmt.Printf("block.BlockNumber: %d\n", blockWitness.Block.BlockNumber)
+// 		fmt.Printf("prevBlockTreeRoot: %s\n", blockWitness.PrevBlockTreeRoot.String())
+// 		for i, blockHashes := range p.blockBuilder.BlockTree.Leaves {
+// 			fmt.Printf("block tree leaves[%d]: %x\n", i, blockHashes.Marshal())
+// 		}
+// 		defaultBlockLeafHash := new(intMaxTree.BlockHashLeaf).SetDefault()
+// 		fmt.Printf("block tree default leaf: %x\n", defaultBlockLeafHash.Marshal())
+// 		fmt.Printf("block tree default leaf hash: %x\n", defaultBlockLeafHash.Hash().Marshal())
+// 		for i, sibling := range latestValidityWitness.ValidityTransitionWitness.BlockMerkleProof.Siblings {
+// 			fmt.Printf("validity transition sibling[%d]: %s\n", i, sibling.String())
+// 		}
+// 	}
+// 	fmt.Printf("latestValidityWitness.BlockWitness.Block.BlockNumber: %d\n", latestValidityWitness.BlockWitness.Block.BlockNumber)
+// 	// prevPis := latestValidityWitness.ValidityPublicInputs()
+// 	// if blockWitness.Block.BlockNumber != prevPis.PublicState.BlockNumber+1 {
+// 	// 	fmt.Printf("latestValidityWitness.BlockWitness.Block.BlockNumber: %d\n", latestValidityWitness.BlockWitness.Block.BlockNumber)
+// 	// 	return errors.New("block number is not equal to the last block number + 1")
+// 	// }
+// 	// _, err = calculateValidityWitness(p.blockBuilder, blockWitness, latestValidityWitness)
+// 	// if err != nil {
+// 	// 	panic(fmt.Errorf("failed to calculate validity witness with consistency check: %w", err))
+// 	// }
+
+// 	return p.syncBlockProver()
+// }
 
 // lastPostedBlockNumber: block content generated
 // lastBlockNumber: validity witness generated
@@ -356,6 +556,14 @@ func (p *blockValidityProver) syncBlockProver() error {
 func (p *blockValidityProver) generateValidityProof(blockNumber uint32) error {
 	validityWitness, err := p.blockBuilder.ValidityWitnessByBlockNumber(blockNumber)
 	if err != nil {
+		if errors.Is(err, ErrBlockContentByBlockNumber) {
+			return ErrBlockContentByBlockNumber
+		}
+
+		if errors.Is(err, ErrRootBlockNumberNotFound) {
+			return ErrRootBlockNumberNotFound
+		}
+
 		panic(fmt.Errorf("last validity witness error: %w", err))
 	}
 	fmt.Printf("SenderFlag: %v\n", validityWitness.BlockWitness.Signature.SenderFlag)

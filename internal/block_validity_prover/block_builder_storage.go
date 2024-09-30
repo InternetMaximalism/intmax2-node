@@ -1348,6 +1348,10 @@ func (db *mockBlockBuilder) UpdateValidityWitness(
 		prevPis,
 	)
 	if err != nil {
+		if errors.Is(err, ErrRootBlockNumberNotFound) {
+			return nil, ErrRootBlockNumberNotFound
+		}
+
 		panic(err)
 	}
 
@@ -1405,6 +1409,10 @@ func updateValidityWitnessWithConsistencyCheck(db BlockBuilderStorage, blockWitn
 
 	validityWitness, newAccountTree, err := calculateValidityWitnessWithMerkleProofs(db, blockWitness, prevBlockTreeRoot)
 	if err != nil {
+		// if errors.Is(err, ErrRootBlockNumberNotFound) {
+		// 	return nil, ErrRootBlockNumberNotFound
+		// }
+
 		return nil, fmt.Errorf("failed to calculate validity witness: %w", err)
 	}
 
@@ -1472,10 +1480,14 @@ func calculateValidityWitnessWithMerkleProofs(
 		return nil, nil, errors.New("copy account tree error")
 	}
 
+	fmt.Printf("BlockTreeProof (calculateValidityWitnessWithMerkleProofs): %d\n", blockWitness.Block.BlockNumber)
 	blockMerkleProof, err := db.BlockTreeProof(blockWitness.Block.BlockNumber, blockWitness.Block.BlockNumber)
 	if err != nil {
-		var ErrBlockTreeProve = errors.New("block tree prove error")
-		return nil, nil, errors.Join(ErrBlockTreeProve, err)
+		// if errors.Is(err, ErrRootBlockNumberNotFound) {
+		// 	return nil, nil, ErrRootBlockNumberNotFound
+		// }
+
+		return nil, nil, fmt.Errorf("block tree prove error: %w", err)
 	}
 
 	// debug
@@ -1501,6 +1513,12 @@ func calculateValidityWitnessWithMerkleProofs(
 		newBlockTreeRoot,
 	)
 	if err != nil {
+		fmt.Printf("blockHashLeaf.Hash(): %s\n", blockHashLeaf.Hash().String())
+		fmt.Printf("blockWitness.Block.BlockNumber: %d\n", blockWitness.Block.BlockNumber)
+		fmt.Printf("newBlockTreeRoot: %s\n", newBlockTreeRoot.String())
+		for i, sibling := range blockMerkleProof.Siblings {
+			fmt.Printf("sibling[%d]: %s\n", i, sibling.String())
+		}
 		panic("new block merkle proof is invalid")
 	}
 
@@ -1635,7 +1653,7 @@ func (b *mockBlockBuilder) ValidityProofByBlockNumber(blockNumber uint32) (*stri
 	blockContent, err := b.db.BlockContentByBlockNumber(blockNumber)
 	if err != nil {
 		fmt.Printf("blockNumber (GetValidityProof): %d\n", blockNumber)
-		return nil, errors.New("block content by block number error")
+		return nil, ErrBlockContentByBlockNumber
 	}
 
 	encodedValidityProof := base64.StdEncoding.EncodeToString(blockContent.ValidityProof)
@@ -1677,21 +1695,11 @@ func (b *mockBlockBuilder) SetValidityProof(blockHash common.Hash, proof string)
 func (b *mockBlockBuilder) BlockAuxInfo(blockNumber uint32) (*AuxInfo, error) {
 	auxInfo, err := b.db.BlockContentByBlockNumber(blockNumber)
 	if err != nil {
-		var ErrBlockContentByBlockNumber = errors.New("block content by block number error")
 		return nil, errors.Join(ErrBlockContentByBlockNumber, err)
 	}
 
 	return blockAuxInfoFromBlockContent(auxInfo)
 }
-
-// func BlockAuxInfo(db BlockBuilderStorage, blockNumber uint32) (*AuxInfo, error) {
-// 	auxInfo, err := db.BlockContentByBlockNumber(blockNumber)
-// 	if err != nil {
-// 		return nil, errors.New("block content by block number error")
-// 	}
-
-// 	return BlockAuxInfoFromBlockContent(auxInfo)
-// }
 
 func blockAuxInfoFromBlockContent(auxInfo *mDBApp.BlockContentWithProof) (*AuxInfo, error) {
 	decodedAggregatedPublicKeyPoint, err := hexutil.Decode("0x" + auxInfo.AggregatedPublicKey)

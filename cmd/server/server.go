@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
@@ -268,128 +267,74 @@ func NewServerCmd(s *Server) *cobra.Command {
 			blockNumber += 1
 			fmt.Printf("blockNumber (server): %d\n", blockNumber)
 
-			wg.Add(1)
-			s.WG.Add(1)
-			go func() {
-				defer func() {
-					wg.Done()
-					s.WG.Done()
-				}()
+			var blockSynchronizer block_synchronizer.BlockSynchronizer
+			blockSynchronizer, err = block_synchronizer.NewBlockSynchronizer(s.Context, s.Config, s.Log)
+			if err != nil {
+				const msg = "failed to start Block Synchronizer: %+v"
+				s.Log.Fatalf(msg, err.Error())
+			}
+			if err = blockValidityProver.SyncBlockTree(blockSynchronizer, &wg); err != nil {
+				panic(err)
+			}
 
-				timeout := 1 * time.Second
-				ticker := time.NewTicker(timeout)
-				for {
-					select {
-					case <-s.Context.Done():
-						ticker.Stop()
-						s.Log.Warnf("Received cancel signal from context, stopping...")
-						return
-					case <-ticker.C:
-						fmt.Printf("===============blockNumber: %d\n", blockNumber)
-						err = blockValidityService.SyncBlockProverWithBlockNumber(blockNumber)
-						if err != nil {
-							fmt.Printf("===============err: %v\n", err.Error())
-							if err.Error() == block_validity_prover.ErrNoValidityProofByBlockNumber.Error() {
-								s.Log.Warnf("no last validity proof")
-								time.Sleep(timeoutFailedToSyncBlockProver * time.Second)
+			// wg.Add(1)
+			// s.WG.Add(1)
+			// go func() {
+			// 	defer func() {
+			// 		wg.Done()
+			// 		s.WG.Done()
+			// 	}()
 
-								continue
-							}
+			// 	timeout := 1 * time.Second
+			// 	ticker := time.NewTicker(timeout)
+			// 	for {
+			// 		select {
+			// 		case <-s.Context.Done():
+			// 			ticker.Stop()
+			// 			s.Log.Warnf("Received cancel signal from context, stopping...")
+			// 			return
+			// 		case <-ticker.C:
+			// 			fmt.Printf("===============blockNumber: %d\n", blockNumber)
+			// 			err = blockValidityProver.SyncBlockProverWithBlockNumber(blockNumber)
+			// 			if err != nil {
+			// 				fmt.Printf("===============err: %v\n", err.Error())
+			// 				if err.Error() == block_validity_prover.ErrNoValidityProofByBlockNumber.Error() {
+			// 					s.Log.Warnf("no last validity proof")
+			// 					time.Sleep(timeoutFailedToSyncBlockProver * time.Second)
 
-							if err.Error() == "block number is not equal to the last block number + 1" {
-								s.Log.Warnf("block number is not equal to the last block number + 1")
-								time.Sleep(timeoutFailedToSyncBlockProver * time.Second)
+			// 					continue
+			// 				}
 
-								continue
-							}
+			// 				if err.Error() == "block number is not equal to the last block number + 1" {
+			// 					s.Log.Warnf("block number is not equal to the last block number + 1")
+			// 					time.Sleep(timeoutFailedToSyncBlockProver * time.Second)
 
-							if strings.HasPrefix(err.Error(), "block content by block number error") {
-								s.Log.Warnf("block content by block number error")
-								time.Sleep(timeoutFailedToSyncBlockProver * time.Second)
+			// 					continue
+			// 				}
 
-								continue
-							}
+			// 				if strings.HasPrefix(err.Error(), block_validity_prover.ErrBlockContentByBlockNumber.Error()) {
+			// 					s.Log.Warnf(block_validity_prover.ErrBlockContentByBlockNumber.Error())
+			// 					time.Sleep(timeoutFailedToSyncBlockProver * time.Second)
 
-							const msg = "failed to sync block prover: %+v"
-							s.Log.Fatalf(msg, err.Error())
-						}
+			// 					continue
+			// 				}
 
-						fmt.Printf("update blockNumber: %d\n", blockNumber)
-						blockNumber++
-					}
-				}
-			}()
+			// 				if errors.Is(err, block_validity_prover.ErrRootBlockNumberNotFound) {
+			// 					s.Log.Warnf("block number %d is not synchronized", blockNumber)
+			// 					time.Sleep(timeoutFailedToSyncBlockProver * time.Second)
 
-			wg.Add(1)
-			s.WG.Add(1)
-			go func() {
-				defer func() {
-					wg.Done()
-					s.WG.Done()
-				}()
+			// 					continue
+			// 				}
 
-				var blockSynchronizer block_synchronizer.BlockSynchronizer
-				blockSynchronizer, err = block_synchronizer.NewBlockSynchronizer(s.Context, s.Config, s.Log)
-				if err != nil {
-					const msg = "failed to start Block Synchronizer: %+v"
-					s.Log.Fatalf(msg, err.Error())
-				}
+			// 				const msg = "failed to sync block prover: %+v"
+			// 				s.Log.Fatalf(msg, err.Error())
+			// 			}
 
-				var latestSynchronizedDepositIndex uint32
-				latestSynchronizedDepositIndex, err = blockValidityService.FetchLastDepositIndex()
-				if err != nil {
-					const msg = "failed to fetch last deposit index: %+v"
-					s.Log.Fatalf(msg, err.Error())
-				}
-
-				timeout := 5 * time.Second
-				ticker := time.NewTicker(timeout)
-				for {
-					select {
-					case <-s.Context.Done():
-						ticker.Stop()
-						return
-					case <-ticker.C:
-						fmt.Println("balance validity ticker.C")
-						err = blockValidityProver.SyncDepositedEvents()
-						if err != nil {
-							const msg = "failed to sync deposited events: %+v"
-							s.Log.Fatalf(msg, err.Error())
-						}
-
-						err = blockValidityProver.SyncDepositTree(nil, latestSynchronizedDepositIndex)
-						if err != nil {
-							const msg = "failed to sync deposit tree: %+v"
-							s.Log.Fatalf(msg, err.Error())
-						}
-
-						// sync block content
-						var startBlock uint64
-						startBlock, err = blockValidityService.LastSeenBlockPostedEventBlockNumber()
-						if err != nil {
-							startBlock = s.Config.Blockchain.RollupContractDeployedBlockNumber
-							// var ErrLastSeenBlockPostedEventBlockNumberFail = errors.New("last seen block posted event block number fail")
-							// panic(errors.Join(ErrLastSeenBlockPostedEventBlockNumberFail, err))
-						}
-						fmt.Printf("startBlock of LastSeenBlockPostedEventBlockNumber: %d\n", startBlock)
-
-						var endBlock uint64
-						endBlock, err = blockValidityProver.SyncBlockTree(blockSynchronizer, startBlock)
-						if err != nil {
-							panic(err)
-						}
-						fmt.Printf("endBlock of LastSeenBlockPostedEventBlockNumber: %d\n", endBlock)
-
-						err = blockValidityService.SetLastSeenBlockPostedEventBlockNumber(endBlock)
-						if err != nil {
-							var ErrSetLastSeenBlockPostedEventBlockNumberFail = errors.New("set last seen block posted event block number fail")
-							panic(errors.Join(ErrSetLastSeenBlockPostedEventBlockNumberFail, err))
-						}
-
-						fmt.Printf("Block %d is searched\n", endBlock)
-					}
-				}
-			}()
+			// 			fmt.Printf("update blockNumber: %d\n", blockNumber)
+			// 			blockNumber++
+			// 		}
+			// 	}
+			// }()
 
 			wg.Add(1)
 			s.WG.Add(1)

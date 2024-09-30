@@ -322,11 +322,19 @@ func (d *blockValidityProver) ValidityWitness(
 		aggregatedSignature,
 	)
 
-	lastValidityWitness, err := d.blockBuilder.LastValidityWitness()
+	lastGeneratedProofBlockNumber, err := d.blockBuilder.LastGeneratedProofBlockNumber()
 	if err != nil {
-		var ErrLastValidityWitnessNotFound = errors.New("last validity witness not found")
-		return nil, errors.Join(ErrLastValidityWitnessNotFound, err)
+		return nil, err
 	}
+	lastValidityWitness, err := d.blockBuilder.ValidityWitnessByBlockNumber(lastGeneratedProofBlockNumber)
+	if err != nil {
+		return nil, err
+	}
+	// lastValidityWitness, err := d.blockBuilder.LastValidityWitness()
+	// if err != nil {
+	// 	var ErrLastValidityWitnessNotFound = errors.New("last validity witness not found")
+	// 	return nil, errors.Join(ErrLastValidityWitnessNotFound, err)
+	// }
 	blockWitness, err := d.blockBuilder.GenerateBlockWithTxTreeFromBlockContentAndPrevBlock(
 		blockContent,
 		lastValidityWitness.BlockWitness.Block,

@@ -155,3 +155,6 @@ var ErrRootBlockNumberNotFound = errors.New("root block number not found")
 
 // ErrLeafBlockNumberNotFound error: leaf block number not found.
 var ErrLeafBlockNumberNotFound = errors.New("leaf block number not found")
+
+// ErrBlockContentByBlockNumber error: block content by block number error
+var ErrBlockContentByBlockNumber = errors.New("failed to fetch block content by block number")
