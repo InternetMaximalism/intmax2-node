@@ -8,7 +8,6 @@ import (
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
-	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
@@ -68,7 +67,7 @@ type BlockBuilderStorage interface {
 
 type AccountInfo interface {
 	// RegisterPublicKey(pk *intMaxAcc.PublicKey, lastSentBlockNumber uint32) (accID uint64, err error)
-	PublicKeyByAccountID(accountID uint64) (pk *intMaxAcc.PublicKey, err error)
+	PublicKeyByAccountID(blockNumber uint32, accountID uint64) (pk *intMaxAcc.PublicKey, err error)
 	AccountBySenderAddress(senderAddress string) (accID *uint256.Int, err error)
 }
 
@@ -83,27 +82,28 @@ type BuilderBlockContents interface {
 
 type BlockHistory interface {
 	// GenerateBlock(blockContent *intMaxTypes.BlockContent, postedBlock *block_post_service.PostedBlock) (*BlockWitness, error)
-	LatestIntMaxBlockNumber() uint32
+	LastWitnessGeneratedBlockNumber() uint32
 	// SetValidityProof(blockNumber uint32, proof string) error
 	// ValidityProofByBlockNumber(blockNumber uint32) (*string, error)
 
-	SetValidityWitness(blockNumber uint32, witness *ValidityWitness, newAccountTree *intMaxTree.AccountTree) error
+	SetValidityWitness(blockNumber uint32, witness *ValidityWitness, newAccountTree *intMaxTree.AccountTree, newBlockTree *intMaxTree.BlockHashTree) error
 	LastValidityWitness() (*ValidityWitness, error)
 	// SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error
 	// LastSeenBlockPostedEventBlockNumber() (blockNumber uint64, err error)
 
 	// GenerateValidityWitness(blockWitness *BlockWitness) (*ValidityWitness, error)
-	// NextAccountID() (uint64, error)
-	AppendAccountTreeLeaf(sender *big.Int, lastBlockNumber uint32) (*intMaxTree.IndexedInsertionProof, error)
-	AccountTreeRoot() (*intMaxGP.PoseidonHashOut, error)
-	GetAccountTreeLeaf(sender *big.Int) (*intMaxTree.IndexedMerkleLeaf, error)
-	UpdateAccountTreeLeaf(sender *big.Int, lastBlockNumber uint32) (*intMaxTree.IndexedUpdateProof, error)
+	NextAccountID(blockNumber uint32) (uint64, error)
+	// AppendAccountTreeLeaf(sender *big.Int, lastBlockNumber uint32) (*intMaxTree.IndexedInsertionProof, error)
+	// AccountTreeRoot() (*intMaxGP.PoseidonHashOut, error)
+	// GetAccountTreeLeaf(sender *big.Int) (*intMaxTree.IndexedMerkleLeaf, error)
+	// UpdateAccountTreeLeaf(sender *big.Int, lastBlockNumber uint32) (*intMaxTree.IndexedUpdateProof, error)
 	// GetAccountMembershipProof(currentBlockNumber uint32, publicKey *big.Int) (*intMaxTree.IndexedMembershipProof, error)
 	AppendBlockTreeLeaf(block *block_post_service.PostedBlock) (uint32, error)
 	BlockTreeRoot(blockNumber *uint32) (*intMaxGP.PoseidonHashOut, error)
 	BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.PoseidonMerkleProof, error)
 	// CurrentBlockTreeProof(leafBlockNumber uint32) (*intMaxTree.MerkleProof, error)
 	CopyAccountTree(dst *intMaxTree.AccountTree, blockNumber uint32) error
+	CopyBlockHashTree(dst *intMaxTree.BlockHashTree, blockNumber uint32) error
 }
 
 type BuilderDeposits interface {

@@ -56,6 +56,7 @@ func FetchIntMaxBlockContentByCalldata(
 	ai block_post_service.AccountInfo,
 ) (*intMaxTypes.BlockContent, error) {
 	// Parse calldata
+	intMaxBlockNumber := postedBlock.BlockNumber
 	rollupABI := io.Reader(strings.NewReader(bindings.RollupMetaData.ABI))
 	parsedABI, err := abi.JSON(rollupABI)
 	if err != nil {
@@ -66,7 +67,7 @@ func FetchIntMaxBlockContentByCalldata(
 		return nil, fmt.Errorf("failed to parse calldata: %w", err)
 	}
 
-	blockContent, err := recoverBlockContent(method, calldata, ai)
+	blockContent, err := recoverBlockContent(method, calldata, ai, intMaxBlockNumber)
 	if err != nil {
 		return nil, errors.Join(ErrDecodeCallDataFail, err)
 	}
@@ -78,6 +79,7 @@ func recoverBlockContent(
 	method *abi.Method,
 	calldata []byte,
 	ai block_post_service.AccountInfo,
+	intMaxBlockNumber uint32,
 ) (*intMaxTypes.BlockContent, error) {
 	switch method.Name {
 	case postRegistrationBlockMethod:
@@ -105,7 +107,7 @@ func recoverBlockContent(
 		}
 
 		var blockContent *intMaxTypes.BlockContent
-		blockContent, err = recoverNonRegistrationBlockContent(decodedInput, ai)
+		blockContent, err = recoverNonRegistrationBlockContent(decodedInput, ai, intMaxBlockNumber)
 		if err != nil {
 			return nil, errors.Join(ErrDecodeCallDataFail, err)
 		}
@@ -250,6 +252,7 @@ func recoverRegistrationBlockContent(
 func recoverNonRegistrationBlockContent(
 	decodedInput *intMaxTypes.PostNonRegistrationBlockInput,
 	ai block_post_service.AccountInfo,
+	blockNumber uint32,
 ) (*intMaxTypes.BlockContent, error) {
 	senderAccountIds, err := intMaxTypes.UnmarshalAccountIds(decodedInput.SenderAccountIds)
 	if err != nil {
@@ -264,7 +267,7 @@ func recoverNonRegistrationBlockContent(
 		}
 
 		var pk *intMaxAcc.PublicKey
-		pk, err = ai.PublicKeyByAccountID(accountId)
+		pk, err = ai.PublicKeyByAccountID(blockNumber, accountId)
 		if err != nil {
 			return nil, errors.Join(ErrUnknownAccountID, fmt.Errorf("%d", accountId))
 		}

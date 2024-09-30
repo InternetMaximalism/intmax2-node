@@ -8,7 +8,6 @@ import (
 	"intmax2-node/internal/bindings"
 	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/logger"
-	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/pkg/sql_db/db_app/models"
 	"sync"
@@ -17,39 +16,45 @@ import (
 	"github.com/holiman/uint256"
 )
 
-func (ai *mockBlockBuilder) RegisterPublicKey(pk *intMaxAcc.PublicKey, lastSentBlockNumber uint32) (accountID uint64, err error) {
-	publicKey := pk.BigInt()
-	proof, _, err := ai.AccountTree.ProveMembership(publicKey)
-	if err != nil {
-		var ErrProveMembershipFail = errors.New("failed to prove membership")
-		return 0, errors.Join(ErrProveMembershipFail, err)
+// func (ai *mockBlockBuilder) RegisterPublicKey(pk *intMaxAcc.PublicKey, lastSentBlockNumber uint32) (accountID uint64, err error) {
+// 	publicKey := pk.BigInt()
+// 	proof, _, err := ai.AccountTree.ProveMembership(publicKey)
+// 	if err != nil {
+// 		var ErrProveMembershipFail = errors.New("failed to prove membership")
+// 		return 0, errors.Join(ErrProveMembershipFail, err)
+// 	}
+
+// 	_, ok := ai.AccountTree.GetAccountID(publicKey)
+// 	if ok {
+// 		_, err = ai.AccountTree.Update(publicKey, uint32(0))
+// 		if err != nil {
+// 			var ErrUpdateAccountFail = errors.New("failed to update account")
+// 			return 0, errors.Join(ErrUpdateAccountFail, err)
+// 		}
+
+// 		return uint64(proof.LeafIndex), nil
+// 	}
+
+// 	var insertionProof *intMaxTree.IndexedInsertionProof
+// 	insertionProof, err = ai.AccountTree.Insert(publicKey, uint32(0))
+// 	if err != nil {
+// 		return 0, errors.Join(ErrCreateAccountFail, err)
+// 	}
+
+// 	return uint64(insertionProof.Index), nil
+// }
+
+func (ai *mockBlockBuilder) PublicKeyByAccountID(blockNumber uint32, accountID uint64) (pk *intMaxAcc.PublicKey, err error) {
+	// var accID uint256.Int
+	// accID.SetUint64(accountID)
+
+	merkleTreeHistory, ok := ai.MerkleTreeHistory.MerkleTrees[blockNumber]
+	if !ok {
+		return nil, errors.New("merkle tree not found")
 	}
 
-	_, ok := ai.AccountTree.GetAccountID(publicKey)
-	if ok {
-		_, err = ai.AccountTree.Update(publicKey, uint32(0))
-		if err != nil {
-			var ErrUpdateAccountFail = errors.New("failed to update account")
-			return 0, errors.Join(ErrUpdateAccountFail, err)
-		}
-
-		return uint64(proof.LeafIndex), nil
-	}
-
-	var insertionProof *intMaxTree.IndexedInsertionProof
-	insertionProof, err = ai.AccountTree.Insert(publicKey, uint32(0))
-	if err != nil {
-		return 0, errors.Join(ErrCreateAccountFail, err)
-	}
-
-	return uint64(insertionProof.Index), nil
-}
-
-func (ai *mockBlockBuilder) PublicKeyByAccountID(accountID uint64) (pk *intMaxAcc.PublicKey, err error) {
-	var accID uint256.Int
-	accID.SetUint64(accountID)
-
-	acc := ai.AccountTree.GetLeaf(accountID)
+	accountTree := merkleTreeHistory.AccountTree
+	acc := accountTree.GetLeaf(accountID)
 
 	pk, err = new(intMaxAcc.PublicKey).SetBigInt(acc.Key)
 	if err != nil {
@@ -363,6 +368,7 @@ func (p *blockValidityProver) SyncBlockValidityWitness() error {
 			return p.ctx.Err()
 		case <-tickerValidityProver.C:
 			fmt.Println("tickerValidityProver.C")
+			p.BlockBuilder().LastValidityWitness()
 			blockContent, err := p.blockBuilder.db.BlockContentByBlockNumber(lastValidityWitnessBlockNumber + 1)
 			if err != nil {
 				if err.Error() != "not found" {
@@ -372,6 +378,7 @@ func (p *blockValidityProver) SyncBlockValidityWitness() error {
 				p.log.Warnf("WARNING: block content %d is not found\n", lastValidityWitnessBlockNumber+1)
 				continue
 			}
+			fmt.Printf("====== generateValidityWitness: block %d ========\n", blockContent.BlockNumber)
 
 			auxInfo, err := blockAuxInfoFromBlockContent(blockContent)
 			if err != nil {
@@ -509,51 +516,64 @@ func (p *blockValidityProver) syncBlockValidityProof() error {
 // lastGeneratedBlockNumber: validity proof generated
 // : balance proof generated
 
-func (p *blockValidityProver) syncBlockProver() error {
-	lastPostedBlockNumber, err := p.blockBuilder.db.LastPostedBlockNumber()
-	if err != nil {
-		panic(fmt.Errorf("failed to get last posted block number: %w", err))
-	}
+// func (p *blockValidityProver) syncBlockProver() error {
+// 	lastPostedBlockNumber, err := p.blockBuilder.db.LastPostedBlockNumber()
+// 	if err != nil {
+// 		panic(fmt.Errorf("failed to get last posted block number: %w", err))
+// 	}
 
-	// validityProverInfo, err := p.FetchValidityProverInfo()
-	// if err != nil {
-	// 	var ErrFetchValidityProverInfoFail = errors.New("fetch validity prover info fail")
-	// 	return errors.Join(ErrFetchValidityProverInfoFail, err)
-	// }
+// 	// validityProverInfo, err := p.FetchValidityProverInfo()
+// 	// if err != nil {
+// 	// 	var ErrFetchValidityProverInfoFail = errors.New("fetch validity prover info fail")
+// 	// 	return errors.Join(ErrFetchValidityProverInfoFail, err)
+// 	// }
 
-	// currentBlockNumber := validityProverInfo.BlockNumber
-	lastGeneratedBlockNumber, err := p.blockBuilder.LastGeneratedProofBlockNumber()
-	if err != nil {
-		if err.Error() != "not found" {
-			var ErrLastGeneratedProofBlockNumberFail = errors.New("last generated proof block number fail")
-			return errors.Join(ErrLastGeneratedProofBlockNumberFail, err)
-		}
+// 	// currentBlockNumber := validityProverInfo.BlockNumber
+// 	lastGeneratedBlockNumber, err := p.blockBuilder.LastGeneratedProofBlockNumber()
+// 	if err != nil {
+// 		if err.Error() != "not found" {
+// 			var ErrLastGeneratedProofBlockNumberFail = errors.New("last generated proof block number fail")
+// 			return errors.Join(ErrLastGeneratedProofBlockNumberFail, err)
+// 		}
 
-		lastGeneratedBlockNumber = 0
-	}
-	// if lastGeneratedBlockNumber >= currentBlockNumber {
-	// 	fmt.Printf("Block %d is already done\n", lastGeneratedBlockNumber)
-	// 	fmt.Printf("prepared witness\n", currentBlockNumber)
-	// 	lastPostedBlockNumber := p.BlockBuilder().LastPostedBlockNumber
-	// 	fmt.Printf("last posted number is %d\n", lastPostedBlockNumber)
-	// 	return nil
-	// }
+// 		lastGeneratedBlockNumber = 0
+// 	}
+// 	// if lastGeneratedBlockNumber >= currentBlockNumber {
+// 	// 	fmt.Printf("Block %d is already done\n", lastGeneratedBlockNumber)
+// 	// 	fmt.Printf("prepared witness\n", currentBlockNumber)
+// 	// 	lastPostedBlockNumber := p.BlockBuilder().LastPostedBlockNumber
+// 	// 	fmt.Printf("last posted number is %d\n", lastPostedBlockNumber)
+// 	// 	return nil
+// 	// }
 
-	fmt.Printf("lastGeneratedBlockNumber (SyncBlockProver): %d\n", lastGeneratedBlockNumber)
-	fmt.Printf("lastPostedBlockNumber (SyncBlockProver): %d\n", lastPostedBlockNumber)
-	for blockNumber := lastGeneratedBlockNumber + 1; blockNumber <= lastPostedBlockNumber; blockNumber++ {
-		// validityWitnessBlockNumber := p.blockBuilder.LatestIntMaxBlockNumber()
-		fmt.Printf("IMPORTANT: Block %d proof is processing\n", blockNumber)
-		if err = p.generateValidityProof(blockNumber); err != nil {
-			return err
-		}
-		fmt.Printf("Block %d is reflected\n", blockNumber)
-	}
+// 	fmt.Printf("lastGeneratedBlockNumber (SyncBlockProver): %d\n", lastGeneratedBlockNumber)
+// 	fmt.Printf("lastPostedBlockNumber (SyncBlockProver): %d\n", lastPostedBlockNumber)
+// 	for blockNumber := lastGeneratedBlockNumber + 1; blockNumber <= lastPostedBlockNumber; blockNumber++ {
+// 		// validityWitnessBlockNumber := p.blockBuilder.LastWitnessGeneratedBlockNumber()
+// 		fmt.Printf("IMPORTANT: Block %d proof is processing\n", blockNumber)
+// 		if err = p.generateValidityProof(blockNumber); err != nil {
+// 			return err
+// 		}
+// 		fmt.Printf("Block %d is reflected\n", blockNumber)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 func (p *blockValidityProver) generateValidityProof(blockNumber uint32) error {
+	lastValidityProof, err := p.blockBuilder.ValidityProofByBlockNumber(blockNumber - 1)
+	if err != nil && err.Error() != ErrGenesisValidityProof.Error() {
+		// if err.Error() != ErrGenesisValidityProof.Error() {
+		//  var ErrLastValidityProofFail = errors.New("last validity proof fail")
+		// 	return errors.Join(ErrLastValidityProofFail, err)
+		// }
+
+		if err.Error() != ErrNoValidityProofByBlockNumber.Error() {
+			return ErrNoValidityProofByBlockNumber
+		}
+	}
+	fmt.Printf("====== generateValidityProof: block %d ========\n", blockNumber)
+
 	validityWitness, err := p.blockBuilder.ValidityWitnessByBlockNumber(blockNumber)
 	if err != nil {
 		if errors.Is(err, ErrBlockContentByBlockNumber) {
@@ -574,19 +594,6 @@ func (p *blockValidityProver) generateValidityProof(blockNumber uint32) error {
 	// 	panic("marshal validity witness error")
 	// }
 	// fmt.Printf("encodedBlockWitness (SyncBlockProver): %s\n", encodedBlockWitness)
-
-	var lastValidityProof *string
-	lastValidityProof, err = p.blockBuilder.ValidityProofByBlockNumber(blockNumber - 1)
-	if err != nil && err.Error() != ErrGenesisValidityProof.Error() {
-		// if err.Error() != ErrGenesisValidityProof.Error() {
-		//  var ErrLastValidityProofFail = errors.New("last validity proof fail")
-		// 	return errors.Join(ErrLastValidityProofFail, err)
-		// }
-
-		if err.Error() != ErrNoValidityProofByBlockNumber.Error() {
-			return ErrNoValidityProofByBlockNumber
-		}
-	}
 
 	fmt.Printf("validityWitness AccountRegistrationProofs: %v\n", validityWitness.ValidityTransitionWitness.AccountRegistrationProofs)
 

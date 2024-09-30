@@ -277,65 +277,6 @@ func NewServerCmd(s *Server) *cobra.Command {
 				panic(err)
 			}
 
-			// wg.Add(1)
-			// s.WG.Add(1)
-			// go func() {
-			// 	defer func() {
-			// 		wg.Done()
-			// 		s.WG.Done()
-			// 	}()
-
-			// 	timeout := 1 * time.Second
-			// 	ticker := time.NewTicker(timeout)
-			// 	for {
-			// 		select {
-			// 		case <-s.Context.Done():
-			// 			ticker.Stop()
-			// 			s.Log.Warnf("Received cancel signal from context, stopping...")
-			// 			return
-			// 		case <-ticker.C:
-			// 			fmt.Printf("===============blockNumber: %d\n", blockNumber)
-			// 			err = blockValidityProver.SyncBlockProverWithBlockNumber(blockNumber)
-			// 			if err != nil {
-			// 				fmt.Printf("===============err: %v\n", err.Error())
-			// 				if err.Error() == block_validity_prover.ErrNoValidityProofByBlockNumber.Error() {
-			// 					s.Log.Warnf("no last validity proof")
-			// 					time.Sleep(timeoutFailedToSyncBlockProver * time.Second)
-
-			// 					continue
-			// 				}
-
-			// 				if err.Error() == "block number is not equal to the last block number + 1" {
-			// 					s.Log.Warnf("block number is not equal to the last block number + 1")
-			// 					time.Sleep(timeoutFailedToSyncBlockProver * time.Second)
-
-			// 					continue
-			// 				}
-
-			// 				if strings.HasPrefix(err.Error(), block_validity_prover.ErrBlockContentByBlockNumber.Error()) {
-			// 					s.Log.Warnf(block_validity_prover.ErrBlockContentByBlockNumber.Error())
-			// 					time.Sleep(timeoutFailedToSyncBlockProver * time.Second)
-
-			// 					continue
-			// 				}
-
-			// 				if errors.Is(err, block_validity_prover.ErrRootBlockNumberNotFound) {
-			// 					s.Log.Warnf("block number %d is not synchronized", blockNumber)
-			// 					time.Sleep(timeoutFailedToSyncBlockProver * time.Second)
-
-			// 					continue
-			// 				}
-
-			// 				const msg = "failed to sync block prover: %+v"
-			// 				s.Log.Fatalf(msg, err.Error())
-			// 			}
-
-			// 			fmt.Printf("update blockNumber: %d\n", blockNumber)
-			// 			blockNumber++
-			// 		}
-			// 	}
-			// }()
-
 			wg.Add(1)
 			s.WG.Add(1)
 			go func() {

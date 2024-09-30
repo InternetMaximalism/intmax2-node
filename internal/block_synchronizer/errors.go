@@ -96,7 +96,7 @@ var ErrCreateAccountFail = errors.New("failed to create account")
 var ErrAccountBySenderIDFail = errors.New("failed to get account by sender ID")
 
 // ErrRegisterPublicKeyFail error: failed to register public key.
-var ErrRegisterPublicKeyFail = errors.New("failed to register public key")
+// var ErrRegisterPublicKeyFail = errors.New("failed to register public key")
 
 // ErrAccountByAccountIDFail error: failed to get account by account ID.
 var ErrAccountByAccountIDFail = errors.New("failed to get account by account ID")
