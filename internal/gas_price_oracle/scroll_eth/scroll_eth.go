@@ -10,6 +10,7 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -45,7 +46,10 @@ func (s *scrollEth) GasFee(ctx context.Context) (gasFee *big.Int, err error) {
 	}
 
 	return new(big.Int).Div(
-		new(big.Int).Add(l1GasFee, l2GasFee),
+		new(big.Int).Add(
+			new(big.Int).Add(l1GasFee, l2GasFee),
+			new(big.Int).SetUint64(uint64(s.cfg.GasPriceOracle.ExtraFee)),
+		),
 		new(big.Int).SetInt64(int64(s.cfg.GasPriceOracle.Delimiter)),
 	), nil
 }
@@ -168,7 +172,60 @@ func (s *scrollEth) l1GasFee(ctx context.Context) (l1GasFee *big.Int, err error)
 	return l1BaseFee, nil
 }
 
-func (s *scrollEth) l2GasFee(_ context.Context) (l1GasFee *big.Int, err error) { // nolint:unparam
-	const int0Key = 0
-	return new(big.Int).SetInt64(int0Key), nil
+// l2GasFee returns gas fee for L2
+// gasFee = ((baseFeeHistoryL2For10Blocks/10)+20%) + (suggestGasTipCapL2+20%)
+func (s *scrollEth) l2GasFee(ctx context.Context) (l1GasFee *big.Int, err error) { // nolint:unparam
+	const (
+		int10Key  = 10
+		int20Key  = 20
+		int100Key = 100
+	)
+
+	var ethLink string
+	ethLink, err = s.sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
+	if err != nil {
+		return nil, errors.Join(errorsB.ErrScrollNetworkChainLinkEvmJSONRPCFail)
+	}
+
+	var ethClient *ethclient.Client
+	ethClient, err = utils.NewClient(ethLink)
+	if err != nil {
+		return nil, errors.Join(errorsB.ErrEthClientDialFail)
+	}
+
+	var fh *ethereum.FeeHistory
+	fh, err = ethClient.FeeHistory(
+		ctx,
+		uint64(int10Key),
+		nil,
+		nil,
+	)
+	if err != nil {
+		return nil, errors.Join(ErrL2FeeHistoryFail, err)
+	}
+
+	bf := new(big.Int)
+	for index := range fh.BaseFee {
+		_ = bf.Add(bf, fh.BaseFee[index])
+	}
+
+	middleBF := new(big.Int).Div(bf, new(big.Int).SetInt64(int64(len(fh.BaseFee))))
+
+	middleBFAdd := new(big.Int).Mul(middleBF, new(big.Int).SetInt64(int20Key))
+	middleBFAdd = new(big.Int).Div(middleBFAdd, new(big.Int).SetInt64(int100Key))
+
+	baseFee := new(big.Int).Add(middleBF, middleBFAdd)
+
+	var sgTipCap *big.Int
+	sgTipCap, err = ethClient.SuggestGasTipCap(ctx)
+	if err != nil {
+		return nil, errors.Join(ErrL2SuggestGasTipCapFail, err)
+	}
+
+	sgTipCapAdd := new(big.Int).Mul(sgTipCap, new(big.Int).SetInt64(int20Key))
+	sgTipCapAdd = new(big.Int).Div(sgTipCapAdd, new(big.Int).SetInt64(int100Key))
+
+	gasTipCap := new(big.Int).Add(sgTipCap, sgTipCapAdd)
+
+	return new(big.Int).Add(baseFee, gasTipCap), nil
 }

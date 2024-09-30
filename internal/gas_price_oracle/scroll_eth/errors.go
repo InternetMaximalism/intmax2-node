@@ -31,3 +31,13 @@ var ErrL1GasFeeFail = errors.New(
 var ErrL2GasFeeFail = errors.New(
 	"failed to get the L2 gas fee of the gas price oracle of the scroll network",
 )
+
+// ErrL2FeeHistoryFail error: failed to get the L2 gas fee history of the gas price oracle of the scroll network.
+var ErrL2FeeHistoryFail = errors.New(
+	"failed to get the L2 gas fee history of the gas price oracle of the scroll network",
+)
+
+// ErrL2SuggestGasTipCapFail error: failed to get the L2 SuggestGasTipCap of the gas price oracle of the scroll network.
+var ErrL2SuggestGasTipCapFail = errors.New(
+	"failed to get the L2 SuggestGasTipCap of the gas price oracle of the scroll network",
+)
