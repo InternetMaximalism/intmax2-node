@@ -146,7 +146,6 @@ func (w *depositSynchronizer) Start(
 				return err
 			}
 			if !ok {
-				fmt.Printf("No new deposits\n")
 				continue
 			}
 

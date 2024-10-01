@@ -23,6 +23,10 @@ type BlockValidityProver interface {
 		bps BlockSynchronizer,
 		wg *sync.WaitGroup,
 	) (err error)
+	SyncBlockTreeStep(
+		bps BlockSynchronizer,
+		step string,
+	) error
 	// SyncBlockProverWithBlockNumber(blockNumber uint32) error
 	UpdateValidityWitness(
 		blockContent *intMaxTypes.BlockContent,

@@ -72,7 +72,7 @@ func (p *blockValidityProver) SyncDepositTree(latestBlock *uint64, depositIndex 
 	if err != nil {
 		if err.Error() == "not found" {
 			lastSeenProcessDepositsEvent = &mDBApp.EventBlockNumberForValidityProver{
-				EventName:                mDBApp.DepositsAndAnalyzedReleyedEvent,
+				EventName:                depositsProcessedEvent,
 				LastProcessedBlockNumber: p.cfg.Blockchain.RollupContractDeployedBlockNumber,
 			}
 		} else {
@@ -81,7 +81,7 @@ func (p *blockValidityProver) SyncDepositTree(latestBlock *uint64, depositIndex 
 	}
 	lastSeenProcessDepositsEventBlockNumber := lastSeenProcessDepositsEvent.LastProcessedBlockNumber
 	for lastSeenProcessDepositsEventBlockNumber < latestBlockNumber {
-		p.log.Infof("Syncing deposits from block %d\n", lastSeenProcessDepositsEventBlockNumber)
+		p.log.Infof("Syncing deposits from block number %d on Scroll\n", lastSeenProcessDepositsEventBlockNumber)
 		endBlock := min(lastSeenProcessDepositsEventBlockNumber+eventBlockRange, latestBlockNumber)
 
 		var depositsProcessedEvents []*bindings.RollupDepositsProcessed
@@ -168,12 +168,11 @@ func (p *blockValidityProver) SyncDepositedEvents() error {
 	err := p.BlockBuilder().Exec(p.ctx, nil, func(d interface{}, _ interface{}) (err error) {
 		q := d.(SQLDriverApp)
 
-		const depositedEvent = "Deposited"
-		event, err := q.EventBlockNumberByEventNameForValidityProver(depositedEvent)
+		event, err := q.EventBlockNumberByEventNameForValidityProver(mDBApp.DepositedEvent)
 		if err != nil {
 			if errors.Is(err, errorsDB.ErrNotFound) {
 				event = &mDBApp.EventBlockNumberForValidityProver{
-					EventName:                mDBApp.DepositsAndAnalyzedReleyedEvent,
+					EventName:                mDBApp.DepositedEvent,
 					LastProcessedBlockNumber: p.cfg.Blockchain.LiquidityContractDeployedBlockNumber,
 				}
 			} else {
@@ -181,7 +180,7 @@ func (p *blockValidityProver) SyncDepositedEvents() error {
 			}
 		} else if event == nil {
 			event = &mDBApp.EventBlockNumberForValidityProver{
-				EventName:                mDBApp.DepositsAndAnalyzedReleyedEvent,
+				EventName:                mDBApp.DepositedEvent,
 				LastProcessedBlockNumber: p.cfg.Blockchain.LiquidityContractDeployedBlockNumber,
 			}
 		}
@@ -206,7 +205,7 @@ func (p *blockValidityProver) SyncDepositedEvents() error {
 		}
 
 		if len(events) == 0 {
-			p.log.Debugf("No new deposits found\n")
+			p.log.Debugf("searched blocks from number %d on Ethereum, but found no new DepositsAndAnalyzedRelayed events\n", event.LastProcessedBlockNumber)
 			return nil
 		}
 
@@ -236,7 +235,7 @@ func (p *blockValidityProver) SyncDepositedEvents() error {
 			}
 		}
 
-		_, err = q.UpsertEventBlockNumberForValidityProver(depositedEvent, lastEventBlockNumber)
+		_, err = q.UpsertEventBlockNumberForValidityProver(mDBApp.DepositedEvent, lastEventBlockNumber)
 		if err != nil {
 			panic(fmt.Sprintf("Error updating event block number: %v", err.Error()))
 		}

@@ -2,12 +2,9 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
 	"intmax2-node/docs/swagger"
-	"intmax2-node/internal/block_synchronizer"
-	"intmax2-node/internal/block_validity_prover"
 	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/gas_price_oracle"
 	"intmax2-node/internal/logger"
@@ -244,38 +241,6 @@ func NewServerCmd(s *Server) *cobra.Command {
 					s.Log.Fatalf(msg, err.Error())
 				}
 			}()
-
-			s.Log.Infof("Start Block Validity Prover")
-			// blockNumber := uint32(1)
-			var blockValidityProver block_validity_prover.BlockValidityProver
-			blockValidityProver, err = block_validity_prover.NewBlockValidityProver(s.Context, s.Config, s.Log, s.SB, s.DbApp)
-			if err != nil {
-				const msg = "failed to start Block Validity Prover: %+v"
-				s.Log.Fatalf(msg, err.Error())
-			}
-			blockValidityService, err := block_validity_prover.NewBlockValidityService(s.Context, s.Config, s.Log, s.SB, s.DbApp)
-			if err != nil {
-				const msg = "failed to start Block Validity Service: %+v"
-				s.Log.Fatalf(msg, err.Error())
-			}
-
-			blockNumber, err := blockValidityService.LatestSynchronizedBlockNumber()
-			if err != nil {
-				const msg = "failed to get the latest synchronized block number: %+v"
-				s.Log.Fatalf(msg, err.Error())
-			}
-			blockNumber += 1
-			fmt.Printf("blockNumber (server): %d\n", blockNumber)
-
-			var blockSynchronizer block_synchronizer.BlockSynchronizer
-			blockSynchronizer, err = block_synchronizer.NewBlockSynchronizer(s.Context, s.Config, s.Log)
-			if err != nil {
-				const msg = "failed to start Block Synchronizer: %+v"
-				s.Log.Fatalf(msg, err.Error())
-			}
-			if err = blockValidityProver.SyncBlockTree(blockSynchronizer, &wg); err != nil {
-				panic(err)
-			}
 
 			wg.Add(1)
 			s.WG.Add(1)
