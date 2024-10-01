@@ -107,6 +107,7 @@ type BlockHistory interface {
 }
 
 type BuilderDeposits interface {
+	ScanDeposits() ([]*mDBApp.Deposit, error)
 	UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error
 }
 

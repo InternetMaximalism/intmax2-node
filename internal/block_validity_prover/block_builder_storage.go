@@ -88,6 +88,7 @@ type MockBlockBuilder interface {
 	ProveInclusionByPublicKey(accountId uint64) (*AccountMerkleProof, uint64, error)
 	PublicKeyByAccountID(blockumber uint32, accountID uint64) (pk *intMaxAcc.PublicKey, err error)
 	// RegisterPublicKey(pk *intMaxAcc.PublicKey, lastSentBlockNumber uint32) (accountID uint64, err error)
+	ScanDeposits() ([]*mDBApp.Deposit, error)
 	SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error
 	SetValidityProof(blockNumber uint32, proof string) error
 	SetValidityWitness(blockNumber uint32, witness *ValidityWitness) error
@@ -158,7 +159,7 @@ func NewBlockHashTree(height uint8) (*intMaxTree.BlockHashTree, error) {
 func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilderMemory {
 	merkleTrees := make(map[uint32]*MerkleTrees)
 
-	blockHashAndSendersMap, lastSynchronizedBlockNumber, err := db.ScanBlockHashAndSenders()
+	blockHashAndSendersMap, _, err := db.ScanBlockHashAndSenders()
 	if err != nil {
 		panic(err)
 	}
@@ -181,10 +182,19 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 	}
 	fmt.Printf("blockHashTree 0 root: %s\n", blockHashTree.GetRoot().String())
 
-	blockHashes := make([]*intMaxTree.BlockHashLeaf, lastSynchronizedBlockNumber+1)
+	lastProofGeneratedBlockNumber, err := db.LastBlockNumberGeneratedValidityProof()
+	if err != nil {
+		if err.Error() != "not found" {
+			panic(err)
+		}
+
+		lastProofGeneratedBlockNumber = 0
+	}
+
+	blockHashes := make([]*intMaxTree.BlockHashLeaf, lastProofGeneratedBlockNumber+1)
 	defaultPublicKey := new(intMaxAcc.Address).String()                  // zero
 	dummyPublicKey := intMaxAcc.NewDummyPublicKey().ToAddress().String() // one
-	for blockNumber := uint32(1); blockNumber <= lastSynchronizedBlockNumber; blockNumber++ {
+	for blockNumber := uint32(1); blockNumber <= lastProofGeneratedBlockNumber; blockNumber++ {
 		blockHashAndSenders, ok := blockHashAndSendersMap[blockNumber]
 		if !ok {
 			panic(fmt.Sprintf("block number %d not found", blockNumber))
@@ -245,7 +255,8 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 		fmt.Printf("blockHashAndSendersMap[%d].Senders count: %d\n", blockNumber, count)
 		merkleTrees[blockNumber].AccountTree = new(intMaxTree.AccountTree).Set(accountTree)
 	}
-	fmt.Printf("blockHashTree leaves: %v\n", blockHashTree.Leaves)
+
+	fmt.Printf("size of blockHashTree leaves: %v\n", len(blockHashTree.Leaves))
 	for i, leaf := range blockHashTree.Leaves {
 		fmt.Printf("blockHashes[%d]: %x\n", i, leaf.Marshal())
 	}
@@ -268,20 +279,10 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 	depositTreeRoot, _, _ := depositTree.GetCurrentRootCountAndSiblings()
 	depositTreeRootHex := depositTreeRoot.Hex()[2:]
 
-	// lastPostedBlockNumber, err := db.LastBlockNumberGeneratedValidityProof()
-	lastPostedBlockNumber, err := db.LastPostedBlockNumber()
-	if err != nil {
-		if err.Error() != "not found" {
-			panic(err)
-		}
-
-		lastPostedBlockNumber = 0
-	}
-
-	fmt.Printf("lastProofGeneratedBlockNumber: %d\n", lastPostedBlockNumber)
+	fmt.Printf("lastProofGeneratedBlockNumber: %d\n", lastProofGeneratedBlockNumber)
 	fmt.Printf("depositTreeRootHex: %s\n", depositTreeRootHex)
 	blockNumber := uint32(1)
-	for blockHashAndSendersMap[blockNumber].DepositTreeRoot == depositTreeRootHex && blockNumber <= lastPostedBlockNumber {
+	for blockHashAndSendersMap[blockNumber].DepositTreeRoot == depositTreeRootHex && blockNumber <= lastProofGeneratedBlockNumber {
 		fmt.Printf("DepositTreeRoots[%d]: %s\n", blockNumber, blockHashAndSendersMap[blockNumber].DepositTreeRoot)
 		merkleTrees[blockNumber].DepositLeaves = make([]*intMaxTree.DepositLeaf, 0)
 		blockNumber++
@@ -308,7 +309,7 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 
 		depositTreeRootHex = depositTreeRoot.Hex()[2:]
 		depositLeaves = append(depositLeaves, &depositLeaf)
-		for blockHashAndSendersMap[blockNumber].DepositTreeRoot == depositTreeRootHex && blockNumber <= lastPostedBlockNumber {
+		for blockHashAndSendersMap[blockNumber].DepositTreeRoot == depositTreeRootHex && blockNumber <= lastProofGeneratedBlockNumber {
 			fmt.Printf("depositTreeRoots[%d]: %s\n", blockNumber, blockHashAndSendersMap[blockNumber].DepositTreeRoot)
 			merkleTrees[blockNumber].DepositLeaves = depositLeaves
 			blockNumber++
@@ -322,7 +323,7 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 		DepositTree: new(intMaxTree.KeccakMerkleTree).Set(depositTree),
 		// DepositLeaves: merkleTrees[lastProofGeneratedBlockNumber].DepositLeaves,
 		MerkleTreeHistory: *NewMerkleTreeHistory(
-			lastSynchronizedBlockNumber,
+			lastProofGeneratedBlockNumber,
 			merkleTrees,
 		),
 		// auxInfo:                       auxInfo,
@@ -517,14 +518,31 @@ func getSenderLeaves(publicKeys []intMaxTypes.Uint256, senderFlag intMaxTypes.By
 
 func (db *mockBlockBuilder) SetValidityWitness(_blockNumber uint32, witness *ValidityWitness, accountTree *intMaxTree.AccountTree, blockHashTree *intMaxTree.BlockHashTree) error {
 	blockNumber := witness.BlockWitness.Block.BlockNumber
+	if blockNumber != db.MerkleTreeHistory.lastBlockNumber+1 {
+		return fmt.Errorf("new block number is not equal to the last block number + 1: %d != %d + 1", blockNumber, db.MerkleTreeHistory.lastBlockNumber)
+	}
+
 	depositTree, err := intMaxTree.NewDepositTree(int32Key)
 	if err != nil {
 		return err
 	}
 
+	deposits, err := db.ScanDeposits()
+	if err != nil {
+		panic(err)
+	}
+	depositLeaves := make([]*intMaxTree.DepositLeaf, len(deposits))
+	for i, deposit := range deposits {
+		depositLeaves[i] = &intMaxTree.DepositLeaf{
+			RecipientSaltHash: deposit.RecipientSaltHash,
+			TokenIndex:        deposit.TokenIndex,
+			Amount:            deposit.Amount,
+		}
+	}
+
 	depositTreeRoot, _, _ := depositTree.GetCurrentRootCountAndSiblings()
 	if depositTreeRoot != witness.BlockWitness.Block.DepositRoot {
-		depositLeaves := db.MerkleTreeHistory.MerkleTrees[blockNumber].DepositLeaves
+		// depositLeaves := db.MerkleTreeHistory.MerkleTrees[blockNumber].DepositLeaves // XXX: scan
 		for i, deposit := range depositLeaves {
 			depositLeaf := intMaxTree.DepositLeaf{
 				RecipientSaltHash: deposit.RecipientSaltHash,
@@ -547,12 +565,6 @@ func (db *mockBlockBuilder) SetValidityWitness(_blockNumber uint32, witness *Val
 
 	fmt.Printf("blockNumber (SetValidityWitness): %d\n", blockNumber)
 	// fmt.Printf("GetAccountMembershipProof root: %s\n", db.AccountTree.GetRoot().String())
-
-	if blockNumber != db.MerkleTreeHistory.lastBlockNumber+1 {
-		err = fmt.Errorf("new block number is not equal to the last block number + 1: %d != %d + 1", blockNumber, db.MerkleTreeHistory.lastBlockNumber)
-		panic(err)
-		// return err
-	}
 
 	db.MerkleTreeHistory.PushHistory(&MerkleTrees{
 		AccountTree: accountTree,
@@ -1939,6 +1951,10 @@ func (b *mockBlockBuilder) NextAccountID(blockNumber uint32) (uint64, error) {
 
 	accountTree := merkleTreeHistory.AccountTree
 	return uint64(accountTree.Count()), nil
+}
+
+func (b *mockBlockBuilder) ScanDeposits() ([]*mDBApp.Deposit, error) {
+	return b.db.ScanDeposits()
 }
 
 func (b *mockBlockBuilder) EventBlockNumberByEventNameForValidityProver(eventName string) (*mDBApp.EventBlockNumberForValidityProver, error) {
