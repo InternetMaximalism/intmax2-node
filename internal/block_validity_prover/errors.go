@@ -23,9 +23,6 @@ var ErrUnpackCalldataFail = errors.New("failed to unpack calldata")
 // ErrSetTxRootFail error: failed to set tx tree root.
 var ErrSetTxRootFail = errors.New("failed to set tx tree root")
 
-// ErrRegisterPublicKeyFail error: failed to register public key.
-var ErrRegisterPublicKeyFail = errors.New("failed to register public key")
-
 var ErrNewEthereumClientFail = errors.New("failed to create new Ethereum client")
 
 var ErrScrollNetwrokChainLink = errors.New("failed to get Scroll network chain link")
@@ -155,3 +152,6 @@ var ErrRootBlockNumberNotFound = errors.New("root block number not found")
 
 // ErrLeafBlockNumberNotFound error: leaf block number not found.
 var ErrLeafBlockNumberNotFound = errors.New("leaf block number not found")
+
+// ErrBlockContentByBlockNumber error: block content by block number error
+var ErrBlockContentByBlockNumber = errors.New("failed to fetch block content by block number")

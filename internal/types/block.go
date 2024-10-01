@@ -798,7 +798,7 @@ func FetchDepositRoot(cfg *RollupContractConfig, ctx context.Context) ([int32Key
 	return depositRoot, err
 }
 
-func FetchLatestIntMaxBlockNumber(cfg *RollupContractConfig, ctx context.Context) (uint32, error) {
+func FetchLastWitnessGeneratedBlockNumber(cfg *RollupContractConfig, ctx context.Context) (uint32, error) {
 	client, err := utils.NewClient(cfg.NetworkRpcUrl)
 	if err != nil {
 		return 0, err
@@ -914,7 +914,7 @@ func FetchPostedBlocks(
 }
 
 func FetchLatestIntMaxBlock(cfg *RollupContractConfig, ctx context.Context) (*bindings.RollupBlockPosted, error) {
-	latestBlockNumber, err := FetchLatestIntMaxBlockNumber(cfg, ctx)
+	latestBlockNumber, err := FetchLastWitnessGeneratedBlockNumber(cfg, ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch latest block number: %w", err)
 	}

@@ -30,7 +30,8 @@ type ProveBlockValidityInput struct {
 // curl -X POST -d '{"blockHash":"0x01", "validityWitness":'$(cat data/validity_witness_1.json)', "prevValidityProof":null }'
 // -H "Content-Type: application/json" $BLOCK_VALIDITY_PROVER_URL/proof | jq
 func (p *blockValidityProver) requestBlockValidityProof(blockHash common.Hash, validityWitness *ValidityWitness, prevValidityProof *string) error {
-	nextAccountID, err := p.blockBuilder.NextAccountID()
+	blockNumber := validityWitness.BlockWitness.Block.BlockNumber
+	nextAccountID, err := p.blockBuilder.NextAccountID(blockNumber)
 	if err != nil {
 		return fmt.Errorf("failed to get next account ID: %w", err)
 	}

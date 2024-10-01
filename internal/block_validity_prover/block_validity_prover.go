@@ -170,8 +170,8 @@ func NewBlockValidityService(ctx context.Context, cfg *configs.Config, log logge
 	}, nil
 }
 
-func (d *blockValidityProver) LatestIntMaxBlockNumber() (uint32, error) {
-	return d.blockBuilder.LatestIntMaxBlockNumber(), nil
+func (d *blockValidityProver) LastWitnessGeneratedBlockNumber() (uint32, error) {
+	return d.blockBuilder.LastWitnessGeneratedBlockNumber(), nil
 }
 
 func (d *blockValidityProver) LastPostedBlockNumber() (uint32, error) {
@@ -322,11 +322,19 @@ func (d *blockValidityProver) ValidityWitness(
 		aggregatedSignature,
 	)
 
-	lastValidityWitness, err := d.blockBuilder.LastValidityWitness()
+	lastGeneratedProofBlockNumber, err := d.blockBuilder.LastGeneratedProofBlockNumber()
 	if err != nil {
-		var ErrLastValidityWitnessNotFound = errors.New("last validity witness not found")
-		return nil, errors.Join(ErrLastValidityWitnessNotFound, err)
+		return nil, err
 	}
+	lastValidityWitness, err := d.blockBuilder.ValidityWitnessByBlockNumber(lastGeneratedProofBlockNumber)
+	if err != nil {
+		return nil, err
+	}
+	// lastValidityWitness, err := d.blockBuilder.LastValidityWitness()
+	// if err != nil {
+	// 	var ErrLastValidityWitnessNotFound = errors.New("last validity witness not found")
+	// 	return nil, errors.Join(ErrLastValidityWitnessNotFound, err)
+	// }
 	blockWitness, err := d.blockBuilder.GenerateBlockWithTxTreeFromBlockContentAndPrevBlock(
 		blockContent,
 		lastValidityWitness.BlockWitness.Block,
@@ -336,7 +344,7 @@ func (d *blockValidityProver) ValidityWitness(
 	}
 
 	fmt.Printf("(validityWitness) blockWitness.AccountMembershipProofs: %v\n", blockWitness.AccountMembershipProofs.IsSome)
-	validityWitness, _, err := calculateValidityWitness(d.blockBuilder, blockWitness)
+	validityWitness, _, _, err := calculateValidityWitness(d.blockBuilder, blockWitness)
 	if err != nil {
 		var ErrCalculateValidityWitnessFail = errors.New("failed to calculate validity witness")
 		return nil, errors.Join(ErrCalculateValidityWitnessFail, err)

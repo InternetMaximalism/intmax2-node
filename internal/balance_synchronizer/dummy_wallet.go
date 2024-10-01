@@ -974,10 +974,6 @@ func (w *mockWallet) Deposit(b *block_validity_prover.MockBlockBuilderMemory, sa
 		TokenIndex:        tokenIndex,
 		Amount:            amount,
 	}
-	// depositIndex, err := blockBuilder.Deposit(depositLeaf)
-	// if err != nil {
-	// 	panic(err)
-	// }
 	b.DepositLeaves = append(b.DepositLeaves, &depositLeaf)
 	_, depositIndex, _ := b.DepositTree.GetCurrentRootCountAndSiblings()
 	_, err := b.DepositTree.AddLeaf(depositIndex, depositLeaf.Hash())

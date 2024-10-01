@@ -3,6 +3,7 @@ package block_validity_prover
 import (
 	"context"
 	"math/big"
+	"sync"
 
 	// intMaxAcc "intmax2-node/internal/accounts"
 
@@ -20,9 +21,12 @@ type BlockValidityProver interface {
 	SyncDepositTree(endBlock *uint64, depositIndex uint32) error
 	SyncBlockTree(
 		bps BlockSynchronizer,
-		startBlock uint64,
-	) (lastEventSeenBlockNumber uint64, err error)
-	SyncBlockProverWithBlockNumber(blockNumber uint32) error
+		wg *sync.WaitGroup,
+	) (err error)
+	SyncBlockTreeStep(
+		bps BlockSynchronizer,
+		step string,
+	) error
 	UpdateValidityWitness(
 		blockContent *intMaxTypes.BlockContent,
 		prevValidityWitness *ValidityWitness,

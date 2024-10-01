@@ -58,7 +58,7 @@ func (ai *accountInfo) RegisterPublicKey(pk *intMaxAcc.PublicKey, lastSeenBlockN
 	return account.AccountID.Uint64(), nil
 }
 
-func (ai *accountInfo) PublicKeyByAccountID(accountID uint64) (pk *intMaxAcc.PublicKey, err error) {
+func (ai *accountInfo) PublicKeyByAccountID(blockNumber uint32, accountID uint64) (pk *intMaxAcc.PublicKey, err error) {
 	var accID uint256.Int
 	accID.SetUint64(accountID)
 

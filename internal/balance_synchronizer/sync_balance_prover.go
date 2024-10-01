@@ -470,7 +470,7 @@ func (s *SyncBalanceProver) SyncAll(
 	balanceProcessor balance_prover_service.BalanceProcessor,
 ) (err error) {
 	// latestIntMaxBlockNumber, err := blockValidityService.LastPostedBlockNumber()
-	latestIntMaxBlockNumber, err := blockValidityService.LatestIntMaxBlockNumber()
+	latestIntMaxBlockNumber, err := blockValidityService.LatestSynchronizedBlockNumber()
 	if err != nil {
 		return err
 	}
