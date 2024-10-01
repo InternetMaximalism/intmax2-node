@@ -27,7 +27,6 @@ type BlockValidityProver interface {
 		bps BlockSynchronizer,
 		step string,
 	) error
-	// SyncBlockProverWithBlockNumber(blockNumber uint32) error
 	UpdateValidityWitness(
 		blockContent *intMaxTypes.BlockContent,
 		prevValidityWitness *ValidityWitness,

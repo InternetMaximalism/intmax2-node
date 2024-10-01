@@ -23,9 +23,6 @@ var ErrUnpackCalldataFail = errors.New("failed to unpack calldata")
 // ErrSetTxRootFail error: failed to set tx tree root.
 var ErrSetTxRootFail = errors.New("failed to set tx tree root")
 
-// ErrRegisterPublicKeyFail error: failed to register public key.
-var ErrRegisterPublicKeyFail = errors.New("failed to register public key")
-
 var ErrNewEthereumClientFail = errors.New("failed to create new Ethereum client")
 
 var ErrScrollNetwrokChainLink = errors.New("failed to get Scroll network chain link")

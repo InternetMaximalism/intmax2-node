@@ -13,10 +13,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// const (
-// 	int5Key = 5
-// )
-
 type BlockValiditySynchronizer struct {
 	Context context.Context
 	Cancel  context.CancelFunc
@@ -36,36 +32,61 @@ func NewBlockValiditySynchronizerCmd(s *BlockValiditySynchronizer) *cobra.Comman
 	return &cobra.Command{
 		Use:   use,
 		Short: short,
-		Run: func(cmd *cobra.Command, args []string) {
-			s.Log.Infof("Start Block Validity Prover")
-			var blockValidityProver block_validity_prover.BlockValidityProver
-			blockValidityProver, err := block_validity_prover.NewBlockValidityProver(s.Context, s.Config, s.Log, s.SB, s.DbApp)
-			if err != nil {
-				const msg = "failed to start Block Validity Prover: %+v"
-				s.Log.Fatalf(msg, err.Error())
-			}
+		Run:   s.run,
+	}
+}
 
-			var blockSynchronizer block_synchronizer.BlockSynchronizer
-			blockSynchronizer, err = block_synchronizer.NewBlockSynchronizer(s.Context, s.Config, s.Log)
-			if err != nil {
-				const msg = "failed to start Block Validity Synchronizer: %+v"
-				s.Log.Fatalf(msg, err.Error())
-			}
+func (s *BlockValiditySynchronizer) run(cmd *cobra.Command, args []string) {
+	s.Log.Infof("Start Block Validity Prover")
 
-			if len(args) == 0 {
-				wg := sync.WaitGroup{}
-				if err = blockValidityProver.SyncBlockTree(blockSynchronizer, &wg); err != nil {
-					panic(err)
-				}
-				wg.Wait()
-				return
-			}
+	blockValidityProver, err := block_validity_prover.NewBlockValidityProver(s.Context, s.Config, s.Log, s.SB, s.DbApp)
+	if err != nil {
+		s.Log.Fatalf("failed to start Block Validity Prover: %+v", err.Error())
+	}
 
-			step := args[0]
-			if err = blockValidityProver.SyncBlockTreeStep(blockSynchronizer, step); err != nil {
-				panic(err)
-			}
-		},
+	blockSynchronizer, err := block_synchronizer.NewBlockSynchronizer(s.Context, s.Config, s.Log)
+	if err != nil {
+		s.Log.Fatalf("failed to start Block Validity Synchronizer: %+v", err.Error())
+	}
+
+	if len(args) == 0 {
+		s.runSynchronization(blockValidityProver, blockSynchronizer)
+	} else {
+		s.runSynchronizationStep(blockValidityProver, blockSynchronizer, args[0])
+	}
+}
+
+func (s *BlockValiditySynchronizer) runSynchronization(
+	blockValidityProver block_validity_prover.BlockValidityProver,
+	blockSynchronizer block_synchronizer.BlockSynchronizer,
+) {
+	s.WG.Add(1)
+	defer s.WG.Done()
+
+	wg := sync.WaitGroup{}
+	if err := blockValidityProver.SyncBlockTree(blockSynchronizer, &wg); err != nil {
+		s.Log.Fatalf("failed to sync block tree: %+v", err)
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		if err := s.Init(); err != nil {
+			s.Log.Fatalf("failed to start api: %+v", err.Error())
+		}
+	}()
+
+	wg.Wait()
+}
+
+func (s *BlockValiditySynchronizer) runSynchronizationStep(
+	blockValidityProver block_validity_prover.BlockValidityProver,
+	blockSynchronizer block_synchronizer.BlockSynchronizer,
+	step string,
+) {
+	if err := blockValidityProver.SyncBlockTreeStep(blockSynchronizer, step); err != nil {
+		s.Log.Fatalf("failed to sync block tree step: %+v", err)
 	}
 }
 

@@ -66,7 +66,6 @@ type BlockBuilderStorage interface {
 }
 
 type AccountInfo interface {
-	// RegisterPublicKey(pk *intMaxAcc.PublicKey, lastSentBlockNumber uint32) (accID uint64, err error)
 	PublicKeyByAccountID(blockNumber uint32, accountID uint64) (pk *intMaxAcc.PublicKey, err error)
 	AccountBySenderAddress(senderAddress string) (accID *uint256.Int, err error)
 }
@@ -93,10 +92,6 @@ type BlockHistory interface {
 
 	// GenerateValidityWitness(blockWitness *BlockWitness) (*ValidityWitness, error)
 	NextAccountID(blockNumber uint32) (uint64, error)
-	// AppendAccountTreeLeaf(sender *big.Int, lastBlockNumber uint32) (*intMaxTree.IndexedInsertionProof, error)
-	// AccountTreeRoot() (*intMaxGP.PoseidonHashOut, error)
-	// GetAccountTreeLeaf(sender *big.Int) (*intMaxTree.IndexedMerkleLeaf, error)
-	// UpdateAccountTreeLeaf(sender *big.Int, lastBlockNumber uint32) (*intMaxTree.IndexedUpdateProof, error)
 	// GetAccountMembershipProof(currentBlockNumber uint32, publicKey *big.Int) (*intMaxTree.IndexedMembershipProof, error)
 	AppendBlockTreeLeaf(block *block_post_service.PostedBlock) (uint32, error)
 	BlockTreeRoot(blockNumber *uint32) (*intMaxGP.PoseidonHashOut, error)

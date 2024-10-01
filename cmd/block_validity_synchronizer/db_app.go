@@ -18,18 +18,10 @@ import (
 type SQLDriverApp interface {
 	GenericCommandsApp
 	ServiceCommands
-	Blocks
-	Signatures
 	TxMerkleProofs
-	EventBlockNumbers
 	EventBlockNumbersForValidityProver
-	CtrlEventBlockNumbersJobs
-	EventBlockNumbersErrors
-	Senders
-	Accounts
 	Deposits
 	BlockContents
-	Withdrawals
 }
 
 type GenericCommandsApp interface {
@@ -40,23 +32,6 @@ type ServiceCommands interface {
 	Check(ctx context.Context) health.Health
 }
 
-type Blocks interface {
-	CreateBlock(
-		builderPublicKey, txRoot, aggregatedSignature, aggregatedPublicKey string, senders []intMaxTypes.ColumnSender,
-		senderType uint,
-		options []byte,
-	) (*mDBApp.Block, error)
-	Block(proposalBlockID string) (*mDBApp.Block, error)
-	BlockByTxRoot(txRoot string) (*mDBApp.Block, error)
-	UpdateBlockStatus(proposalBlockID string, blockHash string, blockNumber uint32) error
-	GetUnprocessedBlocks() ([]*mDBApp.Block, error)
-}
-
-type Signatures interface {
-	CreateSignature(signature, proposalBlockID string) (*mDBApp.Signature, error)
-	SignatureByID(signatureID string) (*mDBApp.Signature, error)
-}
-
 type TxMerkleProofs interface {
 	CreateTxMerkleProofs(
 		senderPublicKey, txHash, signatureID string,
@@ -65,14 +40,6 @@ type TxMerkleProofs interface {
 		txTreeRoot string,
 		proposalBlockID string,
 	) (*mDBApp.TxMerkleProofs, error)
-	TxMerkleProofsByID(id string) (*mDBApp.TxMerkleProofs, error)
-	TxMerkleProofsByTxHash(txHash string) (*mDBApp.TxMerkleProofs, error)
-}
-
-type EventBlockNumbers interface {
-	UpsertEventBlockNumber(eventName string, blockNumber uint64) (*mDBApp.EventBlockNumber, error)
-	EventBlockNumberByEventName(eventName string) (*mDBApp.EventBlockNumber, error)
-	EventBlockNumbersByEventNames(eventNames []string) ([]*mDBApp.EventBlockNumber, error)
 }
 
 type EventBlockNumbersForValidityProver interface {
@@ -80,46 +47,9 @@ type EventBlockNumbersForValidityProver interface {
 	EventBlockNumberByEventNameForValidityProver(eventName string) (*mDBApp.EventBlockNumberForValidityProver, error)
 }
 
-type CtrlEventBlockNumbersJobs interface {
-	CreateCtrlEventBlockNumbersJobs(eventName string) error
-	CtrlEventBlockNumbersJobs(eventName string) (*mDBApp.CtrlEventBlockNumbersJobs, error)
-}
-
-type EventBlockNumbersErrors interface {
-	UpsertEventBlockNumbersErrors(
-		eventName string,
-		blockNumber *uint256.Int,
-		options []byte,
-		updErr error,
-	) error
-	EventBlockNumbersErrors(
-		eventName string,
-		blockNumber *uint256.Int,
-	) (*mDBApp.EventBlockNumbersErrors, error)
-}
-
-type Senders interface {
-	CreateSenders(
-		address, publicKey string,
-	) (*mDBApp.Sender, error)
-	SenderByID(id string) (*mDBApp.Sender, error)
-	SenderByAddress(address string) (*mDBApp.Sender, error)
-	SenderByPublicKey(publicKey string) (*mDBApp.Sender, error)
-}
-
-type Accounts interface {
-	CreateAccount(senderID string) (*mDBApp.Account, error)
-	AccountBySenderID(senderID string) (*mDBApp.Account, error)
-	AccountByAccountID(accountID *uint256.Int) (*mDBApp.Account, error)
-	ResetSequenceByAccounts() error
-	DelAllAccounts() error
-}
-
 type Deposits interface {
 	CreateDeposit(depositLeaf intMaxTree.DepositLeaf, depositID uint32) (*mDBApp.Deposit, error)
 	UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error
-	Deposit(ID string) (*mDBApp.Deposit, error)
-	DepositByDepositID(depositID uint32) (*mDBApp.Deposit, error)
 	DepositByDepositHash(depositHash common.Hash) (*mDBApp.Deposit, error)
 	ScanDeposits() ([]*mDBApp.Deposit, error)
 	FetchLastDepositIndex() (uint32, error)
@@ -137,22 +67,4 @@ type BlockContents interface {
 	LastBlockValidityProof() (*mDBApp.BlockContentWithProof, error)
 	LastBlockNumberGeneratedValidityProof() (uint32, error)
 	LastPostedBlockNumber() (uint32, error)
-}
-
-type Withdrawals interface {
-	CreateWithdrawal(
-		id string,
-		transferData *mDBApp.TransferData,
-		transferMerkleProof *mDBApp.TransferMerkleProof,
-		transaction *mDBApp.Transaction,
-		txMerkleProof *mDBApp.TxMerkleProof,
-		transferHash string,
-		blockNumber int64,
-		blockHash string,
-		enoughBalanceProof *mDBApp.EnoughBalanceProof,
-	) (*mDBApp.Withdrawal, error)
-	UpdateWithdrawalsStatus(ids []string, status mDBApp.WithdrawalStatus) error
-	WithdrawalByID(id string) (*mDBApp.Withdrawal, error)
-	WithdrawalsByHashes(transferHashes []string) (*[]mDBApp.Withdrawal, error)
-	WithdrawalsByStatus(status mDBApp.WithdrawalStatus, limit *int) (*[]mDBApp.Withdrawal, error)
 }
