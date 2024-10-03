@@ -223,7 +223,16 @@ func TransferTransaction(
 	var initialLeaves []*intMaxTypes.Transfer
 
 	gasFee, gasOK := dataBlockInfo.TransferFee[new(big.Int).SetUint64(uint64(tokenIndex)).String()]
+	if !gasOK {
+		const defaultTokenIndex = "0"
+		gasFee, gasOK = dataBlockInfo.TransferFee[defaultTokenIndex]
+	}
 	if gasOK {
+		log.Debugf(
+			"TransferFee for tokenIndex = %v is fee = %v (recipient = %v)",
+			tokenIndex, gasFee, dataBlockInfo.IntMaxAddress,
+		)
+
 		// Send transfer transaction
 		var recipient *intMaxAcc.PublicKey
 		recipient, err = intMaxAcc.NewPublicKeyFromAddressHex(dataBlockInfo.IntMaxAddress)

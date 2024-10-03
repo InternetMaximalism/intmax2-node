@@ -91,7 +91,7 @@ func main() {
 	ns := network_service.New(cfg)
 	hc := health.NewHandler()
 	bbr := block_builder_registry_service.New(cfg, log, bc)
-	storeGPO := gas_price_oracle.NewStoreGPO(cfg, dbApp, bc)
+	storeGPO := gas_price_oracle.NewStoreGPO(cfg, log, dbApp, bc)
 
 	pw := pow.New(cfg.PoW.Difficulty)
 	pWorker := pow.NewWorker(cfg.PoW.Workers, pw)
