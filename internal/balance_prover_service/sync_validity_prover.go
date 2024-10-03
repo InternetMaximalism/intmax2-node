@@ -47,7 +47,7 @@ func (s *externalBlockValidityService) FetchUpdateWitness(
 	return nil, ErrNotImplemented
 }
 
-func (s *externalBlockValidityService) DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error) {
+func (s *externalBlockValidityService) DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error) {
 	return nil, common.Hash{}, ErrNotImplemented
 }
 

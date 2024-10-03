@@ -399,19 +399,19 @@ func (d *blockValidityProver) ValidityPublicInputs(txRoot common.Hash) (*Validit
 	return validityPublicInputs, senderLeaves, nil
 }
 
-func (d *blockValidityProver) DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error) {
-	// lastValidityWitness, err := d.blockBuilder.LastValidityWitness()
-	// if err != nil {
-	// 	return nil, common.Hash{}, errors.New("last validity witness not found")
-	// }
-	// blockNumber := lastValidityWitness.BlockWitness.Block.BlockNumber
+func (d *blockValidityProver) LatestDepositTreeProofByBlockNumber(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error) {
 	validityProverInfo, err := d.FetchValidityProverInfo()
 	if err != nil {
 		return nil, common.Hash{}, err
 	}
 
 	latestBlockNumber := validityProverInfo.BlockNumber
-	depositMerkleProof, actualDepositRoot, err := d.blockBuilder.DepositTreeProof(latestBlockNumber, depositIndex)
+
+	return d.DepositTreeProof(latestBlockNumber, depositIndex)
+}
+
+func (d *blockValidityProver) DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error) {
+	depositMerkleProof, actualDepositRoot, err := d.blockBuilder.DepositTreeProof(blockNumber, depositIndex)
 	if err != nil {
 		return nil, common.Hash{}, err
 	}
@@ -426,7 +426,7 @@ func (d *blockValidityProver) DepositTreeProof(depositIndex uint32) (*intMaxTree
 	// }
 
 	// debug
-	depositLeaf := d.blockBuilder.MerkleTreeHistory.MerkleTrees[latestBlockNumber].DepositLeaves[depositIndex]
+	depositLeaf := d.blockBuilder.MerkleTreeHistory.MerkleTrees[blockNumber].DepositLeaves[depositIndex]
 	fmt.Printf("depositIndex: %+v\n", depositIndex)
 	fmt.Printf("depositLeaf: %+v\n", depositLeaf)
 	fmt.Printf("depositLeaf RecipientSaltHash: %v\n", common.Hash(depositLeaf.RecipientSaltHash).String())

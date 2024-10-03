@@ -318,8 +318,7 @@ func MakeTxWitness(
 	// 	return nil, nil, err
 	// }
 
-	fmt.Printf("IMPORTANT PostBlock")
-	validityPublicInputs, senderLeaves, err := blockValidityService.ValidityPublicInputs(common.BytesToHash(txDetails.TxTreeRoot.Marshal()))
+	validityPublicInputs, senderLeaves, err := blockValidityService.ValidityPublicInputs(common.HexToHash(txDetails.TxTreeRoot.String()))
 	if err != nil {
 		return nil, nil, fmt.Errorf("fail to get validity public inputs: %w", err)
 	}
@@ -788,21 +787,26 @@ func (s *mockWallet) ReceiveDepositAndUpdate(
 	}
 
 	userDepositTreeRoot := s.publicState.DepositTreeRoot
+	blockNumber := s.publicState.BlockNumber
 	fmt.Printf("user deposit tree root: %s\n", userDepositTreeRoot.String())
-	depositMerkleProof, depositTreeRoot, err := blockValidityService.DepositTreeProof(depositIndex)
+	depositMerkleProof, depositTreeRoot, err := blockValidityService.DepositTreeProof(blockNumber, depositIndex)
 	if err != nil {
 		return nil, err
 	}
 
-	fmt.Printf("ReceiveDepositAndUpdate deposit tree root: %s\n", depositTreeRoot.String())
-	fmt.Printf("deposit index: %d\n", depositIndex)
-	fmt.Printf("depositCase.DepositIndex: %d\n", depositCase.DepositIndex)
+	fmt.Printf("depositCase.Deposit hash: %v\n", depositCase.Deposit.Hash())
 	fmt.Printf("depositCase.Deposit: %v\n", depositCase.Deposit)
 	fmt.Printf("depositCase.Deposit RecipientSaltHash: %v\n", common.Hash(depositCase.Deposit.RecipientSaltHash).String())
-	fmt.Printf("depositCase.Deposit hash: %v\n", depositCase.Deposit.Hash())
+	fmt.Printf("depositCase.DepositIndex: %d\n", depositCase.DepositIndex)
 	for i, sibling := range depositMerkleProof.Siblings {
 		fmt.Printf("depositCase.Deposit Merkle proof: siblings[%d] = %s\n", i, common.Hash(sibling))
 	}
+	fmt.Printf("deposit index: %d\n", depositIndex)
+	fmt.Printf("ReceiveDepositAndUpdate deposit tree root: %s\n", depositTreeRoot.String())
+	if depositTreeRoot != userDepositTreeRoot {
+		return nil, errors.New("deposit tree root is mismatch")
+	}
+
 	err = depositMerkleProof.Verify(depositCase.Deposit.Hash(), int(depositCase.DepositIndex), depositTreeRoot)
 	if err != nil {
 		fmt.Printf("deposit Merkle proof verify error: %v\n", err)

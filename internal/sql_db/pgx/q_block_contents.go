@@ -388,8 +388,7 @@ func (p *pgx) BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWith
 			&tmp.ValidityProof,
 		))
 	if err != nil {
-		fmt.Printf("BlockContentByTxRoot error: %v\n", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to fetch block content by tx root: %w", err)
 	}
 
 	bDBApp := p.blockContentToDBApp(&tmp)

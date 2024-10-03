@@ -105,19 +105,3 @@ type BuilderDeposits interface {
 	ScanDeposits() ([]*mDBApp.Deposit, error)
 	UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error
 }
-
-// type DepositTreeBuilder interface {
-// 	LastDepositTreeRoot() (common.Hash, error)
-// 	AppendDepositTreeLeaf(depositHash common.Hash, depositLeaf *intMaxTree.DepositLeaf) (root common.Hash, err error)
-
-// 	IsSynchronizedDepositIndex(depositIndex uint32) (bool, error)
-// 	DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error)
-// 	GetDepositLeafAndIndexByHash(depositHash common.Hash) (depositLeafWithId *DepositLeafWithId, depositIndex *uint32, err error)
-
-// 	FetchLastDepositIndex() (uint32, error)
-// }
-
-// type BuilderEventBlockNumbersForValidityProver interface {
-// 	UpsertEventBlockNumberForValidityProver(eventName string, blockNumber uint64) (*mDBApp.EventBlockNumberForValidityProver, error)
-// 	EventBlockNumberByEventNameForValidityProver(eventName string) (*mDBApp.EventBlockNumberForValidityProver, error)
-// }

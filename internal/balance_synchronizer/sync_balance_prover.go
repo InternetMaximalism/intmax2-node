@@ -524,9 +524,13 @@ func (s *SyncBalanceProver) ReceiveDeposit(
 		deposit := receiveDepositWitness.DepositWitness.Deposit
 		depositMerkleProof := receiveDepositWitness.DepositWitness.DepositMerkleProof
 		depositTreeRoot := lastBalancePublicInputs.PublicState.DepositTreeRoot
-		fmt.Printf("depositIndex: %d\n", depositIndex)
 		userDepositTreeRoot := wallet.PublicState().DepositTreeRoot
-		fmt.Printf("userDepositTreeRoot: %s\n", userDepositTreeRoot.String())
+		if depositTreeRoot != userDepositTreeRoot {
+			s.log.Debugf("depositIndex: %d\n", depositIndex)
+			s.log.Debugf("depositTreeRoot in balance proof: %s\n", depositTreeRoot.String())
+			s.log.Debugf("DepositTreeRoot in public state: %s\n", userDepositTreeRoot.String())
+			panic("deposit tree root is mismatch")
+		}
 
 		if depositMerkleProof.Verify(deposit.Hash(), int(depositIndex), depositTreeRoot) != nil {
 			panic("deposit merkle proof is invalid") // XXX
