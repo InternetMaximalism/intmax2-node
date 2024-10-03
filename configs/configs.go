@@ -59,6 +59,9 @@ func New() *Config {
 		if config.GasPriceOracle.Delimiter <= intValue0 {
 			config.GasPriceOracle.Delimiter = gasPriceOracleDelimiterDef
 		}
+		if config.GasPriceOracle.ExtraFee < intValue0 {
+			config.GasPriceOracle.ExtraFee = intValue0
+		}
 		if config.APP.PrintConfig {
 			config.print()
 		}
