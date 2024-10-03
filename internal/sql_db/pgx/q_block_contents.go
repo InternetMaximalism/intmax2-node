@@ -370,7 +370,7 @@ func (p *pgx) BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWith
 	)
 
 	var tmp models.BlockContent
-	err := errPgx.Err(p.queryRow(p.ctx, q, txRoot).
+	err := errPgx.Err(p.queryRow(p.ctx, q, txRoot.Hex()[2:]).
 		Scan(
 			&tmp.BlockContentID,
 			&tmp.BlockHash,
@@ -388,6 +388,7 @@ func (p *pgx) BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWith
 			&tmp.ValidityProof,
 		))
 	if err != nil {
+		fmt.Printf("BlockContentByTxRoot error: %v\n", err)
 		return nil, err
 	}
 

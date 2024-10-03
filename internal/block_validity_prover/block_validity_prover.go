@@ -287,7 +287,7 @@ func (d *blockValidityProver) ValidityWitness(
 ) (*ValidityWitness, error) {
 	rawBlockContent, err := d.blockBuilder.BlockContentByTxRoot(txRoot)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get block content by tx root: %w", err)
 	}
 
 	senderType := intMaxTypes.AccountIDSenderType
@@ -324,11 +324,11 @@ func (d *blockValidityProver) ValidityWitness(
 
 	lastGeneratedProofBlockNumber, err := d.blockBuilder.LastGeneratedProofBlockNumber()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get last generated proof block number: %w", err)
 	}
 	lastValidityWitness, err := d.blockBuilder.ValidityWitnessByBlockNumber(lastGeneratedProofBlockNumber)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get validity witness by block number: %w", err)
 	}
 	// lastValidityWitness, err := d.blockBuilder.LastValidityWitness()
 	// if err != nil {

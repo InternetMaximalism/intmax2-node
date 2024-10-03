@@ -518,6 +518,21 @@ func (s *SyncBalanceProver) ReceiveDeposit(
 	}
 	fmt.Printf("lastBalancePublicInputs (ReceiveDeposit) PrivateCommitment commitment: %s\n", lastBalancePublicInputs.PrivateCommitment.String())
 
+	// validation
+	{
+		depositIndex := receiveDepositWitness.DepositWitness.DepositIndex
+		deposit := receiveDepositWitness.DepositWitness.Deposit
+		depositMerkleProof := receiveDepositWitness.DepositWitness.DepositMerkleProof
+		depositTreeRoot := lastBalancePublicInputs.PublicState.DepositTreeRoot
+		fmt.Printf("depositIndex: %d\n", depositIndex)
+		userDepositTreeRoot := wallet.PublicState().DepositTreeRoot
+		fmt.Printf("userDepositTreeRoot: %s\n", userDepositTreeRoot.String())
+
+		if depositMerkleProof.Verify(deposit.Hash(), int(depositIndex), depositTreeRoot) != nil {
+			panic("deposit merkle proof is invalid") // XXX
+		}
+	}
+
 	balanceProof, err := balanceProcessor.ProveReceiveDeposit(
 		wallet.PublicKey(),
 		receiveDepositWitness,

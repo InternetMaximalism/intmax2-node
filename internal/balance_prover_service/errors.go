@@ -7,3 +7,6 @@ var ErrBalanceProofNotGenerated = errors.New("balance proof is not generated")
 
 // ErrStatusRequestTimeout error: get response with status code 408.
 var ErrStatusRequestTimeout = errors.New("get response with status code 408")
+
+// ErrRequestIoTimeout error: i/o timeout.
+var ErrRequestIoTimeout = errors.New("i/o timeout")

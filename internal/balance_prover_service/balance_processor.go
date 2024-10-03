@@ -20,6 +20,7 @@ import (
 
 const (
 	timeoutForFetchingBalanceValidityProof = 3 * time.Second
+	retryAttempts                          = 3
 
 	messageErrorMessage                   = "ErrorMessage: %v\n"
 	messageBalanceProofIsNotGenerated     = "balance proof is not generated"
@@ -97,8 +98,7 @@ func (s *balanceProcessor) ProveUpdate(
 			var proof *BalanceValidityProofResponse
 			proof, err = s.fetchUpdateBalanceValidityProof(publicKey, requestID)
 			if err != nil {
-				if errors.Is(err, ErrBalanceProofNotGenerated) ||
-					errors.Is(err, ErrStatusRequestTimeout) {
+				if errors.Is(err, ErrBalanceProofNotGenerated) {
 					continue
 				}
 
@@ -188,7 +188,7 @@ func (s *balanceProcessor) ProveReceiveDeposit(
 			var proof *BalanceValidityProofResponse
 			proof, err := s.fetchReceiveDepositBalanceValidityProof(publicKey, requestID)
 			if err != nil {
-				if errors.Is(err, ErrBalanceProofNotGenerated) || errors.Is(err, ErrStatusRequestTimeout) {
+				if errors.Is(err, ErrBalanceProofNotGenerated) {
 					continue
 				}
 
@@ -225,7 +225,7 @@ func (s *balanceProcessor) ProveSendTransition(
 ) (*SenderProofWithPublicInputs, error) {
 	s.log.Debugf("ProveSend\n")
 	s.log.Debugf("publicKey: %v\n", publicKey)
-	requestID, err := s.requestSendBalanceValidityProof(publicKey, sendWitness, updateWitness, lastBalanceProof)
+	requestID, err := s.requestSpendProof(publicKey, sendWitness, updateWitness)
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +237,7 @@ func (s *balanceProcessor) ProveSendTransition(
 			return nil, s.ctx.Err()
 		case <-ticker.C:
 			var proof *BalanceValidityProofResponse
-			proof, err = s.fetchSendBalanceValidityProof(publicKey, requestID)
+			proof, err = s.fetchSpendProof(publicKey, requestID)
 			if err != nil {
 				if errors.Is(err, ErrBalanceProofNotGenerated) {
 					continue
@@ -484,19 +484,15 @@ func (p *balanceProcessor) requestUpdateBalanceValidityProof(
 	intMaxAddress := publicKey.ToAddress().String()
 	apiUrl := fmt.Sprintf("%s/proof/%s/update", p.cfg.BalanceValidityProver.BalanceValidityProverUrl, intMaxAddress)
 
-	r := resty.New().R()
+	r := resty.New().AddRetryCondition(NewRetryStrategy(p.log).Condition()).SetRetryCount(retryAttempts).R()
 	var resp *resty.Response
 	resp, err = r.SetContext(p.ctx).SetHeaders(map[string]string{
 		contentType: appJSON,
 	}).SetBody(bd).Post(apiUrl)
+	err = HandleGeneralError(resp, err)
 	if err != nil {
-		const msg = " the balance proof request for UpdateWitnessfailed to send: %w"
+		const msg = "failed to send the balance proof request for UpdateWitness: %w"
 		return "", fmt.Errorf(msg, err)
-	}
-
-	if resp == nil {
-		const msg = "update request error occurred"
-		return "", errors.New(msg)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
@@ -549,19 +545,15 @@ func (p *balanceProcessor) requestReceiveDepositBalanceValidityProof(
 	intMaxAddress := publicKey.ToAddress().String()
 	apiUrl := fmt.Sprintf("%s/proof/%s/deposit", p.cfg.BalanceValidityProver.BalanceValidityProverUrl, intMaxAddress)
 
-	r := resty.New().R()
+	r := resty.New().AddRetryCondition(NewRetryStrategy(p.log).Condition()).SetRetryCount(retryAttempts).R()
 	var resp *resty.Response
 	resp, err = r.SetContext(p.ctx).SetHeaders(map[string]string{
 		contentType: appJSON,
 	}).SetBody(bd).Post(apiUrl)
+	err = HandleGeneralError(resp, err)
 	if err != nil {
 		const msg = "failed to send the balance proof request for ReceiveDepositWitness: %w"
 		return "", fmt.Errorf(msg, err)
-	}
-
-	if resp == nil {
-		const msg = "receive deposit request error occurred"
-		return "", errors.New(msg)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
@@ -617,19 +609,15 @@ func (p *balanceProcessor) requestSendBalanceValidityProof(
 	intMaxAddress := publicKey.ToAddress().String()
 	apiUrl := fmt.Sprintf("%s/proof/%s/send", p.cfg.BalanceValidityProver.BalanceValidityProverUrl, intMaxAddress)
 
-	r := resty.New().R()
+	r := resty.New().AddRetryCondition(NewRetryStrategy(p.log).Condition()).SetRetryCount(retryAttempts).R()
 	var resp *resty.Response
 	resp, err = r.SetContext(p.ctx).SetHeaders(map[string]string{
 		contentType: appJSON,
 	}).SetBody(bd).Post(apiUrl)
+	err = HandleGeneralError(resp, err)
 	if err != nil {
 		const msg = "failed to send the balance proof request for SendWitness: %w"
 		return "", fmt.Errorf(msg, err)
-	}
-
-	if resp == nil {
-		const msg = "send request error occurred"
-		return "", errors.New(msg)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
@@ -679,19 +667,15 @@ func (p *balanceProcessor) requestSpendProof(
 	intMaxAddress := publicKey.ToAddress().String()
 	apiUrl := fmt.Sprintf("%s/proof/%s/spend", p.cfg.BalanceValidityProver.BalanceValidityProverUrl, intMaxAddress)
 
-	r := resty.New().R()
+	r := resty.New().AddRetryCondition(NewRetryStrategy(p.log).Condition()).SetRetryCount(retryAttempts).R()
 	var resp *resty.Response
 	resp, err = r.SetContext(p.ctx).SetHeaders(map[string]string{
 		contentType: appJSON,
 	}).SetBody(bd).Post(apiUrl)
+	err = HandleGeneralError(resp, err)
 	if err != nil {
 		const msg = "failed to send the balance proof request for SpendWitness: %w"
 		return "", fmt.Errorf(msg, err)
-	}
-
-	if resp == nil {
-		const msg = "spend request error occurred"
-		return "", errors.New(msg)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
@@ -745,19 +729,15 @@ func (p *balanceProcessor) requestReceiveTransferBalanceValidityProof(
 	intMaxAddress := publicKey.ToAddress().String()
 	apiUrl := fmt.Sprintf("%s/proof/%s/transfer", p.cfg.BalanceValidityProver.BalanceValidityProverUrl, intMaxAddress)
 
-	r := resty.New().R()
+	r := resty.New().AddRetryCondition(NewRetryStrategy(p.log).Condition()).SetRetryCount(retryAttempts).R()
 	var resp *resty.Response
 	resp, err = r.SetContext(p.ctx).SetHeaders(map[string]string{
 		contentType: appJSON,
 	}).SetBody(bd).Post(apiUrl)
+	err = HandleGeneralError(resp, err)
 	if err != nil {
 		const msg = "failed to send the balance proof request for ReceiveTransferWitness: %w"
 		return "", fmt.Errorf(msg, err)
-	}
-
-	if resp == nil {
-		const msg = "receive transfer request error occurred"
-		return "", errors.New(msg)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
@@ -800,22 +780,13 @@ func (p *balanceProcessor) fetchUpdateBalanceValidityProof(publicKey *intMaxAcc.
 	intMaxAddress := publicKey.ToAddress().String()
 	apiUrl := fmt.Sprintf("%s/proof/%s/update/%s", p.cfg.BalanceValidityProver.BalanceValidityProverUrl, intMaxAddress, requestID)
 
-	r := resty.New().R()
+	r := resty.New().AddRetryCondition(NewRetryStrategy(p.log).Condition()).SetRetryCount(retryAttempts).R()
 	resp, err := r.SetContext(p.ctx).SetHeaders(map[string]string{
 		contentType: appJSON,
 	}).Get(apiUrl)
+	err = HandleGeneralError(resp, err)
 	if err != nil {
-		const msg = "failed to send updateWitness balance proof request: %w"
-		return nil, fmt.Errorf(msg, err)
-	}
-
-	if resp == nil {
-		const msg = "send request error occurred"
-		return nil, errors.New(msg)
-	}
-
-	if resp.StatusCode() == http.StatusRequestTimeout {
-		return nil, ErrStatusRequestTimeout
+		return nil, fmt.Errorf("failed to send updateWitness balance proof request: %w", err)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
@@ -860,22 +831,13 @@ func (p *balanceProcessor) fetchReceiveDepositBalanceValidityProof(publicKey *in
 	intMaxAddress := publicKey.ToAddress().String()
 	apiUrl := fmt.Sprintf("%s/proof/%s/deposit/%s", p.cfg.BalanceValidityProver.BalanceValidityProverUrl, intMaxAddress, requestID)
 
-	r := resty.New().R()
+	r := resty.New().AddRetryCondition(NewRetryStrategy(p.log).Condition()).SetRetryCount(retryAttempts).R()
 	resp, err := r.SetContext(p.ctx).SetHeaders(map[string]string{
 		contentType: appJSON,
 	}).Get(apiUrl)
+	err = HandleGeneralError(resp, err)
 	if err != nil {
-		const msg = "failed to send depositWitness balance proof request: %w"
-		return nil, fmt.Errorf(msg, err)
-	}
-
-	if resp == nil {
-		const msg = "send request error occurred"
-		return nil, errors.New(msg)
-	}
-
-	if resp.StatusCode() == http.StatusRequestTimeout {
-		return nil, ErrStatusRequestTimeout
+		return nil, fmt.Errorf("failed to send depositWitness balance proof request: %w", err)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
@@ -920,18 +882,13 @@ func (p *balanceProcessor) fetchSendBalanceValidityProof(publicKey *intMaxAcc.Pu
 	intMaxAddress := publicKey.ToAddress().String()
 	apiUrl := fmt.Sprintf("%s/proof/%s/send/%s", p.cfg.BalanceValidityProver.BalanceValidityProverUrl, intMaxAddress, requestID)
 
-	r := resty.New().R()
+	r := resty.New().AddRetryCondition(NewRetryStrategy(p.log).Condition()).SetRetryCount(retryAttempts).R()
 	resp, err := r.SetContext(p.ctx).SetHeaders(map[string]string{
 		contentType: appJSON,
 	}).Get(apiUrl)
+	err = HandleGeneralError(resp, err)
 	if err != nil {
-		const msg = "failed to send sendWitness balance proof request: %w"
-		return nil, fmt.Errorf(msg, err)
-	}
-
-	if resp == nil {
-		const msg = "send request error occurred"
-		return nil, errors.New(msg)
+		return nil, fmt.Errorf("failed to send sendWitness balance proof request: %w", err)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
@@ -965,7 +922,7 @@ func (p *balanceProcessor) fetchSendBalanceValidityProof(publicKey *intMaxAcc.Pu
 	return response, nil
 }
 
-func (p *balanceProcessor) fetchSpendBalanceValidityProof(publicKey *intMaxAcc.PublicKey, requestID string) (*BalanceValidityProofResponse, error) {
+func (p *balanceProcessor) fetchSpendProof(publicKey *intMaxAcc.PublicKey, requestID string) (*BalanceValidityProofResponse, error) {
 	const (
 		contentType = "Content-Type"
 		appJSON     = "application/json"
@@ -974,18 +931,13 @@ func (p *balanceProcessor) fetchSpendBalanceValidityProof(publicKey *intMaxAcc.P
 	intMaxAddress := publicKey.ToAddress().String()
 	apiUrl := fmt.Sprintf("%s/proof/%s/spend/%s", p.cfg.BalanceValidityProver.BalanceValidityProverUrl, intMaxAddress, requestID)
 
-	r := resty.New().R()
+	r := resty.New().AddRetryCondition(NewRetryStrategy(p.log).Condition()).SetRetryCount(retryAttempts).R()
 	resp, err := r.SetContext(p.ctx).SetHeaders(map[string]string{
 		contentType: appJSON,
 	}).Get(apiUrl)
+	err = HandleGeneralError(resp, err)
 	if err != nil {
-		const msg = "failed to send spendWitness balance proof request: %w"
-		return nil, fmt.Errorf(msg, err)
-	}
-
-	if resp == nil {
-		const msg = "send request error occurred"
-		return nil, errors.New(msg)
+		return nil, fmt.Errorf("failed to send spendWitness balance proof request: %w", err)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
@@ -1030,18 +982,13 @@ func (p *balanceProcessor) fetchReceiveTransferBalanceValidityProof(publicKey *i
 	intMaxAddress := publicKey.ToAddress().String()
 	apiUrl := fmt.Sprintf("%s/proof/%s/transfer/%s", p.cfg.BalanceValidityProver.BalanceValidityProverUrl, intMaxAddress, requestID)
 
-	r := resty.New().R()
+	r := resty.New().AddRetryCondition(NewRetryStrategy(p.log).Condition()).SetRetryCount(retryAttempts).R()
 	resp, err := r.SetContext(p.ctx).SetHeaders(map[string]string{
 		contentType: appJSON,
 	}).Get(apiUrl)
+	err = HandleGeneralError(resp, err)
 	if err != nil {
-		const msg = "failed to send transferWitness balance proof request: %w"
-		return nil, fmt.Errorf(msg, err)
-	}
-
-	if resp == nil {
-		const msg = "send request error occurred"
-		return nil, errors.New(msg)
+		return nil, fmt.Errorf("failed to send transferWitness balance proof request: %w", err)
 	}
 
 	if resp.StatusCode() != http.StatusOK {

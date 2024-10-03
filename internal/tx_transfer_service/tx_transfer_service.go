@@ -348,8 +348,7 @@ func TransferTransaction(
 
 	txWitness, transferWitnesses, err := balance_synchronizer.MakeTxWitness(blockValidityService, &txDetails)
 	if err != nil {
-		const msg = "failed to send transaction: %+v"
-		return fmt.Errorf(msg, err.Error())
+		return fmt.Errorf("failed to make tx witness: %w", err)
 	}
 	newSalt, err := new(balance_prover_service.Salt).SetRandom()
 	if err != nil {

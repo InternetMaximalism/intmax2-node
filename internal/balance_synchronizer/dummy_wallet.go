@@ -283,19 +283,19 @@ func MakeTxWitness(
 	for len(transfers) < numTransfersInTx {
 		transfers = append(transfers, new(intMaxTypes.Transfer).SetZero())
 	}
-	fmt.Printf("SendTx transfers: %v\n", transfers)
+	fmt.Printf("MakeTxWitness transfers: %v\n", transfers)
 
 	zeroTransfer := new(intMaxTypes.Transfer).SetZero()
 	transferTree, err := intMaxTree.NewTransferTree(intMaxTree.TRANSFER_TREE_HEIGHT, nil, zeroTransfer.Hash())
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("fail to create transfer tree: %w", err)
 	}
 
 	for _, transfer := range transfers {
 		_, index, _ := transferTree.GetCurrentRootCountAndSiblings()
 		_, err = transferTree.AddLeaf(index, transfer)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("fail to add leaf to transfer tree: %w", err)
 		}
 	}
 
@@ -320,12 +320,12 @@ func MakeTxWitness(
 
 	fmt.Printf("IMPORTANT PostBlock")
 	validityPublicInputs, senderLeaves, err := blockValidityService.ValidityPublicInputs(common.BytesToHash(txDetails.TxTreeRoot.Marshal()))
+	if err != nil {
+		return nil, nil, fmt.Errorf("fail to get validity public inputs: %w", err)
+	}
 	// validityWitness, err := blockValidityService.UpdateValidityWitness(
 	// 	blockContent,
 	// )
-	if err != nil {
-		return nil, nil, err
-	}
 
 	// txLeaves := make([]*intMaxTypes.Tx, len(txRequests))
 	// for i, tx := range txRequests {
@@ -787,6 +787,8 @@ func (s *mockWallet) ReceiveDepositAndUpdate(
 		return nil, errors.New("deposit not found")
 	}
 
+	userDepositTreeRoot := s.publicState.DepositTreeRoot
+	fmt.Printf("user deposit tree root: %s\n", userDepositTreeRoot.String())
 	depositMerkleProof, depositTreeRoot, err := blockValidityService.DepositTreeProof(depositIndex)
 	if err != nil {
 		return nil, err
