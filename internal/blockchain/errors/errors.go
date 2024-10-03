@@ -80,6 +80,11 @@ var ErrScrollNetworkChainLinkEvmJSONRPCFail = errors.New(
 	"failed to get the chain-link-evm-json-rpc of scroll network",
 )
 
+// ErrEthereumNetworkChainLinkEvmJSONRPCFail error: failed to get the chain-link-evm-json-rpc of ethereum network.
+var ErrEthereumNetworkChainLinkEvmJSONRPCFail = errors.New(
+	"failed to get the chain-link-evm-json-rpc of ethereum network",
+)
+
 // ErrMostBlockNumberFail error: failed to get block number.
 var ErrMostBlockNumberFail = errors.New("failed to get most block number")
 

@@ -14,6 +14,7 @@ import (
 	"intmax2-node/internal/balance_service"
 	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/hash/goldenposeidon"
+	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
@@ -36,7 +37,7 @@ const (
 func TransferTransaction(
 	ctx context.Context,
 	cfg *configs.Config,
-	// log logger.Logger,
+	log logger.Logger,
 	sb ServiceBlockchain,
 	args []string,
 	amountStr string,
@@ -94,7 +95,16 @@ func TransferTransaction(
 	var initialLeaves []*intMaxTypes.Transfer
 
 	gasFee, gasOK := dataBlockInfo.TransferFee[new(big.Int).SetUint64(uint64(tokenIndex)).String()]
+	if !gasOK {
+		const defaultTokenIndex = "0"
+		gasFee, gasOK = dataBlockInfo.TransferFee[defaultTokenIndex]
+	}
 	if gasOK {
+		log.Debugf(
+			"TransferFee for tokenIndex = %v is fee = %v (recipient = %v)",
+			tokenIndex, gasFee, dataBlockInfo.IntMaxAddress,
+		)
+
 		// Send transfer transaction
 		var recipient *intMaxAcc.PublicKey
 		recipient, err = intMaxAcc.NewPublicKeyFromAddressHex(dataBlockInfo.IntMaxAddress)
