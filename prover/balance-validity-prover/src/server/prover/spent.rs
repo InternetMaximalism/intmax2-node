@@ -15,7 +15,7 @@ use intmax2_zkp::{
     common::witness::update_witness::UpdateWitness, constants::NUM_TRANSFERS_IN_TX,
 };
 
-#[get("/proof/spent/{request_id}")]
+#[get("/proof/asset/{request_id}")]
 async fn get_proof(
     query_params: web::Path<(String, String)>,
     redis: web::Data<redis::Client>,
@@ -26,7 +26,7 @@ async fn get_proof(
         .map_err(actix_web::error::ErrorInternalServerError)?;
 
     let request_id = &query_params.1;
-    let proof = redis::Cmd::get(&get_balance_spent_request_id(request_id))
+    let proof = redis::Cmd::get(&spent_token_proof_request_id(request_id))
         .query_async::<_, Option<String>>(&mut conn)
         .await
         .map_err(error::ErrorInternalServerError)?;
@@ -54,7 +54,7 @@ async fn get_proof(
     Ok(HttpResponse::Ok().json(response))
 }
 
-#[get("/proofs/spent")]
+#[get("/proofs/spend")]
 async fn get_proofs(
     req: HttpRequest,
     redis: web::Data<redis::Client>,
@@ -77,7 +77,7 @@ async fn get_proofs(
 
     let mut proofs: Vec<ProofSpentValue> = Vec::new();
     for request_id in &request_ids {
-        let some_proof = redis::Cmd::get(&get_balance_spent_request_id(request_id))
+        let some_proof = redis::Cmd::get(&spent_token_proof_request_id(request_id))
             .query_async::<_, Option<String>>(&mut conn)
             .await
             .map_err(actix_web::error::ErrorInternalServerError)?;
@@ -98,7 +98,7 @@ async fn get_proofs(
     Ok(HttpResponse::Ok().json(response))
 }
 
-#[post("/proof/spent")]
+#[post("/proof/asset")]
 async fn generate_proof(
     req: web::Json<ProofSpentRequest>,
     redis: web::Data<redis::Client>,
@@ -111,7 +111,7 @@ async fn generate_proof(
 
     // let request_id = uuid::Uuid::new_v4();
     let request_id = req.request_id.clone();
-    let full_request_id = get_balance_spent_request_id(&request_id.to_string());
+    let full_request_id = spent_token_proof_request_id(&request_id.to_string());
     log::debug!("request ID: {:?}", full_request_id);
     let old_proof = redis::Cmd::get(&full_request_id)
         .query_async::<_, Option<String>>(&mut redis_conn)
@@ -191,7 +191,7 @@ async fn generate_proof(
             .get()
             .expect("balance processor not initialized"),
     );
-    // let response = generate_balance_spent_proof_job(
+    // let response = generate_balance_spend_proof_job(
     //     &send_witness,
     //     state
     //         .balance_processor
@@ -201,7 +201,7 @@ async fn generate_proof(
 
     // // Spawn a new task to generate the proof
     // actix_web::rt::spawn(async move {
-    //     let response = generate_balance_spent_proof_job(
+    //     let response = generate_balance_spend_proof_job(
     //         full_request_id,
     //         &send_witness,
     //         state
@@ -263,6 +263,6 @@ async fn generate_proof(
     }
 }
 
-fn get_balance_spent_request_id(request_id: &str) -> String {
-    format!("balance-validity/spent/{}", request_id)
+fn spent_token_proof_request_id(request_id: &str) -> String {
+    format!("balance-validity/spend/{}", request_id)
 }

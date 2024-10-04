@@ -375,6 +375,56 @@ func MakeTxWitness(
 	return txWitness, transferWitnesses, nil
 }
 
+func (wallet *mockWallet) CalculateSpentTokenWitness(
+	newPrivateStateSalt balance_prover_service.Salt,
+	tx *intMaxTypes.Tx,
+	transfers []*intMaxTypes.Transfer,
+) (*balance_prover_service.SpentTokenWitness, error) {
+	prevPrivateState := wallet.PrivateState()
+
+	if tx.Nonce != wallet.nonce {
+		fmt.Printf("transaction nonce mismatch: %d != %d", tx.Nonce, wallet.nonce)
+		var ErrTransactionNonceMismatch = errors.New("transaction nonce mismatch")
+		return nil, ErrTransactionNonceMismatch
+	}
+
+	assetTree := new(intMaxTree.AssetTree).Set(&wallet.assetTree)
+
+	assetMerkleProofs := make([]*intMaxTree.AssetMerkleProof, 0, len(transfers))
+	prevBalances := make([]*intMaxTree.AssetLeafEntry, 0, len(transfers))
+	insufficientFlags := new(backup_balance.InsufficientFlags)
+	for i, transfer := range transfers {
+		if transfer == nil {
+			return nil, fmt.Errorf("transferWitness[%d] is nil", i)
+		}
+
+		tokenIndex := transfer.TokenIndex
+		prevBalance := assetTree.GetLeaf(tokenIndex)
+		assetMerkleProof, _, _ := assetTree.Prove(tokenIndex)
+		newBalance := prevBalance.Sub(transfer.Amount)
+		_, err := assetTree.UpdateLeaf(tokenIndex, newBalance)
+		if err != nil {
+			panic(err)
+		}
+		prevBalanceEntry := intMaxTree.AssetLeafEntry{
+			TokenIndex: tokenIndex,
+			Leaf:       prevBalance,
+		}
+		prevBalances = append(prevBalances, &prevBalanceEntry)
+		assetMerkleProofs = append(assetMerkleProofs, &assetMerkleProof)
+		insufficientFlags.SetBit(i, newBalance.IsInsufficient)
+	}
+
+	return &balance_prover_service.SpentTokenWitness{
+		PrevPrivateState:    prevPrivateState,
+		PrevBalances:        prevBalances,
+		AssetMerkleProofs:   assetMerkleProofs,
+		InsufficientFlags:   *insufficientFlags,
+		Transfers:           transfers,
+		NewPrivateStateSalt: newPrivateStateSalt,
+	}, nil
+}
+
 func (w *mockWallet) UpdateOnSendTx(
 	newSalt balance_prover_service.Salt,
 	txWitness *balance_prover_service.TxWitness,
@@ -425,14 +475,16 @@ func (w *mockWallet) UpdateOnSendTx(
 	}
 
 	sendWitness := balance_prover_service.SendWitness{
-		PrevBalancePis:      prevBalancePis,
-		PrevPrivateState:    prevPrivateState,
-		PrevBalances:        prevBalances,
-		AssetMerkleProofs:   assetMerkleProofs,
-		InsufficientFlags:   *insufficientFlags,
-		Transfers:           transfers,
-		TxWitness:           *txWitness,
-		NewPrivateStateSalt: newSalt,
+		SpentTokenWitness: &balance_prover_service.SpentTokenWitness{
+			PrevPrivateState:    prevPrivateState,
+			PrevBalances:        prevBalances,
+			AssetMerkleProofs:   assetMerkleProofs,
+			InsufficientFlags:   *insufficientFlags,
+			Transfers:           transfers,
+			NewPrivateStateSalt: newSalt,
+		},
+		PrevBalancePis: prevBalancePis,
+		TxWitness:      *txWitness,
 	}
 
 	w.sendWitnesses[sendWitness.GetIncludedBlockNumber()] = &sendWitness

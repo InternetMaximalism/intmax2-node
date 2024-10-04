@@ -43,7 +43,7 @@ type UCTransactionInput struct {
 	Sender             string                     `json:"sender"`
 	DecodeSender       *intMaxAcc.PublicKey       `json:"-"`
 	TransfersHash      string                     `json:"transfersHash"`
-	Nonce              uint64                     `json:"nonce"`
+	Nonce              uint64                     `json:"nonce"` // initial value is 0
 	PowNonce           string                     `json:"powNonce"`
 	TransferData       []*TransferDataTransaction `json:"transferData"`
 	DecodeTransferData []*intMaxTypes.Transfer    `json:"-"`

@@ -72,15 +72,13 @@ func (s *balanceSynchronizer) LastBalanceProof() *intMaxTypes.Plonky2Proof {
 }
 
 func (s *balanceSynchronizer) ProveSendTransition(
-	sendWitness *balance_prover_service.SendWitness,
-	updateWitness *block_validity_prover.UpdateWitness,
+	spentTokenWitness *balance_prover_service.SpentTokenWitness,
 ) (*balance_prover_service.SenderProofWithPublicInputs, error) {
 	publicKey := s.userState.PublicKey()
 	lastBalanceProof := s.LastBalanceProof().ProofBase64String()
 	return s.balanceProcessor.ProveSendTransition(
 		publicKey,
-		sendWitness,
-		updateWitness,
+		spentTokenWitness,
 		&lastBalanceProof,
 	)
 }

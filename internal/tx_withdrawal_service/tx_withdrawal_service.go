@@ -129,11 +129,11 @@ func WithdrawalTransaction(
 	)
 
 	zeroTransfer := new(intMaxTypes.Transfer).SetZero()
-	initialLeaves := make([]*intMaxTypes.Transfer, 1)
+	transfers := make([]*intMaxTypes.Transfer, 1) // XXX: Include transfer fee
 	const transferIndex = 0
-	initialLeaves[transferIndex] = transfer
+	transfers[transferIndex] = transfer
 
-	transferTree, err := intMaxTree.NewTransferTree(intMaxTree.TRANSFER_TREE_HEIGHT, initialLeaves, zeroTransfer.Hash())
+	transferTree, err := intMaxTree.NewTransferTree(intMaxTree.TRANSFER_TREE_HEIGHT, transfers, zeroTransfer.Hash())
 	if err != nil {
 		return fmt.Errorf("failed to create transfer tree: %v", err)
 	}
@@ -143,7 +143,7 @@ func WithdrawalTransaction(
 		return fmt.Errorf("failed to compute merkle proof: %v", err)
 	}
 
-	var nonce uint32 = 1 // TODO: Incremented with each transaction
+	nonce := balanceSynchronizer.CurrentNonce()
 
 	err = SendWithdrawalTransaction(
 		ctx,
@@ -197,42 +197,48 @@ func WithdrawalTransaction(
 		},
 		TxTreeRoot:    &proposedBlock.TxTreeRoot,
 		TxMerkleProof: proposedBlock.TxTreeMerkleProof,
-		Transfers:     initialLeaves,
+		Transfers:     transfers,
 	}
 
 	lastBalanceProofWithPis := balanceSynchronizer.LastBalanceProof()
 
-	txWitness, transferWitnesses, err := balance_synchronizer.MakeTxWitness(blockValidityService, &txDetails)
-	if err != nil {
-		const msg = "failed to send transaction: %+v"
-		return fmt.Errorf(msg, err.Error())
-	}
+	// txWitness, transferWitnesses, err := balance_synchronizer.MakeTxWitness(blockValidityService, &txDetails)
+	// if err != nil {
+	// 	const msg = "failed to send transaction: %+v"
+	// 	return fmt.Errorf(msg, err.Error())
+	// }
 	newSalt, err := new(balance_prover_service.Salt).SetRandom()
 	if err != nil {
 		const msg = "failed to set random: %+v"
 		return fmt.Errorf(msg, err.Error())
 	}
-	sendWitness, err := userWalletState.UpdateOnSendTx(
-		*newSalt, txWitness, transferWitnesses,
+	// sendWitness, err := userWalletState.UpdateOnSendTx(
+	// 	*newSalt, txWitness, transferWitnesses,
+	// )
+	// if err != nil {
+	// 	const msg = "failed to update on send tx: %+v"
+	// 	return fmt.Errorf(msg, err.Error())
+	// }
+	spentTokenWitness, err := userWalletState.CalculateSpentTokenWitness(
+		*newSalt, tx, transfers,
 	)
 	if err != nil {
-		const msg = "failed to update on send tx: %+v"
-		return fmt.Errorf(msg, err.Error())
+		return fmt.Errorf("failed to calculate spent witness: %v", err)
 	}
 
-	prevBalancePisBlockNumber := sendWitness.GetPrevBalancePisBlockNumber()
-	currentBlockNumber := sendWitness.GetIncludedBlockNumber()
-	updateWitness, err := blockValidityService.FetchUpdateWitness(
-		userWalletState.PublicKey(),
-		&currentBlockNumber,
-		prevBalancePisBlockNumber,
-		true,
-	)
-	if err != nil {
-		return err
-	}
+	// prevBalancePisBlockNumber := sendWitness.GetPrevBalancePisBlockNumber()
+	// currentBlockNumber := sendWitness.GetIncludedBlockNumber()
+	// updateWitness, err := blockValidityService.FetchUpdateWitness(
+	// 	userWalletState.PublicKey(),
+	// 	&currentBlockNumber,
+	// 	prevBalancePisBlockNumber,
+	// 	true,
+	// )
+	// if err != nil {
+	// 	return err
+	// }
 
-	balanceTransitionProof, err := balanceSynchronizer.ProveSendTransition(sendWitness, updateWitness)
+	balanceTransitionProof, err := balanceSynchronizer.ProveSendTransition(spentTokenWitness)
 	if err != nil {
 		return fmt.Errorf("failed to create balance transition proof: %v", err)
 	}
@@ -251,8 +257,8 @@ func WithdrawalTransaction(
 		return fmt.Errorf("failed to create backup transaction data: %w", err)
 	}
 
-	backupTransfers := make([]*transaction.BackupTransferInput, len(initialLeaves))
-	for i, transfer := range initialLeaves {
+	backupTransfers := make([]*transaction.BackupTransferInput, len(transfers))
+	for i, transfer := range transfers {
 		backupTransfers[i], err = tx_transfer_service.MakeWithdrawalBackupData(
 			transfer,
 			userAccount.ToAddress(),

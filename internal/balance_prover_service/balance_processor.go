@@ -54,7 +54,7 @@ type BalanceProcessor interface {
 	// Generates a balance proof with public inputs for a transfer received by a given public key.
 	ProveReceiveTransfer(publicKey *intMaxAcc.PublicKey, receiveTransferWitness *ReceiveTransferWitness, lastBalanceProof *string) (*BalanceProofWithPublicInputs, error)
 	// Generates a sender proof with public inputs for a transition involving sending funds.
-	ProveSendTransition(publicKey *intMaxAcc.PublicKey, sendWitness *SendWitness, updateWitness *block_validity_prover.UpdateWitness, lastBalanceProof *string) (*SenderProofWithPublicInputs, error)
+	ProveSendTransition(publicKey *intMaxAcc.PublicKey, spentTokenWitness *SpentTokenWitness, lastBalanceProof *string) (*SenderProofWithPublicInputs, error)
 	// Generates a balance proof with public inputs for a send operation initiated by a given public key.
 	ProveSend(publicKey *intMaxAcc.PublicKey, sendWitness *SendWitness, updateWitness *block_validity_prover.UpdateWitness, lastBalanceProof *string) (*BalanceProofWithPublicInputs, error)
 	// Generates a balance proof with public inputs for a given public key and update witness.
@@ -219,13 +219,12 @@ func (s *balanceProcessor) ProveReceiveDeposit(
 // until it is available or the context is canceled.
 func (s *balanceProcessor) ProveSendTransition(
 	publicKey *intMaxAcc.PublicKey,
-	sendWitness *SendWitness,
-	updateWitness *block_validity_prover.UpdateWitness,
+	spentTokenWitness *SpentTokenWitness,
 	lastBalanceProof *string,
 ) (*SenderProofWithPublicInputs, error) {
 	s.log.Debugf("ProveSend\n")
 	s.log.Debugf("publicKey: %v\n", publicKey)
-	requestID, err := s.requestSpendProof(publicKey, sendWitness, updateWitness)
+	requestID, err := s.requestSpentAssetProof(publicKey, spentTokenWitness)
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +236,7 @@ func (s *balanceProcessor) ProveSendTransition(
 			return nil, s.ctx.Err()
 		case <-ticker.C:
 			var proof *BalanceValidityProofResponse
-			proof, err = s.fetchSpendProof(publicKey, requestID)
+			proof, err = s.fetchSpentAssetProof(publicKey, requestID)
 			if err != nil {
 				if errors.Is(err, ErrBalanceProofNotGenerated) {
 					continue
@@ -437,10 +436,9 @@ type SendBalanceValidityInput struct {
 	PrevBalanceProof *string `json:"prevBalanceProof,omitempty"`
 }
 
-type SpendProofInput struct {
-	RequestID     string              `json:"requestId"`
-	SendWitness   *SendWitnessInput   `json:"sendWitness"`
-	UpdateWitness *UpdateWitnessInput `json:"balanceUpdateWitness"`
+type SpentAssetProofInput struct {
+	RequestID         string                  `json:"requestId"`
+	SpentTokenWitness *SpentTokenWitnessInput `json:"sendWitness"` // XXX `json:"spentTokenWitness"`
 }
 
 type ReceiveTransferBalanceValidityInput struct {
@@ -642,22 +640,20 @@ func (p *balanceProcessor) requestSendBalanceValidityProof(
 	return requestID, nil
 }
 
-func (p *balanceProcessor) requestSpendProof(
+func (p *balanceProcessor) requestSpentAssetProof(
 	publicKey *intMaxAcc.PublicKey,
-	sendWitness *SendWitness,
-	updateWitness *block_validity_prover.UpdateWitness,
+	spendWitness *SpentTokenWitness,
 ) (string, error) {
 	requestID := uuid.New().String()
-	requestBody := SpendProofInput{
-		RequestID:     requestID,
-		SendWitness:   new(SendWitnessInput).FromSendWitness(sendWitness),
-		UpdateWitness: new(UpdateWitnessInput).FromUpdateWitness(updateWitness),
+	requestBody := SpentAssetProofInput{
+		RequestID:         requestID,
+		SpentTokenWitness: new(SpentTokenWitnessInput).FromSpentTokenWitness(spendWitness),
 	}
 	bd, err := json.Marshal(requestBody)
 	if err != nil {
 		return "", fmt.Errorf(messageFailedToMarshalJSONRequestBody, err)
 	}
-	p.log.Debugf("size of requestSpendProof: %d bytes\n", len(bd))
+	p.log.Debugf("size of requestSpentAssetProof: %d bytes\n", len(bd))
 
 	const (
 		contentType = "Content-Type"
@@ -674,7 +670,7 @@ func (p *balanceProcessor) requestSpendProof(
 	}).SetBody(bd).Post(apiUrl)
 	err = HandleGeneralError(resp, err)
 	if err != nil {
-		const msg = "failed to send the balance proof request for SpendWitness: %w"
+		const msg = "failed to send the balance proof request for SpentTokenWitness: %w"
 		return "", fmt.Errorf(msg, err)
 	}
 
@@ -694,7 +690,7 @@ func (p *balanceProcessor) requestSpendProof(
 	}
 
 	if !response.Success {
-		return "", fmt.Errorf("failed to send the balance proof request for SpendWitness: %s", response.Message)
+		return "", fmt.Errorf("failed to send the balance proof request for SpentTokenWitness: %s", response.Message)
 	}
 
 	return requestID, nil
@@ -922,7 +918,7 @@ func (p *balanceProcessor) fetchSendBalanceValidityProof(publicKey *intMaxAcc.Pu
 	return response, nil
 }
 
-func (p *balanceProcessor) fetchSpendProof(publicKey *intMaxAcc.PublicKey, requestID string) (*BalanceValidityProofResponse, error) {
+func (p *balanceProcessor) fetchSpentAssetProof(publicKey *intMaxAcc.PublicKey, requestID string) (*BalanceValidityProofResponse, error) {
 	const (
 		contentType = "Content-Type"
 		appJSON     = "application/json"

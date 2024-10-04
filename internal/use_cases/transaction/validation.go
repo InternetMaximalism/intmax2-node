@@ -60,7 +60,7 @@ func (input *UCTransactionInput) Valid(cfg *configs.Config, pow PoWNonce) error 
 		// 		return input.TransferData[iTxData-1]
 		// 	}()),
 		// ), input.checkHashWithData(&input.TransfersHash)),
-		validation.Field(&input.Nonce, validation.Required, input.nonceMaxLength(cfg)),
+		validation.Field(&input.Nonce, input.nonceMaxLength(cfg)), // Since the nonce allows 0, validation.Required is not applied
 		validation.Field(&input.Expiration, validation.Required, validation.By(func(value interface{}) error {
 			v, ok := value.(time.Time)
 			if !ok {

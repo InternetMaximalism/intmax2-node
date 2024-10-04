@@ -222,7 +222,7 @@ func TransferTransaction(
 	}
 
 	zeroTransfer := new(intMaxTypes.Transfer).SetZero()
-	var initialLeaves []*intMaxTypes.Transfer
+	var transfers []*intMaxTypes.Transfer
 
 	gasFee, gasOK := dataBlockInfo.TransferFee[new(big.Int).SetUint64(uint64(tokenIndex)).String()]
 	if gasOK {
@@ -251,7 +251,7 @@ func TransferTransaction(
 			amountGasFee.ToBig(),
 		)
 
-		initialLeaves = append(initialLeaves, transfer)
+		transfers = append(transfers, transfer)
 	}
 
 	const base10 = 10
@@ -264,29 +264,8 @@ func TransferTransaction(
 		return fmt.Errorf("insufficient funds for tx cost: l1Balance %s, tx cost %s", l2Balance, totalAmountWithGas)
 	}
 
-	// Send transfer transaction
-	var recipient *intMaxAcc.PublicKey
-	recipient, err = intMaxAcc.NewPublicKeyFromAddressHex(recipientAddressStr)
-	if err != nil {
-		return fmt.Errorf("failed to parse recipient address: %v", err)
-	}
-
-	var recipientAddress *intMaxTypes.GenericAddress
-	recipientAddress, err = intMaxTypes.NewINTMAXAddress(recipient.ToAddress().Bytes())
-	if err != nil {
-		return fmt.Errorf("failed to create recipient address: %v", err)
-	}
-
-	transfer := intMaxTypes.NewTransferWithRandomSalt(
-		recipientAddress,
-		tokenIndex,
-		amount,
-	)
-
-	initialLeaves = append(initialLeaves, transfer)
-
 	var transferTree *intMaxTree.TransferTree
-	transferTree, err = intMaxTree.NewTransferTree(intMaxTree.TRANSFER_TREE_HEIGHT, initialLeaves, zeroTransfer.Hash())
+	transferTree, err = intMaxTree.NewTransferTree(intMaxTree.TRANSFER_TREE_HEIGHT, transfers, zeroTransfer.Hash())
 	if err != nil {
 		return fmt.Errorf("failed to create transfer tree: %v", err)
 	}
@@ -295,7 +274,7 @@ func TransferTransaction(
 
 	// lastBalanceProof := ""
 	// balanceTransitionProof := ""
-	nonce := balanceSynchronizer.CurrentNonce() + 1
+	nonce := balanceSynchronizer.CurrentNonce()
 	// nonce := uint32(1) // TODO: Get nonce from balance synchronizer
 
 	err = SendTransferTransaction(
@@ -339,48 +318,48 @@ func TransferTransaction(
 			TransferTreeRoot: &transfersHash,
 			Nonce:            nonce,
 		},
-		Transfers:     initialLeaves,
+		Transfers:     transfers,
 		TxTreeRoot:    &proposedBlock.TxTreeRoot,
 		TxMerkleProof: proposedBlock.TxTreeMerkleProof,
 	}
 
 	lastBalanceProofWithPis := balanceSynchronizer.LastBalanceProof()
 
-	txWitness, transferWitnesses, err := balance_synchronizer.MakeTxWitness(blockValidityService, &txDetails)
-	if err != nil {
-		return fmt.Errorf("failed to make tx witness: %w", err)
-	}
+	// txWitness, transferWitnesses, err := balance_synchronizer.MakeTxWitness(blockValidityService, &txDetails)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to make tx witness: %w", err)
+	// }
 	newSalt, err := new(balance_prover_service.Salt).SetRandom()
 	if err != nil {
 		const msg = "failed to set random: %+v"
 		return fmt.Errorf(msg, err.Error())
 	}
-	sendWitness, err := userWalletState.UpdateOnSendTx(
-		*newSalt, txWitness, transferWitnesses,
+	spentTokenWitness, err := userWalletState.CalculateSpentTokenWitness(
+		*newSalt, tx, transfers,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to update on send tx: %v", err)
+		return fmt.Errorf("failed to calculate spent witness: %w", err)
 	}
 
-	prevBalancePisBlockNumber := sendWitness.GetPrevBalancePisBlockNumber()
-	currentBlockNumber := sendWitness.GetIncludedBlockNumber()
-	updateWitness, err := blockValidityService.FetchUpdateWitness(
-		userWalletState.PublicKey(),
-		&currentBlockNumber,
-		prevBalancePisBlockNumber,
-		true,
-	)
-	if err != nil {
-		return err
-	}
+	// prevBalancePisBlockNumber := sendWitness.GetPrevBalancePisBlockNumber()
+	// currentBlockNumber := sendWitness.GetIncludedBlockNumber()
+	// updateWitness, err := blockValidityService.FetchUpdateWitness(
+	// 	userWalletState.PublicKey(),
+	// 	&currentBlockNumber,
+	// 	prevBalancePisBlockNumber,
+	// 	true,
+	// )
+	// if err != nil {
+	// 	return err
+	// }
 
-	balanceTransitionProof, err := balanceSynchronizer.ProveSendTransition(sendWitness, updateWitness)
+	balanceTransitionProof, err := balanceSynchronizer.ProveSendTransition(spentTokenWitness)
 	if err != nil {
-		return fmt.Errorf("failed to create balance transition proof: %v", err)
+		return fmt.Errorf("failed to create balance transition proof: %w", err)
 	}
 	balanceTransitionProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(balanceTransitionProof.Proof)
 	if err != nil {
-		return fmt.Errorf("failed to create balance transition proof with pis: %v", err)
+		return fmt.Errorf("failed to create balance transition proof with pis: %w", err)
 	}
 
 	backupTx, err := transaction.NewBackupTransactionData(
@@ -390,7 +369,7 @@ func TransferTransaction(
 		"0x",
 	)
 	if err != nil {
-		return fmt.Errorf("failed to make backup transaction data: %v", err)
+		return fmt.Errorf("failed to make backup transaction data: %w", err)
 	}
 
 	enoughBalanceProofBody := block_signature.EnoughBalanceProofBody{
@@ -400,15 +379,15 @@ func TransferTransaction(
 	enoughBalanceProof := new(block_signature.EnoughBalanceProofBodyInput).FromEnoughBalanceProofBody(&enoughBalanceProofBody)
 	enoughBalanceProofHash := enoughBalanceProofBody.Hash()
 
-	backupTransfers := make([]*transaction.BackupTransferInput, len(initialLeaves))
-	for i := range initialLeaves {
+	backupTransfers := make([]*transaction.BackupTransferInput, len(transfers))
+	for i := range transfers {
 		var transferMerkleProof []*intMaxTypes.PoseidonHashOut
 		transferMerkleProof, _, err = transferTree.ComputeMerkleProof(uint64(i))
 		if err != nil {
 			return fmt.Errorf("failed to compute merkle proof: %v", err)
 		}
 		transferWitness := intMaxTypes.TransferWitness{
-			Transfer:            *initialLeaves[i],
+			Transfer:            *transfers[i],
 			TransferIndex:       uint32(i),
 			Tx:                  *tx,
 			TransferMerkleProof: transferMerkleProof,
