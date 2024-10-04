@@ -1,19 +1,15 @@
 use crate::{
     app::{
-        encode::decode_plonky2_proof,
         interface::{
-            ErrorResponse, ProofResponse, ProofSpentRequest, ProofSpentValue, ProofsSpentResponse,
+            ErrorResponse, ProofResponse, ProofSpendRequest, ProofSpendValue, ProofsSpentResponse,
             SpentIdQuery,
         },
         state::AppState,
     },
-    proof::generate_balance_single_send_proof_job,
+    proof::generate_balance_spend_proof_job,
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
-use intmax2_zkp::{
-    circuits::validity::validity_pis::ValidityPublicInputs,
-    common::witness::update_witness::UpdateWitness, constants::NUM_TRANSFERS_IN_TX,
-};
+use intmax2_zkp::constants::NUM_TRANSFERS_IN_TX;
 
 #[get("/proof/spend/{request_id}")]
 async fn get_proof(
@@ -75,14 +71,14 @@ async fn get_proofs(
         }
     };
 
-    let mut proofs: Vec<ProofSpentValue> = Vec::new();
+    let mut proofs: Vec<ProofSpendValue> = Vec::new();
     for request_id in &request_ids {
         let some_proof = redis::Cmd::get(&spent_token_proof_request_id(request_id))
             .query_async::<_, Option<String>>(&mut conn)
             .await
             .map_err(actix_web::error::ErrorInternalServerError)?;
         if let Some(proof) = some_proof {
-            proofs.push(ProofSpentValue {
+            proofs.push(ProofSpendValue {
                 request_id: (*request_id).to_string(),
                 proof,
             });
@@ -100,7 +96,7 @@ async fn get_proofs(
 
 #[post("/proof/spend")]
 async fn generate_proof(
-    req: web::Json<ProofSpentRequest>,
+    req: web::Json<ProofSpendRequest>,
     redis: web::Data<redis::Client>,
     state: web::Data<AppState>,
 ) -> Result<impl Responder> {
@@ -130,25 +126,6 @@ async fn generate_proof(
 
     let instant = std::time::Instant::now();
 
-    let validity_circuit_data = state
-        .validity_circuit
-        .get()
-        .ok_or_else(|| error::ErrorInternalServerError("validity circuit not initialized"))?
-        .data
-        .verifier_data();
-    let encoded_validity_proof = req.balance_update_witness.validity_proof.clone();
-    let validity_proof = decode_plonky2_proof(&encoded_validity_proof, &validity_circuit_data)
-        .map_err(error::ErrorInternalServerError)?;
-    validity_circuit_data
-        .verify(validity_proof.clone())
-        .map_err(error::ErrorInternalServerError)?;
-    // let validity_public_inputs = ValidityPublicInputs::from_pis(&validity_proof.public_inputs);
-    let balance_update_witness = UpdateWitness {
-        validity_proof,
-        block_merkle_proof: req.balance_update_witness.block_merkle_proof.clone(),
-        account_membership_proof: req.balance_update_witness.account_membership_proof.clone(),
-    };
-
     // Validation check of balance_witness
     let send_witness = req.send_witness.clone();
     if send_witness.transfers.len() != NUM_TRANSFERS_IN_TX {
@@ -173,21 +150,16 @@ async fn generate_proof(
         return Err(error::ErrorBadRequest("Invalid number of transfers"));
     }
 
-    let validity_pis =
-        ValidityPublicInputs::from_pis(&balance_update_witness.validity_proof.public_inputs);
-    if validity_pis != send_witness.tx_witness.validity_pis {
-        return Err(error::ErrorBadRequest("validity proof pis mismatch"));
-    }
+    // let validity_pis =
+    //     ValidityPublicInputs::from_pis(&balance_update_witness.validity_proof.public_inputs);
+    // if validity_pis != send_witness.tx_witness.validity_pis {
+    //     return Err(error::ErrorBadRequest("validity proof pis mismatch"));
+    // }
 
-    let response = generate_balance_single_send_proof_job(
+    let response = generate_balance_spend_proof_job(
         &send_witness,
-        &balance_update_witness,
         state
             .balance_processor
-            .get()
-            .expect("balance processor not initialized"),
-        state
-            .validity_circuit
             .get()
             .expect("balance processor not initialized"),
     );

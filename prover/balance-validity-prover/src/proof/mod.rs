@@ -114,9 +114,7 @@ pub async fn generate_receive_deposit_proof_job(
         );
         println!(
             "prev_balance_proof private_commitment: {}",
-            prev_balance_proof
-                .private_commitment
-                .to_string()
+            prev_balance_proof.private_commitment.to_string()
         );
     }
 
@@ -131,9 +129,7 @@ pub async fn generate_receive_deposit_proof_job(
     println!("balance_proof: {:?}", balance_pis);
     println!(
         "balance_proof private_commitment: {}",
-        balance_pis
-            .private_commitment
-            .to_string()
+        balance_pis.private_commitment.to_string()
     );
     println!(
         "balance_proof account_tree_root: {}",
@@ -299,7 +295,7 @@ pub async fn generate_balance_send_proof_job(
     Ok(())
 }
 
-pub fn generate_balance_spent_proof_job(
+pub fn generate_balance_spend_proof_job(
     send_witness: &SendWitness,
     balance_processor: &BalanceProcessor<F, C, D>,
 ) -> anyhow::Result<String> {

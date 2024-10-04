@@ -261,7 +261,7 @@ func TransferTransaction(
 	}
 	totalAmountWithGas := new(big.Int).Add(amount, gasFeeInt)
 	if l2Balance.Cmp(totalAmountWithGas) < 0 {
-		return fmt.Errorf("insufficient funds for tx cost: l1Balance %s, tx cost %s", l2Balance, totalAmountWithGas)
+		return fmt.Errorf("insufficient funds for tx cost: balance %s, tx cost %s", l2Balance, totalAmountWithGas)
 	}
 
 	var transferTree *intMaxTree.TransferTree

@@ -225,8 +225,8 @@ func MakeEmptyBlock() *intMaxTypes.BlockContent {
 	copy(txRootBytes[:], txRoot.Marshal())
 
 	fmt.Printf("Empty block created senderType: %v\n", intMaxTypes.PublicKeySenderType)
-	fmt.Printf("Empty block created senders : %v\n", senders)
-	fmt.Printf("Empty block created txRoot: %v\n", txRootBytes)
+	// fmt.Printf("Empty block created senders : %v\n", senders)
+	fmt.Printf("Empty block created txRoot: %x\n", txRootBytes)
 	fmt.Printf("Empty block created aggregatedSignature: %v\n", aggregatedSignature)
 	blockContent := intMaxTypes.NewBlockContent(
 		intMaxTypes.PublicKeySenderType,

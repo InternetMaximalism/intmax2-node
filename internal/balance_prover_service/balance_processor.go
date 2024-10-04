@@ -224,7 +224,7 @@ func (s *balanceProcessor) ProveSendTransition(
 ) (*SenderProofWithPublicInputs, error) {
 	s.log.Debugf("ProveSend\n")
 	s.log.Debugf("publicKey: %v\n", publicKey)
-	requestID, err := s.requestSpentAssetProof(publicKey, spentTokenWitness)
+	requestID, err := s.requestSpentTokenProof(spentTokenWitness)
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +236,7 @@ func (s *balanceProcessor) ProveSendTransition(
 			return nil, s.ctx.Err()
 		case <-ticker.C:
 			var proof *BalanceValidityProofResponse
-			proof, err = s.fetchSpentAssetProof(publicKey, requestID)
+			proof, err = s.fetchSpentTokenProof(requestID)
 			if err != nil {
 				if errors.Is(err, ErrBalanceProofNotGenerated) {
 					continue
@@ -436,7 +436,7 @@ type SendBalanceValidityInput struct {
 	PrevBalanceProof *string `json:"prevBalanceProof,omitempty"`
 }
 
-type SpentAssetProofInput struct {
+type SpentTokenProofInput struct {
 	RequestID         string                  `json:"requestId"`
 	SpentTokenWitness *SpentTokenWitnessInput `json:"sendWitness"` // XXX `json:"spentTokenWitness"`
 }
@@ -640,12 +640,11 @@ func (p *balanceProcessor) requestSendBalanceValidityProof(
 	return requestID, nil
 }
 
-func (p *balanceProcessor) requestSpentAssetProof(
-	publicKey *intMaxAcc.PublicKey,
+func (p *balanceProcessor) requestSpentTokenProof(
 	spendWitness *SpentTokenWitness,
 ) (string, error) {
 	requestID := uuid.New().String()
-	requestBody := SpentAssetProofInput{
+	requestBody := SpentTokenProofInput{
 		RequestID:         requestID,
 		SpentTokenWitness: new(SpentTokenWitnessInput).FromSpentTokenWitness(spendWitness),
 	}
@@ -653,15 +652,14 @@ func (p *balanceProcessor) requestSpentAssetProof(
 	if err != nil {
 		return "", fmt.Errorf(messageFailedToMarshalJSONRequestBody, err)
 	}
-	p.log.Debugf("size of requestSpentAssetProof: %d bytes\n", len(bd))
+	p.log.Debugf("size of requestSpentTokenProof: %d bytes\n", len(bd))
 
 	const (
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
 
-	intMaxAddress := publicKey.ToAddress().String()
-	apiUrl := fmt.Sprintf("%s/proof/%s/spend", p.cfg.BalanceValidityProver.BalanceValidityProverUrl, intMaxAddress)
+	apiUrl := fmt.Sprintf("%s/proof/spend", p.cfg.BalanceValidityProver.BalanceValidityProverUrl)
 
 	r := resty.New().AddRetryCondition(NewRetryStrategy(p.log).Condition()).SetRetryCount(retryAttempts).R()
 	var resp *resty.Response
@@ -918,14 +916,13 @@ func (p *balanceProcessor) fetchSendBalanceValidityProof(publicKey *intMaxAcc.Pu
 	return response, nil
 }
 
-func (p *balanceProcessor) fetchSpentAssetProof(publicKey *intMaxAcc.PublicKey, requestID string) (*BalanceValidityProofResponse, error) {
+func (p *balanceProcessor) fetchSpentTokenProof(requestID string) (*BalanceValidityProofResponse, error) {
 	const (
 		contentType = "Content-Type"
 		appJSON     = "application/json"
 	)
 
-	intMaxAddress := publicKey.ToAddress().String()
-	apiUrl := fmt.Sprintf("%s/proof/%s/spend/%s", p.cfg.BalanceValidityProver.BalanceValidityProverUrl, intMaxAddress, requestID)
+	apiUrl := fmt.Sprintf("%s/proof/spend/%s", p.cfg.BalanceValidityProver.BalanceValidityProverUrl, requestID)
 
 	r := resty.New().AddRetryCondition(NewRetryStrategy(p.log).Condition()).SetRetryCount(retryAttempts).R()
 	resp, err := r.SetContext(p.ctx).SetHeaders(map[string]string{
