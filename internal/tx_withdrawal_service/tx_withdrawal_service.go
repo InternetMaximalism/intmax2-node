@@ -242,7 +242,7 @@ func WithdrawalTransaction(
 	if err != nil {
 		return fmt.Errorf("failed to create balance transition proof: %v", err)
 	}
-	balanceTransitionProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(balanceTransitionProof.Proof)
+	balanceTransitionProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(balanceTransitionProof)
 	if err != nil {
 		return fmt.Errorf("failed to create balance transition proof with pis: %v", err)
 	}

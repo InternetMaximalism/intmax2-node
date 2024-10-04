@@ -22,13 +22,18 @@ func PostBackupTransaction(
 	if err != nil {
 		return fmt.Errorf("failed to create backup transaction to db: %w", err)
 	}
-	senderEnoughBalanceProofBody := block_signature.EnoughBalanceProofBody{
-		PrevBalanceProofBody:  input.SenderLastBalanceProofBody,
-		TransferStepProofBody: input.SenderBalanceTransitionProofBody,
+	senderEnoughBalanceProofBodyInput := block_signature.EnoughBalanceProofBodyInput{
+		PrevBalanceProofBody:  input.SenderEnoughBalanceProofBody.PrevBalanceProofBody,
+		TransferStepProofBody: input.SenderEnoughBalanceProofBody.TransferStepProofBody,
 	}
+	senderEnoughBalanceProofBody, err := senderEnoughBalanceProofBodyInput.EnoughBalanceProofBody()
+	if err != nil {
+		return fmt.Errorf("failed to get enough balance proof body: %w", err)
+	}
+
 	senderEnoughBalanceProofBodyHash := senderEnoughBalanceProofBody.Hash()
 	_, err = db.CreateBackupSenderProof(
-		input.SenderLastBalanceProofBody, input.SenderBalanceTransitionProofBody, senderEnoughBalanceProofBodyHash,
+		senderEnoughBalanceProofBody.PrevBalanceProofBody, senderEnoughBalanceProofBody.TransferStepProofBody, senderEnoughBalanceProofBodyHash,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create backup sender proof to db: %w", err)

@@ -49,6 +49,7 @@ func (u *uc) Do(
 	defer span.End()
 
 	if input == nil {
+		fmt.Printf("input is nil")
 		open_telemetry.MarkSpanError(spanCtx, ErrUCPostBackupTransactionInputEmpty)
 		return ErrUCPostBackupTransactionInputEmpty
 	}
@@ -62,6 +63,7 @@ func (u *uc) Do(
 
 	err := service.PostBackupTransaction(ctx, u.cfg, u.log, u.db, input)
 	if err != nil {
+		fmt.Printf("failed to post backup transaction: %v\n", err)
 		return fmt.Errorf("failed to post backup transfer: %w", err)
 	}
 

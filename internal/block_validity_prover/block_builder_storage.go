@@ -761,7 +761,12 @@ func (db *mockBlockBuilder) IsSynchronizedDepositIndex(depositIndex uint32) (boo
 	}
 	fmt.Printf("lastPostedBlockNumber: %d\n", lastGeneratedProofBlockNumber)
 
-	depositLeaves := db.MerkleTreeHistory.MerkleTrees[lastGeneratedProofBlockNumber].DepositLeaves
+	merkleTreeHistory, ok := db.MerkleTreeHistory.MerkleTrees[lastGeneratedProofBlockNumber]
+	if !ok {
+		return false, errors.New("block number not found")
+	}
+
+	depositLeaves := merkleTreeHistory.DepositLeaves
 	fmt.Printf("lastGeneratedProofBlockNumber (IsSynchronizedDepositIndex): %d\n", lastGeneratedProofBlockNumber)
 	fmt.Printf("latest deposit index: %d\n", len(depositLeaves))
 	fmt.Printf("depositIndex: %d\n", depositIndex)
@@ -780,9 +785,11 @@ func (db *mockBlockBuilder) DepositTreeProof(blockNumber uint32, depositIndex ui
 	if depositIndex >= uint32(len(depositLeaves)) {
 		return nil, common.Hash{}, errors.New("block number is out of range")
 	}
+	fmt.Printf("depositLeaves[%d] = %s (DepositTreeProof)\n", depositIndex, depositLeaves[depositIndex].Hash().String())
 
 	leaves := make([][32]byte, 0)
-	for _, depositLeaf := range depositLeaves {
+	for i, depositLeaf := range depositLeaves {
+		fmt.Printf("depositLeaves[%d] = %+v (DepositTreeProof)\n", i, depositLeaf)
 		leaves = append(leaves, [32]byte(depositLeaf.Hash()))
 	}
 	proof, root, err := db.DepositTree.ComputeMerkleProof(depositIndex, leaves)
@@ -790,6 +797,7 @@ func (db *mockBlockBuilder) DepositTreeProof(blockNumber uint32, depositIndex ui
 		var ErrDepositTreeProof = errors.New("deposit tree proof error")
 		return nil, common.Hash{}, errors.Join(ErrDepositTreeProof, err)
 	}
+	fmt.Printf("deposit tree root (DepositTreeProof): %s\n", root.Hex())
 
 	return proof, root, nil
 }

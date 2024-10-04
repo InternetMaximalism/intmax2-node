@@ -73,7 +73,7 @@ func (s *balanceSynchronizer) LastBalanceProof() *intMaxTypes.Plonky2Proof {
 
 func (s *balanceSynchronizer) ProveSendTransition(
 	spentTokenWitness *balance_prover_service.SpentTokenWitness,
-) (*balance_prover_service.SenderProofWithPublicInputs, error) {
+) (string, error) {
 	publicKey := s.userState.PublicKey()
 	lastBalanceProof := s.LastBalanceProof().ProofBase64String()
 	return s.balanceProcessor.ProveSendTransition(
@@ -365,6 +365,7 @@ func applyReceivedDepositTransition(
 			return errors.New(messageBalanceProcessorNotInitialized)
 		}
 		if err.Error() == ErrNullifierAlreadyExists.Error() {
+			_ = userState.DeleteDepositCase(depositIndex)
 			fmt.Printf("WARNING: (applyReceivedReceiveDepositTransition) nullifier %s already exists\n", depositCase.Deposit.Nullifier().String())
 			return nil
 		}

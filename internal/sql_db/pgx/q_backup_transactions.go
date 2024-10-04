@@ -35,7 +35,7 @@ func (p *pgx) CreateBackupTransaction(
 		id, sender, encryptedTxHash, encryptedTx, blockNumber, signature, createdAt,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create backup transaction: %w", err)
 	}
 
 	return p.GetBackupTransaction("id", id)
@@ -62,7 +62,7 @@ func (p *pgx) GetBackupTransaction(condition, value string) (*mDBApp.BackupTrans
 			&b.CreatedAt,
 		))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get backup transaction: %w", err)
 	}
 	transaction := p.backupTransactionToDBApp(&b)
 	return &transaction, nil

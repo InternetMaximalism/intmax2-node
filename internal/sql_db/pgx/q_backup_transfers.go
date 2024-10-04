@@ -18,7 +18,7 @@ func (p *pgx) CreateBackupTransfer(
 	const query = `
 	    INSERT INTO backup_transfers
         (id, recipient, transfer_double_hash, encrypted_transfer, block_number, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        VALUES ($1, $2, $3, $4, $5, $6)
 	`
 
 	id := uuid.New().String()
@@ -34,7 +34,7 @@ func (p *pgx) CreateBackupTransfer(
 
 func (p *pgx) GetBackupTransfer(condition, value string) (*mDBApp.BackupTransfer, error) {
 	const baseQuery = `
-        SELECT id, recipient, transfer_double_hash, encrypted_transfer, sender_last_balance_proof_body, sender_balance_transition_proof_body, block_number, created_at
+        SELECT id, recipient, transfer_double_hash, encrypted_transfer, block_number, created_at
         FROM backup_transfers
         WHERE %s = $1
 `
@@ -47,8 +47,6 @@ func (p *pgx) GetBackupTransfer(condition, value string) (*mDBApp.BackupTransfer
 			&b.Recipient,
 			&b.TransferDoubleHash,
 			&b.EncryptedTransfer,
-			&b.SenderLastBalanceProofBody,
-			&b.SenderBalanceTransitionProofBody,
 			&b.BlockNumber,
 			&b.CreatedAt,
 		))
@@ -85,13 +83,11 @@ func (p *pgx) GetBackupTransfers(condition string, value interface{}) ([]*mDBApp
 
 func (p *pgx) backupTransferToDBApp(b *models.BackupTransfer) mDBApp.BackupTransfer {
 	return mDBApp.BackupTransfer{
-		ID:                               b.ID,
-		Recipient:                        b.Recipient,
-		TransferDoubleHash:               b.TransferDoubleHash.String,
-		EncryptedTransfer:                b.EncryptedTransfer,
-		SenderLastBalanceProofBody:       b.SenderLastBalanceProofBody,
-		SenderBalanceTransitionProofBody: b.SenderBalanceTransitionProofBody,
-		BlockNumber:                      b.BlockNumber,
-		CreatedAt:                        b.CreatedAt,
+		ID:                 b.ID,
+		Recipient:          b.Recipient,
+		TransferDoubleHash: b.TransferDoubleHash.String,
+		EncryptedTransfer:  b.EncryptedTransfer,
+		BlockNumber:        b.BlockNumber,
+		CreatedAt:          b.CreatedAt,
 	}
 }

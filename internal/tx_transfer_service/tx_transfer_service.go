@@ -357,7 +357,7 @@ func TransferTransaction(
 	if err != nil {
 		return fmt.Errorf("failed to create balance transition proof: %w", err)
 	}
-	balanceTransitionProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(balanceTransitionProof.Proof)
+	balanceTransitionProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(balanceTransitionProof)
 	if err != nil {
 		return fmt.Errorf("failed to create balance transition proof with pis: %w", err)
 	}

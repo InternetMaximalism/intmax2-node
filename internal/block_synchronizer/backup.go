@@ -10,6 +10,7 @@ import (
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/logger"
 	node "intmax2-node/internal/pb/gen/store_vault_service/node"
+	"intmax2-node/internal/use_cases/block_signature"
 	postBackupTransaction "intmax2-node/internal/use_cases/post_backup_transaction"
 	"intmax2-node/internal/use_cases/post_backup_transfer"
 	"net/http"
@@ -64,14 +65,20 @@ func backupTransactionRawRequest(
 	sender string,
 	blockNumber uint32,
 ) error {
+	senderEnoughBalanceProof := block_signature.EnoughBalanceProofBody{
+		PrevBalanceProofBody:  senderLastBalanceProofBody,
+		TransferStepProofBody: senderBalanceTransitionProofBody,
+	}
+	senderEnoughBalanceProofInput := new(block_signature.EnoughBalanceProofBodyInput).FromEnoughBalanceProofBody(&senderEnoughBalanceProof)
 	ucInput := postBackupTransaction.UCPostBackupTransactionInput{
-		TxHash:                           txHash,
-		EncryptedTx:                      encodedEncryptedTx,
-		SenderLastBalanceProofBody:       senderLastBalanceProofBody,
-		SenderBalanceTransitionProofBody: senderBalanceTransitionProofBody,
-		Sender:                           sender,
-		BlockNumber:                      blockNumber,
-		Signature:                        signature,
+		TxHash:                       txHash,
+		EncryptedTx:                  encodedEncryptedTx,
+		SenderEnoughBalanceProofBody: senderEnoughBalanceProofInput,
+		Sender:                       sender,
+		BlockNumber:                  blockNumber,
+		Signature:                    signature,
+		// SenderLastBalanceProofBody:       senderLastBalanceProofBody,
+		// SenderBalanceTransitionProofBody: senderBalanceTransitionProofBody,
 	}
 
 	bd, err := json.Marshal(ucInput)

@@ -2,6 +2,7 @@ package pgx
 
 import (
 	"database/sql"
+	"fmt"
 	errPgx "intmax2-node/internal/sql_db/pgx/errors"
 	"intmax2-node/internal/sql_db/pgx/models"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
@@ -16,7 +17,7 @@ func (p *pgx) CreateBackupSenderProof(
 ) (*mDBApp.BackupSenderProof, error) {
 	const query = `
 	    INSERT INTO backup_sender_proofs
-		id, enough_balance_proof_body_hash, last_balance_proof_body, balance_transition_proof_body, created_at)
+		(id, enough_balance_proof_body_hash, last_balance_proof_body, balance_transition_proof_body, created_at)
 		VALUES ($1, $2, $3, $4, $5)
 	`
 
@@ -27,7 +28,7 @@ func (p *pgx) CreateBackupSenderProof(
 		id, enoughBalanceProofBodyHash,
 		lastBalanceProofBody, balanceTransitionProofBody, createdAt)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create backup sender proof: %w", err)
 	}
 
 	return p.GetBackupTransferProof(id)
@@ -36,7 +37,7 @@ func (p *pgx) CreateBackupSenderProof(
 func (p *pgx) GetBackupTransferProof(id string) (*mDBApp.BackupSenderProof, error) {
 	const query = `
 		SELECT id, enough_balance_proof_body_hash, last_balance_proof_body, balance_transition_proof_body, created_at
-		FROM backup_proofs WHERE id = $1 `
+		FROM backup_sender_proofs WHERE id = $1 `
 
 	var b models.BackupSenderProof
 	err := errPgx.Err(p.queryRow(p.ctx, query, id).
@@ -48,7 +49,7 @@ func (p *pgx) GetBackupTransferProof(id string) (*mDBApp.BackupSenderProof, erro
 			&b.CreatedAt,
 		))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get backup sender proof: %w", err)
 	}
 	transfer := p.backupSenderProofToDBApp(&b)
 	return &transfer, nil
@@ -57,7 +58,7 @@ func (p *pgx) GetBackupTransferProof(id string) (*mDBApp.BackupSenderProof, erro
 func (p *pgx) GetBackupSenderProofsByHashes(enoughBalanceProofBodyHashes []string) ([]*mDBApp.BackupSenderProof, error) {
 	const query = `
 		SELECT id, enough_balance_proof_body_hash, last_balance_proof_body, balance_transition_proof_body, created_at
-		FROM backup_proofs WHERE enough_balance_proof_body_hash = ANY($1)`
+		FROM backup_sender_proofs WHERE enough_balance_proof_body_hash = ANY($1)`
 
 	var proofs []*mDBApp.BackupSenderProof
 	err := p.getBackupEntries(query, enoughBalanceProofBodyHashes, func(rows *sql.Rows) error {
