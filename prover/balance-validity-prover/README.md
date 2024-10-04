@@ -60,32 +60,16 @@ curl "$BALANCE_VALIDITY_PROVER_URL/proofs/0x17600a0095835a6637a9532fd68d19b5b2e9
 
 ```sh
 # generate proof
-curl -X POST -d '{ "requestId": "5", "sendWitness":'$(cat data/send_witness_0x2fc9d0cc9b9a135ea38a2fa0260406dcd4d9e65678c102d7c439e2a50401d217.json)', "balanceUpdateWitness":'$(cat data/balance_update_for_send_witness_0x2fc9d0cc9b9a135ea38a2fa0260406dcd4d9e65678c102d7c439e2a50401d217.json)' }' -H "Content-Type: application/json" $BALANCE_VALIDITY_PROVER_URL/proof/spent | jq
+curl -X POST -d '{ "requestId": "5", "sendWitness":'$(cat data/send_witness_0x2fc9d0cc9b9a135ea38a2fa0260406dcd4d9e65678c102d7c439e2a50401d217.json)', "balanceUpdateWitness":'$(cat data/balance_update_for_send_witness_0x2fc9d0cc9b9a135ea38a2fa0260406dcd4d9e65678c102d7c439e2a50401d217.json)' }' -H "Content-Type: application/json" $BALANCE_VALIDITY_PROVER_URL/proof/spend | jq
 
 # generate proof
-curl -X POST -d '{ "requestId": "6", "sendWitness":'$(cat data/send_witness_0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.json)', "balanceUpdateWitness":'$(cat data/balance_update_for_send_witness_0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.json)' }' -H "Content-Type: application/json" $BALANCE_VALIDITY_PROVER_URL/proof/send | jq
+curl -X POST -d '{ "requestId": "6", "sendWitness":'$(cat data/send_witness_0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.json)', "balanceUpdateWitness":'$(cat data/balance_update_for_send_witness_0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.json)' }' -H "Content-Type: application/json" $BALANCE_VALIDITY_PROVER_URL/proof/spend | jq
 
 # get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and block hash 0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.
-curl $BALANCE_VALIDITY_PROVER_URL/proof/spent/0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c | jq
+curl $BALANCE_VALIDITY_PROVER_URL/proof/spend/0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c | jq
 
 # get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and block hash 0x2fc9d0cc9b9a135ea38a2fa0260406dcd4d9e65678c102d7c439e2a50401d217 or 0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.
-curl "$BALANCE_VALIDITY_PROVER_URL/proofs/spent?requestIds[]=5&requestIds[]=6" | jq
-```
-
-# Spent Transaction
-
-```sh
-# generate proof
-curl -X POST -d '{ "requestId": "1", "sendWitness":'$(cat data/send_witness_0x2fc9d0cc9b9a135ea38a2fa0260406dcd4d9e65678c102d7c439e2a50401d217.json)', "balanceUpdateWitness":'$(cat data/balance_update_for_send_witness_0x2fc9d0cc9b9a135ea38a2fa0260406dcd4d9e65678c102d7c439e2a50401d217.json)' }' -H "Content-Type: application/json" $BALANCE_VALIDITY_PROVER_URL/proof/spent | jq
-
-# generate proof
-curl -X POST -d '{ "requestId": "2", "sendWitness":'$(cat data/send_witness_0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.json)', "balanceUpdateWitness":'$(cat data/balance_update_for_send_witness_0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.json)' }' -H "Content-Type: application/json" $BALANCE_VALIDITY_PROVER_URL/proof/send | jq
-
-# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and block hash 0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.
-curl $BALANCE_VALIDITY_PROVER_URL/proof/spent/0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c | jq
-
-# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and block hash 0x2fc9d0cc9b9a135ea38a2fa0260406dcd4d9e65678c102d7c439e2a50401d217 or 0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.
-curl "$BALANCE_VALIDITY_PROVER_URL/proofs/spent?requestId[]=0x2fc9d0cc9b9a135ea38a2fa0260406dcd4d9e65678c102d7c439e2a50401d217&requestId[]=0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c" | jq
+curl "$BALANCE_VALIDITY_PROVER_URL/proofs/spend?requestIds[]=5&requestIds[]=6" | jq
 ```
 
 # Send Transaction

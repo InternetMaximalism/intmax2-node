@@ -15,7 +15,7 @@ use intmax2_zkp::{
     common::witness::update_witness::UpdateWitness, constants::NUM_TRANSFERS_IN_TX,
 };
 
-#[get("/proof/asset/{request_id}")]
+#[get("/proof/spend/{request_id}")]
 async fn get_proof(
     query_params: web::Path<(String, String)>,
     redis: web::Data<redis::Client>,
@@ -98,7 +98,7 @@ async fn get_proofs(
     Ok(HttpResponse::Ok().json(response))
 }
 
-#[post("/proof/asset")]
+#[post("/proof/spend")]
 async fn generate_proof(
     req: web::Json<ProofSpentRequest>,
     redis: web::Data<redis::Client>,
