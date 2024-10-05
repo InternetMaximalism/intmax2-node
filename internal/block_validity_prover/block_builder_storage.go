@@ -1197,19 +1197,10 @@ func updateValidityWitnessWithConsistencyCheck(db BlockBuilderStorage, blockWitn
 		return nil, errors.New("block number is not greater than the last block number")
 	}
 
-	prevBlockTreeRoot, err := db.BlockTreeRoot(prevPis.PublicState.BlockNumber)
-	if err != nil {
-		return nil, errors.New("block tree root error")
-	}
 	if prevPis.IsValidBlock {
 		fmt.Printf("block number %d is valid (updateValidityWitness)\n", prevPis.PublicState.BlockNumber+1)
 	} else {
 		fmt.Printf("block number %d is invalid (updateValidityWitness)\n", prevPis.PublicState.BlockNumber+1)
-	}
-	fmt.Printf("prevBlockTreeRoot (update): %s\n", prevBlockTreeRoot.String())
-	if !prevPis.PublicState.BlockTreeRoot.Equal(prevBlockTreeRoot) {
-		fmt.Printf("prevPis.PublicState.BlockTreeRoot is not the same with blockTreeRoot, %s != %s", prevPis.PublicState.BlockTreeRoot.String(), prevBlockTreeRoot.String())
-		return nil, errors.New("block tree root is not equal to the last block tree root")
 	}
 
 	validityWitness, newAccountTree, newBlockHashTree, err := calculateValidityWitnessWithMerkleProofs(db, blockWitness)

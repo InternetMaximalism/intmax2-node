@@ -4,7 +4,6 @@ import (
 	"context"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_post_service"
-	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
@@ -94,7 +93,6 @@ type BlockHistory interface {
 	NextAccountID(blockNumber uint32) (uint64, error)
 	// GetAccountMembershipProof(currentBlockNumber uint32, publicKey *big.Int) (*intMaxTree.IndexedMembershipProof, error)
 	AppendBlockTreeLeaf(block *block_post_service.PostedBlock) (uint32, error)
-	BlockTreeRoot(blockNumber uint32) (*intMaxGP.PoseidonHashOut, error)
 	BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.PoseidonMerkleProof, error)
 	// CurrentBlockTreeProof(leafBlockNumber uint32) (*intMaxTree.MerkleProof, error)
 	CopyAccountTree(dst *intMaxTree.AccountTree, blockNumber uint32) error
