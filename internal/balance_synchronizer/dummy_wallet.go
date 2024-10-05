@@ -700,17 +700,6 @@ func (s *mockWallet) GeneratePrivateWitness(
 		return nil, err
 	}
 
-	assetRoot := assetTree.GetRoot()
-	fmt.Printf("prev asset leaf isInsufficient: %v\n", prevAssetLeaf.IsInsufficient)
-	fmt.Printf("prev asset leaf amount: %v\n", prevAssetLeaf.Amount.BigInt())
-	fmt.Printf("prev asset leaf hash: %v\n", prevAssetLeaf.Hash())
-	fmt.Printf("prev asset root hash: %s\n", assetRoot.String())
-	// fmt.Printf("prev asset root hash: %s\n", assetRoot.String())
-	fmt.Printf("prev asset index: %d\n", tokenIndex)
-	for i, sibling := range assetMerkleProof.Siblings {
-		fmt.Printf("asset Merkle proof: siblings[%d] = %s\n", i, sibling)
-	}
-
 	newAssetLeaf := prevAssetLeaf.Add(amount)
 	_, err = assetTree.UpdateLeaf(tokenIndex, newAssetLeaf)
 	if err != nil {
@@ -831,8 +820,6 @@ func (s *mockWallet) updateOnReceive(witness *balance_prover_service.PrivateWitn
 
 	return nil
 }
-
-// type MockBlockBuilder = block_validity_prover.BlockBuilderStorage
 
 func (s *mockWallet) ReceiveDepositAndUpdate(
 	blockValidityService block_validity_prover.BlockValidityService,
@@ -1035,32 +1022,4 @@ func (s *mockWallet) GenerateReceiveTransferWitness(
 		PrivateWitness:         privateWitness,
 		BlockMerkleProof:       blockMerkleProof,
 	}, nil
-}
-
-func (w *mockWallet) Deposit(b *block_validity_prover.MockBlockBuilderMemory, salt balance_prover_service.Salt, tokenIndex uint32, amount *big.Int) uint32 {
-	recipientSaltHash := intMaxAcc.GetPublicKeySaltHash(w.PublicKey().BigInt(), &salt)
-	depositLeaf := intMaxTree.DepositLeaf{
-		RecipientSaltHash: recipientSaltHash,
-		TokenIndex:        tokenIndex,
-		Amount:            amount,
-	}
-	b.DepositLeaves = append(b.DepositLeaves, &depositLeaf)
-	_, depositIndex, _ := b.DepositTree.GetCurrentRootCountAndSiblings()
-	_, err := b.DepositTree.AddLeaf(depositIndex, depositLeaf.Hash())
-	if err != nil {
-		panic(err)
-	}
-
-	depositCase := balance_prover_service.DepositCase{
-		DepositSalt:  salt,
-		DepositIndex: depositIndex,
-		Deposit:      depositLeaf,
-	}
-	fmt.Printf("(Deposit.AddDepositCase): %+v\n", depositCase)
-	err = w.AddDepositCase(depositIndex, &depositCase)
-	if err != nil {
-		panic(err)
-	}
-
-	return depositIndex
 }

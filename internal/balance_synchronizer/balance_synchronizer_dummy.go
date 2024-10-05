@@ -9,9 +9,11 @@ import (
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_prover_service"
 	"intmax2-node/internal/block_validity_prover"
+	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
 	"intmax2-node/internal/mnemonic_wallet/models"
+	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/withdrawal_service"
 	"math/big"
@@ -117,7 +119,7 @@ func (s *balanceSynchronizerDummy) TestE2EWithoutWithdrawal(
 	}
 
 	// depost 100wei ETH to alice wallet
-	depositIndex := aliceWallet.Deposit(blockBuilder, *salt, 0, big.NewInt(int100Key))
+	depositIndex := Deposit(blockBuilder, aliceWallet, *salt, 0, big.NewInt(int100Key))
 
 	// post dummy block to reflect the deposit tree
 	emptyBlockContent, err := NewBlockContentFromTxRequests(true, []*block_validity_prover.MockTxRequest{})
@@ -385,4 +387,31 @@ func GetAssetBalance(wallet *mockWallet, tokenIndex uint32) *big.Int {
 		panic("insufficient asset balance")
 	}
 	return assetLeaf.Amount.BigInt()
+}
+
+func Deposit(b *block_validity_prover.MockBlockBuilderMemory, w UserState, salt intMaxGP.PoseidonHashOut, tokenIndex uint32, amount *big.Int) uint32 {
+	recipientSaltHash := intMaxAcc.GetPublicKeySaltHash(w.PublicKey().BigInt(), &salt)
+	depositLeaf := intMaxTree.DepositLeaf{
+		RecipientSaltHash: recipientSaltHash,
+		TokenIndex:        tokenIndex,
+		Amount:            amount,
+	}
+	b.DepositLeaves = append(b.DepositLeaves, &depositLeaf)
+	_, depositIndex, _ := b.DepositTree.GetCurrentRootCountAndSiblings()
+	_, err := b.DepositTree.AddLeaf(depositIndex, depositLeaf.Hash())
+	if err != nil {
+		panic(err)
+	}
+
+	depositCase := balance_prover_service.DepositCase{
+		DepositSalt:  salt,
+		DepositIndex: depositIndex,
+		Deposit:      depositLeaf,
+	}
+	err = w.AddDepositCase(depositIndex, &depositCase)
+	if err != nil {
+		panic(err)
+	}
+
+	return depositIndex
 }

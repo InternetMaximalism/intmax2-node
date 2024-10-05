@@ -156,10 +156,8 @@ func (s *SyncBalanceProver) UploadLastBalanceProof(blockNumber uint32, balancePr
 	s.balanceData.Nonce = wallet.Nonce()
 	s.balanceData.Salt = wallet.Salt()
 	s.balanceData.PublicState = wallet.PublicState()
-	fmt.Printf("s.balanceData.PublicState: %+v\n", s.balanceData.PublicState)
 
 	newBalanceData := new(block_synchronizer.BalanceData).Set(s.balanceData)
-	fmt.Printf("newBalanceData: %+v\n", newBalanceData)
 
 	encryptedNewBalanceData, err := newBalanceData.Encrypt(wallet.PublicKey())
 	if err != nil {
@@ -631,6 +629,12 @@ func (s *SyncBalanceProver) ReceiveTransfer(
 //     blockSynchronizer block_validity_prover.BlockSynchronizer
 // }
 
+type BalanceSynchronizer interface {
+	CurrentNonce() uint32
+	LastBalanceProof() *intMaxTypes.Plonky2Proof
+	ProveSendTransition(spentTokenWitness *balance_prover_service.SpentTokenWitness) (string, error)
+}
+
 func SyncLocally(
 	ctx context.Context,
 	cfg *configs.Config,
@@ -638,7 +642,7 @@ func SyncLocally(
 	sb block_validity_prover.ServiceBlockchain,
 	blockValidityService block_validity_prover.BlockValidityService,
 	userWalletState UserState,
-) (*balanceSynchronizer, error) {
+) (BalanceSynchronizer, error) {
 	blockSynchronizer, err := block_synchronizer.NewBlockSynchronizer(
 		ctx, cfg, log,
 	)

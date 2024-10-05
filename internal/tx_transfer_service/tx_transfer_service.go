@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	base10Key = 10
+	base10    = 10
 	uint64Key = 64
 )
 
@@ -49,16 +49,6 @@ func TransferTransaction(
 	recipientAddressStr string,
 	userEthPrivateKey string,
 ) error {
-	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
-	if err != nil {
-		return fmt.Errorf("fail to get wallet from private key: %w", err)
-	}
-
-	userAccount, err := intMaxAcc.NewPrivateKeyFromString(wallet.IntMaxPrivateKey)
-	if err != nil {
-		return fmt.Errorf("fail to parse user private key: %w", err)
-	}
-
 	tokenInfo, err := new(intMaxTypes.TokenInfo).ParseFromStrings(args)
 	if err != nil {
 		return fmt.Errorf("%s", err)
@@ -69,119 +59,28 @@ func TransferTransaction(
 		return err
 	}
 
-	// TODO: Create balance proof locally
-	// fmt.Printf("User's INTMAX Address: %s\n", userAccount.ToAddress().String())
-	// balanceProver := balance_prover_service.NewSyncBalanceProver()
-	// balanceSynchronizer := balance_prover_service.NewSynchronizer(ctx, cfg, log, sb, db)
-	// blockSynchronizer, err := block_synchronizer.NewBlockSynchronizer(
-	// 	ctx, cfg, log,
-	// )
-	// if err != nil {
-	// 	return fmt.Errorf("failed to create block synchronizer: %w", err)
-	// }
-	// blockValidityProver, err := block_validity_prover.NewBlockValidityProver(ctx, cfg, log, sb, db)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to create block validity prover: %w", err)
-	// }
+	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
+	if err != nil {
+		return fmt.Errorf("fail to get wallet from private key: %w", err)
+	}
 
-	// // syncValidityProver, err := balance_prover_service.NewSyncValidityProver(ctx, cfg, log, sb, db)
-	// // if err != nil {
-	// // 	return fmt.Errorf("failed to create sync validity prover: %w", err)
-	// // }
-	// balanceProcessor := balance_prover_service.NewBalanceProcessor(ctx, cfg, log)
-
-	// // balanceProcessor *BalanceProcessor,
-	// err = SyncLocally(ctx, cfg, log, balanceProver, balanceSynchronizer, blockValidityProver, blockSynchronizer, balanceProcessor, userAccount)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to sync balance proof: %w", err)
-	// }
+	userAccount, err := intMaxAcc.NewPrivateKeyFromString(wallet.IntMaxPrivateKey)
+	if err != nil {
+		return fmt.Errorf("fail to parse user private key: %w", err)
+	}
 
 	fmt.Println("Fetching balances...")
-	// blockValidityProver, err := block_validity_prover.NewBlockValidityProver(ctx, cfg, log, sb, db)
-	// if err != nil {
-	// 	const msg = "failed to start Block Validity Prover: %+v"
-	// 	log.Fatalf(msg, err.Error())
-	// }
-	blockValidityService, err := block_validity_prover.NewBlockValidityService(ctx, cfg, log, sb, db)
-	if err != nil {
-		const msg = "failed to start Block Validity Service: %+v"
-		log.Fatalf(msg, err.Error())
-	}
-
-	// wg := sync.WaitGroup{}
-
-	// wg.Add(1)
-	// go func() {
-	// 	defer func() {
-	// 		wg.Done()
-	// 	}()
-
-	// 	var blockSynchronizer block_synchronizer.BlockSynchronizer
-	// 	blockSynchronizer, err = block_synchronizer.NewBlockSynchronizer(ctx, cfg, log)
-	// 	if err != nil {
-	// 		const msg = "failed to start Block Synchronizer: %+v"
-	// 		log.Fatalf(msg, err.Error())
-	// 	}
-
-	// 	latestSynchronizedDepositIndex, err := blockValidityService.FetchLastDepositIndex()
-	// 	if err != nil {
-	// 		const msg = "failed to fetch last deposit index: %+v"
-	// 		log.Fatalf(msg, err.Error())
-	// 	}
-
-	// 	timeout := 5 * time.Second
-	// 	ticker := time.NewTicker(timeout)
-	// 	for {
-	// 		fmt.Printf("block validity ticker\n")
-	// 		select {
-	// 		case <-ctx.Done():
-	// 			ticker.Stop()
-	// 			return
-	// 		case <-ticker.C:
-	// 			fmt.Println("block validity ticker.C")
-	// 			err = blockValidityProver.SyncDepositedEvents()
-	// 			if err != nil {
-	// 				const msg = "failed to sync deposited events: %+v"
-	// 				log.Fatalf(msg, err.Error())
-	// 			}
-
-	// 			err = blockValidityProver.SyncDepositTree(nil, latestSynchronizedDepositIndex)
-	// 			if err != nil {
-	// 				const msg = "failed to sync deposit tree: %+v"
-	// 				log.Fatalf(msg, err.Error())
-	// 			}
-
-	// 			// sync block content
-	// 			startBlock, err := blockValidityService.LastSeenBlockPostedEventBlockNumber()
-	// 			if err != nil {
-	// 				startBlock = cfg.Blockchain.RollupContractDeployedBlockNumber
-	// 				// var ErrLastSeenBlockPostedEventBlockNumberFail = errors.New("last seen block posted event block number fail")
-	// 				// panic(errors.Join(ErrLastSeenBlockPostedEventBlockNumberFail, err))
-	// 			}
-
-	// 			endBlock, err := blockValidityProver.SyncBlockTree(blockSynchronizer, startBlock)
-	// 			if err != nil {
-	// 				panic(err)
-	// 			}
-
-	// 			err = blockValidityService.SetLastSeenBlockPostedEventBlockNumber(endBlock)
-	// 			if err != nil {
-	// 				var ErrSetLastSeenBlockPostedEventBlockNumberFail = errors.New("set last seen block posted event block number fail")
-	// 				panic(errors.Join(ErrSetLastSeenBlockPostedEventBlockNumberFail, err))
-	// 			}
-
-	// 			fmt.Printf("Block %d is searched\n", endBlock)
-	// 		}
-	// 	}
-	// }()
-
 	userWalletState, err := balance_synchronizer.NewMockWallet(userAccount)
 	if err != nil {
-		const msg = "failed to get Mock Wallet: %+v"
-		return fmt.Errorf(msg, err.Error())
+		return fmt.Errorf("failed to get Mock Wallet: %w", err)
 	}
 
-	fmt.Println("start SyncLocally")
+	// TODO: Do not use database
+	blockValidityService, err := block_validity_prover.NewBlockValidityService(ctx, cfg, log, sb, db)
+	if err != nil {
+		return fmt.Errorf("failed to start Block Validity Service: %w", err)
+	}
+
 	balanceSynchronizer, err := balance_synchronizer.SyncLocally(
 		ctx,
 		cfg,
@@ -190,23 +89,17 @@ func TransferTransaction(
 		blockValidityService,
 		userWalletState,
 	)
-	fmt.Println("end SyncLocally")
 	if err != nil {
 		return fmt.Errorf("failed to sync balance proof: %w", err)
 	}
 
 	l2Balance := userWalletState.Balance(tokenIndex).BigInt()
-	// balance, err := balance_service.GetUserBalance(ctx, cfg, userAccount, tokenIndex)
-	// if err != nil {
-	// 	return fmt.Errorf(ErrFailedToGetBalance.Error()+": %v", err)
-	// }
 
 	if strings.TrimSpace(amountStr) == "" {
 		return fmt.Errorf("amount is required")
 	}
 
-	const int10Key = 10
-	amount, ok := new(big.Int).SetString(amountStr, int10Key)
+	amount, ok := new(big.Int).SetString(amountStr, base10)
 	if !ok {
 		return fmt.Errorf("failed to convert amount to int: %v", amountStr)
 	}
@@ -254,7 +147,6 @@ func TransferTransaction(
 		transfers = append(transfers, transfer)
 	}
 
-	const base10 = 10
 	gasFeeInt, ok := new(big.Int).SetString(gasFee, base10)
 	if !ok {
 		return fmt.Errorf("failed to convert gas fee to int: %w", err)
@@ -575,7 +467,7 @@ func (bw *BackupWithdrawal) MarshalJSON() ([]byte, error) {
 		TransferMerkleProof: bw.TransferMerkleProof,
 		TransferIndex:       bw.TransferIndex,
 		TransferTreeRoot:    bw.TransferTreeRoot,
-		Nonce:               strconv.FormatUint(bw.Nonce, base10Key),
+		Nonce:               strconv.FormatUint(bw.Nonce, base10),
 		TxTreeMerkleProof:   bw.TxTreeMerkleProof,
 		TxIndex:             bw.TxIndex,
 		TxTreeRoot:          bw.TxTreeRoot,
@@ -594,7 +486,7 @@ func (bw *BackupWithdrawal) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("failed to create recipient address: %w", err)
 	}
-	amount, ok := new(big.Int).SetString(withdrawal.Transfer.Amount, base10Key)
+	amount, ok := new(big.Int).SetString(withdrawal.Transfer.Amount, base10)
 	if !ok {
 		return fmt.Errorf("failed to convert amount to int: %v", withdrawal.Transfer.Amount)
 	}
@@ -605,7 +497,7 @@ func (bw *BackupWithdrawal) UnmarshalJSON(data []byte) error {
 		withdrawal.Transfer.Salt,
 	)
 
-	nonce, err := strconv.ParseUint(withdrawal.Nonce, base10Key, uint64Key)
+	nonce, err := strconv.ParseUint(withdrawal.Nonce, base10, uint64Key)
 	if err != nil {
 		return fmt.Errorf("failed to parse nonce: %w", err)
 	}
@@ -659,7 +551,7 @@ func MakeWithdrawalBackupData(
 		TransferMerkleProof: transferMerkleProof,
 		TransferTreeRoot:    transfersHash,
 		TransferIndex:       transferIndex,
-		Nonce:               strconv.FormatUint(uint64(nonce), base10Key),
+		Nonce:               strconv.FormatUint(uint64(nonce), base10),
 		TxTreeMerkleProof:   txTreeMerkleProof,
 		TxTreeRoot:          txTreeRoot,
 		TxIndex:             txIndex,
