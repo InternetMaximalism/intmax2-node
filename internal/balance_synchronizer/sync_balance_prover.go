@@ -635,7 +635,7 @@ type BalanceSynchronizer interface {
 	ProveSendTransition(spentTokenWitness *balance_prover_service.SpentTokenWitness) (string, error)
 }
 
-func SyncLocally(
+func SyncUserBalance(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
@@ -694,7 +694,6 @@ func SyncLocally(
 	timeout := 5 * time.Second
 	ticker := time.NewTicker(timeout)
 	for {
-		log.Debugf("start SyncLocally loop\n")
 		select {
 		case <-ctx.Done():
 			ticker.Stop()

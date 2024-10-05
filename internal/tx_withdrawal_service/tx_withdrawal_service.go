@@ -81,8 +81,7 @@ func WithdrawalTransaction(
 		return fmt.Errorf(msg, err.Error())
 	}
 
-	fmt.Println("start SyncLocally")
-	balanceSynchronizer, err := balance_synchronizer.SyncLocally(
+	balanceSynchronizer, err := balance_synchronizer.SyncUserBalance(
 		ctx,
 		cfg,
 		log,
@@ -90,7 +89,6 @@ func WithdrawalTransaction(
 		blockValidityService,
 		userWalletState,
 	)
-	fmt.Println("end SyncLocally")
 	if err != nil {
 		return fmt.Errorf("failed to sync balance proof: %w", err)
 	}

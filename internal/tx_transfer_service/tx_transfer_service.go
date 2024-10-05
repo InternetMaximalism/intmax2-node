@@ -81,7 +81,7 @@ func TransferTransaction(
 		return fmt.Errorf("failed to start Block Validity Service: %w", err)
 	}
 
-	balanceSynchronizer, err := balance_synchronizer.SyncLocally(
+	balanceSynchronizer, err := balance_synchronizer.SyncUserBalance(
 		ctx,
 		cfg,
 		log,
