@@ -481,10 +481,9 @@ func (db *mockBlockBuilder) LastValidityWitness() (*ValidityWitness, error) {
 	return db.ValidityWitnessByBlockNumber(lastGeneratedProofBlockNumber)
 }
 
-func (db *mockBlockBuilder) ValidityWitnessByBlockNumber(blockNumber uint32) (*ValidityWitness, error) {
+func (db *mockBlockBuilder) blockWitnessByBlockNumber(blockNumber uint32) (*BlockWitness, error) {
 	if blockNumber == 0 {
-		genesisValidityWitness := new(ValidityWitness).Genesis()
-		return genesisValidityWitness, nil
+		return nil, errors.New("genesis block number is not supported")
 	}
 
 	auxInfo, err := db.BlockAuxInfo(blockNumber)
@@ -508,15 +507,47 @@ func (db *mockBlockBuilder) ValidityWitnessByBlockNumber(blockNumber uint32) (*V
 		panic(fmt.Errorf("block number is not equal to block witness block number: %d != %d", blockNumber, blockWitness.Block.BlockNumber))
 	}
 	fmt.Printf("blockWitness.AccountMembershipProofs (validityWitnessByBlockNumber): %v\n", blockWitness.AccountMembershipProofs.IsSome)
+
+	return blockWitness, nil
+}
+
+func (db *mockBlockBuilder) ValidityWitnessByBlockNumber(blockNumber uint32) (*ValidityWitness, error) {
+	if blockNumber == 0 {
+		genesisValidityWitness := new(ValidityWitness).Genesis()
+		return genesisValidityWitness, nil
+	}
+
+	blockWitness, err := db.blockWitnessByBlockNumber(blockNumber)
+	if err != nil {
+		return nil, err
+	}
 	validityWitness, _, _, err := calculateValidityWitness(db, blockWitness)
 	if err != nil {
 		return nil, err
 	}
 
-	// err = db.SetValidityWitness(blockWitness.Block.BlockNumber, validityWitness, newAccountTree, newBlockHashTree)
-	// if err != nil {
-	// 	panic(err)
-	// }
+	return validityWitness, nil
+}
+
+func (db *mockBlockBuilder) UpdateValidityWitnessByBlockNumber(blockNumber uint32) (*ValidityWitness, error) {
+	if blockNumber == 0 {
+		genesisValidityWitness := new(ValidityWitness).Genesis()
+		return genesisValidityWitness, nil
+	}
+
+	blockWitness, err := db.blockWitnessByBlockNumber(blockNumber)
+	if err != nil {
+		return nil, err
+	}
+	validityWitness, newAccountTree, newBlockHashTree, err := calculateValidityWitness(db, blockWitness)
+	if err != nil {
+		return nil, err
+	}
+
+	err = db.SetValidityWitness(blockWitness.Block.BlockNumber, validityWitness, newAccountTree, newBlockHashTree)
+	if err != nil {
+		panic(err)
+	}
 
 	return validityWitness, nil
 }
@@ -732,7 +763,7 @@ func (db *mockBlockBuilder) GetAccountTreeLeafByAccountId(blockNumber uint32, se
 	accountTree := new(intMaxTree.AccountTree)
 	err := db.CopyAccountTree(accountTree, blockNumber)
 	if err != nil {
-		var ErrCopyAccountTree = errors.New("copy account tree error")
+		var ErrCopyAccountTree = errors.New("copy account tree error (GetAccountTreeLeafByAccountId)")
 		return nil, ErrCopyAccountTree
 	}
 	accountID, ok := accountTree.GetAccountID(sender)
@@ -1014,10 +1045,11 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTreeFromBlockContent(
 		publicKeys = append(publicKeys, *new(intMaxTypes.Uint256).FromBigInt(dummyPublicKey.BigInt()))
 	}
 
-	prevAccountTree := new(intMaxTree.AccountTree)              // prev account tree
+	prevAccountTree := new(intMaxTree.AccountTree) // prev account tree
+	fmt.Printf("prevBlockNumber: %d\n", prevBlockNumber)
 	err := db.CopyAccountTree(prevAccountTree, prevBlockNumber) // only reference
 	if err != nil {
-		var ErrCopyAccountTree = errors.New("copy account tree error")
+		var ErrCopyAccountTree = errors.New("copy account tree error (GenerateBlockWithTreeFromBlockContent)")
 		return nil, ErrCopyAccountTree
 	}
 
@@ -1261,7 +1293,7 @@ func calculateValidityWitnessWithMerkleProofs(
 	prevAccountTree := new(intMaxTree.AccountTree)
 	err = db.CopyAccountTree(prevAccountTree, blockWitness.Block.BlockNumber-1)
 	if err != nil {
-		return nil, nil, nil, errors.New("copy account tree error")
+		return nil, nil, nil, errors.New("copy account tree error (calculateValidityWitnessWithMerkleProofs)")
 	}
 
 	prevBlockHashTree := new(intMaxTree.BlockHashTree)
