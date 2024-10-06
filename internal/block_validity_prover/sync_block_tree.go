@@ -625,7 +625,7 @@ func (p *blockValidityProver) generateValidityProof(blockNumber uint32) error {
 	}
 	fmt.Printf("====== generateValidityProof: block %d ========\n", blockNumber)
 
-	validityWitness, err := p.blockBuilder.ValidityWitnessByBlockNumber(blockNumber)
+	validityWitness, err := p.blockBuilder.UpdateValidityWitnessByBlockNumber(blockNumber)
 	if err != nil {
 		if errors.Is(err, ErrBlockContentByBlockNumber) {
 			return ErrBlockContentByBlockNumber
