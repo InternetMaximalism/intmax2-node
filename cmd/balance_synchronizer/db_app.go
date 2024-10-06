@@ -117,7 +117,7 @@ type Accounts interface {
 }
 
 type BlockContainedSenders interface {
-	CreateBlockContainedSender(
+	CreateBlockParticipant(
 		blockNumber uint32,
 		senderId string,
 	) (*mDBApp.BlockContainedSender, error)

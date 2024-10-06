@@ -225,7 +225,7 @@ type Accounts interface {
 }
 
 type BlockContainedSenders interface {
-	CreateBlockContainedSender(
+	CreateBlockParticipant(
 		blockNumber uint32,
 		senderId string,
 	) (*models.BlockContainedSender, error)

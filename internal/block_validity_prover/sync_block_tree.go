@@ -417,7 +417,7 @@ func syncBlockContentWithEvent(
 				}
 				accountID := accountData.AccountID.Uint64()
 				fmt.Printf("accountID: %d\n", accountID)
-				_, err = blockBuilder.db.CreateBlockContainedSender(postedBlock.BlockNumber, senderData.ID)
+				_, err = blockBuilder.db.CreateBlockParticipant(postedBlock.BlockNumber, senderData.ID)
 				if err != nil {
 					var ErrCreateBlockContainedSendersFail = errors.New("create block contained senders fail")
 					return nil, errors.Join(ErrCreateBlockContainedSendersFail, err)

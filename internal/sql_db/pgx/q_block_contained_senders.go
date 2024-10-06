@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func (p *pgx) CreateBlockContainedSender(
+func (p *pgx) CreateBlockParticipant(
 	blockNumber uint32,
 	senderId string,
 ) (*mDBApp.BlockContainedSender, error) {
@@ -21,7 +21,7 @@ func (p *pgx) CreateBlockContainedSender(
 	}
 
 	const (
-		q = `INSERT INTO block_contained_senders (
+		q = `INSERT INTO block_participants (
              id ,block_number ,sender_id ,created_at
              ) VALUES ($1, $2, $3, $4) `
 	)
@@ -33,7 +33,7 @@ func (p *pgx) CreateBlockContainedSender(
 	}
 
 	var bDBApp *mDBApp.BlockContainedSender
-	bDBApp, err = p.BlockContainedSender(s.BlockContainedSenderID)
+	bDBApp, err = p.BlockParticipant(s.BlockContainedSenderID)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func (p *pgx) CreateBlockContainedSender(
 	return bDBApp, nil
 }
 
-func (p *pgx) CreateBlockContainedSenders(
+func (p *pgx) CreateBlockParticipants(
 	blockNumber uint32,
 	senderPublicKeys []string,
 ) ([]*mDBApp.BlockContainedSender, error) {
@@ -50,7 +50,7 @@ func (p *pgx) CreateBlockContainedSenders(
 
 	const (
 		q = `WITH inserted AS (
-				INSERT INTO block_contained_senders (id, block_number, sender_id, created_at)
+				INSERT INTO block_participants (id, block_number, sender_id, created_at)
 				SELECT $1, $2, senders.id, $4
 				FROM senders
 				WHERE senders.public_key = $3
@@ -67,7 +67,7 @@ func (p *pgx) CreateBlockContainedSenders(
 			return nil, errPgx.Err(err)
 		}
 
-		sender, err := p.BlockContainedSender(id)
+		sender, err := p.BlockParticipant(id)
 		if err != nil {
 			return nil, err
 		}
@@ -77,10 +77,10 @@ func (p *pgx) CreateBlockContainedSenders(
 	return senders, nil
 }
 
-func (p *pgx) BlockContainedSender(blockContentID string) (*mDBApp.BlockContainedSender, error) {
+func (p *pgx) BlockParticipant(blockContentID string) (*mDBApp.BlockContainedSender, error) {
 	const (
 		q = `SELECT id, block_number, sender_id, created_at
-			 FROM block_contained_senders
+			 FROM block_participants
 			 WHERE id = $1`
 	)
 
