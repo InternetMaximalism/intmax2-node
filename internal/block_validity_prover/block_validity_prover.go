@@ -2,6 +2,7 @@ package block_validity_prover
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,7 +17,6 @@ import (
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
@@ -199,8 +199,10 @@ func (d *blockValidityProver) GetDepositInfoByHash(depositHash common.Hash) (*De
 		DepositLeaf:  depositLeafWithId.DepositLeaf,
 	}
 	if depositIndex != nil {
+		startIntMaxBlockNumber := uint32(1)
+
 		var blockNumber uint32
-		blockNumber, err = d.blockBuilder.BlockNumberByDepositIndex(*depositIndex)
+		blockNumber, err = d.blockBuilder.BlockNumberByDepositIndex(*depositIndex, &startIntMaxBlockNumber)
 		if err != nil {
 			var ErrBlockNumberByDepositIndexFail = errors.New("failed to get block number by deposit index")
 			return nil, errors.Join(ErrBlockNumberByDepositIndexFail, err)
@@ -295,14 +297,29 @@ func (d *blockValidityProver) ValidityWitness(
 		senderType = intMaxTypes.PublicKeySenderType
 	}
 
-	var senders []intMaxTypes.Sender
-	err = json.Unmarshal(rawBlockContent.Senders, &senders)
+	var columnSenders []intMaxTypes.ColumnSender
+	err = json.Unmarshal(rawBlockContent.Senders, &columnSenders)
 	if err != nil {
 		var ErrUnmarshalSendersFail = errors.New("failed to unmarshal senders")
 		return nil, errors.Join(ErrUnmarshalSendersFail, err)
 	}
 
-	aggregatedSignatureBytes, err := hexutil.Decode(rawBlockContent.AggregatedSignature)
+	senders := make([]intMaxTypes.Sender, len(columnSenders))
+	for i, sender := range columnSenders {
+		var publicKey *intMaxAcc.PublicKey
+		publicKey, err = intMaxAcc.NewPublicKeyFromAddressHex(sender.PublicKey)
+		if err != nil {
+			var ErrRecoverPublicKeyFail = errors.New("failed to recover public key from address")
+			return nil, errors.Join(ErrRecoverPublicKeyFail, err)
+		}
+		senders[i] = intMaxTypes.Sender{
+			AccountID: sender.AccountID,
+			PublicKey: publicKey,
+			IsSigned:  sender.IsSigned,
+		}
+	}
+
+	aggregatedSignatureBytes, err := hex.DecodeString(rawBlockContent.AggregatedSignature)
 	if err != nil {
 		var ErrDecodeAggregatedSignatureFail = errors.New("failed to decode aggregated signature")
 		return nil, errors.Join(ErrDecodeAggregatedSignatureFail, err)
@@ -318,7 +335,7 @@ func (d *blockValidityProver) ValidityWitness(
 	blockContent := intMaxTypes.NewBlockContent(
 		senderType,
 		senders,
-		common.HexToHash(rawBlockContent.TxRoot),
+		txRoot,
 		aggregatedSignature,
 	)
 

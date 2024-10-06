@@ -364,7 +364,7 @@ func NewSpentValue(
 		NullifierTreeRoot: spentTokenWitness.PrevPrivateState.NullifierTreeRoot,
 	}
 
-	zeroTransferHash := new(intMaxTypes.Transfer).Hash()
+	zeroTransferHash := new(intMaxTypes.Transfer).SetZero().Hash()
 	transferTree, err := intMaxTree.NewTransferTree(intMaxTree.TRANSFER_TREE_HEIGHT, spentTokenWitness.Transfers, zeroTransferHash)
 	if err != nil {
 		return nil, err

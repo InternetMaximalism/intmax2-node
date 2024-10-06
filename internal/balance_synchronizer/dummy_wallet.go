@@ -272,7 +272,7 @@ func (w *mockWallet) SendTx(
 			TransferIndex:       uint32(transferIndex),
 			TransferMerkleProof: transferMerkleProof,
 		}
-		fmt.Printf("transferWitnesses[%d]: %v\n", transferIndex, transferWitness)
+		// fmt.Printf("transferWitnesses[%d]: %v\n", transferIndex, transferWitness)
 		transferWitnesses[transferIndex] = &transferWitness
 	}
 
@@ -375,7 +375,7 @@ func MakeTxWitness(
 			TransferIndex:       uint32(transferIndex),
 			TransferMerkleProof: transferMerkleProof,
 		}
-		fmt.Printf("transferWitnesses[%d]: %v\n", transferIndex, transferWitness)
+		// fmt.Printf("transferWitnesses[%d]: %v\n", transferIndex, transferWitness)
 		transferWitnesses[transferIndex] = &transferWitness
 	}
 
@@ -448,6 +448,7 @@ func (w *mockWallet) UpdateOnSendTx(
 	}
 
 	if txWitness.Tx.Nonce != w.nonce {
+		fmt.Printf("transaction nonce mismatch: %d != %d", txWitness.Tx.Nonce, w.nonce)
 		panic("nonce mismatch")
 	}
 
@@ -825,7 +826,7 @@ func (s *mockWallet) ReceiveDepositAndUpdate(
 	blockValidityService block_validity_prover.BlockValidityService,
 	depositIndex uint32,
 ) (*balance_prover_service.ReceiveDepositWitness, error) {
-	fmt.Printf("-----ReceiveDepositAndUpdate %d-----\n", depositIndex)
+	fmt.Printf("-----ReceiveDepositAndUpdate (deposit index: %d)-----\n", depositIndex)
 	for index, depositCase := range s.depositCases {
 		fmt.Printf("depositCase[%d]: %v\n", index, depositCase)
 		fmt.Printf("depositHash[%d]: %v\n", index, depositCase.Deposit.Hash())

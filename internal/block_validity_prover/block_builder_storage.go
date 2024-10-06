@@ -508,15 +508,15 @@ func (db *mockBlockBuilder) ValidityWitnessByBlockNumber(blockNumber uint32) (*V
 		panic(fmt.Errorf("block number is not equal to block witness block number: %d != %d", blockNumber, blockWitness.Block.BlockNumber))
 	}
 	fmt.Printf("blockWitness.AccountMembershipProofs (validityWitnessByBlockNumber): %v\n", blockWitness.AccountMembershipProofs.IsSome)
-	validityWitness, newAccountTree, newBlockHashTree, err := calculateValidityWitness(db, blockWitness)
+	validityWitness, _, _, err := calculateValidityWitness(db, blockWitness)
 	if err != nil {
 		return nil, err
 	}
 
-	err = db.SetValidityWitness(blockWitness.Block.BlockNumber, validityWitness, newAccountTree, newBlockHashTree)
-	if err != nil {
-		panic(err)
-	}
+	// err = db.SetValidityWitness(blockWitness.Block.BlockNumber, validityWitness, newAccountTree, newBlockHashTree)
+	// if err != nil {
+	// 	panic(err)
+	// }
 
 	return validityWitness, nil
 }
@@ -607,6 +607,7 @@ func (db *mockBlockBuilder) IsSynchronizedDepositIndex(depositIndex uint32) (boo
 	}
 	fmt.Printf("lastPostedBlockNumber: %d\n", lastGeneratedProofBlockNumber)
 
+	fmt.Printf("size of MerkleTrees: %d\n", len(db.MerkleTreeHistory.MerkleTrees))
 	merkleTreeHistory, ok := db.MerkleTreeHistory.MerkleTrees[lastGeneratedProofBlockNumber]
 	if !ok {
 		return false, errors.New("block number not found")
@@ -650,22 +651,31 @@ func (db *mockBlockBuilder) DepositTreeProof(blockNumber uint32, depositIndex ui
 
 // The function returns the block number of the first block that was submitted with the specified
 // deposit index included in the deposit tree.
-func (db *mockBlockBuilder) BlockNumberByDepositIndex(depositIndex uint32) (uint32, error) {
+func (db *mockBlockBuilder) BlockNumberByDepositIndex(depositIndex uint32, startIntMaxBlockNumber *uint32) (uint32, error) {
 	lastBlockNumber, err := db.db.LastPostedBlockNumber()
 	if err != nil {
 		return 0, err
 	}
 	fmt.Printf("lastPostedBlockNumber: %d\n", lastBlockNumber)
 
-	for blockNumber := uint32(1); blockNumber <= lastBlockNumber; blockNumber++ {
-		depositLeaves := db.MerkleTreeHistory.MerkleTrees[blockNumber].DepositLeaves
+	blockNumber := uint32(1)
+	if startIntMaxBlockNumber != nil {
+		blockNumber = *startIntMaxBlockNumber
+	}
+	for ; blockNumber <= lastBlockNumber; blockNumber++ {
+		blockHistory, ok := db.MerkleTreeHistory.MerkleTrees[blockNumber]
+		if !ok {
+			return 0, errors.New("BlockNumberByDepositIndex: block number not found")
+		}
+
+		depositLeaves := blockHistory.DepositLeaves
 		fmt.Printf("size of deposit leaves: %d\n", len(depositLeaves))
 		if depositIndex < uint32(len(depositLeaves)) {
 			return blockNumber, nil
 		}
 	}
 
-	return 0, errors.New("deposit index is out of range")
+	return 0, errors.New("BlockNumberByDepositIndex: deposit index is out of range")
 }
 
 func (db *mockBlockBuilder) AppendBlockTreeLeaf(block *block_post_service.PostedBlock) (blockNumber uint32, err error) {
