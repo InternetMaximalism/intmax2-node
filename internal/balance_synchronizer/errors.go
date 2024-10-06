@@ -39,3 +39,6 @@ var ErrNewCompressedPlonky2ProofFromBase64StringFail = errors.New("failed to cre
 
 var ErrBalancePublicInputsFromPublicInputs = errors.New("failed to create new balance public inputs from public inputs")
 var ErrProveReceiveDeposit = errors.New("failed to prove receive deposit")
+
+// ErrNoValidUserData error: no valid user data
+var ErrNoValidUserData = errors.New("no valid user data")

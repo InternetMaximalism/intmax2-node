@@ -35,11 +35,9 @@ func (input *UserWalletStateInput) FromUserState(value *UserWalletState) *UserWa
 	input.Assets = make([]*AssetLeafEntryInput, len(value.AssetTree.Leaves))
 	for tokenIndex, leaf := range value.AssetTree.Leaves {
 		input.Assets = append(input.Assets, &AssetLeafEntryInput{
-			TokenIndex: tokenIndex,
-			Leaf: &AssetLeafInput{
-				IsInsufficient: leaf.IsInsufficient,
-				Amount:         leaf.Amount.BigInt().String(),
-			},
+			TokenIndex:     tokenIndex,
+			IsInsufficient: leaf.IsInsufficient,
+			Amount:         leaf.Amount.BigInt().String(),
 		})
 	}
 
@@ -63,7 +61,7 @@ func (input *UserWalletStateInput) UserState() (*UserWalletState, error) {
 	const base10 = 10
 	assetLeaves := make([]*intMaxTree.AssetLeafEntry, len(input.Assets))
 	for i, leafEntry := range input.Assets {
-		amountInt, ok := new(big.Int).SetString(leafEntry.Leaf.Amount, base10)
+		amountInt, ok := new(big.Int).SetString(leafEntry.Amount, base10)
 		if !ok {
 			return nil, errors.New("invalid amount in UserState")
 		}
@@ -72,7 +70,7 @@ func (input *UserWalletStateInput) UserState() (*UserWalletState, error) {
 		assetLeaves[i] = &intMaxTree.AssetLeafEntry{
 			TokenIndex: leafEntry.TokenIndex,
 			Leaf: &intMaxTree.AssetLeaf{
-				IsInsufficient: leafEntry.Leaf.IsInsufficient,
+				IsInsufficient: leafEntry.IsInsufficient,
 				Amount:         amount,
 			},
 		}

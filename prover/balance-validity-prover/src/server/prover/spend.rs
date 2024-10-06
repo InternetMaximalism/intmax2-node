@@ -13,7 +13,7 @@ use intmax2_zkp::constants::NUM_TRANSFERS_IN_TX;
 
 #[get("/proof/spend/{request_id}")]
 async fn get_proof(
-    query_params: web::Path<(String, String)>,
+    query_params: web::Path<String>,
     redis: web::Data<redis::Client>,
 ) -> Result<impl Responder> {
     let mut conn = redis
@@ -21,7 +21,7 @@ async fn get_proof(
         .await
         .map_err(actix_web::error::ErrorInternalServerError)?;
 
-    let request_id = &query_params.1;
+    let request_id = &*query_params;
     let proof = redis::Cmd::get(&spent_token_proof_request_id(request_id))
         .query_async::<_, Option<String>>(&mut conn)
         .await
@@ -127,27 +127,27 @@ async fn generate_proof(
     let instant = std::time::Instant::now();
 
     // Validation check of balance_witness
-    let send_witness = req.send_witness.clone();
-    if send_witness.transfers.len() != NUM_TRANSFERS_IN_TX {
+    let spent_token_witness = req.send_witness.clone();
+    if spent_token_witness.transfers.len() != NUM_TRANSFERS_IN_TX {
         println!(
             "Invalid number of transfers: {}",
-            send_witness.transfers.len()
+            spent_token_witness.transfers.len()
         );
         return Err(error::ErrorBadRequest("Invalid number of transfers"));
     }
-    if send_witness.prev_balances.len() != NUM_TRANSFERS_IN_TX {
+    if spent_token_witness.prev_balances.len() != NUM_TRANSFERS_IN_TX {
         println!(
             "Invalid number of prev_balances: {}",
-            send_witness.prev_balances.len()
+            spent_token_witness.prev_balances.len()
         );
-        return Err(error::ErrorBadRequest("Invalid number of transfers"));
+        return Err(error::ErrorBadRequest("Invalid number of prev_balances"));
     }
-    if send_witness.asset_merkle_proofs.len() != NUM_TRANSFERS_IN_TX {
+    if spent_token_witness.asset_merkle_proofs.len() != NUM_TRANSFERS_IN_TX {
         println!(
             "Invalid number of asset_merkle_proofs: {}",
-            send_witness.asset_merkle_proofs.len()
+            spent_token_witness.asset_merkle_proofs.len()
         );
-        return Err(error::ErrorBadRequest("Invalid number of transfers"));
+        return Err(error::ErrorBadRequest("Invalid number of asset_merkle_proofs"));
     }
 
     // let validity_pis =
@@ -157,7 +157,7 @@ async fn generate_proof(
     // }
 
     let response = generate_balance_spend_proof_job(
-        &send_witness,
+        &spent_token_witness,
         state
             .balance_processor
             .get()

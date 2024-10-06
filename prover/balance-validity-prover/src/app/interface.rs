@@ -1,3 +1,9 @@
+use intmax2_zkp::common::insufficient_flags::InsufficientFlags;
+use intmax2_zkp::common::private_state::PrivateState;
+use intmax2_zkp::common::salt::Salt;
+use intmax2_zkp::common::transfer::Transfer;
+use intmax2_zkp::common::trees::asset_tree::AssetLeaf;
+use intmax2_zkp::common::trees::asset_tree::AssetMerkleProof;
 use intmax2_zkp::common::witness::receive_deposit_witness::ReceiveDepositWitness;
 use intmax2_zkp::common::witness::send_witness::SendWitness;
 use serde::Deserialize;
@@ -146,11 +152,23 @@ pub struct ProofsSendResponse {
     pub error_message: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SpentTokenWitness {
+    pub prev_private_state: PrivateState,
+    pub prev_balances: Vec<AssetLeaf>,
+    pub asset_merkle_proofs: Vec<AssetMerkleProof>,
+    pub insufficient_flags: InsufficientFlags,
+    pub transfers: Vec<Transfer>,
+    pub new_private_state_salt: Salt,
+    pub tx_nonce: u32,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProofSpendRequest {
     pub request_id: String,
-    pub send_witness: SendWitness,
+    pub send_witness: SpentTokenWitness, // TODO: rename to spent_token_witness
 }
 
 #[derive(Debug, Deserialize)]

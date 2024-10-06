@@ -26,7 +26,8 @@ pub struct FraudIdQuery {
     pub ids: Vec<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProofResponse {
     pub success: bool,
     pub proof: Option<String>,

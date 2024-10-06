@@ -42,13 +42,14 @@ type UCGetBackupTransactionsListPaginationOfList struct {
 }
 
 type ItemOfGetBackupTransactionsList struct {
-	ID           string    `json:"id"`
-	Sender       string    `json:"sender"`
-	TxDoubleHash string    `json:"tx_double_hash"`
-	EncryptedTx  string    `json:"encrypted_tx"`
-	BlockNumber  int64     `json:"block_number"`
-	Signature    string    `json:"signature"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID              string    `json:"id"`
+	Sender          string    `json:"sender"`
+	TxDoubleHash    string    `json:"tx_double_hash"`
+	EncryptedTx     string    `json:"encrypted_tx"`
+	EncodingVersion int64     `json:"encoding_version"`
+	BlockNumber     int64     `json:"block_number"`
+	Signature       string    `json:"signature"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 type UCGetBackupTransactionsList struct {

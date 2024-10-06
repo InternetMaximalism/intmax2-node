@@ -199,6 +199,9 @@ func (td *Transfer) SetZero() *Transfer {
 
 func (td *Transfer) ToUint64Slice() []uint64 {
 	isPubicKey := 0
+	if td.Recipient == nil {
+		panic("Recipient is nil")
+	}
 	if td.Recipient.AddressType() == intMaxAccTypes.INTMAXAddressType {
 		isPubicKey = 1
 	}

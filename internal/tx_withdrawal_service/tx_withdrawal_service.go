@@ -81,8 +81,7 @@ func WithdrawalTransaction(
 		return fmt.Errorf(msg, err.Error())
 	}
 
-	fmt.Println("start SyncLocally")
-	balanceSynchronizer, err := balance_synchronizer.SyncLocally(
+	balanceSynchronizer, err := balance_synchronizer.SyncUserBalance(
 		ctx,
 		cfg,
 		log,
@@ -90,7 +89,6 @@ func WithdrawalTransaction(
 		blockValidityService,
 		userWalletState,
 	)
-	fmt.Println("end SyncLocally")
 	if err != nil {
 		return fmt.Errorf("failed to sync balance proof: %w", err)
 	}
@@ -242,7 +240,7 @@ func WithdrawalTransaction(
 	if err != nil {
 		return fmt.Errorf("failed to create balance transition proof: %v", err)
 	}
-	balanceTransitionProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(balanceTransitionProof.Proof)
+	balanceTransitionProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(balanceTransitionProof)
 	if err != nil {
 		return fmt.Errorf("failed to create balance transition proof with pis: %v", err)
 	}

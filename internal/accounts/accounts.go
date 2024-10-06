@@ -21,6 +21,10 @@ type PublicKey struct {
 	Pk *bn254.G1Affine
 }
 
+func NewUncheckedPublicKey(pk *bn254.G1Affine) *PublicKey {
+	return &PublicKey{Pk: pk}
+}
+
 func NewPublicKey(pk *bn254.G1Affine) (*PublicKey, error) {
 	publicKey := PublicKey{Pk: pk}
 	if err := checkValidPublicKey(&publicKey); err != nil {

@@ -54,7 +54,7 @@ type BalanceProcessor interface {
 	// Generates a balance proof with public inputs for a transfer received by a given public key.
 	ProveReceiveTransfer(publicKey *intMaxAcc.PublicKey, receiveTransferWitness *ReceiveTransferWitness, lastBalanceProof *string) (*BalanceProofWithPublicInputs, error)
 	// Generates a sender proof with public inputs for a transition involving sending funds.
-	ProveSendTransition(publicKey *intMaxAcc.PublicKey, spentTokenWitness *SpentTokenWitness, lastBalanceProof *string) (*SenderProofWithPublicInputs, error)
+	ProveSendTransition(publicKey *intMaxAcc.PublicKey, spentTokenWitness *SpentTokenWitness, lastBalanceProof *string) (string, error)
 	// Generates a balance proof with public inputs for a send operation initiated by a given public key.
 	ProveSend(publicKey *intMaxAcc.PublicKey, sendWitness *SendWitness, updateWitness *block_validity_prover.UpdateWitness, lastBalanceProof *string) (*BalanceProofWithPublicInputs, error)
 	// Generates a balance proof with public inputs for a given public key and update witness.
@@ -221,19 +221,26 @@ func (s *balanceProcessor) ProveSendTransition(
 	publicKey *intMaxAcc.PublicKey,
 	spentTokenWitness *SpentTokenWitness,
 	lastBalanceProof *string,
-) (*SenderProofWithPublicInputs, error) {
+) (string, error) {
 	s.log.Debugf("ProveSend\n")
 	s.log.Debugf("publicKey: %v\n", publicKey)
-	requestID, err := s.requestSpentTokenProof(spentTokenWitness)
+	response, err := s.requestSpentTokenProof(spentTokenWitness)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
+	if response.Proof != nil {
+		s.log.Debugf("size of proof: %d\n", len(*response.Proof))
+		return *response.Proof, nil
+	}
+	s.log.Debugf("no proof\n")
+
+	requestID := response.RequestID
 	ticker := time.NewTicker(timeoutForFetchingBalanceValidityProof)
 	for {
 		select {
 		case <-s.ctx.Done():
-			return nil, s.ctx.Err()
+			return "", s.ctx.Err()
 		case <-ticker.C:
 			var proof *BalanceValidityProofResponse
 			proof, err = s.fetchSpentTokenProof(requestID)
@@ -242,23 +249,20 @@ func (s *balanceProcessor) ProveSendTransition(
 					continue
 				}
 
-				return nil, err
+				return "", err
 			}
 
-			senderProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*proof.Proof)
-			if err != nil {
-				return nil, err
-			}
+			// senderProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*proof.Proof)
+			// if err != nil {
+			// 	return "", err
+			// }
 
-			senderPublicInputs, err := new(SenderPublicInputs).FromPublicInputs(senderProofWithPis.PublicInputs)
-			if err != nil {
-				return nil, err
-			}
+			// senderPublicInputs, err := new(SenderPublicInputs).FromPublicInputs(senderProofWithPis.PublicInputs)
+			// if err != nil {
+			// 	return "", err
+			// }
 
-			return &SenderProofWithPublicInputs{
-				Proof:        *proof.Proof,
-				PublicInputs: senderPublicInputs,
-			}, nil
+			return *proof.Proof, nil
 		}
 	}
 }
@@ -370,9 +374,10 @@ func (s *balanceProcessor) ProveReceiveTransfer(
 }
 
 type BalanceValidityResponse struct {
-	Success bool   `json:"success"`
-	Code    uint16 `json:"code"`
-	Message string `json:"message"`
+	Success bool    `json:"success"`
+	Code    uint16  `json:"code"`
+	Message string  `json:"message"`
+	Proof   *string `json:"proof"`
 }
 
 type MerkleProofInput = []string
@@ -640,9 +645,14 @@ func (p *balanceProcessor) requestSendBalanceValidityProof(
 	return requestID, nil
 }
 
+type SpentTokenProofResponse struct {
+	RequestID string
+	Proof     *string
+}
+
 func (p *balanceProcessor) requestSpentTokenProof(
 	spendWitness *SpentTokenWitness,
-) (string, error) {
+) (*SpentTokenProofResponse, error) {
 	requestID := uuid.New().String()
 	requestBody := SpentTokenProofInput{
 		RequestID:         requestID,
@@ -650,7 +660,7 @@ func (p *balanceProcessor) requestSpentTokenProof(
 	}
 	bd, err := json.Marshal(requestBody)
 	if err != nil {
-		return "", fmt.Errorf(messageFailedToMarshalJSONRequestBody, err)
+		return nil, fmt.Errorf(messageFailedToMarshalJSONRequestBody, err)
 	}
 	p.log.Debugf("size of requestSpentTokenProof: %d bytes\n", len(bd))
 
@@ -669,7 +679,7 @@ func (p *balanceProcessor) requestSpentTokenProof(
 	err = HandleGeneralError(resp, err)
 	if err != nil {
 		const msg = "failed to send the balance proof request for SpentTokenWitness: %w"
-		return "", fmt.Errorf(msg, err)
+		return nil, fmt.Errorf(msg, err)
 	}
 
 	if resp.StatusCode() != http.StatusOK {
@@ -679,19 +689,22 @@ func (p *balanceProcessor) requestSpentTokenProof(
 			"api_url":     apiUrl,
 			"response":    resp.String(),
 		}).WithError(err).Errorf(unexpectedStatusCode)
-		return "", err
+		return nil, err
 	}
 
 	response := new(BalanceValidityResponse)
 	if err = json.Unmarshal(resp.Body(), response); err != nil {
-		return "", fmt.Errorf(messageFailedToUnmarshalResponse, err)
+		return nil, fmt.Errorf(messageFailedToUnmarshalResponse, err)
 	}
 
 	if !response.Success {
-		return "", fmt.Errorf("failed to send the balance proof request for SpentTokenWitness: %s", response.Message)
+		return nil, fmt.Errorf("failed to send the balance proof request for SpentTokenWitness: %s", response.Message)
 	}
 
-	return requestID, nil
+	return &SpentTokenProofResponse{
+		RequestID: requestID,
+		Proof:     response.Proof,
+	}, nil
 }
 
 // Execute the following request:

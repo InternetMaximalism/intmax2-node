@@ -229,6 +229,7 @@ func postBlockSignatureRawRequest(
 	if err != nil {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
+	fmt.Printf("bd: %s\n", string(bd))
 
 	const (
 		contentType = "Content-Type"
@@ -248,8 +249,7 @@ func postBlockSignatureRawRequest(
 	}
 
 	if resp == nil {
-		const msg = "send request error occurred"
-		return fmt.Errorf(msg)
+		return errors.New("send request error occurred")
 	}
 
 	if resp.StatusCode() != http.StatusOK {

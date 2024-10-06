@@ -73,7 +73,7 @@ func (s *balanceSynchronizer) LastBalanceProof() *intMaxTypes.Plonky2Proof {
 
 func (s *balanceSynchronizer) ProveSendTransition(
 	spentTokenWitness *balance_prover_service.SpentTokenWitness,
-) (*balance_prover_service.SenderProofWithPublicInputs, error) {
+) (string, error) {
 	publicKey := s.userState.PublicKey()
 	lastBalanceProof := s.LastBalanceProof().ProofBase64String()
 	return s.balanceProcessor.ProveSendTransition(
@@ -128,6 +128,18 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 		fmt.Printf("transition block number: %d\n", transition.BlockNumber())
 	}
 
+	storedBalanceData, err := block_synchronizer.GetBackupBalance(s.ctx, s.cfg, s.userState.PublicKey())
+	if err != nil {
+		const msg = "failed to start Balance Prover Service: %+v"
+		s.log.Fatalf(msg, err.Error())
+	}
+
+	err = s.syncBalanceProver.SetEncryptedBalanceData(s.userState, storedBalanceData)
+	if err != nil {
+		const msg = "failed to start Balance Prover Service: %+v"
+		s.log.Fatalf(msg, err.Error())
+	}
+
 	validityProverInfo, err := s.blockValidityService.FetchValidityProverInfo()
 	if err != nil {
 		const msg = "failed to fetch validity prover info: %+v"
@@ -140,9 +152,18 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 		return ErrLatestSynchronizedBlockNumberLassOrEqualLastUpdatedBlockNumber
 	}
 
+	// if latestSynchronizedBlockNumber <= syncBalanceProver.LastUpdatedBlockNumber() && syncBalanceProver.LastUpdatedBlockNumber() != 0 {
+	// 	return balanceSynchronizer, nil
+	// }
+
+	if len(sortedValidUserData) == 0 {
+		return ErrNoValidUserData
+	}
+
 	for _, transition := range sortedValidUserData {
 		fmt.Printf("wallet private state commitment (before): %s\n", s.userState.PrivateState().Commitment().String())
 		fmt.Printf("valid transition: %v\n", transition)
+		fmt.Printf("valid transition block number: %v\n", transition.BlockNumber())
 
 		switch transition := transition.(type) {
 		case balance_prover_service.ValidSentTx:
@@ -161,6 +182,7 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 					s.log.Warnf(msg, err.Error())
 					continue
 				} else if errors.Is(err, block_validity_prover.ErrBlockUnSynchronization) {
+					// continue
 					return err
 				}
 
@@ -172,10 +194,11 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 			if err != nil {
 				if errors.Is(err, block_validity_prover.ErrNoValidityProofByBlockNumber) ||
 					errors.Is(err, ErrApplyReceivedTransferTransitionFail) || errors.Is(err, ErrNullifierAlreadyExists) {
-					const msg = "failed to receive deposit: %+v"
+					const msg = "failed to receive transfer: %+v"
 					s.log.Warnf(msg, err.Error())
 					continue
 				} else if errors.Is(err, block_validity_prover.ErrBlockUnSynchronization) {
+					// continue
 					return err
 				}
 
@@ -214,7 +237,7 @@ func (s *balanceSynchronizer) validReceivedDeposit(
 ) (err error) {
 	fmt.Printf("valid received deposit: %v\n", transition.DepositHash)
 	transitionBlockNumber := transition.BlockNumber()
-	fmt.Printf("transitionBlockNumber: %d", transitionBlockNumber)
+	fmt.Printf("transitionBlockNumber: %d\n", transitionBlockNumber)
 
 	// nullifier already exists
 	nullifierBytes := intMaxTypes.Bytes32{}
@@ -318,12 +341,11 @@ func applyReceivedDepositTransition(
 	fmt.Printf("applyReceivedDepositTransition deposit ID: %d\n", deposit.DepositID)
 	depositInfo, err := blockValidityService.GetDepositInfoByHash(deposit.DepositHash)
 	if err != nil {
-		const msg = "failed to get Deposit Leaf and Index by Hash: %+v"
-		return fmt.Errorf(msg, err.Error())
+		return fmt.Errorf("failed to get deposit leaf and index by hash: %w", err)
 	}
 	if depositInfo.DepositIndex == nil {
-		const msg = "failed to get Deposit Index by Hash: %+v"
-		return fmt.Errorf(msg, "depositIndex is nil")
+		var ErrDepositIndexIsNil = errors.New("deposit index is nil")
+		return fmt.Errorf("failed to get deposit Index by hash: %w", ErrDepositIndexIsNil)
 	}
 
 	depositIndex := *depositInfo.DepositIndex
@@ -365,6 +387,7 @@ func applyReceivedDepositTransition(
 			return errors.New(messageBalanceProcessorNotInitialized)
 		}
 		if err.Error() == ErrNullifierAlreadyExists.Error() {
+			_ = userState.DeleteDepositCase(depositIndex)
 			fmt.Printf("WARNING: (applyReceivedReceiveDepositTransition) nullifier %s already exists\n", depositCase.Deposit.Nullifier().String())
 			return nil
 		}
@@ -475,7 +498,7 @@ func applySentTransactionTransition(
 	userState UserState,
 ) error {
 	// syncValidityProver.Sync() // sync validity proofs
-	fmt.Printf("transaction hash: %d\n", tx.Hash())
+	fmt.Printf("(applySentTransactionTransition) transaction hash: %d\n", tx.Hash())
 
 	// txMerkleProof := tx.TxMerkleProof
 	// transfers := tx.Transfers

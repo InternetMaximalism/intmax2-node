@@ -76,14 +76,12 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, wg *sync.Wait
 				fmt.Println("balance validity ticker.C")
 				err = p.SyncDepositedEvents()
 				if err != nil {
-					const msg = "failed to sync deposited events: %+v"
-					p.log.Fatalf(msg, err.Error())
+					p.log.Fatalf("failed to sync deposited events in balance validity prover: %+v", err)
 				}
 
-				err = p.SyncDepositTree(nil, latestSynchronizedDepositIndex)
+				err = p.SyncDepositTree(nil, latestSynchronizedDepositIndex+1)
 				if err != nil {
-					const msg = "failed to sync deposit tree: %+v"
-					p.log.Fatalf(msg, err.Error())
+					p.log.Fatalf("failed to sync deposit tree in balance validity prover: %+v", err)
 				}
 			}
 		}
@@ -171,9 +169,9 @@ func (p *blockValidityProver) SyncBlockTreeStep(bps BlockSynchronizer, step stri
 			return fmt.Errorf("failed to sync deposited events: %+v", err.Error())
 		}
 
-		err = p.SyncDepositTree(nil, latestSynchronizedDepositIndex)
+		err = p.SyncDepositTree(nil, latestSynchronizedDepositIndex+1)
 		if err != nil {
-			return fmt.Errorf("failed to sync deposit tree: %+v", err.Error())
+			return fmt.Errorf("failed to sync deposit tree: %w", err)
 		}
 
 		return nil

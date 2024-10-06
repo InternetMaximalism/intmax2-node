@@ -39,7 +39,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::app::{
     config,
-    encode::{decode_plonky2_proof, encode_plonky2_proof},
+    encode::{decode_plonky2_proof, encode_plonky2_proof}, interface::SpentTokenWitness,
 };
 
 const D: usize = 2;
@@ -296,7 +296,7 @@ pub async fn generate_balance_send_proof_job(
 }
 
 pub fn generate_balance_spend_proof_job(
-    send_witness: &SendWitness,
+    spent_token_witness: &SpentTokenWitness,
     balance_processor: &BalanceProcessor<F, C, D>,
 ) -> anyhow::Result<String> {
     let spent_circuit = &balance_processor
@@ -305,12 +305,12 @@ pub fn generate_balance_spend_proof_job(
         .spent_circuit;
 
     let spent_value = SpentValue::new(
-        &send_witness.prev_private_state,
-        &send_witness.prev_balances,
-        send_witness.new_private_state_salt,
-        &send_witness.transfers,
-        &send_witness.asset_merkle_proofs,
-        send_witness.tx_witness.tx.nonce,
+        &spent_token_witness.prev_private_state,
+        &spent_token_witness.prev_balances,
+        spent_token_witness.new_private_state_salt,
+        &spent_token_witness.transfers,
+        &spent_token_witness.asset_merkle_proofs,
+        spent_token_witness.tx_nonce,
     );
 
     log::debug!("Proving...");
