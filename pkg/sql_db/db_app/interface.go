@@ -3,6 +3,7 @@ package db_app
 import (
 	"context"
 	"encoding/json"
+	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_post_service"
 	mFL "intmax2-node/internal/sql_filter/models"
 	intMaxTree "intmax2-node/internal/tree"
@@ -33,6 +34,7 @@ type SQLDb interface {
 	EventBlockNumbersForValidityProver
 	Senders
 	Accounts
+	BlockContainedSenders
 	BackupBalances
 	Deposits
 	BlockContents
@@ -216,9 +218,17 @@ type Senders interface {
 type Accounts interface {
 	CreateAccount(senderID string) (*models.Account, error)
 	AccountBySenderID(senderID string) (*models.Account, error)
+	AccountBySender(publicKey *intMaxAcc.PublicKey) (*models.Account, error)
 	AccountByAccountID(accountID *uint256.Int) (*models.Account, error)
 	ResetSequenceByAccounts() error
 	DelAllAccounts() error
+}
+
+type BlockContainedSenders interface {
+	CreateBlockContainedSender(
+		blockNumber uint32,
+		senderId string,
+	) (*models.BlockContainedSender, error)
 }
 
 type BackupBalances interface {

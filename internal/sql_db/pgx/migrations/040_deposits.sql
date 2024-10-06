@@ -6,4 +6,4 @@ ADD CONSTRAINT unique_deposits_deposit_index UNIQUE (deposit_index);
 -- +migrate Down
 
 ALTER TABLE deposits
-DROP CONSTRAINT unique_deposits_deposit_index;
+DROP CONSTRAINT IF EXISTS unique_deposits_deposit_index;

@@ -169,6 +169,8 @@ func TransferTransaction(
 	nonce := balanceSynchronizer.CurrentNonce()
 	// nonce := uint32(1) // TODO: Get nonce from balance synchronizer
 
+	panic("interupted here")
+
 	err = SendTransferTransaction(
 		ctx,
 		cfg,

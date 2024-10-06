@@ -316,9 +316,10 @@ func ExtractValidSentTransactions(
 		fmt.Printf("transaction hash: %s\n", txHash.String())
 		if tx.TxTreeRoot == nil {
 			// If TxTreeRoot is nil, the account is no longer valid.
-			log.Warnf("transaction tx tree root is nil\n")
-			invalidTxHashes = append(invalidTxHashes, txHash)
-			continue
+			panic("transaction tx tree root is nil, so this account is no longer valid")
+			// log.Warnf("transaction tx tree root is nil\n")
+			// invalidTxHashes = append(invalidTxHashes, txHash)
+			// continue
 		}
 
 		blockContent, err := blockValidityService.BlockContentByTxRoot(common.BytesToHash(tx.TxTreeRoot.Marshal()))

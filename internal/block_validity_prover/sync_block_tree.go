@@ -296,6 +296,10 @@ func (p *blockValidityProver) syncBlockContent(bps BlockSynchronizer, startBlock
 			fmt.Println("tickerEventWatcher.C")
 			_, err := syncBlockContentWithEvent(p.blockBuilder, bps, p.log, events[key])
 			if err != nil {
+				if strings.HasPrefix(err.Error(), "copy account tree error") {
+					return nextBN, nil
+				}
+
 				return nextBN, errors.Join(ErrProcessingBlocksFail, err)
 			}
 			nextBN = events[key].Raw.BlockNumber
@@ -370,6 +374,56 @@ func syncBlockContentWithEvent(
 	newBlockContent, err = blockBuilder.CreateBlockContent(postedBlock, blockContent)
 	if err != nil {
 		return nil, errors.Join(ErrCreateBlockContentFail, err)
+	}
+
+	blockWitness, err := blockBuilder.GenerateBlockWithTxTreeFromBlockContent(
+		blockContent,
+		postedBlock,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	validityWitness, _, _, err := calculateValidityWitness(blockBuilder, blockWitness)
+	if err != nil {
+		return nil, err
+	}
+
+	_, invalidReason := validityWitness.BlockWitness.MainValidationPublicInputs()
+	if invalidReason != "" {
+		fmt.Printf("invalid reason: %v\n", invalidReason)
+	} else {
+		dummyPublicKey := intMaxAcc.NewDummyPublicKey()
+		for _, sender := range blockContent.Senders {
+			if sender.IsSigned && !sender.PublicKey.Equal(dummyPublicKey) {
+				address := sender.PublicKey.ToAddress().String()
+				_, err := blockBuilder.db.AccountBySender(sender.PublicKey)
+				if err == nil {
+					fmt.Printf("account already exists: %s\n", address)
+					continue
+				} else if err.Error() != "not found" {
+					return nil, errors.Join(ErrAccountBySenderIDFail, err)
+				}
+
+				senderData, err := blockBuilder.db.CreateSenders(address, address)
+				if err != nil {
+					fmt.Printf("(syncBlockContentWithEvent) address: %s\n", address)
+					return nil, errors.Join(ErrCreateSendersFail, err)
+				}
+				fmt.Printf("senderData: %+v\n", senderData)
+				accountData, err := blockBuilder.db.CreateAccount(senderData.ID)
+				if err != nil {
+					return nil, errors.Join(ErrCreateAccountFail, err)
+				}
+				accountID := accountData.AccountID.Uint64()
+				fmt.Printf("accountID: %d\n", accountID)
+				_, err = blockBuilder.db.CreateBlockContainedSender(postedBlock.BlockNumber, senderData.ID)
+				if err != nil {
+					var ErrCreateBlockContainedSendersFail = errors.New("create block contained senders fail")
+					return nil, errors.Join(ErrCreateBlockContainedSendersFail, err)
+				}
+			}
+		}
 	}
 
 	return newBlockContent, nil
@@ -480,6 +534,7 @@ func (p *blockValidityProver) syncBlockValidityProof() error {
 		case <-tickerValidityProver.C:
 			fmt.Println("tickerValidityProver.C")
 			if err := p.generateValidityProof(lastGeneratedProofBlockNumber + 1); err != nil {
+				fmt.Printf("generateValidityProof error (syncBlockValidityProof): %v\n", err)
 				if errors.Is(err, ErrBlockContentByBlockNumber) || errors.Is(err, ErrRootBlockNumberNotFound) {
 					continue
 				}
@@ -627,6 +682,7 @@ func (p *blockValidityProver) generateValidityProof(blockNumber uint32) error {
 
 	validityWitness, err := p.blockBuilder.UpdateValidityWitnessByBlockNumber(blockNumber)
 	if err != nil {
+		fmt.Printf("WARNING: failed to update validity witness (generateValidityProof): %v\n", err)
 		if errors.Is(err, ErrBlockContentByBlockNumber) {
 			return ErrBlockContentByBlockNumber
 		}
@@ -693,6 +749,7 @@ func (p *blockValidityProver) generateValidityProof(blockNumber uint32) error {
 	} else {
 		prevBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*lastValidityProof)
 		if err != nil {
+			fmt.Printf("WARNING: failed to generate validity proof (generateValidityProof): %v\n", err)
 			return err
 		}
 		prevValidityPublicInputs = new(ValidityPublicInputs).FromPublicInputs(prevBalanceProofWithPis.PublicInputs)

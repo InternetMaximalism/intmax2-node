@@ -3,6 +3,7 @@ package block_validity_synchronizer
 import (
 	"context"
 	"encoding/json"
+	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_post_service"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
@@ -22,6 +23,9 @@ type SQLDriverApp interface {
 	EventBlockNumbersForValidityProver
 	Deposits
 	BlockContents
+	Senders
+	Accounts
+	BlockContainedSenders
 }
 
 type GenericCommandsApp interface {
@@ -67,4 +71,27 @@ type BlockContents interface {
 	LastBlockValidityProof() (*mDBApp.BlockContentWithProof, error)
 	LastBlockNumberGeneratedValidityProof() (uint32, error)
 	LastPostedBlockNumber() (uint32, error)
+}
+
+type Senders interface {
+	CreateSenders(
+		address, publicKey string,
+	) (*mDBApp.Sender, error)
+	SenderByID(id string) (*mDBApp.Sender, error)
+	SenderByAddress(address string) (*mDBApp.Sender, error)
+	SenderByPublicKey(publicKey string) (*mDBApp.Sender, error)
+}
+
+type Accounts interface {
+	CreateAccount(senderID string) (*mDBApp.Account, error)
+	AccountBySenderID(senderID string) (*mDBApp.Account, error)
+	AccountBySender(publicKey *intMaxAcc.PublicKey) (*mDBApp.Account, error)
+	AccountByAccountID(accountID *uint256.Int) (*mDBApp.Account, error)
+}
+
+type BlockContainedSenders interface {
+	CreateBlockContainedSender(
+		blockNumber uint32,
+		senderId string,
+	) (*mDBApp.BlockContainedSender, error)
 }
