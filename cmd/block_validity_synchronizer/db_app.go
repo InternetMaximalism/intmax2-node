@@ -56,7 +56,7 @@ type Deposits interface {
 	UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error
 	DepositByDepositHash(depositHash common.Hash) (*mDBApp.Deposit, error)
 	ScanDeposits() ([]*mDBApp.Deposit, error)
-	FetchLastDepositIndex() (uint32, error)
+	FetchNextDepositIndex() (uint32, error)
 }
 
 type BlockContents interface {

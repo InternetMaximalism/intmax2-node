@@ -49,11 +49,18 @@ func (b *mockBlockBuilder) AppendDepositTreeLeaf(depositHash common.Hash, deposi
 	return b.DepositTree.AddLeaf(count, depositHash)
 }
 
-func (b *mockBlockBuilder) FetchLastDepositIndex() (uint32, error) {
-	return b.db.FetchLastDepositIndex()
+func (b *mockBlockBuilder) FetchNextDepositIndex() (uint32, error) {
+	nextDepositIndex, err := b.db.FetchNextDepositIndex()
+	if err != nil {
+		return 0, fmt.Errorf("failed to fetch last deposit index: %w", err)
+	}
+
+	return nextDepositIndex, nil
 }
 
-func (p *blockValidityProver) SyncDepositTree(latestBlock *uint64, depositIndex uint32) error {
+func (p *blockValidityProver) SyncDepositTree(latestBlock *uint64, startDepositIndex uint32) error {
+	fmt.Printf("---------- SyncDepositTree (start deposit index: %d) ----------\n", startDepositIndex)
+	depositIndex := startDepositIndex
 	var latestBlockNumber uint64
 	if latestBlock == nil {
 		var err error

@@ -155,3 +155,6 @@ var ErrLeafBlockNumberNotFound = errors.New("leaf block number not found")
 
 // ErrBlockContentByBlockNumber error: block content by block number error
 var ErrBlockContentByBlockNumber = errors.New("failed to fetch block content by block number")
+
+// ErrDepositIndexNotFound error: no last deposit index found.
+var ErrDepositIndexNotFound = errors.New("no last deposit index found")

@@ -249,7 +249,7 @@ type Deposits interface {
 	DepositByDepositID(depositID uint32) (*models.Deposit, error)
 	DepositByDepositHash(depositHash common.Hash) (*models.Deposit, error)
 	ScanDeposits() ([]*models.Deposit, error)
-	FetchLastDepositIndex() (uint32, error)
+	FetchNextDepositIndex() (uint32, error)
 }
 
 type BlockContents interface {

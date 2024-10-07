@@ -58,8 +58,9 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, wg *sync.Wait
 			wg.Done()
 		}()
 
-		var latestSynchronizedDepositIndex uint32
-		latestSynchronizedDepositIndex, err = p.FetchLastDepositIndex()
+		// startDepositIndex := latestSynchronizedDepositIndex + 1
+		var startDepositIndex uint32
+		startDepositIndex, err = p.FetchNextDepositIndex()
 		if err != nil {
 			const msg = "failed to fetch last deposit index: %+v"
 			p.log.Fatalf(msg, err.Error())
@@ -79,7 +80,7 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, wg *sync.Wait
 					p.log.Fatalf("failed to sync deposited events in balance validity prover: %+v", err)
 				}
 
-				err = p.SyncDepositTree(nil, latestSynchronizedDepositIndex+1)
+				err = p.SyncDepositTree(nil, startDepositIndex)
 				if err != nil {
 					p.log.Fatalf("failed to sync deposit tree in balance validity prover: %+v", err)
 				}
@@ -158,8 +159,8 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, wg *sync.Wait
 
 func (p *blockValidityProver) SyncBlockTreeStep(bps BlockSynchronizer, step string) (err error) {
 	syncDeposits := func() error {
-		var latestSynchronizedDepositIndex uint32
-		latestSynchronizedDepositIndex, err = p.FetchLastDepositIndex()
+		var nextSynchronizedDepositIndex uint32
+		nextSynchronizedDepositIndex, err = p.FetchNextDepositIndex()
 		if err != nil {
 			return fmt.Errorf("failed to fetch last deposit index: %+v", err.Error())
 		}
@@ -169,7 +170,7 @@ func (p *blockValidityProver) SyncBlockTreeStep(bps BlockSynchronizer, step stri
 			return fmt.Errorf("failed to sync deposited events: %+v", err.Error())
 		}
 
-		err = p.SyncDepositTree(nil, latestSynchronizedDepositIndex+1)
+		err = p.SyncDepositTree(nil, nextSynchronizedDepositIndex)
 		if err != nil {
 			return fmt.Errorf("failed to sync deposit tree: %w", err)
 		}
