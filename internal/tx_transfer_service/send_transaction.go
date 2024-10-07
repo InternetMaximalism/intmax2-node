@@ -14,13 +14,11 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/go-resty/resty/v2"
-	"github.com/gosuri/uilive"
 	"github.com/holiman/uint256"
 )
 
@@ -174,169 +172,78 @@ func sendTransactionRawRequest(
 	return nil
 }
 
-func sendTransactionGasFeeInfoMessage(
-	ctx context.Context,
-	wg *sync.WaitGroup,
-	writer *uilive.Writer,
-	noCheck *bool,
-	feeStr string,
-) bool {
-	if wg != nil {
-		defer wg.Done()
-	}
-	if writer == nil {
-		return false
-	}
-	var (
-		i  = 60
-		tm = time.NewTicker(time.Second)
-	)
-	for {
-		select {
-		case <-ctx.Done():
-			tm.Stop()
-			return false
-		case <-tm.C:
-			if i <= 0 {
-				tm.Stop()
-				return true
-			}
-			const msg = "Current transfer fee value is %s. For continue transaction press, please: 'y'+Enter, for cancel - 'n'+Enter. Next update transfer fee do after %d seconds\n"
-			_, _ = fmt.Fprintf(writer, msg, feeStr, i)
-			i--
-			*noCheck = false
-		}
-	}
-}
-
 func transferFee(
-	inputCtx context.Context,
+	ctx context.Context,
 	cfg *configs.Config,
 	tokenIndex uint32,
 ) (*uint256.Int, string, error) {
 	const (
-		int1Key           = 1
-		emptyKey          = ""
-		ctrlKey           = '\n'
-		yKey              = "y"
-		nKey              = "n"
-		maskETH           = "%v ETH"
-		defaultTokenIndex = "0"
-		val1e18Key        = 1e18
+		emptyKey           = ""
+		ctrlKey            = '\n'
+		yKey               = "y"
+		nKey               = "n"
+		uKey               = "u"
+		msgFetch           = "Fetching transfer fee..."
+		maskETH            = "Current transfer fee is %.18f ETH. For continue transaction press, please: Y|n|u (yes|no|update):"
+		msgTimeout         = "Confirmation of transfer fee is expired (time out equal to or greater than 1 minute). Repeat your selection."
+		msgTrFeeIsApproved = "Transfer fee is approved."
+		msgTrIsCanceled    = "Transaction is canceled."
+		defaultTokenIndex  = "0"
+		val1e18Key         = 1e18
 	)
 
-	dataBlockInfo, err := GetBlockInfo(inputCtx, cfg)
-	if err != nil {
-		const msg = "failed to get the block info data: %w"
-		return nil, emptyKey, fmt.Errorf(msg, err)
-	}
-	gasFee, gasOK := dataBlockInfo.TransferFee[new(big.Int).SetUint64(uint64(tokenIndex)).String()]
-	if !gasOK {
-		gasFee, gasOK = dataBlockInfo.TransferFee[defaultTokenIndex]
-	}
-	if !gasOK {
-		const msg = "failed to get default gas fee from the block info data"
-		return nil, emptyKey, fmt.Errorf(msg)
-	}
-
-	writer := uilive.New()
-	writer.Start()
-	defer writer.Stop()
-	wg := sync.WaitGroup{}
-	ctx, cancel := context.WithCancel(inputCtx)
-	defer func() {
-		if cancel != nil {
-			cancel()
-		}
-	}()
-	wg.Add(int1Key)
-	var next, noCheck bool
-	noCheck = true
-	go func() {
-		defer wg.Done()
-		reader := bufio.NewReader(os.Stdin)
-		for {
-			var rs string
-			rs, err = reader.ReadString(ctrlKey)
-			if err != nil {
-				continue
-			}
-			rs = strings.ToLower(strings.TrimSpace(rs))
-			switch rs {
-			case yKey:
-				if noCheck {
-					continue
-				}
-				next = true
-				fallthrough
-			case nKey:
-				if noCheck {
-					continue
-				}
-				if cancel != nil {
-					cancel()
-				}
-				return
-			default:
-				continue
-			}
-		}
-	}()
 	var amountGasFee uint256.Int
-	errInfoMessage := make(chan error)
-	wg.Add(int1Key)
-	go func() {
-		defer wg.Done()
-		for {
-			select {
-			case <-ctx.Done():
-				errInfoMessage <- nil
-				return
-			default:
-				err = amountGasFee.Scan(gasFee)
-				if err != nil {
-					const msg = "failed to convert string to uint256.Int: %w"
-					errInfoMessage <- fmt.Errorf(msg, err)
-					return
-				}
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Println(msgFetch)
 
-				wg.Add(int1Key)
-				if sendTransactionGasFeeInfoMessage(
-					ctx, &wg, writer, &noCheck, fmt.Sprintf(maskETH, amountGasFee.Float64()/val1e18Key),
-				) {
-					noCheck = true
-					const msgFetchNewFeeV = "Fetching new transfer fee value...\n"
-					_, _ = fmt.Fprintf(writer, msgFetchNewFeeV)
-					dataBlockInfo, err = GetBlockInfo(inputCtx, cfg)
-					if err != nil {
-						const msg = "failed to get the block info data: %w"
-						errInfoMessage <- fmt.Errorf(msg, err)
-						return
-					}
-					gasFee, gasOK = dataBlockInfo.TransferFee[new(big.Int).SetUint64(uint64(tokenIndex)).String()]
-					if !gasOK {
-						gasFee, gasOK = dataBlockInfo.TransferFee[defaultTokenIndex]
-					}
-					if !gasOK {
-						const msg = "failed to get default gas fee from the block info data"
-						errInfoMessage <- fmt.Errorf(msg)
-						return
-					}
-				}
-			}
+		dataBlockInfo, err := GetBlockInfo(ctx, cfg)
+		if err != nil {
+			const msg = "failed to get the block info data: %w"
+			return nil, emptyKey, fmt.Errorf(msg, err)
 		}
-	}()
-	if errIM := <-errInfoMessage; errIM != nil {
-		return nil, emptyKey, errIM
-	}
-	wg.Wait()
-	if next {
-		const msgTrFeeIsApproved = "Transfer fee is approved.\n"
-		_, _ = fmt.Fprintf(writer.Bypass(), msgTrFeeIsApproved)
-		return &amountGasFee, dataBlockInfo.IntMaxAddress, nil
-	}
-	const msgTrIsCanceled = "Transaction is canceled.\n"
-	_, _ = fmt.Fprintf(writer.Bypass(), msgTrIsCanceled)
+		gasFee, gasOK := dataBlockInfo.TransferFee[new(big.Int).SetUint64(uint64(tokenIndex)).String()]
+		if !gasOK {
+			gasFee, gasOK = dataBlockInfo.TransferFee[defaultTokenIndex]
+		}
+		if !gasOK {
+			const msg = "failed to get default gas fee from the block info data"
+			return nil, emptyKey, fmt.Errorf(msg)
+		}
 
-	return nil, emptyKey, nil
+		err = amountGasFee.Scan(gasFee)
+		if err != nil {
+			const msg = "failed to convert string to uint256.Int: %w"
+			return nil, emptyKey, fmt.Errorf(msg, err)
+		}
+
+		start := time.Now().UTC()
+		fmt.Printf(maskETH, amountGasFee.Float64()/val1e18Key)
+
+		var rs string
+		rs, err = reader.ReadString(ctrlKey)
+		if err != nil {
+			continue
+		}
+		rs = strings.ToLower(strings.TrimSpace(rs))
+		switch rs {
+		case yKey:
+			if time.Now().UTC().Unix() >= start.Add(time.Minute).Unix() {
+				fmt.Println(msgTimeout)
+				continue
+			}
+
+			fmt.Println(msgTrFeeIsApproved)
+
+			return &amountGasFee, dataBlockInfo.IntMaxAddress, nil
+		case nKey:
+			fmt.Println(msgTrIsCanceled)
+
+			return nil, emptyKey, nil
+		case uKey:
+			continue
+		default:
+			continue
+		}
+	}
 }
