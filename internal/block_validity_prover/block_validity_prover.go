@@ -108,8 +108,13 @@ func (d *blockValidityProver) FetchScrollCalldataByHash(txHash common.Hash) ([]b
 	return calldata, nil
 }
 
-func (d *blockValidityProver) FetchLastDepositIndex() (uint32, error) {
-	return d.blockBuilder.FetchLastDepositIndex()
+func (d *blockValidityProver) FetchNextDepositIndex() (uint32, error) {
+	nextDepositIndex, err := d.blockBuilder.FetchNextDepositIndex()
+	if err != nil {
+		return 0, err
+	}
+
+	return nextDepositIndex, nil
 }
 
 func (d *blockValidityProver) LastSeenBlockPostedEventBlockNumber() (uint64, error) {
@@ -237,7 +242,7 @@ type ValidityProverInfo struct {
 }
 
 func (d *blockValidityProver) FetchValidityProverInfo() (*ValidityProverInfo, error) {
-	lastDepositIndex, err := d.FetchLastDepositIndex()
+	nextDepositIndex, err := d.FetchNextDepositIndex()
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +253,7 @@ func (d *blockValidityProver) FetchValidityProverInfo() (*ValidityProverInfo, er
 	}
 
 	return &ValidityProverInfo{
-		DepositIndex: lastDepositIndex,
+		DepositIndex: nextDepositIndex,
 		BlockNumber:  lastBlockNumber,
 	}, nil
 }
@@ -357,14 +362,13 @@ func (d *blockValidityProver) ValidityWitness(
 		lastValidityWitness.BlockWitness.Block,
 	)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to calculate block witness: %w", err)
 	}
 
 	fmt.Printf("(validityWitness) blockWitness.AccountMembershipProofs: %v\n", blockWitness.AccountMembershipProofs.IsSome)
 	validityWitness, _, _, err := calculateValidityWitness(d.blockBuilder, blockWitness)
 	if err != nil {
-		var ErrCalculateValidityWitnessFail = errors.New("failed to calculate validity witness")
-		return nil, errors.Join(ErrCalculateValidityWitnessFail, err)
+		return nil, fmt.Errorf("failed to calculate validity witness: %w", err)
 	}
 
 	return validityWitness, err

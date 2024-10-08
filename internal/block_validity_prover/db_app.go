@@ -19,6 +19,9 @@ type SQLDriverApp interface {
 	BlockContents
 	EventBlockNumbersForValidityProver
 	Deposits
+	Senders
+	Accounts
+	BlockContainedSenders
 }
 
 type GenericCommandsApp interface {
@@ -51,7 +54,27 @@ type Deposits interface {
 	// DepositByDepositID(depositID uint32) (*mDBApp.Deposit, error)
 	DepositByDepositHash(depositHash common.Hash) (*mDBApp.Deposit, error)
 	ScanDeposits() ([]*mDBApp.Deposit, error)
-	FetchLastDepositIndex() (uint32, error)
+	FetchNextDepositIndex() (uint32, error)
+}
+
+type Senders interface {
+	CreateSenders(address, publicKey string) (*mDBApp.Sender, error)
+	SenderByID(id string) (*mDBApp.Sender, error)
+	SenderByAddress(address string) (*mDBApp.Sender, error)
+}
+
+type Accounts interface {
+	CreateAccount(senderID string) (*mDBApp.Account, error)
+	AccountBySenderID(senderID string) (*mDBApp.Account, error)
+	AccountBySender(publicKey *intMaxAcc.PublicKey) (*mDBApp.Account, error)
+	AccountByAccountID(accountID *uint256.Int) (*mDBApp.Account, error)
+}
+
+type BlockContainedSenders interface {
+	CreateBlockParticipant(
+		blockNumber uint32,
+		senderId string,
+	) (*mDBApp.BlockContainedSender, error)
 }
 
 type BlockBuilderStorage interface {

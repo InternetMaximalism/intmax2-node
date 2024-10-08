@@ -1312,8 +1312,11 @@ func (w *BlockWitness) MainValidationPublicInputs() (*MainValidationPublicInputs
 			fmt.Printf("prevAccountTreeRoot: %s\n", prevAccountTreeRoot.String())
 			invalidReason = fmt.Sprintf("account exclusion value is invalid: %s", invalidAccountExclusionValueReason)
 		}
+
+		fmt.Printf("accountExclusionValue.IsValid: %v\n", accountExclusionValue.IsValid)
 		result = result && accountExclusionValue.IsValid
 	} else {
+
 		if result && !isPublicKeyEq {
 			invalidReason = "public key is invalid"
 		}

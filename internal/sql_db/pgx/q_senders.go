@@ -4,6 +4,7 @@ import (
 	errPgx "intmax2-node/internal/sql_db/pgx/errors"
 	"intmax2-node/internal/sql_db/pgx/models"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
+	"strings"
 	"time"
 )
 
@@ -16,13 +17,16 @@ func (p *pgx) CreateSenders(
               VALUES ($1 ,$2 ,$3) `
 	)
 
-	_, err := p.exec(p.ctx, q, address, publicKey, time.Now().UTC())
+	addressWithoutPrefix := strings.TrimPrefix(address, "0x")
+	publicKeyWithoutPrefix := strings.TrimPrefix(publicKey, "0x")
+
+	_, err := p.exec(p.ctx, q, addressWithoutPrefix, publicKeyWithoutPrefix, time.Now().UTC())
 	if err != nil {
 		return nil, errPgx.Err(err)
 	}
 
 	var senderDBApp *mDBApp.Sender
-	senderDBApp, err = p.SenderByAddress(address)
+	senderDBApp, err = p.SenderByAddress(addressWithoutPrefix)
 	if err != nil {
 		return nil, err
 	}

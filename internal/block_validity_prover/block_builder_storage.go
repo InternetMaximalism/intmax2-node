@@ -512,6 +512,7 @@ func (db *mockBlockBuilder) blockWitnessByBlockNumber(blockNumber uint32) (*Bloc
 }
 
 func (db *mockBlockBuilder) ValidityWitnessByBlockNumber(blockNumber uint32) (*ValidityWitness, error) {
+	fmt.Printf("--------------------- ValidityWitnessByBlockNumber (blockNumber: %d) ---------------\n", blockNumber)
 	if blockNumber == 0 {
 		genesisValidityWitness := new(ValidityWitness).Genesis()
 		return genesisValidityWitness, nil
@@ -530,6 +531,7 @@ func (db *mockBlockBuilder) ValidityWitnessByBlockNumber(blockNumber uint32) (*V
 }
 
 func (db *mockBlockBuilder) UpdateValidityWitnessByBlockNumber(blockNumber uint32) (*ValidityWitness, error) {
+	fmt.Printf("--------------------- UpdateValidityWitnessByBlockNumber (blockNumber: %d) ---------------\n", blockNumber)
 	if blockNumber == 0 {
 		genesisValidityWitness := new(ValidityWitness).Genesis()
 		return genesisValidityWitness, nil
@@ -945,7 +947,10 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTree(
 		BlockNumber:   postedBlock.BlockNumber + 1,
 	}
 
-	merkleTreeHistory := db.MerkleTreeHistory.MerkleTrees[postedBlock.BlockNumber+1]
+	merkleTreeHistory, ok := db.MerkleTreeHistory.MerkleTrees[postedBlock.BlockNumber+1]
+	if !ok {
+		return nil, nil, errors.New("merkle tree history not found in GenerateBlockWithTxTree")
+	}
 	prevAccountTreeRoot := merkleTreeHistory.AccountTree.GetRoot()
 	prevBlockHashTreeRoot := merkleTreeHistory.BlockHashTree.GetRoot()
 	blockWitness := &BlockWitness{
@@ -1028,6 +1033,7 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTreeFromBlockContent(
 	postedBlock *block_post_service.PostedBlock,
 ) (*BlockWitness, error) {
 	prevBlockNumber := postedBlock.BlockNumber - 1
+	fmt.Printf("-----------GenerateBlockWithTxTreeFromBlockContent %d------------------\n", prevBlockNumber)
 
 	if len(blockContent.Senders) > numOfSenders {
 		// panic("too many txs")
