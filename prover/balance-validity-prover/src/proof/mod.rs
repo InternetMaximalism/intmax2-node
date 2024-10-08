@@ -39,8 +39,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::app::{
     config,
-    encode::{decode_plonky2_proof, encode_plonky2_proof}, interface::SpentTokenWitness,
+    encode::{decode_plonky2_proof, encode_plonky2_proof},
+    interface::SpentTokenWitness,
 };
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RedisResponse {
+    pub success: bool,
+    pub message: String,
+}
 
 const D: usize = 2;
 type C = PoseidonGoldilocksConfig;
@@ -101,6 +108,62 @@ pub async fn generate_receive_deposit_proof_job(
     balance_processor: &BalanceProcessor<F, C, D>,
     conn: &mut redis::aio::Connection,
 ) -> anyhow::Result<()> {
+    let result = generate_receive_deposit_proof(
+        public_key,
+        prev_balance_proof,
+        receive_deposit_witness,
+        balance_processor,
+    );
+
+    match result {
+        Ok(encoded_compressed_validity_proof) => {
+            let result = RedisResponse {
+                success: true,
+                message: encoded_compressed_validity_proof,
+            };
+            let result_json = serde_json::to_string(&result)
+                .expect("Failed to serialize success response to JSON");
+            let opts = SetOptions::default()
+                .conditional_set(ExistenceCheck::NX)
+                .get(true)
+                .with_expiration(SetExpiry::EX(config::get("proof_expiration")));
+
+            let _ = redis::Cmd::set_options(&full_request_id, result_json, opts)
+                .query_async::<_, Option<String>>(conn)
+                .await
+                .with_context(|| "Failed to set proof")?;
+
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("Failed to generate proof: {:?}", e);
+            let result = RedisResponse {
+                success: false,
+                message: format!("Failed to generate proof: {:?}", e),
+            };
+            let result_json = serde_json::to_string(&result)
+                .expect("Failed to serialize failure response to JSON");
+            let opts = SetOptions::default()
+                .conditional_set(ExistenceCheck::NX)
+                .get(true)
+                .with_expiration(SetExpiry::EX(config::get("proof_expiration")));
+
+            let _ = redis::Cmd::set_options(&full_request_id, result_json, opts)
+                .query_async::<_, Option<String>>(conn)
+                .await
+                .with_context(|| "Failed to set proof")?;
+
+            Err(e)
+        }
+    }
+}
+
+pub fn generate_receive_deposit_proof(
+    public_key: U256,
+    prev_balance_proof: Option<ProofWithPublicInputs<F, C, D>>,
+    receive_deposit_witness: &ReceiveDepositWitness,
+    balance_processor: &BalanceProcessor<F, C, D>,
+) -> anyhow::Result<String> {
     let balance_circuit_data = balance_processor.balance_circuit.data.verifier_data();
 
     if let Some(prev_balance_proof) = &prev_balance_proof {
@@ -143,25 +206,11 @@ pub async fn generate_receive_deposit_proof_job(
     let encoded_compressed_balance_proof =
         encode_plonky2_proof(balance_proof.clone(), &balance_circuit_data)?;
 
-    let opts = SetOptions::default()
-        .conditional_set(ExistenceCheck::NX)
-        .get(true)
-        .with_expiration(SetExpiry::EX(config::get("proof_expiration")));
-
-    let _ = redis::Cmd::set_options(
-        &full_request_id,
-        encoded_compressed_balance_proof.clone(),
-        opts,
-    )
-    .query_async::<_, Option<String>>(conn)
-    .await
-    .with_context(|| "Failed to set proof")?;
-
-    Ok(())
+    Ok(encoded_compressed_balance_proof)
 }
 
 pub async fn generate_balance_update_proof_job(
-    request_id: String,
+    full_request_id: String,
     public_key: U256,
     prev_balance_proof: Option<ProofWithPublicInputs<F, C, D>>,
     balance_update_witness: &UpdateWitness<F, C, D>,
@@ -169,6 +218,64 @@ pub async fn generate_balance_update_proof_job(
     validity_circuit: &ValidityCircuit<F, C, D>,
     conn: &mut redis::aio::Connection,
 ) -> anyhow::Result<()> {
+    let result = generate_balance_update_proof(
+        public_key,
+        prev_balance_proof,
+        balance_update_witness,
+        balance_processor,
+        validity_circuit,
+    );
+
+    match result {
+        Ok(encoded_compressed_validity_proof) => {
+            let response = RedisResponse {
+                success: true,
+                message: encoded_compressed_validity_proof,
+            };
+            let response_json = serde_json::to_string(&response)
+                .expect("Failed to serialize success response to JSON");
+            let opts = SetOptions::default()
+                .conditional_set(ExistenceCheck::NX)
+                .get(true)
+                .with_expiration(SetExpiry::EX(config::get("proof_expiration")));
+
+            let _ = redis::Cmd::set_options(&full_request_id, response_json, opts)
+                .query_async::<_, Option<String>>(conn)
+                .await
+                .with_context(|| "Failed to set proof")?;
+
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("Failed to generate proof: {:?}", e);
+            let response = RedisResponse {
+                success: false,
+                message: format!("Failed to generate proof: {:?}", e),
+            };
+            let response_json = serde_json::to_string(&response)
+                .expect("Failed to serialize failure response to JSON");
+            let opts = SetOptions::default()
+                .conditional_set(ExistenceCheck::NX)
+                .get(true)
+                .with_expiration(SetExpiry::EX(config::get("proof_expiration")));
+
+            let _ = redis::Cmd::set_options(&full_request_id, response_json, opts)
+                .query_async::<_, Option<String>>(conn)
+                .await
+                .with_context(|| "Failed to set proof")?;
+
+            Err(e)
+        }
+    }
+}
+
+pub fn generate_balance_update_proof(
+    public_key: U256,
+    prev_balance_proof: Option<ProofWithPublicInputs<F, C, D>>,
+    balance_update_witness: &UpdateWitness<F, C, D>,
+    balance_processor: &BalanceProcessor<F, C, D>,
+    validity_circuit: &ValidityCircuit<F, C, D>,
+) -> anyhow::Result<String> {
     let balance_circuit_data = balance_processor.balance_circuit.data.verifier_data();
     // let validity_circuit_data = validity_circuit_data.verifier_data();
 
@@ -183,27 +290,73 @@ pub async fn generate_balance_update_proof_job(
     let encoded_compressed_balance_proof =
         encode_plonky2_proof(balance_proof.clone(), &balance_circuit_data)?;
 
-    let opts = SetOptions::default()
-        .conditional_set(ExistenceCheck::NX)
-        .get(true)
-        .with_expiration(SetExpiry::EX(config::get("proof_expiration")));
-
-    let _ = redis::Cmd::set_options(&request_id, encoded_compressed_balance_proof.clone(), opts)
-        .query_async::<_, Option<String>>(conn)
-        .await
-        .with_context(|| "Failed to set proof")?;
-
-    Ok(())
+    Ok(encoded_compressed_balance_proof)
 }
 
 pub async fn generate_balance_transfer_proof_job(
-    request_id: String,
+    full_request_id: String,
     public_key: U256,
     prev_balance_proof: Option<ProofWithPublicInputs<F, C, D>>,
     receive_transfer_witness: &ReceiveTransferWitness<F, C, D>,
     balance_processor: &BalanceProcessor<F, C, D>,
     conn: &mut redis::aio::Connection,
 ) -> anyhow::Result<()> {
+    let response = generate_balance_transfer_proof(
+        public_key,
+        prev_balance_proof,
+        receive_transfer_witness,
+        balance_processor,
+    );
+
+    match response {
+        Ok(encoded_compressed_balance_proof) => {
+            let response = RedisResponse {
+                success: true,
+                message: encoded_compressed_balance_proof,
+            };
+            let response_json = serde_json::to_string(&response)
+                .expect("Failed to serialize success response to JSON");
+            let opts = SetOptions::default()
+                .conditional_set(ExistenceCheck::NX)
+                .get(true)
+                .with_expiration(SetExpiry::EX(config::get("proof_expiration")));
+
+            let _ = redis::Cmd::set_options(&full_request_id, response_json, opts)
+                .query_async::<_, Option<String>>(conn)
+                .await
+                .with_context(|| "Failed to set proof")?;
+
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("Failed to generate proof: {:?}", e);
+            let response = RedisResponse {
+                success: false,
+                message: format!("Failed to generate proof: {:?}", e),
+            };
+            let response_json = serde_json::to_string(&response)
+                .expect("Failed to serialize failure response to JSON");
+            let opts = SetOptions::default()
+                .conditional_set(ExistenceCheck::NX)
+                .get(true)
+                .with_expiration(SetExpiry::EX(config::get("proof_expiration")));
+
+            let _ = redis::Cmd::set_options(&full_request_id, response_json, opts)
+                .query_async::<_, Option<String>>(conn)
+                .await
+                .with_context(|| "Failed to set proof")?;
+
+            Err(e)
+        }
+    }
+}
+
+pub fn generate_balance_transfer_proof(
+    public_key: U256,
+    prev_balance_proof: Option<ProofWithPublicInputs<F, C, D>>,
+    receive_transfer_witness: &ReceiveTransferWitness<F, C, D>,
+    balance_processor: &BalanceProcessor<F, C, D>,
+) -> anyhow::Result<String> {
     let balance_circuit_data = balance_processor.balance_circuit.data.verifier_data();
     // let validity_circuit_data = validity_circuit_data.verifier_data();
 
@@ -217,17 +370,7 @@ pub async fn generate_balance_transfer_proof_job(
     let encoded_compressed_balance_proof =
         encode_plonky2_proof(balance_proof.clone(), &balance_circuit_data)?;
 
-    let opts = SetOptions::default()
-        .conditional_set(ExistenceCheck::NX)
-        .get(true)
-        .with_expiration(SetExpiry::EX(config::get("proof_expiration")));
-
-    let _ = redis::Cmd::set_options(&request_id, encoded_compressed_balance_proof.clone(), opts)
-        .query_async::<_, Option<String>>(conn)
-        .await
-        .with_context(|| "Failed to set proof")?;
-
-    Ok(())
+    Ok(encoded_compressed_balance_proof)
 }
 
 pub async fn generate_balance_send_proof_job(
@@ -240,6 +383,66 @@ pub async fn generate_balance_send_proof_job(
     validity_circuit: &ValidityCircuit<F, C, D>,
     conn: &mut redis::aio::Connection,
 ) -> anyhow::Result<()> {
+    let response = generate_balance_send_proof(
+        public_key,
+        prev_balance_proof,
+        send_witness,
+        balance_update_witness,
+        balance_processor,
+        validity_circuit,
+    );
+
+    match response {
+        Ok(encoded_compressed_balance_proof) => {
+            let response = RedisResponse {
+                success: true,
+                message: encoded_compressed_balance_proof,
+            };
+            let response_json = serde_json::to_string(&response)
+                .expect("Failed to serialize success response to JSON");
+            let opts = SetOptions::default()
+                .conditional_set(ExistenceCheck::NX)
+                .get(true)
+                .with_expiration(SetExpiry::EX(config::get("proof_expiration")));
+
+            let _ = redis::Cmd::set_options(&full_request_id, response_json, opts)
+                .query_async::<_, Option<String>>(conn)
+                .await
+                .with_context(|| "Failed to set proof")?;
+
+            Ok(())
+        }
+        Err(e) => {
+            log::error!("Failed to generate proof: {:?}", e);
+            let response = RedisResponse {
+                success: false,
+                message: format!("Failed to generate proof: {:?}", e),
+            };
+            let response_json = serde_json::to_string(&response)
+                .expect("Failed to serialize failure response to JSON");
+            let opts = SetOptions::default()
+                .conditional_set(ExistenceCheck::NX)
+                .get(true)
+                .with_expiration(SetExpiry::EX(config::get("proof_expiration")));
+
+            let _ = redis::Cmd::set_options(&full_request_id, response_json, opts)
+                .query_async::<_, Option<String>>(conn)
+                .await
+                .with_context(|| "Failed to set proof")?;
+
+            Err(e)
+        }
+    }
+}
+
+pub fn generate_balance_send_proof(
+    public_key: U256,
+    prev_balance_proof: Option<ProofWithPublicInputs<F, C, D>>,
+    send_witness: &SendWitness,
+    balance_update_witness: &UpdateWitness<F, C, D>,
+    balance_processor: &BalanceProcessor<F, C, D>,
+    validity_circuit: &ValidityCircuit<F, C, D>,
+) -> anyhow::Result<String> {
     let balance_circuit_data = balance_processor.balance_circuit.data.verifier_data();
     // let validity_circuit_data = validity_circuit_data.verifier_data();
 
@@ -278,24 +481,10 @@ pub async fn generate_balance_send_proof_job(
         encode_plonky2_proof(balance_proof, &balance_circuit_data)
             .map_err(|e| anyhow::anyhow!("Failed to encode balance proof: {:?}", e))?;
 
-    let opts = SetOptions::default()
-        .conditional_set(ExistenceCheck::NX)
-        .get(true)
-        .with_expiration(SetExpiry::EX(config::get("proof_expiration")));
-
-    let _ = redis::Cmd::set_options(
-        &full_request_id,
-        encoded_compressed_balance_proof.clone(),
-        opts,
-    )
-    .query_async::<_, Option<String>>(conn)
-    .await
-    .with_context(|| "Failed to set proof")?;
-
-    Ok(())
+    Ok(encoded_compressed_balance_proof)
 }
 
-pub fn generate_balance_spend_proof_job(
+pub fn generate_balance_spend_proof(
     spent_token_witness: &SpentTokenWitness,
     balance_processor: &BalanceProcessor<F, C, D>,
 ) -> anyhow::Result<String> {
@@ -321,28 +510,6 @@ pub fn generate_balance_spend_proof_job(
             .map_err(|e| anyhow::anyhow!("Failed to encode balance proof: {:?}", e))?;
 
     Ok(encoded_compressed_spent_proof)
-}
-
-pub fn generate_balance_single_send_proof_job(
-    send_witness: &SendWitness,
-    update_witness: &UpdateWitness<F, C, D>,
-    balance_processor: &BalanceProcessor<F, C, D>,
-    validity_circuit: &ValidityCircuit<F, C, D>,
-) -> anyhow::Result<String> {
-    let sender_processor = &balance_processor
-        .balance_transition_processor
-        .sender_processor;
-
-    log::debug!("Proving...");
-    let send_proof = sender_processor.prove(&validity_circuit, &send_witness, &update_witness);
-
-    let encoded_compressed_send_proof = encode_plonky2_proof(
-        send_proof,
-        &sender_processor.sender_circuit.data.verifier_data(),
-    )
-    .map_err(|e| anyhow::anyhow!("Failed to encode balance proof: {:?}", e))?;
-
-    Ok(encoded_compressed_send_proof)
 }
 
 pub fn validate_witness(

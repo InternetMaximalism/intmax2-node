@@ -17,7 +17,7 @@ pub struct ErrorResponse {
     pub message: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ProofRequest {
     #[serde(rename = "blockHash")]
     pub block_hash: String,
@@ -38,6 +38,7 @@ pub struct BlockHashQuery {
 #[derive(Debug, Serialize)]
 pub struct ProofResponse {
     pub success: bool,
+    pub request_id: String,
     pub proof: Option<String>,
     #[serde(rename = "errorMessage")]
     pub error_message: Option<String>,

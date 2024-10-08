@@ -1,12 +1,11 @@
 use crate::{
     app::{
         interface::{
-            ErrorResponse, ProofResponse, ProofSpendRequest, ProofSpendValue, ProofsSpentResponse,
-            SpentIdQuery,
+            ProofResponse, ProofSpendRequest, ProofSpendValue, ProofsSpentResponse, SpentIdQuery,
         },
         state::AppState,
     },
-    proof::generate_balance_spend_proof_job,
+    proof::{generate_balance_spend_proof, RedisResponse},
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
 use intmax2_zkp::constants::NUM_TRANSFERS_IN_TX;
@@ -22,32 +21,47 @@ async fn get_proof(
         .map_err(actix_web::error::ErrorInternalServerError)?;
 
     let request_id = &*query_params;
-    let proof = redis::Cmd::get(&spent_token_proof_request_id(request_id))
+    let proof_json = redis::Cmd::get(&spent_token_proof_request_id(request_id))
         .query_async::<_, Option<String>>(&mut conn)
         .await
         .map_err(error::ErrorInternalServerError)?;
 
-    if proof.is_none() {
-        let response = ProofResponse {
-            success: false,
-            request_id: request_id.clone(),
-            proof: None,
-            error_message: Some(format!(
-                "balance proof is not generated (request ID: {request_id})",
-            )),
-        };
+    match proof_json {
+        Some(proof_json) => {
+            let proof: RedisResponse =
+                serde_json::from_str(&proof_json).map_err(error::ErrorInternalServerError)?;
 
-        return Ok(HttpResponse::Ok().json(response));
+            if proof.success {
+                let response = ProofResponse {
+                    success: true,
+                    request_id: request_id.clone(),
+                    proof: Some(proof.message),
+                    error_message: None,
+                };
+
+                Ok(HttpResponse::Ok().json(response))
+            } else {
+                let response = ProofResponse {
+                    success: false,
+                    request_id: request_id.clone(),
+                    proof: None,
+                    error_message: Some(proof.message),
+                };
+
+                Ok(HttpResponse::Ok().json(response))
+            }
+        }
+        None => {
+            let response = ProofResponse {
+                success: false,
+                request_id: request_id.clone(),
+                proof: None,
+                error_message: Some("balance proof is not generated".to_string()),
+            };
+
+            Ok(HttpResponse::Ok().json(response))
+        }
     }
-
-    let response = ProofResponse {
-        success: true,
-        request_id: request_id.clone(),
-        proof,
-        error_message: None,
-    };
-
-    Ok(HttpResponse::Ok().json(response))
 }
 
 #[get("/proofs/spend")]
@@ -73,10 +87,29 @@ async fn get_proofs(
 
     let mut proofs: Vec<ProofSpendValue> = Vec::new();
     for request_id in &request_ids {
-        let some_proof = redis::Cmd::get(&spent_token_proof_request_id(request_id))
+        let proof_json = redis::Cmd::get(&spent_token_proof_request_id(request_id))
             .query_async::<_, Option<String>>(&mut conn)
             .await
             .map_err(actix_web::error::ErrorInternalServerError)?;
+        let some_proof = match proof_json {
+            Some(proof_json) => {
+                let proof: RedisResponse =
+                    serde_json::from_str(&proof_json).map_err(error::ErrorInternalServerError)?;
+
+                if proof.success {
+                    Some(proof.message)
+                } else {
+                    let response = ProofsSpentResponse {
+                        success: false,
+                        proofs,
+                        error_message: Some(proof.message),
+                    };
+
+                    return Ok(HttpResponse::Ok().json(response));
+                }
+            }
+            None => None,
+        };
         if let Some(proof) = some_proof {
             proofs.push(ProofSpendValue {
                 request_id: (*request_id).to_string(),
@@ -147,7 +180,9 @@ async fn generate_proof(
             "Invalid number of asset_merkle_proofs: {}",
             spent_token_witness.asset_merkle_proofs.len()
         );
-        return Err(error::ErrorBadRequest("Invalid number of asset_merkle_proofs"));
+        return Err(error::ErrorBadRequest(
+            "Invalid number of asset_merkle_proofs",
+        ));
     }
 
     // let validity_pis =
@@ -156,7 +191,7 @@ async fn generate_proof(
     //     return Err(error::ErrorBadRequest("validity proof pis mismatch"));
     // }
 
-    let response = generate_balance_spend_proof_job(
+    let response = generate_balance_spend_proof(
         &spent_token_witness,
         state
             .balance_processor
@@ -224,10 +259,11 @@ async fn generate_proof(
         }
         Err(e) => {
             log::error!("Failed to generate proof: {:?}", e);
-            let response = ErrorResponse {
+            let response = ProofResponse {
                 success: false,
-                code: 500,
-                message: format!("Failed to generate proof: {e:?}"),
+                request_id: request_id.to_string(),
+                proof: None,
+                error_message: Some(format!("Failed to generate proof: {e:?}")),
             };
 
             Ok(HttpResponse::Ok().json(response))

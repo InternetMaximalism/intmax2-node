@@ -6,7 +6,7 @@ use crate::{
         },
         state::AppState,
     },
-    proof::generate_balance_send_proof_job,
+    proof::{generate_balance_send_proof_job, RedisResponse},
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
 use intmax2_zkp::{
@@ -27,7 +27,7 @@ async fn get_proof(
 
     let public_key = U256::from_hex(&query_params.0).expect("failed to parse public key");
     let request_id = &query_params.1;
-    let proof = redis::Cmd::get(&get_balance_send_request_id(
+    let proof_json = redis::Cmd::get(&get_balance_send_request_id(
         &public_key.to_hex(),
         request_id,
     ))
@@ -35,27 +35,42 @@ async fn get_proof(
     .await
     .map_err(error::ErrorInternalServerError)?;
 
-    if proof.is_none() {
-        let response = ProofResponse {
-            success: false,
-            request_id: request_id.clone(),
-            proof: None,
-            error_message: Some(format!(
-                "balance proof is not generated (request ID: {request_id})",
-            )),
-        };
+    match proof_json {
+        Some(proof_json) => {
+            let proof: RedisResponse =
+                serde_json::from_str(&proof_json).map_err(error::ErrorInternalServerError)?;
 
-        return Ok(HttpResponse::Ok().json(response));
+            if proof.success {
+                let response = ProofResponse {
+                    success: true,
+                    request_id: request_id.clone(),
+                    proof: Some(proof.message),
+                    error_message: None,
+                };
+
+                Ok(HttpResponse::Ok().json(response))
+            } else {
+                let response = ProofResponse {
+                    success: false,
+                    request_id: request_id.clone(),
+                    proof: None,
+                    error_message: Some(proof.message),
+                };
+
+                Ok(HttpResponse::Ok().json(response))
+            }
+        }
+        None => {
+            let response = ProofResponse {
+                success: false,
+                request_id: request_id.clone(),
+                proof: None,
+                error_message: Some("balance proof is not generated".to_string()),
+            };
+
+            Ok(HttpResponse::Ok().json(response))
+        }
     }
-
-    let response = ProofResponse {
-        success: true,
-        request_id: request_id.clone(),
-        proof,
-        error_message: None,
-    };
-
-    Ok(HttpResponse::Ok().json(response))
 }
 
 #[get("/proofs/{public_key}/send")]
@@ -84,13 +99,32 @@ async fn get_proofs(
 
     let mut proofs: Vec<ProofSendValue> = Vec::new();
     for request_id in &request_ids {
-        let some_proof = redis::Cmd::get(&get_balance_send_request_id(
+        let proof_json = redis::Cmd::get(&get_balance_send_request_id(
             &public_key.to_hex(),
             request_id,
         ))
         .query_async::<_, Option<String>>(&mut conn)
         .await
         .map_err(actix_web::error::ErrorInternalServerError)?;
+        let some_proof = match proof_json {
+            Some(proof_json) => {
+                let proof: RedisResponse =
+                    serde_json::from_str(&proof_json).map_err(error::ErrorInternalServerError)?;
+
+                if proof.success {
+                    Some(proof.message)
+                } else {
+                    let response = ProofsSendResponse {
+                        success: false,
+                        proofs,
+                        error_message: Some(proof.message),
+                    };
+
+                    return Ok(HttpResponse::Ok().json(response));
+                }
+            }
+            None => None,
+        };
         if let Some(proof) = some_proof {
             proofs.push(ProofSendValue {
                 request_id: (*request_id).to_string(),
@@ -202,7 +236,9 @@ async fn generate_proof(
             "Invalid number of asset_merkle_proofs: {}",
             send_witness.asset_merkle_proofs.len()
         );
-        return Err(error::ErrorBadRequest("Invalid number of asset_merkle_proofs"));
+        return Err(error::ErrorBadRequest(
+            "Invalid number of asset_merkle_proofs",
+        ));
     }
 
     let response = ProofResponse {
