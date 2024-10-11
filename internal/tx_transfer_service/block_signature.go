@@ -229,7 +229,7 @@ func postBlockSignatureRawRequest(
 	if err != nil {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
-	fmt.Printf("bd: %s\n", string(bd))
+	// fmt.Printf("bd: %s\n", string(bd))
 
 	const (
 		contentType = "Content-Type"

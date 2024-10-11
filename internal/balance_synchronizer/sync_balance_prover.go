@@ -14,7 +14,6 @@ import (
 	intMaxTypes "intmax2-node/internal/types"
 
 	"sort"
-	"time"
 )
 
 type SyncBalanceProver struct {
@@ -270,6 +269,12 @@ func (s *SyncBalanceProver) SyncSend(
 		if err != nil {
 			return errors.New("send witness not found")
 		}
+		fmt.Printf("sendWitness: %d\n", len(sendWitness.SpentTokenWitness.Transfers))
+		for _, transfer := range sendWitness.SpentTokenWitness.Transfers {
+			fmt.Printf("(sendWitness) transfer: %+v\n", transfer)
+			fmt.Printf("(sendWitness) transfer amount: %s\n", transfer.Amount)
+		}
+
 		// sentBlockNumber := sendWitness.GetIncludedBlockNumber()
 		prevBalancePisBlockNumber := sendWitness.GetPrevBalancePisBlockNumber()
 		fmt.Printf("FetchUpdateWitness blockNumber: %d\n", blockNumber)
@@ -301,6 +306,12 @@ func (s *SyncBalanceProver) SyncSend(
 			fmt.Printf("send witness account tree root: %v\n", sendWitnessValidityPis.PublicState.PrevAccountTreeRoot)
 			fmt.Printf("send witness account tree root: %v\n", sendWitnessValidityPis.PublicState.AccountTreeRoot)
 			return errors.New("update witness validity proof is not equal to send witness validity proof")
+		}
+
+		if updateWitnessValidityPis.IsValidBlock {
+			fmt.Printf("Block %d is valid", updateWitnessValidityPis.PublicState.BlockNumber)
+		} else {
+			fmt.Printf("Block %d is invalid", updateWitnessValidityPis.PublicState.BlockNumber)
 		}
 
 		// TODO: ValidateTxInclusionValue
@@ -349,6 +360,35 @@ func (s *SyncBalanceProver) SyncSend(
 	return nil
 }
 
+// This function returns an error if there is at least one transaction included in a block
+// between the last synchronized block number and the block number you want to synchronize to,
+// where the transaction was sent by you.
+func ShouldSyncNoSend(
+	lastUpdatedBlockNumber uint32,
+	blockNumber uint32,
+	allBlockNumbers []uint32,
+) error {
+	if lastUpdatedBlockNumber == 0 {
+		return nil
+	}
+
+	for _, targetBlockNumber := range allBlockNumbers {
+		if targetBlockNumber > blockNumber {
+			break
+		}
+
+		if lastUpdatedBlockNumber < targetBlockNumber {
+			return fmt.Errorf("block number is less than last updated block number: %d", targetBlockNumber)
+		}
+	}
+
+	if blockNumber <= lastUpdatedBlockNumber {
+		return fmt.Errorf("block number is less than or equal to last updated block number: %d", blockNumber)
+	}
+
+	return nil
+}
+
 // SyncNoSend synchronizes the balance prover state without sending any transactions.
 // It verifies that the balance prover's last updated block number is consistent with the wallet's block numbers
 // and updates the balance prover state if necessary.
@@ -363,28 +403,46 @@ func (s *SyncBalanceProver) SyncNoSend(
 	fmt.Printf("-----SyncNoSend %s------\n", wallet.PublicKey())
 
 	lastUpdatedBlockNumber := s.LastUpdatedBlockNumber()
-	// if lastUpdatedBlockNumber == 0 {
-	// 	return errors.New("last updated block number is 0")
-	// }
-
 	allBlockNumbers := wallet.GetAllBlockNumbers()
 	fmt.Printf("s.LastUpdatedBlockNumber after GetAllBlockNumbers: %d\n", lastUpdatedBlockNumber)
-	for _, targetBlockNumber := range allBlockNumbers {
-		if lastUpdatedBlockNumber < targetBlockNumber {
-			return errors.New("sync send tx first")
-		}
+	err := ShouldSyncNoSend(lastUpdatedBlockNumber, blockNumber, allBlockNumbers)
+	if err != nil {
+		return err
 	}
 
-	if blockNumber <= lastUpdatedBlockNumber {
-		// var ErrBlockNumberLessThanLastUpdatedBlockNumber = errors.New("block number is less than or equal to last updated block number")
-		// return ErrBlockNumberLessThanLastUpdatedBlockNumber
+	var prevBalancePis *balance_prover_service.BalancePublicInputs
+	lastBalanceProof := s.LastBalanceProof()
+	if lastBalanceProof != nil {
+		fmt.Println("s.LastBalanceProof != nil")
+		var lastBalanceProofWithPis *intMaxTypes.Plonky2Proof
+		lastBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*lastBalanceProof)
+		if err != nil {
+			return err
+		}
+		prevBalancePis, err = new(balance_prover_service.BalancePublicInputs).FromPublicInputs(lastBalanceProofWithPis.PublicInputs)
+		if err != nil {
+			return err
+		}
+	} else {
+		fmt.Println("NewBalancePublicInputsWithPublicKey")
+		prevBalancePis = balance_prover_service.NewBalancePublicInputsWithPublicKey(wallet.PublicKey())
+	}
+
+	prevPublicState := prevBalancePis.PublicState
+	fmt.Printf("blockNumber (FetchUpdateWitness): %d\n", blockNumber)
+	fmt.Printf("prevBalancePis.PublicState.BlockNumber (FetchUpdateWitness): %d\n", prevPublicState.BlockNumber)
+	fmt.Printf("lastUpdatedBlockNumber (FetchUpdateWitness): %d\n", lastUpdatedBlockNumber)
+	if prevPublicState.BlockNumber != lastUpdatedBlockNumber {
+		panic("broken balance data")
+	}
+	if blockNumber == prevPublicState.BlockNumber {
+		fmt.Printf("no need to update balance proof: %d\n", blockNumber)
 		return nil
 	}
-
 	updateWitness, err := blockValidityService.FetchUpdateWitness(
 		wallet.PublicKey(),
 		&blockNumber,
-		lastUpdatedBlockNumber,
+		prevPublicState.BlockNumber,
 		false,
 	)
 	if err != nil {
@@ -398,23 +456,6 @@ func (s *SyncBalanceProver) SyncNoSend(
 	validityPis := new(block_validity_prover.ValidityPublicInputs).FromPublicInputs(validityProofWithPis.PublicInputs)
 	currentBlockNumber := validityPis.PublicState.BlockNumber
 
-	var prevBalancePis *balance_prover_service.BalancePublicInputs
-	if s.LastBalanceProof() != nil {
-		fmt.Println("s.LastBalanceProof != nil")
-		var lastBalanceProofWithPis *intMaxTypes.Plonky2Proof
-		lastBalanceProofWithPis, err = intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*s.LastBalanceProof())
-		if err != nil {
-			return err
-		}
-		prevBalancePis, err = new(balance_prover_service.BalancePublicInputs).FromPublicInputs(lastBalanceProofWithPis.PublicInputs)
-		if err != nil {
-			return err
-		}
-	} else {
-		fmt.Println("NewBalancePublicInputsWithPublicKey")
-		prevBalancePis = balance_prover_service.NewBalancePublicInputsWithPublicKey(wallet.PublicKey())
-	}
-
 	// DEBUG
 	// prevBalancePisJSON, err := json.Marshal(prevBalancePis)
 	// if err != nil {
@@ -423,12 +464,27 @@ func (s *SyncBalanceProver) SyncNoSend(
 	// fmt.Printf("prevBalancePisJSON: %s", prevBalancePisJSON)
 
 	lastSentTxBlockNumber := updateWitness.AccountMembershipProof.GetLeaf()
-	prevPublicState := prevBalancePis.PublicState
 	fmt.Printf("lastSentTxBlockNumber: %d\n", lastSentTxBlockNumber)
 	fmt.Printf("prevPublicState.BlockNumber: %d\n", prevPublicState.BlockNumber)
 	if lastSentTxBlockNumber > uint64(prevPublicState.BlockNumber) {
 		// This indicates that there are unsynchronized transitions that need to be processed in advance.
 		return errors.New("last block number is greater than prev public state block number")
+	}
+
+	// TODO: blockHashLeaf := blockHistory.BlockHashTree.Leaves[leafBlockNumber]
+	blockHashLeaf := tree.NewBlockHashLeaf(prevPublicState.BlockHash)
+	fmt.Printf("blockHash (SyncNoSend): %s\n", prevPublicState.BlockHash)
+	fmt.Printf("blockHashLeafHash (SyncNoSend): %s\n", blockHashLeaf.Hash())
+	fmt.Printf("prevPublicState.BlockNumber (SyncNoSend): %d\n", prevPublicState.BlockNumber)
+	fmt.Printf("leafBlockNumber (SyncNoSend): %d\n", lastUpdatedBlockNumber)
+	fmt.Printf("blockTreeRoot (SyncNoSend): %s\n", validityPis.PublicState.BlockTreeRoot.String())
+	err = updateWitness.BlockMerkleProof.Verify(
+		blockHashLeaf.Hash(), // leaf of the pre-updated block tree
+		int(lastUpdatedBlockNumber),
+		validityPis.PublicState.BlockTreeRoot,
+	)
+	if err != nil {
+		return fmt.Errorf("block merkle proof is invalid: %w", err)
 	}
 
 	balanceProof, err := balanceProcessor.ProveUpdate(
@@ -655,133 +711,30 @@ func SyncUserBalance(
 		ctx, cfg, log,
 	)
 	balanceSynchronizer := NewSynchronizer(ctx, cfg, log, sb, blockSynchronizer, blockValidityService, balanceProcessor, syncBalanceProver, userWalletState)
-	// err = balanceSynchronizer.Sync(userWalletState.PrivateKey())
-	// if err != nil {
-	// 	const msg = "failed to sync: %+v"
-	// 	log.Fatalf(msg, err.Error())
-	// }
 
-	// balanceTransitionData, err := balance_prover_service.NewBalanceTransitionData(ctx, cfg, log, userWalletState.PrivateKey())
-	// if err != nil {
-	// 	const msg = "failed to start Balance Prover Service: %+v"
-	// 	log.Fatalf(msg, err.Error())
-	// }
-	// fmt.Println("end NewBalanceTransitionData")
-	// sortedValidUserData, err := balanceTransitionData.SortValidUserData(log, blockValidityService)
-	// if err != nil {
-	// 	const msg = "failed to sort valid user data: %+v"
-	// 	log.Fatalf(msg, err.Error())
-	// }
-	// fmt.Printf("size of sortedValidUserData: %v\n", len(sortedValidUserData))
-	// for _, transition := range sortedValidUserData {
-	// 	fmt.Printf("transition block number: %d\n", transition.BlockNumber())
-	// }
-
-	// storedBalanceData, err := block_synchronizer.GetBackupBalance(ctx, cfg, userWalletState.PublicKey())
-	// if err != nil {
-	// 	const msg = "failed to start Balance Prover Service: %+v"
-	// 	log.Fatalf(msg, err.Error())
-	// }
-
-	// err = syncBalanceProver.SetEncryptedBalanceData(userWalletState, storedBalanceData)
-	// if err != nil {
-	// 	const msg = "failed to start Balance Prover Service: %+v"
-	// 	log.Fatalf(msg, err.Error())
-	// }
-
-	timeout := 5 * time.Second
-	ticker := time.NewTicker(timeout)
-	for {
-		select {
-		case <-ctx.Done():
-			ticker.Stop()
-			log.Warnf("Received cancel signal from context, stopping...")
-			return nil, errors.New("received cancel signal from context")
-		case <-ticker.C:
-			err = balanceSynchronizer.syncProcessing(userWalletState.PrivateKey())
-			if err != nil {
-				if errors.Is(err, ErrLatestSynchronizedBlockNumberLassOrEqualLastUpdatedBlockNumber) ||
-					errors.Is(err, ErrNoValidUserData) {
-					return balanceSynchronizer, nil
-				}
-
-				if errors.Is(err, block_validity_prover.ErrBlockUnSynchronization) {
-					continue
-				}
-
-				const msg = "failed to start sync processing: %+v"
-				log.Fatalf(msg, err.Error())
-			}
-
-			// var validityProverInfo *block_validity_prover.ValidityProverInfo
-			// validityProverInfo, err = blockValidityService.FetchValidityProverInfo()
-			// if err != nil {
-			// 	const msg = "failed to fetch validity prover info: %+v"
-			// 	panic(fmt.Sprintf(msg, err.Error()))
-			// }
-
-			// // When the sync is done, we should stop the loop.
-			// latestSynchronizedBlockNumber := validityProverInfo.BlockNumber
-			// log.Debugf("latestSynchronizedBlockNumber: %d\n", latestSynchronizedBlockNumber)
-			// log.Debugf("syncBalanceProver.LastUpdatedBlockNumber(): %d\n", syncBalanceProver.LastUpdatedBlockNumber())
-			// if latestSynchronizedBlockNumber == 0 {
-			// 	log.Debugf("latestSynchronizedBlockNumber is 0\n")
-			// 	continue
-			// }
-
-			// if latestSynchronizedBlockNumber <= syncBalanceProver.LastUpdatedBlockNumber() && syncBalanceProver.LastUpdatedBlockNumber() != 0 {
-			// 	return balanceSynchronizer, nil
-			// }
-
-			// if len(sortedValidUserData) == 0 {
-			// 	return balanceSynchronizer, nil
-			// }
-
-			// for _, transition := range sortedValidUserData {
-			// 	log.Debugf("valid transition: %v\n", transition)
-
-			// 	switch transition := transition.(type) {
-			// 	case balance_prover_service.ValidSentTx:
-			// 		err = balanceSynchronizer.validSentTx(&transition)
-			// 		if err != nil {
-			// 			const msg = "failed to send transaction: %+v"
-			// 			log.Warnf(msg, err.Error())
-			// 			continue
-			// 		}
-			// 	case balance_prover_service.ValidReceivedDeposit:
-			// 		err = balanceSynchronizer.validReceivedDeposit(&transition)
-			// 		if err != nil {
-			// 			if errors.Is(err, block_validity_prover.ErrNoValidityProofByBlockNumber) ||
-			// 				errors.Is(err, ErrApplyReceivedDepositTransitionFail) || errors.Is(err, ErrNullifierAlreadyExists) {
-			// 				const msg = "failed to receive deposit: %+v"
-			// 				log.Warnf(msg, err.Error())
-			// 				continue
-			// 			} else if errors.Is(err, block_validity_prover.ErrBlockUnSynchronization) {
-			// 				return nil, err
-			// 			}
-
-			// 			const msg = "failed to sync balance prover: %+v"
-			// 			log.Fatalf(msg, err.Error())
-			// 		}
-			// 	case balance_prover_service.ValidReceivedTransfer:
-			// 		err = balanceSynchronizer.validReceivedTransfer(&transition)
-			// 		if err != nil {
-			// 			if errors.Is(err, block_validity_prover.ErrNoValidityProofByBlockNumber) ||
-			// 				errors.Is(err, ErrApplyReceivedTransferTransitionFail) || errors.Is(err, ErrNullifierAlreadyExists) {
-			// 				const msg = "failed to receive transfer: %+v"
-			// 				log.Warnf(msg, err.Error())
-			// 				continue
-			// 			} else if errors.Is(err, block_validity_prover.ErrBlockUnSynchronization) {
-			// 				return nil, err
-			// 			}
-
-			// 			const msg = "failed to sync balance prover: %+v"
-			// 			log.Fatalf(msg, err.Error())
-			// 		}
-			// 	default:
-			// 		log.Warnf("unknown transition: %v\n", transition)
-			// 	}
-			// }
+	// timeout := 5 * time.Second
+	// ticker := time.NewTicker(timeout)
+	// for {
+	// 	select {
+	// 	case <-ctx.Done():
+	// 		ticker.Stop()
+	// 		log.Warnf("Received cancel signal from context, stopping...")
+	// 		return nil, errors.New("received cancel signal from context")
+	// 	case <-ticker.C:
+	err = balanceSynchronizer.syncProcessing(userWalletState.PrivateKey())
+	if err != nil {
+		if errors.Is(err, ErrLatestSynchronizedBlockNumberLassOrEqualLastUpdatedBlockNumber) ||
+			errors.Is(err, ErrNoValidUserData) {
+			return balanceSynchronizer, nil
 		}
+
+		// if errors.Is(err, block_validity_prover.ErrBlockUnSynchronization) {
+		// 	return nil, err
+		// }
+
+		const msg = "failed to start sync processing: %+v"
+		log.Fatalf(msg, err.Error())
 	}
+
+	return balanceSynchronizer, nil
 }

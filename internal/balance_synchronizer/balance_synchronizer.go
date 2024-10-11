@@ -110,7 +110,7 @@ func (s *balanceSynchronizer) Sync(
 }
 
 func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.PrivateKey) (err error) {
-	balanceTransitionData, err := balance_prover_service.NewBalanceTransitionData(s.ctx, s.cfg, s.log, intMaxPrivateKey)
+	balanceTransitionData, err := balance_prover_service.FetchBalanceTransitionData(s.ctx, s.cfg, s.log, intMaxPrivateKey)
 	if err != nil {
 		const msg = "failed to start Balance Prover Service: %+v"
 		s.log.Fatalf(msg, err.Error())
@@ -125,7 +125,7 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 	}
 	fmt.Printf("size of sortedValidUserData: %v\n", len(sortedValidUserData))
 	for _, transition := range sortedValidUserData {
-		fmt.Printf("transition block number: %d\n", transition.BlockNumber())
+		fmt.Printf("[transition] type: %s, block number: %d\n", transition.Type(), transition.BlockNumber())
 	}
 
 	storedBalanceData, err := block_synchronizer.GetBackupBalance(s.ctx, s.cfg, s.userState.PublicKey())
@@ -181,10 +181,11 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 					const msg = "failed to receive deposit: %+v"
 					s.log.Warnf(msg, err.Error())
 					continue
-				} else if errors.Is(err, block_validity_prover.ErrBlockUnSynchronization) {
-					// continue
-					return err
 				}
+				// else if errors.Is(err, block_validity_prover.ErrBlockUnSynchronization) {
+				// 	// continue
+				// 	return err
+				// }
 
 				const msg = "failed to sync balance prover: %+v"
 				s.log.Fatalf(msg, err.Error())
@@ -197,10 +198,11 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 					const msg = "failed to receive transfer: %+v"
 					s.log.Warnf(msg, err.Error())
 					continue
-				} else if errors.Is(err, block_validity_prover.ErrBlockUnSynchronization) {
-					// continue
-					return err
 				}
+				// else if errors.Is(err, block_validity_prover.ErrBlockUnSynchronization) {
+				// 	// continue
+				// 	return err
+				// }
 
 				const msg = "failed to sync balance prover: %+v"
 				s.log.Fatalf(msg, err.Error())
@@ -215,6 +217,8 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 
 func (s *balanceSynchronizer) validSentTx(transition *balance_prover_service.ValidSentTx) error {
 	fmt.Printf("valid sent transaction: %v\n", transition.TxHash)
+	transitionBlockNumber := transition.BlockNumber()
+	fmt.Printf("transitionBlockNumber: %d\n", transitionBlockNumber)
 	err := applySentTransactionTransition(
 		s.log,
 		transition.Tx,

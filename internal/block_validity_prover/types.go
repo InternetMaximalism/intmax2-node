@@ -58,7 +58,7 @@ func (ps *PublicState) Genesis() *PublicState {
 		AccountTreeRoot:     accountTreeRoot,
 		DepositTreeRoot:     depositTreeRoot,
 		BlockHash:           genesisBlockHash,
-		BlockNumber:         1,
+		BlockNumber:         0,
 	}
 }
 

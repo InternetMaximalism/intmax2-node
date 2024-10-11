@@ -374,10 +374,10 @@ func (s *balanceProcessor) ProveReceiveTransfer(
 }
 
 type BalanceValidityResponse struct {
-	Success bool    `json:"success"`
-	Code    uint16  `json:"code"`
-	Message string  `json:"message"`
-	Proof   *string `json:"proof"`
+	Success      bool    `json:"success"`
+	RequestId    string  `json:"requestId"`
+	Proof        *string `json:"proof"`
+	ErrorMessage *string `json:"errorMessage"`
 }
 
 type MerkleProofInput = []string
@@ -514,7 +514,7 @@ func (p *balanceProcessor) requestUpdateBalanceValidityProof(
 	}
 
 	if !response.Success {
-		return "", fmt.Errorf("failed to send the balance proof request for UpdateWitness: %s", response.Message)
+		return "", fmt.Errorf("failed to send the balance proof request for UpdateWitness: %s", *response.ErrorMessage)
 	}
 
 	return requestID, nil
@@ -575,7 +575,7 @@ func (p *balanceProcessor) requestReceiveDepositBalanceValidityProof(
 	}
 
 	if !response.Success {
-		return "", fmt.Errorf("failed to send the balance proof request for ReceiveDepositWitness: %s", response.Message)
+		return "", fmt.Errorf("failed to send the balance proof request for ReceiveDepositWitness: %s", *response.ErrorMessage)
 	}
 
 	return requestID, nil
@@ -639,7 +639,7 @@ func (p *balanceProcessor) requestSendBalanceValidityProof(
 	}
 
 	if !response.Success {
-		return "", fmt.Errorf("failed to send the balance proof request for SendWitness: %s", response.Message)
+		return "", fmt.Errorf("failed to send the balance proof request for SendWitness: %s", *response.ErrorMessage)
 	}
 
 	return requestID, nil
@@ -698,7 +698,7 @@ func (p *balanceProcessor) requestSpentTokenProof(
 	}
 
 	if !response.Success {
-		return nil, fmt.Errorf("failed to send the balance proof request for SpentTokenWitness: %s", response.Message)
+		return nil, fmt.Errorf("failed to send the balance proof request for SpentTokenWitness: %s", *response.ErrorMessage)
 	}
 
 	return &SpentTokenProofResponse{
@@ -763,7 +763,7 @@ func (p *balanceProcessor) requestReceiveTransferBalanceValidityProof(
 	}
 
 	if !response.Success {
-		return "", fmt.Errorf("failed to send the balance proof request for ReceiveTransferWitness: %s", response.Message)
+		return "", fmt.Errorf("failed to send the balance proof request for ReceiveTransferWitness: %s", *response.ErrorMessage)
 	}
 
 	return requestID, nil

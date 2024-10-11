@@ -73,7 +73,7 @@ func (s *balanceSynchronizerDummy) TestE2E(
 	if err != nil {
 		s.log.Fatalf("failed to marshal withdrawal witness: %+v", err)
 	}
-	fmt.Printf("withdrawalWitnessJSON: %s\n", withdrawalWitnessJSON)
+	fmt.Printf("size of withdrawalWitnessJSON: %d\n", len(withdrawalWitnessJSON))
 
 	// withdrawalWitness := new(withdrawal_service.WithdrawalWitnessInput)
 	// err := json.Unmarshal([]byte(EncodedWithdrawalWitness), &withdrawalWitness)

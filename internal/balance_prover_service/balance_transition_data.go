@@ -39,7 +39,7 @@ type BalanceTransitionData struct {
 	Transfers    []*intMaxTypes.TransferDetailsWithProofBody
 }
 
-func NewBalanceTransitionData(
+func FetchBalanceTransitionData(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
@@ -176,6 +176,7 @@ func DecodeBackupData(
 			continue
 		}
 
+		fmt.Printf("transfer: %+v\n", decodedTransfer)
 		transferWithProofBody := intMaxTypes.TransferDetailsWithProofBody{
 			TransferDetails:                  &decodedTransfer,
 			SenderLastBalanceProofBody:       transfer.SenderLastBalanceProofBody,
@@ -210,6 +211,7 @@ func DecodeBackupData(
 			continue
 		}
 
+		fmt.Printf("transaction: %+v\n", decodedTx)
 		sentTransactions = append(sentTransactions, decodedTx)
 		// for _, transfer := range decodedTx.Transfers {
 		// 	if _, ok := balances[transfer.TokenIndex]; !ok {
@@ -271,6 +273,7 @@ func (userAllData *BalanceTransitionData) SortValidUserData(
 
 type ValidBalanceTransition interface {
 	BlockNumber() uint32
+	Type() string
 }
 
 type ValidSentTx struct {
@@ -283,6 +286,10 @@ func (v ValidSentTx) BlockNumber() uint32 {
 	return v.blockNumber
 }
 
+func (v ValidSentTx) Type() string {
+	return "transaction"
+}
+
 type ValidReceivedDeposit struct {
 	DepositHash common.Hash
 	blockNumber uint32
@@ -293,6 +300,10 @@ func (v ValidReceivedDeposit) BlockNumber() uint32 {
 	return v.blockNumber
 }
 
+func (v ValidReceivedDeposit) Type() string {
+	return "deposit"
+}
+
 type ValidReceivedTransfer struct {
 	TransferHash *poseidonHashOut
 	blockNumber  uint32
@@ -301,6 +312,10 @@ type ValidReceivedTransfer struct {
 
 func (v ValidReceivedTransfer) BlockNumber() uint32 {
 	return v.blockNumber
+}
+
+func (v ValidReceivedTransfer) Type() string {
+	return "transfer"
 }
 
 func ExtractValidSentTransactions(

@@ -94,15 +94,30 @@ func TransferTransaction(
 	}
 
 	l2Balance := userWalletState.Balance(tokenIndex).BigInt()
+	fmt.Printf("L2 Balance: %s\n", l2Balance)
 
 	if strings.TrimSpace(amountStr) == "" {
 		return fmt.Errorf("amount is required")
+	}
+
+	// Send transfer transaction
+	var recipient *intMaxAcc.PublicKey
+	recipient, err = intMaxAcc.NewPublicKeyFromAddressHex(recipientAddressStr)
+	if err != nil {
+		return fmt.Errorf("failed to parse recipient address: %v", err)
+	}
+
+	var recipientAddress *intMaxTypes.GenericAddress
+	recipientAddress, err = intMaxTypes.NewINTMAXAddress(recipient.ToAddress().Bytes())
+	if err != nil {
+		return fmt.Errorf("failed to create recipient address: %v", err)
 	}
 
 	amount, ok := new(big.Int).SetString(amountStr, base10)
 	if !ok {
 		return fmt.Errorf("failed to convert amount to int: %v", amountStr)
 	}
+	fmt.Printf("L2 Amount: %s\n", amount)
 
 	if l2Balance.Cmp(amount) < 0 {
 		return fmt.Errorf("insufficient funds for total amount: balance %s, total amount %s", l2Balance, amount)
@@ -115,36 +130,46 @@ func TransferTransaction(
 	}
 
 	zeroTransfer := new(intMaxTypes.Transfer).SetZero()
-	var transfers []*intMaxTypes.Transfer
 
-	gasFee, gasOK := dataBlockInfo.TransferFee[new(big.Int).SetUint64(uint64(tokenIndex)).String()]
-	if gasOK {
-		// Send transfer transaction
-		var recipient *intMaxAcc.PublicKey
-		recipient, err = intMaxAcc.NewPublicKeyFromAddressHex(dataBlockInfo.IntMaxAddress)
-		if err != nil {
-			return fmt.Errorf("failed to parse recipient address: %v", err)
-		}
+	// gasFee, gasOK := dataBlockInfo.TransferFee[new(big.Int).SetUint64(uint64(tokenIndex)).String()]
+	feeTokenIndex := 0 // Transfer fees are only accepted at ETH.
+	fmt.Printf("dataBlockInfo.ScrollAddress: %s\n", dataBlockInfo.IntMaxAddress)
+	blockBuilderAddressBytes, err := hexutil.Decode(dataBlockInfo.IntMaxAddress)
+	if err != nil {
+		return fmt.Errorf("failed to decode block builder address: %v", err)
+	}
+	fmt.Printf("blockBuilderAddressBytes: %v\n", blockBuilderAddressBytes)
 
-		var recipientAddress *intMaxTypes.GenericAddress
-		recipientAddress, err = intMaxTypes.NewINTMAXAddress(recipient.ToAddress().Bytes())
-		if err != nil {
-			return fmt.Errorf("failed to create recipient address: %v", err)
-		}
+	blockBuilderAddress, err := intMaxTypes.NewINTMAXAddress(blockBuilderAddressBytes)
+	if err != nil {
+		return fmt.Errorf("failed to create block builder address: %v", err)
+	}
+	fmt.Printf("blockBuilderAddress: %v\n", blockBuilderAddress)
 
-		var amountGasFee uint256.Int
-		err = amountGasFee.Scan(gasFee)
-		if err != nil {
-			return fmt.Errorf("failed to convert string to uint256.Int: %w", err)
-		}
+	feeTokenIndexStr := strconv.FormatInt(int64(feeTokenIndex), base10)
+	gasFee, gasOK := dataBlockInfo.TransferFee[feeTokenIndexStr]
+	if !gasOK {
+		return fmt.Errorf("failed to get gas fee")
+	}
 
-		transfer := intMaxTypes.NewTransferWithRandomSalt(
+	var amountGasFee uint256.Int
+	err = amountGasFee.Scan(gasFee)
+	if err != nil {
+		return fmt.Errorf("failed to convert string to uint256.Int: %w", err)
+	}
+
+	// Include the remittance fee at the beginning of the remittance list
+	transfers := []*intMaxTypes.Transfer{
+		intMaxTypes.NewTransferWithRandomSalt(
+			blockBuilderAddress,   // recipientAddress,
+			uint32(feeTokenIndex), // tokenIndex,
+			amountGasFee.ToBig(),
+		),
+		intMaxTypes.NewTransferWithRandomSalt(
 			recipientAddress,
 			tokenIndex,
-			amountGasFee.ToBig(),
-		)
-
-		transfers = append(transfers, transfer)
+			amount,
+		),
 	}
 
 	gasFeeInt, ok := new(big.Int).SetString(gasFee, base10)
@@ -168,8 +193,6 @@ func TransferTransaction(
 	// balanceTransitionProof := ""
 	nonce := balanceSynchronizer.CurrentNonce()
 	// nonce := uint32(1) // TODO: Get nonce from balance synchronizer
-
-	panic("interupted here")
 
 	err = SendTransferTransaction(
 		ctx,
@@ -207,6 +230,10 @@ func TransferTransaction(
 
 	txHash := tx.Hash()
 
+	fmt.Printf("size of transfers: %d", len(transfers))
+	for i, transfer := range transfers {
+		fmt.Printf("transfers[%d]: %+v", i, transfer)
+	}
 	txDetails := intMaxTypes.TxDetails{
 		Tx: intMaxTypes.Tx{
 			TransferTreeRoot: &transfersHash,

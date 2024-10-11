@@ -151,7 +151,7 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 				fmt.Printf("blockHashAndSendersMap[%d].Senders[%d] is not signed\n", blockNumber, i)
 				continue
 			}
-			fmt.Printf("blockHashAndSendersMap[%d].Senders[%d] is valid: %s\n", blockNumber, i, sender.PublicKey)
+			fmt.Printf("blockHashAndSendersMap[%d].Senders[%d] is signed: %s\n", blockNumber, i, sender.PublicKey)
 
 			count++
 
@@ -161,9 +161,9 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 				panic(err)
 			}
 
-			if _, ok = accountTree.GetAccountID(senderPublicKey.BigInt()); ok {
+			if accountId, ok := accountTree.GetAccountID(senderPublicKey.BigInt()); ok {
 				if blockHashAndSenders.IsRegistrationBlock {
-					fmt.Printf("blockHashAndSendersMap[%d].Senders[%d] is already registered\n", blockNumber, i)
+					fmt.Printf("blockHashAndSendersMap[%d].Senders[%d] is already registered (accountId: %d)\n", blockNumber, i, accountId)
 					continue
 				}
 
@@ -177,10 +177,12 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 					continue
 				}
 
-				_, err = accountTree.Insert(senderPublicKey.BigInt(), blockNumber)
+				proof, err := accountTree.Insert(senderPublicKey.BigInt(), blockNumber)
 				if err != nil {
 					panic(err)
 				}
+
+				fmt.Printf("the account ID of %s is %d", senderPublicKey.String(), proof.LowLeafIndex)
 			}
 		}
 		fmt.Printf("blockHashAndSendersMap[%d].Senders count: %d\n", blockNumber, count)
@@ -625,9 +627,22 @@ func (db *mockBlockBuilder) BlockTreeProof(rootBlockNumber uint32, leafBlockNumb
 		return nil, errors.Join(ErrRootBlockNumberNotFound, fmt.Errorf("root block number %d not found (BlockTreeProof)", rootBlockNumber))
 	}
 
-	proof, _, err := blockHistory.BlockHashTree.Prove(leafBlockNumber)
+	proof, blockTreeRoot, err := blockHistory.BlockHashTree.Prove(leafBlockNumber)
 	if err != nil {
 		return nil, errors.Join(ErrLeafBlockNumberNotFound, err)
+	}
+
+	blockHashLeaf := blockHistory.BlockHashTree.Leaves[leafBlockNumber]
+	fmt.Printf("blockHashLeafHash (BlockTreeProof): %s\n", blockHashLeaf.Hash())
+	fmt.Printf("leafBlockNumber (BlockTreeProof): %d\n", leafBlockNumber)
+	fmt.Printf("blockTreeRoot (BlockTreeProof): %s\n", blockTreeRoot.String())
+	err = proof.Verify(
+		blockHashLeaf.Hash(),
+		int(leafBlockNumber),
+		blockTreeRoot,
+	)
+	if err != nil {
+		panic("proof.Verify failed")
 	}
 
 	return &proof, nil
@@ -1081,7 +1096,6 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTreeFromBlockContent(
 	// if !isValid {
 	// 	fmt.Printf("block content %d is invalid (GenerateBlockWithTxTreeFromBlockContent)\n", postedBlock.BlockNumber)
 	// } else {
-	fmt.Printf("block content %d is valid (GenerateBlockWithTxTreeFromBlockContent)\n", postedBlock.BlockNumber)
 	if isRegistrationBlock {
 		fmt.Printf("size of publicKeys: %d\n", len(publicKeys))
 		// accountMembershipProofs = make([]intMaxTree.IndexedMembershipProof, len(publicKeys))
@@ -1308,7 +1322,18 @@ func calculateValidityWitnessWithMerkleProofs(
 		return nil, nil, nil, errors.New("copy block hash tree error")
 	}
 
-	return calculateValidityWitnessWithMerkleProofsInner(blockWitness, prevBlockHashTree, prevAccountTree)
+	validityWitness, newAccountTree, newBlockHashTree, err = calculateValidityWitnessWithMerkleProofsInner(blockWitness, prevBlockHashTree, prevAccountTree)
+	if err != nil {
+		return nil, nil, nil, errors.New("calculate validity witness with merkle proofs error")
+	}
+
+	if validityWitness.ValidityPublicInputs().IsValidBlock {
+		fmt.Printf("(calculateValidityWitnessWithMerkleProofs) block content %d is valid\n", blockWitness.Block.BlockNumber)
+	} else {
+		fmt.Printf("(calculateValidityWitnessWithMerkleProofs) block content %d is invalid\n", blockWitness.Block.BlockNumber)
+	}
+
+	return validityWitness, newAccountTree, newBlockHashTree, nil
 }
 
 func calculateValidityWitnessWithMerkleProofsInner(
