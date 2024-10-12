@@ -375,7 +375,11 @@ func (b *mockBlockBuilder) GenerateBlock(
 	}
 
 	accountIDPacked := new(AccountIdPacked)
-	accountIDPacked.FromBytes(accountIDPackedBytes)
+	err = accountIDPacked.FromBytes(accountIDPackedBytes)
+	if err != nil {
+		return nil, err
+	}
+
 	blockWitness := &BlockWitness{
 		Block:               postedBlock,
 		Signature:           *signature,
@@ -1096,6 +1100,7 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTreeFromBlockContent(
 	// if !isValid {
 	// 	fmt.Printf("block content %d is invalid (GenerateBlockWithTxTreeFromBlockContent)\n", postedBlock.BlockNumber)
 	// } else {
+	fmt.Printf("is block content %d registration block? %v (GenerateBlockWithTxTreeFromBlockContent)\n", postedBlock.BlockNumber, isRegistrationBlock)
 	if isRegistrationBlock {
 		fmt.Printf("size of publicKeys: %d\n", len(publicKeys))
 		// accountMembershipProofs = make([]intMaxTree.IndexedMembershipProof, len(publicKeys))
@@ -1177,6 +1182,7 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTreeFromBlockContent(
 		}
 
 		accountIDPacked = new(AccountIdPacked).Pack(accountIDs)
+		fmt.Printf("accountIDPacked: %v\n", accountIDPacked)
 		// accountIDHash = GetAccountIDsHash(accountIDs)
 	}
 	// }

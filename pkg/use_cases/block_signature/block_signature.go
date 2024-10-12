@@ -85,7 +85,7 @@ func (u *uc) Do(
 			File:   nil,
 		}
 	*/
-	b, err := block_synchronizer.NewBlockSynchronizer(ctx, u.cfg, u.log)
+	blockSynchronizer, err := block_synchronizer.NewBlockSynchronizer(ctx, u.cfg, u.log)
 	if err != nil {
 		var ErrNewBlockPostServiceFail = errors.New("new block post service fail")
 		return errors.Join(ErrNewBlockPostServiceFail, err)
@@ -110,7 +110,7 @@ func (u *uc) Do(
 		return errors.Join(ErrDecodeSenderTransitionProofBodyFail, err)
 	}
 
-	if innerErr := b.BackupTransaction(
+	if innerErr := blockSynchronizer.BackupTransaction(
 		sender.ToAddress(),
 		input.BackupTx.TxHash,
 		input.BackupTx.EncodedEncryptedTx,
@@ -148,7 +148,7 @@ func (u *uc) Do(
 			}
 			u.log.Printf("INTMAX Address: %s\n", intMaxAddress.String())
 
-			if innerErr := b.BackupTransfer(
+			if innerErr := blockSynchronizer.BackupTransfer(
 				intMaxAddress,
 				encodedEncryptedTransfer.TransferHash, encodedEncryptedTransfer.EncodedEncryptedTransfer,
 				blockNumber,
@@ -165,7 +165,7 @@ func (u *uc) Do(
 			}
 
 			u.log.Printf("ETH Address: %s\n", ethAddress.String())
-			if innerErr := b.BackupWithdrawal(
+			if innerErr := blockSynchronizer.BackupWithdrawal(
 				ethAddress, encodedEncryptedTransfer.TransferHash, encodedEncryptedTransfer.EncodedEncryptedTransfer, blockNumber,
 			); innerErr != nil {
 				open_telemetry.MarkSpanError(spanCtx, innerErr)

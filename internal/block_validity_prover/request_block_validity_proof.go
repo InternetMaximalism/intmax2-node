@@ -41,6 +41,15 @@ func (p *blockValidityProver) requestBlockValidityProof(blockHash common.Hash, v
 		return fmt.Errorf("failed to compress validity witness: %w", err)
 	}
 
+	// decompressedValidityWitness, err := new(ValidityWitness).Decompress(&compressedValidityWitness)
+
+	// NewAccountInclusionValue(
+	// 	prevAccountTreeRoot,
+	// 	w.AccountIdPacked,
+	// 	w.AccountMerkleProofs.Proofs,
+	// 	publicKeys,
+	// )
+
 	nextValidityPis := validityWitness.ValidityPublicInputs()
 	p.log.Debugf("nextValidityPis block_proof block number: %d\n", nextValidityPis.PublicState.BlockNumber)
 	p.log.Debugf("nextValidityPis block_proof prev account tree root: %s\n", nextValidityPis.PublicState.PrevAccountTreeRoot.String())
@@ -57,6 +66,17 @@ func (p *blockValidityProver) requestBlockValidityProof(blockHash common.Hash, v
 		return fmt.Errorf("failed to marshal JSON request body: %w", err)
 	}
 	p.log.Debugf("size of requestBlockValidityProof: %d bytes\n", len(bd))
+
+	// file, err := os.Create("validity_witness.json")
+	// if err != nil {
+	// 	panic(fmt.Errorf("error creating file: %v", err))
+	// }
+	// defer file.Close()
+
+	// _, err = file.Write(bd)
+	// if err != nil {
+	// 	panic(fmt.Errorf("error writing to file: %v", err))
+	// }
 
 	// encodedValidityWitness, err := json.Marshal(validityWitness)
 	// if err != nil {

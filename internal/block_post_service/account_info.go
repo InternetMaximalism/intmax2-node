@@ -81,6 +81,7 @@ func (ai *accountInfo) PublicKeyByAccountID(blockNumber uint32, accountID uint64
 	return pk, nil
 }
 
+// senderAddress is the hex string without the 0x prefix.
 func (ai *accountInfo) AccountBySenderAddress(senderAddress string) (accID *uint256.Int, err error) {
 	var sender *mDBApp.Sender
 	sender, err = ai.dbApp.SenderByAddress(senderAddress)

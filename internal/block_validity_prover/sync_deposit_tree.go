@@ -55,6 +55,7 @@ func (b *mockBlockBuilder) FetchNextDepositIndex() (uint32, error) {
 		return 0, fmt.Errorf("failed to fetch last deposit index: %w", err)
 	}
 
+	fmt.Printf("(FetchNextDepositIndex) next deposit index: %d\n", nextDepositIndex)
 	return nextDepositIndex, nil
 }
 

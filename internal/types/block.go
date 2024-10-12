@@ -656,6 +656,10 @@ func PostRegistrationBlock(cfg *RollupContractConfig, ctx context.Context, log l
 		return nil, fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
 	}
 
+	if blockContent.SenderType != PublicKeySenderType {
+		return nil, ErrBlockContentSenderTypeInvalid
+	}
+
 	// Check recover block content
 	err = blockContent.IsValid()
 	if err != nil {
@@ -721,21 +725,25 @@ type BlockSignature struct {
 
 // PostNonRegistrationBlock posts a non-registration block on the Rollup contract.
 // It returns the transaction hash if the block is successfully posted.
-func PostNonRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockContent) (*types.Transaction, error) {
-	client, err := utils.NewClient(cfg.NetworkRpcUrl)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create new client: %w", err)
-	}
-	defer client.Close()
-
+func PostNonRegistrationBlock(cfg *RollupContractConfig, ctx context.Context, log logger.Logger, client *ethclient.Client, blockContent *BlockContent) (*types.Receipt, error) {
 	rollup, err := bindings.NewRollup(common.HexToAddress(cfg.RollupContractAddressHex), client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
 	}
 
+	if blockContent.SenderType != AccountIDSenderType {
+		return nil, ErrBlockContentSenderTypeInvalid
+	}
+
+	// Check recover block content
+	err = blockContent.IsValid()
+	if err != nil {
+		return nil, fmt.Errorf("block content is invalid: %w", err)
+	}
+
 	input, err := MakePostNonRegistrationBlockInput(blockContent)
 	if err != nil {
-		return nil, fmt.Errorf("failed to make post registration block input: %w", err)
+		return nil, fmt.Errorf("failed to make post non-registration block input: %w", err)
 	}
 
 	privateKey, err := crypto.HexToECDSA(cfg.EthereumPrivateKeyHex)
@@ -765,7 +773,7 @@ func PostNonRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockCont
 	fmt.Printf("Public keys hash: %x\n", input.PublicKeysHash)
 	fmt.Printf("Sender account IDs: %x\n", input.SenderAccountIds)
 
-	return rollup.PostNonRegistrationBlock(
+	tx, err := rollup.PostNonRegistrationBlock(
 		transactOpts,
 		input.TxTreeRoot,
 		input.SenderFlags,
@@ -775,6 +783,18 @@ func PostNonRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockCont
 		input.PublicKeysHash,
 		input.SenderAccountIds,
 	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to post non-registration block: %w", err)
+	}
+
+	log.Infof("The tx hash of PostNonRegistrationBlock is %s\n", tx.Hash().Hex())
+
+	receipt, err := bind.WaitMined(ctx, client, tx)
+	if err != nil {
+		return nil, err
+	}
+
+	return receipt, nil
 }
 
 func FetchDepositRoot(cfg *RollupContractConfig, ctx context.Context) ([int32Key]byte, error) {

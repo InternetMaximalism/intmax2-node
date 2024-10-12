@@ -259,17 +259,22 @@ func recoverNonRegistrationBlockContent(
 		return nil, errors.Join(ErrRecoverAccountIDsFromBytesFail, err)
 	}
 
+	if blockNumber == 0 {
+		panic("block number 0 is not published")
+	}
+
 	senderPublicKeys := make([]*intMaxAcc.PublicKey, numOfSenders)
 	for i, accountId := range senderAccountIds {
 		if accountId == 0 {
-			senderPublicKeys[i] = intMaxAcc.NewDummyPublicKey()
-			continue
+			panic("account ID is 0")
+			// senderAddresses[i], err = intMaxAcc.NewAddressFromAddressInt(big.NewInt(0))
+			// continue
 		}
 
 		var pk *intMaxAcc.PublicKey
-		pk, err = ai.PublicKeyByAccountID(blockNumber, accountId)
+		pk, err = ai.PublicKeyByAccountID(blockNumber-1, accountId)
 		if err != nil {
-			return nil, errors.Join(ErrUnknownAccountID, fmt.Errorf("%d", accountId))
+			return nil, errors.Join(ErrUnknownAccountID, fmt.Errorf("account %d is invalid: %w", accountId, err))
 		}
 
 		senderPublicKeys[i] = pk

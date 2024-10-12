@@ -653,12 +653,17 @@ func (w *worker) leafsProcessing(f *os.File) (err error) {
 
 			for key := range info.TxsList {
 				var accID uint256.Int
+				// XXX: Change AccountBySenderAddress to be provided as an API for the Block Validity Prover.
+				// Additionally, Exec should be performed within AccountBySenderAddress.
 				err = w.dbApp.Exec(w.files.FilesList[f].Ctx, &accID, func(d interface{}, in interface{}) error {
 					q := d.(SQLDriverApp)
 
 					ai := block_post_service.NewAccountInfo(q)
 					var accIDInfo *uint256.Int
-					accIDInfo, err = ai.AccountBySenderAddress(info.TxsList[key].Sender)
+					senderAddress := strings.TrimPrefix(info.TxsList[key].Sender, "0x")
+					fmt.Printf("Sender: %v\n", senderAddress)
+					accIDInfo, err = ai.AccountBySenderAddress(senderAddress)
+					fmt.Printf("accIDInfo: %v\n", accIDInfo)
 					if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
 						return err
 					}
@@ -679,6 +684,7 @@ func (w *worker) leafsProcessing(f *os.File) (err error) {
 					const msg = "failed to get of account ID with DBApp"
 					return fmt.Errorf(msg)
 				}
+				fmt.Printf("(leafsProcessing) accID: %v\n", accID.String())
 
 				lfh := leafsOfHash{
 					Sender: info.TxsList[key].Sender,
@@ -689,6 +695,7 @@ func (w *worker) leafsProcessing(f *os.File) (err error) {
 					isAcc = true
 				}
 
+				fmt.Printf("(leafsProcessing) isAcc: %v\n", isAcc)
 				if isAcc {
 					lfh.Index = uint64(numberAccountIDs)
 					var lhfAccID uint256.Int

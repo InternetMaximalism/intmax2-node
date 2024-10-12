@@ -466,7 +466,16 @@ func (vtw *ValidityTransitionWitness) Compress(maxAccountID uint64) (compressed 
 			if !proof.LeafProof.IsDummy(intMaxTree.ACCOUNT_TREE_HEIGHT) {
 				for i := 0; i < int(intMaxTree.ACCOUNT_TREE_HEIGHT)-significantHeight; i++ {
 					if !proof.LeafProof.Siblings[significantHeight+i].Equal(compressed.CommonAccountMerkleProof[i]) {
-						panic("invalid leaf proof")
+						fmt.Printf("maxAccountID: %d\n", maxAccountID)
+						fmt.Printf("significantHeight: %d\n", significantHeight)
+						fmt.Printf("i: %d\n", i)
+						for j, sibling := range proof.LeafProof.Siblings {
+							fmt.Printf("(ValidityTransitionWitness) sibling[%d]: %s\n", j, sibling.String())
+						}
+						for j, sibling := range compressed.CommonAccountMerkleProof {
+							fmt.Printf("(ValidityTransitionWitness) common[%d]: %s\n", j, sibling.String())
+						}
+						panic("(AccountRegistrationProofs) invalid leaf proof")
 					}
 
 					leafProof = &intMaxTree.PoseidonMerkleProof{
@@ -493,18 +502,27 @@ func (vtw *ValidityTransitionWitness) Compress(maxAccountID uint64) (compressed 
 		significantAccountUpdateProofs := make([]intMaxTree.IndexedUpdateProof, 0)
 		for _, proof := range accountUpdateProofs {
 			for i := 0; i < int(intMaxTree.ACCOUNT_TREE_HEIGHT)-significantHeight; i++ {
-				if proof.LeafProof.Siblings[significantHeight+i].Equal(compressed.CommonAccountMerkleProof[i]) {
-					panic("invalid leaf proof")
+				if !proof.LeafProof.Siblings[significantHeight+i].Equal(compressed.CommonAccountMerkleProof[i]) {
+					fmt.Printf("maxAccountID: %d\n", maxAccountID)
+					fmt.Printf("significantHeight: %d\n", significantHeight)
+					fmt.Printf("i: %d\n", i)
+					for j, sibling := range proof.LeafProof.Siblings {
+						fmt.Printf("(ValidityTransitionWitness) sibling[%d]: %s\n", j, sibling.String())
+					}
+					for j, sibling := range compressed.CommonAccountMerkleProof {
+						fmt.Printf("(ValidityTransitionWitness) common[%d]: %s\n", j, sibling.String())
+					}
+					panic("(AccountUpdateProofs) invalid leaf proof")
 				}
-
-				significantAccountUpdateProofs = append(significantAccountUpdateProofs, intMaxTree.IndexedUpdateProof{
-					LeafProof: intMaxTree.IndexedMerkleProof{
-						Siblings: proof.LeafProof.Siblings[:significantHeight],
-					},
-					LeafIndex: proof.LeafIndex,
-					PrevLeaf:  proof.PrevLeaf,
-				})
 			}
+
+			significantAccountUpdateProofs = append(significantAccountUpdateProofs, intMaxTree.IndexedUpdateProof{
+				LeafProof: intMaxTree.IndexedMerkleProof{
+					Siblings: proof.LeafProof.Siblings[:significantHeight],
+				},
+				LeafIndex: proof.LeafIndex,
+				PrevLeaf:  proof.PrevLeaf,
+			})
 		}
 
 		compressed.SignificantAccountUpdateProofs = &significantAccountUpdateProofs
@@ -557,23 +575,25 @@ func (b *AccountIdPacked) Set(other *AccountIdPacked) *AccountIdPacked {
 	return b
 }
 
-func (b *AccountIdPacked) FromBytes(bytes []byte) {
+func (b *AccountIdPacked) FromBytes(bytes []byte) error {
 	if len(bytes) > numAccountIDPackedBytes*numUint32Bytes {
-		panic("invalid bytes length")
+		return errors.New("invalid bytes length")
 	}
 
 	if len(bytes) < numAccountIDPackedBytes*numUint32Bytes {
-		panic("invalid bytes length")
+		return errors.New("invalid bytes length")
 	}
 
 	for i := 0; i < numAccountIDPackedBytes; i++ {
 		b[i] = binary.BigEndian.Uint32(bytes[i*numUint32Bytes : (i+1)*numUint32Bytes])
 	}
+
+	return nil
 }
 
 func (b *AccountIdPacked) Bytes() []byte {
-	bytes := make([]byte, numAccountIDPackedBytes*numUint32Bytes)
-	for i := 0; i < numOfSenders; i++ {
+	bytes := make([]byte, numAccountIDPackedBytes*numUint32Bytes) // numOfSenders * numAccountIDBytes
+	for i := 0; i < numAccountIDPackedBytes; i++ {
 		binary.BigEndian.PutUint32(bytes[i*numUint32Bytes:(i+1)*numUint32Bytes], b[i])
 	}
 
@@ -590,8 +610,7 @@ func (b *AccountIdPacked) FromHex(s string) error {
 		return err
 	}
 
-	b.FromBytes(bytes)
-	return nil
+	return b.FromBytes(bytes)
 }
 
 func (b *AccountIdPacked) MarshalJSON() ([]byte, error) {
@@ -622,13 +641,17 @@ func (accountIDsPacked *AccountIdPacked) Pack(accountIDs []uint64) *AccountIdPac
 		copy(accountIDsBytes[i*numAccountIDBytes:(i+1)*numAccountIDBytes], chunkBytes[int8Key-numAccountIDBytes:])
 	}
 
-	accountIDsPacked.FromBytes(accountIDsBytes)
+	err := accountIDsPacked.FromBytes(accountIDsBytes)
+	if err != nil {
+		panic(err)
+	}
 
 	return accountIDsPacked
 }
 
 func (accountIDsPacked *AccountIdPacked) Unpack() []uint64 {
 	accountIDsBytes := accountIDsPacked.Bytes()
+	fmt.Printf("accountIDsBytes: %v, (size: %d)\n", accountIDsBytes, len(accountIDsBytes))
 	accountIDs := make([]uint64, 0)
 	for i := 0; i < numOfSenders; i++ {
 		chunkBytes := make([]byte, int8Key)
@@ -1316,13 +1339,12 @@ func (w *BlockWitness) MainValidationPublicInputs() (*MainValidationPublicInputs
 		fmt.Printf("accountExclusionValue.IsValid: %v\n", accountExclusionValue.IsValid)
 		result = result && accountExclusionValue.IsValid
 	} else {
-
 		if result && !isPublicKeyEq {
 			invalidReason = "public key is invalid"
 		}
 		result = result && isPublicKeyEq
 
-		if w.AccountIdPacked != nil {
+		if w.AccountIdPacked == nil {
 			panic("account id packed should be given")
 		}
 
