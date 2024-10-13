@@ -1529,7 +1529,7 @@ func (b *mockBlockBuilder) ValidityProofByBlockNumber(blockNumber uint32) (*stri
 
 	blockContent, err := b.db.BlockContentByBlockNumber(blockNumber)
 	if err != nil {
-		fmt.Printf("blockNumber (GetValidityProof): %d\n", blockNumber)
+		fmt.Printf("failed to get validity proof (block number: %d): %v\n", blockNumber, err)
 		return nil, ErrBlockContentByBlockNumber
 	}
 

@@ -1,6 +1,7 @@
 package balance_synchronizer
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
@@ -283,6 +284,12 @@ func MakeTxWitness(
 	blockValidityService block_validity_prover.BlockValidityService,
 	txDetails *intMaxTypes.TxDetails,
 ) (*balance_prover_service.TxWitness, []*intMaxTypes.TransferWitness, error) {
+	s, err := json.Marshal(txDetails)
+	if err != nil {
+		fmt.Printf("fail to marshal txDetails: %v\n", err)
+		return nil, nil, fmt.Errorf("fail to marshal txDetails: %w", err)
+	}
+	fmt.Printf("(MakeTxWitness) txDetails: %s\n", s)
 	transfers := txDetails.Transfers
 	if len(transfers) >= numTransfersInTx {
 		return nil, nil, errors.New("transfers length must be less than numTransfersInTx")
@@ -295,6 +302,7 @@ func MakeTxWitness(
 	zeroTransfer := new(intMaxTypes.Transfer).SetZero()
 	transferTree, err := intMaxTree.NewTransferTree(intMaxTree.TRANSFER_TREE_HEIGHT, nil, zeroTransfer.Hash())
 	if err != nil {
+		// panic(fmt.Errorf("fail to create transfer tree: %w", err))
 		return nil, nil, fmt.Errorf("fail to create transfer tree: %w", err)
 	}
 
@@ -302,6 +310,7 @@ func MakeTxWitness(
 		_, index, _ := transferTree.GetCurrentRootCountAndSiblings()
 		_, err = transferTree.AddLeaf(index, transfer)
 		if err != nil {
+			// panic(fmt.Errorf("fail to add leaf to transfer tree: %w", err))
 			return nil, nil, fmt.Errorf("fail to add leaf to transfer tree: %w", err)
 		}
 	}
@@ -312,6 +321,7 @@ func MakeTxWitness(
 	// 	Nonce:            w.nonce,
 	// }
 	tx := txDetails.Tx
+	fmt.Printf("(MakeTxWitness) tx: %+ v\n", tx)
 
 	// txRequest0 := block_validity_prover.MockTxRequest{
 	// 	Tx:                  &tx,
@@ -325,10 +335,27 @@ func MakeTxWitness(
 	// 	return nil, nil, err
 	// }
 
+	fmt.Printf("TxTreeRoot: %s", common.HexToHash(txDetails.TxTreeRoot.String()))
 	validityPublicInputs, senderLeaves, err := blockValidityService.ValidityPublicInputs(common.HexToHash(txDetails.TxTreeRoot.String()))
 	if err != nil {
+		fmt.Printf("fail to get validity public inputs: %v\n", err)
 		return nil, nil, fmt.Errorf("fail to get validity public inputs: %w", err)
 	}
+	s, err = json.Marshal(&validityPublicInputs)
+	if err != nil {
+		fmt.Printf("fail to marshal validity public inputs: %v\n", err)
+		return nil, nil, fmt.Errorf("fail to marshal validity public inputs: %w", err)
+	}
+
+	fmt.Printf("(MakeTxWitness) TxTreeRoot: %s", common.HexToHash(txDetails.TxTreeRoot.String()))
+	fmt.Printf("(MakeTxWitness) validityPublicInputs: %s\n", s)
+	s, err = json.Marshal(&senderLeaves)
+	if err != nil {
+		fmt.Printf("fail to marshal sender leaves: %v\n", err)
+		return nil, nil, fmt.Errorf("fail to marshal sender leaves: %w", err)
+	}
+	fmt.Printf("(MakeTxWitness) senderLeaves: %s\n", s)
+
 	// validityWitness, err := blockValidityService.UpdateValidityWitness(
 	// 	blockContent,
 	// )
@@ -367,6 +394,7 @@ func MakeTxWitness(
 	}
 
 	transferWitnesses := make([]*intMaxTypes.TransferWitness, len(transfers))
+	fmt.Printf("size of transferWitnesses: %v\n", len(transfers))
 	for transferIndex, transfer := range transfers {
 		transferMerkleProof, _, _ := transferTree.ComputeMerkleProof(uint64(transferIndex))
 		transferWitness := intMaxTypes.TransferWitness{

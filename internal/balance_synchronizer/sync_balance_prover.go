@@ -12,6 +12,7 @@ import (
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
+	"math/big"
 
 	"sort"
 )
@@ -271,8 +272,10 @@ func (s *SyncBalanceProver) SyncSend(
 		}
 		fmt.Printf("sendWitness: %d\n", len(sendWitness.SpentTokenWitness.Transfers))
 		for _, transfer := range sendWitness.SpentTokenWitness.Transfers {
-			fmt.Printf("(sendWitness) transfer: %+v\n", transfer)
-			fmt.Printf("(sendWitness) transfer amount: %s\n", transfer.Amount)
+			if transfer.Amount.Cmp(big.NewInt(0)) != 0 {
+				fmt.Printf("(sendWitness) transfer: %+v\n", transfer)
+				fmt.Printf("(sendWitness) transfer amount: %s\n", transfer.Amount)
+			}
 		}
 
 		// sentBlockNumber := sendWitness.GetIncludedBlockNumber()
@@ -442,7 +445,7 @@ func (s *SyncBalanceProver) SyncNoSend(
 	updateWitness, err := blockValidityService.FetchUpdateWitness(
 		wallet.PublicKey(),
 		&blockNumber,
-		prevPublicState.BlockNumber,
+		prevPublicState.BlockNumber, // XXX: lastUpdatedBlockNumber?
 		false,
 	)
 	if err != nil {
@@ -464,9 +467,16 @@ func (s *SyncBalanceProver) SyncNoSend(
 	// fmt.Printf("prevBalancePisJSON: %s", prevBalancePisJSON)
 
 	lastSentTxBlockNumber := updateWitness.AccountMembershipProof.GetLeaf()
+	if lastSentTxBlockNumber > uint64(1)<<32 {
+		panic("last sent tx block number is invalid")
+	}
 	fmt.Printf("lastSentTxBlockNumber: %d\n", lastSentTxBlockNumber)
 	fmt.Printf("prevPublicState.BlockNumber: %d\n", prevPublicState.BlockNumber)
-	if lastSentTxBlockNumber > uint64(prevPublicState.BlockNumber) {
+	// if uint32(lastSentTxBlockNumber) > prevPublicState.BlockNumber && uint32(lastSentTxBlockNumber) < blockNumber {
+	// 	// This indicates that there are unsynchronized transitions that need to be processed in advance.
+	// 	return errors.New("last block number is greater than prev public state block number")
+	// }
+	if uint32(lastSentTxBlockNumber) > prevPublicState.BlockNumber {
 		// This indicates that there are unsynchronized transitions that need to be processed in advance.
 		return errors.New("last block number is greater than prev public state block number")
 	}

@@ -1,6 +1,7 @@
 package block_validity_prover
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -295,7 +296,7 @@ func (p *blockValidityProver) syncBlockContent(bps BlockSynchronizer, startBlock
 			return startBlock, p.ctx.Err()
 		case <-tickerEventWatcher.C:
 			fmt.Println("tickerEventWatcher.C")
-			_, err := syncBlockContentWithEvent(p.blockBuilder, bps, p.log, events[key])
+			_, err := syncBlockContentWithEvent(p.ctx, p.log, p.blockBuilder, bps, events[key])
 			if err != nil {
 				if strings.HasPrefix(err.Error(), "copy account tree error") {
 					return nextBN, nil
@@ -311,9 +312,10 @@ func (p *blockValidityProver) syncBlockContent(bps BlockSynchronizer, startBlock
 }
 
 func syncBlockContentWithEvent(
+	ctx context.Context,
+	log logger.Logger,
 	blockBuilder *mockBlockBuilder,
 	bps BlockSynchronizer,
-	log logger.Logger,
 	event *bindings.RollupBlockPosted,
 ) (*models.BlockContentWithProof, error) {
 	intMaxBlockNumber := uint32(event.BlockNumber.Uint64())
@@ -398,33 +400,58 @@ func syncBlockContentWithEvent(
 		for _, sender := range blockContent.Senders {
 			if sender.IsSigned && !sender.PublicKey.Equal(dummyPublicKey) {
 				address := sender.PublicKey.ToAddress().String()
-				_, err := blockBuilder.db.AccountBySender(sender.PublicKey)
-				if err == nil {
-					fmt.Printf("account already exists: %s\n", address)
-					continue
-				} else if err.Error() != "not found" {
-					return nil, errors.Join(ErrAccountBySenderIDFail, err)
-				}
+				err = blockBuilder.db.Exec(ctx, nil, func(d interface{}, _ interface{}) (err error) {
+					q := d.(SQLDriverApp)
 
-				senderData, err := blockBuilder.db.CreateSenders(address, address)
+					_, err = q.AccountBySender(sender.PublicKey)
+					if err == nil {
+						fmt.Printf("account already exists: %s\n", address)
+						senderData, err := q.SenderByAddress(address)
+						if err != nil {
+							return errors.Join(ErrSenderByAddressFail, err)
+						}
+
+						_, err = q.CreateBlockParticipant(postedBlock.BlockNumber, senderData.ID)
+						// When a "not unique" error occurs, it means that the combination of sender ID and block number is already registered, so skip it.
+						if err != nil && err.Error() != "not unique" {
+							var ErrCreateBlockContainedSendersFail = errors.New("create block contained senders fail")
+							return errors.Join(ErrCreateBlockContainedSendersFail, err)
+						}
+
+						return nil
+					} else if err.Error() != "not found" {
+						return errors.Join(ErrAccountBySenderIDFail, err)
+					}
+
+					fmt.Printf("AccountBySender error: %v\n", err)
+
+					senderData, err := q.CreateSenders(address, address)
+					if err != nil {
+						fmt.Printf("(syncBlockContentWithEvent) address: %s\n", address)
+						return errors.Join(ErrCreateSendersFail, err)
+					}
+					fmt.Printf("senderData: %+v\n", senderData)
+					accountData, err := q.CreateAccount(senderData.ID)
+					if err != nil {
+						return errors.Join(ErrCreateAccountFail, err)
+					}
+					accountID := accountData.AccountID.Uint64()
+					fmt.Printf("accountID: %d\n", accountID)
+
+					_, err = q.CreateBlockParticipant(postedBlock.BlockNumber, senderData.ID)
+					if err != nil {
+						var ErrCreateBlockContainedSendersFail = errors.New("create block contained senders fail")
+						return errors.Join(ErrCreateBlockContainedSendersFail, err)
+					}
+
+					return nil
+				})
 				if err != nil {
-					fmt.Printf("(syncBlockContentWithEvent) address: %s\n", address)
-					return nil, errors.Join(ErrCreateSendersFail, err)
-				}
-				fmt.Printf("senderData: %+v\n", senderData)
-				accountData, err := blockBuilder.db.CreateAccount(senderData.ID)
-				if err != nil {
-					return nil, errors.Join(ErrCreateAccountFail, err)
-				}
-				accountID := accountData.AccountID.Uint64()
-				fmt.Printf("accountID: %d\n", accountID)
-				_, err = blockBuilder.db.CreateBlockParticipant(postedBlock.BlockNumber, senderData.ID)
-				if err != nil {
-					var ErrCreateBlockContainedSendersFail = errors.New("create block contained senders fail")
-					return nil, errors.Join(ErrCreateBlockContainedSendersFail, err)
+					return nil, err
 				}
 			}
 		}
+
 	}
 
 	return newBlockContent, nil

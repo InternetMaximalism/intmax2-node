@@ -651,7 +651,6 @@ func (accountIDsPacked *AccountIdPacked) Pack(accountIDs []uint64) *AccountIdPac
 
 func (accountIDsPacked *AccountIdPacked) Unpack() []uint64 {
 	accountIDsBytes := accountIDsPacked.Bytes()
-	fmt.Printf("accountIDsBytes: %v, (size: %d)\n", accountIDsBytes, len(accountIDsBytes))
 	accountIDs := make([]uint64, 0)
 	for i := 0; i < numOfSenders; i++ {
 		chunkBytes := make([]byte, int8Key)

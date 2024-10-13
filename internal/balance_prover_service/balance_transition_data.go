@@ -194,7 +194,6 @@ func DecodeBackupData(
 
 	fmt.Printf("num of sent transactions: %d\n", len(userAllData.Transactions))
 	for _, transaction := range userAllData.Transactions {
-		fmt.Printf("transaction: %v\n", transaction)
 		encryptedTxBytes, err := base64.StdEncoding.DecodeString(transaction.EncryptedTx)
 		if err != nil {
 			log.Printf("failed to decode transaction: %v", err)
@@ -231,28 +230,30 @@ func DecodeBackupData(
 func (userAllData *BalanceTransitionData) SortValidUserData(
 	log logger.Logger,
 	blockValidityService block_validity_prover.BlockValidityService,
+	lastUpdatedBlockNumber uint32,
 ) ([]ValidBalanceTransition, error) {
-	validDeposits, invalidDeposits, err := ExtractValidReceivedDeposits(log, userAllData, blockValidityService)
+	validDeposits, invalidDeposits, err := ExtractValidReceivedDeposits(log, userAllData, lastUpdatedBlockNumber, blockValidityService)
 	if err != nil {
 		fmt.Println("Error in ExtractValidReceivedDeposit")
 	}
 	fmt.Printf("num of valid deposits: %d\n", len(validDeposits))
 	fmt.Printf("num of invalid deposits: %d\n", len(invalidDeposits))
 
-	validTransfers, invalidTransfers, err := ExtractValidReceivedTransfers(log, userAllData, blockValidityService)
+	validTransfers, invalidTransfers, err := ExtractValidReceivedTransfers(log, userAllData, lastUpdatedBlockNumber, blockValidityService)
 	if err != nil {
 		fmt.Println("Error in ExtractValidReceivedDeposit")
 	}
 	fmt.Printf("num of valid transfers: %d\n", len(validTransfers))
 	fmt.Printf("num of invalid transfers: %d\n", len(invalidTransfers))
 
-	validTransactions, invalidTransactions, err := ExtractValidSentTransactions(log, userAllData, blockValidityService)
+	validTransactions, invalidTransactions, err := ExtractValidSentTransactions(log, userAllData, lastUpdatedBlockNumber, blockValidityService)
 	if err != nil {
 		fmt.Println("Error in ExtractValidReceivedDeposit")
 	}
 	fmt.Printf("num of valid transactions: %d\n", len(validTransactions))
 	fmt.Printf("num of invalid transactions: %d\n", len(invalidTransactions))
 
+	// When the block numbers are the same, transactions should be arranged before deposits and transfers.
 	validBalanceTransitions := make([]ValidBalanceTransition, 0, len(validDeposits)+len(validTransfers)+len(validTransactions))
 	for _, transaction := range validTransactions {
 		validBalanceTransitions = append(validBalanceTransitions, transaction)
@@ -264,7 +265,7 @@ func (userAllData *BalanceTransitionData) SortValidUserData(
 		validBalanceTransitions = append(validBalanceTransitions, transfer)
 	}
 
-	sort.Slice(validBalanceTransitions, func(i, j int) bool {
+	sort.SliceStable(validBalanceTransitions, func(i, j int) bool {
 		return validBalanceTransitions[i].BlockNumber() < validBalanceTransitions[j].BlockNumber()
 	})
 
@@ -321,6 +322,7 @@ func (v ValidReceivedTransfer) Type() string {
 func ExtractValidSentTransactions(
 	log logger.Logger,
 	userData *BalanceTransitionData,
+	lastUpdatedBlockNumber uint32,
 	blockValidityService block_validity_prover.BlockValidityService,
 ) ([]ValidSentTx, []*poseidonHashOut, error) {
 	sentBlockNumbers := make([]ValidSentTx, 0, len(userData.Deposits))
@@ -344,6 +346,10 @@ func ExtractValidSentTransactions(
 		}
 
 		blockNumber := blockContent.BlockNumber
+		if blockNumber < lastUpdatedBlockNumber {
+			log.Warnf("block number %d is less than last updated block number %d\n", blockNumber, lastUpdatedBlockNumber)
+			continue
+		}
 		sentBlockNumbers = append(sentBlockNumbers, ValidSentTx{
 			TxHash:      txHash,
 			blockNumber: blockNumber,
@@ -359,6 +365,7 @@ func ExtractValidSentTransactions(
 func ExtractValidReceivedDeposits(
 	log logger.Logger,
 	userData *BalanceTransitionData,
+	lastUpdatedBlockNumber uint32,
 	blockValidityService block_validity_prover.BlockValidityService,
 ) ([]ValidReceivedDeposit, []common.Hash, error) {
 	sentBlockNumbers := make([]ValidReceivedDeposit, 0, len(userData.Deposits))
@@ -384,9 +391,15 @@ func ExtractValidReceivedDeposits(
 			continue
 		}
 
+		blockNumber := *depositInfo.BlockNumber
+		if blockNumber < lastUpdatedBlockNumber {
+			log.Warnf("block number %d is less than last updated block number %d\n", blockNumber, lastUpdatedBlockNumber)
+			continue
+		}
+
 		sentBlockNumbers = append(sentBlockNumbers, ValidReceivedDeposit{
 			DepositHash: depositHash,
-			blockNumber: *depositInfo.BlockNumber,
+			blockNumber: blockNumber,
 			Deposit:     deposit,
 		})
 
@@ -399,6 +412,7 @@ func ExtractValidReceivedDeposits(
 func ExtractValidReceivedTransfers(
 	log logger.Logger,
 	userData *BalanceTransitionData,
+	lastUpdatedBlockNumber uint32,
 	blockValidityService block_validity_prover.BlockValidityService,
 ) ([]ValidReceivedTransfer, []*poseidonHashOut, error) {
 	receivedBlockNumbers := make([]ValidReceivedTransfer, 0, len(userData.Transfers))
@@ -420,6 +434,11 @@ func ExtractValidReceivedTransfers(
 		}
 
 		blockNumber := blockContent.BlockNumber
+		if blockNumber < lastUpdatedBlockNumber {
+			log.Warnf("block number %d is less than last updated block number %d\n", blockNumber, lastUpdatedBlockNumber)
+			continue
+		}
+
 		receivedBlockNumbers = append(receivedBlockNumbers, ValidReceivedTransfer{
 			TransferHash: transferHash,
 			blockNumber:  blockNumber,

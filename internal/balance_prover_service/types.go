@@ -339,7 +339,7 @@ func NewSpentValue(
 		transfer := spentTokenWitness.Transfers[i]
 		proof := spentTokenWitness.AssetMerkleProofs[i]
 		prevBalance := spentTokenWitness.PrevBalances[i]
-		fmt.Printf("prevBalances[%d].Amount: %s\n", i, prevBalance.Amount.BigInt().String())
+		// fmt.Printf("prevBalances[%d].Amount: %s\n", i, prevBalance.Amount.BigInt().String())
 		// prevBalance, ok := prevBalancesMap[transfer.TokenIndex]
 		// if !ok {
 		// 	prevBalance = &intMaxTree.AssetLeaf{

@@ -115,9 +115,33 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 		const msg = "failed to start Balance Prover Service: %+v"
 		s.log.Fatalf(msg, err.Error())
 	}
+
+	lastUpdatedBlockNumber, err := (func() (lastUpdatedBlockNumber uint32, err error) {
+		lastBalanceProof := s.syncBalanceProver.LastBalanceProof()
+		if lastBalanceProof == nil {
+			return 0, nil
+		}
+
+		lastBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*lastBalanceProof)
+		if err != nil {
+			return 0, errors.Join(ErrNewCompressedPlonky2ProofFromBase64StringFail, err)
+		}
+
+		lastBalancePublicInputs, err := new(balance_prover_service.BalancePublicInputs).FromPublicInputs(lastBalanceProofWithPis.PublicInputs)
+		if err != nil {
+			return 0, errors.Join(ErrBalancePublicInputsFromPublicInputs, err)
+		}
+
+		return lastBalancePublicInputs.PublicState.BlockNumber, nil
+	})()
+	if err != nil {
+		return err
+	}
+
 	sortedValidUserData, err := balanceTransitionData.SortValidUserData(
 		s.log,
 		s.blockValidityService,
+		lastUpdatedBlockNumber,
 	)
 	if err != nil {
 		const msg = "failed to sort valid user data: %+v"
@@ -151,10 +175,6 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 	if latestSynchronizedBlockNumber <= s.syncBalanceProver.LastUpdatedBlockNumber() {
 		return ErrLatestSynchronizedBlockNumberLassOrEqualLastUpdatedBlockNumber
 	}
-
-	// if latestSynchronizedBlockNumber <= syncBalanceProver.LastUpdatedBlockNumber() && syncBalanceProver.LastUpdatedBlockNumber() != 0 {
-	// 	return balanceSynchronizer, nil
-	// }
 
 	if len(sortedValidUserData) == 0 {
 		return ErrNoValidUserData
@@ -502,7 +522,7 @@ func applySentTransactionTransition(
 	userState UserState,
 ) error {
 	// syncValidityProver.Sync() // sync validity proofs
-	fmt.Printf("(applySentTransactionTransition) transaction hash: %d\n", tx.Hash())
+	fmt.Printf("(applySentTransactionTransition) transaction hash: %s\n", tx.Hash().String())
 
 	// txMerkleProof := tx.TxMerkleProof
 	// transfers := tx.Transfers
@@ -510,20 +530,26 @@ func applySentTransactionTransition(
 	// balanceProverService.SyncBalanceProver
 	txWitness, transferWitnesses, err := MakeTxWitness(blockValidityService, tx)
 	if err != nil {
+		fmt.Printf("(applySentTransactionTransition) failed to make tx witness: %v\n", err.Error())
 		const msg = "failed to send transaction: %+v"
 		return fmt.Errorf(msg, err.Error())
 	}
+	fmt.Printf("(applySentTransactionTransition) generated tx witness\n")
 	newSalt, err := new(balance_prover_service.Salt).SetRandom()
 	if err != nil {
+		fmt.Printf("(applySentTransactionTransition) failed to set random: %v\n", err.Error())
 		const msg = "failed to set random: %+v"
 		return fmt.Errorf(msg, err.Error())
 	}
+	fmt.Printf("(applySentTransactionTransition) generated new salt\n")
 
 	_, err = userState.UpdateOnSendTx(*newSalt, txWitness, transferWitnesses)
 	if err != nil {
+		fmt.Printf("(applySentTransactionTransition) failed to update on send tx: %v\n", err.Error())
 		const msg = "failed to update on SendTx: %+v"
 		return fmt.Errorf(msg, err.Error())
 	}
+	fmt.Printf("(applySentTransactionTransition) updated on send tx\n")
 
 	err = syncBalanceProver.SyncSend(
 		log,
@@ -538,8 +564,9 @@ func applySentTransactionTransition(
 			return errors.New(messageBalanceProcessorNotInitialized)
 		}
 
-		return fmt.Errorf("failed to sync transaction:: %+v", err.Error())
+		return fmt.Errorf("failed to sync transaction: %+v", err.Error())
 	}
+	fmt.Printf("(applySentTransactionTransition) updated on send tx\n")
 
 	return nil
 }
