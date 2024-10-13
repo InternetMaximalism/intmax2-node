@@ -1,4 +1,4 @@
-package store_vault_server
+package get_backup_transfers_list
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 )
 
-//go:generate mockgen -destination=mock_db_app_test.go -package=store_vault_server_test -source=db_app.go
+//go:generate mockgen -destination=mock_db_app_test.go -package=get_backup_transfers_list_test -source=db_app.go
 
 type SQLDriverApp interface {
 	GenericCommandsApp
@@ -64,21 +64,8 @@ type BackupDeposits interface {
 		recipient, depositHash, encryptedDeposit string,
 		blockNumber int64,
 	) (*mDBApp.BackupDeposit, error)
-	GetBackupDepositByRecipientAndDepositDoubleHash(
-		recipient, depositDoubleHash string,
-	) (*mDBApp.BackupDeposit, error)
 	GetBackupDeposit(conditions []string, values []interface{}) (*mDBApp.BackupDeposit, error)
 	GetBackupDeposits(condition string, value interface{}) ([]*mDBApp.BackupDeposit, error)
-	GetBackupDepositsByRecipient(
-		recipient string,
-		pagination mDBApp.PaginationOfListOfBackupDepositsInput,
-		sorting mFL.Sorting, orderBy mFL.OrderBy,
-		filters mFL.FiltersList,
-	) (
-		paginator *mDBApp.PaginationOfListOfBackupDeposits,
-		listDBApp mDBApp.ListOfBackupDeposit,
-		err error,
-	)
 }
 
 type BackupBalances interface {

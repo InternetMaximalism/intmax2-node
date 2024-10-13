@@ -429,9 +429,12 @@ func CalculateBalance(
 			log.Printf("failed to unmarshal transaction: %v", err)
 			continue
 		}
-		for _, transfer := range decodedTx.Transfers {
-			if tokenIndex == transfer.TokenIndex {
-				balance = new(big.Int).Sub(balance, transfer.Amount)
+		for index := range decodedTx.Transfers {
+			if index == 0 {
+				continue
+			}
+			if tokenIndex == decodedTx.Transfers[index].TokenIndex {
+				balance = new(big.Int).Sub(balance, decodedTx.Transfers[index].Amount)
 			}
 		}
 	}
