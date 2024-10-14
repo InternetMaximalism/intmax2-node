@@ -60,10 +60,15 @@ service StoreVaultService {
   //
   // Option condition by `dataField`:
   //  * `block_number`: `lessThan`, `lessThanOrEqualTo`, `is`, `greaterThanOrEqualTo`, `greaterThan`.
+  //  * `start_backup_time`: `lessThan`, `lessThanOrEqualTo`, `greaterThanOrEqualTo`, `greaterThan`.
   //
   // Filter `block_number`: `lessThan`, `lessThanOrEqualTo`, `is`, `greaterThanOrEqualTo`, `greaterThan`:
   //  * for filtering need set the value `value` with specified block number
   //  example: `value` = `1` (`is`).
+  //
+  // Filter `start_backup_time`: `lessThan`, `lessThanOrEqualTo`, `greaterThanOrEqualTo`, `greaterThan`:
+  //  * for filtering need set the value `value` with specified block number
+  //  example: `value` = `2024-06-10T22:00:00.123Z` (`lessThanOrEqualTo`).
   //
   // ** **
   //

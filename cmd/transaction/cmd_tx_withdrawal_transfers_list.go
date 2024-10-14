@@ -19,11 +19,11 @@ func txWithdrawalTransfersListCmd(b *Transaction) *cobra.Command {
 		userPrivateKeyKey                = "private-key"
 		userPrivateDesc                  = "specify user's Ethereum private key. use as --private-key \"0x0000000000000000000000000000000000000000000000000000000000000000\""
 		filterNameKey                    = "filterName"
-		filterNameDesc                   = "specify the filter name. use as --filterName \"block_number\" (support value: \"block_number\")"
+		filterNameDesc                   = "specify the filter name. use as --filterName \"block_number\" (support value: \"block_number\", \"start_backup_time\")"
 		filterConditionKey               = "filterCondition"
-		filterConditionDesc              = "specify the filter condition. use as --filterCondition \"is\" (support values: \"lessThan\", \"lessThanOrEqualTo\", \"is\", \"greaterThanOrEqualTo\", \"greaterThan\")" // nolint:lll
+		filterConditionDesc              = "specify the filter condition. use as --filterCondition \"is\" (support values: \"lessThan\", \"lessThanOrEqualTo\", \"is\" (only for \"block_number\"), \"greaterThanOrEqualTo\", \"greaterThan\")" // nolint:lll
 		filterValueKey                   = "filterValue"
-		filterValueDesc                  = "specify the value of filter. use as --filterValue \"1\""
+		filterValueDesc                  = "specify the value of filter. use as --filterValue \"1\" (examples: for \"block_number\" = \"1\"; for \"start_backup_time\" = \"2024-06-10T22:00:00.123Z\")"
 		sortingKey                       = "sorting"
 		sortingDesc                      = "specify the sorting. use as --sorting \"desc\" (support values: \"asc\", \"desc\")"
 		sortingDef                       = "desc"

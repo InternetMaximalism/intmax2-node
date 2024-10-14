@@ -4,6 +4,7 @@ import (
 	"errors"
 	mFL "intmax2-node/internal/sql_filter/models"
 	"strconv"
+	"time"
 
 	"github.com/holiman/uint256"
 	"github.com/prodadidb/go-validation"
@@ -141,11 +142,15 @@ func validateFilter() validation.Rule {
 		return validation.ValidateStruct(&f,
 			validation.Field(&f.Relation, validation.Required, validation.In(mFL.RelationAnd, mFL.RelationOr)),
 			validation.Field(&f.DataField, validation.Required, validation.In(
-				mFL.DataFieldBlockNumber,
+				mFL.DataFieldBlockNumber, mFL.DataFieldStartBackupTime,
 			)),
 			validation.Field(&f.Condition,
 				validation.When(f.DataField == mFL.DataFieldBlockNumber, validation.In(
 					mFL.ConditionIs,
+					mFL.ConditionGreaterThan, mFL.ConditionLessThan,
+					mFL.ConditionGreaterThanOrEqualTo, mFL.ConditionLessThanOrEqualTo,
+				)),
+				validation.When(f.DataField == mFL.DataFieldStartBackupTime, validation.In(
 					mFL.ConditionGreaterThan, mFL.ConditionLessThan,
 					mFL.ConditionGreaterThanOrEqualTo, mFL.ConditionLessThanOrEqualTo,
 				)),
@@ -162,6 +167,23 @@ func validateFilter() validation.Rule {
 
 						var sID uint256.Int
 						err := sID.Scan(v)
+						if err != nil {
+							return ErrValueInvalid
+						}
+
+						return nil
+					}),
+				),
+				validation.When(f.DataField == mFL.DataFieldStartBackupTime,
+					validation.Required,
+					validation.By(func(value interface{}) (err error) {
+						var v string
+						v, ok = value.(string)
+						if !ok {
+							return ErrValueInvalid
+						}
+
+						_, err = time.Parse(time.RFC3339Nano, v)
 						if err != nil {
 							return ErrValueInvalid
 						}
