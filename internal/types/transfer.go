@@ -82,6 +82,10 @@ func (ga *GenericAddress) Unmarshal(data []byte) error {
 }
 
 func (ga *GenericAddress) String() string {
+	if ga.TypeOfAddress == intMaxAccTypes.EthereumAddressType {
+		return common.BytesToAddress(ga.Marshal()).String()
+	}
+
 	return "0x" + hex.EncodeToString(ga.Marshal())
 }
 

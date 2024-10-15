@@ -214,8 +214,6 @@ func sendWithdrawalRawRequest(
 		if respJSON.Message == withdrawalService.ErrWithdrawalRequestAlreadyExists.Error() {
 			return withdrawalService.ErrWithdrawalRequestAlreadyExists
 		}
-
-		return fmt.Errorf("failed to get response")
 	}
 
 	if resp.StatusCode() != http.StatusOK {

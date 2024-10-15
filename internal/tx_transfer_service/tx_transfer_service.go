@@ -354,38 +354,6 @@ type BackupWithdrawal struct {
 	TxTreeRoot          goldenposeidon.PoseidonHashOut    `json:"txTreeRoot"`
 }
 
-type withdrawalTransfer struct {
-	Recipient common.Address `json:"recipient"`
-
-	TokenIndex uint32 `json:"tokenIndex"`
-
-	// Amount is a decimal string
-	Amount string `json:"amount"`
-
-	Salt *goldenposeidon.PoseidonHashOut `json:"salt"`
-}
-
-type backupWithdrawal struct {
-	SenderAddress string `json:"senderAddress"`
-
-	Transfer withdrawalTransfer `json:"transfer"`
-
-	TransferMerkleProof []*goldenposeidon.PoseidonHashOut `json:"transferMerkleProof"`
-
-	TransferIndex int32 `json:"transferIndex"`
-
-	TransferTreeRoot goldenposeidon.PoseidonHashOut `json:"transferTreeRoot"`
-
-	// Nonce is a decimal string
-	Nonce string `json:"nonce"`
-
-	TxTreeMerkleProof []*goldenposeidon.PoseidonHashOut `json:"txTreeMerkleProof"`
-
-	TxIndex int32 `json:"txIndex"`
-
-	TxTreeRoot goldenposeidon.PoseidonHashOut `json:"txTreeRoot"`
-}
-
 func (bw *BackupWithdrawal) MarshalJSON() ([]byte, error) {
 	if bw.Transfer.Recipient.TypeOfAddress != intMaxAccTypes.EthereumAddressType {
 		return nil, errors.New("recipient address should be ETHEREUM")
@@ -426,6 +394,7 @@ func (bw *BackupWithdrawal) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("failed to create recipient address: %w", err)
 	}
+
 	amount, ok := new(big.Int).SetString(withdrawal.Transfer.Amount, base10Key)
 	if !ok {
 		return fmt.Errorf("failed to convert amount to int: %v", withdrawal.Transfer.Amount)
@@ -458,6 +427,38 @@ func (bw *BackupWithdrawal) UnmarshalJSON(data []byte) error {
 	bw.TxTreeRoot = withdrawal.TxTreeRoot
 
 	return nil
+}
+
+type withdrawalTransfer struct {
+	Recipient common.Address `json:"recipient"`
+
+	TokenIndex uint32 `json:"tokenIndex"`
+
+	// Amount is a decimal string
+	Amount string `json:"amount"`
+
+	Salt *goldenposeidon.PoseidonHashOut `json:"salt"`
+}
+
+type backupWithdrawal struct {
+	SenderAddress string `json:"senderAddress"`
+
+	Transfer withdrawalTransfer `json:"transfer"`
+
+	TransferMerkleProof []*goldenposeidon.PoseidonHashOut `json:"transferMerkleProof"`
+
+	TransferIndex int32 `json:"transferIndex"`
+
+	TransferTreeRoot goldenposeidon.PoseidonHashOut `json:"transferTreeRoot"`
+
+	// Nonce is a decimal string
+	Nonce string `json:"nonce"`
+
+	TxTreeMerkleProof []*goldenposeidon.PoseidonHashOut `json:"txTreeMerkleProof"`
+
+	TxIndex int32 `json:"txIndex"`
+
+	TxTreeRoot goldenposeidon.PoseidonHashOut `json:"txTreeRoot"`
 }
 
 func MakeWithdrawalBackupData(
@@ -522,6 +523,7 @@ func MakeWithdrawalBackupData(
 	}
 
 	return &transaction.BackupTransferInput{
+		TransferHash:             transfer.Hash().String(),
 		Recipient:                hexutil.Encode(transfer.Recipient.Marshal()),
 		EncodedEncryptedTransfer: base64.StdEncoding.EncodeToString(encryptedTransfer),
 	}, nil
