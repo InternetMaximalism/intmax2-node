@@ -85,63 +85,46 @@ func TransferTransaction(
 		return fmt.Errorf("insufficient funds for total amount: balance %s, total amount %s", balance, amount)
 	}
 
-	var dataBlockInfo *BlockInfoResponseData
-	dataBlockInfo, err = GetBlockInfo(ctx, cfg)
+	var (
+		amountGasFee  *uint256.Int
+		intMaxAddress string
+	)
+	amountGasFee, intMaxAddress, err = transferFee(ctx, cfg, tokenIndex)
 	if err != nil {
-		return fmt.Errorf("failed to get the block info data: %w", err)
+		return fmt.Errorf("failed to get transfer fee: %v", err)
+	}
+	if amountGasFee == nil {
+		return nil
+	}
+
+	totalAmountWithGas := new(big.Int).Add(amount, amountGasFee.ToBig())
+	if balance.Cmp(totalAmountWithGas) < 0 {
+		return fmt.Errorf("insufficient funds for tx cost: balance %s, tx cost %s", balance, totalAmountWithGas)
 	}
 
 	zeroTransfer := new(intMaxTypes.Transfer).SetZero()
 	var initialLeaves []*intMaxTypes.Transfer
 
-	gasFee, gasOK := dataBlockInfo.TransferFee[new(big.Int).SetUint64(uint64(tokenIndex)).String()]
-	if !gasOK {
-		const defaultTokenIndex = "0"
-		gasFee, gasOK = dataBlockInfo.TransferFee[defaultTokenIndex]
-	}
-	if gasOK {
-		log.Debugf(
-			"TransferFee for tokenIndex = %v is fee = %v (recipient = %v)",
-			tokenIndex, gasFee, dataBlockInfo.IntMaxAddress,
-		)
-
-		// Send transfer transaction
-		var recipient *intMaxAcc.PublicKey
-		recipient, err = intMaxAcc.NewPublicKeyFromAddressHex(dataBlockInfo.IntMaxAddress)
-		if err != nil {
-			return fmt.Errorf("failed to parse recipient address: %v", err)
-		}
-
-		var recipientAddress *intMaxTypes.GenericAddress
-		recipientAddress, err = intMaxTypes.NewINTMAXAddress(recipient.ToAddress().Bytes())
-		if err != nil {
-			return fmt.Errorf("failed to create recipient address: %v", err)
-		}
-
-		var amountGasFee uint256.Int
-		err = amountGasFee.Scan(gasFee)
-		if err != nil {
-			return fmt.Errorf("failed to convert string to uint256.Int: %w", err)
-		}
-
-		transfer := intMaxTypes.NewTransferWithRandomSalt(
-			recipientAddress,
-			tokenIndex,
-			amountGasFee.ToBig(),
-		)
-
-		initialLeaves = append(initialLeaves, transfer)
+	// Send transfer transaction
+	var recipientGasFee *intMaxAcc.PublicKey
+	recipientGasFee, err = intMaxAcc.NewPublicKeyFromAddressHex(intMaxAddress)
+	if err != nil {
+		return fmt.Errorf("failed to parse recipient address of gas fee: %v", err)
 	}
 
-	const base10 = 10
-	gasFeeInt, ok := new(big.Int).SetString(gasFee, base10)
-	if !ok {
-		return fmt.Errorf("failed to convert gas fee to int: %w", err)
+	var recipientAddressGasFee *intMaxTypes.GenericAddress
+	recipientAddressGasFee, err = intMaxTypes.NewINTMAXAddress(recipientGasFee.ToAddress().Bytes())
+	if err != nil {
+		return fmt.Errorf("failed to create recipient address of gas fee: %v", err)
 	}
-	totalAmountWithGas := new(big.Int).Add(amount, gasFeeInt)
-	if balance.Cmp(totalAmountWithGas) < 0 {
-		return fmt.Errorf("insufficient funds for tx cost: balance %s, tx cost %s", balance, totalAmountWithGas)
-	}
+
+	transferGasFee := intMaxTypes.NewTransferWithRandomSalt(
+		recipientAddressGasFee,
+		tokenIndex,
+		amountGasFee.ToBig(),
+	)
+
+	initialLeaves = append(initialLeaves, transferGasFee)
 
 	// Send transfer transaction
 	var recipient *intMaxAcc.PublicKey
