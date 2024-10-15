@@ -549,6 +549,50 @@
         ]
       }
     },
+    "/v1/backups/transfer/{transferHash}": {
+      "get": {
+        "summary": "GetBackupTransferByHash processes a request for backup transfer by hash",
+        "description": "## This method handles the backup transfer by hash.",
+        "operationId": "StoreVaultService_GetBackupTransferByHash",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetBackupTransferByHashResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "transferHash",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "recipient",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      }
+    },
     "/v1/backups/transfers/list": {
       "post": {
         "summary": "GetBackupTransfersList processes a request for backup transfers list with pagination and filters",
@@ -1637,6 +1681,47 @@
           "format": "uint64"
         },
         "encryptedTx": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "v1GetBackupTransferByHashResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "data": {
+          "$ref": "#/definitions/v1GetBackupTransferByHashResponseData"
+        }
+      }
+    },
+    "v1GetBackupTransferByHashResponseData": {
+      "type": "object",
+      "properties": {
+        "transfer": {
+          "$ref": "#/definitions/v1GetBackupTransferByHashResponseTransfer"
+        }
+      }
+    },
+    "v1GetBackupTransferByHashResponseTransfer": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "recipient": {
+          "type": "string"
+        },
+        "encryptedTransfer": {
           "type": "string"
         },
         "createdAt": {

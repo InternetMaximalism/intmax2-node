@@ -21,6 +21,7 @@ func txWithdrawalCmd(b *Transaction) *cobra.Command {
 	}
 
 	withdrawalCmd.AddCommand(txWithdrawalTransfersListCmd(b))
+	withdrawalCmd.AddCommand(txWithdrawalTransferInfoByHashCmd(b))
 	withdrawalCmd.AddCommand(txWithdrawalTokenCmd(b, ethTokenType))
 	withdrawalCmd.AddCommand(txWithdrawalTokenCmd(b, erc20TokenType))
 	withdrawalCmd.AddCommand(txWithdrawalTokenCmd(b, erc721TokenType))

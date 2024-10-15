@@ -121,6 +121,9 @@ type BackupTransfers interface {
 		blockNumber int64,
 	) (*models.BackupTransfer, error)
 	GetBackupTransfer(condition string, value string) (*models.BackupTransfer, error)
+	GetBackupTransferByRecipientAndTransferDoubleHash(
+		recipient, transferDoubleHash string,
+	) (*models.BackupTransfer, error)
 	GetBackupTransfers(condition string, value interface{}) ([]*models.BackupTransfer, error)
 	GetBackupTransfersByRecipient(
 		recipient string,

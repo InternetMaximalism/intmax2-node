@@ -242,6 +242,15 @@ service StoreVaultService {
     };
   }
 
+  // GetBackupTransferByHash processes a request for backup transfer by hash
+  //
+  // ## This method handles the backup transfer by hash.
+  rpc GetBackupTransferByHash(GetBackupTransferByHashRequest) returns (GetBackupTransferByHashResponse) {
+    option (google.api.http) = {
+      get: "/v1/backups/transfer/{transfer_hash}"
+    };
+  }
+
   // BackupTransaction processes a request for data backup transaction
   //
   // ## This method handles the transaction of backup data.
@@ -882,6 +891,28 @@ message GetBackupTransfersListResponse {
     // cursor of next/prev sorting value by pagination
     // example = "1"
     string sorting_value = 20;
+  }
+
+  message Transfer {
+    string id = 1;
+    uint64 block_number = 2;
+    string recipient = 3;
+    string encrypted_transfer = 4;
+    google.protobuf.Timestamp created_at = 5;
+  }
+}
+
+message GetBackupTransferByHashRequest {
+  string recipient = 1;
+  string transfer_hash = 2;
+}
+
+message GetBackupTransferByHashResponse {
+  bool success = 1;
+  Data data = 2;
+
+  message Data {
+    Transfer transfer = 1;
   }
 
   message Transfer {

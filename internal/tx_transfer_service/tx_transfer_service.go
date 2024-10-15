@@ -81,11 +81,9 @@ func TransferTransaction(
 		return fmt.Errorf("failed to convert amount to int: %v", amountStr)
 	}
 
-	/**
 	if balance.Cmp(amount) < 0 {
 		return fmt.Errorf("insufficient funds for total amount: balance %s, total amount %s", balance, amount)
 	}
-	*/
 
 	var dataBlockInfo *BlockInfoResponseData
 	dataBlockInfo, err = GetBlockInfo(ctx, cfg)

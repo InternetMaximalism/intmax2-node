@@ -13,7 +13,7 @@ import (
 func txWithdrawalTransfersListCmd(b *Transaction) *cobra.Command {
 	const (
 		use   = "list"
-		short = "Get transfers list"
+		short = "Get withdrawal transfers list"
 
 		emptyKey                         = ""
 		userPrivateKeyKey                = "private-key"

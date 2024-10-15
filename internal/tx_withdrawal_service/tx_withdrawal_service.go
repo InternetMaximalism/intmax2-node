@@ -453,3 +453,12 @@ func TransfersList(
 
 	return GetTransfersListWithRawRequest(ctx, cfg, input, userEthPrivateKey)
 }
+
+func TransferByHash(
+	ctx context.Context,
+	cfg *configs.Config,
+	transferHash string,
+	userEthPrivateKey string,
+) (json.RawMessage, error) {
+	return GetTransferByHashWithRawRequest(ctx, cfg, transferHash, userEthPrivateKey)
+}

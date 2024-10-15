@@ -1,11 +1,11 @@
-package get_backup_transaction_by_hash
+package get_backup_transfer_by_hash
 
 import (
 	"context"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 )
 
-//go:generate mockgen -destination=mock_db_app_test.go -package=get_backup_transaction_by_hash_test -source=db_app.go
+//go:generate mockgen -destination=mock_db_app_test.go -package=get_backup_transfer_by_hash_test -source=db_app.go
 
 type SQLDriverApp interface {
 	GenericCommandsApp

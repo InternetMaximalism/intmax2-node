@@ -7,10 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
+	intMaxAcc "intmax2-node/internal/accounts"
+	intMaxAccTypes "intmax2-node/internal/accounts/types"
 	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/mnemonic_wallet"
 	"intmax2-node/internal/tx_transfer_service"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -249,4 +252,147 @@ func GetTransferFromBackupData(
 	}
 
 	return &bwd, nil
+}
+
+func GetTransferByHashWithRawRequest(
+	ctx context.Context,
+	cfg *configs.Config,
+	transferHash string,
+	userEthPrivateKey string,
+) (json.RawMessage, error) {
+	const (
+		emptyKey  = ""
+		indentKey = "  "
+	)
+
+	resp, err := getTransferByHashRawRequest(
+		ctx,
+		cfg,
+		transferHash,
+		userEthPrivateKey,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Error != nil {
+		var js []byte
+		js, err = json.MarshalIndent(&GetTransferTxResponse{
+			GetTransfersListError: GetTransfersListError{
+				Code:    resp.Error.Code,
+				Message: resp.Error.Message,
+			},
+		}, emptyKey, indentKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal transfer by hash: %w", err)
+		}
+
+		return js, nil
+	}
+
+	var transferDetails *tx_transfer_service.BackupWithdrawal
+	transferDetails, err = GetTransferFromBackupData(
+		resp.Data.Transfer,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	var js []byte
+	js, err = json.MarshalIndent(&GetTransferTxResponse{
+		Success: true,
+		Data:    transferDetails,
+	}, emptyKey, indentKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal transfer by hash: %w", err)
+	}
+
+	var address string
+	if transferDetails.Transfer.Recipient.TypeOfAddress == intMaxAccTypes.INTMAXAddressType {
+		var addr intMaxAcc.Address
+		addr, err = transferDetails.Transfer.Recipient.ToINTMAXAddress()
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert recipient address to INTMAX address: %w", err)
+		}
+		address = addr.String()
+	} else {
+		var addr common.Address
+		addr, err = transferDetails.Transfer.Recipient.ToEthereumAddress()
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert recipient address to Ethereum address: %w", err)
+		}
+		address = addr.String()
+	}
+
+	js, err = sjson.SetBytes(
+		js,
+		"data.transfer.recipient",
+		address,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set recipient address: %w", err)
+	}
+
+	return js, nil
+}
+
+func getTransferByHashRawRequest(
+	ctx context.Context,
+	cfg *configs.Config,
+	transferHash string,
+	userEthPrivateKey string,
+) (*GetTransferByHashResponse, error) {
+	const (
+		contentType = "Content-Type"
+		appJSON     = "application/json"
+	)
+
+	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
+	if err != nil {
+		return nil, errors.Join(errorsB.ErrWalletAddressNotRecognized, err)
+	}
+
+	apiUrl := fmt.Sprintf(
+		"%s/v1/backups/transfer/%s",
+		cfg.API.DataStoreVaultUrl,
+		url.QueryEscape(transferHash),
+	)
+
+	r := resty.New().R()
+	resp, err := r.SetContext(ctx).SetHeaders(map[string]string{
+		contentType: appJSON,
+	}).SetQueryParams(map[string]string{
+		"recipient": wallet.WalletAddress.String(),
+	}).Get(apiUrl)
+	if err != nil {
+		const msg = "failed to send of the transfer request: %w"
+		return nil, fmt.Errorf(msg, err)
+	}
+
+	if resp == nil {
+		const msg = "send request error occurred"
+		return &GetTransferByHashResponse{
+			Error: &GetTransfersListError{
+				Code:    http.StatusInternalServerError,
+				Message: msg,
+			},
+		}, nil
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		const messageKey = "message"
+		return &GetTransferByHashResponse{
+			Error: &GetTransfersListError{
+				Code:    resp.StatusCode(),
+				Message: strings.ToLower(gjson.GetBytes(resp.Body(), messageKey).String()),
+			},
+		}, nil
+	}
+
+	response := new(GetTransferByHashResponse)
+	if err = json.Unmarshal(resp.Body(), response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	return response, nil
 }

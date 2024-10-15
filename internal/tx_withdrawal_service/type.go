@@ -47,3 +47,19 @@ type GetTxWithdrawalTransfersList struct {
 	Data    *GetTxWithdrawalTransfersListData `json:"data,omitempty"`
 	GetTransfersListError
 }
+
+type GetTransferByHashData struct {
+	Transfer *GetTransferData `json:"transfer"`
+}
+
+type GetTransferByHashResponse struct {
+	Success bool                   `json:"success"`
+	Data    *GetTransferByHashData `json:"data,omitempty"`
+	Error   *GetTransfersListError `json:"error,omitempty"`
+}
+
+type GetTransferTxResponse struct {
+	Success bool                                  `json:"success"`
+	Data    *tx_transfer_service.BackupWithdrawal `json:"data,omitempty"`
+	GetTransfersListError
+}

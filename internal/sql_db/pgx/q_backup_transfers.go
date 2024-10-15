@@ -14,9 +14,8 @@ import (
 	"strings"
 	"time"
 
-	libPGX "github.com/jackc/pgx/v5"
-
 	"github.com/google/uuid"
+	libPGX "github.com/jackc/pgx/v5"
 )
 
 func (p *pgx) CreateBackupTransfer(
@@ -50,6 +49,33 @@ func (p *pgx) GetBackupTransfer(condition, value string) (*mDBApp.BackupTransfer
 
 	var b models.BackupTransfer
 	err := errPgx.Err(p.queryRow(p.ctx, query, value).
+		Scan(
+			&b.ID,
+			&b.Recipient,
+			&b.TransferDoubleHash,
+			&b.EncryptedTransfer,
+			&b.BlockNumber,
+			&b.CreatedAt,
+		))
+	if err != nil {
+		return nil, err
+	}
+	transfer := p.backupTransferToDBApp(&b)
+	return &transfer, nil
+}
+
+func (p *pgx) GetBackupTransferByRecipientAndTransferDoubleHash(
+	recipient, transferDoubleHash string,
+) (*mDBApp.BackupTransfer, error) {
+	const (
+		q = `
+        SELECT id, recipient, transfer_double_hash, encrypted_transfer, block_number, created_at
+        FROM backup_transfers
+        WHERE recipient = $1 AND transfer_double_hash = $2 `
+	)
+
+	var b models.BackupTransfer
+	err := errPgx.Err(p.queryRow(p.ctx, q, recipient, transferDoubleHash).
 		Scan(
 			&b.ID,
 			&b.Recipient,
