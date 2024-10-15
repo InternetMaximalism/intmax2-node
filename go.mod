@@ -10,7 +10,6 @@ require (
 	github.com/btcsuite/btcd/btcutil v1.1.5
 	github.com/caarlos0/env/v8 v8.0.0
 	github.com/consensys/gnark-crypto v0.12.1
-	github.com/cosmos/go-bip39 v1.0.0
 	github.com/dimiro1/health v0.0.0-00010101000000-000000000000
 	github.com/ethereum/go-ethereum v1.14.5
 	github.com/go-resty/resty/v2 v2.13.1
@@ -38,6 +37,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/tidwall/gjson v1.17.1
 	github.com/tidwall/sjson v1.2.5
+	github.com/tyler-smith/go-bip39 v1.1.0
 	github.com/yaronsumel/grpc-throttle v0.0.0-20190317162315-207a473e9394
 	go.etcd.io/bbolt v1.3.10
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.52.0

@@ -11,12 +11,12 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil/hdkeychain"
 	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/cosmos/go-bip39"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/google/uuid"
 	isUtils "github.com/prodadidb/go-validation/is/utils"
+	"github.com/tyler-smith/go-bip39"
 )
 
 type mnemonicWallet struct{}

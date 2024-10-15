@@ -133,7 +133,20 @@ type BackupTransfers interface {
 		blockNumber int64,
 	) (*models.BackupTransfer, error)
 	GetBackupTransfer(condition string, value string) (*models.BackupTransfer, error)
+	GetBackupTransferByRecipientAndTransferDoubleHash(
+		recipient, transferDoubleHash string,
+	) (*models.BackupTransfer, error)
 	GetBackupTransfers(condition string, value interface{}) ([]*models.BackupTransfer, error)
+	GetBackupTransfersByRecipient(
+		recipient string,
+		pagination models.PaginationOfListOfBackupTransfersInput,
+		sorting mFL.Sorting, orderBy mFL.OrderBy,
+		filters mFL.FiltersList,
+	) (
+		paginator *models.PaginationOfListOfBackupTransfers,
+		listDBApp models.ListOfBackupTransfer,
+		err error,
+	)
 }
 
 type BackupTransactions interface {
