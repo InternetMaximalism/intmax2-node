@@ -67,7 +67,7 @@ service StoreVaultService {
   //  example: `value` = `1` (`is`).
   //
   // Filter `start_backup_time`: `lessThan`, `lessThanOrEqualTo`, `greaterThanOrEqualTo`, `greaterThan`:
-  //  * for filtering need set the value `value` with specified block number
+  //  * for filtering need set the value `value` with specified the start backup time
   //  example: `value` = `2024-06-10T22:00:00.123Z` (`lessThanOrEqualTo`).
   //
   // ** **
