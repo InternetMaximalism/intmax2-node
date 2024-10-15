@@ -10,7 +10,9 @@ import (
 	getBackupTransactionByHash "intmax2-node/internal/use_cases/get_backup_transaction_by_hash"
 	getBackupTransactions "intmax2-node/internal/use_cases/get_backup_transactions"
 	getBackupTransactionsList "intmax2-node/internal/use_cases/get_backup_transactions_list"
+	getBackupTransferByHash "intmax2-node/internal/use_cases/get_backup_transfer_by_hash"
 	getBackupTransfers "intmax2-node/internal/use_cases/get_backup_transfers"
+	getBackupTransfersList "intmax2-node/internal/use_cases/get_backup_transfers_list"
 	getVersion "intmax2-node/internal/use_cases/get_version"
 	postBackupDeposit "intmax2-node/internal/use_cases/post_backup_deposit"
 	postBackupTransaction "intmax2-node/internal/use_cases/post_backup_transaction"
@@ -23,7 +25,9 @@ import (
 	ucGetBackupTransactionByHash "intmax2-node/pkg/use_cases/get_backup_transaction_by_hash"
 	ucGetBackupTransactions "intmax2-node/pkg/use_cases/get_backup_transactions"
 	ucGetBackupTransactionsList "intmax2-node/pkg/use_cases/get_backup_transactions_list"
+	ucGetBackupTransferByHash "intmax2-node/pkg/use_cases/get_backup_transfer_by_hash"
 	ucGetBackupTransfers "intmax2-node/pkg/use_cases/get_backup_transfers"
+	ucGetBackupTransfersList "intmax2-node/pkg/use_cases/get_backup_transfers_list"
 	ucGetBalances "intmax2-node/pkg/use_cases/get_balances"
 	ucVerifyDepositConfirmation "intmax2-node/pkg/use_cases/get_verify_deposit_confirmation"
 	ucGetVersion "intmax2-node/pkg/use_cases/get_version"
@@ -58,6 +62,16 @@ type Commands interface {
 		log logger.Logger,
 		db SQLDriverApp,
 	) getBackupTransfers.UseCaseGetBackupTransfers
+	GetBackupTransfersList(
+		cfg *configs.Config,
+		log logger.Logger,
+		db SQLDriverApp,
+	) getBackupTransfersList.UseCaseGetBackupTransfersList
+	GetBackupTransferByHash(
+		cfg *configs.Config,
+		log logger.Logger,
+		db SQLDriverApp,
+	) getBackupTransferByHash.UseCaseGetBackupTransferByHash
 	GetBackupTransactions(
 		cfg *configs.Config,
 		log logger.Logger,
@@ -137,6 +151,22 @@ func (c *commands) GetBackupTransfers(
 	db SQLDriverApp,
 ) getBackupTransfers.UseCaseGetBackupTransfers {
 	return ucGetBackupTransfers.New(cfg, log, db)
+}
+
+func (c *commands) GetBackupTransfersList(
+	cfg *configs.Config,
+	log logger.Logger,
+	db SQLDriverApp,
+) getBackupTransfersList.UseCaseGetBackupTransfersList {
+	return ucGetBackupTransfersList.New(cfg, log, db)
+}
+
+func (c *commands) GetBackupTransferByHash(
+	cfg *configs.Config,
+	log logger.Logger,
+	db SQLDriverApp,
+) getBackupTransferByHash.UseCaseGetBackupTransferByHash {
+	return ucGetBackupTransferByHash.New(cfg, log, db)
 }
 
 func (c *commands) GetBackupTransactions(

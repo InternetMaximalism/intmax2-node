@@ -41,7 +41,7 @@ func New(
 
 func (u *uc) Do(ctx context.Context, args []string, recipientAddressHex, amount, userEthPrivateKey string, resumeIncompleteWithdrawals bool) (err error) {
 	const (
-		hName     = "UseCase TxTransfer"
+		hName     = "UseCase TxWithdrawal"
 		senderKey = "sender"
 	)
 

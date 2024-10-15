@@ -1,6 +1,7 @@
 package tx_transfer_service
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,12 +11,16 @@ import (
 	"intmax2-node/internal/pow"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/internal/use_cases/transaction"
+	"math/big"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/go-resty/resty/v2"
+	"github.com/holiman/uint256"
 )
 
 func SendTransferTransaction(
@@ -163,4 +168,81 @@ func sendTransactionRawRequest(
 	}
 
 	return nil
+}
+
+func transferFee(
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
+	tokenIndex uint32,
+) (*uint256.Int, string, error) {
+	const (
+		emptyKey           = ""
+		ctrlKey            = '\n'
+		yKey               = "y"
+		nKey               = "n"
+		uKey               = "u"
+		msgFetch           = "Fetching transfer fee..."
+		maskETH            = "Current transfer fee is %.18f ETH. For continue transaction press, please: Y|n|u (yes|no|update):"
+		msgTimeout         = "Confirmation of transfer fee is expired (time out equal to or greater than 1 minute). Repeat your selection."
+		msgTrFeeIsApproved = "Transfer fee is approved."
+		msgTrIsCanceled    = "Transaction is canceled."
+		defaultTokenIndex  = "0"
+		val1e18Key         = 1e18
+	)
+
+	var amountGasFee uint256.Int
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Println(msgFetch)
+
+		dataBlockInfo, err := GetBlockInfo(ctx, cfg, log)
+		if err != nil {
+			const msg = "failed to get the block info data: %w"
+			return nil, emptyKey, fmt.Errorf(msg, err)
+		}
+		gasFee, gasOK := dataBlockInfo.TransferFee[new(big.Int).SetUint64(uint64(tokenIndex)).String()]
+		if !gasOK {
+			gasFee, gasOK = dataBlockInfo.TransferFee[defaultTokenIndex]
+		}
+		if !gasOK {
+			const msg = "failed to get default gas fee from the block info data"
+			return nil, emptyKey, fmt.Errorf(msg)
+		}
+
+		err = amountGasFee.Scan(gasFee)
+		if err != nil {
+			const msg = "failed to convert string to uint256.Int: %w"
+			return nil, emptyKey, fmt.Errorf(msg, err)
+		}
+
+		start := time.Now().UTC()
+		fmt.Printf(maskETH, amountGasFee.Float64()/val1e18Key)
+
+		var rs string
+		rs, err = reader.ReadString(ctrlKey)
+		if err != nil {
+			continue
+		}
+		rs = strings.ToLower(strings.TrimSpace(rs))
+		switch rs {
+		case yKey:
+			if time.Now().UTC().Unix() >= start.Add(time.Minute).Unix() {
+				fmt.Println(msgTimeout)
+				continue
+			}
+
+			fmt.Println(msgTrFeeIsApproved)
+
+			return &amountGasFee, dataBlockInfo.IntMaxAddress, nil
+		case nKey:
+			fmt.Println(msgTrIsCanceled)
+
+			return nil, emptyKey, nil
+		case uKey:
+			continue
+		default:
+			continue
+		}
+	}
 }

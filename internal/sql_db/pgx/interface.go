@@ -128,7 +128,20 @@ type BackupTransfers interface {
 		blockNumber int64,
 	) (*mDBApp.BackupTransfer, error)
 	GetBackupTransfer(condition string, value string) (*mDBApp.BackupTransfer, error)
+	GetBackupTransferByRecipientAndTransferDoubleHash(
+		recipient, transferDoubleHash string,
+	) (*mDBApp.BackupTransfer, error)
 	GetBackupTransfers(condition string, value interface{}) ([]*mDBApp.BackupTransfer, error)
+	GetBackupTransfersByRecipient(
+		recipient string,
+		pagination mDBApp.PaginationOfListOfBackupTransfersInput,
+		sorting mFL.Sorting, orderBy mFL.OrderBy,
+		filters mFL.FiltersList,
+	) (
+		paginator *mDBApp.PaginationOfListOfBackupTransfers,
+		listDBApp mDBApp.ListOfBackupTransfer,
+		err error,
+	)
 }
 
 type BackupTransactions interface {
