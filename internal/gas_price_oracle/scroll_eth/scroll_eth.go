@@ -178,13 +178,13 @@ func (s *scrollEth) l2GasFee(
 	var link string
 	link, err = s.sb.ScrollNetworkChainLinkEvmJSONRPC(ctx)
 	if err != nil {
-		return nil, errors.Join(errorsB.ErrScrollNetworkChainLinkEvmJSONRPCFail)
+		return nil, errors.Join(errorsB.ErrScrollNetworkChainLinkEvmJSONRPCFail, err)
 	}
 
 	var client *ethclient.Client
 	client, err = utils.NewClient(link)
 	if err != nil {
-		return nil, errors.Join(errorsB.ErrEthClientDialFail)
+		return nil, errors.Join(errorsB.ErrEthClientDialFail, err)
 	}
 	defer client.Close()
 
