@@ -146,3 +146,6 @@ var ErrBlockUnSynchronization = errors.New("not synchronized")
 
 // ErrAccountMembershipProof error: account membership proof error.
 var ErrAccountMembershipProof = errors.New("account membership proof error")
+
+// ErrBlockTreeProve error: block tree prove error.
+var ErrBlockTreeProve = errors.New("block tree prove error")

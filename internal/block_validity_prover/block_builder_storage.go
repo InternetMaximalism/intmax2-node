@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
+	errorsDB "intmax2-node/pkg/sql_db/errors"
 	"math/big"
 	"sort"
 
@@ -1267,7 +1269,6 @@ func calculateValidityWitnessWithMerkleProofs(
 	// debug
 	blockMerkleProof, _, err := db.BlockTreeProof(blockWitness.Block.BlockNumber, blockWitness.Block.BlockNumber)
 	if err != nil {
-		var ErrBlockTreeProve = errors.New("block tree prove error")
 		return nil, errors.Join(ErrBlockTreeProve, err)
 	}
 
@@ -1471,18 +1472,14 @@ func (b *mockBlockBuilder) BlockAuxInfo(blockNumber uint32) (*AuxInfo, error) {
 // }
 
 func blockAuxInfoFromBlockContent(auxInfo *mDBApp.BlockContentWithProof) (*AuxInfo, error) {
-	decodedAggregatedPublicKeyPoint, err := hexutil.Decode("0x" + auxInfo.AggregatedPublicKey)
+	decodedAggregatedPublicKeyPoint, err := hex.DecodeString(auxInfo.AggregatedPublicKey)
 	if err != nil {
 		return nil, fmt.Errorf("aggregated public key hex decode error: %w", err)
 	}
-	aggregatedPublicKeyPoint := new(bn254.G1Affine)
-	err = aggregatedPublicKeyPoint.Unmarshal(decodedAggregatedPublicKeyPoint)
+	var aggregatedPublicKey intMaxAcc.PublicKey
+	err = aggregatedPublicKey.Unmarshal(decodedAggregatedPublicKeyPoint)
 	if err != nil {
-		return nil, fmt.Errorf("aggregated public key unmarshal error: %w", err)
-	}
-	aggregatedPublicKey, err := intMaxAcc.NewPublicKey(aggregatedPublicKeyPoint)
-	if err != nil {
-		return nil, fmt.Errorf("aggregated public key error: %w", err)
+		return nil, fmt.Errorf("aggregated public key error: %w", fmt.Errorf("aggregated public key unmarshal error: %w", err))
 	}
 
 	decodedAggregatedSignature, err := hexutil.Decode("0x" + auxInfo.AggregatedSignature)
@@ -1490,7 +1487,7 @@ func blockAuxInfoFromBlockContent(auxInfo *mDBApp.BlockContentWithProof) (*AuxIn
 		return nil, fmt.Errorf("aggregated signature hex decode error: %w", err)
 	}
 	aggregatedSignature := new(bn254.G2Affine)
-	err = aggregatedSignature.Unmarshal([]byte(decodedAggregatedSignature))
+	err = aggregatedSignature.Unmarshal(decodedAggregatedSignature)
 	if err != nil {
 		return nil, fmt.Errorf("aggregated signature unmarshal error: %w", err)
 	}
@@ -1500,13 +1497,13 @@ func blockAuxInfoFromBlockContent(auxInfo *mDBApp.BlockContentWithProof) (*AuxIn
 		return nil, fmt.Errorf("aggregated message point hex decode error: %w", err)
 	}
 	messagePoint := new(bn254.G2Affine)
-	err = messagePoint.Unmarshal([]byte(decodedMessagePoint))
+	err = messagePoint.Unmarshal(decodedMessagePoint)
 	if err != nil {
 		return nil, fmt.Errorf("message point unmarshal error: %w", err)
 	}
 
 	var columnSenders []intMaxTypes.ColumnSender
-	err = json.Unmarshal([]byte(auxInfo.Senders), &columnSenders)
+	err = json.Unmarshal(auxInfo.Senders, &columnSenders)
 	if err != nil {
 		return nil, fmt.Errorf("senders unmarshal error: %w", err)
 	}
@@ -1533,7 +1530,7 @@ func blockAuxInfoFromBlockContent(auxInfo *mDBApp.BlockContentWithProof) (*AuxIn
 
 	blockContent := intMaxTypes.BlockContent{
 		TxTreeRoot:          common.HexToHash("0x" + auxInfo.TxRoot),
-		AggregatedPublicKey: aggregatedPublicKey,
+		AggregatedPublicKey: &aggregatedPublicKey,
 		AggregatedSignature: aggregatedSignature,
 		MessagePoint:        messagePoint,
 		Senders:             senders,
@@ -1560,13 +1557,35 @@ func blockAuxInfoFromBlockContent(auxInfo *mDBApp.BlockContentWithProof) (*AuxIn
 }
 
 func (b *mockBlockBuilder) CreateBlockContent(
+	ctx context.Context,
 	postedBlock *block_post_service.PostedBlock,
 	blockContent *intMaxTypes.BlockContent,
-) (*mDBApp.BlockContentWithProof, error) {
-	return b.db.CreateBlockContent(
-		postedBlock,
-		blockContent,
-	)
+) (bc *mDBApp.BlockContentWithProof, err error) {
+	err = b.db.Exec(ctx, &bc, func(d interface{}, input interface{}) (err error) {
+		q, _ := d.(SQLDriverApp)
+
+		bc, err = q.BlockContentByBlockNumber(postedBlock.BlockNumber)
+		if err == nil {
+			return nil
+		} else if !errors.Is(err, errorsDB.ErrNotFound) {
+			return err
+		}
+
+		bc, err = q.CreateBlockContent(
+			postedBlock,
+			blockContent,
+		)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return bc, nil
 }
 
 func (b *mockBlockBuilder) BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWithProof, error) {

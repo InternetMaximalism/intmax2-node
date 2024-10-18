@@ -50,7 +50,7 @@ type Deposits interface {
 	CreateDeposit(depositLeaf intMaxTree.DepositLeaf, depositID uint32) (*mDBApp.Deposit, error)
 	UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error
 	// Deposit(ID string) (*mDBApp.Deposit, error)
-	// DepositByDepositID(depositID uint32) (*mDBApp.Deposit, error)
+	DepositByDepositID(depositID uint32) (*mDBApp.Deposit, error)
 	DepositByDepositHash(depositHash common.Hash) (*mDBApp.Deposit, error)
 	ScanDeposits() ([]*mDBApp.Deposit, error)
 	FetchLastDepositIndex() (uint32, error)
