@@ -2,6 +2,7 @@ package gas_price_oracle
 
 import (
 	"context"
+	"encoding/json"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 
 	"github.com/holiman/uint256"
@@ -20,7 +21,7 @@ type GenericCommandsApp interface {
 }
 
 type CtrlProcessingJobs interface {
-	CreateCtrlProcessingJobs(name string) error
+	CreateCtrlProcessingJobs(name string, options json.RawMessage) error
 	CtrlProcessingJobs(name string) (*mDBApp.CtrlProcessingJobs, error)
 }
 

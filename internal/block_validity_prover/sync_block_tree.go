@@ -204,7 +204,9 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, startBlock ui
 			}
 
 			// p.log.Debugf("blockContent: %v\n", blockContent)
-			_, err = p.blockBuilder.CreateBlockContent(p.ctx, postedBlock, blockContent)
+			_, err = p.blockBuilder.CreateBlockContent(
+				p.ctx, postedBlock, blockContent, &blN, events[key].Raw.BlockHash,
+			)
 			if err != nil {
 				panic(err)
 				// return errors.Join(ErrCreateBlockContentFail, err)

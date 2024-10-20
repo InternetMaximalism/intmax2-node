@@ -1,7 +1,10 @@
 package models
 
 import (
+	"database/sql"
 	"time"
+
+	"github.com/holiman/uint256"
 )
 
 type BlockContent struct {
@@ -18,6 +21,8 @@ type BlockContent struct {
 	MessagePoint        string
 	Senders             []byte
 	ValidityProof       []byte
+	BlockNumberL2       *uint256.Int
+	BlockHashL2         sql.NullString
 	CreatedAt           time.Time
 }
 

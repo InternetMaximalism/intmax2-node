@@ -2,6 +2,7 @@ package block_validity_prover
 
 import (
 	"context"
+	"encoding/json"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_post_service"
 	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
@@ -18,6 +19,7 @@ import (
 
 type SQLDriverApp interface {
 	GenericCommandsApp
+	CtrlProcessingJobs
 	BlockContents
 	EventBlockNumbersForValidityProver
 	Deposits
@@ -27,10 +29,16 @@ type GenericCommandsApp interface {
 	Exec(ctx context.Context, input interface{}, executor func(d interface{}, input interface{}) error) (err error)
 }
 
+type CtrlProcessingJobs interface {
+	CreateCtrlProcessingJobs(name string, options json.RawMessage) error
+}
+
 type BlockContents interface {
 	CreateBlockContent(
 		postedBlock *block_post_service.PostedBlock,
 		blockContent *intMaxTypes.BlockContent,
+		l2BlockNumber *uint256.Int,
+		l2BlockHash common.Hash,
 	) (*mDBApp.BlockContentWithProof, error)
 	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
 	BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWithProof, error)
@@ -76,6 +84,8 @@ type BuilderBlockContents interface {
 	// CreateBlockContent(
 	// 	postedBlock *block_post_service.PostedBlock,
 	// 	blockContent *intMaxTypes.BlockContent,
+	// 	l2BlockNumber *uint256.Int,
+	// 	l2BlockHash common.Hash,
 	// ) (*mDBApp.BlockContentWithProof, error)
 	// BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
 	// BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContent, error)

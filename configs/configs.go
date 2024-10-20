@@ -37,6 +37,7 @@ type Config struct {
 	Swagger               Swagger
 	OpenTelemetry         OpenTelemetry
 	SQLDb                 SQLDb
+	L2BatchIndex          L2BatchIndex
 }
 
 var once sync.Once
