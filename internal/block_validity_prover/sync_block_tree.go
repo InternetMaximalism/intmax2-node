@@ -204,7 +204,9 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, startBlock ui
 			}
 
 			// p.log.Debugf("blockContent: %v\n", blockContent)
-			_, err = p.blockBuilder.CreateBlockContent(p.ctx, postedBlock, blockContent)
+			_, err = p.blockBuilder.CreateBlockContent(
+				p.ctx, postedBlock, blockContent, &blN, events[key].Raw.BlockHash,
+			)
 			if err != nil {
 				panic(err)
 				// return errors.Join(ErrCreateBlockContentFail, err)
@@ -252,14 +254,11 @@ func (p *blockValidityProver) syncBlockProverWithAuxInfo(
 		panic(fmt.Errorf("failed to get last validity witness: %w", err))
 	}
 
-	/**
 	fmt.Printf("blockWitness.Block.BlockNumber (syncBlockProverWithAuxInfo): %d\n", blockWitness.Block.BlockNumber)
 	if blockWitness.Block.BlockNumber != p.blockBuilder.LatestIntMaxBlockNumber()+1 {
 		fmt.Printf("db.LatestIntMaxBlockNumber(): %d\n", p.blockBuilder.LatestIntMaxBlockNumber())
 		return errors.New("block number is not equal to the last block number + 1")
 	}
-
-	*/
 	_, err = calculateValidityWitnessWithConsistencyCheck(p.blockBuilder, blockWitness, latestValidityWitness)
 	if err != nil {
 		return fmt.Errorf("failed to calculate validity witness with consistency check: %w", err)

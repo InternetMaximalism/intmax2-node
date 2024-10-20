@@ -18,6 +18,7 @@ import (
 type SQLDriverApp interface {
 	GenericCommandsApp
 	ServiceCommands
+	CtrlProcessingJobs
 	Blocks
 	Signatures
 	TxMerkleProofs
@@ -38,6 +39,10 @@ type GenericCommandsApp interface {
 
 type ServiceCommands interface {
 	Check(ctx context.Context) health.Health
+}
+
+type CtrlProcessingJobs interface {
+	CreateCtrlProcessingJobs(name string, options json.RawMessage) error
 }
 
 type Blocks interface {
@@ -129,6 +134,8 @@ type BlockContents interface {
 	CreateBlockContent(
 		postedBlock *block_post_service.PostedBlock,
 		blockContent *intMaxTypes.BlockContent,
+		l2BlockNumber *uint256.Int,
+		l2BlockHash common.Hash,
 	) (*mDBApp.BlockContentWithProof, error)
 	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
 	BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWithProof, error)

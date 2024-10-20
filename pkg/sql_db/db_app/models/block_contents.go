@@ -3,6 +3,8 @@ package models
 import (
 	intMaxTypes "intmax2-node/internal/types"
 	"time"
+
+	"github.com/holiman/uint256"
 )
 
 type BlockContent struct {
@@ -18,6 +20,8 @@ type BlockContent struct {
 	MessagePoint        string
 	Senders             []byte
 	IsRegistrationBlock bool
+	BlockNumberL2       *uint256.Int
+	BlockHashL2         string
 	CreatedAt           time.Time
 }
 

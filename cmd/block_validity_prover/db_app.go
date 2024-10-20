@@ -2,13 +2,16 @@ package block_validity_prover
 
 import (
 	"context"
+	"encoding/json"
 	"intmax2-node/internal/block_post_service"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
+	"time"
 
 	"github.com/dimiro1/health"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/holiman/uint256"
 )
 
 //go:generate mockgen -destination=mock_db_app.go -package=block_validity_prover -source=db_app.go
@@ -16,9 +19,12 @@ import (
 type SQLDriverApp interface {
 	GenericCommandsApp
 	ServiceCommands
+	CtrlProcessingJobs
 	BlockContents
 	EventBlockNumbersForValidityProver
 	Deposits
+	L2BatchIndex
+	RelationshipL2BatchIndexAndBlockContent
 }
 
 type GenericCommandsApp interface {
@@ -29,11 +35,21 @@ type ServiceCommands interface {
 	Check(ctx context.Context) health.Health
 }
 
+type CtrlProcessingJobs interface {
+	CreateCtrlProcessingJobs(name string, options json.RawMessage) error
+	CtrlProcessingJobsByMaskName(mask string) (*mDBApp.CtrlProcessingJobs, error)
+	UpdatedAtOfCtrlProcessingJobByName(name string, updatedAt time.Time) (err error)
+	DeleteCtrlProcessingJobByName(name string) (err error)
+}
+
 type BlockContents interface {
 	CreateBlockContent(
 		postedBlock *block_post_service.PostedBlock,
 		blockContent *intMaxTypes.BlockContent,
+		l2BlockNumber *uint256.Int,
+		l2BlockHash common.Hash,
 	) (*mDBApp.BlockContentWithProof, error)
+	BlockContentIDByL2BlockNumber(l2BlockNumber string) (bcID string, err error)
 	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
 	BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWithProof, error)
 	ScanBlockHashAndSenders() (blockHashAndSendersMap map[uint32]mDBApp.BlockHashAndSenders, lastBlockNumber uint32, err error)
@@ -55,4 +71,18 @@ type Deposits interface {
 	DepositByDepositID(depositID uint32) (*mDBApp.Deposit, error)
 	ScanDeposits() ([]*mDBApp.Deposit, error)
 	FetchLastDepositIndex() (uint32, error)
+}
+
+type L2BatchIndex interface {
+	CreateL2BatchIndex(batchIndex *uint256.Int) (err error)
+	L2BatchIndex(batchIndex *uint256.Int) (*mDBApp.L2BatchIndex, error)
+	UpdOptionsOfBatchIndex(batchIndex *uint256.Int, options json.RawMessage) (err error)
+	UpdL1VerifiedBatchTxHashOfBatchIndex(batchIndex *uint256.Int, hash string) (err error)
+}
+
+type RelationshipL2BatchIndexAndBlockContent interface {
+	CreateRelationshipL2BatchIndexAndBlockContentID(
+		batchIndex *uint256.Int,
+		blockContentID string,
+	) (err error)
 }

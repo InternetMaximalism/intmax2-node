@@ -1,6 +1,7 @@
 package pgx
 
 import (
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -13,11 +14,14 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
+	"github.com/holiman/uint256"
 )
 
 func (p *pgx) CreateBlockContent(
 	postedBlock *block_post_service.PostedBlock,
 	blockContent *intMaxTypes.BlockContent,
+	l2BlockNumber *uint256.Int,
+	l2BlockHash common.Hash,
 ) (*mDBApp.BlockContentWithProof, error) {
 	blockNumber := int64(postedBlock.BlockNumber)
 	blockHash := postedBlock.Hash().Hex()[2:]
@@ -29,6 +33,7 @@ func (p *pgx) CreateBlockContent(
 	aggregatedPublicKey := hex.EncodeToString(blockContent.AggregatedPublicKey.Marshal())
 	messagePoint := hex.EncodeToString(blockContent.MessagePoint.Marshal())
 	isRegistrationBlock := blockContent.SenderType == intMaxTypes.PublicKeySenderType
+	valueL2BlockNumber, _ := l2BlockNumber.Value()
 
 	senders := make([]intMaxTypes.ColumnSender, len(blockContent.Senders))
 	for i, sender := range blockContent.Senders {
@@ -56,6 +61,8 @@ func (p *pgx) CreateBlockContent(
 		AggregatedPublicKey: aggregatedPublicKey,
 		AggregatedSignature: aggregatedSignature,
 		MessagePoint:        messagePoint,
+		BlockNumberL2:       l2BlockNumber,
+		BlockHashL2:         sql.NullString{Valid: true, String: l2BlockHash.String()},
 		CreatedAt:           time.Now().UTC(),
 	}
 
@@ -63,14 +70,14 @@ func (p *pgx) CreateBlockContent(
 		q = `INSERT INTO block_contents (
              id ,block_hash ,prev_block_hash ,deposit_root ,signature_hash
 			 ,is_registration_block ,senders ,tx_tree_root ,aggregated_public_key
-			 ,aggregated_signature ,message_point ,created_at ,block_number
-             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) `
+			 ,aggregated_signature ,message_point ,created_at ,block_number, block_number_l2, block_hash_l2
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) `
 	)
 
 	_, err = p.exec(p.ctx, q,
 		s.BlockContentID, s.BlockHash, s.PrevBlockHash, s.DepositRoot, s.SignatureHash,
 		s.IsRegistrationBlock, s.Senders, s.TxRoot, s.AggregatedPublicKey,
-		s.AggregatedSignature, s.MessagePoint, s.CreatedAt, s.BlockNumber)
+		s.AggregatedSignature, s.MessagePoint, s.CreatedAt, s.BlockNumber, valueL2BlockNumber, l2BlockHash.String())
 	if err != nil {
 		return nil, errPgx.Err(err)
 	}
@@ -82,6 +89,24 @@ func (p *pgx) CreateBlockContent(
 	}
 
 	return bDBApp, nil
+}
+
+func (p *pgx) BlockContentIDByL2BlockNumber(l2BlockNumber string) (bcID string, err error) {
+	const (
+		emptyKey = ""
+
+		q = `SELECT id FROM block_contents WHERE block_number_l2 = $1`
+	)
+
+	err = errPgx.Err(p.queryRow(p.ctx, q, l2BlockNumber).
+		Scan(
+			&bcID,
+		))
+	if err != nil {
+		return emptyKey, err
+	}
+
+	return bcID, nil
 }
 
 // Insert a new validity proof or do nothing if it already exists

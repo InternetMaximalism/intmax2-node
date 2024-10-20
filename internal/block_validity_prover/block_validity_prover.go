@@ -113,11 +113,11 @@ func (d *blockValidityProver) FetchLastDepositIndex() (uint32, error) {
 }
 
 func (d *blockValidityProver) LastSeenBlockPostedEventBlockNumber() (uint64, error) {
-	return d.blockBuilder.LastSeenBlockPostedEventBlockNumber()
+	return d.blockBuilder.LastSeenBlockPostedEventBlockNumber(d.ctx)
 }
 
 func (d *blockValidityProver) SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error {
-	return d.blockBuilder.SetLastSeenBlockPostedEventBlockNumber(blockNumber)
+	return d.blockBuilder.SetLastSeenBlockPostedEventBlockNumber(d.ctx, blockNumber)
 }
 
 func NewBlockValidityService(ctx context.Context, cfg *configs.Config, log logger.Logger, sb ServiceBlockchain, db SQLDriverApp) (*blockValidityProver, error) {

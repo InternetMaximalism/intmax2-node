@@ -8,6 +8,7 @@ import (
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/pkg/sql_db/db_app/models"
+	"time"
 
 	"github.com/dimiro1/health"
 	"github.com/ethereum/go-ethereum/common"
@@ -37,6 +38,8 @@ type SQLDb interface {
 	BlockContents
 	CtrlProcessingJobs
 	GasPriceOracle
+	L2BatchIndex
+	RelationshipL2BatchIndexAndBlockContent
 }
 
 type GenericCommands interface {
@@ -251,7 +254,10 @@ type BlockContents interface {
 	CreateBlockContent(
 		postedBlock *block_post_service.PostedBlock,
 		blockContent *intMaxTypes.BlockContent,
+		l2BlockNumber *uint256.Int,
+		l2BlockHash common.Hash,
 	) (*models.BlockContentWithProof, error)
+	BlockContentIDByL2BlockNumber(l2BlockNumber string) (bcID string, err error)
 	BlockContentByBlockNumber(blockNumber uint32) (*models.BlockContentWithProof, error)
 	BlockContentByTxRoot(txRoot common.Hash) (*models.BlockContentWithProof, error)
 	ScanBlockHashAndSenders() (blockHashAndSendersMap map[uint32]models.BlockHashAndSenders, lastBlockNumber uint32, err error)
@@ -262,11 +268,28 @@ type BlockContents interface {
 }
 
 type CtrlProcessingJobs interface {
-	CreateCtrlProcessingJobs(name string) error
+	CreateCtrlProcessingJobs(name string, options json.RawMessage) error
 	CtrlProcessingJobs(name string) (*models.CtrlProcessingJobs, error)
+	CtrlProcessingJobsByMaskName(mask string) (*models.CtrlProcessingJobs, error)
+	UpdatedAtOfCtrlProcessingJobByName(name string, updatedAt time.Time) (err error)
+	DeleteCtrlProcessingJobByName(name string) (err error)
 }
 
 type GasPriceOracle interface {
 	CreateGasPriceOracle(name string, value *uint256.Int) error
 	GasPriceOracle(name string) (*models.GasPriceOracle, error)
+}
+
+type L2BatchIndex interface {
+	CreateL2BatchIndex(batchIndex *uint256.Int) (err error)
+	L2BatchIndex(batchIndex *uint256.Int) (*models.L2BatchIndex, error)
+	UpdOptionsOfBatchIndex(batchIndex *uint256.Int, options json.RawMessage) (err error)
+	UpdL1VerifiedBatchTxHashOfBatchIndex(batchIndex *uint256.Int, hash string) (err error)
+}
+
+type RelationshipL2BatchIndexAndBlockContent interface {
+	CreateRelationshipL2BatchIndexAndBlockContentID(
+		batchIndex *uint256.Int,
+		blockContentID string,
+	) (err error)
 }

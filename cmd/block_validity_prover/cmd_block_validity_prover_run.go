@@ -2,13 +2,13 @@ package block_validity_prover
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
 	"intmax2-node/docs/swagger"
 	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/block_validity_prover"
+	"intmax2-node/internal/l2_batch_index"
 	"intmax2-node/internal/pb/gateway"
 	"intmax2-node/internal/pb/gateway/consts"
 	"intmax2-node/internal/pb/gateway/http_response_modifier"
@@ -22,9 +22,8 @@ import (
 
 	"github.com/dimiro1/health"
 	"github.com/rs/cors"
-	"google.golang.org/grpc"
-
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
 )
 
 func blockValidityProverRun(s *Settings) *cobra.Command {
@@ -36,13 +35,34 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 		Use:   use,
 		Short: short,
 		Run: func(cmd *cobra.Command, args []string) {
-			err := s.BlockPostService.Init(s.Context)
+			err := s.SB.SetupScrollNetworkChainID(s.Context)
+			if err != nil {
+				const msg = "init the scroll network by chain ID error occurred: %v"
+				s.Log.Fatalf(msg, err.Error())
+			}
+
+			err = s.BlockPostService.Init(s.Context)
 			if err != nil {
 				const msg = "init the Block Validity Prover error occurred: %v"
 				s.Log.Fatalf(msg, err.Error())
 			}
 
 			wg := sync.WaitGroup{}
+
+			wg.Add(1)
+			s.WG.Add(1)
+			go func() {
+				defer func() {
+					wg.Done()
+					s.WG.Done()
+				}()
+				l2BI := l2_batch_index.New(s.Config, s.DbApp, s.SB)
+				err = l2BI.Start(s.Context)
+				if err != nil {
+					const msg = "starting of the Batch Index Processing error occurred: %v"
+					s.Log.Fatalf(msg, err.Error())
+				}
+			}()
 
 			wg.Add(1)
 			s.WG.Add(1)
@@ -165,6 +185,7 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 					s.Log.Fatalf(msg, err.Error())
 				}
 
+				var useTicker bool
 				timeout := 5 * time.Second
 				ticker := time.NewTicker(timeout)
 				for {
@@ -173,39 +194,43 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 						ticker.Stop()
 						return
 					case <-ticker.C:
-						s.Log.Debugf("balance validity ticker.C")
-						err = blockValidityProver.SyncDepositedEvents()
-						if err != nil {
-							const msg = "failed to sync deposited events: %+v"
-							s.Log.Fatalf(msg, err.Error())
+						if useTicker {
+							continue
 						}
+						go func() {
+							useTicker = true
+							defer func() {
+								useTicker = false
+							}()
 
-						err = blockValidityProver.SyncDepositTree(nil, latestSynchronizedDepositIndex)
-						if err != nil {
-							const msg = "failed to sync deposit tree: %+v"
-							s.Log.Fatalf(msg, err.Error())
-						}
+							s.Log.Debugf("balance validity ticker.C")
+							err = blockValidityProver.SyncDepositedEvents()
+							if err != nil {
+								const msg = "failed to sync deposited events: %+v"
+								s.Log.Fatalf(msg, err.Error())
+							}
 
-						// sync block content
-						var startBlock uint64
-						startBlock, err = blockValidityService.LastSeenBlockPostedEventBlockNumber()
-						if err != nil {
-							startBlock = s.Config.Blockchain.RollupContractDeployedBlockNumber
-						}
+							err = blockValidityProver.SyncDepositTree(nil, latestSynchronizedDepositIndex)
+							if err != nil {
+								const msg = "failed to sync deposit tree: %+v"
+								s.Log.Fatalf(msg, err.Error())
+							}
 
-						var endBlock uint64
-						endBlock, err = blockValidityProver.SyncBlockTree(blockSynchronizer, startBlock)
-						if err != nil {
-							panic(err)
-						}
+							// sync block content
+							var startBlock uint64
+							startBlock, err = blockValidityService.LastSeenBlockPostedEventBlockNumber()
+							if err != nil {
+								startBlock = s.Config.Blockchain.RollupContractDeployedBlockNumber
+							}
 
-						err = blockValidityService.SetLastSeenBlockPostedEventBlockNumber(endBlock)
-						if err != nil {
-							var ErrSetLastSeenBlockPostedEventBlockNumberFail = errors.New("set last seen block posted event block number fail")
-							panic(errors.Join(ErrSetLastSeenBlockPostedEventBlockNumberFail, err))
-						}
+							var endBlock uint64
+							endBlock, err = blockValidityProver.SyncBlockTree(blockSynchronizer, startBlock)
+							if err != nil {
+								panic(err)
+							}
 
-						s.Log.Debugf("Block %d is searched", endBlock)
+							s.Log.Debugf("Block %d is searched", endBlock)
+						}()
 					}
 				}
 			}()

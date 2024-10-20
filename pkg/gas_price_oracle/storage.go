@@ -38,7 +38,7 @@ func (s *storage) Init(ctx context.Context) (err error) {
 	err = s.dbApp.Exec(ctx, nil, func(d interface{}, _ interface{}) (err error) {
 		q := d.(SQLDriverApp)
 
-		err = q.CreateCtrlProcessingJobs(gas_price_oracle.ScrollEthGPO)
+		err = q.CreateCtrlProcessingJobs(gas_price_oracle.ScrollEthGPO, nil)
 		if err != nil {
 			return errors.Join(ErrNewCtrlProcessingJobsFail, err)
 		}
