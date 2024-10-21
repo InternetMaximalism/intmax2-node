@@ -15,12 +15,12 @@ func PostBackupTransaction(
 	log logger.Logger,
 	db SQLDriverApp,
 	input *postBackupTransaction.UCPostBackupTransactionInput,
-) error {
-	_, err := db.CreateBackupTransaction(
+) (senderEnoughBalanceProofBodyHash string, err error) {
+	_, err = db.CreateBackupTransaction(
 		input.Sender, input.TxHash, input.EncryptedTx, input.Signature, int64(input.BlockNumber),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to create backup transaction to db: %w", err)
+		return "", fmt.Errorf("failed to create backup transaction to db: %w", err)
 	}
 	senderEnoughBalanceProofBodyInput := block_signature.EnoughBalanceProofBodyInput{
 		PrevBalanceProofBody:  input.SenderEnoughBalanceProofBody.PrevBalanceProofBody,
@@ -28,16 +28,17 @@ func PostBackupTransaction(
 	}
 	senderEnoughBalanceProofBody, err := senderEnoughBalanceProofBodyInput.EnoughBalanceProofBody()
 	if err != nil {
-		return fmt.Errorf("failed to get enough balance proof body: %w", err)
+		return "", fmt.Errorf("failed to get enough balance proof body: %w", err)
 	}
 
-	senderEnoughBalanceProofBodyHash := senderEnoughBalanceProofBody.Hash()
+	senderEnoughBalanceProofBodyHash = senderEnoughBalanceProofBody.Hash()
+	log.Debugf("(PostBackupTransaction) senderEnoughBalanceProofBodyHash: %s", senderEnoughBalanceProofBodyHash)
 	_, err = db.CreateBackupSenderProof(
 		senderEnoughBalanceProofBody.PrevBalanceProofBody, senderEnoughBalanceProofBody.TransferStepProofBody, senderEnoughBalanceProofBodyHash,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to create backup sender proof to db: %w", err)
+		return "", fmt.Errorf("failed to create backup sender proof to db: %w", err)
 	}
 
-	return nil
+	return senderEnoughBalanceProofBodyHash, nil
 }

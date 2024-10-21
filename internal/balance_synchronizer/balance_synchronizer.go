@@ -189,9 +189,10 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 		case balance_prover_service.ValidSentTx:
 			err = s.validSentTx(&transition)
 			if err != nil {
-				const msg = "failed to send transaction: %+v"
-				s.log.Warnf(msg, err.Error())
-				continue
+				// When synchronizing transactions that one has sent, they must not fail except for specific reasons.
+				// This is because, for a balance proof to be valid,
+				// it needs to reflect all transfers that have been reflected into valid blocks.
+				return fmt.Errorf("failed to send transaction: %w", err)
 			}
 		case balance_prover_service.ValidReceivedDeposit:
 			err = s.validReceivedDeposit(&transition)
@@ -442,24 +443,9 @@ func applyReceivedTransferTransition(
 		return errors.Join(ErrGetSenderEnoughBalanceProofBodyFail, err)
 	}
 
-	senderEnoughBalanceProofBody := senderEnoughBalanceProofResponse.Proofs[0]
-
-	senderLastBalanceProofBody, err := base64.StdEncoding.DecodeString(senderEnoughBalanceProofBody.LastBalanceProofBody)
+	senderLastBalanceProof, err := recoverSenderLastBalanceProof(senderEnoughBalanceProofResponse.Proofs, transfer.TransferDetails)
 	if err != nil {
-		var ErrDecodeSenderBalanceProofBody = errors.New("failed to decode sender balance proof body")
-		return errors.Join(ErrDecodeSenderBalanceProofBody, err)
-	}
-
-	reader := bufio.NewReader(bytes.NewReader(transfer.TransferDetails.SenderLastBalancePublicInputs))
-	senderLastBalancePublicInputs, err := intMaxTypes.DecodePublicInputs(reader, uint32(len(transfer.TransferDetails.SenderLastBalancePublicInputs))/int8Key)
-	if err != nil {
-		var ErrDecodeSenderBalancePublicInputs = errors.New("failed to decode sender balance public inputs")
-		return errors.Join(ErrDecodeSenderBalancePublicInputs, err)
-	}
-
-	senderLastBalanceProof := intMaxTypes.Plonky2Proof{
-		Proof:        senderLastBalanceProofBody,
-		PublicInputs: senderLastBalancePublicInputs,
+		return fmt.Errorf("failed to recover sender last balance proof: %w", err)
 	}
 
 	encodedSenderLastBalanceProof, err := senderLastBalanceProof.Base64String()
@@ -468,22 +454,9 @@ func applyReceivedTransferTransition(
 		return errors.Join(ErrEncodeSenderBalanceProof, err)
 	}
 
-	senderBalanceTransitionProofBody, err := base64.StdEncoding.DecodeString(senderEnoughBalanceProofBody.BalanceTransitionProofBody)
+	senderBalanceTransitionProof, err := recoverSenderBalanceTransitionProof(senderEnoughBalanceProofResponse.Proofs, transfer.TransferDetails)
 	if err != nil {
-		var ErrDecodeSenderBalanceProofBody = errors.New("failed to decode sender balance proof body")
-		return errors.Join(ErrDecodeSenderBalanceProofBody, err)
-	}
-
-	reader = bufio.NewReader(bytes.NewReader(transfer.TransferDetails.SenderBalanceTransitionPublicInputs))
-	senderBalanceTransitionPublicInputs, err := intMaxTypes.DecodePublicInputs(reader, uint32(len(transfer.TransferDetails.SenderBalanceTransitionPublicInputs))/int8Key)
-	if err != nil {
-		var ErrDecodeSenderBalancePublicInputs = errors.New("failed to decode sender balance public inputs")
-		return errors.Join(ErrDecodeSenderBalancePublicInputs, err)
-	}
-
-	senderBalanceTransitionProof := intMaxTypes.Plonky2Proof{
-		Proof:        senderBalanceTransitionProofBody,
-		PublicInputs: senderBalanceTransitionPublicInputs,
+		return fmt.Errorf("failed to recover sender balance transition proof: %w", err)
 	}
 
 	encodedSenderBalanceTransitionProof, err := senderBalanceTransitionProof.Base64String()
@@ -510,6 +483,62 @@ func applyReceivedTransferTransition(
 	}
 
 	return nil
+}
+
+func recoverSenderLastBalanceProof(proofs []block_synchronizer.BackupBalanceProofData, transferDetails *intMaxTypes.TransferDetails) (*intMaxTypes.Plonky2Proof, error) {
+	if len(proofs) == 0 {
+		var ErrSenderEnoughBalanceProofBodyNotFound = errors.New("sender enough balance proof body not found")
+		return nil, ErrSenderEnoughBalanceProofBodyNotFound
+	}
+
+	senderEnoughBalanceProofBody := proofs[0]
+
+	senderLastBalanceProofBody, err := base64.StdEncoding.DecodeString(senderEnoughBalanceProofBody.LastBalanceProofBody)
+	if err != nil {
+		var ErrDecodeSenderBalanceProofBody = errors.New("failed to decode sender balance proof body")
+		return nil, errors.Join(ErrDecodeSenderBalanceProofBody, err)
+	}
+
+	reader := bufio.NewReader(bytes.NewReader(transferDetails.SenderLastBalancePublicInputs))
+	senderLastBalancePublicInputs, err := intMaxTypes.DecodePublicInputs(reader, uint32(len(transferDetails.SenderLastBalancePublicInputs))/int8Key)
+	if err != nil {
+		var ErrDecodeSenderBalancePublicInputs = errors.New("failed to decode sender balance public inputs")
+		return nil, errors.Join(ErrDecodeSenderBalancePublicInputs, err)
+	}
+
+	senderLastBalanceProof := intMaxTypes.Plonky2Proof{
+		Proof:        senderLastBalanceProofBody,
+		PublicInputs: senderLastBalancePublicInputs,
+	}
+
+	return &senderLastBalanceProof, nil
+}
+
+func recoverSenderBalanceTransitionProof(proofs []block_synchronizer.BackupBalanceProofData, transferDetails *intMaxTypes.TransferDetails) (*intMaxTypes.Plonky2Proof, error) {
+	if len(proofs) == 0 {
+		var ErrSenderEnoughBalanceProofBodyNotFound = errors.New("sender enough balance proof body not found")
+		return nil, ErrSenderEnoughBalanceProofBodyNotFound
+	}
+
+	senderBalanceTransitionProofBody, err := base64.StdEncoding.DecodeString(proofs[0].BalanceTransitionProofBody)
+	if err != nil {
+		var ErrDecodeSenderBalanceProofBody = errors.New("failed to decode sender balance proof body")
+		return nil, errors.Join(ErrDecodeSenderBalanceProofBody, err)
+	}
+
+	reader := bufio.NewReader(bytes.NewReader(transferDetails.SenderBalanceTransitionPublicInputs))
+	senderBalanceTransitionPublicInputs, err := intMaxTypes.DecodePublicInputs(reader, uint32(len(transferDetails.SenderBalanceTransitionPublicInputs))/int8Key)
+	if err != nil {
+		var ErrDecodeSenderBalancePublicInputs = errors.New("failed to decode sender balance public inputs")
+		return nil, errors.Join(ErrDecodeSenderBalancePublicInputs, err)
+	}
+
+	senderBalanceTransitionProof := intMaxTypes.Plonky2Proof{
+		Proof:        senderBalanceTransitionProofBody,
+		PublicInputs: senderBalanceTransitionPublicInputs,
+	}
+
+	return &senderBalanceTransitionProof, nil
 }
 
 func applySentTransactionTransition(

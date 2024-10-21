@@ -49,6 +49,8 @@ func (b *mockBlockBuilder) FetchUpdateWitness(
 	// request validity prover
 	latestValidityProof, err := b.ValidityProofByBlockNumber(currentBlockNumber)
 	if err != nil {
+		fmt.Printf("currentBlockNumber: %d\n", currentBlockNumber)
+		fmt.Printf("latestValidityProof error: %v\n", err)
 		return nil, err
 	}
 

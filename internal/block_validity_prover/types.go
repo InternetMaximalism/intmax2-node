@@ -1307,6 +1307,7 @@ func (w *BlockWitness) MainValidationPublicInputs() (*MainValidationPublicInputs
 	publicKeysHash := GetPublicKeysHash(publicKeys)
 	isRegistrationBlock := signature.IsRegistrationBlock
 	isPublicKeyEq := signature.PublicKeyHash == publicKeysHash
+	fmt.Printf("(MainValidationPublicInputs) isRegistrationBlock: %v\n", isRegistrationBlock)
 	if isRegistrationBlock {
 		if !isPublicKeyEq {
 			panic("pubkey hash mismatch")

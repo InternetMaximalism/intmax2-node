@@ -24,5 +24,5 @@ type UCPostBackupTransactionInput struct {
 
 // UseCasePostBackupTransaction describes PostBackupTransaction contract.
 type UseCasePostBackupTransaction interface {
-	Do(ctx context.Context, input *UCPostBackupTransactionInput) error
+	Do(ctx context.Context, input *UCPostBackupTransactionInput) (senderEnoughBalanceProofBodyHash string, err error)
 }

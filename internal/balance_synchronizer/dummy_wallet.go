@@ -341,20 +341,21 @@ func MakeTxWitness(
 		fmt.Printf("fail to get validity public inputs: %v\n", err)
 		return nil, nil, fmt.Errorf("fail to get validity public inputs: %w", err)
 	}
-	s, err = json.Marshal(&validityPublicInputs)
-	if err != nil {
-		fmt.Printf("fail to marshal validity public inputs: %v\n", err)
-		return nil, nil, fmt.Errorf("fail to marshal validity public inputs: %w", err)
-	}
-
 	fmt.Printf("(MakeTxWitness) TxTreeRoot: %s", common.HexToHash(txDetails.TxTreeRoot.String()))
-	fmt.Printf("(MakeTxWitness) validityPublicInputs: %s\n", s)
-	s, err = json.Marshal(&senderLeaves)
-	if err != nil {
-		fmt.Printf("fail to marshal sender leaves: %v\n", err)
-		return nil, nil, fmt.Errorf("fail to marshal sender leaves: %w", err)
-	}
-	fmt.Printf("(MakeTxWitness) senderLeaves: %s\n", s)
+
+	// s, err = json.Marshal(&validityPublicInputs)
+	// if err != nil {
+	// 	fmt.Printf("fail to marshal validity public inputs: %v\n", err)
+	// 	return nil, nil, fmt.Errorf("fail to marshal validity public inputs: %w", err)
+	// }
+	// fmt.Printf("(MakeTxWitness) validityPublicInputs: %s\n", s)
+
+	// s, err = json.Marshal(&senderLeaves)
+	// if err != nil {
+	// 	fmt.Printf("fail to marshal sender leaves: %v\n", err)
+	// 	return nil, nil, fmt.Errorf("fail to marshal sender leaves: %w", err)
+	// }
+	// fmt.Printf("(MakeTxWitness) senderLeaves: %s\n", s)
 
 	// validityWitness, err := blockValidityService.UpdateValidityWitness(
 	// 	blockContent,
@@ -527,6 +528,7 @@ func (w *mockWallet) UpdateOnSendTx(
 		TxWitness:      *txWitness,
 	}
 
+	fmt.Printf("txWitness PublicState: %+v\n", txWitness.ValidityPis.PublicState)
 	w.sendWitnesses[sendWitness.GetIncludedBlockNumber()] = &sendWitness
 	w.transferWitnesses[sendWitness.GetIncludedBlockNumber()] = transferWitnesses
 
@@ -638,6 +640,12 @@ func (s *mockWallet) GetAllBlockNumbers() []uint32 {
 	existedBlockNumbers := make(map[uint32]bool)
 	for _, w := range s.sendWitnesses {
 		blockNumber := w.GetIncludedBlockNumber()
+		s, err := json.Marshal(&w.TxWitness.ValidityPis.PublicState)
+		if err != nil {
+			fmt.Printf("(GetAllBlockNumbers) sendWitness marshal error: %v\n", err)
+		}
+		fmt.Printf("(GetAllBlockNumbers) w.TxWitness.ValidityPis.PublicState: %s\n", s)
+		fmt.Printf("(GetAllBlockNumbers) blockNumber: %v\n", blockNumber)
 		existedBlockNumbers[blockNumber] = true
 	}
 
@@ -645,6 +653,10 @@ func (s *mockWallet) GetAllBlockNumbers() []uint32 {
 	for blockNumber := range existedBlockNumbers {
 		result = append(result, blockNumber)
 	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i] < result[j]
+	})
 
 	return result
 }

@@ -70,7 +70,7 @@ func (s *StoreVaultServer) BackupTransaction(
 	err = s.dbApp.Exec(spanCtx, nil, func(d interface{}, _ interface{}) (err error) {
 		q, _ := d.(SQLDriverApp)
 
-		err = s.commands.PostBackupTransaction(s.config, s.log, q).Do(spanCtx, &input)
+		_, err = s.commands.PostBackupTransaction(s.config, s.log, q).Do(spanCtx, &input)
 		if err != nil {
 			s.log.Errorf("failed to post backup transaction: %+v\n", err)
 			open_telemetry.MarkSpanError(spanCtx, err)
@@ -88,6 +88,8 @@ func (s *StoreVaultServer) BackupTransaction(
 
 	resp.Success = true
 	resp.Data = &node.BackupTransactionResponse_Data{Message: postBackupTransaction.SuccessMsg}
+
+	// TODO: Add sender enough balance proof body hash to response.
 
 	return &resp, utils.OK(spanCtx)
 }

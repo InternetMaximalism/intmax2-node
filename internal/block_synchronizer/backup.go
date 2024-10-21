@@ -308,6 +308,7 @@ func GetBackupSenderBalanceProofs(
 	log logger.Logger,
 	hashes []string,
 ) (*BackupBalanceProofsData, error) {
+	fmt.Printf("(GetBackupSenderBalanceProofs) hashes: %v\n", hashes)
 	backupBalanceProofs, err := getBackupSenderBalanceProofsRawRequest(
 		ctx,
 		cfg,
