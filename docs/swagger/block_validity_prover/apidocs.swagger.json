@@ -26,6 +26,51 @@
     "application/json"
   ],
   "paths": {
+    "/v1/block-hash/{blockHash}/status": {
+      "get": {
+        "summary": "BlockHashStatus returns status by the block hash",
+        "description": "## BlockHashStatus returns status by the block hash",
+        "operationId": "BlockValidityProverService_BlockHashStatus",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BlockHashStatusResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "404": {
+            "description": "Not found error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "blockHash",
+            "description": "the hash of block",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "BlockValidityProverService"
+        ]
+      }
+    },
     "/v1/block-merkle-tree/{rootBlockNumber}/{leafBlockNumber}": {
       "get": {
         "summary": "BlockTreeProof returns the block Merkle proof",
@@ -67,6 +112,52 @@
             "required": true,
             "type": "string",
             "format": "int64"
+          }
+        ],
+        "tags": [
+          "BlockValidityProverService"
+        ]
+      }
+    },
+    "/v1/block-number/{blockNumber}/status": {
+      "get": {
+        "summary": "BlockNumberStatus returns status by the block number",
+        "description": "## BlockNumberStatus returns status by the block number",
+        "operationId": "BlockValidityProverService_BlockNumberStatus",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BlockNumberStatusResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "404": {
+            "description": "Not found error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "blockNumber",
+            "description": "the number of block",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "uint64"
           }
         ],
         "tags": [
@@ -214,6 +305,97 @@
         }
       },
       "description": "The `Status` type defines a logical error model that is suitable for\ndifferent programming environments, including REST APIs and RPC APIs. It is\nused by [gRPC](https://github.com/grpc). Each `Status` message contains\nthree pieces of data: error code, error message, and error details.\n\nYou can find out more about this error model and how to work with it in the\n[API Design Guide](https://cloud.google.com/apis/design/errors)."
+    },
+    "v1BlockHashStatusResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "the success flag"
+        },
+        "data": {
+          "$ref": "#/definitions/v1BlockHashStatusResponseData",
+          "title": "Additional data related to the response"
+        }
+      },
+      "title": "BlockHashStatusResponse describes response to get status by the block hash"
+    },
+    "v1BlockHashStatusResponseData": {
+      "type": "object",
+      "properties": {
+        "blockNumber": {
+          "type": "integer",
+          "format": "int64",
+          "title": "the INTMAX Block number"
+        },
+        "blockHash": {
+          "type": "string",
+          "title": "the INTMAX Block hash"
+        },
+        "status": {
+          "$ref": "#/definitions/v1BlockStatus",
+          "title": "the status of block"
+        },
+        "executedBlockHashOnScroll": {
+          "type": "string",
+          "title": "the block hash posted on Scroll"
+        },
+        "executedBlockHashOnEthereum": {
+          "type": "string",
+          "title": "the block hash of the Scroll block posted on Ethereum"
+        }
+      },
+      "title": "Data is the nested message containing detailed response information"
+    },
+    "v1BlockNumberStatusResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "the success flag"
+        },
+        "data": {
+          "$ref": "#/definitions/v1BlockNumberStatusResponseData",
+          "title": "Additional data related to the response"
+        }
+      },
+      "title": "BlockNumberStatusResponse describes response to get status by the block number"
+    },
+    "v1BlockNumberStatusResponseData": {
+      "type": "object",
+      "properties": {
+        "blockNumber": {
+          "type": "integer",
+          "format": "int64",
+          "title": "the INTMAX Block number"
+        },
+        "blockHash": {
+          "type": "string",
+          "title": "the INTMAX Block hash"
+        },
+        "status": {
+          "$ref": "#/definitions/v1BlockStatus",
+          "title": "the status of block"
+        },
+        "executedBlockHashOnScroll": {
+          "type": "string",
+          "title": "the block hash posted on Scroll"
+        },
+        "executedBlockHashOnEthereum": {
+          "type": "string",
+          "title": "the block hash of the Scroll block posted on Ethereum"
+        }
+      },
+      "title": "Data is the nested message containing detailed response information"
+    },
+    "v1BlockStatus": {
+      "type": "string",
+      "enum": [
+        "EXECUTED_ON_SCROLL",
+        "EXECUTED_ON_ETHEREUM"
+      ],
+      "default": "EXECUTED_ON_SCROLL",
+      "title": "- EXECUTED_ON_SCROLL: the block hash has been posted on Scroll but not reflected on Ethereum\n - EXECUTED_ON_ETHEREUM: the Scroll block that incorporated the INTMAX block has been reflected on Ethereum"
     },
     "v1BlockTreeProofResponse": {
       "type": "object",

@@ -259,6 +259,7 @@ type BlockContents interface {
 	) (*mDBApp.BlockContentWithProof, error)
 	BlockContentIDByL2BlockNumber(l2BlockNumber string) (bcID string, err error)
 	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
+	BlockContentByBlockHash(blockHash string) (*mDBApp.BlockContentWithProof, error)
 	BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWithProof, error)
 	ScanBlockHashAndSenders() (blockHashAndSendersMap map[uint32]mDBApp.BlockHashAndSenders, lastBlockNumber uint32, err error)
 	CreateValidityProof(blockHash common.Hash, validityProof []byte) (*mDBApp.BlockProof, error)
@@ -292,4 +293,7 @@ type RelationshipL2BatchIndexAndBlockContent interface {
 		batchIndex *uint256.Int,
 		blockContentID string,
 	) (err error)
+	RelationshipL2BatchIndexAndBlockContentsByBlockContentID(
+		blockContentID string,
+	) (*mDBApp.RelationshipL2BatchIndexBlockContents, error)
 }

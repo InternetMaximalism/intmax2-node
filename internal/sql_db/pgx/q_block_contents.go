@@ -156,6 +156,7 @@ func (p *pgx) BlockContent(blockContentID string) (*mDBApp.BlockContentWithProof
              bc.id ,bc.block_hash ,bc.prev_block_hash ,bc.deposit_root ,bc.signature_hash
 			 ,bc.is_registration_block ,bc.senders ,bc.tx_tree_root ,bc.aggregated_public_key
 			 ,bc.aggregated_signature ,bc.message_point ,bc.created_at ,bc.block_number
+			 ,bc.block_number_l2 ,bc.block_hash_l2
 			 ,bp.validity_proof
              FROM block_contents bc
 			 LEFT JOIN block_validity_proofs bp ON bc.id = bp.block_content_id
@@ -178,6 +179,8 @@ func (p *pgx) BlockContent(blockContentID string) (*mDBApp.BlockContentWithProof
 			&tmp.MessagePoint,
 			&tmp.CreatedAt,
 			&tmp.BlockNumber,
+			&tmp.BlockNumberL2,
+			&tmp.BlockHashL2,
 			&tmp.ValidityProof,
 		))
 	if err != nil {
@@ -305,6 +308,7 @@ func (p *pgx) LastBlockValidityProof() (*mDBApp.BlockContentWithProof, error) {
 			 bc.id ,bc.block_hash ,bc.prev_block_hash ,bc.deposit_root ,bc.signature_hash
 			 ,bc.is_registration_block ,bc.senders ,bc.tx_tree_root ,bc.aggregated_public_key
 			 ,bc.aggregated_signature ,bc.message_point ,bc.created_at ,bc.block_number
+			 ,bc.block_number_l2 ,bc.block_hash_l2
 			 ,bp.validity_proof
 			 FROM block_contents bc
 			 LEFT JOIN block_validity_proofs bp ON bc.id = bp.block_content_id
@@ -329,6 +333,8 @@ func (p *pgx) LastBlockValidityProof() (*mDBApp.BlockContentWithProof, error) {
 			&tmp.MessagePoint,
 			&tmp.CreatedAt,
 			&tmp.BlockNumber,
+			&tmp.BlockNumberL2,
+			&tmp.BlockHashL2,
 			&tmp.ValidityProof,
 		))
 	if err != nil {
@@ -346,6 +352,7 @@ func (p *pgx) BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockConten
              bc.id ,bc.block_hash ,bc.prev_block_hash ,bc.deposit_root ,bc.signature_hash
 			 ,bc.is_registration_block ,bc.senders ,bc.tx_tree_root ,bc.aggregated_public_key
 			 ,bc.aggregated_signature ,bc.message_point ,bc.created_at ,bc.block_number
+			 ,bc.block_number_l2 ,bc.block_hash_l2
 			 ,bp.validity_proof
              FROM block_contents bc
 			 LEFT JOIN block_validity_proofs bp ON bc.id = bp.block_content_id
@@ -368,6 +375,50 @@ func (p *pgx) BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockConten
 			&tmp.MessagePoint,
 			&tmp.CreatedAt,
 			&tmp.BlockNumber,
+			&tmp.BlockNumberL2,
+			&tmp.BlockHashL2,
+			&tmp.ValidityProof,
+		))
+	if err != nil {
+		return nil, err
+	}
+
+	bDBApp := p.blockContentToDBApp(&tmp)
+
+	return bDBApp, nil
+}
+
+func (p *pgx) BlockContentByBlockHash(blockHash string) (*mDBApp.BlockContentWithProof, error) {
+	const (
+		q = `SELECT
+             bc.id ,bc.block_hash ,bc.prev_block_hash ,bc.deposit_root ,bc.signature_hash
+			 ,bc.is_registration_block ,bc.senders ,bc.tx_tree_root ,bc.aggregated_public_key
+			 ,bc.aggregated_signature ,bc.message_point ,bc.created_at ,bc.block_number
+			 ,bc.block_number_l2 ,bc.block_hash_l2
+			 ,bp.validity_proof
+             FROM block_contents bc
+			 LEFT JOIN block_validity_proofs bp ON bc.id = bp.block_content_id
+			 WHERE bc.block_hash = $1`
+	)
+
+	var tmp models.BlockContent
+	err := errPgx.Err(p.queryRow(p.ctx, q, blockHash).
+		Scan(
+			&tmp.BlockContentID,
+			&tmp.BlockHash,
+			&tmp.PrevBlockHash,
+			&tmp.DepositRoot,
+			&tmp.SignatureHash,
+			&tmp.IsRegistrationBlock,
+			&tmp.Senders,
+			&tmp.TxRoot,
+			&tmp.AggregatedPublicKey,
+			&tmp.AggregatedSignature,
+			&tmp.MessagePoint,
+			&tmp.CreatedAt,
+			&tmp.BlockNumber,
+			&tmp.BlockNumberL2,
+			&tmp.BlockHashL2,
 			&tmp.ValidityProof,
 		))
 	if err != nil {
@@ -385,6 +436,7 @@ func (p *pgx) BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWith
              bc.id ,bc.block_hash ,bc.prev_block_hash ,bc.deposit_root ,bc.signature_hash
 			 ,bc.is_registration_block ,bc.senders ,bc.tx_tree_root ,bc.aggregated_public_key
 			 ,bc.aggregated_signature ,bc.message_point ,bc.created_at ,bc.block_number
+			 ,bc.block_number_l2 ,bc.block_hash_l2
 			 ,bp.validity_proof
              FROM block_contents bc
 			 LEFT JOIN block_validity_proofs bp ON bc.id = bp.block_content_id
@@ -407,6 +459,8 @@ func (p *pgx) BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWith
 			&tmp.MessagePoint,
 			&tmp.CreatedAt,
 			&tmp.BlockNumber,
+			&tmp.BlockNumberL2,
+			&tmp.BlockHashL2,
 			&tmp.ValidityProof,
 		))
 	if err != nil {
@@ -434,6 +488,8 @@ func (p *pgx) blockContentToDBApp(tmp *models.BlockContent) *mDBApp.BlockContent
 			AggregatedPublicKey: tmp.AggregatedPublicKey,
 			AggregatedSignature: tmp.AggregatedSignature,
 			MessagePoint:        tmp.MessagePoint,
+			BlockNumberL2:       tmp.BlockNumberL2,
+			BlockHashL2:         tmp.BlockHashL2.String,
 			CreatedAt:           tmp.CreatedAt,
 		},
 		ValidityProof: tmp.ValidityProof,

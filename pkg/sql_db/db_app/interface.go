@@ -259,6 +259,7 @@ type BlockContents interface {
 	) (*models.BlockContentWithProof, error)
 	BlockContentIDByL2BlockNumber(l2BlockNumber string) (bcID string, err error)
 	BlockContentByBlockNumber(blockNumber uint32) (*models.BlockContentWithProof, error)
+	BlockContentByBlockHash(blockHash string) (*models.BlockContentWithProof, error)
 	BlockContentByTxRoot(txRoot common.Hash) (*models.BlockContentWithProof, error)
 	ScanBlockHashAndSenders() (blockHashAndSendersMap map[uint32]models.BlockHashAndSenders, lastBlockNumber uint32, err error)
 	CreateValidityProof(blockHash common.Hash, validityProof []byte) (*models.BlockProof, error)
@@ -292,4 +293,7 @@ type RelationshipL2BatchIndexAndBlockContent interface {
 		batchIndex *uint256.Int,
 		blockContentID string,
 	) (err error)
+	RelationshipL2BatchIndexAndBlockContentsByBlockContentID(
+		blockContentID string,
+	) (*models.RelationshipL2BatchIndexBlockContents, error)
 }
