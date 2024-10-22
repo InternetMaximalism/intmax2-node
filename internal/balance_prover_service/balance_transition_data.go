@@ -339,9 +339,13 @@ func ExtractValidSentTransactions(
 			// continue
 		}
 
-		blockContent, err := blockValidityService.BlockContentByTxRoot(common.BytesToHash(tx.TxTreeRoot.Marshal()))
+		txTreeRoot := common.BytesToHash(tx.TxTreeRoot.Marshal())
+
+		fmt.Printf("txTreeRoot: %s\n", txTreeRoot.String())
+		blockContent, err := blockValidityService.BlockContentByTxRoot(txTreeRoot)
 		if err != nil {
-			log.Warnf("failed to get block content by tx root %s: %v\n", txHash.String(), err)
+			// log.Warnf("failed to get block content by tx root %s: %v\n", txHash.String(), err)
+			log.Warnf("failed to get block content by tx root %s (transfer hash: %s): %v\n", txTreeRoot, txHash.String(), err)
 			continue
 		}
 

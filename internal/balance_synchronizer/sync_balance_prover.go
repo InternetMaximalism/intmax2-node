@@ -248,17 +248,29 @@ func (s *SyncBalanceProver) SyncSend(
 	blockSynchronizer block_validity_prover.BlockSynchronizer,
 	wallet UserState,
 	balanceProcessor balance_prover_service.BalanceProcessor,
+	latestIntMaxBlockNumber uint32,
 ) error {
 	fmt.Printf("-----SyncSend %s------\n", wallet.PublicKey())
 
-	allBlockNumbers := wallet.GetAllBlockNumbers()
 	lastUpdatedBlockNumber := s.LastUpdatedBlockNumber()
+	// All block numbers containing transactions sent by the sender,
+	// regardless of whether they are valid or not.
+	allBlockNumbers := wallet.GetAllBlockNumbers()
+	// Things to synchronize from now on:
+	// TODO: Transactions sent in invalid blocks do not need to be reflected in the balance proof.
+	// Check whether the block is valid. If it has not been posted, remove it.
 	notSyncedBlockNumbers := []uint32{}
 	for _, blockNumber := range allBlockNumbers {
 		fmt.Printf("s.LastUpdatedBlockNumber after GetAllBlockNumbers: %d\n", lastUpdatedBlockNumber)
-		if lastUpdatedBlockNumber < blockNumber {
-			notSyncedBlockNumbers = append(notSyncedBlockNumbers, blockNumber)
+		if blockNumber <= lastUpdatedBlockNumber {
+			continue
 		}
+
+		if blockNumber > latestIntMaxBlockNumber {
+			continue
+		}
+
+		notSyncedBlockNumbers = append(notSyncedBlockNumbers, blockNumber)
 	}
 
 	sort.Slice(notSyncedBlockNumbers, func(i, j int) bool {
@@ -538,7 +550,7 @@ func (s *SyncBalanceProver) SyncAll(
 	}
 	fmt.Printf("LatestWitnessNumber before SyncSend: %d\n", latestIntMaxBlockNumber)
 
-	err = s.SyncSend(log, blockValidityService, blockSynchronizer, wallet, balanceProcessor)
+	err = s.SyncSend(log, blockValidityService, blockSynchronizer, wallet, balanceProcessor, latestIntMaxBlockNumber)
 	if err != nil {
 		return err
 	}

@@ -594,11 +594,6 @@ func (s *mockWallet) Salt() balance_prover_service.Salt {
 }
 
 func (s *mockWallet) Balance(tokenIndex uint32) *intMaxTypes.Uint256 {
-	assets := s.assetTree.Leaves
-	for _, asset := range assets {
-		fmt.Printf("asset: %v", asset)
-	}
-
 	return s.assetTree.GetLeaf(tokenIndex).Amount
 }
 
@@ -636,6 +631,7 @@ func (s *mockWallet) AssetLeaves() map[uint32]*intMaxTree.AssetLeaf {
 	return s.assetTree.Leaves
 }
 
+// Returns all block numbers sent by sender
 func (s *mockWallet) GetAllBlockNumbers() []uint32 {
 	existedBlockNumbers := make(map[uint32]bool)
 	for _, w := range s.sendWitnesses {
@@ -648,6 +644,8 @@ func (s *mockWallet) GetAllBlockNumbers() []uint32 {
 		fmt.Printf("(GetAllBlockNumbers) blockNumber: %v\n", blockNumber)
 		existedBlockNumbers[blockNumber] = true
 	}
+
+	fmt.Printf("existedBlockNumbers: %v\n", existedBlockNumbers)
 
 	result := make([]uint32, 0, len(existedBlockNumbers))
 	for blockNumber := range existedBlockNumbers {

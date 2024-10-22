@@ -1135,7 +1135,7 @@ func NewAccountExclusionValue(
 			fmt.Printf("proof: %+v\n", proof)
 			fmt.Printf("proof.IsIncluded: %v\n", proof.IsIncluded)
 			fmt.Printf("isDummy: %v\n", isDummy)
-			invalidReason = fmt.Sprintf("account %d is not excluded", i)
+			invalidReason = fmt.Sprintf("accounts[%d] = 0x%x is not excluded", i, publicKeys[i].Bytes())
 		}
 		isValid = isValid && isExcluded
 	}
@@ -1275,6 +1275,20 @@ func GetSenderTreeRoot(publicKeys []intMaxTypes.Uint256, senderFlag intMaxTypes.
 	root, _, _ := senderTree.GetCurrentRootCountAndSiblings()
 
 	return &root
+}
+
+func ShowBlockValidity(blockWitnesses []*BlockWitness) []bool {
+	result := make([]bool, len(blockWitnesses))
+	for _, blockWitness := range blockWitnesses {
+		mainValidationPublicInputs, invalidReason := blockWitness.MainValidationPublicInputs()
+		if invalidReason != "" {
+			fmt.Printf("WARNING: invalid reason (ShowBlockWitnesses): %s\n", invalidReason)
+		}
+
+		result = append(result, mainValidationPublicInputs.IsValid)
+	}
+
+	return result
 }
 
 // NOTICE: If the content can be posted to the blockchain, the value of MainValidationPublicInputs is output

@@ -283,6 +283,10 @@ func TransferTransaction(
 		return fmt.Errorf("failed to create balance transition proof with pis: %w", err)
 	}
 
+	fmt.Printf("TxTreeRoot: %s\n", txDetails.TxTreeRoot.String())
+	fmt.Printf("txHash: %s\n", txHash.String())
+	fmt.Printf("TransferTreeRoot: %s\n", transfersHash.String())
+	fmt.Printf("TransferHash: %s\n", transfers[1].Hash().String())
 	backupTx, err := transaction.NewBackupTransactionData(
 		userAccount.Public(),
 		txDetails,
@@ -313,6 +317,10 @@ func TransferTransaction(
 			Tx:                  *tx,
 			TransferMerkleProof: transferMerkleProof,
 		}
+		fmt.Printf("TxTreeRoot: %s\n", proposedBlock.TxTreeRoot.String())
+		fmt.Printf("txHash: %s\n", transferWitness.Tx.Hash().String())
+		fmt.Printf("TransferTreeRoot: %s\n", transferWitness.Tx.TransferTreeRoot.String())
+		fmt.Printf("TransferHash: %s\n", transferWitness.Transfer.Hash().String())
 		transferDetails := intMaxTypes.TransferDetails{
 			TransferWitness:                     &transferWitness,
 			TxTreeRoot:                          &proposedBlock.TxTreeRoot,

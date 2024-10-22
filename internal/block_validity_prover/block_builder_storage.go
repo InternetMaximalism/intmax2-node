@@ -1033,6 +1033,7 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTreeFromBlockContentAndPrevBlock(
 	blockContent *intMaxTypes.BlockContent,
 	prevPostedBlock *block_post_service.PostedBlock,
 ) (*BlockWitness, error) {
+	fmt.Printf("-----------GenerateBlockWithTxTreeFromBlockContentAndPrevBlock------------------\n")
 	depositRoot, _, _ := db.DepositTree.GetCurrentRootCountAndSiblings()
 	signature := NewSignatureContentFromBlockContent(blockContent)
 
@@ -1054,7 +1055,7 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTreeFromBlockContent(
 	postedBlock *block_post_service.PostedBlock,
 ) (*BlockWitness, error) {
 	prevBlockNumber := postedBlock.BlockNumber - 1
-	fmt.Printf("-----------GenerateBlockWithTxTreeFromBlockContent %d------------------\n", prevBlockNumber)
+	fmt.Printf("-----------GenerateBlockWithTxTreeFromBlockContent %d------------------\n", postedBlock.BlockNumber)
 
 	if len(blockContent.Senders) > numOfSenders {
 		// panic("too many txs")
@@ -1072,8 +1073,7 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTreeFromBlockContent(
 		publicKeys = append(publicKeys, *new(intMaxTypes.Uint256).FromBigInt(dummyPublicKey.BigInt()))
 	}
 
-	prevAccountTree := new(intMaxTree.AccountTree) // prev account tree
-	fmt.Printf("prevBlockNumber: %d\n", prevBlockNumber)
+	prevAccountTree := new(intMaxTree.AccountTree)              // prev account tree
 	err := db.CopyAccountTree(prevAccountTree, prevBlockNumber) // only reference
 	if err != nil {
 		var ErrCopyAccountTree = errors.New("copy account tree error (GenerateBlockWithTreeFromBlockContent)")
@@ -1112,6 +1112,8 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTreeFromBlockContent(
 			_, ok := prevAccountTree.GetAccountID(publicKey.BigInt())
 			if ok && !isDummy {
 				// If it fails here, the block is not valid.
+				fmt.Printf("ok: %v\n", ok)
+				fmt.Printf("isDummy: %v\n", isDummy)
 				fmt.Printf("WARNING: public key %s is invalid\n", publicKey.BigInt())
 			}
 

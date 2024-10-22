@@ -357,6 +357,7 @@ func (d *blockValidityProver) ValidityWitness(
 	// 	var ErrLastValidityWitnessNotFound = errors.New("last validity witness not found")
 	// 	return nil, errors.Join(ErrLastValidityWitnessNotFound, err)
 	// }
+	fmt.Printf("(validityWitness) lastValidityWitness: %+v\n", lastValidityWitness)
 	blockWitness, err := d.blockBuilder.GenerateBlockWithTxTreeFromBlockContentAndPrevBlock(
 		blockContent,
 		lastValidityWitness.BlockWitness.Block,

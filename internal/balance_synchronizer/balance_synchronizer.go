@@ -580,12 +580,19 @@ func applySentTransactionTransition(
 	}
 	fmt.Printf("(applySentTransactionTransition) updated on send tx\n")
 
+	validityProverInfo, err := blockValidityService.FetchValidityProverInfo()
+	if err != nil {
+		fmt.Printf("(applySentTransactionTransition) failed to fetch validity prover info: %v\n", err.Error())
+	}
+
+	latestIntMaxBlockNumber := validityProverInfo.BlockNumber
 	err = syncBalanceProver.SyncSend(
 		log,
 		blockValidityService,
 		blockSynchronizer,
 		userState,
 		balanceProcessor,
+		latestIntMaxBlockNumber,
 	)
 	if err != nil {
 		fmt.Printf("prove sent transaction %v\n", err.Error())
