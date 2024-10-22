@@ -1,6 +1,7 @@
 package pgx
 
 import (
+	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
 	errPgx "intmax2-node/internal/sql_db/pgx/errors"
 	"intmax2-node/internal/sql_db/pgx/models"
@@ -10,6 +11,7 @@ import (
 )
 
 func (p *pgx) CreateAccount(senderID string) (*mDBApp.Account, error) {
+	fmt.Printf("senderID: %s\n", senderID)
 	const (
 		q = ` INSERT INTO accounts (sender_id) VALUES ($1) `
 	)
@@ -52,6 +54,8 @@ func (p *pgx) AccountBySenderID(senderID string) (*mDBApp.Account, error) {
 }
 
 func (p *pgx) AccountBySender(publicKey *intMaxAcc.PublicKey) (*mDBApp.Account, error) {
+	address := publicKey.ToAddress().String()
+	fmt.Printf("address: %s\n", address)
 	const (
 		q = ` SELECT accounts.id, accounts.account_id, accounts.sender_id, accounts.created_at
               FROM accounts
@@ -60,7 +64,7 @@ func (p *pgx) AccountBySender(publicKey *intMaxAcc.PublicKey) (*mDBApp.Account, 
 	)
 
 	var account models.Account
-	err := errPgx.Err(p.queryRow(p.ctx, q, publicKey.ToAddress().String()).
+	err := errPgx.Err(p.queryRow(p.ctx, q, address).
 		Scan(
 			&account.ID,
 			&account.AccountID,

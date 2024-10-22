@@ -400,9 +400,11 @@ func syncBlockContentWithEvent(
 		for _, sender := range blockContent.Senders {
 			if sender.IsSigned && !sender.PublicKey.Equal(dummyPublicKey) {
 				address := sender.PublicKey.ToAddress().String()
+				fmt.Printf("address: %s\n", address)
 				err = blockBuilder.db.Exec(ctx, nil, func(d interface{}, _ interface{}) (err error) {
 					q := d.(SQLDriverApp)
 
+					fmt.Printf("sender.PublicKey: %s\n", sender.PublicKey)
 					_, err = q.AccountBySender(sender.PublicKey)
 					if err == nil {
 						fmt.Printf("account already exists: %s\n", address)
@@ -425,7 +427,7 @@ func syncBlockContentWithEvent(
 
 					fmt.Printf("AccountBySender error: %v\n", err)
 
-					senderData, err := q.CreateSenders(address, address)
+					senderData, err := q.CreateSenders(address, address) // XXX: not found
 					if err != nil {
 						fmt.Printf("(syncBlockContentWithEvent) address: %s\n", address)
 						return errors.Join(ErrCreateSendersFail, err)
