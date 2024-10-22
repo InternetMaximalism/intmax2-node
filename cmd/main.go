@@ -9,6 +9,7 @@ import (
 	"intmax2-node/cmd/deposit"
 	"intmax2-node/cmd/ethereum_private_key_wallet"
 	"intmax2-node/cmd/generate_account"
+	"intmax2-node/cmd/intmax_block"
 	"intmax2-node/cmd/intmax_private_key_wallet"
 	"intmax2-node/cmd/messenger"
 	"intmax2-node/cmd/migrator"
@@ -197,6 +198,7 @@ func main() {
 			BlockPostService:    blockPostService,
 			DepositSynchronizer: depositSynchronizer,
 		}),
+		intmax_block.NewCmd(ctx, cfg, log),
 	)
 	if err != nil {
 		const msg = "cli: %v"
