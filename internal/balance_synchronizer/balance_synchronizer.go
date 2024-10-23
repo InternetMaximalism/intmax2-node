@@ -110,6 +110,7 @@ func (s *balanceSynchronizer) Sync(
 }
 
 func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.PrivateKey) (err error) {
+	s.log.Infof("start syncProcessing")
 	balanceTransitionData, err := balance_prover_service.FetchBalanceTransitionData(s.ctx, s.cfg, s.log, intMaxPrivateKey)
 	if err != nil {
 		const msg = "failed to start Balance Prover Service: %+v"

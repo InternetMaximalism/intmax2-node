@@ -252,6 +252,7 @@ func (p *pgx) LastBlockNumberGeneratedValidityProof() (uint32, error) {
 	var blockNumber int64
 	err := errPgx.Err(p.queryRow(p.ctx, q).Scan(&blockNumber))
 	if err != nil {
+		fmt.Printf("(LastBlockNumberGeneratedValidityProof) blockNumber not found")
 		return 0, err
 	}
 	fmt.Printf("(LastBlockNumberGeneratedValidityProof) blockNumber: %d\n", blockNumber)
