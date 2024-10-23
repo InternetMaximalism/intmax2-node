@@ -28,37 +28,6 @@ type SyncBalanceProver struct {
 	LastSenderProof      *string
 }
 
-// type SyncBalanceProverInterface interface {
-// 	BalancePublicInputs() (*BalancePublicInputs, error)
-// 	SyncSend(
-// 		syncValidityProver *syncValidityProver,
-// 		wallet *MockWallet,
-// 		balanceProcessor *BalanceProcessor,
-// 	) error
-// 	SyncNoSend(
-// 		syncValidityProver *syncValidityProver,
-// 		wallet *MockWallet,
-// 		balanceProcessor *BalanceProcessor,
-// 	) error
-// 	SyncAll(
-// 		syncValidityProver *syncValidityProver,
-// 		wallet *MockWallet,
-// 		balanceProcessor *BalanceProcessor,
-// 	) error
-// 	ReceiveDeposit(
-// 		wallet *MockWallet,
-// 		balanceProcessor *BalanceProcessor,
-// 		blockBuilder MockBlockBuilder,
-// 		depositIndex uint32,
-// 	) error
-// 	ReceiveTransfer(
-// 		wallet *MockWallet,
-// 		balanceProcessor *BalanceProcessor,
-// 		blockBuilder MockBlockBuilder,
-// 		transferWitness *intMaxTypes.TransferWitness,
-// 		senderBalanceProof string,
-// 	) error
-// }
 
 func NewSyncBalanceProver(
 	ctx context.Context,
@@ -77,53 +46,6 @@ func NewSyncBalanceProver(
 		LastSenderProof:      nil,
 	}
 }
-
-// func (s *SyncBalanceProver) Init(intMaxPrivateKey *intMaxAcc.PrivateKey) error {
-// 	storedBalanceData, err := block_synchronizer.GetBackupBalance(s.ctx, s.cfg, intMaxPrivateKey.Public())
-// 	if err != nil {
-// 		const msg = "failed to start Balance Prover Service: %+v"
-// 		log.Fatalf(msg, err.Error())
-// 	}
-
-// 	balanceData := new(block_synchronizer.BalanceData)
-// 	err = balanceData.Decrypt(intMaxPrivateKey, storedBalanceData.EncryptedBalanceData)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	s.storedBalanceData = storedBalanceData
-// 	s.balanceData = balanceData
-
-// 	newBalanceData := new(block_synchronizer.BalanceData).Set(balanceData)
-
-// 	encryptedNewBalanceData, err := newBalanceData.Encrypt(intMaxPrivateKey.Public())
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	signature := "0x"
-// 	err = block_synchronizer.BackupBalanceProof(s.ctx, s.cfg, s.log,
-// 		intMaxPrivateKey.ToAddress(), storedBalanceData.ID, storedBalanceData.BalanceProofBody, encryptedNewBalanceData,
-// 		storedBalanceData.EncryptedTxs, storedBalanceData.EncryptedTransfers, storedBalanceData.EncryptedDeposits,
-// 		signature, storedBalanceData.BlockNumber)
-// 	if err != nil {
-// 		const msg = "failed to start Balance Prover Service: %+v"
-// 		log.Fatalf(msg, err.Error())
-// 	}
-
-// 	return nil
-// }
-
-// func (s *SyncBalanceProver) setLastBalanceProof(blockNumber uint32, balanceProof string) {
-// 	compressedBalanceProof, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(balanceProof)
-// 	if err != nil {
-// 		log.Fatalf("failed to set last balance proof: %+v", err.Error())
-// 	}
-
-// 	s.balanceData.PublicState.BlockNumber = blockNumber
-// 	s.lastBalanceProofBody = compressedBalanceProof.Proof
-// 	s.balanceData.BalanceProofPublicInputs = compressedBalanceProof.PublicInputs
-// }
 
 func (s *SyncBalanceProver) UploadLastBalanceProof(blockNumber uint32, balanceProof string, wallet UserState) error {
 	// s.setLastBalanceProof(blockNumber, balanceProof)

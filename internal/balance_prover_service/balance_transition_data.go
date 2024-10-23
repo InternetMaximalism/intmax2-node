@@ -134,9 +134,9 @@ func DecodeBackupData(
 			Amount:            decodedDeposit.Amount,
 		}
 		depositHash := depositLeaf.Hash()
-		fmt.Printf("deposit ID: %v\n", depositID)
-		fmt.Printf("deposit leaf: %v\n", depositLeaf)
-		fmt.Printf("deposit (nullifier): %s\n", depositHash.String())
+		fmt.Printf("deposit ID: %+v\n", depositID)
+		fmt.Printf("deposit leaf: %+v\n", depositLeaf)
+		fmt.Printf("deposit hash (nullifier): %s\n", depositHash.String())
 		deposit := DepositDetails{
 			Recipient:         recipient,
 			TokenIndex:        decodedDeposit.TokenIndex,
