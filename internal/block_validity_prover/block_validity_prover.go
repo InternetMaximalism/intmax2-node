@@ -262,20 +262,8 @@ func (d *blockValidityProver) FetchValidityProverInfo() (*ValidityProverInfo, er
 // If the current block number is not provided, it fetches the latest posted block number from the database.
 // It then uses this block number, or the provided current block number, to fetch the update witness
 // from the block builder. The function returns the update witness or an error if the operation fails.
-func (d *blockValidityProver) FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber *uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error) {
-	if currentBlockNumber == nil {
-		// panic("currentBlockNumber == nil")
-		latestBlockNumber, err := d.blockBuilder.db.LastPostedBlockNumber()
-		fmt.Printf("(FetchUpdateWitness) latestBlockNumber: %d\n", latestBlockNumber)
-		if err != nil {
-			var ErrLastPostedBlockNumberFail = errors.New("failed to get last posted block number")
-			return nil, errors.Join(ErrLastPostedBlockNumberFail, err)
-		}
-
-		return d.blockBuilder.FetchUpdateWitness(publicKey, latestBlockNumber, targetBlockNumber, isPrevAccountTree)
-	}
-
-	return d.blockBuilder.FetchUpdateWitness(publicKey, *currentBlockNumber, targetBlockNumber, isPrevAccountTree)
+func (d *blockValidityProver) FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error) {
+	return d.blockBuilder.FetchUpdateWitness(publicKey, currentBlockNumber, targetBlockNumber, isPrevAccountTree)
 }
 
 func (d *blockValidityProver) BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.PoseidonMerkleProof, error) {
@@ -352,11 +340,7 @@ func (d *blockValidityProver) ValidityWitness(
 	if err != nil {
 		return nil, fmt.Errorf("failed to get validity witness by block number: %w", err)
 	}
-	// lastValidityWitness, err := d.blockBuilder.LastValidityWitness()
-	// if err != nil {
-	// 	var ErrLastValidityWitnessNotFound = errors.New("last validity witness not found")
-	// 	return nil, errors.Join(ErrLastValidityWitnessNotFound, err)
-	// }
+	
 	fmt.Printf("(validityWitness) lastValidityWitness: %+v\n", lastValidityWitness)
 	blockWitness, err := d.blockBuilder.GenerateBlockWithTxTreeFromBlockContentAndPrevBlock(
 		blockContent,
