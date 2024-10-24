@@ -183,7 +183,7 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 
 	for _, transition := range sortedValidUserData {
 		fmt.Printf("wallet private state commitment (before): %s\n", s.userState.PrivateState().Commitment().String())
-		fmt.Printf("valid transition: %v\n", transition)
+		fmt.Printf("valid transition: %+v\n", transition)
 		fmt.Printf("valid transition block number: %v\n", transition.BlockNumber())
 
 		switch transition := transition.(type) {
