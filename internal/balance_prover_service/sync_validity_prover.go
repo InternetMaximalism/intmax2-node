@@ -40,7 +40,7 @@ func (s *externalBlockValidityService) FetchValidityProverInfo() (*block_validit
 
 func (s *externalBlockValidityService) FetchUpdateWitness(
 	publicKey *intMaxAcc.PublicKey,
-	currentBlockNumber *uint32,
+	currentBlockNumber uint32,
 	targetBlockNumber uint32,
 	isPrevAccountTree bool,
 ) (*block_validity_prover.UpdateWitness, error) {

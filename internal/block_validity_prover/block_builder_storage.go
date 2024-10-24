@@ -176,8 +176,7 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 				if err != nil {
 					panic(err)
 				}
-
-				fmt.Printf("%s is registered as account id %d\n", senderPublicKey.String(), proof.Index)
+				fmt.Printf("Account registered: public key %s account id %d\n", senderPublicKey.String(), proof.Index)
 			}
 		}
 		merkleTrees[blockNumber].AccountTree = new(intMaxTree.AccountTree).Set(accountTree)
@@ -706,11 +705,10 @@ func (db *mockBlockBuilder) BlockNumberByDepositIndex(depositIndex uint32, start
 	for ; blockNumber <= lastBlockNumber; blockNumber++ {
 		blockHistory, ok := db.MerkleTreeHistory.MerkleTrees[blockNumber]
 		if !ok {
-			return 0, errors.New("BlockNumberByDepositIndex: block number not found")
+			return 0, errors.New("BlockNumberByDepositIndex: block history not found")
 		}
 
 		depositLeaves := blockHistory.DepositLeaves
-		fmt.Printf("size of deposit leaves: %d\n", len(depositLeaves))
 		if depositIndex < uint32(len(depositLeaves)) {
 			return blockNumber, nil
 		}

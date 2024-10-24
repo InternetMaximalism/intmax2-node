@@ -645,8 +645,6 @@ func (s *mockWallet) GetAllBlockNumbers() []uint32 {
 		existedBlockNumbers[blockNumber] = true
 	}
 
-	fmt.Printf("existedBlockNumbers: %v\n", existedBlockNumbers)
-
 	result := make([]uint32, 0, len(existedBlockNumbers))
 	for blockNumber := range existedBlockNumbers {
 		result = append(result, blockNumber)
