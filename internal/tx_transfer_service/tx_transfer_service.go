@@ -262,18 +262,6 @@ func TransferTransaction(
 		return fmt.Errorf("failed to calculate spent witness: %w", err)
 	}
 
-	// prevBalancePisBlockNumber := sendWitness.GetPrevBalancePisBlockNumber()
-	// currentBlockNumber := sendWitness.GetIncludedBlockNumber()
-	// updateWitness, err := blockValidityService.FetchUpdateWitness(
-	// 	userWalletState.PublicKey(),
-	// 	&currentBlockNumber,
-	// 	prevBalancePisBlockNumber,
-	// 	true,
-	// )
-	// if err != nil {
-	// 	return err
-	// }
-
 	balanceTransitionProof, err := balanceSynchronizer.ProveSendTransition(spentTokenWitness)
 	if err != nil {
 		return fmt.Errorf("failed to create balance transition proof: %w", err)
