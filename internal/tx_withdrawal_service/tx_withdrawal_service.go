@@ -224,17 +224,6 @@ func WithdrawalTransaction(
 		return fmt.Errorf("failed to calculate spent witness: %v", err)
 	}
 
-	// prevBalancePisBlockNumber := sendWitness.GetPrevBalancePisBlockNumber()
-	// currentBlockNumber := sendWitness.GetIncludedBlockNumber()
-	// updateWitness, err := blockValidityService.FetchUpdateWitness(
-	// 	userWalletState.PublicKey(),
-	// 	&currentBlockNumber,
-	// 	prevBalancePisBlockNumber,
-	// 	true,
-	// )
-	// if err != nil {
-	// 	return err
-	// }
 
 	balanceTransitionProof, err := balanceSynchronizer.ProveSendTransition(spentTokenWitness)
 	if err != nil {

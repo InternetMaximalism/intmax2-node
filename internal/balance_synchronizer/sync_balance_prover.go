@@ -28,7 +28,6 @@ type SyncBalanceProver struct {
 	LastSenderProof      *string
 }
 
-
 func NewSyncBalanceProver(
 	ctx context.Context,
 	cfg *configs.Config,
@@ -218,7 +217,7 @@ func (s *SyncBalanceProver) SyncSend(
 		currentBlockNumber := blockNumber
 		updateWitness, err := blockValidityService.FetchUpdateWitness(
 			wallet.PublicKey(),
-			&currentBlockNumber,
+			currentBlockNumber,
 			prevBalancePisBlockNumber,
 			true,
 		)
@@ -342,7 +341,7 @@ func (s *SyncBalanceProver) SyncNoSend(
 	lastUpdatedBlockNumber := s.LastUpdatedBlockNumber()
 	allBlockNumbers := wallet.GetAllBlockNumbers()
 	fmt.Printf("s.LastUpdatedBlockNumber after GetAllBlockNumbers: %d\n", lastUpdatedBlockNumber)
-	err := ShouldSyncNoSend(lastUpdatedBlockNumber, blockNumber, allBlockNumbers)
+	err := ShouldSyncNoSend(lastUpdatedBlockNumber, blockNumber, allBlockNumbers) // XXX
 	if err != nil {
 		return err
 	}
@@ -378,7 +377,7 @@ func (s *SyncBalanceProver) SyncNoSend(
 	}
 	updateWitness, err := blockValidityService.FetchUpdateWitness(
 		wallet.PublicKey(),
-		&blockNumber,
+		blockNumber,
 		prevPublicState.BlockNumber, // XXX: lastUpdatedBlockNumber?
 		false,
 	)
