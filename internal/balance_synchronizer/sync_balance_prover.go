@@ -275,20 +275,16 @@ func (s *SyncBalanceProver) SyncSend(
 			return fmt.Errorf("failed to prove send: %w", err)
 		}
 
-		// balancePublicInputs, err := new(BalancePublicInputs).FromPublicInputs(balanceProof.PublicInputs)
-		// if err != nil {
-		// 	return err
-		// }
 
 		fmt.Printf("s.LastUpdatedBlockNumber before SyncSend: %d\n", s.LastUpdatedBlockNumber())
-		// s.LastUpdatedBlockNumber = blockNumber
+		wallet.UpdatePublicState(balanceProof.PublicInputs.PublicState)
 		err = s.UploadLastBalanceProof(blockNumber, balanceProof.Proof, wallet)
 		if err != nil {
 			return fmt.Errorf("failed to upload last balance proof in SyncSend: %w", err)
 		}
 
 		fmt.Printf("s.LastUpdatedBlockNumber after SyncSend: %d\n", s.LastUpdatedBlockNumber())
-		wallet.UpdatePublicState(balanceProof.PublicInputs.PublicState)
+		
 	}
 
 	return nil
@@ -416,7 +412,6 @@ func (s *SyncBalanceProver) SyncNoSend(
 	// TODO: blockHashLeaf := blockHistory.BlockHashTree.Leaves[leafBlockNumber]
 	blockHashLeaf := tree.NewBlockHashLeaf(prevPublicState.BlockHash)
 	fmt.Printf("blockHash (SyncNoSend): %s\n", prevPublicState.BlockHash)
-	fmt.Printf("blockHashLeafHash (SyncNoSend): %s\n", blockHashLeaf.Hash())
 	fmt.Printf("prevPublicState.BlockNumber (SyncNoSend): %d\n", prevPublicState.BlockNumber)
 	fmt.Printf("leafBlockNumber (SyncNoSend): %d\n", lastUpdatedBlockNumber)
 	fmt.Printf("blockTreeRoot (SyncNoSend): %s\n", validityPis.PublicState.BlockTreeRoot.String())
@@ -439,13 +434,15 @@ func (s *SyncBalanceProver) SyncNoSend(
 	}
 
 	fmt.Printf("s.LastUpdatedBlockNumber before SyncNoSend: %d\n", s.LastUpdatedBlockNumber())
+	wallet.UpdatePublicState(balanceProof.PublicInputs.PublicState)
+	
 	err = s.UploadLastBalanceProof(currentBlockNumber, balanceProof.Proof, wallet)
 	if err != nil {
 		return fmt.Errorf("failed to upload last balance proof in SyncNoSend: %w", err)
 	}
 
 	fmt.Printf("s.LastUpdatedBlockNumber after SyncNoSend: %d\n", s.LastUpdatedBlockNumber())
-	wallet.UpdatePublicState(balanceProof.PublicInputs.PublicState)
+	
 
 	return nil
 }
