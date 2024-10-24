@@ -2,8 +2,6 @@ package block_validity_prover
 
 import (
 	"context"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
@@ -15,7 +13,6 @@ import (
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/pkg/utils"
 
-	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
@@ -285,66 +282,13 @@ func (d *blockValidityProver) ValidityWitness(
 		return nil, fmt.Errorf("failed to get block content by tx root: %w", err)
 	}
 
-	senderType := intMaxTypes.AccountIDSenderType
-	if rawBlockContent.IsRegistrationBlock {
-		senderType = intMaxTypes.PublicKeySenderType
-	}
-
-	var columnSenders []intMaxTypes.ColumnSender
-	err = json.Unmarshal(rawBlockContent.Senders, &columnSenders)
+	auxInfo, err := blockAuxInfoFromBlockContent(rawBlockContent)
 	if err != nil {
-		var ErrUnmarshalSendersFail = errors.New("failed to unmarshal senders")
-		return nil, errors.Join(ErrUnmarshalSendersFail, err)
+		return nil, fmt.Errorf("failed to get block aux info from block content: %w", err)
 	}
-
-	senders := make([]intMaxTypes.Sender, len(columnSenders))
-	for i, sender := range columnSenders {
-		var publicKey *intMaxAcc.PublicKey
-		publicKey, err = intMaxAcc.NewPublicKeyFromAddressHex(sender.PublicKey)
-		if err != nil {
-			var ErrRecoverPublicKeyFail = errors.New("failed to recover public key from address")
-			return nil, errors.Join(ErrRecoverPublicKeyFail, err)
-		}
-		senders[i] = intMaxTypes.Sender{
-			AccountID: sender.AccountID,
-			PublicKey: publicKey,
-			IsSigned:  sender.IsSigned,
-		}
-	}
-
-	aggregatedSignatureBytes, err := hex.DecodeString(rawBlockContent.AggregatedSignature)
-	if err != nil {
-		var ErrDecodeAggregatedSignatureFail = errors.New("failed to decode aggregated signature")
-		return nil, errors.Join(ErrDecodeAggregatedSignatureFail, err)
-	}
-
-	aggregatedSignature := new(bn254.G2Affine)
-	err = aggregatedSignature.Unmarshal(aggregatedSignatureBytes)
-	if err != nil {
-		var ErrUnmarshalAggregatedSignatureFail = errors.New("failed to unmarshal aggregated signature")
-		return nil, errors.Join(ErrUnmarshalAggregatedSignatureFail, err)
-	}
-
-	blockContent := intMaxTypes.NewBlockContent(
-		senderType,
-		senders,
-		txRoot,
-		aggregatedSignature,
-	)
-
-	lastGeneratedProofBlockNumber, err := d.blockBuilder.LastGeneratedProofBlockNumber()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get last generated proof block number: %w", err)
-	}
-	lastValidityWitness, err := d.blockBuilder.ValidityWitnessByBlockNumber(lastGeneratedProofBlockNumber)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get validity witness by block number: %w", err)
-	}
-	
-	fmt.Printf("(validityWitness) lastValidityWitness: %+v\n", lastValidityWitness)
-	blockWitness, err := d.blockBuilder.GenerateBlockWithTxTreeFromBlockContentAndPrevBlock(
-		blockContent,
-		lastValidityWitness.BlockWitness.Block,
+	blockWitness, err := d.blockBuilder.GenerateBlockWithTxTreeFromBlockContent(
+		auxInfo.BlockContent,
+		auxInfo.PostedBlock,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate block witness: %w", err)
