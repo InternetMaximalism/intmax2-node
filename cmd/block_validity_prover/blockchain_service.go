@@ -24,4 +24,5 @@ type ChainSB interface {
 	EthereumNetworkChainLinkEvmJSONRPC(ctx context.Context) (string, error)
 	SetupScrollNetworkChainID(ctx context.Context) error
 	ScrollNetworkChainLinkEvmJSONRPC(ctx context.Context) (string, error)
+	ScrollNetworkChainLinkRollupExplorer(ctx context.Context) (string, error)
 }

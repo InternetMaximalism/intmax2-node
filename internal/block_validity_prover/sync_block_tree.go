@@ -130,8 +130,8 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, startBlock ui
 	}
 
 	if len(events) == 0 {
-		fmt.Printf("Scroll Block %d is synchronized (SyncBlockTree)\n", endBlock)
-		return endBlock, nil
+		fmt.Printf("Scroll Block %d is synchronized (SyncBlockTree)\n", startBlock)
+		return startBlock, nil
 	}
 
 	tickerEventWatcher := time.NewTicker(p.cfg.BlockValidityProver.TimeoutForEventWatcher)
@@ -141,11 +141,13 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, startBlock ui
 		}
 	}()
 
+	var curBlN uint256.Int
+	_ = curBlN.SetUint64(startBlock)
 	for key := range events {
 		select {
 		case <-p.ctx.Done():
 			p.log.Warnf("Received cancel signal from context, stopping...")
-			return startBlock, p.ctx.Err()
+			return curBlN.Uint64(), p.ctx.Err()
 		case <-tickerEventWatcher.C:
 			fmt.Println("tickerEventWatcher.C")
 			var blN uint256.Int
@@ -202,11 +204,15 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, startBlock ui
 			}
 
 			// p.log.Debugf("blockContent: %v\n", blockContent)
-			_, err = p.blockBuilder.CreateBlockContent(postedBlock, blockContent)
+			_, err = p.blockBuilder.CreateBlockContent(
+				p.ctx, postedBlock, blockContent, &blN, events[key].Raw.BlockHash,
+			)
 			if err != nil {
 				panic(err)
 				// return errors.Join(ErrCreateBlockContentFail, err)
 			}
+
+			_ = curBlN.SetFromBig(blN.ToBig())
 		}
 	}
 
@@ -255,7 +261,7 @@ func (p *blockValidityProver) syncBlockProverWithAuxInfo(
 	}
 	_, err = calculateValidityWitnessWithConsistencyCheck(p.blockBuilder, blockWitness, latestValidityWitness)
 	if err != nil {
-		panic(fmt.Errorf("failed to calculate validity witness with consistency check: %w", err))
+		return fmt.Errorf("failed to calculate validity witness with consistency check: %w", err)
 	}
 
 	return p.syncBlockProver()

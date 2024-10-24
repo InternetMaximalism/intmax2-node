@@ -53,6 +53,13 @@ const (
 	ScrollSepoliaChainLinkExplorer ChainLinkExplorer = "https://scrollscan.com"
 )
 
+type ChainLinkRollupExplorer string
+
+const (
+	ScrollMainNetChainLinkRollupExplorer ChainLinkRollupExplorer = "https://mainnet-api-re.scroll.io"
+	ScrollSepoliaChainLinkRollupExplorer ChainLinkRollupExplorer = "https://sepolia-api-re.scroll.io"
+)
+
 func (sb *serviceBlockchain) scrollNetworkChainIDValidator() error {
 	return validation.Validate(sb.cfg.Blockchain.ScrollNetworkChainID,
 		validation.Required,
@@ -145,6 +152,32 @@ func (sb *serviceBlockchain) ScrollNetworkChainLinkExplorer(ctx context.Context)
 	}
 
 	return string(ScrollSepoliaChainLinkExplorer), nil
+}
+
+func (sb *serviceBlockchain) ScrollNetworkChainLinkRollupExplorer(ctx context.Context) (string, error) {
+	const (
+		hName                   = "ServiceBlockchain func:ScrollNetworkChainLinkRollupExplorer"
+		scrollNetworkChainIDKey = "scroll_network_chain_id"
+		emptyKey                = ""
+	)
+
+	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName,
+		trace.WithAttributes(
+			attribute.String(scrollNetworkChainIDKey, sb.cfg.Blockchain.ScrollNetworkChainID),
+		))
+	defer span.End()
+
+	err := sb.scrollNetworkChainIDValidator()
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return emptyKey, errors.Join(ErrScrollChainIDInvalid, err)
+	}
+
+	if strings.EqualFold(sb.cfg.Blockchain.ScrollNetworkChainID, string(ScrollMainNetChainID)) {
+		return string(ScrollMainNetChainLinkRollupExplorer), nil
+	}
+
+	return string(ScrollSepoliaChainLinkRollupExplorer), nil
 }
 
 func (sb *serviceBlockchain) ethereumNetworkChainIDValidator() error {

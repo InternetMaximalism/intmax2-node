@@ -9,6 +9,11 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
+const (
+	findU0    = `\u0000`
+	replaceU0 = `\\*u*0*0*0*0`
+)
+
 type pgx struct {
 	db                   *sql.DB
 	tx                   *sql.Tx
