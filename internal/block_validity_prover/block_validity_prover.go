@@ -298,7 +298,7 @@ func (d *blockValidityProver) ValidityWitness(
 	if err != nil {
 		return nil, fmt.Errorf("failed to get block aux info from block content: %w", err)
 	}
-	blockWitness, err := d.blockBuilder.GenerateBlockWithTxTreeFromBlockContentAndPrevBlock(
+	blockWitness, err := d.blockBuilder.GenerateBlockWithTxTreeFromBlockContent(
 		auxInfo.BlockContent,
 		auxInfo.PostedBlock,
 	)
