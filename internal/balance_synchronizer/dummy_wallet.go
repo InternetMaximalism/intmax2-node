@@ -287,7 +287,6 @@ func MakeTxWitness(
 ) (*balance_prover_service.TxWitness, []*intMaxTypes.TransferWitness, error) {
 	s, err := json.Marshal(txDetails)
 	if err != nil {
-		fmt.Printf("fail to marshal txDetails: %v\n", err)
 		return nil, nil, fmt.Errorf("fail to marshal txDetails: %w", err)
 	}
 	fmt.Printf("(MakeTxWitness) txDetails: %s\n", s)
@@ -303,7 +302,6 @@ func MakeTxWitness(
 	zeroTransfer := new(intMaxTypes.Transfer).SetZero()
 	transferTree, err := intMaxTree.NewTransferTree(intMaxTree.TRANSFER_TREE_HEIGHT, nil, zeroTransfer.Hash())
 	if err != nil {
-		// panic(fmt.Errorf("fail to create transfer tree: %w", err))
 		return nil, nil, fmt.Errorf("fail to create transfer tree: %w", err)
 	}
 
@@ -311,73 +309,18 @@ func MakeTxWitness(
 		_, index, _ := transferTree.GetCurrentRootCountAndSiblings()
 		_, err = transferTree.AddLeaf(index, transfer)
 		if err != nil {
-			// panic(fmt.Errorf("fail to add leaf to transfer tree: %w", err))
 			return nil, nil, fmt.Errorf("fail to add leaf to transfer tree: %w", err)
 		}
 	}
 
-	// transferTreeRoot, _, _ := transferTree.GetCurrentRootCountAndSiblings()
-	// tx := intMaxTypes.Tx{
-	// 	TransferTreeRoot: &transferTreeRoot,
-	// 	Nonce:            w.nonce,
-	// }
 	tx := txDetails.Tx
 	fmt.Printf("(MakeTxWitness) tx: %+ v\n", tx)
-
-	// txRequest0 := block_validity_prover.MockTxRequest{
-	// 	Tx:                  &tx,
-	// 	Sender:              &w.privateKey,
-	// 	AccountID:           2,
-	// 	WillReturnSignature: true,
-	// }
-	// txRequests := []*block_validity_prover.MockTxRequest{&txRequest0}
-	// blockContent, err := NewBlockContentFromTxRequests(true, txRequests)
-	// if err != nil {
-	// 	return nil, nil, err
-	// }
-
-	fmt.Printf("TxTreeRoot: %s", common.HexToHash(txDetails.TxTreeRoot.String()))
-	validityPublicInputs, senderLeaves, err := blockValidityService.ValidityPublicInputs(common.HexToHash(txDetails.TxTreeRoot.String()))
-	if err != nil {
-		fmt.Printf("fail to get validity public inputs: %v\n", err)
-		return nil, nil, fmt.Errorf("fail to get validity public inputs: %w", err)
-	}
 	fmt.Printf("(MakeTxWitness) TxTreeRoot: %s", common.HexToHash(txDetails.TxTreeRoot.String()))
 
-	// s, err = json.Marshal(&validityPublicInputs)
-	// if err != nil {
-	// 	fmt.Printf("fail to marshal validity public inputs: %v\n", err)
-	// 	return nil, nil, fmt.Errorf("fail to marshal validity public inputs: %w", err)
-	// }
-	// fmt.Printf("(MakeTxWitness) validityPublicInputs: %s\n", s)
-
-	// s, err = json.Marshal(&senderLeaves)
-	// if err != nil {
-	// 	fmt.Printf("fail to marshal sender leaves: %v\n", err)
-	// 	return nil, nil, fmt.Errorf("fail to marshal sender leaves: %w", err)
-	// }
-	// fmt.Printf("(MakeTxWitness) senderLeaves: %s\n", s)
-
-	// validityWitness, err := blockValidityService.UpdateValidityWitness(
-	// 	blockContent,
-	// )
-
-	// txLeaves := make([]*intMaxTypes.Tx, len(txRequests))
-	// for i, tx := range txRequests {
-	// 	txLeaves[i] = tx.Tx
-	// }
-
-	// zeroTx := new(intMaxTypes.Tx).SetZero()
-	// txTree, err := intMaxTree.NewTxTree(7, txLeaves, zeroTx.Hash())
-	// if err != nil {
-	// 	return nil, nil, err
-	// }
-
-	// txIndex := uint32(0)
-	// txMerkleProof, _, err := txTree.ComputeMerkleProof(uint64(txIndex))
-	// if err != nil {
-	// 	return nil, nil, err
-	// }
+	validityPublicInputs, senderLeaves, err := blockValidityService.ValidityPublicInputs(common.HexToHash(txDetails.TxTreeRoot.String()))
+	if err != nil {
+		return nil, nil, fmt.Errorf("fail to get validity public inputs: %w", err)
+	}
 
 	senderWitness := make([]*intMaxTree.SenderLeaf, 0)
 	for _, sender := range senderLeaves {
@@ -405,7 +348,6 @@ func MakeTxWitness(
 			TransferIndex:       uint32(transferIndex),
 			TransferMerkleProof: transferMerkleProof,
 		}
-		// fmt.Printf("transferWitnesses[%d]: %v\n", transferIndex, transferWitness)
 		transferWitnesses[transferIndex] = &transferWitness
 	}
 
@@ -466,6 +408,8 @@ func (wallet *mockWallet) CalculateSpentTokenWitness(
 	}, nil
 }
 
+// txを送信する際にmock wallet を更新する。
+// 
 func (w *mockWallet) UpdateOnSendTx(
 	newSalt balance_prover_service.Salt,
 	txWitness *balance_prover_service.TxWitness,
@@ -490,7 +434,6 @@ func (w *mockWallet) UpdateOnSendTx(
 	assetMerkleProofs := make([]*intMaxTree.AssetMerkleProof, 0, len(transferWitnesses))
 	prevBalances := make([]*intMaxTree.AssetLeaf, 0, len(transferWitnesses))
 	insufficientFlags := new(backup_balance.InsufficientFlags)
-	// insufficientBits := make([]bool, 0, len(transferWitnesses))
 	fmt.Printf("transferWitnesses: %v\n", transferWitnesses)
 	for i, transferWitness := range transferWitnesses {
 		if transferWitness == nil {
@@ -507,10 +450,6 @@ func (w *mockWallet) UpdateOnSendTx(
 			panic(err)
 		}
 		transfers = append(transfers, &transfer)
-		// prevBalanceEntry := intMaxTree.AssetLeafEntry{
-		// 	TokenIndex: tokenIndex,
-		// 	Leaf:       prevBalance,
-		// }
 		prevBalances = append(prevBalances, prevBalance)
 		assetMerkleProofs = append(assetMerkleProofs, &assetMerkleProof)
 		insufficientFlags.SetBit(i, newBalance.IsInsufficient)

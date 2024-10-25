@@ -15,6 +15,7 @@ import (
 	"intmax2-node/internal/logger"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
+	"math/big"
 	"time"
 )
 
@@ -555,59 +556,77 @@ func applySentTransactionTransition(
 	userState UserState,
 	transitionBlockNumber uint32,
 ) error {
-	// syncValidityProver.Sync() // sync validity proofs
-	fmt.Printf("(applySentTransactionTransition) transaction hash: %s\n", tx.Hash().String())
+	log.Infof("applySentTransactionTransition: transaction hash: %s", tx.Hash().String())
 
-	// txMerkleProof := tx.TxMerkleProof
-	// transfers := tx.Transfers
-
-	// balanceProverService.SyncBalanceProver
 	txWitness, transferWitnesses, err := MakeTxWitness(blockValidityService, tx)
 	if err != nil {
-		fmt.Printf("(applySentTransactionTransition) failed to make tx witness: %v\n", err.Error())
-		const msg = "failed to send transaction: %+v"
-		return fmt.Errorf(msg, err.Error())
+		return fmt.Errorf("failed to make tx witness: %w", err)
 	}
-	fmt.Printf("(applySentTransactionTransition) generated tx witness\n")
+
 	newSalt, err := new(balance_prover_service.Salt).SetRandom()
 	if err != nil {
-		fmt.Printf("(applySentTransactionTransition) failed to set random: %v\n", err.Error())
-		const msg = "failed to set random: %+v"
-		return fmt.Errorf(msg, err.Error())
+		return fmt.Errorf("failed to set random salt: %w", err)
 	}
-	fmt.Printf("(applySentTransactionTransition) generated new salt\n")
 
-	_, err = userState.UpdateOnSendTx(*newSalt, txWitness, transferWitnesses)
+	// Update user state, including salt, nonce, nullifier, and balance
+	sendWitness, err := userState.UpdateOnSendTx(*newSalt, txWitness, transferWitnesses)
 	if err != nil {
-		fmt.Printf("(applySentTransactionTransition) failed to update on send tx: %v\n", err.Error())
-		const msg = "failed to update on SendTx: %+v"
-		return fmt.Errorf(msg, err.Error())
+		return fmt.Errorf("failed to update on send tx: %w", err)
 	}
-	fmt.Printf("(applySentTransactionTransition) updated on send tx\n")
 
-	// validityProverInfo, err := blockValidityService.FetchValidityProverInfo()
-	// if err != nil {
-	// 	fmt.Printf("(applySentTransactionTransition) failed to fetch validity prover info: %v\n", err.Error())
-	// }
+	// For debugging, print transfers in sendWitness
+	for _, transfer := range sendWitness.SpentTokenWitness.Transfers {
+		if transfer.Amount.Cmp(big.NewInt(0)) != 0 {
+			log.Debugf("(sendWitness) transfer: %+v\n", transfer)
+		}
+	}
 
-	// latestIntMaxBlockNumber := validityProverInfo.BlockNumber
-	err = syncBalanceProver.SyncSend(
-		log,
-		blockValidityService,
-		blockSynchronizer,
-		userState,
-		balanceProcessor,
-		transitionBlockNumber,
+	newBalancePisBlockNumber := sendWitness.GetIncludedBlockNumber()
+	prevBalancePisBlockNumber := sendWitness.GetPrevBalancePisBlockNumber()
+	log.Debugf("(sendWitness): Transition from block %d to block %d", prevBalancePisBlockNumber, newBalancePisBlockNumber)
+	updateWitness, err := blockValidityService.FetchUpdateWitness(
+		userState.PublicKey(),
+		newBalancePisBlockNumber,
+		prevBalancePisBlockNumber,
+		true,
 	)
 	if err != nil {
-		fmt.Printf("prove sent transaction %v\n", err.Error())
-		if err.Error() == messageBalanceProcessorNotInitialized {
-			return errors.New(messageBalanceProcessorNotInitialized)
-		}
-
-		return fmt.Errorf("failed to sync transaction: %+v", err.Error())
+		return fmt.Errorf("failed to fetch update witness: %w", err)
 	}
-	fmt.Printf("(applySentTransactionTransition) updated on send tx\n")
 
+	_validityProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(updateWitness.ValidityProof)
+	if err != nil {
+		return fmt.Errorf("failed to create validity proof with pis: %w", err)
+	}
+	updateWitnessValidityPis := new(block_validity_prover.ValidityPublicInputs).FromPublicInputs(_validityProofWithPis.PublicInputs)
+
+	sendWitnessValidityPis := sendWitness.TxWitness.ValidityPis
+	if !updateWitnessValidityPis.Equal(&sendWitnessValidityPis) {
+		log.Errorf("update witness %+v is not equal to send witness %+v", updateWitnessValidityPis, sendWitnessValidityPis)
+		return errors.New("update witness validity proof is not equal to send witness validity proof")
+	}
+
+	if updateWitnessValidityPis.IsValidBlock {
+		log.Debugf("Block %d is valid", updateWitnessValidityPis.PublicState.BlockNumber)
+	} else {
+		log.Debugf("Block %d is invalid", updateWitnessValidityPis.PublicState.BlockNumber)
+	}
+
+	balanceProof, err := balanceProcessor.ProveSend(
+		userState.PublicKey(),
+		sendWitness,
+		updateWitness,
+		syncBalanceProver.LastBalanceProof(),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to prove send: %w", err)
+	}
+
+	// wallet.UpdatePublicState(balanceProof.PublicInputs.PublicState)
+
+	err = syncBalanceProver.UploadLastBalanceProof(newBalancePisBlockNumber, balanceProof.Proof, userState)
+	if err != nil {
+		return fmt.Errorf("failed to upload last balance proof in SyncSend: %w", err)
+	}
 	return nil
 }

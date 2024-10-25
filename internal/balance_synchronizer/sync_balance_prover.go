@@ -49,15 +49,6 @@ func NewSyncBalanceProver(
 	}
 }
 
-// func (s *SyncBalanceProver) BalanceData(wallet UserState) *block_synchronizer.BalanceData {
-// 	// 	return block_synchronizer.BalanceData {
-// 	// 		BalanceProofPublicInputs: s.balanceProofPublicInputs,
-// 	// 		NullifierLeaves:          s.nullifierLeaves,
-// 	// 		AssetLeafEntries:         s.assetLeafEntries,
-
-// 	// }
-// }
-
 func (s *SyncBalanceProver) UploadLastBalanceProof(blockNumber uint32, balanceProof string, wallet UserState) error {
 	s.log.Infof("UploadLastBalanceProof public state %+v\n", wallet.PublicState())
 
@@ -67,14 +58,6 @@ func (s *SyncBalanceProver) UploadLastBalanceProof(blockNumber uint32, balancePr
 	}
 
 	s.lastBalanceProofBody = compressedBalanceProof.Proof
-	// if s.balanceProofPublicInputs == nil {
-	// 	fmt.Printf("s.balanceData is initialized\n")
-	// 	initBalanceData := new(block_synchronizer.BalanceData)
-	// 	s.balanceProofPublicInputs = initBalanceData.BalanceProofPublicInputs
-	// 	s.nullifierLeaves = initBalanceData.NullifierLeaves
-	// 	s.assetLeafEntries = initBalanceData.AssetLeafEntries
-	// }
-
 	assetLeaves := wallet.AssetLeaves()
 	assetLeafEntries := make([]*intMaxTree.AssetLeafEntry, 0, len(assetLeaves))
 	for tokenIndex, leaf := range assetLeaves {
@@ -87,9 +70,6 @@ func (s *SyncBalanceProver) UploadLastBalanceProof(blockNumber uint32, balancePr
 	s.balanceProofPublicInputs = compressedBalanceProof.PublicInputs
 	s.nullifierLeaves = wallet.Nullifiers()
 	s.assetLeafEntries = assetLeafEntries
-	// s.balanceData.Nonce = wallet.Nonce()
-	// s.balanceData.Salt = wallet.Salt()
-	// s.balanceData.PublicState = wallet.PublicState()
 
 	privateState := wallet.PrivateState()
 	newBalanceData := new(block_synchronizer.BalanceData).Set(&block_synchronizer.BalanceData{
