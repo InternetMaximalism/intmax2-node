@@ -353,13 +353,18 @@ func (s *SyncBalanceProver) syncSendOne(
 // This function returns an error if there is at least one transaction included in a block
 // between the last synchronized block number and the block number you want to synchronize to,
 // where the transaction was sent by you.
-func ShouldSyncNoSend(
+// TODO: allBlockNumbers should be included in valid block.
+func ValidateAllBlockNumbersSentTx(
 	allBlockNumbers []uint32,
 	lastUpdatedBlockNumber uint32,
 	targetBlockNumber uint32,
 ) error {
 	if lastUpdatedBlockNumber == 0 {
 		return nil
+	}
+
+	if targetBlockNumber < lastUpdatedBlockNumber {
+		return fmt.Errorf("block number is less than or equal to last updated block number: %d", targetBlockNumber)
 	}
 
 	for _, blockNumber := range allBlockNumbers {
@@ -388,7 +393,7 @@ func (s *SyncBalanceProver) SyncNoSend(
 	allBlockNumbers := wallet.GetAllBlockNumbers()
 	log.Infof("SyncNoSend: update block number %d -> %d", lastUpdatedBlockNumber, targetBlockNumber)
 	log.Infof("SyncNoSend: allBlockNumbers: %v", allBlockNumbers)
-	err := ShouldSyncNoSend(allBlockNumbers, lastUpdatedBlockNumber, targetBlockNumber)
+	err := ValidateAllBlockNumbersSentTx(allBlockNumbers, lastUpdatedBlockNumber, targetBlockNumber)
 	if err != nil {
 		panic(err)
 	}
