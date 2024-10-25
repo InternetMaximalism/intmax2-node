@@ -513,7 +513,6 @@ func (s *SyncBalanceProver) SyncAll(
 func (s *SyncBalanceProver) ReceiveDeposit(
 	wallet UserState,
 	balanceProcessor balance_prover_service.BalanceProcessor,
-	// blockBuilder MockBlockBuilder,
 	blockValidityService block_validity_prover.BlockValidityService,
 	depositIndex uint32,
 ) error {
@@ -526,54 +525,48 @@ func (s *SyncBalanceProver) ReceiveDeposit(
 		return errors.Join(ErrReceiveDepositAndUpdate, err)
 	}
 	fmt.Println("start ProveReceiveDeposit")
-	lastBalanceProof := *s.LastBalanceProof()
-	lastBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(lastBalanceProof)
-	if err != nil {
-		// fmt.Printf("lastBalanceProof: %s\n", lastBalanceProof)
-		fmt.Printf("size of lastBalanceProof: %d\n", len(lastBalanceProof))
-		return errors.Join(ErrNewCompressedPlonky2ProofFromBase64StringFail, err)
-	}
 
-	lastBalancePublicInputs, err := new(balance_prover_service.BalancePublicInputs).FromPublicInputs(lastBalanceProofWithPis.PublicInputs)
-	if err != nil {
-		return errors.Join(ErrBalancePublicInputsFromPublicInputs, err)
-	}
-	fmt.Printf("lastBalancePublicInputs (ReceiveDeposit) PrivateCommitment commitment: %s\n", lastBalancePublicInputs.PrivateCommitment.String())
 
-	// validation
-	{
-		depositIndex := receiveDepositWitness.DepositWitness.DepositIndex
-		deposit := receiveDepositWitness.DepositWitness.Deposit
-		depositMerkleProof := receiveDepositWitness.DepositWitness.DepositMerkleProof
-		depositTreeRoot := lastBalancePublicInputs.PublicState.DepositTreeRoot
-		userDepositTreeRoot := wallet.PublicState().DepositTreeRoot
-		if depositTreeRoot != userDepositTreeRoot {
-			s.log.Debugf("depositIndex: %d\n", depositIndex)
-			s.log.Debugf("depositTreeRoot in balance proof: %s\n", depositTreeRoot.String())
-			s.log.Debugf("DepositTreeRoot in public state: %s\n", userDepositTreeRoot.String())
-			panic("deposit tree root is mismatch")
-		}
+	lastBalanceProof := s.LastBalanceProof()
+	// lastBalancePublicInputs, err := new(balance_prover_service.BalancePublicInputs).FromPublicInputs(lastBalanceProofWithPis.PublicInputs)
+	// if err != nil {
+	// 	return errors.Join(ErrBalancePublicInputsFromPublicInputs, err)
+	// }
+	// fmt.Printf("lastBalancePublicInputs (ReceiveDeposit) PrivateCommitment commitment: %s\n", lastBalancePublicInputs.PrivateCommitment.String())
 
-		if depositMerkleProof.Verify(deposit.Hash(), int(depositIndex), depositTreeRoot) != nil {
-			panic("deposit merkle proof is invalid") // XXX
-		}
-	}
+	// // validation
+	// {
+	// 	depositIndex := receiveDepositWitness.DepositWitness.DepositIndex
+	// 	deposit := receiveDepositWitness.DepositWitness.Deposit
+	// 	depositMerkleProof := receiveDepositWitness.DepositWitness.DepositMerkleProof
+	// 	depositTreeRoot := lastBalancePublicInputs.PublicState.DepositTreeRoot
+	// 	userDepositTreeRoot := wallet.PublicState().DepositTreeRoot
+	// 	if depositTreeRoot != userDepositTreeRoot {
+	// 		s.log.Debugf("depositIndex: %d\n", depositIndex)
+	// 		s.log.Debugf("depositTreeRoot in balance proof: %s\n", depositTreeRoot.String())
+	// 		s.log.Debugf("DepositTreeRoot in public state: %s\n", userDepositTreeRoot.String())
+	// 		panic("deposit tree root is mismatch")
+	// 	}
+
+	// 	if depositMerkleProof.Verify(deposit.Hash(), int(depositIndex), depositTreeRoot) != nil {
+	// 		panic("deposit merkle proof is invalid") // XXX
+	// 	}
+	// }
 
 	balanceProof, err := balanceProcessor.ProveReceiveDeposit(
 		wallet.PublicKey(),
 		receiveDepositWitness,
-		&lastBalanceProof,
+		lastBalanceProof,
 	)
 	if err != nil {
 		return errors.Join(ErrProveReceiveDeposit, err)
 	}
 
-	lastBalanceProofWithPis, err = intMaxTypes.NewCompressedPlonky2ProofFromBase64String(balanceProof.Proof)
+	lastBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(balanceProof.Proof)
 	if err != nil {
 		return errors.Join(ErrNewCompressedPlonky2ProofFromBase64StringFail, err)
 	}
-
-	lastBalancePublicInputs, err = new(balance_prover_service.BalancePublicInputs).FromPublicInputs(lastBalanceProofWithPis.PublicInputs)
+	lastBalancePublicInputs, err := new(balance_prover_service.BalancePublicInputs).FromPublicInputs(lastBalanceProofWithPis.PublicInputs)
 	if err != nil {
 		return errors.Join(ErrBalancePublicInputsFromPublicInputs, err)
 	}

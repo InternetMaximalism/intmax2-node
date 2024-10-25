@@ -281,18 +281,6 @@ func (s *balanceSynchronizer) validReceivedDeposit(
 		return errors.Join(ErrNullifierAlreadyExists, err)
 	}
 
-	err = s.syncBalanceProver.SyncNoSend(
-		s.log,
-		s.blockValidityService,
-		s.blockSynchronizer,
-		s.userState,
-		s.balanceProcessor,
-		transitionBlockNumber,
-	)
-	if err != nil {
-		return errors.Join(ErrValidReceivedDepositFail, err)
-	}
-
 	err = applyReceivedDepositTransition(
 		transition.Deposit,
 		s.blockValidityService,
@@ -552,11 +540,17 @@ func applySentTransactionTransition(
 	syncBalanceProver *SyncBalanceProver,
 	userState UserState,
 ) error {
-	log.Infof("applySentTransactionTransition: transaction hash: %s", tx.Hash().String())
+	log.Infof("applySentTransactionTransition: tx %+v", tx.Tx)
+	log.Infof("user state: %+v", userState)
 
 	txWitness, transferWitnesses, err := MakeTxWitness(blockValidityService, tx)
 	if err != nil {
 		return fmt.Errorf("failed to make tx witness: %w", err)
+	}
+
+	// for sanity check
+	if tx.Tx != txWitness.Tx {
+		return errors.New("tx and txWitness.tx are not equal")
 	}
 
 	newSalt, err := new(balance_prover_service.Salt).SetRandom()

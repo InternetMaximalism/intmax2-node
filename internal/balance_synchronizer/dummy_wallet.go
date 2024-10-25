@@ -717,14 +717,6 @@ func (s *mockWallet) GeneratePrivateWitness(
 func (s *mockWallet) updateOnReceive(witness *balance_prover_service.PrivateWitness) error {
 	nullifier := new(intMaxTypes.Uint256).FromFieldElementSlice(witness.Nullifier.ToFieldElementSlice())
 	oldNullifierTreeRoot := s.nullifierTree.GetRoot()
-	// fmt.Printf("old nullifier tree root: %v\n", oldNullifierTreeRoot)
-	// fmt.Printf("nullifier: %v\n", nullifier)
-	// for i, sibling := range witness.NullifierProof.LeafProof.Siblings {
-	// 	fmt.Printf("nullifier leaf Merkle proof: siblings[%d] = %s\n", i, sibling.String())
-	// }
-	// for i, sibling := range witness.NullifierProof.LowLeafProof.Siblings {
-	// 	fmt.Printf("nullifier low leaf Merkle proof: siblings[%d] = %s\n", i, sibling.String())
-	// }
 	newNullifierTreeRoot, err := witness.NullifierProof.GetNewRoot(nullifier.BigInt(), 0, oldNullifierTreeRoot)
 	if err != nil {
 		return errors.Join(errors.New("invalid nullifier proof"), err)
