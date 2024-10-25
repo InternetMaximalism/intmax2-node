@@ -420,7 +420,7 @@ func (wallet *mockWallet) CalculateSpentTokenWitness(
 	prevPrivateState := wallet.PrivateState()
 
 	if tx.Nonce != wallet.nonce {
-		fmt.Printf("transaction nonce mismatch: %d != %d", tx.Nonce, wallet.nonce)
+		fmt.Printf("transaction nonce mismatch: %d != %d\n", tx.Nonce, wallet.nonce)
 		var ErrTransactionNonceMismatch = errors.New("transaction nonce mismatch")
 		return nil, ErrTransactionNonceMismatch
 	}
@@ -478,7 +478,7 @@ func (w *mockWallet) UpdateOnSendTx(
 	}
 
 	if txWitness.Tx.Nonce != w.nonce {
-		fmt.Printf("transaction nonce mismatch: %d != %d", txWitness.Tx.Nonce, w.nonce)
+		fmt.Printf("(UpdateOnSendTx) transaction nonce mismatch: %d != %d\n", txWitness.Tx.Nonce, w.nonce)
 		panic("nonce mismatch")
 	}
 
@@ -534,21 +534,6 @@ func (w *mockWallet) UpdateOnSendTx(
 	w.transferWitnesses[sendWitness.GetIncludedBlockNumber()] = transferWitnesses
 
 	return &sendWitness, nil
-}
-
-func (w *mockWallet) SendTxAndUpdate(
-	blockValidityService *block_validity_prover.BlockValidityProverMemory,
-	transfers []*intMaxTypes.Transfer,
-) (*balance_prover_service.SendWitness, error) {
-	txWitness, transferWitnesses, err := w.SendTx(blockValidityService, transfers)
-	if err != nil {
-		return nil, err
-	}
-	newSalt, err := new(balance_prover_service.Salt).SetRandom()
-	if err != nil {
-		return nil, err
-	}
-	return w.UpdateOnSendTx(*newSalt, txWitness, transferWitnesses)
 }
 
 func NewMockWallet(privateKey *intMaxAcc.PrivateKey) (*mockWallet, error) {

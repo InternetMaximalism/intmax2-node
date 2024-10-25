@@ -33,6 +33,19 @@ func TestPostBackupBalance(t *testing.T) {
 	fmt.Printf("publicState: %s\n", s)
 }
 
+func TestPublicState(t *testing.T) {
+	publicState := new(block_validity_prover.PublicState).Genesis()
+	publicState.BlockNumber = 257
+	s := publicState.Marshal()
+	fmt.Printf("publicState: %x\n", s)
+
+	d := new(block_validity_prover.PublicState)
+	err := d.Unmarshal(s)
+	require.NoError(t, err)
+	fmt.Printf("decoded publicState: %+v\n", d)
+	require.Equal(t, publicState.BlockNumber, d.BlockNumber)
+}
+
 func TestBlockWitness(t *testing.T) {
 	blockWitness := new(block_validity_prover.BlockWitness).Genesis()
 	s, err := json.Marshal(blockWitness)

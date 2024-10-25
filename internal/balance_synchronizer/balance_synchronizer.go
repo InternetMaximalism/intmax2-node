@@ -189,6 +189,7 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 
 		switch transition := transition.(type) {
 		case balance_prover_service.ValidSentTx:
+			fmt.Printf("valid sent transaction: %s (nonce: %d)\n", transition.TxHash.String(), transition.Tx.Nonce)
 			err = s.validSentTx(&transition)
 			if err != nil {
 				// When synchronizing transactions that one has sent, they must not fail except for specific reasons.
@@ -250,6 +251,7 @@ func (s *balanceSynchronizer) validSentTx(transition *balance_prover_service.Val
 		s.balanceProcessor,
 		s.syncBalanceProver,
 		s.userState,
+		transitionBlockNumber,
 	)
 
 	if err != nil {
@@ -551,6 +553,7 @@ func applySentTransactionTransition(
 	balanceProcessor balance_prover_service.BalanceProcessor,
 	syncBalanceProver *SyncBalanceProver,
 	userState UserState,
+	transitionBlockNumber uint32,
 ) error {
 	// syncValidityProver.Sync() // sync validity proofs
 	fmt.Printf("(applySentTransactionTransition) transaction hash: %s\n", tx.Hash().String())
@@ -582,19 +585,19 @@ func applySentTransactionTransition(
 	}
 	fmt.Printf("(applySentTransactionTransition) updated on send tx\n")
 
-	validityProverInfo, err := blockValidityService.FetchValidityProverInfo()
-	if err != nil {
-		fmt.Printf("(applySentTransactionTransition) failed to fetch validity prover info: %v\n", err.Error())
-	}
+	// validityProverInfo, err := blockValidityService.FetchValidityProverInfo()
+	// if err != nil {
+	// 	fmt.Printf("(applySentTransactionTransition) failed to fetch validity prover info: %v\n", err.Error())
+	// }
 
-	latestIntMaxBlockNumber := validityProverInfo.BlockNumber
+	// latestIntMaxBlockNumber := validityProverInfo.BlockNumber
 	err = syncBalanceProver.SyncSend(
 		log,
 		blockValidityService,
 		blockSynchronizer,
 		userState,
 		balanceProcessor,
-		latestIntMaxBlockNumber,
+		transitionBlockNumber,
 	)
 	if err != nil {
 		fmt.Printf("prove sent transaction %v\n", err.Error())

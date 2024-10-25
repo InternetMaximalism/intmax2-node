@@ -121,6 +121,7 @@ func (s *SyncBalanceProver) UploadLastBalanceProof(blockNumber uint32, balancePr
 		return err
 	}
 
+	// XXX: storeBalanceData
 	return s.SetEncryptedBalanceData(wallet, storedBalanceData)
 }
 
@@ -220,7 +221,7 @@ func (s *SyncBalanceProver) SyncSend(
 	blockSynchronizer block_validity_prover.BlockSynchronizer,
 	wallet UserState,
 	balanceProcessor balance_prover_service.BalanceProcessor,
-	latestIntMaxBlockNumber uint32,
+	targetBlockNumber uint32,
 ) error {
 	fmt.Printf("-----SyncSend %s------\n", wallet.PublicKey())
 
@@ -228,98 +229,122 @@ func (s *SyncBalanceProver) SyncSend(
 	// All block numbers containing transactions sent by the sender,
 	// regardless of whether they are valid or not.
 	allBlockNumbers := wallet.GetAllBlockNumbers()
-	log.Infof("SyncSend: allBlockNumbers: %v lastUpdatedBlockNumber: %d\n", allBlockNumbers, lastUpdatedBlockNumber)
+	log.Infof("SyncSend: update block number %d -> %d", lastUpdatedBlockNumber, targetBlockNumber)
+	log.Infof("SyncSend: allBlockNumbers: %v", allBlockNumbers)
 
 	// Things to synchronize from now on:
 	// TODO: Transactions sent in invalid blocks do not need to be reflected in the balance proof.
-	notSyncedBlockNumbers := CalculateNotSyncedBlockNumbers(allBlockNumbers, lastUpdatedBlockNumber, latestIntMaxBlockNumber)
+	notSyncedBlockNumbers := CalculateNotSyncedBlockNumbers(allBlockNumbers, lastUpdatedBlockNumber, targetBlockNumber)
 
 	for _, blockNumber := range notSyncedBlockNumbers {
-		sendWitness, err := wallet.GetSendWitness(blockNumber) // XXX: not need store sendWitness
-		if err != nil {
-			return errors.New("send witness not found")
-		}
-		fmt.Printf("sendWitness: %d\n", len(sendWitness.SpentTokenWitness.Transfers))
-		for _, transfer := range sendWitness.SpentTokenWitness.Transfers {
-			if transfer.Amount.Cmp(big.NewInt(0)) != 0 {
-				fmt.Printf("(sendWitness) transfer: %+v\n", transfer)
-				fmt.Printf("(sendWitness) transfer amount: %s\n", transfer.Amount)
-			}
-		}
-
-		prevBalancePisBlockNumber := sendWitness.GetPrevBalancePisBlockNumber()
-		fmt.Printf("FetchUpdateWitness blockNumber: %d\n", blockNumber)
-		currentBlockNumber := blockNumber
-		updateWitness, err := blockValidityService.FetchUpdateWitness(
-			wallet.PublicKey(),
-			currentBlockNumber,
-			prevBalancePisBlockNumber,
-			true,
+		err := s.syncSendOne(
+			log,
+			blockValidityService,
+			wallet,
+			balanceProcessor,
+			blockNumber,
 		)
 		if err != nil {
 			return err
 		}
+	}
 
-		validityProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(updateWitness.ValidityProof)
-		if err != nil {
-			return err
+	return nil
+}
+
+func (s *SyncBalanceProver) syncSendOne(
+	log logger.Logger,
+	blockValidityService block_validity_prover.BlockValidityService,
+	wallet UserState,
+	balanceProcessor balance_prover_service.BalanceProcessor,
+	blockNumber uint32,
+) error {
+	fmt.Printf("-----SyncSendOne (block number: %d) ------\n", blockNumber)
+
+	sendWitness, err := wallet.GetSendWitness(blockNumber) // XXX: not need store sendWitness
+	if err != nil {
+		return errors.New("send witness not found")
+	}
+	log.Debugf("sendWitness: %d\n", len(sendWitness.SpentTokenWitness.Transfers))
+	for _, transfer := range sendWitness.SpentTokenWitness.Transfers {
+		if transfer.Amount.Cmp(big.NewInt(0)) != 0 {
+			log.Debugf("(sendWitness) transfer: %+v\n", transfer)
+			log.Debugf("(sendWitness) transfer amount: %s\n", transfer.Amount)
 		}
-		updateWitnessValidityPis := new(block_validity_prover.ValidityPublicInputs).FromPublicInputs(validityProofWithPis.PublicInputs)
+	}
 
-		sendWitnessValidityPis := sendWitness.TxWitness.ValidityPis
-		if !updateWitnessValidityPis.Equal(&sendWitnessValidityPis) {
-			fmt.Printf("update witness validity proof: %v\n", updateWitnessValidityPis)
-			fmt.Printf("update witness public state: %v\n", updateWitnessValidityPis.PublicState)
-			fmt.Printf("update witness account tree root: %v\n", updateWitnessValidityPis.PublicState.PrevAccountTreeRoot)
-			fmt.Printf("update witness account tree root: %v\n", updateWitnessValidityPis.PublicState.AccountTreeRoot)
-			fmt.Printf("send witness validity proof: %v\n", sendWitnessValidityPis)
-			fmt.Printf("send witness public state: %v\n", sendWitnessValidityPis.PublicState)
-			fmt.Printf("send witness account tree root: %v\n", sendWitnessValidityPis.PublicState.PrevAccountTreeRoot)
-			fmt.Printf("send witness account tree root: %v\n", sendWitnessValidityPis.PublicState.AccountTreeRoot)
-			return errors.New("update witness validity proof is not equal to send witness validity proof")
-		}
+	prevBalancePisBlockNumber := sendWitness.GetPrevBalancePisBlockNumber()
+	log.Debugf("FetchUpdateWitness blockNumber: %d\n", blockNumber)
+	currentBlockNumber := blockNumber
+	updateWitness, err := blockValidityService.FetchUpdateWitness(
+		wallet.PublicKey(),
+		currentBlockNumber,
+		prevBalancePisBlockNumber,
+		true,
+	)
+	if err != nil {
+		return err
+	}
 
-		if updateWitnessValidityPis.IsValidBlock {
-			fmt.Printf("Block %d is valid", updateWitnessValidityPis.PublicState.BlockNumber)
-		} else {
-			fmt.Printf("Block %d is invalid", updateWitnessValidityPis.PublicState.BlockNumber)
-		}
+	validityProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(updateWitness.ValidityProof)
+	if err != nil {
+		return err
+	}
+	updateWitnessValidityPis := new(block_validity_prover.ValidityPublicInputs).FromPublicInputs(validityProofWithPis.PublicInputs)
 
-		// TODO: ValidateTxInclusionValue
-		// _, err = ValidateTxInclusionValue(
-		// 	sendWitness.PrevBalancePis.PubKey,
-		// 	sendWitness.PrevBalancePis.PublicState,
-		// 	updateWitness.ValidityProof,
-		// 	&updateWitness.BlockMerkleProof,
-		// 	updateWitness.AccountMembershipProof,
-		// 	sendWitness.TxWitness.TxIndex,
-		// 	sendWitness.TxWitness.Tx,
-		// 	&intMaxTree.MerkleProof{Siblings: sendWitness.TxWitness.TxMerkleProof},
-		// 	// senderLeaf,
-		// 	// senderMerkleProof,
-		// )
-		// if err != nil {
-		// 	return err
-		// }
+	sendWitnessValidityPis := sendWitness.TxWitness.ValidityPis
+	if !updateWitnessValidityPis.Equal(&sendWitnessValidityPis) {
+		fmt.Printf("update witness validity proof: %v\n", updateWitnessValidityPis)
+		fmt.Printf("update witness public state: %v\n", updateWitnessValidityPis.PublicState)
+		fmt.Printf("update witness account tree root: %v\n", updateWitnessValidityPis.PublicState.PrevAccountTreeRoot)
+		fmt.Printf("update witness account tree root: %v\n", updateWitnessValidityPis.PublicState.AccountTreeRoot)
+		fmt.Printf("send witness validity proof: %v\n", sendWitnessValidityPis)
+		fmt.Printf("send witness public state: %v\n", sendWitnessValidityPis.PublicState)
+		fmt.Printf("send witness account tree root: %v\n", sendWitnessValidityPis.PublicState.PrevAccountTreeRoot)
+		fmt.Printf("send witness account tree root: %v\n", sendWitnessValidityPis.PublicState.AccountTreeRoot)
+		return errors.New("update witness validity proof is not equal to send witness validity proof")
+	}
 
-		balanceProof, err := balanceProcessor.ProveSend(
-			wallet.PublicKey(),
-			sendWitness,
-			updateWitness,
-			s.LastBalanceProof(),
-		)
-		if err != nil {
-			return fmt.Errorf("failed to prove send: %w", err)
-		}
+	if updateWitnessValidityPis.IsValidBlock {
+		log.Debugf("Block %d is valid", updateWitnessValidityPis.PublicState.BlockNumber)
+	} else {
+		log.Debugf("Block %d is invalid", updateWitnessValidityPis.PublicState.BlockNumber)
+	}
 
-		fmt.Printf("lastUpdatedBlockNumber before SyncSend: %d\n", wallet.PublicState().BlockNumber)
-		wallet.UpdatePublicState(balanceProof.PublicInputs.PublicState)
-		fmt.Printf("lastUpdatedBlockNumber after SyncSend: %d\n", wallet.PublicState().BlockNumber)
+	// TODO: ValidateTxInclusionValue
+	// _, err = ValidateTxInclusionValue(
+	// 	sendWitness.PrevBalancePis.PubKey,
+	// 	sendWitness.PrevBalancePis.PublicState,
+	// 	updateWitness.ValidityProof,
+	// 	&updateWitness.BlockMerkleProof,
+	// 	updateWitness.AccountMembershipProof,
+	// 	sendWitness.TxWitness.TxIndex,
+	// 	sendWitness.TxWitness.Tx,
+	// 	&intMaxTree.MerkleProof{Siblings: sendWitness.TxWitness.TxMerkleProof},
+	// 	// senderLeaf,
+	// 	// senderMerkleProof,
+	// )
+	// if err != nil {
+	// 	return err
+	// }
 
-		err = s.UploadLastBalanceProof(blockNumber, balanceProof.Proof, wallet)
-		if err != nil {
-			return fmt.Errorf("failed to upload last balance proof in SyncSend: %w", err)
-		}
+	balanceProof, err := balanceProcessor.ProveSend(
+		wallet.PublicKey(),
+		sendWitness,
+		updateWitness,
+		s.LastBalanceProof(),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to prove send: %w", err)
+	}
+
+	log.Debugf("lastUpdatedBlockNumber before SyncSend: %d\n", wallet.PublicState().BlockNumber)
+	wallet.UpdatePublicState(balanceProof.PublicInputs.PublicState)
+	log.Debugf("lastUpdatedBlockNumber after SyncSend: %d\n", wallet.PublicState().BlockNumber)
+
+	err = s.UploadLastBalanceProof(blockNumber, balanceProof.Proof, wallet)
+	if err != nil {
+		return fmt.Errorf("failed to upload last balance proof in SyncSend: %w", err)
 	}
 
 	return nil
@@ -329,26 +354,18 @@ func (s *SyncBalanceProver) SyncSend(
 // between the last synchronized block number and the block number you want to synchronize to,
 // where the transaction was sent by you.
 func ShouldSyncNoSend(
-	lastUpdatedBlockNumber uint32,
-	blockNumber uint32,
 	allBlockNumbers []uint32,
+	lastUpdatedBlockNumber uint32,
+	targetBlockNumber uint32,
 ) error {
 	if lastUpdatedBlockNumber == 0 {
 		return nil
 	}
 
-	for _, targetBlockNumber := range allBlockNumbers {
-		if targetBlockNumber > blockNumber {
-			break
+	for _, blockNumber := range allBlockNumbers {
+		if blockNumber <= targetBlockNumber && blockNumber > lastUpdatedBlockNumber {
+			return errors.New("there are new transactions after the block number where you last updated the balance data")
 		}
-
-		if lastUpdatedBlockNumber < targetBlockNumber {
-			return fmt.Errorf("block number is less than last updated block number: %d", targetBlockNumber)
-		}
-	}
-
-	if blockNumber <= lastUpdatedBlockNumber {
-		return fmt.Errorf("block number is less than or equal to last updated block number: %d", blockNumber)
 	}
 
 	return nil
@@ -363,15 +380,15 @@ func (s *SyncBalanceProver) SyncNoSend(
 	blockSynchronizer block_validity_prover.BlockSynchronizer,
 	wallet UserState,
 	balanceProcessor balance_prover_service.BalanceProcessor,
-	blockNumber uint32,
+	targetBlockNumber uint32,
 ) error {
-	fmt.Printf("-----SyncNoSend %s------\n", wallet.PublicKey())
+	log.Infof("-----SyncNoSend %s------\n", wallet.PublicKey())
 
 	lastUpdatedBlockNumber := wallet.PublicState().BlockNumber
 	allBlockNumbers := wallet.GetAllBlockNumbers()
-	log.Infof("SyncNoSend: lastUpdatedBlockNumber: %d", lastUpdatedBlockNumber)
+	log.Infof("SyncNoSend: update block number %d -> %d", lastUpdatedBlockNumber, targetBlockNumber)
 	log.Infof("SyncNoSend: allBlockNumbers: %v", allBlockNumbers)
-	err := ShouldSyncNoSend(lastUpdatedBlockNumber, blockNumber, allBlockNumbers)
+	err := ShouldSyncNoSend(allBlockNumbers, lastUpdatedBlockNumber, targetBlockNumber)
 	if err != nil {
 		panic(err)
 	}
@@ -379,7 +396,7 @@ func (s *SyncBalanceProver) SyncNoSend(
 	var prevBalancePis *balance_prover_service.BalancePublicInputs
 	lastBalanceProof := s.LastBalanceProof()
 	if lastBalanceProof != nil {
-		log.Infof("SyncNoSend: s.LastBalanceProof != nil")
+		log.Infof("SyncNoSend: lastBalanceProof != nil")
 		var lastBalanceProofWithPis *intMaxTypes.Plonky2Proof
 		lastBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*lastBalanceProof)
 		if err != nil {
@@ -399,13 +416,13 @@ func (s *SyncBalanceProver) SyncNoSend(
 	if prevPublicState.BlockNumber != lastUpdatedBlockNumber {
 		panic("broken balance data")
 	}
-	if blockNumber == prevPublicState.BlockNumber {
-		log.Infof("no need to update balance proof: %d\n", blockNumber)
+	if targetBlockNumber == prevPublicState.BlockNumber {
+		log.Infof("no need to update balance proof: %d\n", targetBlockNumber)
 		return nil
 	}
 	updateWitness, err := blockValidityService.FetchUpdateWitness(
 		wallet.PublicKey(),
-		blockNumber,
+		targetBlockNumber,
 		prevPublicState.BlockNumber, // XXX: lastUpdatedBlockNumber?
 		false,
 	)
@@ -476,6 +493,7 @@ func (s *SyncBalanceProver) SyncNoSend(
 	if err != nil {
 		return fmt.Errorf("failed to upload last balance proof in SyncNoSend: %w", err)
 	}
+	fmt.Printf("s.LastUpdatedBlockNumber after SyncNoSend: %d\n", wallet.PublicState().BlockNumber)
 
 	return nil
 }

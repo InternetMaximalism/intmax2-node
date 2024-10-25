@@ -159,8 +159,9 @@ func (ps *PublicState) Marshal() []byte {
 	offset += int32Key
 
 	copy(buf[offset:offset+int32Key], ps.BlockHash.Bytes())
+	offset += int32Key
 
-	binary.BigEndian.PutUint32(buf, ps.BlockNumber)
+	binary.BigEndian.PutUint32(buf[offset:offset+int4Key], ps.BlockNumber)
 
 	return buf
 }
