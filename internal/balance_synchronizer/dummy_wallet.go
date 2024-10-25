@@ -61,6 +61,7 @@ type UserState interface {
 	GetAllBlockNumbers() []uint32
 	DecryptBalanceData(encryptedBalanceData string) (*block_synchronizer.BalanceData, error)
 	UpdatePublicState(publicState *block_validity_prover.PublicState)
+	UpdateSaltAndNonce(salt balance_prover_service.Salt, nonce uint32)
 	GetLastSendWitness() *balance_prover_service.SendWitness
 	GetBalancePublicInputs() (*balance_prover_service.BalancePublicInputs, error)
 	GetSendWitness(blockNumber uint32) (*balance_prover_service.SendWitness, error)
@@ -661,6 +662,11 @@ func (s *mockWallet) UpdatePublicState(publicState *block_validity_prover.Public
 	s.publicState = new(block_validity_prover.PublicState).Set(publicState)
 }
 
+func (s *mockWallet) UpdateSaltAndNonce(salt balance_prover_service.Salt, nonce uint32) {
+	s.salt = salt
+	s.nonce = nonce
+}
+
 func (s *mockWallet) DecryptBalanceData(encryptedBalanceData string) (*block_synchronizer.BalanceData, error) {
 	balanceData := new(block_synchronizer.BalanceData)
 	err := balanceData.Decrypt(&s.privateKey, encryptedBalanceData)
@@ -784,10 +790,6 @@ func (s *mockWallet) GeneratePrivateWitness(
 		AssetMerkleProof: &assetMerkleProof,
 	}, nil
 }
-
-var ErrNullifierTreeProof = errors.New("failed to generate nullifier tree proof")
-
-var ErrNullifierAlreadyExists = errors.New("nullifier already exists")
 
 func (s *mockWallet) updateOnReceive(witness *balance_prover_service.PrivateWitness) error {
 	nullifier := new(intMaxTypes.Uint256).FromFieldElementSlice(witness.Nullifier.ToFieldElementSlice())

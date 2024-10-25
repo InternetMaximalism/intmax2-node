@@ -10,24 +10,28 @@ import (
 	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/logger"
-	"intmax2-node/internal/tree"
+	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	"math/big"
 
 	"sort"
+
+	"github.com/iden3/go-iden3-crypto/ffg"
 )
 
 type SyncBalanceProver struct {
-	ctx               context.Context
-	cfg               *configs.Config
-	log               logger.Logger
-	storedBalanceData *block_synchronizer.BackupBalanceData
-	balanceData       *block_synchronizer.BalanceData
-	// LastUpdatedBlockNumber uint32
+	ctx                  context.Context
+	cfg                  *configs.Config
+	log                  logger.Logger
+	storedBalanceData    *block_synchronizer.BackupBalanceData
 	lastBalanceProofBody []byte
 	LastSenderProof      *string
-}
 
+	// BalanceData
+	balanceProofPublicInputs []ffg.Element
+	nullifierLeaves          []intMaxTypes.Bytes32
+	assetLeafEntries         []*intMaxTree.AssetLeafEntry
+}
 
 func NewSyncBalanceProver(
 	ctx context.Context,
@@ -36,16 +40,23 @@ func NewSyncBalanceProver(
 ) *SyncBalanceProver {
 	storedBalanceData := new(block_synchronizer.BackupBalanceData)
 	return &SyncBalanceProver{
-		ctx:               ctx,
-		cfg:               cfg,
-		log:               log,
-		storedBalanceData: storedBalanceData,
-		balanceData:       nil,
-		// LastUpdatedBlockNumber: 0,
+		ctx:                  ctx,
+		cfg:                  cfg,
+		log:                  log,
+		storedBalanceData:    storedBalanceData,
 		lastBalanceProofBody: nil,
 		LastSenderProof:      nil,
 	}
 }
+
+// func (s *SyncBalanceProver) BalanceData(wallet UserState) *block_synchronizer.BalanceData {
+// 	// 	return block_synchronizer.BalanceData {
+// 	// 		BalanceProofPublicInputs: s.balanceProofPublicInputs,
+// 	// 		NullifierLeaves:          s.nullifierLeaves,
+// 	// 		AssetLeafEntries:         s.assetLeafEntries,
+
+// 	// }
+// }
 
 func (s *SyncBalanceProver) UploadLastBalanceProof(blockNumber uint32, balanceProof string, wallet UserState) error {
 	s.log.Infof("UploadLastBalanceProof public state %+v\n", wallet.PublicState())
@@ -56,28 +67,39 @@ func (s *SyncBalanceProver) UploadLastBalanceProof(blockNumber uint32, balancePr
 	}
 
 	s.lastBalanceProofBody = compressedBalanceProof.Proof
-	if s.balanceData == nil {
-		fmt.Printf("s.balanceData is initialized\n")
-		s.balanceData = new(block_synchronizer.BalanceData)
-	}
+	// if s.balanceProofPublicInputs == nil {
+	// 	fmt.Printf("s.balanceData is initialized\n")
+	// 	initBalanceData := new(block_synchronizer.BalanceData)
+	// 	s.balanceProofPublicInputs = initBalanceData.BalanceProofPublicInputs
+	// 	s.nullifierLeaves = initBalanceData.NullifierLeaves
+	// 	s.assetLeafEntries = initBalanceData.AssetLeafEntries
+	// }
 
 	assetLeaves := wallet.AssetLeaves()
-	assetLeafEntries := make([]*tree.AssetLeafEntry, 0, len(assetLeaves))
+	assetLeafEntries := make([]*intMaxTree.AssetLeafEntry, 0, len(assetLeaves))
 	for tokenIndex, leaf := range assetLeaves {
-		assetLeafEntries = append(assetLeafEntries, &tree.AssetLeafEntry{
+		assetLeafEntries = append(assetLeafEntries, &intMaxTree.AssetLeafEntry{
 			TokenIndex: tokenIndex,
 			Leaf:       leaf,
 		})
 	}
 
-	s.balanceData.BalanceProofPublicInputs = compressedBalanceProof.PublicInputs
-	s.balanceData.NullifierLeaves = wallet.Nullifiers()
-	s.balanceData.AssetLeafEntries = assetLeafEntries
-	s.balanceData.Nonce = wallet.Nonce()
-	s.balanceData.Salt = wallet.Salt()
-	s.balanceData.PublicState = wallet.PublicState()
+	s.balanceProofPublicInputs = compressedBalanceProof.PublicInputs
+	s.nullifierLeaves = wallet.Nullifiers()
+	s.assetLeafEntries = assetLeafEntries
+	// s.balanceData.Nonce = wallet.Nonce()
+	// s.balanceData.Salt = wallet.Salt()
+	// s.balanceData.PublicState = wallet.PublicState()
 
-	newBalanceData := new(block_synchronizer.BalanceData).Set(s.balanceData)
+	privateState := wallet.PrivateState()
+	newBalanceData := new(block_synchronizer.BalanceData).Set(&block_synchronizer.BalanceData{
+		BalanceProofPublicInputs: s.balanceProofPublicInputs,
+		NullifierLeaves:          s.nullifierLeaves,
+		AssetLeafEntries:         s.assetLeafEntries,
+		Nonce:                    privateState.TransactionCount,
+		Salt:                     privateState.Salt,
+		PublicState:              wallet.PublicState(),
+	})
 
 	encryptedNewBalanceData, err := newBalanceData.Encrypt(wallet.PublicKey())
 	if err != nil {
@@ -93,7 +115,7 @@ func (s *SyncBalanceProver) UploadLastBalanceProof(blockNumber uint32, balancePr
 	storedBalanceData, err := block_synchronizer.BackupBalanceProof(s.ctx, s.cfg, s.log,
 		wallet.PublicKey().ToAddress(), s.storedBalanceData.ID, lastBalanceProofBody, encryptedNewBalanceData,
 		s.storedBalanceData.EncryptedTxs, s.storedBalanceData.EncryptedTransfers, s.storedBalanceData.EncryptedDeposits,
-		signature, uint64(s.balanceData.PublicState.BlockNumber))
+		signature, uint64(newBalanceData.PublicState.BlockNumber))
 	if err != nil {
 		// Fatal error
 		return err
@@ -113,7 +135,11 @@ func (s *SyncBalanceProver) SetEncryptedBalanceData(wallet UserState, storedBala
 	}
 
 	s.storedBalanceData = storedBalanceData
-	s.balanceData = balanceData
+	s.assetLeafEntries = balanceData.AssetLeafEntries
+	s.nullifierLeaves = balanceData.NullifierLeaves
+	s.balanceProofPublicInputs = balanceData.BalanceProofPublicInputs
+	wallet.UpdatePublicState(balanceData.PublicState)
+	wallet.UpdateSaltAndNonce(balanceData.Salt, balanceData.Nonce)
 
 	return nil
 }
@@ -124,7 +150,7 @@ func (s *SyncBalanceProver) LastBalanceProof() *string {
 	}
 
 	proof := intMaxTypes.Plonky2Proof{
-		PublicInputs: s.balanceData.BalanceProofPublicInputs,
+		PublicInputs: s.balanceProofPublicInputs,
 		Proof:        s.lastBalanceProofBody,
 	}
 
@@ -133,14 +159,14 @@ func (s *SyncBalanceProver) LastBalanceProof() *string {
 	return &encodedProof
 }
 
-// Returns the most recent block number that has been reflected in the balance data.
-func (s *SyncBalanceProver) LastUpdatedBlockNumber() uint32 {
-	if s.balanceData == nil {
-		return 0
-	}
+// // Returns the most recent block number that has been reflected in the balance data.
+// func (s *SyncBalanceProver) LastUpdatedBlockNumber() uint32 {
+// 	if s.balanceData == nil {
+// 		return 0
+// 	}
 
-	return s.balanceData.PublicState.BlockNumber
-}
+// 	return s.balanceData.PublicState.BlockNumber
+// }
 
 func (s *SyncBalanceProver) LastBalancePublicInputs() (*balance_prover_service.BalancePublicInputs, error) {
 	// if s.LastBalanceProof == nil {
@@ -159,7 +185,33 @@ func (s *SyncBalanceProver) LastBalancePublicInputs() (*balance_prover_service.B
 
 	// return balancePublicInputs, nil
 
-	return new(balance_prover_service.BalancePublicInputs).FromPublicInputs(s.balanceData.BalanceProofPublicInputs)
+	return new(balance_prover_service.BalancePublicInputs).FromPublicInputs(s.balanceProofPublicInputs)
+}
+
+func CalculateNotSyncedBlockNumbers(
+	allBlockNumbers []uint32,
+	lastUpdatedBlockNumber uint32,
+	latestIntMaxBlockNumber uint32,
+) []uint32 {
+	notSyncedBlockNumbers := []uint32{}
+	for _, blockNumber := range allBlockNumbers {
+		if blockNumber <= lastUpdatedBlockNumber {
+			continue
+		}
+
+		// If it has not been posted, remove it.
+		if blockNumber > latestIntMaxBlockNumber {
+			continue
+		}
+
+		notSyncedBlockNumbers = append(notSyncedBlockNumbers, blockNumber)
+	}
+
+	sort.Slice(notSyncedBlockNumbers, func(i, j int) bool {
+		return notSyncedBlockNumbers[i] < notSyncedBlockNumbers[j]
+	})
+
+	return notSyncedBlockNumbers
 }
 
 func (s *SyncBalanceProver) SyncSend(
@@ -172,30 +224,15 @@ func (s *SyncBalanceProver) SyncSend(
 ) error {
 	fmt.Printf("-----SyncSend %s------\n", wallet.PublicKey())
 
-	lastUpdatedBlockNumber := s.LastUpdatedBlockNumber()
+	lastUpdatedBlockNumber := wallet.PublicState().BlockNumber
 	// All block numbers containing transactions sent by the sender,
 	// regardless of whether they are valid or not.
 	allBlockNumbers := wallet.GetAllBlockNumbers()
 	log.Infof("SyncSend: allBlockNumbers: %v lastUpdatedBlockNumber: %d\n", allBlockNumbers, lastUpdatedBlockNumber)
+
 	// Things to synchronize from now on:
 	// TODO: Transactions sent in invalid blocks do not need to be reflected in the balance proof.
-	// Check whether the block is valid. If it has not been posted, remove it.
-	notSyncedBlockNumbers := []uint32{}
-	for _, blockNumber := range allBlockNumbers {
-		if blockNumber <= lastUpdatedBlockNumber {
-			continue
-		}
-
-		if blockNumber > latestIntMaxBlockNumber {
-			continue
-		}
-
-		notSyncedBlockNumbers = append(notSyncedBlockNumbers, blockNumber)
-	}
-
-	sort.Slice(notSyncedBlockNumbers, func(i, j int) bool {
-		return notSyncedBlockNumbers[i] < notSyncedBlockNumbers[j]
-	})
+	notSyncedBlockNumbers := CalculateNotSyncedBlockNumbers(allBlockNumbers, lastUpdatedBlockNumber, latestIntMaxBlockNumber)
 
 	for _, blockNumber := range notSyncedBlockNumbers {
 		sendWitness, err := wallet.GetSendWitness(blockNumber) // XXX: not need store sendWitness
@@ -275,16 +312,14 @@ func (s *SyncBalanceProver) SyncSend(
 			return fmt.Errorf("failed to prove send: %w", err)
 		}
 
-
-		fmt.Printf("s.LastUpdatedBlockNumber before SyncSend: %d\n", s.LastUpdatedBlockNumber())
+		fmt.Printf("lastUpdatedBlockNumber before SyncSend: %d\n", wallet.PublicState().BlockNumber)
 		wallet.UpdatePublicState(balanceProof.PublicInputs.PublicState)
+		fmt.Printf("lastUpdatedBlockNumber after SyncSend: %d\n", wallet.PublicState().BlockNumber)
+
 		err = s.UploadLastBalanceProof(blockNumber, balanceProof.Proof, wallet)
 		if err != nil {
 			return fmt.Errorf("failed to upload last balance proof in SyncSend: %w", err)
 		}
-
-		fmt.Printf("s.LastUpdatedBlockNumber after SyncSend: %d\n", s.LastUpdatedBlockNumber())
-		
 	}
 
 	return nil
@@ -332,7 +367,7 @@ func (s *SyncBalanceProver) SyncNoSend(
 ) error {
 	fmt.Printf("-----SyncNoSend %s------\n", wallet.PublicKey())
 
-	lastUpdatedBlockNumber := s.LastUpdatedBlockNumber()
+	lastUpdatedBlockNumber := wallet.PublicState().BlockNumber
 	allBlockNumbers := wallet.GetAllBlockNumbers()
 	log.Infof("SyncNoSend: lastUpdatedBlockNumber: %d", lastUpdatedBlockNumber)
 	log.Infof("SyncNoSend: allBlockNumbers: %v", allBlockNumbers)
@@ -410,7 +445,7 @@ func (s *SyncBalanceProver) SyncNoSend(
 	}
 
 	// TODO: blockHashLeaf := blockHistory.BlockHashTree.Leaves[leafBlockNumber]
-	blockHashLeaf := tree.NewBlockHashLeaf(prevPublicState.BlockHash)
+	blockHashLeaf := intMaxTree.NewBlockHashLeaf(prevPublicState.BlockHash)
 	fmt.Printf("blockHash (SyncNoSend): %s\n", prevPublicState.BlockHash)
 	fmt.Printf("prevPublicState.BlockNumber (SyncNoSend): %d\n", prevPublicState.BlockNumber)
 	fmt.Printf("leafBlockNumber (SyncNoSend): %d\n", lastUpdatedBlockNumber)
@@ -433,16 +468,14 @@ func (s *SyncBalanceProver) SyncNoSend(
 		return fmt.Errorf("failed to prove update: %w", err)
 	}
 
-	fmt.Printf("s.LastUpdatedBlockNumber before SyncNoSend: %d\n", s.LastUpdatedBlockNumber())
+	fmt.Printf("s.LastUpdatedBlockNumber before SyncNoSend: %d\n", wallet.PublicState().BlockNumber)
 	wallet.UpdatePublicState(balanceProof.PublicInputs.PublicState)
-	
+	fmt.Printf("s.LastUpdatedBlockNumber after SyncNoSend: %d\n", wallet.PublicState().BlockNumber)
+
 	err = s.UploadLastBalanceProof(currentBlockNumber, balanceProof.Proof, wallet)
 	if err != nil {
 		return fmt.Errorf("failed to upload last balance proof in SyncNoSend: %w", err)
 	}
-
-	fmt.Printf("s.LastUpdatedBlockNumber after SyncNoSend: %d\n", s.LastUpdatedBlockNumber())
-	
 
 	return nil
 }
@@ -548,7 +581,8 @@ func (s *SyncBalanceProver) ReceiveDeposit(
 
 	fmt.Println("finish ProveReceiveDeposit")
 
-	return s.UploadLastBalanceProof(s.LastUpdatedBlockNumber(), balanceProof.Proof, wallet)
+	lastUpdatedBlockNumber := wallet.PublicState().BlockNumber
+	return s.UploadLastBalanceProof(lastUpdatedBlockNumber, balanceProof.Proof, wallet)
 }
 
 func (s *SyncBalanceProver) ReceiveTransfer(
@@ -560,10 +594,11 @@ func (s *SyncBalanceProver) ReceiveTransfer(
 	senderLastBalanceProof string,
 	senderBalanceTransitionProof string,
 ) error {
-	fmt.Printf("ReceiveTransfer s.LastUpdatedBlockNumber: %d\n", s.LastUpdatedBlockNumber())
+	lastUpdatedBlockNumber := wallet.PublicState().BlockNumber
+	fmt.Printf("ReceiveTransfer s.LastUpdatedBlockNumber: %d\n", lastUpdatedBlockNumber)
 	receiveTransferWitness, err := wallet.ReceiveTransferAndUpdate(
 		blockValidityService,
-		s.LastUpdatedBlockNumber(),
+		lastUpdatedBlockNumber,
 		transferWitness,
 		senderLastBalanceProof,
 		senderBalanceTransitionProof,
@@ -585,7 +620,7 @@ func (s *SyncBalanceProver) ReceiveTransfer(
 	}
 
 	// s.LastBalanceProof = &balanceProof.Proof
-	return s.UploadLastBalanceProof(s.LastUpdatedBlockNumber(), balanceProof.Proof, wallet)
+	return s.UploadLastBalanceProof(wallet.PublicState().BlockNumber, balanceProof.Proof, wallet)
 }
 
 // func (s *SyncBalanceProver) SyncBalanceProof(

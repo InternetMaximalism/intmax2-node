@@ -61,13 +61,13 @@ func NewSynchronizer(
 }
 
 func (s *balanceSynchronizer) CurrentNonce() uint32 {
-	return s.userState.Nonce()
+	return s.userState.PrivateState().TransactionCount
 }
 
 func (s *balanceSynchronizer) LastBalanceProof() *intMaxTypes.Plonky2Proof {
 	return &intMaxTypes.Plonky2Proof{
 		Proof:        s.syncBalanceProver.lastBalanceProofBody,
-		PublicInputs: s.syncBalanceProver.balanceData.BalanceProofPublicInputs,
+		PublicInputs: s.syncBalanceProver.balanceProofPublicInputs,
 	}
 }
 
@@ -173,7 +173,8 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 	}
 
 	latestSynchronizedBlockNumber := validityProverInfo.BlockNumber
-	if latestSynchronizedBlockNumber <= s.syncBalanceProver.LastUpdatedBlockNumber() {
+	lastUpdatedBlockNumber = s.userState.PublicState().BlockNumber
+	if latestSynchronizedBlockNumber <= lastUpdatedBlockNumber {
 		return ErrLatestSynchronizedBlockNumberLassOrEqualLastUpdatedBlockNumber
 	}
 

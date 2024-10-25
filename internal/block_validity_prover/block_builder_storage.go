@@ -1203,13 +1203,6 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTreeFromBlockContent(
 	return blockWitness, nil
 }
 
-type MockTxRequest struct {
-	Sender              *intMaxAcc.PrivateKey
-	AccountID           uint64
-	Tx                  *intMaxTypes.Tx
-	WillReturnSignature bool
-}
-
 func (db *mockBlockBuilder) UpdateValidityWitness(
 	blockContent *intMaxTypes.BlockContent,
 	prevValidityWitness *ValidityWitness,

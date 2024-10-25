@@ -42,3 +42,7 @@ var ErrProveReceiveDeposit = errors.New("failed to prove receive deposit")
 
 // ErrNoValidUserData error: no valid user data
 var ErrNoValidUserData = errors.New("no valid user data")
+
+var ErrNullifierTreeProof = errors.New("failed to generate nullifier tree proof")
+
+var ErrNullifierAlreadyExists = errors.New("nullifier already exists")

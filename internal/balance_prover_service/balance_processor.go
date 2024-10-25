@@ -157,8 +157,8 @@ func (s *balanceProcessor) ProveReceiveDeposit(
 		receiveDepositWitnessPrivateCommitment := receiveDepositWitness.PrivateWitness.PrevPrivateState.Commitment()
 		fmt.Printf("last balance proof commitment: %s\n", lastBalanceProofPrivateCommitment.String())
 		fmt.Printf("receive deposit commitment: %s\n", receiveDepositWitnessPrivateCommitment.String())
-		fmt.Printf("receive deposit private state: %v\n", receiveDepositWitness.PrivateWitness.PrevPrivateState)
 		if !receiveDepositWitnessPrivateCommitment.Equal(lastBalanceProofPrivateCommitment) {
+			s.log.Debugf("receiveDepositWitness.PrivateWitness.PrevPrivateState: %+v\n", receiveDepositWitness.PrivateWitness.PrevPrivateState)
 			return nil, fmt.Errorf("last balance proof commitment is not equal to receive deposit commitment")
 		}
 	} else {
@@ -168,6 +168,7 @@ func (s *balanceProcessor) ProveReceiveDeposit(
 		fmt.Printf("last balance proof commitment: %s\n", lastBalanceProofPrivateCommitment.String())
 		fmt.Printf("receive deposit commitment: %s\n", receiveDepositWitnessPrivateCommitment.String())
 		if !receiveDepositWitnessPrivateCommitment.Equal(lastBalanceProofPrivateCommitment) {
+			s.log.Debugf("receiveDepositWitness.PrivateWitness.PrevPrivateState: %+v\n", receiveDepositWitness.PrivateWitness.PrevPrivateState)
 			return nil, fmt.Errorf("last balance proof commitment is not equal to receive deposit commitment")
 		}
 	}
