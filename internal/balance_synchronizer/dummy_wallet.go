@@ -408,8 +408,7 @@ func (wallet *mockWallet) CalculateSpentTokenWitness(
 	}, nil
 }
 
-// txを送信する際にmock wallet を更新する。
-// 
+// update mock wallet when sending tx
 func (w *mockWallet) UpdateOnSendTx(
 	newSalt balance_prover_service.Salt,
 	txWitness *balance_prover_service.TxWitness,

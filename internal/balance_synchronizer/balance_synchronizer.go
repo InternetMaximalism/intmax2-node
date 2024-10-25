@@ -607,18 +607,19 @@ func applySentTransactionTransition(
 	} else {
 		log.Debugf("Block %d is invalid", updateWitnessValidityPis.PublicState.BlockNumber)
 	}
+	lastBalanceProof := syncBalanceProver.LastBalanceProof()
 
 	balanceProof, err := balanceProcessor.ProveSend(
 		userState.PublicKey(),
 		sendWitness,
 		updateWitness,
-		syncBalanceProver.LastBalanceProof(),
+		lastBalanceProof,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to prove send: %w", err)
 	}
 
-	// wallet.UpdatePublicState(balanceProof.PublicInputs.PublicState)
+	// userState.UpdatePublicState(balanceProof.PublicInputs.PublicState)
 
 	err = syncBalanceProver.UploadLastBalanceProof(newBalancePisBlockNumber, balanceProof.Proof, userState)
 	if err != nil {

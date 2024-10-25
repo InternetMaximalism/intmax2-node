@@ -67,6 +67,7 @@ func (s *SyncBalanceProver) UploadLastBalanceProof(blockNumber uint32, balancePr
 		})
 	}
 
+	// TODO: these are not used?
 	s.balanceProofPublicInputs = compressedBalanceProof.PublicInputs
 	s.nullifierLeaves = wallet.Nullifiers()
 	s.assetLeafEntries = assetLeafEntries
