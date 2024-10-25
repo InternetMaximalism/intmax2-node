@@ -248,11 +248,9 @@ func (s *balanceSynchronizer) validSentTx(transition *balance_prover_service.Val
 		s.log,
 		transition.Tx,
 		s.blockValidityService,
-		s.blockSynchronizer,
 		s.balanceProcessor,
 		s.syncBalanceProver,
 		s.userState,
-		transitionBlockNumber,
 	)
 
 	if err != nil {
@@ -550,11 +548,9 @@ func applySentTransactionTransition(
 	log logger.Logger,
 	tx *intMaxTypes.TxDetails,
 	blockValidityService block_validity_prover.BlockValidityService,
-	blockSynchronizer block_validity_prover.BlockSynchronizer,
 	balanceProcessor balance_prover_service.BalanceProcessor,
 	syncBalanceProver *SyncBalanceProver,
 	userState UserState,
-	transitionBlockNumber uint32,
 ) error {
 	log.Infof("applySentTransactionTransition: transaction hash: %s", tx.Hash().String())
 
