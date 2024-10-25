@@ -17,6 +17,7 @@ import (
 	"math/big"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
@@ -363,9 +364,10 @@ func (s *scrollEth) gasValueForBlockContentWithRollupAndScrollNetwork(
 	client *ethclient.Client,
 ) (value *big.Int, err error) {
 	const (
-		int10Key    = 10
-		int64Key    = 64
-		maxGasValue = uint64(500000)
+		int10Key         = 10
+		int64Key         = 64
+		maxGasValue      = uint64(500000)
+		errExecRevertStr = "execution reverted"
 	)
 
 	var rollup *bindings.Rollup
@@ -417,6 +419,10 @@ func (s *scrollEth) gasValueForBlockContentWithRollupAndScrollNetwork(
 		input.SenderPublicKeys,
 	)
 	if err != nil {
+		if strings.Contains(err.Error(), errExecRevertStr) {
+			s.log.Debugf("l2GasFee used maxGasValue (maxGasValue = %v)", maxGasValue)
+			return new(big.Int).SetUint64(maxGasValue), nil
+		}
 		return nil, errors.Join(ErrPostRegistrationBlockFail, err)
 	}
 
