@@ -111,7 +111,7 @@ func NewBlockContent(
 	copy(bc.TxTreeRoot[:], txTreeRoot[:])
 	bc.AggregatedSignature = new(bn254.G2Affine).Set(aggregatedSignature)
 
-	defaultPublicKey := accounts.NewDummyPublicKey()
+	dummyPublicKey := accounts.NewDummyPublicKey()
 
 	if len(bc.Senders) > NumOfSenders {
 		panic("too many senders")
@@ -123,7 +123,7 @@ func NewBlockContent(
 		copy(senderPublicKeys[NumPublicKeyBytes*i:NumPublicKeyBytes*(i+1)], senderPublicKey[:])
 	}
 	for i := len(bc.Senders); i < NumOfSenders; i++ {
-		senderPublicKey := defaultPublicKey.Pk.X.Bytes() // Only x coordinate is used
+		senderPublicKey := dummyPublicKey.Pk.X.Bytes() // Only x coordinate is used
 		copy(senderPublicKeys[NumPublicKeyBytes*i:NumPublicKeyBytes*(i+1)], senderPublicKey[:])
 	}
 
