@@ -120,8 +120,8 @@ func (s *SyncBalanceProver) SetEncryptedBalanceData(wallet UserState, storedBala
 	s.assetLeafEntries = balanceData.AssetLeafEntries
 	s.nullifierLeaves = balanceData.NullifierLeaves
 	s.balanceProofPublicInputs = balanceData.BalanceProofPublicInputs
-	wallet.UpdatePublicState(balanceData.PublicState)
-	wallet.UpdateSaltAndNonce(balanceData.Salt, balanceData.Nonce)
+	// wallet.UpdatePublicState(balanceData.PublicState)
+	// wallet.UpdateSaltAndNonce(balanceData.Salt, balanceData.Nonce)
 
 	return nil
 }
@@ -526,7 +526,6 @@ func (s *SyncBalanceProver) ReceiveDeposit(
 	}
 	fmt.Println("start ProveReceiveDeposit")
 
-
 	lastBalanceProof := s.LastBalanceProof()
 	// lastBalancePublicInputs, err := new(balance_prover_service.BalancePublicInputs).FromPublicInputs(lastBalanceProofWithPis.PublicInputs)
 	// if err != nil {
@@ -585,7 +584,6 @@ func (s *SyncBalanceProver) ReceiveDeposit(
 func (s *SyncBalanceProver) ReceiveTransfer(
 	wallet UserState,
 	balanceProcessor balance_prover_service.BalanceProcessor,
-	// blockBuilder MockBlockBuilder,
 	blockValidityService block_validity_prover.BlockValidityService,
 	transferWitness *intMaxTypes.TransferWitness,
 	senderLastBalanceProof string,
@@ -619,34 +617,6 @@ func (s *SyncBalanceProver) ReceiveTransfer(
 	// s.LastBalanceProof = &balanceProof.Proof
 	return s.UploadLastBalanceProof(wallet.PublicState().BlockNumber, balanceProof.Proof, wallet)
 }
-
-// func (s *SyncBalanceProver) SyncBalanceProof(
-// 	ctx context.Context,
-// 	cfg *configs.Config,
-// 	publicKey *intMaxAcc.PublicKey,
-// ) error {
-// 	userAllData, err := balance_service.GetUserBalancesRawRequest(ctx, cfg, publicKey.ToAddress().String())
-// 	if err != nil {
-// 		return fmt.Errorf("failed to get user balances: %w", err)
-// 	}
-// balanceProverService := NewBalanceProverService(s.ctx, s.cfg, s.log, blockBuilderWallet)
-
-// 	return nil
-// }
-
-// type balanceSynchronizer struct {
-//     ctx context.Context
-//     cfg *configs.Config
-//     log logger.Logger
-//     sb  block_validity_prover.ServiceBlockchain
-//     db  block_validity_prover.SQLDriverApp
-// }
-
-// type syncValidityProver struct {
-//     log               logger.Logger
-//     ValidityProver    block_validity_prover.BlockValidityProver
-//     blockSynchronizer block_validity_prover.BlockSynchronizer
-// }
 
 type BalanceSynchronizer interface {
 	CurrentNonce() uint32

@@ -281,6 +281,18 @@ func (s *balanceSynchronizer) validReceivedDeposit(
 		return errors.Join(ErrNullifierAlreadyExists, err)
 	}
 
+	err = s.syncBalanceProver.SyncNoSend(
+		s.log,
+		s.blockValidityService,
+		s.blockSynchronizer,
+		s.userState,
+		s.balanceProcessor,
+		transitionBlockNumber,
+	)
+	if err != nil {
+		return errors.Join(ErrValidReceivedDepositFail, err)
+	}
+
 	err = applyReceivedDepositTransition(
 		transition.Deposit,
 		s.blockValidityService,
