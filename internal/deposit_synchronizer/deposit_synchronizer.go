@@ -149,7 +149,6 @@ func (w *depositSynchronizer) Start(
 				return err
 			}
 			if !ok {
-				fmt.Printf("No new deposits\n")
 				continue
 			}
 
@@ -172,7 +171,7 @@ func (w *depositSynchronizer) Start(
 	}
 }
 
-// func FetchLatestIntMaxBlockNumber(rollup *bindings.Rollup, ctx context.Context) (uint32, error) {
+// func FetchLastWitnessGeneratedBlockNumber(rollup *bindings.Rollup, ctx context.Context) (uint32, error) {
 // 	opts := bind.CallOpts{
 // 		Pending: false,
 // 		Context: ctx,
@@ -185,7 +184,7 @@ func (w *depositSynchronizer) Start(
 // const int32Key = 32
 
 // func FetchLatestIntMaxBlock(rollup *bindings.Rollup, ctx context.Context) (*bindings.RollupBlockPosted, error) {
-// 	latestBlockNumber, err := FetchLatestIntMaxBlockNumber(rollup, ctx)
+// 	latestBlockNumber, err := FetchLastWitnessGeneratedBlockNumber(rollup, ctx)
 // 	if err != nil {
 // 		return nil, fmt.Errorf("failed to fetch latest block number: %w", err)
 // 	}

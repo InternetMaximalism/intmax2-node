@@ -13,6 +13,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/iden3/go-iden3-crypto/ffg"
 )
 
@@ -202,6 +203,9 @@ func (td *Transfer) SetZero() *Transfer {
 
 func (td *Transfer) ToUint64Slice() []uint64 {
 	isPubicKey := 0
+	if td.Recipient == nil {
+		panic("Recipient is nil")
+	}
 	if td.Recipient.AddressType() == intMaxAccTypes.INTMAXAddressType {
 		isPubicKey = 1
 	}
@@ -506,6 +510,7 @@ type TransferDetails struct {
 	TxMerkleProof                       []*PoseidonHashOut
 	SenderLastBalancePublicInputs       []byte
 	SenderBalanceTransitionPublicInputs []byte
+	SenderEnoughBalanceProofBodyHash    string
 }
 
 func (t *TransferDetails) Equal(other *TransferDetails) bool {
@@ -539,7 +544,7 @@ func (t *TransferDetails) Equal(other *TransferDetails) bool {
 		return false
 	}
 
-	return true
+	return t.SenderEnoughBalanceProofBodyHash == other.SenderEnoughBalanceProofBodyHash
 }
 
 func (t *TransferDetails) Marshal() []byte {
@@ -574,6 +579,14 @@ func (t *TransferDetails) Marshal() []byte {
 		panic(err)
 	}
 	if _, err := buf.Write(t.SenderBalanceTransitionPublicInputs); err != nil {
+		panic(err)
+	}
+
+	senderEnoughBalanceProofBodyHash, err := hexutil.Decode(t.SenderEnoughBalanceProofBodyHash)
+	if err != nil {
+		panic(err)
+	}
+	if _, err := buf.Write(senderEnoughBalanceProofBodyHash); err != nil {
 		panic(err)
 	}
 
@@ -635,6 +648,14 @@ func (t *TransferDetails) Read(buf *bytes.Buffer) error {
 	if _, err := buf.Read(t.SenderBalanceTransitionPublicInputs); err != nil {
 		return err
 	}
+
+	if len(buf.Bytes()) == 0 {
+		fmt.Printf("WARNING: sender enough balance proof is not available\n")
+		return nil
+	}
+
+	senderEnoughBalanceProofBodyHash := buf.Next(int32Key)
+	t.SenderEnoughBalanceProofBodyHash = hexutil.Encode(senderEnoughBalanceProofBodyHash)
 
 	return nil
 }

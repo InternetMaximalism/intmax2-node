@@ -66,60 +66,9 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 				s.Log.Fatalf(msg, err.Error())
 			}
 
-			/**
-			wg.Add(1)
-			s.WG.Add(1)
-			go func() {
-				defer func() {
-					wg.Done()
-					s.WG.Done()
-				}()
-
-				timeout := 1 * time.Second
-				ticker := time.NewTicker(timeout)
-				blockNumber := uint32(1)
-				for {
-					select {
-					case <-s.Context.Done():
-						ticker.Stop()
-						s.Log.Warnf("Received cancel signal from context, stopping...")
-						return
-					case <-ticker.C:
-						fmt.Printf("===============blockNumber (balance synchronizer): %d\n", blockNumber)
-						err = blockValidityService.SyncBlockProverWithBlockNumber(blockNumber)
-						if err != nil {
-							fmt.Printf("===============err (balance synchronizer): %v\n", err)
-							if err.Error() == block_validity_prover.ErrNoValidityProofByBlockNumber.Error() {
-								s.Log.Warnf("no last validity proof")
-								time.Sleep(int5Key * time.Second)
-
-								continue
-							}
-
-							if err.Error() == "block number is not equal to the last block number + 1" {
-								s.Log.Warnf("block number is not equal to the last block number + 1")
-								time.Sleep(int5Key * time.Second)
-
-								continue
-							}
-
-							if strings.Contains(err.Error(), "block content by block number error") {
-								s.Log.Warnf("block content by block number error")
-								time.Sleep(int5Key * time.Second)
-
-								continue
-							}
-
-							const msg = "failed to sync block prover: %+v"
-							s.Log.Fatalf(msg, err.Error())
-						}
-
-						fmt.Printf("update blockNumber: %d\n", blockNumber)
-						blockNumber++
-					}
-				}
-			}()
-			*/
+			if err = blockValidityService.SyncBlockTree(blockSynchronizer, &wg); err != nil {
+				panic(err)
+			}
 
 			wg.Add(1)
 			s.WG.Add(1)

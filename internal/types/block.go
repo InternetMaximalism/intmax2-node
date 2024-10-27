@@ -111,7 +111,7 @@ func NewBlockContent(
 	copy(bc.TxTreeRoot[:], txTreeRoot[:])
 	bc.AggregatedSignature = new(bn254.G2Affine).Set(aggregatedSignature)
 
-	defaultPublicKey := accounts.NewDummyPublicKey()
+	dummyPublicKey := accounts.NewDummyPublicKey()
 
 	if len(bc.Senders) > NumOfSenders {
 		panic("too many senders")
@@ -123,7 +123,7 @@ func NewBlockContent(
 		copy(senderPublicKeys[NumPublicKeyBytes*i:NumPublicKeyBytes*(i+1)], senderPublicKey[:])
 	}
 	for i := len(bc.Senders); i < NumOfSenders; i++ {
-		senderPublicKey := defaultPublicKey.Pk.X.Bytes() // Only x coordinate is used
+		senderPublicKey := dummyPublicKey.Pk.X.Bytes() // Only x coordinate is used
 		copy(senderPublicKeys[NumPublicKeyBytes*i:NumPublicKeyBytes*(i+1)], senderPublicKey[:])
 	}
 
@@ -149,6 +149,15 @@ func (bc *BlockContent) IsValid() error {
 		int0Key = 0
 		int1Key = 1
 	)
+
+	// for i, sender := range bc.Senders {
+	// 	publicKey := sender.PublicKey
+	// 	_, ok := prevAccountTree.GetAccountID(publicKey.BigInt())
+	// 	if ok {
+	// 		// Fatal: If it fails here, the block is not valid and does not enter this process.
+	// 		return nil, errors.New("account already exists")
+	// 	}
+	// }
 
 	return validation.ValidateStruct(bc,
 		validation.Field(&bc.SenderType,
@@ -647,6 +656,10 @@ func PostRegistrationBlock(cfg *RollupContractConfig, ctx context.Context, log l
 		return nil, fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
 	}
 
+	if blockContent.SenderType != PublicKeySenderType {
+		return nil, ErrBlockContentSenderTypeInvalid
+	}
+
 	// Check recover block content
 	err = blockContent.IsValid()
 	if err != nil {
@@ -712,21 +725,25 @@ type BlockSignature struct {
 
 // PostNonRegistrationBlock posts a non-registration block on the Rollup contract.
 // It returns the transaction hash if the block is successfully posted.
-func PostNonRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockContent) (*types.Transaction, error) {
-	client, err := utils.NewClient(cfg.NetworkRpcUrl)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create new client: %w", err)
-	}
-	defer client.Close()
-
+func PostNonRegistrationBlock(cfg *RollupContractConfig, ctx context.Context, log logger.Logger, client *ethclient.Client, blockContent *BlockContent) (*types.Receipt, error) {
 	rollup, err := bindings.NewRollup(common.HexToAddress(cfg.RollupContractAddressHex), client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to instantiate a Liquidity contract: %w", err)
 	}
 
+	if blockContent.SenderType != AccountIDSenderType {
+		return nil, ErrBlockContentSenderTypeInvalid
+	}
+
+	// Check recover block content
+	err = blockContent.IsValid()
+	if err != nil {
+		return nil, fmt.Errorf("block content is invalid: %w", err)
+	}
+
 	input, err := MakePostNonRegistrationBlockInput(blockContent)
 	if err != nil {
-		return nil, fmt.Errorf("failed to make post registration block input: %w", err)
+		return nil, fmt.Errorf("failed to make post non-registration block input: %w", err)
 	}
 
 	privateKey, err := crypto.HexToECDSA(cfg.EthereumPrivateKeyHex)
@@ -756,7 +773,7 @@ func PostNonRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockCont
 	fmt.Printf("Public keys hash: %x\n", input.PublicKeysHash)
 	fmt.Printf("Sender account IDs: %x\n", input.SenderAccountIds)
 
-	return rollup.PostNonRegistrationBlock(
+	tx, err := rollup.PostNonRegistrationBlock(
 		transactOpts,
 		input.TxTreeRoot,
 		input.SenderFlags,
@@ -766,6 +783,18 @@ func PostNonRegistrationBlock(cfg *RollupContractConfig, blockContent *BlockCont
 		input.PublicKeysHash,
 		input.SenderAccountIds,
 	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to post non-registration block: %w", err)
+	}
+
+	log.Infof("The tx hash of PostNonRegistrationBlock is %s\n", tx.Hash().Hex())
+
+	receipt, err := bind.WaitMined(ctx, client, tx)
+	if err != nil {
+		return nil, err
+	}
+
+	return receipt, nil
 }
 
 func FetchDepositRoot(cfg *RollupContractConfig, ctx context.Context) ([int32Key]byte, error) {
@@ -789,7 +818,7 @@ func FetchDepositRoot(cfg *RollupContractConfig, ctx context.Context) ([int32Key
 	return depositRoot, err
 }
 
-func FetchLatestIntMaxBlockNumber(cfg *RollupContractConfig, ctx context.Context) (uint32, error) {
+func FetchLastWitnessGeneratedBlockNumber(cfg *RollupContractConfig, ctx context.Context) (uint32, error) {
 	client, err := utils.NewClient(cfg.NetworkRpcUrl)
 	if err != nil {
 		return 0, err
@@ -905,7 +934,7 @@ func FetchPostedBlocks(
 }
 
 func FetchLatestIntMaxBlock(cfg *RollupContractConfig, ctx context.Context) (*bindings.RollupBlockPosted, error) {
-	latestBlockNumber, err := FetchLatestIntMaxBlockNumber(cfg, ctx)
+	latestBlockNumber, err := FetchLastWitnessGeneratedBlockNumber(cfg, ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch latest block number: %w", err)
 	}

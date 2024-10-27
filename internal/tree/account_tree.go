@@ -10,6 +10,10 @@ type AccountTree struct {
 	inner *IndexedMerkleTree
 }
 
+func (t *AccountTree) Leaves() []*IndexedMerkleLeaf {
+	return t.inner.Leaves
+}
+
 func (t *AccountTree) Set(other *AccountTree) *AccountTree {
 	t.inner = new(IndexedMerkleTree).Set(other.inner)
 

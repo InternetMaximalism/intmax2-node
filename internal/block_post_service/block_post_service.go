@@ -233,9 +233,21 @@ func (w *blockPostService) Start(
 					return err
 				}
 
-				receipt, txErr := intMaxTypes.PostRegistrationBlock(rollupCfg, ctx, w.log, scrollClient, blockContent)
-				if txErr != nil {
-					return txErr
+				var receipt *types.Receipt
+				if blockContent.SenderType == intMaxTypes.PublicKeySenderType {
+					var txErr error
+					receipt, txErr = intMaxTypes.PostRegistrationBlock(rollupCfg, ctx, w.log, scrollClient, blockContent)
+					if txErr != nil {
+						return txErr
+					}
+				} else if blockContent.SenderType == intMaxTypes.AccountIDSenderType {
+					var txErr error
+					receipt, txErr = intMaxTypes.PostNonRegistrationBlock(rollupCfg, ctx, w.log, scrollClient, blockContent)
+					if txErr != nil {
+						return txErr
+					}
+				} else {
+					panic("invalid sender type")
 				}
 
 				var eventLog *types.Log

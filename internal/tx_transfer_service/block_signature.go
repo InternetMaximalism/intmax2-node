@@ -96,6 +96,8 @@ func MakePostBlockSignatureRawRequest(
 	senderAccount *intMaxAcc.PrivateKey,
 	txTreeRoot goldenposeidon.PoseidonHashOut,
 	publicKeysHash []byte,
+	prevBalanceProof block_signature.Plonky2Proof,
+	transferStepProof block_signature.Plonky2Proof,
 ) (*block_signature.UCBlockSignatureInput, error) {
 	message := finite_field.BytesToFieldElementSlice(txTreeRoot.Marshal())
 	signature, err := senderAccount.WeightByHash(publicKeysHash).Sign(message)
@@ -103,22 +105,13 @@ func MakePostBlockSignatureRawRequest(
 		return nil, fmt.Errorf("failed to sign message: %w", err)
 	}
 
-	prevBalanceProof := block_signature.Plonky2Proof{
-		Proof:        []byte{0},
-		PublicInputs: []uint64{0, 0, 0, 0},
-	} // TODO: This is dummy
-	transferStepProof := block_signature.Plonky2Proof{
-		Proof:        []byte{1},
-		PublicInputs: []uint64{1, 1, 1, 1},
-	} // TODO: This is dummy
-
 	return &block_signature.UCBlockSignatureInput{
 		Sender:    senderAccount.ToAddress().String(),
 		TxHash:    hexutil.Encode(txTreeRoot.Marshal()),
 		Signature: hexutil.Encode(signature.Marshal()),
-		EnoughBalanceProof: new(block_signature.EnoughBalanceProofInput).Set(&block_signature.EnoughBalanceProofInput{
-			PrevBalanceProof:  &prevBalanceProof,
-			TransferStepProof: &transferStepProof,
+		EnoughBalanceProof: new(block_signature.EnoughBalanceProofBodyInput).Set(&block_signature.EnoughBalanceProofBodyInput{
+			PrevBalanceProofBody:  base64.StdEncoding.EncodeToString(prevBalanceProof.Proof),
+			TransferStepProofBody: base64.StdEncoding.EncodeToString(transferStepProof.Proof),
 		}),
 	}, nil
 }
@@ -133,8 +126,7 @@ func SendSignedProposedBlock(
 	publicKeys []*intMaxAcc.PublicKey,
 	backupTx *transaction.BackupTransactionData,
 	backupTransfers []*transaction.BackupTransferInput,
-	// prevBalanceProof block_signature.Plonky2Proof,
-	// transferStepProof block_signature.Plonky2Proof,
+	enoughBalanceProof *block_signature.EnoughBalanceProofBodyInput,
 ) error {
 	defaultPublicKey := intMaxAcc.NewDummyPublicKey()
 
@@ -158,15 +150,6 @@ func SendSignedProposedBlock(
 	if err != nil {
 		return fmt.Errorf("failed to sign message: %w", err)
 	}
-
-	prevBalanceProof := block_signature.Plonky2Proof{
-		Proof:        []byte{0},
-		PublicInputs: []uint64{0, 0, 0, 0},
-	} // TODO: This is dummy
-	transferStepProof := block_signature.Plonky2Proof{
-		Proof:        []byte{1},
-		PublicInputs: []uint64{1, 1, 1, 1},
-	} // TODO: This is dummy
 
 	publicKey, err := senderAccount.ToAddress().Public()
 	if err != nil {
@@ -198,8 +181,7 @@ func SendSignedProposedBlock(
 	return PostBlockSignatureRawRequest(
 		ctx, cfg, log,
 		senderAccount.ToAddress(), txHash, signature,
-		backupTx, backupTransfers,
-		prevBalanceProof, transferStepProof,
+		backupTx, backupTransfers, enoughBalanceProof,
 	)
 }
 
@@ -212,8 +194,7 @@ func PostBlockSignatureRawRequest(
 	signature *bn254.G2Affine,
 	backupTx *transaction.BackupTransactionData,
 	backupTransfers []*transaction.BackupTransferInput,
-	prevBalanceProof block_signature.Plonky2Proof,
-	transferStepProof block_signature.Plonky2Proof,
+	enoughBalanceProof *block_signature.EnoughBalanceProofBodyInput,
 ) error {
 	return postBlockSignatureRawRequest(
 		ctx, cfg, log,
@@ -222,8 +203,7 @@ func PostBlockSignatureRawRequest(
 		hexutil.Encode(signature.Marshal()),
 		backupTx,
 		backupTransfers,
-		prevBalanceProof,
-		transferStepProof,
+		enoughBalanceProof,
 	)
 }
 
@@ -234,25 +214,22 @@ func postBlockSignatureRawRequest(
 	senderAddress, txHash, signature string,
 	backupTx *transaction.BackupTransactionData,
 	backupTransfers []*transaction.BackupTransferInput,
-	prevBalanceProof block_signature.Plonky2Proof,
-	transferStepProof block_signature.Plonky2Proof,
+	enoughBalanceProof *block_signature.EnoughBalanceProofBodyInput,
 ) error {
 	ucInput := block_signature.UCBlockSignatureInput{
-		Sender:    senderAddress,
-		TxHash:    txHash,
-		Signature: signature,
-		EnoughBalanceProof: new(block_signature.EnoughBalanceProofInput).Set(&block_signature.EnoughBalanceProofInput{
-			PrevBalanceProof:  &prevBalanceProof,
-			TransferStepProof: &transferStepProof,
-		}),
-		BackupTx:        backupTx,
-		BackupTransfers: backupTransfers,
+		Sender:             senderAddress,
+		TxHash:             txHash,
+		Signature:          signature,
+		EnoughBalanceProof: enoughBalanceProof,
+		BackupTx:           backupTx,
+		BackupTransfers:    backupTransfers,
 	}
 
 	bd, err := json.Marshal(ucInput)
 	if err != nil {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
+	// fmt.Printf("bd: %s\n", string(bd))
 
 	const (
 		contentType = "Content-Type"
@@ -272,8 +249,7 @@ func postBlockSignatureRawRequest(
 	}
 
 	if resp == nil {
-		const msg = "send request error occurred"
-		return fmt.Errorf(msg)
+		return errors.New("send request error occurred")
 	}
 
 	if resp.StatusCode() != http.StatusOK {

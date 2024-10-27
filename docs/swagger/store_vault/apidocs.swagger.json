@@ -285,6 +285,48 @@
         ]
       }
     },
+    "/v1/backups/proof": {
+      "get": {
+        "summary": "GetBackupBalanceProofs retrieves sender's balance proofs for a given hashes",
+        "description": "## This method retrieves the sender's balance proofs for the provided hashes.",
+        "operationId": "StoreVaultService_GetBackupBalanceProofs",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetBackupBalanceProofsResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "hashes",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi"
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      }
+    },
     "/v1/backups/transaction": {
       "get": {
         "summary": "GetBackupTransactions processes a request for backup transactions list",
@@ -789,6 +831,56 @@
         }
       }
     },
+    "BackupTransactionRequestEnoughBalanceProofBody": {
+      "type": "object",
+      "properties": {
+        "prevBalanceProof": {
+          "type": "string"
+        },
+        "transitionStepProof": {
+          "type": "string"
+        }
+      }
+    },
+    "GetBackupBalanceProofsResponseProof": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "enoughBalanceProofBodyHash": {
+          "type": "string"
+        },
+        "lastBalanceProofBody": {
+          "type": "string"
+        },
+        "balanceTransitionProofBody": {
+          "type": "string"
+        }
+      }
+    },
+    "GetBackupTransfersResponseTransfer": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "recipient": {
+          "type": "string"
+        },
+        "encryptedTransfer": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
     "protobufAny": {
       "type": "object",
       "properties": {
@@ -1009,6 +1101,10 @@
           "type": "integer",
           "format": "int64",
           "title": "The encoding version for the encrypted_tx"
+        },
+        "senderEnoughBalanceProofBody": {
+          "$ref": "#/definitions/BackupTransactionRequestEnoughBalanceProofBody",
+          "title": "The balance proof from the sender"
         }
       },
       "description": "BackupTransactionRequest is the request message for BackupTransaction method."
@@ -1076,13 +1172,9 @@
           "format": "uint64",
           "title": "The block number associated with the transfer"
         },
-        "senderLastBalanceProofBody": {
+        "senderEnoughBalanceProofBodyHash": {
           "type": "string",
-          "title": "The balance proof from the sender"
-        },
-        "senderBalanceTransitionProofBody": {
-          "type": "string",
-          "title": "The balance proof from the sender"
+          "title": "The hash of the sender balance proof"
         }
       },
       "description": "BackupTransferRequest is the request message for BackupTransfer method."
@@ -1110,6 +1202,32 @@
         }
       },
       "title": "Data is the nested message containing detailed response information"
+    },
+    "v1GetBackupBalanceProofsResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "data": {
+          "$ref": "#/definitions/v1GetBackupBalanceProofsResponseData"
+        },
+        "error": {
+          "$ref": "#/definitions/v1StoreVaultError"
+        }
+      }
+    },
+    "v1GetBackupBalanceProofsResponseData": {
+      "type": "object",
+      "properties": {
+        "proofs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/GetBackupBalanceProofsResponseProof"
+          }
+        }
+      }
     },
     "v1GetBackupBalancesResponse": {
       "type": "object",

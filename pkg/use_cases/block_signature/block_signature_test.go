@@ -82,10 +82,12 @@ func TestUseCaseTransaction(t *testing.T) {
 	assert.NoError(t, err)
 
 	enoughBalanceProof := &blockSignature.EnoughBalanceProofInput{
+		// PrevBalanceProof: base64.StdEncoding.EncodeToString(proof),
 		PrevBalanceProof: &blockSignature.Plonky2Proof{
 			PublicInputs: publicInputs,
 			Proof:        proof,
 		},
+		// TransferStepProof: base64.StdEncoding.EncodeToString([]byte{0x99, 0x39, 0x6b, 0x28}),
 		TransferStepProof: &blockSignature.Plonky2Proof{
 			PublicInputs: []uint64{
 				2726224824249046055, 14025881618846813748, 5361314524880173070, 2912484915938769214,
@@ -107,7 +109,7 @@ func TestUseCaseTransaction(t *testing.T) {
 				Sender:             sender,
 				TxHash:             hex.EncodeToString(txHash),
 				Signature:          hex.EncodeToString(signature.Marshal()),
-				EnoughBalanceProof: enoughBalanceProof,
+				EnoughBalanceProof: new(blockSignature.EnoughBalanceProofBodyInput).FromEnoughBalanceProofInput(enoughBalanceProof),
 			},
 			err: nil,
 		},
@@ -117,7 +119,7 @@ func TestUseCaseTransaction(t *testing.T) {
 				Sender:             wrongSender,
 				TxHash:             hex.EncodeToString(txHash),
 				Signature:          hex.EncodeToString(signature.Marshal()),
-				EnoughBalanceProof: enoughBalanceProof,
+				EnoughBalanceProof: new(blockSignature.EnoughBalanceProofBodyInput).FromEnoughBalanceProofInput(enoughBalanceProof),
 			},
 			err: block_post_service.ErrInvalidSignature,
 		},
@@ -127,7 +129,7 @@ func TestUseCaseTransaction(t *testing.T) {
 				Sender:             wrongSender,
 				TxHash:             hex.EncodeToString(txHash),
 				Signature:          hex.EncodeToString(signature.Marshal()),
-				EnoughBalanceProof: wrongEnoughBalanceProof,
+				EnoughBalanceProof: new(blockSignature.EnoughBalanceProofBodyInput).FromEnoughBalanceProofInput(wrongEnoughBalanceProof),
 			},
 			err: blockSignature.ErrInvalidEnoughBalanceProof,
 		},

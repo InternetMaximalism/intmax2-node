@@ -3,6 +3,7 @@ package types_test
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/hash/goldenposeidon"
@@ -43,6 +44,10 @@ func TestTransferData(t *testing.T) {
 	assert.Equal(t, 100, len(flattenedTransfer))
 
 	t.Log("transferData.ToUint64Slice()", transferData.ToUint64Slice())
+
+	s, err := json.Marshal(transferData)
+	require.NoError(t, err)
+	fmt.Printf("transferData: %s\n", s)
 
 	transferHash := transferData.Hash()
 	assert.Equal(t, transferHash.String(), "0x9b469cf21563c28179698ccac6a789450e68b270b586e6ec583cead158f44631")
@@ -86,6 +91,7 @@ func TestTransferDetails(t *testing.T) {
 		TxMerkleProof:                       make([]*goldenposeidon.PoseidonHashOut, 7),
 		SenderLastBalancePublicInputs:       []byte{1, 2, 3, 4, 5, 6, 7, 8},
 		SenderBalanceTransitionPublicInputs: []byte{10, 20, 30, 40, 50, 60, 70, 80},
+		SenderEnoughBalanceProofBodyHash:    "0x9b469cf21563c28179698ccac6a789450e68b270b586e6ec583cead158f44631",
 	}
 	for i := 0; i < 6; i++ {
 		transferDetails.TransferWitness.TransferMerkleProof[i] = new(goldenposeidon.PoseidonHashOut).SetZero()

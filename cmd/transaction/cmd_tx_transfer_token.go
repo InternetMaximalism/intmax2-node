@@ -44,13 +44,14 @@ func txTransferTokenCmd(b *Transaction, token string) *cobra.Command {
 		}
 
 		err = newCommands().SendTransferTransaction(
-			b.Config, b.Log, b.SB, b.DbApp,
+			b.Config, b.Log, b.SB,
 		).Do(
 			b.Context,
 			append([]string{token}, args...),
 			amount,
 			recipientAddressStr,
 			utils.RemoveZeroX(userEthPrivateKey),
+			b.DbApp,
 		)
 		if err != nil {
 			const msg = "Fatal: %v\n"

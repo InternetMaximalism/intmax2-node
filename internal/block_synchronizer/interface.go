@@ -16,13 +16,13 @@ type BlockSynchronizer interface {
 	BackupTransaction(
 		sender intMaxAcc.Address,
 		encodedEncryptedTxHash, encodedEncryptedTx string,
+		senderLastBalanceProofBody, senderBalanceTransitionProofBody []byte,
 		signature string,
 		blockNumber uint64,
 	) error
 	BackupTransfer(
 		recipient intMaxAcc.Address,
 		encodedEncryptedTransferHash, encodedEncryptedTransfer string,
-		senderLastBalanceProofBody, senderBalanceTransitionProofBody []byte,
 		blockNumber uint64,
 	) error
 	BackupWithdrawal(

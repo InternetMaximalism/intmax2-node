@@ -30,15 +30,12 @@ func (s *Server) BlockSignature(
 	defer span.End()
 
 	input := block_signature.UCBlockSignatureInput{
-		Sender:    req.Sender,
-		TxHash:    req.TxHash,
-		Signature: req.Signature,
-		EnoughBalanceProof: &block_signature.EnoughBalanceProofInput{
-			PrevBalanceProof:  &block_signature.Plonky2Proof{},
-			TransferStepProof: &block_signature.Plonky2Proof{},
-		},
-		BackupTx:        &transaction.BackupTransactionData{},
-		BackupTransfers: make([]*transaction.BackupTransferInput, len(req.BackupTransfers)),
+		Sender:             req.Sender,
+		TxHash:             req.TxHash,
+		Signature:          req.Signature,
+		EnoughBalanceProof: &block_signature.EnoughBalanceProofBodyInput{},
+		BackupTx:           &transaction.BackupTransactionData{},
+		BackupTransfers:    make([]*transaction.BackupTransferInput, len(req.BackupTransfers)),
 	}
 
 	if req.BackupTransaction != nil {
@@ -57,18 +54,8 @@ func (s *Server) BlockSignature(
 	}
 
 	if req.EnoughBalanceProof != nil {
-		if req.EnoughBalanceProof.PrevBalanceProof != nil {
-			input.EnoughBalanceProof.PrevBalanceProof.
-				PublicInputs = req.EnoughBalanceProof.PrevBalanceProof.PublicInputs
-			input.EnoughBalanceProof.PrevBalanceProof.
-				Proof = req.EnoughBalanceProof.PrevBalanceProof.Proof
-		}
-		if req.EnoughBalanceProof.TransferStepProof != nil {
-			input.EnoughBalanceProof.TransferStepProof.
-				PublicInputs = req.EnoughBalanceProof.TransferStepProof.PublicInputs
-			input.EnoughBalanceProof.TransferStepProof.
-				Proof = req.EnoughBalanceProof.TransferStepProof.Proof
-		}
+		input.EnoughBalanceProof.PrevBalanceProofBody = req.EnoughBalanceProof.PrevBalanceProof
+		input.EnoughBalanceProof.TransferStepProofBody = req.EnoughBalanceProof.TransferStepProof
 	}
 
 	err := input.Valid(s.worker)

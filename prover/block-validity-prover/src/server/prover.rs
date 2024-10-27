@@ -9,7 +9,7 @@ use crate::{
     proof::generate_block_validity_proof_job,
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
-use intmax2_zkp::common::witness::validity_witness::ValidityWitness;
+use intmax2_zkp::{circuits::validity::validity_pis::ValidityPublicInputs, common::witness::validity_witness::ValidityWitness};
 
 #[get("/proof/{id}")]
 async fn get_proof(
@@ -173,6 +173,29 @@ async fn generate_proof(
     let request_id = get_request_id(&block_hash);
 
     // TODO: Validation check of validity_witness
+    let prev_pis = if prev_validity_proof.is_some() {
+        ValidityPublicInputs::from_pis(&prev_validity_proof.as_ref().unwrap().public_inputs)
+    } else {
+        ValidityPublicInputs::genesis()
+    };
+    if prev_pis.public_state.account_tree_root != validity_witness.block_witness.prev_account_tree_root {
+        let response = ProofResponse {
+            success: false,
+            proof: None,
+            error_message: Some("account tree root is mismatch".to_string()),
+        };
+        println!("block tree root is mismatch: {} != {}", prev_pis.public_state.account_tree_root, validity_witness.block_witness.prev_account_tree_root);
+        return Ok(HttpResponse::Ok().json(response));
+    }
+    if prev_pis.public_state.block_tree_root != validity_witness.block_witness.prev_block_tree_root {
+        let response = ProofResponse {
+            success: false,
+            proof: None,
+            error_message: Some("block tree root is mismatch".to_string()),
+        };
+        println!("block tree root is mismatch: {} != {}", prev_pis.public_state.block_tree_root, validity_witness.block_witness.prev_block_tree_root);
+        return Ok(HttpResponse::Ok().json(response));
+    }
 
     // Spawn a new task to generate the proof
     actix_web::rt::spawn(async move {

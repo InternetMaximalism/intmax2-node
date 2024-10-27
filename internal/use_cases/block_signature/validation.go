@@ -2,6 +2,7 @@ package block_signature
 
 import (
 	"errors"
+	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/worker"
@@ -147,35 +148,38 @@ func (input *UCBlockSignatureInput) isEnoughBalanceProof() validation.Rule {
 			return nil
 		}
 
-		ebp, ok := value.(EnoughBalanceProofInput)
+		fmt.Printf("isEnoughBalanceProof\n")
+		ebp, ok := value.(EnoughBalanceProofBodyInput)
 		if !ok {
 			return ErrValueInvalid
 		}
 
+		fmt.Printf("TransferStepProofBody: %d\n", len(ebp.TransferStepProofBody))
+		fmt.Printf("PrevBalanceProofBody: %d\n", len(ebp.PrevBalanceProofBody))
 		return validation.ValidateStruct(&ebp,
-			validation.Field(&ebp.TransferStepProof, validation.Required, input.isPlonky2Proof()),
-			validation.Field(&ebp.PrevBalanceProof, validation.Required, input.isPlonky2Proof()),
+			validation.Field(&ebp.TransferStepProofBody, validation.Required),
+			validation.Field(&ebp.PrevBalanceProofBody, validation.Required),
 		)
 	})
 }
 
-func (input *UCBlockSignatureInput) isPlonky2Proof() validation.Rule {
-	return validation.By(func(value interface{}) error {
-		var isNil bool
-		value, isNil = validation.Indirect(value)
+// func (input *UCBlockSignatureInput) isPlonky2Proof() validation.Rule {
+// 	return validation.By(func(value interface{}) error {
+// 		var isNil bool
+// 		value, isNil = validation.Indirect(value)
 
-		if isNil || validation.IsEmpty(value) {
-			return nil
-		}
+// 		if isNil || validation.IsEmpty(value) {
+// 			return nil
+// 		}
 
-		p2p, ok := value.(Plonky2Proof)
-		if !ok {
-			return ErrValueInvalid
-		}
+// 		p2p, ok := value.(Plonky2Proof)
+// 		if !ok {
+// 			return ErrValueInvalid
+// 		}
 
-		return validation.ValidateStruct(&p2p,
-			validation.Field(&p2p.PublicInputs, validation.Required),
-			validation.Field(&p2p.Proof, validation.Required),
-		)
-	})
-}
+// 		return validation.ValidateStruct(&p2p,
+// 			validation.Field(&p2p.PublicInputs, validation.Required),
+// 			validation.Field(&p2p.Proof, validation.Required),
+// 		)
+// 	})
+// }

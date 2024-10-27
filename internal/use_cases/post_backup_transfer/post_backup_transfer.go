@@ -11,12 +11,10 @@ const (
 )
 
 type UCPostBackupTransferInput struct {
-	TransferHash               string `json:"transferHash"`
-	EncryptedTransfer          string `json:"encryptedTransfer"`
-	SenderLastBalanceProofBody string `json:"senderLastBalanceProofBody"`
-	SenderTransitionProofBody  string `json:"senderBalanceTransitionProofBody"`
-	Recipient                  string `json:"recipient"`
-	BlockNumber                uint32 `json:"blockNumber"`
+	TransferHash      string `json:"transferHash"`
+	EncryptedTransfer string `json:"encryptedTransfer"`
+	Recipient         string `json:"recipient"`
+	BlockNumber       uint32 `json:"blockNumber"`
 }
 
 // UseCasePostBackupTransfer describes PostBackupTransfer contract.

@@ -30,7 +30,8 @@ type ProveBlockValidityInput struct {
 // curl -X POST -d '{"blockHash":"0x01", "validityWitness":'$(cat data/validity_witness_1.json)', "prevValidityProof":null }'
 // -H "Content-Type: application/json" $BLOCK_VALIDITY_PROVER_URL/proof | jq
 func (p *blockValidityProver) requestBlockValidityProof(blockHash common.Hash, validityWitness *ValidityWitness, prevValidityProof *string) error {
-	nextAccountID, err := p.blockBuilder.NextAccountID()
+	blockNumber := validityWitness.BlockWitness.Block.BlockNumber
+	nextAccountID, err := p.blockBuilder.NextAccountID(blockNumber)
 	if err != nil {
 		return fmt.Errorf("failed to get next account ID: %w", err)
 	}
@@ -39,6 +40,15 @@ func (p *blockValidityProver) requestBlockValidityProof(blockHash common.Hash, v
 	if err != nil {
 		return fmt.Errorf("failed to compress validity witness: %w", err)
 	}
+
+	// decompressedValidityWitness, err := new(ValidityWitness).Decompress(&compressedValidityWitness)
+
+	// NewAccountInclusionValue(
+	// 	prevAccountTreeRoot,
+	// 	w.AccountIdPacked,
+	// 	w.AccountMerkleProofs.Proofs,
+	// 	publicKeys,
+	// )
 
 	nextValidityPis := validityWitness.ValidityPublicInputs()
 	p.log.Debugf("nextValidityPis block_proof block number: %d\n", nextValidityPis.PublicState.BlockNumber)
@@ -56,6 +66,17 @@ func (p *blockValidityProver) requestBlockValidityProof(blockHash common.Hash, v
 		return fmt.Errorf("failed to marshal JSON request body: %w", err)
 	}
 	p.log.Debugf("size of requestBlockValidityProof: %d bytes\n", len(bd))
+
+	// file, err := os.Create("validity_witness.json")
+	// if err != nil {
+	// 	panic(fmt.Errorf("error creating file: %v", err))
+	// }
+	// defer file.Close()
+
+	// _, err = file.Write(bd)
+	// if err != nil {
+	// 	panic(fmt.Errorf("error writing to file: %v", err))
+	// }
 
 	// encodedValidityWitness, err := json.Marshal(validityWitness)
 	// if err != nil {

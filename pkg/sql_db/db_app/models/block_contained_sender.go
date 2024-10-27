@@ -6,7 +6,7 @@ import (
 
 type BlockContainedSender struct {
 	BlockContainedSenderID string
-	BlockHash              string
-	Sender                 string
+	BlockNumber            uint32
+	SenderId               string
 	CreatedAt              time.Time
 }

@@ -3,7 +3,6 @@ package block_synchronizer
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,9 +10,11 @@ import (
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/logger"
 	node "intmax2-node/internal/pb/gen/store_vault_service/node"
+	"intmax2-node/internal/use_cases/block_signature"
 	postBackupTransaction "intmax2-node/internal/use_cases/post_backup_transaction"
 	"intmax2-node/internal/use_cases/post_backup_transfer"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/golang/protobuf/jsonpb"
@@ -30,6 +31,7 @@ const ErrFailedToMarshalJSON = "failed to marshal JSON: %w"
 func (d *blockSynchronizer) BackupTransaction(
 	sender intMaxAcc.Address,
 	txHash, encodedEncryptedTx string,
+	senderLastBalanceProofBody, senderBalanceTransitionProofBody []byte,
 	signature string,
 	blockNumber uint64,
 ) error {
@@ -39,6 +41,8 @@ func (d *blockSynchronizer) BackupTransaction(
 		d.log,
 		txHash,
 		encodedEncryptedTx,
+		senderLastBalanceProofBody,
+		senderBalanceTransitionProofBody,
 		signature,
 		sender.String(),
 		uint32(blockNumber),
@@ -56,16 +60,25 @@ func backupTransactionRawRequest(
 	cfg *configs.Config,
 	log logger.Logger,
 	txHash, encodedEncryptedTx string,
+	senderLastBalanceProofBody, senderBalanceTransitionProofBody []byte,
 	signature string,
 	sender string,
 	blockNumber uint32,
 ) error {
+	senderEnoughBalanceProof := block_signature.EnoughBalanceProofBody{
+		PrevBalanceProofBody:  senderLastBalanceProofBody,
+		TransferStepProofBody: senderBalanceTransitionProofBody,
+	}
+	senderEnoughBalanceProofInput := new(block_signature.EnoughBalanceProofBodyInput).FromEnoughBalanceProofBody(&senderEnoughBalanceProof)
 	ucInput := postBackupTransaction.UCPostBackupTransactionInput{
-		TxHash:      txHash,
-		EncryptedTx: encodedEncryptedTx,
-		Sender:      sender,
-		BlockNumber: blockNumber,
-		Signature:   signature,
+		TxHash:                       txHash,
+		EncryptedTx:                  encodedEncryptedTx,
+		SenderEnoughBalanceProofBody: senderEnoughBalanceProofInput,
+		Sender:                       sender,
+		BlockNumber:                  blockNumber,
+		Signature:                    signature,
+		// SenderLastBalanceProofBody:       senderLastBalanceProofBody,
+		// SenderBalanceTransitionProofBody: senderBalanceTransitionProofBody,
 	}
 
 	bd, err := json.Marshal(ucInput)
@@ -120,7 +133,6 @@ func backupTransactionRawRequest(
 func (d *blockSynchronizer) BackupTransfer(
 	recipient intMaxAcc.Address,
 	encodedEncryptedTransferHash, encodedEncryptedTransfer string,
-	senderLastBalanceProofBody, senderBalanceTransitionProofBody []byte,
 	blockNumber uint64,
 ) error {
 	err := backupTransferRawRequest(
@@ -129,8 +141,6 @@ func (d *blockSynchronizer) BackupTransfer(
 		d.log,
 		encodedEncryptedTransferHash,
 		encodedEncryptedTransfer,
-		senderLastBalanceProofBody,
-		senderBalanceTransitionProofBody,
 		recipient.String(),
 		uint32(blockNumber),
 	)
@@ -147,17 +157,14 @@ func backupTransferRawRequest(
 	cfg *configs.Config,
 	log logger.Logger,
 	encodedEncryptedTransferHash, encodedEncryptedTransfer string,
-	senderLastBalanceProofBody, senderBalanceTransitionProofBody []byte,
 	recipient string,
 	blockNumber uint32,
 ) error {
 	ucInput := post_backup_transfer.UCPostBackupTransferInput{
-		TransferHash:               encodedEncryptedTransferHash,
-		EncryptedTransfer:          encodedEncryptedTransfer,
-		SenderLastBalanceProofBody: base64.StdEncoding.EncodeToString(senderLastBalanceProofBody),
-		SenderTransitionProofBody:  base64.StdEncoding.EncodeToString(senderBalanceTransitionProofBody),
-		Recipient:                  recipient,
-		BlockNumber:                blockNumber,
+		TransferHash:      encodedEncryptedTransferHash,
+		EncryptedTransfer: encodedEncryptedTransfer,
+		Recipient:         recipient,
+		BlockNumber:       blockNumber,
 	}
 
 	bd, err := json.Marshal(ucInput)
@@ -293,6 +300,111 @@ func backupWithdrawalRawRequest(
 	}
 
 	return nil
+}
+
+func GetBackupSenderBalanceProofs(
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
+	hashes []string,
+) (*BackupBalanceProofsData, error) {
+	fmt.Printf("(GetBackupSenderBalanceProofs) hashes: %v\n", hashes)
+	backupBalanceProofs, err := getBackupSenderBalanceProofsRawRequest(
+		ctx,
+		cfg,
+		log,
+		hashes,
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to backup balance proof: %w", err)
+	}
+
+	return backupBalanceProofs, nil
+}
+
+type BackupBalanceProofData struct {
+	EnoughBalanceProofBodyHash string
+	LastBalanceProofBody       string
+	BalanceTransitionProofBody string
+}
+
+type BackupBalanceProofsData struct {
+	Proofs []BackupBalanceProofData
+}
+
+// BackupBalanceRequest
+func getBackupSenderBalanceProofsRawRequest(
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
+	hashes []string,
+) (*BackupBalanceProofsData, error) {
+	const (
+		httpKey     = "http"
+		httpsKey    = "https"
+		contentType = "Content-Type"
+		appJSON     = "application/json"
+	)
+
+	u, err := url.Parse(fmt.Sprintf("%s/v1/backups/proof", cfg.API.DataStoreVaultUrl))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse URL: %w", err)
+	}
+
+	q := u.Query()
+	for _, hash := range hashes {
+		q.Add("hashes", hash)
+	}
+	u.RawQuery = q.Encode()
+
+	fmt.Printf("url: %s\n", u.String())
+
+	r := resty.New().R()
+	var resp *resty.Response
+	resp, err = r.SetContext(ctx).SetHeaders(map[string]string{
+		contentType: appJSON,
+	}).Get(u.String())
+	if err != nil {
+		const msg = "failed to send of the sender proof request: %w"
+		return nil, fmt.Errorf(msg, err)
+	}
+
+	if resp == nil {
+		const msg = "sender proof request error occurred"
+		return nil, errors.New(msg)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		err = fmt.Errorf("failed to get response")
+		log.WithFields(logger.Fields{
+			"status_code": resp.StatusCode(),
+			"response":    resp.String(),
+		}).WithError(err).Errorf(unexpectedStatusCode)
+		return nil, err
+	}
+
+	response := new(node.GetBackupBalanceProofsResponse)
+	if err = json.Unmarshal(resp.Body(), response); err != nil {
+		return nil, fmt.Errorf(ErrFailedToUnmarshalResponse, err)
+	}
+
+	if !response.Success {
+		return nil, fmt.Errorf("failed to balance proof: %s", response.Data)
+	}
+
+	proofs := make([]BackupBalanceProofData, 0)
+	for _, proof := range response.Data.Proofs {
+		proofs = append(proofs, BackupBalanceProofData{
+			EnoughBalanceProofBodyHash: proof.EnoughBalanceProofBodyHash,
+			LastBalanceProofBody:       proof.LastBalanceProofBody,
+			BalanceTransitionProofBody: proof.BalanceTransitionProofBody,
+		})
+	}
+
+	return &BackupBalanceProofsData{
+		Proofs: proofs,
+	}, nil
 }
 
 func BackupBalanceProof(

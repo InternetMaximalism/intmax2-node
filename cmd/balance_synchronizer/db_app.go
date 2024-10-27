@@ -3,6 +3,7 @@ package balance_synchronizer
 import (
 	"context"
 	"encoding/json"
+	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_post_service"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
@@ -28,6 +29,7 @@ type SQLDriverApp interface {
 	EventBlockNumbersErrors
 	Senders
 	Accounts
+	BlockContainedSenders
 	Deposits
 	BlockContents
 	Withdrawals
@@ -115,9 +117,15 @@ type Senders interface {
 type Accounts interface {
 	CreateAccount(senderID string) (*mDBApp.Account, error)
 	AccountBySenderID(senderID string) (*mDBApp.Account, error)
+	AccountBySender(publicKey *intMaxAcc.PublicKey) (*mDBApp.Account, error)
 	AccountByAccountID(accountID *uint256.Int) (*mDBApp.Account, error)
-	ResetSequenceByAccounts() error
-	DelAllAccounts() error
+}
+
+type BlockContainedSenders interface {
+	CreateBlockParticipant(
+		blockNumber uint32,
+		senderId string,
+	) (*mDBApp.BlockContainedSender, error)
 }
 
 type Deposits interface {
@@ -127,7 +135,7 @@ type Deposits interface {
 	DepositByDepositID(depositID uint32) (*mDBApp.Deposit, error)
 	DepositByDepositHash(depositHash common.Hash) (*mDBApp.Deposit, error)
 	ScanDeposits() ([]*mDBApp.Deposit, error)
-	FetchLastDepositIndex() (uint32, error)
+	FetchNextDepositIndex() (uint32, error)
 }
 
 type BlockContents interface {

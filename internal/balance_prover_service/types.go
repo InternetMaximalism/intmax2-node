@@ -184,45 +184,38 @@ func (input *BalancePublicInputsInput) FromBalancePublicInputs(value *BalancePub
 	return input
 }
 
-// Information needed to prove that a balance has been sent
-type SendWitness struct {
-	PrevBalancePis      *BalancePublicInputs             `json:"prevBalancePis"`
-	PrevPrivateState    *PrivateState                    `json:"prevPrivateState"`
-	PrevBalances        []*intMaxTree.AssetLeafEntry     `json:"prevBalances"`
-	AssetMerkleProofs   []*intMaxTree.AssetMerkleProof   `json:"assetMerkleProofs"`
-	InsufficientFlags   backup_balance.InsufficientFlags `json:"insufficientFlags"`
-	Transfers           []*intMaxTypes.Transfer          `json:"transfers"`
-	TxWitness           TxWitness                        `json:"txWitness"`
-	NewPrivateStateSalt Salt                             `json:"newPrivateStateSalt"`
+type SpentTokenWitness struct {
+	PrevPrivateState    *PrivateState
+	PrevBalances        []*intMaxTree.AssetLeaf
+	AssetMerkleProofs   []*intMaxTree.AssetMerkleProof
+	InsufficientFlags   backup_balance.InsufficientFlags
+	Transfers           []*intMaxTypes.Transfer
+	NewPrivateStateSalt Salt
+	TxNonce             uint32
 }
 
-type SendWitnessInput struct {
-	PrevBalancePis      *BalancePublicInputsInput `json:"prevBalancePis"`
-	PrevPrivateState    *PrivateStateInput        `json:"prevPrivateState"`
-	PrevBalances        []*AssetLeafEntryInput    `json:"prevBalances"`
-	AssetMerkleProofs   []AssetMerkleProofInput   `json:"assetMerkleProofs"`
-	InsufficientFlags   InsufficientFlagsInput    `json:"insufficientFlags"`
-	Transfers           []*TransferInput          `json:"transfers"`
-	TxWitness           *TxWitnessInput           `json:"txWitness"`
-	NewPrivateStateSalt SaltInput                 `json:"newPrivateStateSalt"`
+type SpentTokenWitnessInput struct {
+	PrevPrivateState    *PrivateStateInput      `json:"prevPrivateState"`
+	PrevBalances        []*AssetLeafInput       `json:"prevBalances"` // token balance corresponding to transfers
+	AssetMerkleProofs   []AssetMerkleProofInput `json:"assetMerkleProofs"`
+	InsufficientFlags   InsufficientFlagsInput  `json:"insufficientFlags"`
+	Transfers           []*TransferInput        `json:"transfers"`
+	NewPrivateStateSalt SaltInput               `json:"newPrivateStateSalt"`
+	TxNonce             uint32                  `json:"txNonce"`
 }
 
-func (input *SendWitnessInput) FromSendWitness(value *SendWitness) *SendWitnessInput {
-	input.PrevBalancePis = new(BalancePublicInputsInput).FromBalancePublicInputs(value.PrevBalancePis)
+func (input *SpentTokenWitnessInput) FromSpentTokenWitness(value *SpentTokenWitness) *SpentTokenWitnessInput {
 	input.PrevPrivateState = &PrivateStateInput{
 		AssetTreeRoot:     value.PrevPrivateState.AssetTreeRoot,
 		NullifierTreeRoot: value.PrevPrivateState.NullifierTreeRoot,
-		Nonce:             value.PrevPrivateState.Nonce,
+		Nonce:             value.PrevPrivateState.TransactionCount,
 		Salt:              value.PrevPrivateState.Salt,
 	}
-	input.PrevBalances = make([]*AssetLeafEntryInput, len(value.PrevBalances))
+	input.PrevBalances = make([]*AssetLeafInput, len(value.PrevBalances))
 	for i, balance := range value.PrevBalances {
-		input.PrevBalances[i] = &AssetLeafEntryInput{
-			TokenIndex: balance.TokenIndex,
-			Leaf: &AssetLeafInput{
-				IsInsufficient: balance.Leaf.IsInsufficient,
-				Amount:         balance.Leaf.Amount.BigInt().String(),
-			},
+		input.PrevBalances[i] = &AssetLeafInput{
+			IsInsufficient: balance.IsInsufficient,
+			Amount:         balance.Amount.BigInt().String(),
 		}
 	}
 	input.AssetMerkleProofs = make([]AssetMerkleProofInput, len(value.AssetMerkleProofs))
@@ -236,8 +229,44 @@ func (input *SendWitnessInput) FromSendWitness(value *SendWitness) *SendWitnessI
 	for i, transfer := range value.Transfers {
 		input.Transfers[i] = new(TransferInput).FromTransfer(transfer)
 	}
-	input.TxWitness = new(TxWitnessInput).FromTxWitness(&value.TxWitness)
 	input.NewPrivateStateSalt = value.NewPrivateStateSalt
+	input.TxNonce = value.TxNonce
+
+	return input
+}
+
+// Information needed to prove that a balance has been sent
+type SendWitness struct {
+	SpentTokenWitness *SpentTokenWitness
+	PrevBalancePis    *BalancePublicInputs
+	TxWitness         TxWitness
+}
+
+type SendWitnessInput struct {
+	PrevBalancePis      *BalancePublicInputsInput `json:"prevBalancePis"`
+	PrevPrivateState    *PrivateStateInput        `json:"prevPrivateState"`
+	PrevBalances        []*AssetLeafInput         `json:"prevBalances"`
+	AssetMerkleProofs   []AssetMerkleProofInput   `json:"assetMerkleProofs"`
+	InsufficientFlags   InsufficientFlagsInput    `json:"insufficientFlags"`
+	Transfers           []*TransferInput          `json:"transfers"`
+	TxWitness           *TxWitnessInput           `json:"txWitness"`
+	NewPrivateStateSalt SaltInput                 `json:"newPrivateStateSalt"`
+}
+
+func (input *SendWitnessInput) FromSendWitness(value *SendWitness) *SendWitnessInput {
+	if value.TxWitness.Tx.Nonce != value.SpentTokenWitness.TxNonce {
+		panic("transaction nonce does not match")
+	}
+	spentTokenWitnessInput := new(SpentTokenWitnessInput).FromSpentTokenWitness(value.SpentTokenWitness)
+
+	input.PrevBalancePis = new(BalancePublicInputsInput).FromBalancePublicInputs(value.PrevBalancePis)
+	input.PrevPrivateState = spentTokenWitnessInput.PrevPrivateState
+	input.PrevBalances = spentTokenWitnessInput.PrevBalances
+	input.AssetMerkleProofs = spentTokenWitnessInput.AssetMerkleProofs
+	input.InsufficientFlags = spentTokenWitnessInput.InsufficientFlags
+	input.Transfers = spentTokenWitnessInput.Transfers
+	input.TxWitness = new(TxWitnessInput).FromTxWitness(&value.TxWitness)
+	input.NewPrivateStateSalt = spentTokenWitnessInput.NewPrivateStateSalt
 
 	return input
 }
@@ -256,7 +285,7 @@ type SpentValue struct {
 	PrevPrivateState      *PrivateState                    `json:"prevPrivateState"`
 	NewPrivateStateSalt   Salt                             `json:"newPrivateStateSalt"`
 	Transfers             []*intMaxTypes.Transfer          `json:"transfers"`
-	PrevBalances          []*intMaxTree.AssetLeafEntry     `json:"prevBalances"`
+	PrevBalances          []*intMaxTree.AssetLeaf          `json:"prevBalances"`
 	AssetMerkleProofs     []*intMaxTree.AssetMerkleProof   `json:"assetMerkleProofs"`
 	PrevPrivateCommitment *poseidonHashOut                 `json:"prevPrivateCommitment"`
 	NewPrivateCommitment  *poseidonHashOut                 `json:"newPrivateCommitment"`
@@ -266,61 +295,77 @@ type SpentValue struct {
 }
 
 func NewSpentValue(
-	prevPrivateState *PrivateState,
-	prevBalances []*intMaxTree.AssetLeafEntry,
-	newPrivateStateSalt Salt,
-	transfers []*intMaxTypes.Transfer,
-	assetMerkleProofs []*intMaxTree.AssetMerkleProof,
+	spentTokenWitness *SpentTokenWitness,
+	// prevPrivateState *PrivateState,
+	// prevBalances []*intMaxTree.AssetLeafEntry,
+	// newPrivateStateSalt Salt,
+	// transfers []*intMaxTypes.Transfer,
+	// assetMerkleProofs []*intMaxTree.AssetMerkleProof,
 	txNonce uint64,
 ) (*SpentValue, error) {
 	const numTransfers = 1 << intMaxTree.TRANSFER_TREE_HEIGHT
-	if len(prevBalances) != numTransfers {
+	if len(spentTokenWitness.PrevBalances) != numTransfers {
 		return nil, errors.New("prevBalances length is not equal to numTransfers")
 	}
-	if len(transfers) != numTransfers {
+	if len(spentTokenWitness.Transfers) != numTransfers {
 		return nil, errors.New("transfers length is not equal to numTransfers")
 	}
-	if len(assetMerkleProofs) != numTransfers {
+	if len(spentTokenWitness.AssetMerkleProofs) != numTransfers {
 		return nil, errors.New("assetMerkleProofs length is not equal to numTransfers")
 	}
 
-	prevBalancesMap := make(map[uint32]*intMaxTree.AssetLeaf)
-	for _, balance := range prevBalances {
-		prevBalancesMap[balance.TokenIndex] = balance.Leaf
-	}
+	// let mut asset_tree_root = prev_private_state.asset_tree_root;
+	// for ((transfer, proof), prev_balance) in transfers
+	// 	.iter()
+	// 	.zip(asset_merkle_proofs.iter())
+	// 	.zip(prev_balances.iter())
+	// {
+	// 	proof
+	// 		.verify(prev_balance, transfer.token_index as usize, asset_tree_root)
+	// 		.expect("asset merkle proof verification failed");
+	// 	let new_balance = prev_balance.sub(transfer.amount);
+	// 	asset_tree_root = proof.get_root(&new_balance, transfer.token_index as usize);
+	// 	insufficient_bits.push(new_balance.is_insufficient);
+	// }
+
+	// prevBalancesMap := make(map[uint32]*intMaxTree.AssetLeaf)
+	// for _, balance := range spentTokenWitness.PrevBalances {
+	// 	prevBalancesMap[balance.TokenIndex] = balance.Leaf // XXX
+	// }
 
 	insufficientFlags := backup_balance.InsufficientFlags{}
-	assetTreeRoot := prevPrivateState.AssetTreeRoot
+	assetTreeRoot := spentTokenWitness.PrevPrivateState.AssetTreeRoot
 	for i := 0; i < numTransfers; i++ {
-		transfer := transfers[i]
-		proof := assetMerkleProofs[i]
-		prevBalance, ok := prevBalancesMap[transfer.TokenIndex]
-		if !ok {
-			prevBalance = &intMaxTree.AssetLeaf{
-				IsInsufficient: false,
-				Amount:         new(intMaxTypes.Uint256),
-			}
-		}
-
-		// if err := proof.Verify(prevBalance, transfer.TokenIndex, assetTreeRoot); err != nil {
-		// 	return nil, err
+		transfer := spentTokenWitness.Transfers[i]
+		proof := spentTokenWitness.AssetMerkleProofs[i]
+		prevBalance := spentTokenWitness.PrevBalances[i]
+		// fmt.Printf("prevBalances[%d].Amount: %s\n", i, prevBalance.Amount.BigInt().String())
+		// prevBalance, ok := prevBalancesMap[transfer.TokenIndex]
+		// if !ok {
+		// 	prevBalance = &intMaxTree.AssetLeaf{
+		// 		IsInsufficient: false,
+		// 		Amount:         new(intMaxTypes.Uint256),
+		// 	}
 		// }
+
+		if err := proof.Verify(prevBalance.Hash(), int(transfer.TokenIndex), assetTreeRoot); err != nil {
+			return nil, err
+		}
 		newBalance := prevBalance.Sub(transfer.Amount)
 		assetTreeRoot = proof.GetRoot(newBalance.Hash(), int(transfer.TokenIndex))
 		insufficientFlags.SetBit(i, newBalance.IsInsufficient)
 	}
 
 	insufficientFlags = backup_balance.InsufficientFlags(insufficientFlags)
-	isValid := uint32(txNonce) == prevPrivateState.Nonce
 	newPrivateState := PrivateState{
 		AssetTreeRoot:     assetTreeRoot,
-		Nonce:             prevPrivateState.Nonce + 1,
-		Salt:              newPrivateStateSalt,
-		NullifierTreeRoot: prevPrivateState.NullifierTreeRoot,
+		TransactionCount:  spentTokenWitness.PrevPrivateState.TransactionCount + 1,
+		Salt:              spentTokenWitness.NewPrivateStateSalt,
+		NullifierTreeRoot: spentTokenWitness.PrevPrivateState.NullifierTreeRoot,
 	}
 
-	zeroTransferHash := new(intMaxTypes.Transfer).Hash()
-	transferTree, err := intMaxTree.NewTransferTree(intMaxTree.TRANSFER_TREE_HEIGHT, transfers, zeroTransferHash)
+	zeroTransferHash := new(intMaxTypes.Transfer).SetZero().Hash()
+	transferTree, err := intMaxTree.NewTransferTree(intMaxTree.TRANSFER_TREE_HEIGHT, spentTokenWitness.Transfers, zeroTransferHash)
 	if err != nil {
 		return nil, err
 	}
@@ -332,16 +377,16 @@ func NewSpentValue(
 	}
 
 	return &SpentValue{
-		PrevPrivateState:      prevPrivateState,
-		NewPrivateStateSalt:   newPrivateStateSalt,
-		Transfers:             transfers,
-		PrevBalances:          prevBalances,
-		AssetMerkleProofs:     assetMerkleProofs,
-		PrevPrivateCommitment: prevPrivateState.Commitment(),
+		PrevPrivateState:      spentTokenWitness.PrevPrivateState,
+		NewPrivateStateSalt:   spentTokenWitness.NewPrivateStateSalt,
+		Transfers:             spentTokenWitness.Transfers,
+		PrevBalances:          spentTokenWitness.PrevBalances,
+		AssetMerkleProofs:     spentTokenWitness.AssetMerkleProofs,
+		PrevPrivateCommitment: spentTokenWitness.PrevPrivateState.Commitment(),
 		NewPrivateCommitment:  newPrivateState.Commitment(),
 		Tx:                    tx,
 		InsufficientFlags:     insufficientFlags,
-		IsValid:               isValid,
+		IsValid:               uint32(txNonce) == spentTokenWitness.PrevPrivateState.TransactionCount,
 	}, nil
 }
 
@@ -356,11 +401,12 @@ type SendWitnessResult struct {
 // TODO: consider include validity proof verification
 func (w *SendWitness) GetNextLastTx() (*SendWitnessResult, error) {
 	spentValue, err := NewSpentValue(
-		w.PrevPrivateState,
-		w.PrevBalances,
-		w.NewPrivateStateSalt,
-		w.Transfers,
-		w.AssetMerkleProofs,
+		w.SpentTokenWitness,
+		// w.PrevPrivateState,
+		// w.PrevBalances,
+		// w.NewPrivateStateSalt,
+		// w.Transfers,
+		// w.AssetMerkleProofs,
 		uint64(w.TxWitness.Tx.Nonce),
 	)
 	if err != nil {
@@ -459,8 +505,9 @@ type AssetLeafInput struct {
 }
 
 type AssetLeafEntryInput struct {
-	TokenIndex uint32          `json:"tokenIndex"`
-	Leaf       *AssetLeafInput `json:"assetLeaf"`
+	TokenIndex     uint32      `json:"tokenIndex"`
+	IsInsufficient bool        `json:"isInsufficient"`
+	Amount         AmountInput `json:"amount"`
 }
 
 type AssetMerkleProofInput = []*poseidonHashOut
@@ -495,7 +542,7 @@ func (input *PrivateWitnessInput) FromPrivateWitness(value *PrivateWitness) *Pri
 		PrevPrivateState: &PrivateStateInput{
 			AssetTreeRoot:     value.PrevPrivateState.AssetTreeRoot,
 			NullifierTreeRoot: value.PrevPrivateState.NullifierTreeRoot,
-			Nonce:             value.PrevPrivateState.Nonce,
+			Nonce:             value.PrevPrivateState.TransactionCount,
 			Salt:              value.PrevPrivateState.Salt,
 		},
 		NullifierProof: &IndexedInsertionProofInput{
@@ -611,7 +658,7 @@ type DepositCase struct {
 type PrivateState struct {
 	AssetTreeRoot     *poseidonHashOut `json:"assetTreeRoot"`
 	NullifierTreeRoot *poseidonHashOut `json:"nullifierTreeRoot"`
-	Nonce             uint32           `json:"nonce"`
+	TransactionCount  uint32           `json:"nonce"`
 	Salt              Salt             `json:"salt"`
 }
 
@@ -640,7 +687,7 @@ func (s *PrivateState) SetDefault() *PrivateState {
 	return &PrivateState{
 		AssetTreeRoot:     assetTreeRoot,
 		NullifierTreeRoot: nullifierTreeRoot,
-		Nonce:             0,
+		TransactionCount:  0,
 		Salt:              Salt{},
 	}
 }
@@ -650,7 +697,7 @@ func (s *PrivateState) ToFieldElementSlice() []ffg.Element {
 	buf := make([]ffg.Element, 0, numPrivateStateElements)
 	buf = append(buf, s.AssetTreeRoot.Elements[:]...)
 	buf = append(buf, s.NullifierTreeRoot.Elements[:]...)
-	buf = append(buf, *new(ffg.Element).SetUint64(uint64(s.Nonce)))
+	buf = append(buf, *new(ffg.Element).SetUint64(uint64(s.TransactionCount)))
 	buf = append(buf, s.Salt.Elements[:]...)
 
 	return buf
@@ -800,12 +847,14 @@ func ValidateTxInclusionValue(
 		return false, err
 	}
 
-	fmt.Printf("prevAccountMembershipProof: %v\n", prevAccountMembershipProof)
-	fmt.Printf("publicKey: %v\n", publicKey.BigInt())
-	fmt.Printf("prevPublicState.PrevAccountTreeRoot: %v\n", prevPublicState.PrevAccountTreeRoot)
 	err = prevAccountMembershipProof.Verify(publicKey.BigInt(), prevPublicState.PrevAccountTreeRoot)
 	if err != nil {
 		// prev account membership proof is invalid
+		fmt.Printf("publicKey: %v\n", publicKey.BigInt())
+		fmt.Printf("prevPublicState.PrevAccountTreeRoot: %s\n", prevPublicState.PrevAccountTreeRoot.String())
+		for i, sibling := range prevAccountMembershipProof.LeafProof.Siblings {
+			fmt.Printf("sibling[%d]: %v\n", i, sibling)
+		}
 		var ErrInvalidMembershipProof = errors.New("prev account membership proof is invalid")
 		return false, errors.Join(ErrInvalidMembershipProof, err)
 	}
