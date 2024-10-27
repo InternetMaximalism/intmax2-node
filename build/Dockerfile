@@ -4,7 +4,7 @@ WORKDIR /src
 #ARG goproxy=direct
 #ENV GOPROXY=$goproxy
 ENV CGO_ENABLED=0
-RUN go install -v go.uber.org/mock/mockgen@latest
+RUN go install -v go.uber.org/mock/mockgen@v0.4.0
 RUN go install -v github.com/golangci/golangci-lint/cmd/golangci-lint@v1.59.0
 RUN go install -v github.com/bufbuild/buf/cmd/buf@v1.34.0
 RUN go install -v github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@v2.16.1
