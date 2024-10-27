@@ -42,6 +42,11 @@ type BalanceProofWithPublicInputs struct {
 	PublicInputs *BalancePublicInputs
 }
 
+type SpentProofWithPublicInputs struct {
+	Proof        string
+	PublicInputs *SpentPublicInputs
+}
+
 type balanceProcessor struct {
 	ctx context.Context
 	cfg *configs.Config

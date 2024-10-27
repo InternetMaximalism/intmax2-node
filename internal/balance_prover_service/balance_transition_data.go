@@ -562,6 +562,10 @@ func ExtractValidReceivedTransfers(
 
 // 	let new_balance_pis_commitment = new_balance_pis.commitment();
 
+type SpentPublicInputs struct {
+	// TODO
+}
+
 type SenderPublicInputs struct {
 	PrevBalancePublicInputs *BalancePublicInputs
 	NewBalancePublicInputs  *BalancePublicInputs
