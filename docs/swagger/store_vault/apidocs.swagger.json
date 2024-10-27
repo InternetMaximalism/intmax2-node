@@ -591,6 +591,80 @@
         ]
       }
     },
+    "/v1/backups/user-state": {
+      "post": {
+        "operationId": "StoreVaultService_BackupUserState",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BackupUserStateResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1BackupUserStateRequest"
+            }
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      }
+    },
+    "/v1/backups/user-state/{address}": {
+      "get": {
+        "operationId": "StoreVaultService_GetBackupUserState",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetBackupUserStateResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "StoreVaultService"
+        ]
+      }
+    },
     "/v1/balances/{address}": {
       "get": {
         "summary": "GetBalances retrieves balances for a given address",
@@ -701,52 +775,6 @@
     }
   },
   "definitions": {
-    "BackupBalanceResponseDataBalance": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "userAddress": {
-          "type": "string"
-        },
-        "encryptedBalanceProof": {
-          "type": "string"
-        },
-        "encryptedBalanceData": {
-          "type": "string"
-        },
-        "encryptedTxs": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "encryptedTransfers": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "encryptedDeposits": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "blockNumber": {
-          "type": "string",
-          "format": "uint64"
-        },
-        "signature": {
-          "type": "string"
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time"
-        }
-      }
-    },
     "BackupTransactionRequestEnoughBalanceProofBody": {
       "type": "object",
       "properties": {
@@ -895,11 +923,57 @@
       "type": "object",
       "properties": {
         "balance": {
-          "$ref": "#/definitions/BackupBalanceResponseDataBalance",
+          "$ref": "#/definitions/v1BackupBalanceResponseDataBalance",
           "title": "A message indicating the result of the backup transfer"
         }
       },
       "title": "Data is the nested message containing detailed response information"
+    },
+    "v1BackupBalanceResponseDataBalance": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "userAddress": {
+          "type": "string"
+        },
+        "encryptedBalanceProof": {
+          "type": "string"
+        },
+        "encryptedBalanceData": {
+          "type": "string"
+        },
+        "encryptedTxs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "encryptedTransfers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "encryptedDeposits": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "blockNumber": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "signature": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
     },
     "v1BackupDeposit": {
       "type": "object",
@@ -1118,6 +1192,78 @@
         }
       },
       "title": "Data is the nested message containing detailed response information"
+    },
+    "v1BackupUserStateRequest": {
+      "type": "object",
+      "properties": {
+        "userAddress": {
+          "type": "string"
+        },
+        "balanceProof": {
+          "type": "string"
+        },
+        "encryptedUserState": {
+          "type": "string"
+        },
+        "authSignature": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "v1BackupUserStateResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "Indicates if the backup transfer was successful"
+        },
+        "data": {
+          "$ref": "#/definitions/v1BackupUserStateResponseData",
+          "title": "Additional data related to the response"
+        }
+      }
+    },
+    "v1BackupUserStateResponseData": {
+      "type": "object",
+      "properties": {
+        "balance": {
+          "$ref": "#/definitions/v1BackupUserStateResponseDataBalance",
+          "title": "A message indicating the result of the backup transfer"
+        }
+      },
+      "title": "Data is the nested message containing detailed response information"
+    },
+    "v1BackupUserStateResponseDataBalance": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "userAddress": {
+          "type": "string"
+        },
+        "balanceProof": {
+          "type": "string"
+        },
+        "encryptedUserState": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "authSignature": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
     },
     "v1GetBackupBalanceProofsResponse": {
       "type": "object",
@@ -1840,6 +1986,57 @@
         "endBlockNumber": {
           "type": "string",
           "format": "uint64"
+        }
+      }
+    },
+    "v1GetBackupUserStateResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "Indicates if the backup transfer was successful"
+        },
+        "data": {
+          "$ref": "#/definitions/v1GetBackupUserStateResponseData",
+          "title": "Additional data related to the response"
+        }
+      }
+    },
+    "v1GetBackupUserStateResponseData": {
+      "type": "object",
+      "properties": {
+        "balance": {
+          "$ref": "#/definitions/v1GetBackupUserStateResponseDataBalance",
+          "title": "A message indicating the result of the backup transfer"
+        }
+      },
+      "title": "Data is the nested message containing detailed response information"
+    },
+    "v1GetBackupUserStateResponseDataBalance": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "userAddress": {
+          "type": "string"
+        },
+        "balanceProof": {
+          "type": "string"
+        },
+        "encryptedUserState": {
+          "type": "string"
+        },
+        "blockNumber": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "authSignature": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
         }
       }
     },

@@ -531,6 +531,19 @@ service StoreVaultService {
     };
   }
 
+  rpc BackupUserState(BackupUserStateRequest) returns (BackupUserStateResponse) {
+    option (google.api.http) = {
+      post: "/v1/backups/user-state"
+      body: "*"
+    };
+  }
+
+  rpc GetBackupUserState(GetBackupUserStateRequest) returns (GetBackupUserStateResponse) {
+    option (google.api.http) = {
+      get: "/v1/backups/user-state/{address}"
+    };
+  }
+
   // GetVerifyDepositConfirmation verifies the confirmation of a deposit
   //
   // ## This method verifies if a deposit has been confirmed.
@@ -1077,6 +1090,62 @@ message GetBackupBalanceProofsResponse {
     string enough_balance_proof_body_hash = 2;
     string last_balance_proof_body = 3;
     string balance_transition_proof_body = 4;
+  }
+}
+
+message BackupUserStateRequest {
+  string user_address = 1;
+  string balance_proof = 2;
+  string encrypted_user_state = 3;
+  string auth_signature = 4;
+  uint32 block_number = 5;
+}
+
+message BackupUserStateResponse {
+  // Indicates if the backup transfer was successful
+  bool success = 1;
+  // Additional data related to the response
+  Data data = 2;
+  // Data is the nested message containing detailed response information
+  message Data {
+    // A message indicating the result of the backup transfer
+    Balance balance = 1;
+
+    message Balance {
+      string id = 1;
+      string user_address = 2;
+      string balance_proof = 3;
+      string encrypted_user_state = 4;
+      uint32 block_number = 5;
+      string auth_signature = 6;
+      google.protobuf.Timestamp created_at = 7;
+    }
+  }
+}
+
+message GetBackupUserStateRequest {
+  string address = 1;
+}
+
+message GetBackupUserStateResponse {
+  // Indicates if the backup transfer was successful
+  bool success = 1;
+  // Additional data related to the response
+  Data data = 2;
+  // Data is the nested message containing detailed response information
+  message Data {
+    // A message indicating the result of the backup transfer
+    Balance balance = 1;
+
+    message Balance {
+      string id = 1;
+      string user_address = 2;
+      string balance_proof = 3;
+      string encrypted_user_state = 4;
+      uint32 block_number = 5;
+      string auth_signature = 6;
+      google.protobuf.Timestamp created_at = 7;
+    }
   }
 }
 

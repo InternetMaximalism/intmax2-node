@@ -1,4 +1,4 @@
-package data_store_vault
+package store_vault_service
 
 import (
 	"math/big"
