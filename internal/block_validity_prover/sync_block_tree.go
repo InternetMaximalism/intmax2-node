@@ -376,7 +376,8 @@ func syncBlockContentWithEvent(
 		}
 	}
 
-	newBlockContent, err = blockBuilder.CreateBlockContent(postedBlock, blockContent)
+	newBlockContent, err = blockBuilder.CreateBlockContent(
+		ctx, postedBlock, blockContent, &blN, events[key].Raw.BlockHash)
 	if err != nil {
 		return nil, errors.Join(ErrCreateBlockContentFail, err)
 	}

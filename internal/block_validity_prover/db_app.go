@@ -127,7 +127,7 @@ type BlockHistory interface {
 	NextAccountID(blockNumber uint32) (uint64, error)
 	// GetAccountMembershipProof(currentBlockNumber uint32, publicKey *big.Int) (*intMaxTree.IndexedMembershipProof, error)
 	AppendBlockTreeLeaf(block *block_post_service.PostedBlock) (uint32, error)
-	BlockTreeRoot(blockNumber *uint32) (*intMaxGP.PoseidonHashOut, error)
+	BlockTreeRoot(blockNumber uint32) (*intMaxGP.PoseidonHashOut, error)
 	BlockTreeProof(
 		rootBlockNumber, leafBlockNumber uint32,
 	) (
