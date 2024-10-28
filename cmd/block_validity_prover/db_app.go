@@ -3,6 +3,7 @@ package block_validity_prover
 import (
 	"context"
 	"encoding/json"
+	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_post_service"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
@@ -22,6 +23,9 @@ type SQLDriverApp interface {
 	CtrlProcessingJobs
 	BlockContents
 	EventBlockNumbersForValidityProver
+	Senders
+	Accounts
+	BlockContainedSenders
 	Deposits
 	L2BatchIndex
 	RelationshipL2BatchIndexAndBlockContent
@@ -65,13 +69,34 @@ type EventBlockNumbersForValidityProver interface {
 	EventBlockNumberByEventNameForValidityProver(eventName string) (*mDBApp.EventBlockNumberForValidityProver, error)
 }
 
+type Senders interface {
+	CreateSenders(
+		address, publicKey string,
+	) (*mDBApp.Sender, error)
+	SenderByID(id string) (*mDBApp.Sender, error)
+	SenderByAddress(address string) (*mDBApp.Sender, error)
+	// SenderByPublicKey(publicKey string) (*mDBApp.Sender, error)
+}
+
+type Accounts interface {
+	CreateAccount(senderID string) (*mDBApp.Account, error)
+	AccountBySender(publicKey *intMaxAcc.PublicKey) (*mDBApp.Account, error)
+}
+
+type BlockContainedSenders interface {
+	CreateBlockParticipant(
+		blockNumber uint32,
+		senderId string,
+	) (*mDBApp.BlockContainedSender, error)
+}
+
 type Deposits interface {
 	CreateDeposit(depositLeaf intMaxTree.DepositLeaf, depositID uint32) (*mDBApp.Deposit, error)
 	UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error
 	DepositByDepositHash(depositHash common.Hash) (*mDBApp.Deposit, error)
 	DepositByDepositID(depositID uint32) (*mDBApp.Deposit, error)
 	ScanDeposits() ([]*mDBApp.Deposit, error)
-	FetchLastDepositIndex() (uint32, error)
+	FetchNextDepositIndex() (uint32, error)
 }
 
 type L2BatchIndex interface {

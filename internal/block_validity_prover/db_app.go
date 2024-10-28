@@ -74,9 +74,9 @@ type Senders interface {
 
 type Accounts interface {
 	CreateAccount(senderID string) (*mDBApp.Account, error)
-	AccountBySenderID(senderID string) (*mDBApp.Account, error)
+	// AccountBySenderID(senderID string) (*mDBApp.Account, error)
 	AccountBySender(publicKey *intMaxAcc.PublicKey) (*mDBApp.Account, error)
-	AccountByAccountID(accountID *uint256.Int) (*mDBApp.Account, error)
+	// AccountByAccountID(accountID *uint256.Int) (*mDBApp.Account, error)
 }
 
 type BlockContainedSenders interface {

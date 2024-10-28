@@ -6,7 +6,6 @@ import (
 	"intmax2-node/cmd/balance_synchronizer"
 	"intmax2-node/cmd/block_builder"
 	"intmax2-node/cmd/block_validity_prover"
-	"intmax2-node/cmd/block_validity_synchronizer"
 	"intmax2-node/cmd/deposit"
 	"intmax2-node/cmd/ethereum_private_key_wallet"
 	"intmax2-node/cmd/generate_account"
@@ -199,16 +198,16 @@ func main() {
 			BlockPostService:    blockPostService,
 			DepositSynchronizer: depositSynchronizer,
 		}),
-		block_validity_synchronizer.NewBlockValiditySynchronizerCmd(&block_validity_synchronizer.BlockValiditySynchronizer{
-			Context: ctx,
-			Cancel:  cancel,
-			Config:  cfg,
-			Log:     log,
-			DbApp:   dbApp,
-			WG:      &wg,
-			SB:      bc,
-			HC:      &hc,
-		}),
+		// block_validity_synchronizer.NewBlockValiditySynchronizerCmd(&block_validity_synchronizer.BlockValiditySynchronizer{
+		// 	Context: ctx,
+		// 	Cancel:  cancel,
+		// 	Config:  cfg,
+		// 	Log:     log,
+		// 	DbApp:   dbApp,
+		// 	WG:      &wg,
+		// 	SB:      bc,
+		// 	HC:      &hc,
+		// }),
 		balance_synchronizer.NewSynchronizerCmd(&balance_synchronizer.Synchronizer{
 			Context: ctx,
 			Cancel:  cancel,

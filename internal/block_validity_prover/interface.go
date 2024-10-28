@@ -3,7 +3,6 @@ package block_validity_prover
 import (
 	"context"
 	"math/big"
-	"sync"
 
 	// intMaxAcc "intmax2-node/internal/accounts"
 
@@ -19,14 +18,8 @@ import (
 type BlockValidityProver interface {
 	SyncDepositedEvents() error
 	SyncDepositTree(endBlock *uint64, depositIndex uint32) error
-	SyncBlockTree(
-		bps BlockSynchronizer,
-		wg *sync.WaitGroup,
-	) (err error)
-	SyncBlockTreeStep(
-		bps BlockSynchronizer,
-		step string,
-	) error
+	SyncBlockContent(bps BlockSynchronizer, startBlock uint64) (lastEventSeenBlockNumber uint64, err error)
+	SyncBlockValidityProof() error
 	UpdateValidityWitness(
 		blockContent *intMaxTypes.BlockContent,
 		prevValidityWitness *ValidityWitness,
@@ -40,8 +33,8 @@ type BlockValidityService interface {
 	GetDepositInfoByHash(depositHash common.Hash) (depositInfo *DepositInfo, err error)
 	FetchValidityProverInfo() (*ValidityProverInfo, error)
 	// Returns an update witness for a given public key and block numbers.
-	FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber *uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error)
-	DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error)
+	FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error)
+	DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error)
 	BlockTreeProof(
 		rootBlockNumber, leafBlockNumber uint32,
 	) (

@@ -224,7 +224,6 @@ func WithdrawalTransaction(
 		return fmt.Errorf("failed to calculate spent witness: %v", err)
 	}
 
-
 	balanceTransitionProof, err := balanceSynchronizer.ProveSendTransition(spentTokenWitness)
 	if err != nil {
 		return fmt.Errorf("failed to create balance transition proof: %v", err)

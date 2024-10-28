@@ -859,28 +859,6 @@
         }
       }
     },
-    "GetBackupTransfersResponseTransfer": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "blockNumber": {
-          "type": "string",
-          "format": "uint64"
-        },
-        "recipient": {
-          "type": "string"
-        },
-        "encryptedTransfer": {
-          "type": "string"
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time"
-        }
-      }
-    },
     "protobufAny": {
       "type": "object",
       "properties": {
@@ -2154,14 +2132,6 @@
         "createdAt": {
           "type": "string",
           "format": "date-time"
-        },
-        "senderLastBalanceProofBody": {
-          "type": "string",
-          "title": "The balance proof from the sender"
-        },
-        "senderBalanceTransitionProofBody": {
-          "type": "string",
-          "title": "The balance proof from the sender"
         }
       }
     },

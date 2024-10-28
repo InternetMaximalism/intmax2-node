@@ -21,6 +21,7 @@ import (
 type MockServiceBlockchain struct {
 	ctrl     *gomock.Controller
 	recorder *MockServiceBlockchainMockRecorder
+	isgomock struct{}
 }
 
 // MockServiceBlockchainMockRecorder is the mock recorder for MockServiceBlockchain.
@@ -101,6 +102,7 @@ func (mr *MockServiceBlockchainMockRecorder) SetupScrollNetworkChainID(ctx any) 
 type MockGenericCommandsSB struct {
 	ctrl     *gomock.Controller
 	recorder *MockGenericCommandsSBMockRecorder
+	isgomock struct{}
 }
 
 // MockGenericCommandsSBMockRecorder is the mock recorder for MockGenericCommandsSB.
@@ -152,6 +154,7 @@ func (mr *MockGenericCommandsSBMockRecorder) CheckScrollPrivateKey(ctx any) *gom
 type MockChainSB struct {
 	ctrl     *gomock.Controller
 	recorder *MockChainSBMockRecorder
+	isgomock struct{}
 }
 
 // MockChainSBMockRecorder is the mock recorder for MockChainSB.

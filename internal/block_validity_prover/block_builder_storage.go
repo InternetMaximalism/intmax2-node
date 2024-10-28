@@ -1657,8 +1657,8 @@ func blockAuxInfoFromBlockContent(auxInfo *mDBApp.BlockContentWithProof) (*AuxIn
 	if err != nil {
 		return nil, fmt.Errorf("aggregated public key hex decode error: %w", err)
 	}
-	var aggregatedPublicKey intMaxAcc.PublicKey
-	err = aggregatedPublicKey.Unmarshal(decodedAggregatedPublicKeyPoint)
+	aggregatedPublicKeyPoint := new(bn254.G1Affine)
+	err = aggregatedPublicKeyPoint.Unmarshal(decodedAggregatedPublicKeyPoint)
 	if err != nil {
 		return nil, fmt.Errorf("aggregated public key unmarshal error: %w", err)
 	}
@@ -1717,7 +1717,7 @@ func blockAuxInfoFromBlockContent(auxInfo *mDBApp.BlockContentWithProof) (*AuxIn
 
 	blockContent := intMaxTypes.BlockContent{
 		TxTreeRoot:          common.HexToHash("0x" + auxInfo.TxRoot),
-		AggregatedPublicKey: &aggregatedPublicKey,
+		AggregatedPublicKey: aggregatedPublicKey,
 		AggregatedSignature: aggregatedSignature,
 		MessagePoint:        messagePoint,
 		Senders:             senders,

@@ -11,6 +11,7 @@ import (
 	"intmax2-node/internal/logger"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/pkg/sql_db/db_app/models"
+	"math/big"
 	"strings"
 	"sync"
 	"time"
@@ -112,7 +113,7 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, wg *sync.Wait
 				fmt.Printf("startBlock of LastSeenBlockPostedEventBlockNumber: %d\n", startBlock)
 
 				var endBlock uint64
-				endBlock, err = p.syncBlockContent(bps, startBlock)
+				endBlock, err = p.SyncBlockContent(bps, startBlock)
 				if err != nil {
 					panic(err)
 				}
@@ -129,26 +130,13 @@ func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, wg *sync.Wait
 		}
 	}()
 
-	// wg.Add(1)
-	// go func() {
-	// 	defer func() {
-	// 		wg.Done()
-	// 	}()
-
-	// 	err = p.SyncBlockValidityWitness()
-	// 	if err != nil {
-	// 		var ErrSyncBlockProverWithBlockNumberFail = errors.New("failed to sync block validity witness")
-	// 		panic(errors.Join(ErrSyncBlockProverWithBlockNumberFail, err))
-	// 	}
-	// }()
-
 	wg.Add(1)
 	go func() {
 		defer func() {
 			wg.Done()
 		}()
 
-		err = p.syncBlockValidityProof()
+		err = p.SyncBlockValidityProof()
 		if err != nil {
 			var ErrSyncBlockValidityProofFail = errors.New("failed to sync block validity proof")
 			panic(errors.Join(ErrSyncBlockValidityProofFail, err))
@@ -189,7 +177,7 @@ func (p *blockValidityProver) SyncBlockTreeStep(bps BlockSynchronizer, step stri
 		fmt.Printf("startBlock of LastSeenBlockPostedEventBlockNumber: %d\n", startBlock)
 
 		var endBlock uint64
-		endBlock, err = p.syncBlockContent(bps, startBlock)
+		endBlock, err = p.SyncBlockContent(bps, startBlock)
 		if err != nil {
 			return nil
 		}
@@ -256,7 +244,7 @@ func (p *blockValidityProver) SyncBlockTreeStep(bps BlockSynchronizer, step stri
 	return nil
 }
 
-func (p *blockValidityProver) syncBlockContent(bps BlockSynchronizer, startBlock uint64) (lastEventSeenBlockNumber uint64, err error) {
+func (p *blockValidityProver) SyncBlockContent(bps BlockSynchronizer, startBlock uint64) (lastEventSeenBlockNumber uint64, err error) {
 	latestScrollBlockNumber, err := bps.FetchLatestBlockNumber(p.ctx)
 	if err != nil {
 		return startBlock, errors.Join(ErrFetchLatestBlockNumberFail, err)
@@ -330,6 +318,9 @@ func syncBlockContentWithEvent(
 		return nil, errors.Join(ErrProcessingBlocksFail, err)
 	}
 
+	var blN uint256.Int
+	_ = blN.SetFromBig(new(big.Int).SetUint64(event.Raw.BlockNumber))
+
 	var cd []byte
 	cd, err = bps.FetchScrollCalldataByHash(event.Raw.TxHash)
 	if err != nil {
@@ -364,7 +355,7 @@ func syncBlockContentWithEvent(
 		log.Debugf(msg, intMaxBlockNumber)
 	} else {
 		const msg = "block %d is found (SyncBlockTree, Scroll block number: %d)"
-		log.Debugf(msg, intMaxBlockNumber, event.Raw.BlockNumber)
+		log.Debugf(msg, intMaxBlockNumber, blN)
 	}
 
 	senders := make([]intMaxTypes.ColumnSender, len(blockContent.Senders))
@@ -377,7 +368,7 @@ func syncBlockContentWithEvent(
 	}
 
 	newBlockContent, err = blockBuilder.CreateBlockContent(
-		ctx, postedBlock, blockContent, &blN, events[key].Raw.BlockHash)
+		ctx, postedBlock, blockContent, &blN, event.Raw.BlockHash)
 	if err != nil {
 		return nil, errors.Join(ErrCreateBlockContentFail, err)
 	}
@@ -544,7 +535,7 @@ func syncBlockContentWithEvent(
 // 	return nil
 // }
 
-func (p *blockValidityProver) syncBlockValidityProof() error {
+func (p *blockValidityProver) SyncBlockValidityProof() error {
 	lastGeneratedProofBlockNumber, err := p.blockBuilder.LastGeneratedProofBlockNumber()
 	if err != nil {
 		var ErrLastGeneratedProofBlockNumberFail = errors.New("last generated proof block number fail")
