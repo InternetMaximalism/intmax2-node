@@ -27,19 +27,21 @@ import (
 )
 
 type Server struct {
-	Context    context.Context
-	Cancel     context.CancelFunc
-	WG         *sync.WaitGroup
-	Config     *configs.Config
-	Log        logger.Logger
-	DbApp      SQLDriverApp
-	BBR        BlockBuilderRegistryService
-	SB         ServiceBlockchain
-	NS         NetworkService
-	HC         *health.Handler
-	PoW        PoWNonce
-	Worker     Worker
-	GPOStorage GPOStorage
+	Context             context.Context
+	Cancel              context.CancelFunc
+	WG                  *sync.WaitGroup
+	Config              *configs.Config
+	Log                 logger.Logger
+	DbApp               SQLDriverApp
+	BBR                 BlockBuilderRegistryService
+	SB                  ServiceBlockchain
+	NS                  NetworkService
+	HC                  *health.Handler
+	PoW                 PoWNonce
+	Worker              Worker
+	GPOStorage          GPOStorage
+	BlockPostService    BlockPostService
+	DepositSynchronizer DepositSynchronizer
 }
 
 func NewServerCmd(s *Server) *cobra.Command {

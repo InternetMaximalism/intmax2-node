@@ -26,6 +26,8 @@ import (
 	"google.golang.org/grpc"
 )
 
+// const timeoutFailedToSyncBlockProver = 5
+
 func blockValidityProverRun(s *Settings) *cobra.Command {
 	const (
 		use   = "run"
@@ -38,12 +40,6 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 			err := s.SB.SetupScrollNetworkChainID(s.Context)
 			if err != nil {
 				const msg = "init the scroll network by chain ID error occurred: %v"
-				s.Log.Fatalf(msg, err.Error())
-			}
-
-			err = s.BlockPostService.Init(s.Context)
-			if err != nil {
-				const msg = "init the Block Validity Prover error occurred: %v"
 				s.Log.Fatalf(msg, err.Error())
 			}
 
@@ -60,27 +56,6 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 				err = l2BI.Start(s.Context)
 				if err != nil {
 					const msg = "starting of the Batch Index Processing error occurred: %v"
-					s.Log.Fatalf(msg, err.Error())
-				}
-			}()
-
-			wg.Add(1)
-			s.WG.Add(1)
-			go func() {
-				defer func() {
-					wg.Done()
-					s.WG.Done()
-				}()
-				tickerEventWatcher := time.NewTicker(
-					s.Config.BlockPostService.TimeoutForPostingBlock,
-				)
-				defer func() {
-					if tickerEventWatcher != nil {
-						tickerEventWatcher.Stop()
-					}
-				}()
-				if err = s.BlockPostService.Start(s.Context, tickerEventWatcher); err != nil {
-					const msg = "failed to start Block Validity Prover: %+v"
 					s.Log.Fatalf(msg, err.Error())
 				}
 			}()
@@ -284,25 +259,6 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 				if err != nil {
 					var ErrSyncBlockValidityProofFail = errors.New("failed to sync block validity proof")
 					panic(errors.Join(ErrSyncBlockValidityProofFail, err))
-				}
-			}()
-
-			wg.Add(1)
-			s.WG.Add(1)
-			go func() {
-				defer func() {
-					wg.Done()
-					s.WG.Done()
-				}()
-				tickerEventWatcher := time.NewTicker(s.Config.DepositSynchronizer.TimeoutForEventWatcher)
-				defer func() {
-					if tickerEventWatcher != nil {
-						tickerEventWatcher.Stop()
-					}
-				}()
-				if err = s.DepositSynchronizer.Start(tickerEventWatcher); err != nil {
-					const msg = "failed to start Deposit Synchronizer: %+v"
-					s.Log.Fatalf(msg, err.Error())
 				}
 			}()
 

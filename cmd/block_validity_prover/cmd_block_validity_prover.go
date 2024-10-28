@@ -11,19 +11,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const timeoutFailedToSyncBlockProver = 5
-
 type Settings struct {
-	Context             context.Context
-	Cancel              context.CancelFunc
-	WG                  *sync.WaitGroup
-	Config              *configs.Config
-	Log                 logger.Logger
-	DbApp               SQLDriverApp
-	SB                  ServiceBlockchain
-	HC                  *health.Handler
-	BlockPostService    BlockPostService
-	DepositSynchronizer DepositSynchronizer
+	Context context.Context
+	Cancel  context.CancelFunc
+	WG      *sync.WaitGroup
+	Config  *configs.Config
+	Log     logger.Logger
+	DbApp   SQLDriverApp
+	SB      ServiceBlockchain
+	HC      *health.Handler
 }
 
 func NewCmd(s *Settings) *cobra.Command {

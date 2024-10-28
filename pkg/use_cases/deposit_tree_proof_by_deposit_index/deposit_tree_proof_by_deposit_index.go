@@ -45,7 +45,7 @@ func (u *uc) Do(
 		))
 	defer span.End()
 
-	depositMerkleProof, depositTreeRoot, err := u.bvs.DepositTreeProof(uint32(input.DepositIndex))
+	depositMerkleProof, depositTreeRoot, err := u.bvs.LatestDepositTreeProofByBlockNumber(uint32(input.DepositIndex))
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
 		return nil, errors.Join(ErrDepositTreeProofFail, err)

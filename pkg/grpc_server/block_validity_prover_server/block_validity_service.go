@@ -10,6 +10,7 @@ import (
 //go:generate mockgen -destination=mock_block_validity_service_test.go -package=block_validity_prover_server_test -source=block_validity_service.go
 
 type BlockValidityService interface {
+	LatestDepositTreeProofByBlockNumber(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error)
 	DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error)
 	BlockTreeProof(
 		rootBlockNumber, leafBlockNumber uint32,
