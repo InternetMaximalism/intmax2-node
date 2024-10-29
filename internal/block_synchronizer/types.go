@@ -246,3 +246,24 @@ type GetBackupBalanceResponse struct {
 	Data    *BackupBalanceData     `json:"data,omitempty"`
 	Error   *GetBackupBalanceError `json:"error,omitempty"`
 }
+
+type GetBackupBalancesResponse struct {
+	Success bool                       `json:"success"`
+	Data    *BackupBalanceDataBalances `json:"data,omitempty"`
+	Error   *GetBackupBalanceError     `json:"error,omitempty"`
+}
+
+type BackupBalanceDataBalances struct {
+	Balances []*BackupBalanceResponseData `json:"balances,omitempty"`
+}
+
+type BackupBalanceResponseData struct {
+	ID                    string
+	EncryptedBalanceProof string
+	EncryptedBalanceData  string
+	EncryptedTxs          []string
+	EncryptedTransfers    []string
+	EncryptedDeposits     []string
+	BlockNumber           uint64
+	CreatedAt             *timestamppb.Timestamp
+}

@@ -12,11 +12,7 @@ CREATE TABLE backup_sender_proofs (
     PRIMARY KEY (id)
 );
 
--- ALTER TABLE backup_transactions ADD COLUMN sender_enough_balance_proof_body_hash varchar(66);
-
 -- +migrate Down
-
--- ALTER TABLE backup_transactions DROP COLUMN sender_enough_balance_proof_body_hash;
 
 DROP TABLE backup_sender_proofs;
 

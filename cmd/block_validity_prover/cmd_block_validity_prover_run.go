@@ -178,8 +178,7 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 								s.Log.Fatalf(msg, err.Error())
 							}
 
-							latestSynchronizedDepositIndex := nextSynchronizedDepositIndex - 1
-							err = blockValidityProver.SyncDepositTree(nil, latestSynchronizedDepositIndex)
+							err = blockValidityProver.SyncDepositTree(nil, nextSynchronizedDepositIndex)
 							if err != nil {
 								const msg = "failed to sync deposit tree: %+v"
 								s.Log.Fatalf(msg, err.Error())
