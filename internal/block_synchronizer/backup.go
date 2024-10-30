@@ -614,13 +614,13 @@ func getBackupBalanceRawRequest(
 		return nil, fmt.Errorf("failed to get backup balance: %s", response.Error.Message)
 	}
 
-	// if response.Data == nil {
-	// 	return nil, ErrNoAssetsFound
-	// }
+	if response.Data == nil {
+		return nil, ErrNoAssetsFound
+	}
 
-	// if len(response.Data.Balances) == 0 {
-	// 	return nil, ErrNoAssetsFound
-	// }
+	if len(response.Data.Balances) == 0 {
+		return nil, ErrNoAssetsFound
+	}
 
 	result := new(GetBackupBalanceResponse)
 	result.Success = response.Success

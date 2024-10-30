@@ -67,7 +67,7 @@ func (p *blockValidityProver) SyncBlockContent(bps BlockSynchronizer, startBlock
 
 	if len(events) == 0 {
 		fmt.Printf("Scroll Block %d is synchronized (SyncBlockTree)\n", startBlock)
-		return startBlock, nil
+		return endBlock, nil
 	}
 
 	timeout := 1 * time.Second
