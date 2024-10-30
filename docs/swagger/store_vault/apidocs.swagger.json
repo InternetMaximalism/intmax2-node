@@ -713,7 +713,7 @@
         ]
       }
     },
-    "/v1/backups/user-state/{address}": {
+    "/v1/backups/user-state/{userStateId}": {
       "get": {
         "operationId": "StoreVaultService_GetBackupUserState",
         "responses": {
@@ -738,7 +738,7 @@
         },
         "parameters": [
           {
-            "name": "address",
+            "name": "userStateId",
             "in": "path",
             "required": true,
             "type": "string"
@@ -1292,9 +1292,13 @@
     "v1BackupUserStateResponseData": {
       "type": "object",
       "properties": {
+        "message": {
+          "type": "string",
+          "title": "A message indicating the result of the backup user state"
+        },
         "balance": {
           "$ref": "#/definitions/v1BackupUserStateResponseDataBalance",
-          "title": "A message indicating the result of the backup transfer"
+          "title": "A message indicating the result of the backup user state"
         }
       },
       "title": "Data is the nested message containing detailed response information"
@@ -1302,7 +1306,7 @@
     "v1BackupUserStateResponseDataBalance": {
       "type": "object",
       "properties": {
-        "id": {
+        "userStateId": {
           "type": "string"
         },
         "userAddress": {
@@ -2286,7 +2290,7 @@
       "properties": {
         "success": {
           "type": "boolean",
-          "title": "Indicates if the backup transfer was successful"
+          "title": "Indicates if the backup user state was successful"
         },
         "data": {
           "$ref": "#/definitions/v1GetBackupUserStateResponseData",
@@ -2297,9 +2301,13 @@
     "v1GetBackupUserStateResponseData": {
       "type": "object",
       "properties": {
+        "message": {
+          "type": "string",
+          "title": "A message indicating the result of the backup user state"
+        },
         "balance": {
           "$ref": "#/definitions/v1GetBackupUserStateResponseDataBalance",
-          "title": "A message indicating the result of the backup transfer"
+          "title": "A message indicating the result of the backup user state"
         }
       },
       "title": "Data is the nested message containing detailed response information"

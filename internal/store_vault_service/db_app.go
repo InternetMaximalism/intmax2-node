@@ -14,6 +14,8 @@ type SQLDriverApp interface {
 	BackupDeposits
 	BackupBalances
 	BackupSenderProofs
+	BackupUserState
+	BalanceProof
 }
 
 type GenericCommandsApp interface {
@@ -71,4 +73,22 @@ type BackupSenderProofs interface {
 		enoughBalanceProofBodyHash string,
 	) (*mDBApp.BackupSenderProof, error)
 	GetBackupSenderProofsByHashes(enoughBalanceProofBodyHashes []string) ([]*mDBApp.BackupSenderProof, error)
+}
+
+type BackupUserState interface {
+	CreateBackupUserState(
+		userAddress, encryptedUserState, authSignature string,
+		blockNumber int64,
+	) (*mDBApp.UserState, error)
+	GetBackupUserState(id string) (*mDBApp.UserState, error)
+}
+
+type BalanceProof interface {
+	CreateBalanceProof(
+		userStateID, userAddress, privateStateCommitment string,
+		blockNumber int64,
+		balanceProof []byte,
+	) (*mDBApp.BalanceProof, error)
+	GetBalanceProof(id string) (*mDBApp.BalanceProof, error)
+	GetBalanceProofByUserStateID(userStateID string) (*mDBApp.BalanceProof, error)
 }

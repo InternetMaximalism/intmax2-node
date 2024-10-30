@@ -189,13 +189,13 @@ func (p *Plonky2Proof) ProofBase64String() string {
 	return base64.StdEncoding.EncodeToString(buf.Bytes())
 }
 
-func MakeSamplePlonky2Proof() (*Plonky2Proof, error) {
-	proofBin, err := os.ReadFile("../../pkg/data/balance_proof.bin")
+func MakeSamplePlonky2Proof(dir string) (*Plonky2Proof, error) {
+	proofBin, err := os.ReadFile(dir + "pkg/data/balance_proof.bin")
 	if err != nil {
 		return nil, err
 	}
 
-	publicInputsBin, err := os.ReadFile("../../pkg/data/balance_proof_public_inputs.bin")
+	publicInputsBin, err := os.ReadFile(dir + "pkg/data/balance_proof_public_inputs.bin")
 	if err != nil {
 		return nil, err
 	}

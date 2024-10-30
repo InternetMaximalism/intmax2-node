@@ -43,6 +43,8 @@ type SQLDb interface {
 	GasPriceOracle
 	L2BatchIndex
 	RelationshipL2BatchIndexAndBlockContent
+	BackupUserState
+	BalanceProof
 }
 
 type GenericCommands interface {
@@ -314,4 +316,22 @@ type RelationshipL2BatchIndexAndBlockContent interface {
 	RelationshipL2BatchIndexAndBlockContentsByBlockContentID(
 		blockContentID string,
 	) (*models.RelationshipL2BatchIndexBlockContents, error)
+}
+
+type BackupUserState interface {
+	CreateBackupUserState(
+		userAddress, encryptedUserState, authSignature string,
+		blockNumber int64,
+	) (*models.UserState, error)
+	GetBackupUserState(id string) (*models.UserState, error)
+}
+
+type BalanceProof interface {
+	CreateBalanceProof(
+		userStateID, userAddress, privateStateCommitment string,
+		blockNumber int64,
+		balanceProof []byte,
+	) (*models.BalanceProof, error)
+	GetBalanceProof(id string) (*models.BalanceProof, error)
+	GetBalanceProofByUserStateID(userStateID string) (*models.BalanceProof, error)
 }
