@@ -38,68 +38,6 @@ type mockBlockBuilder struct {
 
 type MockBlockBuilderMemory = mockBlockBuilder
 
-// type MockBlockBuilder interface {
-// 	AccountBySenderAddress(_ string) (*uint256.Int, error)
-// 	AccountTreeRoot() (*intMaxGP.PoseidonHashOut, error)
-// 	AppendAccountTreeLeaf(sender *big.Int, lastBlockNumber uint64) (*intMaxTree.IndexedInsertionProof, error)
-// 	AppendBlockTreeLeaf(block *block_post_service.PostedBlock) (uint32, error)
-// 	AppendDepositTreeLeaf(depositHash common.Hash, depositLeaf *intMaxTree.DepositLeaf) (root common.Hash, err error)
-// 	// BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
-// 	BlockAuxInfo(blockNumber uint32) (*AuxInfo, error)
-// 	BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWithProof, error)
-// 	BlockNumberByDepositIndex(depositIndex uint32) (uint32, error)
-// 	BlockTreeProof(
-// 		rootBlockNumber, leafBlockNumber uint32,
-// 	) (
-// 		*intMaxTree.PoseidonMerkleProof,
-// 		*intMaxTree.PoseidonHashOut,
-// 		error,
-// 	)
-// 	BlockTreeRoot(blockNumber *uint32) (*intMaxGP.PoseidonHashOut, error)
-// 	ConstructSignature(
-// 		txTreeRoot intMaxTypes.Bytes32,
-// 		publicKeysHash intMaxTypes.Bytes32,
-// 		accountIDHash intMaxTypes.Bytes32,
-// 		isRegistrationBlock bool,
-// 		sortedTxs []*MockTxRequest,
-// 	) (*SignatureContent, error)
-// 	// CreateBlockContent(
-// 	// 	postedBlock *block_post_service.PostedBlock,
-// 	// 	blockContent *intMaxTypes.BlockContent,
-// 	// 	l2BlockNumber *uint256.Int,
-// 	// 	l2BlockHash common.Hash,
-// 	// ) (*mDBApp.BlockContentWithProof, error)
-// 	CurrentBlockTreeProof(blockNumber uint32) (*intMaxTree.PoseidonMerkleProof, error)
-// 	DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error)
-// 	EventBlockNumberByEventNameForValidityProver(eventName string) (*mDBApp.EventBlockNumberForValidityProver, error)
-// 	Exec(ctx context.Context, input interface{}, executor func(d interface{}, input interface{}) error) (err error)
-// 	FetchLastDepositIndex() (uint32, error)
-// 	FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error)
-// 	GenerateBlock(blockContent *intMaxTypes.BlockContent, postedBlock *block_post_service.PostedBlock) (*BlockWitness, error)
-// 	GenerateBlockWithTxTree(isRegistrationBlock bool, txs []*MockTxRequest) (*BlockWitness, *intMaxTree.TxTree, error)
-// 	GetAccountMembershipProof(blockNumber uint32, publicKey *big.Int) (*intMaxTree.IndexedMembershipProof, error)
-// 	GetAccountTreeLeaf(sender *big.Int) (*intMaxTree.IndexedMerkleLeaf, error)
-// 	GetDepositLeafAndIndexByHash(depositHash common.Hash) (depositLeafWithId *DepositLeafWithId, depositIndex *uint32, err error)
-// 	IsSynchronizedDepositIndex(depositIndex uint32) (bool, error)
-// 	LastDepositTreeRoot() (common.Hash, error)
-// 	LastSeenBlockPostedEventBlockNumber(ctx context.Context) (uint64, error)
-// 	// LastValidityWitness() (*ValidityWitness, error)
-// 	LatestIntMaxBlockNumber() uint32
-// 	NextAccountID() (uint64, error)
-// 	ValidityWitness(isRegistrationBlock bool, txs []*MockTxRequest) (*ValidityWitness, error)
-// 	ProveInclusion(accountId uint64) (*AccountMerkleProof, error)
-// 	PublicKeyByAccountID(accountID uint64) (pk *intMaxAcc.PublicKey, err error)
-// 	RegisterPublicKey(pk *intMaxAcc.PublicKey, lastSentBlockNumber uint32) (accountID uint64, err error)
-// 	SetLastSeenBlockPostedEventBlockNumber(ctx context.Context, blockNumber uint64) error
-// 	SetValidityProof(blockNumber uint32, proof string) error
-// 	SetValidityWitness(blockNumber uint32, witness *ValidityWitness) error
-// 	UpdateAccountTreeLeaf(sender *big.Int, lastBlockNumber uint64) (*intMaxTree.IndexedUpdateProof, error)
-// 	UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error
-// 	UpsertEventBlockNumberForValidityProver(eventName string, blockNumber uint64) (*mDBApp.EventBlockNumberForValidityProver, error)
-// 	ValidityProofByBlockNumber(blockNumber uint32) (*string, error)
-// 	ValidityWitnessByBlockNumber(blockNumber uint32) (*ValidityWitness, error)
-// }
-
 type UpdateWitness struct {
 	ValidityProof          string                             `json:"validityProof"`
 	BlockMerkleProof       intMaxTree.BlockHashMerkleProof    `json:"blockMerkleProof"`
