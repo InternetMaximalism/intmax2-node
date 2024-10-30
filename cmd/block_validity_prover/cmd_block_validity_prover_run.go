@@ -2,6 +2,7 @@ package block_validity_prover
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
@@ -16,7 +17,6 @@ import (
 	"intmax2-node/internal/pb/listener"
 	server "intmax2-node/pkg/grpc_server/block_validity_prover_server"
 	"intmax2-node/third_party"
-	"strings"
 	"sync"
 	"time"
 
@@ -25,6 +25,8 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 )
+
+// const timeoutFailedToSyncBlockProver = 5
 
 func blockValidityProverRun(s *Settings) *cobra.Command {
 	const (
@@ -41,12 +43,6 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 				s.Log.Fatalf(msg, err.Error())
 			}
 
-			err = s.BlockPostService.Init(s.Context)
-			if err != nil {
-				const msg = "init the Block Validity Prover error occurred: %v"
-				s.Log.Fatalf(msg, err.Error())
-			}
-
 			wg := sync.WaitGroup{}
 
 			wg.Add(1)
@@ -60,27 +56,6 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 				err = l2BI.Start(s.Context)
 				if err != nil {
 					const msg = "starting of the Batch Index Processing error occurred: %v"
-					s.Log.Fatalf(msg, err.Error())
-				}
-			}()
-
-			wg.Add(1)
-			s.WG.Add(1)
-			go func() {
-				defer func() {
-					wg.Done()
-					s.WG.Done()
-				}()
-				tickerEventWatcher := time.NewTicker(
-					s.Config.BlockPostService.TimeoutForPostingBlock,
-				)
-				defer func() {
-					if tickerEventWatcher != nil {
-						tickerEventWatcher.Stop()
-					}
-				}()
-				if err = s.BlockPostService.Start(s.Context, tickerEventWatcher); err != nil {
-					const msg = "failed to start Block Validity Prover: %+v"
 					s.Log.Fatalf(msg, err.Error())
 				}
 			}()
@@ -111,6 +86,58 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 			blockNumber += 1
 			fmt.Printf("blockNumber (server): %d\n", blockNumber)
 
+			// wg.Add(1)
+			// s.WG.Add(1)
+			// go func() {
+			// 	defer func() {
+			// 		wg.Done()
+			// 		s.WG.Done()
+			// 	}()
+
+			// 	timeout := 1 * time.Second
+			// 	ticker := time.NewTicker(timeout)
+			// 	for {
+			// 		select {
+			// 		case <-s.Context.Done():
+			// 			ticker.Stop()
+			// 			s.Log.Warnf("Received cancel signal from context, stopping...")
+			// 			return
+			// 		case <-ticker.C:
+			// 			s.Log.Debugf("===============blockNumber: %d", blockNumber)
+			// 			err = blockValidityService.SyncBlockProverWithBlockNumber(blockNumber)
+			// 			if err != nil {
+			// 				s.Log.Debugf("===============err: %s", err.Error())
+			// 				if err.Error() == block_validity_prover.ErrNoValidityProofByBlockNumber.Error() {
+			// 					s.Log.Warnf("no last validity proof")
+			// 					time.Sleep(timeoutFailedToSyncBlockProver * time.Second)
+
+			// 					continue
+			// 				}
+
+			// 				if err.Error() == "block number is not equal to the last block number + 1" {
+			// 					s.Log.Warnf("block number is not equal to the last block number + 1")
+			// 					time.Sleep(timeoutFailedToSyncBlockProver * time.Second)
+
+			// 					continue
+			// 				}
+
+			// 				if strings.HasPrefix(err.Error(), "block content by block number error") {
+			// 					s.Log.Warnf("block content by block number error")
+			// 					time.Sleep(timeoutFailedToSyncBlockProver * time.Second)
+
+			// 					continue
+			// 				}
+
+			// 				const msg = "failed to sync block prover: %+v"
+			// 				s.Log.Fatalf(msg, err.Error())
+			// 			}
+
+			// 			s.Log.Debugf("update blockNumber: %d\n", blockNumber)
+			// 			blockNumber++
+			// 		}
+			// 	}
+			// }()
+
 			wg.Add(1)
 			s.WG.Add(1)
 			go func() {
@@ -119,67 +146,8 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 					s.WG.Done()
 				}()
 
-				timeout := 1 * time.Second
-				ticker := time.NewTicker(timeout)
-				for {
-					select {
-					case <-s.Context.Done():
-						ticker.Stop()
-						s.Log.Warnf("Received cancel signal from context, stopping...")
-						return
-					case <-ticker.C:
-						s.Log.Debugf("===============blockNumber: %d", blockNumber)
-						err = blockValidityService.SyncBlockProverWithBlockNumber(blockNumber)
-						if err != nil {
-							s.Log.Debugf("===============err: %s", err.Error())
-							if err.Error() == block_validity_prover.ErrNoValidityProofByBlockNumber.Error() {
-								s.Log.Warnf("no last validity proof")
-								time.Sleep(timeoutFailedToSyncBlockProver * time.Second)
-
-								continue
-							}
-
-							if err.Error() == "block number is not equal to the last block number + 1" {
-								s.Log.Warnf("block number is not equal to the last block number + 1")
-								time.Sleep(timeoutFailedToSyncBlockProver * time.Second)
-
-								continue
-							}
-
-							if strings.HasPrefix(err.Error(), "block content by block number error") {
-								s.Log.Warnf("block content by block number error")
-								time.Sleep(timeoutFailedToSyncBlockProver * time.Second)
-
-								continue
-							}
-
-							const msg = "failed to sync block prover: %+v"
-							s.Log.Fatalf(msg, err.Error())
-						}
-
-						s.Log.Debugf("update blockNumber: %d\n", blockNumber)
-						blockNumber++
-					}
-				}
-			}()
-
-			wg.Add(1)
-			s.WG.Add(1)
-			go func() {
-				defer func() {
-					wg.Done()
-					s.WG.Done()
-				}()
-
-				var blockSynchronizer block_synchronizer.BlockSynchronizer
-				blockSynchronizer, err = block_synchronizer.NewBlockSynchronizer(s.Context, s.Config, s.Log)
-				if err != nil {
-					const msg = "failed to start Block Synchronizer: %+v"
-					s.Log.Fatalf(msg, err.Error())
-				}
-
-				var latestSynchronizedDepositIndex uint32
-				latestSynchronizedDepositIndex, err = blockValidityService.FetchLastDepositIndex()
+				var nextSynchronizedDepositIndex uint32
+				nextSynchronizedDepositIndex, err = blockValidityService.FetchNextDepositIndex()
 				if err != nil {
 					const msg = "failed to fetch last deposit index: %+v"
 					s.Log.Fatalf(msg, err.Error())
@@ -210,47 +178,86 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 								s.Log.Fatalf(msg, err.Error())
 							}
 
-							err = blockValidityProver.SyncDepositTree(nil, latestSynchronizedDepositIndex)
+							err = blockValidityProver.SyncDepositTree(nil, nextSynchronizedDepositIndex)
 							if err != nil {
 								const msg = "failed to sync deposit tree: %+v"
 								s.Log.Fatalf(msg, err.Error())
 							}
-
-							// sync block content
-							var startBlock uint64
-							startBlock, err = blockValidityService.LastSeenBlockPostedEventBlockNumber()
-							if err != nil {
-								startBlock = s.Config.Blockchain.RollupContractDeployedBlockNumber
-							}
-
-							var endBlock uint64
-							endBlock, err = blockValidityProver.SyncBlockTree(blockSynchronizer, startBlock)
-							if err != nil {
-								panic(err)
-							}
-
-							s.Log.Debugf("Block %d is searched", endBlock)
 						}()
 					}
 				}
 			}()
 
+			var bps block_synchronizer.BlockSynchronizer
+			bps, err = block_synchronizer.NewBlockSynchronizer(s.Context, s.Config, s.Log)
+			if err != nil {
+				const msg = "failed to start Block Synchronizer: %+v"
+				s.Log.Fatalf(msg, err.Error())
+			}
+
 			wg.Add(1)
-			s.WG.Add(1)
 			go func() {
 				defer func() {
 					wg.Done()
-					s.WG.Done()
 				}()
-				tickerEventWatcher := time.NewTicker(s.Config.DepositSynchronizer.TimeoutForEventWatcher)
-				defer func() {
-					if tickerEventWatcher != nil {
+
+				tickerEventWatcher := time.NewTicker(s.Config.BlockValidityProver.TimeoutForEventWatcher)
+				for {
+					select {
+					case <-s.Context.Done():
 						tickerEventWatcher.Stop()
+						return
+					case <-tickerEventWatcher.C:
+						fmt.Println("block content ticker.C")
+						// sync block content
+						var startBlock uint64
+						startBlock, err := blockValidityProver.LastSeenBlockPostedEventBlockNumber()
+						if err != nil {
+							startBlock = s.Config.Blockchain.RollupContractDeployedBlockNumber
+						}
+						fmt.Printf("startBlock of LastSeenBlockPostedEventBlockNumber: %d\n", startBlock)
+
+						var endBlock uint64
+						endBlock, err = blockValidityProver.SyncBlockContent(bps, startBlock)
+						if err != nil {
+							panic(err)
+						}
+						fmt.Printf("endBlock of LastSeenBlockPostedEventBlockNumber: %d\n", endBlock)
+
+						err = blockValidityProver.SetLastSeenBlockPostedEventBlockNumber(endBlock)
+						if err != nil {
+							var ErrSetLastSeenBlockPostedEventBlockNumberFail = errors.New("set last seen block posted event block number fail")
+							panic(errors.Join(ErrSetLastSeenBlockPostedEventBlockNumberFail, err))
+						}
+
+						fmt.Printf("Block %d is searched\n", endBlock)
 					}
+				}
+			}()
+
+			// wg.Add(1)
+			// go func() {
+			// 	defer func() {
+			// 		wg.Done()
+			// 	}()
+
+			// 	err = p.SyncBlockValidityWitness()
+			// 	if err != nil {
+			// 		var ErrSyncBlockProverWithBlockNumberFail = errors.New("failed to sync block validity witness")
+			// 		panic(errors.Join(ErrSyncBlockProverWithBlockNumberFail, err))
+			// 	}
+			// }()
+
+			wg.Add(1)
+			go func() {
+				defer func() {
+					wg.Done()
 				}()
-				if err = s.DepositSynchronizer.Start(tickerEventWatcher); err != nil {
-					const msg = "failed to start Deposit Synchronizer: %+v"
-					s.Log.Fatalf(msg, err.Error())
+
+				err = blockValidityProver.SyncBlockValidityProof()
+				if err != nil {
+					var ErrSyncBlockValidityProofFail = errors.New("failed to sync block validity proof")
+					panic(errors.Join(ErrSyncBlockValidityProofFail, err))
 				}
 			}()
 

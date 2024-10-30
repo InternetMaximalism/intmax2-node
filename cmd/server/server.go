@@ -27,19 +27,21 @@ import (
 )
 
 type Server struct {
-	Context    context.Context
-	Cancel     context.CancelFunc
-	WG         *sync.WaitGroup
-	Config     *configs.Config
-	Log        logger.Logger
-	DbApp      SQLDriverApp
-	BBR        BlockBuilderRegistryService
-	SB         ServiceBlockchain
-	NS         NetworkService
-	HC         *health.Handler
-	PoW        PoWNonce
-	Worker     Worker
-	GPOStorage GPOStorage
+	Context             context.Context
+	Cancel              context.CancelFunc
+	WG                  *sync.WaitGroup
+	Config              *configs.Config
+	Log                 logger.Logger
+	DbApp               SQLDriverApp
+	BBR                 BlockBuilderRegistryService
+	SB                  ServiceBlockchain
+	NS                  NetworkService
+	HC                  *health.Handler
+	PoW                 PoWNonce
+	Worker              Worker
+	GPOStorage          GPOStorage
+	BlockPostService    BlockPostService
+	DepositSynchronizer DepositSynchronizer
 }
 
 func NewServerCmd(s *Server) *cobra.Command {
@@ -210,6 +212,47 @@ func NewServerCmd(s *Server) *cobra.Command {
 					}
 				}
 			}()
+
+			// TODO: Occur error: Block range is too large
+			wg.Add(1)
+			s.WG.Add(1)
+			go func() {
+				defer func() {
+					wg.Done()
+					s.WG.Done()
+				}()
+				tickerEventWatcher := time.NewTicker(s.Config.BlockPostService.TimeoutForPostingBlock)
+				defer func() {
+					if tickerEventWatcher != nil {
+						tickerEventWatcher.Stop()
+					}
+				}()
+				if err = s.BlockPostService.Start(s.Context, tickerEventWatcher); err != nil {
+					const msg = "failed to start Block Post service: %+v"
+					s.Log.Fatalf(msg, err.Error())
+				}
+			}()
+
+			if s.Config.DepositSynchronizer.Enable {
+				wg.Add(1)
+				s.WG.Add(1)
+				go func() {
+					defer func() {
+						wg.Done()
+						s.WG.Done()
+					}()
+					tickerEventWatcher := time.NewTicker(s.Config.DepositSynchronizer.TimeoutForEventWatcher)
+					defer func() {
+						if tickerEventWatcher != nil {
+							tickerEventWatcher.Stop()
+						}
+					}()
+					if err = s.DepositSynchronizer.Start(tickerEventWatcher); err != nil {
+						const msg = "failed to start Deposit Synchronizer: %+v"
+						s.Log.Fatalf(msg, err.Error())
+					}
+				}()
+			}
 
 			wg.Add(1)
 			s.WG.Add(1)

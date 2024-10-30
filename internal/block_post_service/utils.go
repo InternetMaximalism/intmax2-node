@@ -129,9 +129,9 @@ func MakeRegistrationBlock(
 		}
 	}
 
-	defaultSender := intMaxTypes.NewDummySender()
+	dummySender := intMaxTypes.NewDummySender()
 	for i := len(senderPublicKeys); i < len(senders); i++ {
-		senders[i] = defaultSender
+		senders[i] = dummySender
 	}
 
 	const numPublicKeyBytes = intMaxTypes.NumPublicKeyBytes
@@ -183,9 +183,16 @@ func MakeRegistrationBlock(
 	txRootBytes := [32]byte{}
 	copy(txRootBytes[:], txRoot.Marshal())
 
+	trimedSenders := make([]intMaxTypes.Sender, 0)
+	for _, sender := range senders {
+		if sender.PublicKey != dummySender.PublicKey {
+			trimedSenders = append(trimedSenders, sender)
+		}
+	}
+
 	blockContent := intMaxTypes.NewBlockContent(
 		intMaxTypes.PublicKeySenderType,
-		senders,
+		trimedSenders,
 		txRootBytes,
 		aggregatedSignature,
 	)
@@ -224,10 +231,6 @@ func MakeEmptyBlock() *intMaxTypes.BlockContent {
 	txRootBytes := [32]byte{}
 	copy(txRootBytes[:], txRoot.Marshal())
 
-	fmt.Printf("Empty block created senderType: %v\n", intMaxTypes.PublicKeySenderType)
-	fmt.Printf("Empty block created senders : %v\n", senders)
-	fmt.Printf("Empty block created txRoot: %v\n", txRootBytes)
-	fmt.Printf("Empty block created aggregatedSignature: %v\n", aggregatedSignature)
 	blockContent := intMaxTypes.NewBlockContent(
 		intMaxTypes.PublicKeySenderType,
 		senders,
@@ -283,10 +286,10 @@ func MakeNonRegistrationBlock(
 		}
 	}
 
-	defaultPublicKey := intMaxAcc.NewDummyPublicKey()
+	dummyPublicKey := intMaxAcc.NewDummyPublicKey()
 	for i := len(senderPublicKeys); i < len(senders); i++ {
 		senders[i] = intMaxTypes.Sender{
-			PublicKey: defaultPublicKey,
+			PublicKey: dummyPublicKey,
 			AccountID: 1,
 			IsSigned:  false,
 		}
@@ -341,9 +344,16 @@ func MakeNonRegistrationBlock(
 	txRootBytes := [32]byte{}
 	copy(txRootBytes[:], txRoot.Marshal())
 
+	trimedSenders := make([]intMaxTypes.Sender, 0)
+	for _, sender := range senders {
+		if sender.PublicKey != dummyPublicKey {
+			trimedSenders = append(trimedSenders, sender)
+		}
+	}
+
 	blockContent := intMaxTypes.NewBlockContent(
 		intMaxTypes.AccountIDSenderType,
-		senders,
+		trimedSenders,
 		txRootBytes,
 		aggregatedSignature,
 	)

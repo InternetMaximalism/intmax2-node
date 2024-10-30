@@ -3,6 +3,7 @@ package db_app
 import (
 	"context"
 	"encoding/json"
+	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_post_service"
 	mFL "intmax2-node/internal/sql_filter/models"
 	intMaxTree "intmax2-node/internal/tree"
@@ -28,11 +29,13 @@ type SQLDb interface {
 	BackupTransfers
 	BackupTransactions
 	BackupDeposits
+	BackupSenderProofs
 	CtrlEventBlockNumbersJobs
 	EventBlockNumbersErrors
 	EventBlockNumbersForValidityProver
 	Senders
 	Accounts
+	BlockContainedSenders
 	BackupBalances
 	Deposits
 	BlockContents
@@ -132,7 +135,6 @@ type Withdrawals interface {
 type BackupTransfers interface {
 	CreateBackupTransfer(
 		recipient, encryptedTransferHash, encryptedTransfer string,
-		senderLastBalanceProofBody, senderBalanceTransitionProofBody []byte,
 		blockNumber int64,
 	) (*models.BackupTransfer, error)
 	GetBackupTransfer(condition string, value string) (*models.BackupTransfer, error)
@@ -194,6 +196,14 @@ type BackupDeposits interface {
 	)
 }
 
+type BackupSenderProofs interface {
+	CreateBackupSenderProof(
+		lastBalanceProofBody, balanceTransitionProofBody []byte,
+		enoughBalanceProofBodyHash string,
+	) (*models.BackupSenderProof, error)
+	GetBackupSenderProofsByHashes(enoughBalanceProofBodyHashes []string) ([]*models.BackupSenderProof, error)
+}
+
 type CtrlEventBlockNumbersJobs interface {
 	CreateCtrlEventBlockNumbersJobs(eventName string) error
 	CtrlEventBlockNumbersJobs(eventName string) (*models.CtrlEventBlockNumbersJobs, error)
@@ -224,9 +234,17 @@ type Senders interface {
 type Accounts interface {
 	CreateAccount(senderID string) (*models.Account, error)
 	AccountBySenderID(senderID string) (*models.Account, error)
+	AccountBySender(publicKey *intMaxAcc.PublicKey) (*models.Account, error)
 	AccountByAccountID(accountID *uint256.Int) (*models.Account, error)
 	ResetSequenceByAccounts() error
 	DelAllAccounts() error
+}
+
+type BlockContainedSenders interface {
+	CreateBlockParticipant(
+		blockNumber uint32,
+		senderId string,
+	) (*models.BlockContainedSender, error)
 }
 
 type BackupBalances interface {
@@ -247,7 +265,7 @@ type Deposits interface {
 	DepositByDepositID(depositID uint32) (*models.Deposit, error)
 	DepositByDepositHash(depositHash common.Hash) (*models.Deposit, error)
 	ScanDeposits() ([]*models.Deposit, error)
-	FetchLastDepositIndex() (uint32, error)
+	FetchNextDepositIndex() (uint32, error)
 }
 
 type BlockContents interface {

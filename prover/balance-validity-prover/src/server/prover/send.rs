@@ -195,14 +195,14 @@ async fn generate_proof(
             "Invalid number of prev_balances: {}",
             send_witness.prev_balances.len()
         );
-        return Err(error::ErrorBadRequest("Invalid number of transfers"));
+        return Err(error::ErrorBadRequest("Invalid number of prev_balances"));
     }
     if send_witness.asset_merkle_proofs.len() != NUM_TRANSFERS_IN_TX {
         println!(
             "Invalid number of asset_merkle_proofs: {}",
             send_witness.asset_merkle_proofs.len()
         );
-        return Err(error::ErrorBadRequest("Invalid number of transfers"));
+        return Err(error::ErrorBadRequest("Invalid number of asset_merkle_proofs"));
     }
 
     let response = ProofResponse {

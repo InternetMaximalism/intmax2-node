@@ -21,6 +21,10 @@ type PublicKey struct {
 	Pk *bn254.G1Affine
 }
 
+func NewUncheckedPublicKey(pk *bn254.G1Affine) *PublicKey {
+	return &PublicKey{Pk: pk}
+}
+
 func NewPublicKey(pk *bn254.G1Affine) (*PublicKey, error) {
 	publicKey := PublicKey{Pk: pk}
 	if err := checkValidPublicKey(&publicKey); err != nil {
@@ -145,6 +149,7 @@ func NewPrivateKey(privateKey *big.Int) (*PrivateKey, error) {
 	return a, nil
 }
 
+// TODO: Check if the public key is valid when restoring the public key for ECDH.
 // NewPrivateKeyWithReCalcPubKeyIfPkNegates creates a new PrivateKey instance.
 // If the resulting public key is invalid, it negates the private key and recalculates the public key.
 // Therefore, the output private key may differ from the input value.

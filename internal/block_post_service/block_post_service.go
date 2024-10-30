@@ -101,55 +101,6 @@ func (w *blockPostService) Start(
 		case <-ctx.Done():
 			return nil
 		case <-tickerEventWatcher.C:
-			/*
-				// d, err := block_post_service.NewBlockPostService(ctx, w.cfg)
-				// if err != nil {
-				// 	return err
-				// }
-
-				// events, _, err := d.FetchNewPostedBlocks(w.lastSeenScrollBlockNumber)
-				// if err != nil {
-				// 	return err
-				// }
-
-				// latestBlockNumber, err := d.FetchLatestBlockNumber(ctx)
-				// if err != nil {
-				// 	return err
-				// }
-
-				// if len(events) == 0 {
-				// 	w.lastSeenScrollBlockNumber = latestBlockNumber
-				// 	continue
-				// }
-
-				// lastSeenBlockNumber := w.lastSeenScrollBlockNumber
-				// for _, event := range events {
-				// 	if event.Raw.BlockNumber > lastSeenBlockNumber {
-				// 		lastSeenBlockNumber = event.Raw.BlockNumber
-				// 	}
-
-				// 	var calldata []byte
-				// 	calldata, err = d.FetchScrollCalldataByHash(event.Raw.TxHash)
-				// 	if err != nil {
-				// 		continue
-				// 	}
-
-				// 	_, err = block_post_service.FetchIntMaxBlockContentByCalldata(calldata, w.accountInfoMap)
-				// 	if err != nil {
-				// 		if errors.Is(err, block_post_service.ErrUnknownAccountID) {
-				// 			continue
-				// 		}
-				// 		if errors.Is(err, block_post_service.ErrCannotDecodeAddress) {
-				// 			continue
-				// 		}
-
-				// 		continue
-				// 	}
-				// }
-
-				// w.lastSeenScrollBlockNumber = lastSeenBlockNumber
-			*/
-
 			// Post unprocessed block
 			var unprocessedBlocks []*mDBApp.Block
 			unprocessedBlocks, err = w.dbApp.GetUnprocessedBlocks()
@@ -233,9 +184,21 @@ func (w *blockPostService) Start(
 					return err
 				}
 
-				receipt, txErr := intMaxTypes.PostRegistrationBlock(rollupCfg, ctx, w.log, scrollClient, blockContent)
-				if txErr != nil {
-					return txErr
+				var receipt *types.Receipt
+				if blockContent.SenderType == intMaxTypes.PublicKeySenderType {
+					var txErr error
+					receipt, txErr = intMaxTypes.PostRegistrationBlock(rollupCfg, ctx, w.log, scrollClient, blockContent)
+					if txErr != nil {
+						return txErr
+					}
+				} else if blockContent.SenderType == intMaxTypes.AccountIDSenderType {
+					var txErr error
+					receipt, txErr = intMaxTypes.PostNonRegistrationBlock(rollupCfg, ctx, w.log, scrollClient, blockContent)
+					if txErr != nil {
+						return txErr
+					}
+				} else {
+					panic("invalid sender type")
 				}
 
 				var eventLog *types.Log

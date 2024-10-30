@@ -59,7 +59,7 @@
     "/v1/block/proposed": {
       "post": {
         "summary": "BlockProposed returns the info about requests and retrieves the Merkle proof of a block containing the user's transaction, if available",
-        "description": "## BlockProposed returns the info about requests and retrieves the Merkle proof of a block containing the user's transaction, if available",
+        "description": "This endpoint returns the Merkle proof of a block containing the user's transaction, if available.\n- If txHash is included in the leaf of the tx tree created by Block Builder, return the root of the tx tree and Merkle proof up to the leaf where the txHash resides.\n- If the request is malformed, return BadRequest.\n- If txHash is not included in the leaf of the tx tree, return NotFound.",
         "operationId": "BlockBuilderService_BlockProposed",
         "responses": {
           "200": {
@@ -105,7 +105,7 @@
     "/v1/block/signature": {
       "post": {
         "summary": "BlockSignature returns the info about sends the signature to approve the proposed block by signing the tx tree root",
-        "description": "## BlockSignature returns the info about sends the signature to approve the proposed block by signing the tx tree root",
+        "description": "This endpoint stores the signature passed by the user along with the transaction hash.\nUser sends the signature to approve the proposed block by signing the root hash of tx tree. \n- If the input txHash is not included in the leaf of the block builder's tx tree, return NotFound.",
         "operationId": "BlockBuilderService_BlockSignature",
         "responses": {
           "200": {
@@ -144,6 +144,8 @@
     },
     "/v1/block/status/{txTreeRoot}": {
       "get": {
+        "summary": "BlockStatusByTxTreeRoot returns the info about retrieves the status of a block by its tx tree root",
+        "description": "When the user passes txTreeRoot, it checks whether the corresponding block has been posted.\nIf it has been posted, return the block number and block hash.",
         "operationId": "BlockBuilderService_BlockStatusByTxTreeRoot",
         "responses": {
           "200": {
@@ -179,46 +181,10 @@
         ]
       }
     },
-    "/v1/deposit/stauts/{depositHash}": {
-      "get": {
-        "operationId": "BlockBuilderService_DepositStatusByHash",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1DepositStatusByHashResponse"
-            }
-          },
-          "400": {
-            "description": "Validation error",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "schema": {
-              "$ref": "#/definitions/protobufEmpty"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "depositHash",
-            "in": "path",
-            "required": true,
-            "type": "string"
-          }
-        ],
-        "tags": [
-          "BlockBuilderService"
-        ]
-      }
-    },
     "/v1/info": {
       "get": {
-        "summary": "Info returns the info about retrieves the block builder's Scroll address, transaction fee, and difficulty",
-        "description": "## Info returns the info about retrieves the block builder's Scroll address, transaction fee, and difficulty",
+        "summary": "Info returns the info about the block builder's Scroll address, transaction fee, and difficulty",
+        "description": "This endpoint returns the info about the block builder's Scroll address, transaction fee, and difficulty",
         "operationId": "BlockBuilderService_Info",
         "responses": {
           "200": {
@@ -247,8 +213,8 @@
     },
     "/v1/transaction": {
       "post": {
-        "summary": "Transaction returns the info about create new transaction",
-        "description": "## Transaction returns the info about create new transaction",
+        "summary": "Transaction sends the transaction to the block builder.",
+        "description": "This endpoint adds the transaction requested by the user to the tx tree.\n- If successful, return a message to the user stating 'Transaction accepted and verified.'\n- If the request is malformed, return BadRequest.\n- If the transaction has already been accepted by the Block Builder, return BadRequest: 'Transaction must be unique.'\n- If the correct PoW nonce value is not given, return a BadRequest.",
         "operationId": "BlockBuilderService_Transaction",
         "responses": {
           "200": {
@@ -273,6 +239,7 @@
         "parameters": [
           {
             "name": "body",
+            "description": "TransactionRequest describes request to get info about the create new transaction.",
             "in": "body",
             "required": true,
             "schema": {
@@ -417,11 +384,11 @@
         "expiration": {
           "type": "string",
           "format": "date-time",
-          "title": "the expiration of request"
+          "title": "DEPRECATED: the expiration of request"
         },
         "signature": {
           "type": "string",
-          "title": "the signature of request (the hash calculated from txHash, sender, and expiration)"
+          "title": "the signature of request (the hash calculated from txHash, sender)"
         }
       },
       "title": "BlockProposedRequest describes request about retrieves the Merkle proof of a block containing the user's transaction, if available"
@@ -493,7 +460,7 @@
       "properties": {
         "isPosted": {
           "type": "boolean",
-          "title": "the status of the block"
+          "title": "the flag indicated whether the block is posted"
         },
         "blockNumber": {
           "type": "string",
@@ -501,7 +468,8 @@
           "title": "the block number"
         }
       },
-      "title": "BlockStatusResponse describes response about retrieves the status of a block by its tx tree root"
+      "description": "BlockStatusByTxTreeRootResponse describes response about retrieves the status of a block by its tx tree root",
+      "title": "BlockStatusByTxTreeRootResponse"
     },
     "v1DataBlockProposedResponse": {
       "type": "object",
@@ -535,15 +503,6 @@
         }
       },
       "title": "DataBlockSignatureResponse describes the data of response about sends the signature to approve the proposed block by signing the tx tree root"
-    },
-    "v1DataDepositStatusByHashResponse": {
-      "type": "object",
-      "properties": {
-        "blockNumber": {
-          "type": "integer",
-          "format": "int64"
-        }
-      }
     },
     "v1DataInfoResponse": {
       "type": "object",
@@ -581,26 +540,15 @@
       },
       "title": "DataTransactionResponse describes the data of response to get info about the create new transaction"
     },
-    "v1DepositStatusByHashResponse": {
-      "type": "object",
-      "properties": {
-        "blockNumber": {
-          "type": "boolean"
-        },
-        "data": {
-          "$ref": "#/definitions/v1DataDepositStatusByHashResponse"
-        }
-      }
-    },
     "v1EnoughBalanceOfProofBlockSignatureRequest": {
       "type": "object",
       "properties": {
         "prevBalanceProof": {
-          "$ref": "#/definitions/v1Plonky2ProofBlockSignatureRequest",
+          "type": "string",
           "title": "the previous balance proof value"
         },
         "transferStepProof": {
-          "$ref": "#/definitions/v1Plonky2ProofBlockSignatureRequest",
+          "type": "string",
           "title": "the transfer step proof value"
         }
       },
@@ -630,25 +578,6 @@
       },
       "title": "InfoResponse describes response about retrieves the block builder's Scroll address, transaction fee, and difficulty"
     },
-    "v1Plonky2ProofBlockSignatureRequest": {
-      "type": "object",
-      "properties": {
-        "publicInputs": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "format": "uint64"
-          },
-          "title": "the publicInputs value"
-        },
-        "proof": {
-          "type": "string",
-          "format": "byte",
-          "title": "the proof value"
-        }
-      },
-      "title": "Plonky2ProofOfEnoughBalanceProofOfBlockSignatureRequest describes the Plonky2Proof values for BlockSignatureRequest"
-    },
     "v1RecipientTransferDataTransactionRequest": {
       "type": "object",
       "properties": {
@@ -672,7 +601,7 @@
         },
         "transfersHash": {
           "type": "string",
-          "title": "the Poseidon hash of transfer tree root and token index"
+          "title": "the Poseidon hash of transfer tree root"
         },
         "nonce": {
           "type": "string",
@@ -689,19 +618,21 @@
             "type": "object",
             "$ref": "#/definitions/v1TransferDataTransactionRequest"
           },
-          "title": "DEPRECATED\nthe transfer data of the transaction"
+          "description": "DEPRECATED: the transfer data of the transaction",
+          "title": "TransferDataTransactionRequest"
         },
         "expiration": {
           "type": "string",
           "format": "date-time",
-          "title": "the expiration of request"
+          "title": "DEPRECATED: the expiration of request"
         },
         "signature": {
           "type": "string",
-          "title": "the signature of request (the hash calculated from transfersHash, nonce, powNonce, sender, and expiration)"
+          "title": "the signature of request (the hash calculated from transfersHash, nonce, powNonce, and sender)"
         }
       },
-      "title": "TransactionRequest describes request to get info about the create new transaction"
+      "description": "TransactionRequest describes request to get info about the create new transaction.",
+      "title": "TransactionRequest"
     },
     "v1TransactionResponse": {
       "type": "object",
@@ -715,7 +646,7 @@
           "title": "the info about the request's result"
         }
       },
-      "title": "TransactionRequest describes response to get info about the create new transaction"
+      "title": "TransactionResponse describes response to get info about the create new transaction"
     },
     "v1TransferDataTransactionRequest": {
       "type": "object",
@@ -737,7 +668,7 @@
           "title": "the salt value"
         }
       },
-      "title": "DEPRECATED\nTransferDataTransactionRequest describes the data of transaction"
+      "title": "DEPRECATED: TransferDataTransactionRequest describes the data of transaction"
     },
     "v1VersionResponse": {
       "type": "object",

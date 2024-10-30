@@ -306,16 +306,24 @@ func (td *TxDetailsV0) Unmarshal(data []byte) error {
 }
 
 func UnmarshalTxDetails(version uint32, data []byte) (*TxDetails, error) {
-	switch version {
-	case 0:
+	// switch version {
+	// case 0:
+	// 	fmt.Println("WARNING: Using old version of TxDetails")
+	// 	return UnmarshalTxDetailsV0(data)
+	// case 1:
+	// 	return UnmarshalTxDetailsV1(data)
+	// default:
+	// 	var ErrUnsupportedVersion = fmt.Errorf("unsupported version: %d", version)
+	// 	return nil, ErrUnsupportedVersion
+	// }
+
+	txDetails, err := UnmarshalTxDetailsV1(data)
+	if err != nil {
 		fmt.Println("WARNING: Using old version of TxDetails")
 		return UnmarshalTxDetailsV0(data)
-	case 1:
-		return UnmarshalTxDetailsV1(data)
-	default:
-		var ErrUnsupportedVersion = fmt.Errorf("unsupported version: %d", version)
-		return nil, ErrUnsupportedVersion
 	}
+
+	return txDetails, nil
 }
 
 func UnmarshalTxDetailsV0(data []byte) (*TxDetails, error) {

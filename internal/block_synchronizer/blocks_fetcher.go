@@ -220,7 +220,7 @@ func ProcessingPostedBlocks(
 			continue
 		}
 
-		const msg = "block %q is found (Scroll block number: %s)"
+		const msg = "block %q is found (ProcessingPostedBlocks, Scroll block number: %s)"
 		lg.Debugf(msg, intMaxBlockNumber.String(), blN.String())
 	}
 

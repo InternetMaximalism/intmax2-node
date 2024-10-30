@@ -36,7 +36,7 @@ func New(cfg *configs.Config, log logger.Logger, db SQLDriverApp) postBackupTran
 
 func (u *uc) Do(
 	ctx context.Context, input *postBackupTransaction.UCPostBackupTransactionInput,
-) error {
+) (senderEnoughBalanceProofBodyHash string, err error) {
 	const (
 		hName          = "UseCase PostBackupTransaction"
 		senderKey      = "sender"
@@ -49,8 +49,9 @@ func (u *uc) Do(
 	defer span.End()
 
 	if input == nil {
+		fmt.Printf("input is nil")
 		open_telemetry.MarkSpanError(spanCtx, ErrUCPostBackupTransactionInputEmpty)
-		return ErrUCPostBackupTransactionInputEmpty
+		return "", ErrUCPostBackupTransactionInputEmpty
 	}
 
 	span.SetAttributes(
@@ -60,12 +61,13 @@ func (u *uc) Do(
 		attribute.String(encryptedTxKey, input.EncryptedTx),
 	)
 
-	err := service.PostBackupTransaction(ctx, u.cfg, u.log, u.db, input)
+	senderEnoughBalanceProofBodyHash, err = service.PostBackupTransaction(ctx, u.cfg, u.log, u.db, input)
 	if err != nil {
-		return fmt.Errorf("failed to post backup transfer: %w", err)
+		fmt.Printf("failed to post backup transaction: %v\n", err)
+		return "", fmt.Errorf("failed to post backup transfer: %w", err)
 	}
 
-	return nil
+	return senderEnoughBalanceProofBodyHash, nil
 }
 
 func WriteTransfers(buf io.Writer, transfers []*intMaxTypes.Transfer) error {

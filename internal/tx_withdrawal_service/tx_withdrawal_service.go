@@ -8,7 +8,10 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/balance_prover_service"
 	"intmax2-node/internal/balance_service"
+	"intmax2-node/internal/balance_synchronizer"
+	"intmax2-node/internal/block_validity_prover"
 	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
@@ -16,6 +19,7 @@ import (
 	intMaxTree "intmax2-node/internal/tree"
 	"intmax2-node/internal/tx_transfer_service"
 	intMaxTypes "intmax2-node/internal/types"
+	"intmax2-node/internal/use_cases/block_signature"
 	"intmax2-node/internal/use_cases/transaction"
 	withdrawalService "intmax2-node/internal/withdrawal_service"
 	"math/big"
@@ -37,6 +41,7 @@ func WithdrawalTransaction(
 	cfg *configs.Config,
 	log logger.Logger,
 	sb ServiceBlockchain,
+	db block_validity_prover.SQLDriverApp, // TODO: Remove this
 	args []string,
 	amountStr string,
 	recipientAddressHex string,
@@ -64,10 +69,31 @@ func WithdrawalTransaction(
 
 	fmt.Printf("User's INTMAX Address: %s\n", userAccount.ToAddress().String())
 	fmt.Println("Fetching balances...")
-	balance, err := balance_service.GetUserBalance(ctx, cfg, log, userAccount, tokenIndex)
+	blockValidityService, err := block_validity_prover.NewBlockValidityService(ctx, cfg, log, sb, db)
 	if err != nil {
-		return fmt.Errorf(ErrFailedToGetBalance.Error()+": %v", err)
+		const msg = "failed to start Block Validity Service: %+v"
+		log.Fatalf(msg, err.Error())
 	}
+
+	userWalletState, err := balance_synchronizer.NewMockWallet(userAccount)
+	if err != nil {
+		const msg = "failed to get Mock Wallet: %+v"
+		return fmt.Errorf(msg, err.Error())
+	}
+
+	balanceSynchronizer, err := balance_synchronizer.SyncUserBalance(
+		ctx,
+		cfg,
+		log,
+		sb,
+		blockValidityService,
+		userWalletState,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to sync balance proof: %w", err)
+	}
+
+	l2Balance := userWalletState.Balance(tokenIndex).BigInt()
 
 	if strings.TrimSpace(amountStr) == "" {
 		return fmt.Errorf("amount is required")
@@ -79,8 +105,8 @@ func WithdrawalTransaction(
 		return fmt.Errorf("failed to convert amount to int: %v", amountStr)
 	}
 
-	if balance.Cmp(amount) < 0 {
-		return fmt.Errorf("insufficient balance: %s", balance)
+	if l2Balance.Cmp(amount) < 0 {
+		return fmt.Errorf("insufficient balance: %s", l2Balance)
 	}
 
 	// Send transfer transaction
@@ -101,11 +127,11 @@ func WithdrawalTransaction(
 	)
 
 	zeroTransfer := new(intMaxTypes.Transfer).SetZero()
-	initialLeaves := make([]*intMaxTypes.Transfer, 1)
+	transfers := make([]*intMaxTypes.Transfer, 1) // XXX: Include transfer fee
 	const transferIndex = 0
-	initialLeaves[transferIndex] = transfer
+	transfers[transferIndex] = transfer
 
-	transferTree, err := intMaxTree.NewTransferTree(intMaxTree.TRANSFER_TREE_HEIGHT, initialLeaves, zeroTransfer.Hash())
+	transferTree, err := intMaxTree.NewTransferTree(intMaxTree.TRANSFER_TREE_HEIGHT, transfers, zeroTransfer.Hash())
 	if err != nil {
 		return fmt.Errorf("failed to create transfer tree: %v", err)
 	}
@@ -115,7 +141,7 @@ func WithdrawalTransaction(
 		return fmt.Errorf("failed to compute merkle proof: %v", err)
 	}
 
-	var nonce uint32 = 1 // TODO: Incremented with each transaction
+	nonce := balanceSynchronizer.CurrentNonce()
 
 	err = SendWithdrawalTransaction(
 		ctx,
@@ -169,8 +195,44 @@ func WithdrawalTransaction(
 		},
 		TxTreeRoot:    &proposedBlock.TxTreeRoot,
 		TxMerkleProof: proposedBlock.TxTreeMerkleProof,
-		Transfers:     initialLeaves,
+		Transfers:     transfers,
 	}
+
+	lastBalanceProofWithPis := balanceSynchronizer.LastBalanceProof()
+
+	// txWitness, transferWitnesses, err := balance_synchronizer.MakeTxWitness(blockValidityService, &txDetails)
+	// if err != nil {
+	// 	const msg = "failed to send transaction: %+v"
+	// 	return fmt.Errorf(msg, err.Error())
+	// }
+	newSalt, err := new(balance_prover_service.Salt).SetRandom()
+	if err != nil {
+		const msg = "failed to set random: %+v"
+		return fmt.Errorf(msg, err.Error())
+	}
+	// sendWitness, err := userWalletState.UpdateOnSendTx(
+	// 	*newSalt, txWitness, transferWitnesses,
+	// )
+	// if err != nil {
+	// 	const msg = "failed to update on send tx: %+v"
+	// 	return fmt.Errorf(msg, err.Error())
+	// }
+	spentTokenWitness, err := userWalletState.CalculateSpentTokenWitness(
+		*newSalt, tx, transfers,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to calculate spent witness: %v", err)
+	}
+
+	balanceTransitionProof, err := balanceSynchronizer.ProveSendTransition(spentTokenWitness)
+	if err != nil {
+		return fmt.Errorf("failed to create balance transition proof: %v", err)
+	}
+	balanceTransitionProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(balanceTransitionProof)
+	if err != nil {
+		return fmt.Errorf("failed to create balance transition proof with pis: %v", err)
+	}
+
 	backupTx, err := transaction.NewBackupTransactionData(
 		userAccount.Public(),
 		txDetails,
@@ -181,8 +243,8 @@ func WithdrawalTransaction(
 		return fmt.Errorf("failed to create backup transaction data: %w", err)
 	}
 
-	backupTransfers := make([]*transaction.BackupTransferInput, len(initialLeaves))
-	for i, transfer := range initialLeaves {
+	backupTransfers := make([]*transaction.BackupTransferInput, len(transfers))
+	for i, transfer := range transfers {
 		backupTransfers[i], err = tx_transfer_service.MakeWithdrawalBackupData(
 			transfer,
 			userAccount.ToAddress(),
@@ -199,10 +261,15 @@ func WithdrawalTransaction(
 		}
 	}
 
+	enoughBalanceProof := new(block_signature.EnoughBalanceProofBodyInput).Set(&block_signature.EnoughBalanceProofBodyInput{
+		PrevBalanceProofBody:  base64.StdEncoding.EncodeToString(lastBalanceProofWithPis.Proof),
+		TransferStepProofBody: base64.StdEncoding.EncodeToString(balanceTransitionProofWithPis.Proof),
+	})
+
 	// Accept proposed block
 	err = tx_transfer_service.SendSignedProposedBlock(
 		ctx, cfg, log, userAccount, proposedBlock.TxTreeRoot, *txHash, proposedBlock.PublicKeys,
-		backupTx, backupTransfers,
+		backupTx, backupTransfers, enoughBalanceProof,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to send transaction: %v", err)

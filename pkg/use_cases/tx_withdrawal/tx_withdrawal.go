@@ -5,6 +5,7 @@ import (
 	"errors"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
+	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
 	"intmax2-node/internal/open_telemetry"
@@ -39,7 +40,13 @@ func New(
 	}
 }
 
-func (u *uc) Do(ctx context.Context, args []string, recipientAddressHex, amount, userEthPrivateKey string, resumeIncompleteWithdrawals bool) (err error) {
+func (u *uc) Do(
+	ctx context.Context,
+	args []string,
+	recipientAddressHex, amount, userEthPrivateKey string,
+	resumeIncompleteWithdrawals bool,
+	db block_validity_prover.SQLDriverApp, // TODO: Remove this dependency
+) (err error) {
 	const (
 		hName     = "UseCase TxWithdrawal"
 		senderKey = "sender"
@@ -85,5 +92,5 @@ func (u *uc) Do(ctx context.Context, args []string, recipientAddressHex, amount,
 		return ErrEmptyAmount
 	}
 
-	return service.WithdrawalTransaction(spanCtx, u.cfg, u.log, u.sb, args, amount, recipientAddressHex, userEthPrivateKey)
+	return service.WithdrawalTransaction(spanCtx, u.cfg, u.log, u.sb, db, args, amount, recipientAddressHex, userEthPrivateKey)
 }

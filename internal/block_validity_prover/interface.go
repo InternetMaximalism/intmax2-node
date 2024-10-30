@@ -18,12 +18,8 @@ import (
 type BlockValidityProver interface {
 	SyncDepositedEvents() error
 	SyncDepositTree(endBlock *uint64, depositIndex uint32) error
-	SyncBlockTree(
-		bps BlockSynchronizer,
-		startBlock uint64,
-	) (lastEventSeenBlockNumber uint64, err error)
-	SyncBlockProverWithBlockNumber(blockNumber uint32) error
-	// syncBlockProver() error
+	SyncBlockContent(bps BlockSynchronizer, startBlock uint64) (lastEventSeenBlockNumber uint64, err error)
+	SyncBlockValidityProof() error
 	UpdateValidityWitness(
 		blockContent *intMaxTypes.BlockContent,
 		prevValidityWitness *ValidityWitness,
@@ -36,8 +32,9 @@ type BlockValidityService interface {
 	BlockContentByTxRoot(txRoot common.Hash) (*block_post_service.PostedBlock, error)
 	GetDepositInfoByHash(depositHash common.Hash) (depositInfo *DepositInfo, err error)
 	FetchValidityProverInfo() (*ValidityProverInfo, error)
-	FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber *uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error)
-	DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error)
+	// Returns an update witness for a given public key and block numbers.
+	FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error)
+	DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error)
 	BlockTreeProof(
 		rootBlockNumber, leafBlockNumber uint32,
 	) (
@@ -48,8 +45,6 @@ type BlockValidityService interface {
 	// ValidityWitness(txRoot string) (*ValidityWitness, error)
 	ValidityPublicInputs(txRoot common.Hash) (validityPublicInputs *ValidityPublicInputs, senderLeaves []SenderLeaf, err error)
 }
-
-// validityWitness.ValidityTransitionWitness.SenderLeaves
 
 type BlockSynchronizer interface {
 	FetchLatestBlockNumber(ctx context.Context) (uint64, error)

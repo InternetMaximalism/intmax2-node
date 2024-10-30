@@ -13,6 +13,7 @@ type SQLDriverApp interface {
 	BackupTransactions
 	BackupDeposits
 	BackupBalances
+	BackupSenderProofs
 }
 
 type GenericCommandsApp interface {
@@ -22,7 +23,6 @@ type GenericCommandsApp interface {
 type BackupTransfers interface {
 	CreateBackupTransfer(
 		recipient, encryptedTransferHash, encryptedTransfer string,
-		senderLastBalanceProofBody, senderBalanceTransitionProofBody []byte,
 		blockNumber int64,
 	) (*mDBApp.BackupTransfer, error)
 	GetBackupTransfer(condition string, value string) (*mDBApp.BackupTransfer, error)
@@ -61,4 +61,12 @@ type BackupBalances interface {
 	GetBackupBalance(conditions []string, values []interface{}) (*mDBApp.BackupBalance, error)
 	GetBackupBalances(condition string, value interface{}) ([]*mDBApp.BackupBalance, error)
 	GetLatestBackupBalanceByUserAddress(user string, limit int64) ([]*mDBApp.BackupBalance, error)
+}
+
+type BackupSenderProofs interface {
+	CreateBackupSenderProof(
+		lastBalanceProofBody, balanceTransitionProofBody []byte,
+		enoughBalanceProofBodyHash string,
+	) (*mDBApp.BackupSenderProof, error)
+	GetBackupSenderProofsByHashes(enoughBalanceProofBodyHashes []string) ([]*mDBApp.BackupSenderProof, error)
 }

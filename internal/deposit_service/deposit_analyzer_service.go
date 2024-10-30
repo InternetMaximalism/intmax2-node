@@ -78,11 +78,11 @@ func DepositAnalyzer(ctx context.Context, cfg *configs.Config, log logger.Logger
 	_ = db.Exec(ctx, nil, func(d interface{}, _ interface{}) (err error) {
 		q := d.(SQLDriverApp)
 
-		event, err := q.EventBlockNumberByEventName(mDBApp.DepositsAndAnalyzedReleyedEvent)
+		event, err := q.EventBlockNumberByEventName(mDBApp.DepositsAndAnalyzedRelayedEvent)
 		if err != nil {
 			if errors.Is(err, errorsDB.ErrNotFound) {
 				event = &mDBApp.EventBlockNumber{
-					EventName:                mDBApp.DepositsAndAnalyzedReleyedEvent,
+					EventName:                mDBApp.DepositsAndAnalyzedRelayedEvent,
 					LastProcessedBlockNumber: cfg.Blockchain.LiquidityContractDeployedBlockNumber,
 				}
 			} else {
@@ -90,7 +90,7 @@ func DepositAnalyzer(ctx context.Context, cfg *configs.Config, log logger.Logger
 			}
 		} else if event == nil {
 			event = &mDBApp.EventBlockNumber{
-				EventName:                mDBApp.DepositsAndAnalyzedReleyedEvent,
+				EventName:                mDBApp.DepositsAndAnalyzedRelayedEvent,
 				LastProcessedBlockNumber: cfg.Blockchain.LiquidityContractDeployedBlockNumber,
 			}
 		}
@@ -108,7 +108,7 @@ func DepositAnalyzer(ctx context.Context, cfg *configs.Config, log logger.Logger
 			lastEventInfo.BlockNumber = &event.LastProcessedBlockNumber
 		}
 
-		_, err = q.UpsertEventBlockNumber(mDBApp.DepositsAndAnalyzedReleyedEvent, *lastEventInfo.BlockNumber)
+		_, err = q.UpsertEventBlockNumber(mDBApp.DepositsAndAnalyzedRelayedEvent, *lastEventInfo.BlockNumber)
 		if err != nil {
 			panic(fmt.Sprintf("Error updating event block number: %v", err.Error()))
 		}

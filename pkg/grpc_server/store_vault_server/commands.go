@@ -4,6 +4,7 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 	backupBalance "intmax2-node/internal/use_cases/backup_balance"
+	backupBalanceProof "intmax2-node/internal/use_cases/backup_balance_proof"
 	getBackupDepositByHash "intmax2-node/internal/use_cases/get_backup_deposit_by_hash"
 	getBackupDeposits "intmax2-node/internal/use_cases/get_backup_deposits"
 	getBackupDepositsList "intmax2-node/internal/use_cases/get_backup_deposits_list"
@@ -18,6 +19,7 @@ import (
 	postBackupTransaction "intmax2-node/internal/use_cases/post_backup_transaction"
 	postBackupTransfer "intmax2-node/internal/use_cases/post_backup_transfer"
 	verifyDepositConfirmation "intmax2-node/internal/use_cases/verify_deposit_confirmation"
+	ucGetBackupBalanceProofs "intmax2-node/pkg/use_cases/get_backup_balance_proofs"
 	ucGetBackupBalances "intmax2-node/pkg/use_cases/get_backup_balances"
 	ucGetBackupDepositByHash "intmax2-node/pkg/use_cases/get_backup_deposit_by_hash"
 	ucGetBackupDeposits "intmax2-node/pkg/use_cases/get_backup_deposits"
@@ -104,6 +106,7 @@ type Commands interface {
 	) getBackupDepositByHash.UseCaseGetBackupDepositByHash
 	GetBackupBalances(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupBalance.UseCaseGetBackupBalances
 	GetBalances(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupBalance.UseCaseGetBalances
+	GetBackupSenderBalanceProofs(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupBalanceProof.UseCaseGetBackupBalanceProofs
 	GetVerifyDepositConfirmation(cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) verifyDepositConfirmation.UseCaseGetVerifyDepositConfirmation
 }
 
@@ -223,6 +226,10 @@ func (c *commands) GetBackupBalances(cfg *configs.Config, log logger.Logger, db 
 
 func (c *commands) GetBalances(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupBalance.UseCaseGetBalances {
 	return ucGetBalances.New(cfg, log, db)
+}
+
+func (c *commands) GetBackupSenderBalanceProofs(cfg *configs.Config, log logger.Logger, db SQLDriverApp) backupBalanceProof.UseCaseGetBackupBalanceProofs {
+	return ucGetBackupBalanceProofs.New(cfg, log, db)
 }
 
 func (c *commands) GetVerifyDepositConfirmation(cfg *configs.Config, log logger.Logger, sb ServiceBlockchain) verifyDepositConfirmation.UseCaseGetVerifyDepositConfirmation {

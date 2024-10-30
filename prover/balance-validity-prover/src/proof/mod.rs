@@ -39,7 +39,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::app::{
     config,
-    encode::{decode_plonky2_proof, encode_plonky2_proof},
+    encode::{decode_plonky2_proof, encode_plonky2_proof}, interface::SpentTokenWitness,
 };
 
 const D: usize = 2;
@@ -114,9 +114,7 @@ pub async fn generate_receive_deposit_proof_job(
         );
         println!(
             "prev_balance_proof private_commitment: {}",
-            prev_balance_proof
-                .private_commitment
-                .to_string()
+            prev_balance_proof.private_commitment.to_string()
         );
     }
 
@@ -131,9 +129,7 @@ pub async fn generate_receive_deposit_proof_job(
     println!("balance_proof: {:?}", balance_pis);
     println!(
         "balance_proof private_commitment: {}",
-        balance_pis
-            .private_commitment
-            .to_string()
+        balance_pis.private_commitment.to_string()
     );
     println!(
         "balance_proof account_tree_root: {}",
@@ -299,8 +295,8 @@ pub async fn generate_balance_send_proof_job(
     Ok(())
 }
 
-pub fn generate_balance_spent_proof_job(
-    send_witness: &SendWitness,
+pub fn generate_balance_spend_proof_job(
+    spent_token_witness: &SpentTokenWitness,
     balance_processor: &BalanceProcessor<F, C, D>,
 ) -> anyhow::Result<String> {
     let spent_circuit = &balance_processor
@@ -309,12 +305,12 @@ pub fn generate_balance_spent_proof_job(
         .spent_circuit;
 
     let spent_value = SpentValue::new(
-        &send_witness.prev_private_state,
-        &send_witness.prev_balances,
-        send_witness.new_private_state_salt,
-        &send_witness.transfers,
-        &send_witness.asset_merkle_proofs,
-        send_witness.tx_witness.tx.nonce,
+        &spent_token_witness.prev_private_state,
+        &spent_token_witness.prev_balances,
+        spent_token_witness.new_private_state_salt,
+        &spent_token_witness.transfers,
+        &spent_token_witness.asset_merkle_proofs,
+        spent_token_witness.tx_nonce,
     );
 
     log::debug!("Proving...");

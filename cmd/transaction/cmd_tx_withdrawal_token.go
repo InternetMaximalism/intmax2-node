@@ -58,6 +58,7 @@ func txWithdrawalTokenCmd(b *Transaction, token string) *cobra.Command {
 			amount,
 			utils.RemoveZeroX(userEthPrivateKey),
 			resume,
+			b.DbApp, // TODO: Remove this dependency
 		)
 		if err != nil {
 			const msg = "Fatal: %v\n"

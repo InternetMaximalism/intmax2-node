@@ -34,18 +34,16 @@ type TransferDataTransaction struct {
 }
 
 type BackupTransferInput struct {
-	Recipient                  string `json:"recipient"`
-	TransferHash               string `json:"transferHash"`
-	EncodedEncryptedTransfer   string `json:"encryptedTransfer"`
-	SenderLastBalanceProofBody string `json:"senderLastBalanceProofBody"`
-	SenderTransitionProofBody  string `json:"senderBalanceTransitionProofBody"`
+	Recipient                string `json:"recipient"`
+	TransferHash             string `json:"transferHash"`
+	EncodedEncryptedTransfer string `json:"encryptedTransfer"`
 }
 
 type UCTransactionInput struct {
 	Sender             string                     `json:"sender"`
 	DecodeSender       *intMaxAcc.PublicKey       `json:"-"`
 	TransfersHash      string                     `json:"transfersHash"`
-	Nonce              uint64                     `json:"nonce"`
+	Nonce              uint64                     `json:"nonce"` // initial value is 0
 	PowNonce           string                     `json:"powNonce"`
 	TransferData       []*TransferDataTransaction `json:"transferData"`
 	DecodeTransferData []*intMaxTypes.Transfer    `json:"-"`

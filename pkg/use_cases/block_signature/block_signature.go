@@ -2,6 +2,7 @@ package block_signature
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
@@ -84,19 +85,38 @@ func (u *uc) Do(
 			File:   nil,
 		}
 	*/
-	b, err := block_synchronizer.NewBlockSynchronizer(ctx, u.cfg, u.log)
+	blockSynchronizer, err := block_synchronizer.NewBlockSynchronizer(ctx, u.cfg, u.log)
 	if err != nil {
 		var ErrNewBlockPostServiceFail = errors.New("new block post service fail")
 		return errors.Join(ErrNewBlockPostServiceFail, err)
 	}
 
 	// Backup transaction and transfer
-	blockNumber := uint64(1) // dummy
+	// XXX: This is the dummy value. The backup data does not include block numbers.
+	blockNumber := uint64(1)
 	sender, err := intMaxAcc.NewPublicKeyFromAddressHex(input.Sender)
-	if innerErr := b.BackupTransaction(
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return err
+	}
+
+	senderLastBalanceProofBody, err := base64.StdEncoding.DecodeString(input.EnoughBalanceProof.PrevBalanceProofBody)
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return errors.Join(ErrDecodeSenderLastBalanceProofBodyFail, err)
+	}
+	senderBalanceTransitionProofBody, err := base64.StdEncoding.DecodeString(input.EnoughBalanceProof.TransferStepProofBody)
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return errors.Join(ErrDecodeSenderTransitionProofBodyFail, err)
+	}
+
+	if innerErr := blockSynchronizer.BackupTransaction(
 		sender.ToAddress(),
 		input.BackupTx.TxHash,
 		input.BackupTx.EncodedEncryptedTx,
+		senderLastBalanceProofBody,
+		senderBalanceTransitionProofBody,
 		input.BackupTx.Signature,
 		blockNumber,
 	); innerErr != nil {
@@ -129,35 +149,13 @@ func (u *uc) Do(
 			}
 			u.log.Printf("INTMAX Address: %s\n", intMaxAddress.String())
 
-			if encodedEncryptedTransfer.SenderLastBalanceProofBody != "" {
-				var senderLastBalanceProofBody []byte
-				senderLastBalanceProofBody, err = hexutil.Decode(encodedEncryptedTransfer.SenderLastBalanceProofBody)
-				if err != nil {
-					open_telemetry.MarkSpanError(spanCtx, err)
-					return errors.Join(ErrDecodeSenderLastBalanceProofBodyFail, err)
-				}
-
-				var senderBalanceTransitionProofBody []byte
-				senderBalanceTransitionProofBody, err = hexutil.Decode(encodedEncryptedTransfer.SenderTransitionProofBody)
-				if err != nil {
-					open_telemetry.MarkSpanError(spanCtx, err)
-					return errors.Join(ErrDecodeSenderTransitionProofBodyFail, err)
-				}
-
-				if innerErr := b.BackupTransfer(
-					intMaxAddress, encodedEncryptedTransfer.TransferHash, encodedEncryptedTransfer.EncodedEncryptedTransfer,
-					senderLastBalanceProofBody, senderBalanceTransitionProofBody, blockNumber,
-				); innerErr != nil {
-					open_telemetry.MarkSpanError(spanCtx, innerErr)
-					return errors.Join(ErrBackupTransferFail, innerErr)
-				}
-			} else {
-				if innerErr := b.BackupTransfer(
-					intMaxAddress, encodedEncryptedTransfer.TransferHash, encodedEncryptedTransfer.EncodedEncryptedTransfer, nil, nil, blockNumber,
-				); innerErr != nil {
-					open_telemetry.MarkSpanError(spanCtx, innerErr)
-					return errors.Join(ErrBackupTransferFail, innerErr)
-				}
+			if innerErr := blockSynchronizer.BackupTransfer(
+				intMaxAddress,
+				encodedEncryptedTransfer.TransferHash, encodedEncryptedTransfer.EncodedEncryptedTransfer,
+				blockNumber,
+			); innerErr != nil {
+				open_telemetry.MarkSpanError(spanCtx, innerErr)
+				return errors.Join(ErrBackupTransferFail, innerErr)
 			}
 		} else {
 			var ethAddress common.Address
@@ -168,7 +166,7 @@ func (u *uc) Do(
 			}
 
 			u.log.Printf("ETH Address: %s\n", ethAddress.String())
-			if innerErr := b.BackupWithdrawal(
+			if innerErr := blockSynchronizer.BackupWithdrawal(
 				ethAddress, encodedEncryptedTransfer.TransferHash, encodedEncryptedTransfer.EncodedEncryptedTransfer, blockNumber,
 			); innerErr != nil {
 				open_telemetry.MarkSpanError(spanCtx, innerErr)

@@ -193,28 +193,18 @@ func (p *pgx) DepositByDepositHash(depositHash common.Hash) (*mDBApp.Deposit, er
 	return bDBApp, nil
 }
 
-func (p *pgx) FetchLastDepositIndex() (uint32, error) {
+func (p *pgx) FetchNextDepositIndex() (uint32, error) {
 	const (
-		q = `SELECT MAX(deposit_index) FROM deposits`
+		q = `SELECT COALESCE(MAX(deposit_index) + 1, 0) FROM deposits`
 	)
 
-	var lastDepositIndex *uint32
-	err := errPgx.Err(p.queryRow(p.ctx, q).Scan(&lastDepositIndex))
+	var nextDepositIndex uint32
+	err := p.queryRow(p.ctx, q).Scan(&nextDepositIndex)
 	if err != nil {
-		// if errors.Is(err, pgxV5.ErrNoRows) {
-		// 	return 0, nil
-		// }
-
-		fmt.Printf("FetchLastDepositIndex error: %v\n", err)
-
-		return 0, err
+		return 0, fmt.Errorf("FetchNextDepositIndex error: %w", err)
 	}
 
-	if lastDepositIndex == nil {
-		return 0, nil
-	}
-
-	return *lastDepositIndex, nil
+	return nextDepositIndex, nil
 }
 
 const int32Key = 32

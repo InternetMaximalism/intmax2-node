@@ -2,7 +2,6 @@ package block_validity_prover
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
@@ -14,9 +13,7 @@ import (
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/pkg/utils"
 
-	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
@@ -108,8 +105,13 @@ func (d *blockValidityProver) FetchScrollCalldataByHash(txHash common.Hash) ([]b
 	return calldata, nil
 }
 
-func (d *blockValidityProver) FetchLastDepositIndex() (uint32, error) {
-	return d.blockBuilder.FetchLastDepositIndex()
+func (d *blockValidityProver) FetchNextDepositIndex() (uint32, error) {
+	nextDepositIndex, err := d.blockBuilder.FetchNextDepositIndex()
+	if err != nil {
+		return 0, err
+	}
+
+	return nextDepositIndex, nil
 }
 
 func (d *blockValidityProver) LastSeenBlockPostedEventBlockNumber() (uint64, error) {
@@ -170,8 +172,8 @@ func NewBlockValidityService(ctx context.Context, cfg *configs.Config, log logge
 	}, nil
 }
 
-func (d *blockValidityProver) LatestIntMaxBlockNumber() (uint32, error) {
-	return d.blockBuilder.LatestIntMaxBlockNumber(), nil
+func (d *blockValidityProver) LastWitnessGeneratedBlockNumber() (uint32, error) {
+	return d.blockBuilder.LastWitnessGeneratedBlockNumber(), nil
 }
 
 func (d *blockValidityProver) LastPostedBlockNumber() (uint32, error) {
@@ -199,8 +201,10 @@ func (d *blockValidityProver) GetDepositInfoByHash(depositHash common.Hash) (*De
 		DepositLeaf:  depositLeafWithId.DepositLeaf,
 	}
 	if depositIndex != nil {
+		startIntMaxBlockNumber := uint32(1)
+
 		var blockNumber uint32
-		blockNumber, err = d.blockBuilder.BlockNumberByDepositIndex(*depositIndex)
+		blockNumber, err = d.blockBuilder.BlockNumberByDepositIndex(*depositIndex, &startIntMaxBlockNumber)
 		if err != nil {
 			var ErrBlockNumberByDepositIndexFail = errors.New("failed to get block number by deposit index")
 			return nil, errors.Join(ErrBlockNumberByDepositIndexFail, err)
@@ -220,10 +224,10 @@ func (d *blockValidityProver) GetDepositInfoByHash(depositHash common.Hash) (*De
 	return &depositInfo, nil
 }
 
-func (d *blockValidityProver) BlockNumberByDepositIndex(depositIndex uint32) (uint32, error) {
-	// TODO: implement this method
-	return d.blockBuilder.BlockNumberByDepositIndex(depositIndex)
-}
+// func (d *blockValidityProver) BlockNumberByDepositIndex(depositIndex uint32) (uint32, error) {
+// 	// TODO: implement this method
+// 	return d.blockBuilder.BlockNumberByDepositIndex(depositIndex)
+// }
 
 func (d *blockValidityProver) LatestSynchronizedBlockNumber() (uint32, error) {
 	return d.blockBuilder.LastGeneratedProofBlockNumber()
@@ -235,7 +239,7 @@ type ValidityProverInfo struct {
 }
 
 func (d *blockValidityProver) FetchValidityProverInfo() (*ValidityProverInfo, error) {
-	lastDepositIndex, err := d.FetchLastDepositIndex()
+	nextDepositIndex, err := d.FetchNextDepositIndex()
 	if err != nil {
 		return nil, err
 	}
@@ -246,25 +250,17 @@ func (d *blockValidityProver) FetchValidityProverInfo() (*ValidityProverInfo, er
 	}
 
 	return &ValidityProverInfo{
-		DepositIndex: lastDepositIndex,
+		DepositIndex: nextDepositIndex,
 		BlockNumber:  lastBlockNumber,
 	}, nil
 }
 
-func (d *blockValidityProver) FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber *uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error) {
-	if currentBlockNumber == nil {
-		// panic("currentBlockNumber == nil")
-		latestBlockNumber, err := d.blockBuilder.db.LastPostedBlockNumber()
-		fmt.Printf("(FetchUpdateWitness) latestBlockNumber: %d\n", latestBlockNumber)
-		if err != nil {
-			var ErrLastPostedBlockNumberFail = errors.New("failed to get last posted block number")
-			return nil, errors.Join(ErrLastPostedBlockNumberFail, err)
-		}
-
-		return d.blockBuilder.FetchUpdateWitness(publicKey, latestBlockNumber, targetBlockNumber, isPrevAccountTree)
-	}
-
-	return d.blockBuilder.FetchUpdateWitness(publicKey, *currentBlockNumber, targetBlockNumber, isPrevAccountTree)
+// Returns an update witness for a given public key and block numbers.
+// If the current block number is not provided, it fetches the latest posted block number from the database.
+// It then uses this block number, or the provided current block number, to fetch the update witness
+// from the block builder. The function returns the update witness or an error if the operation fails.
+func (d *blockValidityProver) FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error) {
+	return d.blockBuilder.FetchUpdateWitness(publicKey, currentBlockNumber, targetBlockNumber, isPrevAccountTree)
 }
 
 func (d *blockValidityProver) BlockTreeProof(
@@ -289,55 +285,28 @@ func (d *blockValidityProver) ValidityWitness(
 ) (*ValidityWitness, error) {
 	rawBlockContent, err := d.blockBuilder.BlockContentByTxRoot(txRoot)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get block content by tx root: %w", err)
 	}
 
-	senderType := intMaxTypes.AccountIDSenderType
-	if rawBlockContent.IsRegistrationBlock {
-		senderType = intMaxTypes.PublicKeySenderType
-	}
-
-	var senders []intMaxTypes.Sender
-	err = json.Unmarshal(rawBlockContent.Senders, &senders)
+	auxInfo, err := blockAuxInfoFromBlockContent(rawBlockContent)
 	if err != nil {
-		var ErrUnmarshalSendersFail = errors.New("failed to unmarshal senders")
-		return nil, errors.Join(ErrUnmarshalSendersFail, err)
-	}
-
-	aggregatedSignatureBytes, err := hexutil.Decode(rawBlockContent.AggregatedSignature)
-	if err != nil {
-		var ErrDecodeAggregatedSignatureFail = errors.New("failed to decode aggregated signature")
-		return nil, errors.Join(ErrDecodeAggregatedSignatureFail, err)
-	}
-
-	aggregatedSignature := new(bn254.G2Affine)
-	err = aggregatedSignature.Unmarshal(aggregatedSignatureBytes)
-	if err != nil {
-		var ErrUnmarshalAggregatedSignatureFail = errors.New("failed to unmarshal aggregated signature")
-		return nil, errors.Join(ErrUnmarshalAggregatedSignatureFail, err)
-	}
-
-	blockContent := intMaxTypes.NewBlockContent(
-		senderType,
-		senders,
-		common.HexToHash(rawBlockContent.TxRoot),
-		aggregatedSignature,
-	)
-
-	lastValidityWitness, err := d.blockBuilder.LastValidityWitness()
-	if err != nil {
-		var ErrLastValidityWitnessNotFound = errors.New("last validity witness not found")
-		return nil, errors.Join(ErrLastValidityWitnessNotFound, err)
+		return nil, fmt.Errorf("failed to get block aux info from block content: %w", err)
 	}
 	blockWitness, err := d.blockBuilder.GenerateBlockWithTxTreeFromBlockContent(
-		blockContent,
-		lastValidityWitness.BlockWitness.Block,
+		auxInfo.BlockContent,
+		auxInfo.PostedBlock,
 	)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to calculate block witness: %w", err)
 	}
 
-	return calculateValidityWitness(d.blockBuilder, blockWitness)
+	fmt.Printf("(validityWitness) blockWitness.AccountMembershipProofs: %v\n", blockWitness.AccountMembershipProofs.IsSome)
+	validityWitness, _, _, err := calculateValidityWitness(d.blockBuilder, blockWitness)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate validity witness: %w", err)
+	}
+
+	return validityWitness, err
 }
 
 // TODO: multiple response
@@ -386,32 +355,42 @@ func (d *blockValidityProver) ValidityPublicInputs(txRoot common.Hash) (*Validit
 	return validityPublicInputs, senderLeaves, nil
 }
 
-func (d *blockValidityProver) DepositTreeProof(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error) {
-	// lastValidityWitness, err := d.blockBuilder.LastValidityWitness()
-	// if err != nil {
-	// 	return nil, common.Hash{}, errors.New("last validity witness not found")
-	// }
-	// blockNumber := lastValidityWitness.BlockWitness.Block.BlockNumber
+func (d *blockValidityProver) LatestDepositTreeProofByBlockNumber(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error) {
 	validityProverInfo, err := d.FetchValidityProverInfo()
 	if err != nil {
 		return nil, common.Hash{}, err
 	}
 
 	latestBlockNumber := validityProverInfo.BlockNumber
-	depositMerkleProof, actualDepositRoot, err := d.blockBuilder.DepositTreeProof(latestBlockNumber, depositIndex)
+
+	return d.DepositTreeProof(latestBlockNumber, depositIndex)
+}
+
+func (d *blockValidityProver) DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error) {
+	depositMerkleProof, actualDepositRoot, err := d.blockBuilder.DepositTreeProof(blockNumber, depositIndex)
 	if err != nil {
 		return nil, common.Hash{}, err
 	}
-	depositTreeRoot, err := d.blockBuilder.LastDepositTreeRoot()
+	d.log.Debugf("actual deposit tree root: %s\n", actualDepositRoot.String())
+	// depositTreeRoot, err := d.blockBuilder.LastDepositTreeRoot()
+	// if err != nil {
+	// 	return nil, common.Hash{}, err
+	// }
+	// if depositTreeRoot != actualDepositRoot {
+	// 	d.log.Debugf("expected deposit tree root: %s\n", depositTreeRoot.String())
+	// 	return nil, common.Hash{}, errors.New("deposit tree root mismatch")
+	// }
+
+	// debug
+	depositLeaf := d.blockBuilder.MerkleTreeHistory.MerkleTrees[blockNumber].DepositLeaves[depositIndex]
+	fmt.Printf("depositIndex: %+v\n", depositIndex)
+	fmt.Printf("depositLeaf: %+v\n", depositLeaf)
+	fmt.Printf("depositLeaf RecipientSaltHash: %v\n", common.Hash(depositLeaf.RecipientSaltHash).String())
+	fmt.Printf("depositLeaf hash: %s\n", depositLeaf.Hash().String())
+	err = depositMerkleProof.Verify(depositLeaf.Hash(), int(depositIndex), actualDepositRoot)
 	if err != nil {
-		return nil, common.Hash{}, err
+		panic(err)
 	}
 
-	fmt.Printf("actual deposit tree root: %s\n", actualDepositRoot.String())
-
-	if depositTreeRoot != actualDepositRoot {
-		return nil, common.Hash{}, errors.New("deposit tree root mismatch")
-	}
-
-	return depositMerkleProof, depositTreeRoot, err
+	return depositMerkleProof, actualDepositRoot, err
 }

@@ -27,9 +27,3 @@ type Blocks interface {
 type Deposits interface {
 	DepositByDepositHash(depositHash common.Hash) (*mDBApp.Deposit, error)
 }
-
-// type DepositTreeBuilder interface {
-// 	LastDepositTreeRoot() (common.Hash, error)
-// 	DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, error)
-// 	GetDepositLeafAndIndexByHash(depositHash common.Hash) (depositLeafWithId *block_validity_prover.DepositLeafWithId, depositIndex *uint32, err error)
-// }

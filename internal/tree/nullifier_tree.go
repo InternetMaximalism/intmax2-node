@@ -2,7 +2,6 @@ package tree
 
 import (
 	intMaxTypes "intmax2-node/internal/types"
-	"math/big"
 )
 
 const NULLIFIER_TREE_HEIGHT uint8 = 32
@@ -61,8 +60,13 @@ func (t *NullifierTree) Prove(index LeafIndex) (proof *IndexedMerkleProof, root 
 	return t.inner.Prove(index)
 }
 
-func (t *NullifierTree) ProveMembership(key *big.Int) (membershipProof *IndexedMembershipProof, root *PoseidonHashOut, err error) {
-	return t.inner.ProveMembership(key)
+// func (t *NullifierTree) ProveMembership(key *big.Int) (membershipProof *IndexedMembershipProof, root *PoseidonHashOut, err error) {
+// 	return t.inner.ProveMembership(key)
+// }
+
+func (t *NullifierTree) ProveMembership(key intMaxTypes.Bytes32) (membershipProof *IndexedMembershipProof, root *PoseidonHashOut, err error) {
+	keyInt := new(intMaxTypes.Uint256).FromFieldElementSlice(key.ToFieldElementSlice())
+	return t.inner.ProveMembership(keyInt.BigInt())
 }
 
 func (t *NullifierTree) Insert(key intMaxTypes.Bytes32) (proof *IndexedInsertionProof, err error) {

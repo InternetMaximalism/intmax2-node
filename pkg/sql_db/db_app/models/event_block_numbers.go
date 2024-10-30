@@ -1,7 +1,8 @@
 package models
 
 const (
-	DepositsAndAnalyzedReleyedEvent = "DepositsAndAnalyzedReleyed"
+	DepositedEvent                  = "Deposited"
+	DepositsAndAnalyzedRelayedEvent = "DepositsAndAnalyzedReleyed"
 	WithdrawalSentMessageEvent      = "WithdrawalSentMessage"
 	MessengerSentMessageEvent       = "MessengerSentMessage"
 	WithdrawalsQueuedEvent          = "WithdrawalsQueued"

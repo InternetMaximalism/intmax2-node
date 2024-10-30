@@ -10,10 +10,12 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_prover_service"
+	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/logger"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
+	"math/big"
 	"time"
 )
 
@@ -60,7 +62,26 @@ func NewSynchronizer(
 }
 
 func (s *balanceSynchronizer) CurrentNonce() uint32 {
-	return s.userState.Nonce()
+	return s.userState.PrivateState().TransactionCount
+}
+
+func (s *balanceSynchronizer) LastBalanceProof() *intMaxTypes.Plonky2Proof {
+	return &intMaxTypes.Plonky2Proof{
+		Proof:        s.syncBalanceProver.lastBalanceProofBody,
+		PublicInputs: s.syncBalanceProver.balanceProofPublicInputs,
+	}
+}
+
+func (s *balanceSynchronizer) ProveSendTransition(
+	spentTokenWitness *balance_prover_service.SpentTokenWitness,
+) (string, error) {
+	publicKey := s.userState.PublicKey()
+	lastBalanceProof := s.LastBalanceProof().ProofBase64String()
+	return s.balanceProcessor.ProveSendTransition(
+		publicKey,
+		spentTokenWitness,
+		&lastBalanceProof,
+	)
 }
 
 func (s *balanceSynchronizer) Sync(
@@ -90,14 +111,39 @@ func (s *balanceSynchronizer) Sync(
 }
 
 func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.PrivateKey) (err error) {
-	balanceTransitionData, err := balance_prover_service.NewBalanceTransitionData(s.ctx, s.cfg, s.log, intMaxPrivateKey)
+	s.log.Infof("start syncProcessing")
+	balanceTransitionData, err := balance_prover_service.FetchBalanceTransitionData(s.ctx, s.cfg, s.log, intMaxPrivateKey)
 	if err != nil {
-		const msg = "failed to start Balance Prover Service: %+v"
+		const msg = "(FetchBalanceTransitionData) failed to start Balance Prover Service: %+v"
 		s.log.Fatalf(msg, err.Error())
 	}
+
+	lastUpdatedBlockNumber, err := (func() (lastUpdatedBlockNumber uint32, err error) {
+		lastBalanceProof := s.syncBalanceProver.LastBalanceProof()
+		if lastBalanceProof == nil {
+			return 0, nil
+		}
+
+		lastBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(*lastBalanceProof)
+		if err != nil {
+			return 0, errors.Join(ErrNewCompressedPlonky2ProofFromBase64StringFail, err)
+		}
+
+		lastBalancePublicInputs, err := new(balance_prover_service.BalancePublicInputs).FromPublicInputs(lastBalanceProofWithPis.PublicInputs)
+		if err != nil {
+			return 0, errors.Join(ErrBalancePublicInputsFromPublicInputs, err)
+		}
+
+		return lastBalancePublicInputs.PublicState.BlockNumber, nil
+	})()
+	if err != nil {
+		return err
+	}
+
 	sortedValidUserData, err := balanceTransitionData.SortValidUserData(
 		s.log,
 		s.blockValidityService,
+		lastUpdatedBlockNumber,
 	)
 	if err != nil {
 		const msg = "failed to sort valid user data: %+v"
@@ -105,7 +151,19 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 	}
 	fmt.Printf("size of sortedValidUserData: %v\n", len(sortedValidUserData))
 	for _, transition := range sortedValidUserData {
-		fmt.Printf("transition block number: %d\n", transition.BlockNumber())
+		fmt.Printf("[transition] type: %s, block number: %d\n", transition.Type(), transition.BlockNumber())
+	}
+
+	storedBalanceData, err := block_synchronizer.GetBackupBalance(s.ctx, s.cfg, s.userState.PublicKey())
+	if err != nil {
+		const msg = "(GetBackupBalance) failed to start Balance Prover Service: %+v"
+		s.log.Fatalf(msg, err.Error())
+	}
+
+	err = s.syncBalanceProver.SetEncryptedBalanceData(s.userState, storedBalanceData)
+	if err != nil {
+		const msg = "(SetEncryptedBalanceData) failed to start Balance Prover Service: %+v"
+		s.log.Fatalf(msg, err.Error())
 	}
 
 	validityProverInfo, err := s.blockValidityService.FetchValidityProverInfo()
@@ -116,33 +174,43 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 	}
 
 	latestSynchronizedBlockNumber := validityProverInfo.BlockNumber
-	if latestSynchronizedBlockNumber <= s.syncBalanceProver.LastUpdatedBlockNumber() {
+	lastUpdatedBlockNumber = s.userState.PublicState().BlockNumber
+	if latestSynchronizedBlockNumber <= lastUpdatedBlockNumber {
 		return ErrLatestSynchronizedBlockNumberLassOrEqualLastUpdatedBlockNumber
+	}
+
+	if len(sortedValidUserData) == 0 {
+		return ErrNoValidUserData
 	}
 
 	for _, transition := range sortedValidUserData {
 		fmt.Printf("wallet private state commitment (before): %s\n", s.userState.PrivateState().Commitment().String())
-		fmt.Printf("valid transition: %v\n", transition)
+		fmt.Printf("valid transition: %+v\n", transition)
+		fmt.Printf("valid transition block number: %v\n", transition.BlockNumber())
 
 		switch transition := transition.(type) {
 		case balance_prover_service.ValidSentTx:
+			fmt.Printf("valid sent transaction: %s (nonce: %d)\n", transition.TxHash.String(), transition.Tx.Nonce)
 			err = s.validSentTx(&transition)
 			if err != nil {
-				const msg = "failed to send transaction: %+v"
-				s.log.Warnf(msg, err.Error())
-				continue
+				// When synchronizing transactions that one has sent, they must not fail except for specific reasons.
+				// This is because, for a balance proof to be valid,
+				// it needs to reflect all transfers that have been reflected into valid blocks.
+				return fmt.Errorf("failed to send transaction: %w", err)
 			}
 		case balance_prover_service.ValidReceivedDeposit:
 			err = s.validReceivedDeposit(&transition)
 			if err != nil {
 				if errors.Is(err, block_validity_prover.ErrNoValidityProofByBlockNumber) ||
-					errors.Is(err, ErrApplyReceivedDepositTransitionFail) {
+					errors.Is(err, ErrApplyReceivedDepositTransitionFail) || errors.Is(err, ErrNullifierAlreadyExists) {
 					const msg = "failed to receive deposit: %+v"
 					s.log.Warnf(msg, err.Error())
 					continue
-				} else if errors.Is(err, block_validity_prover.ErrBlockUnSynchronization) {
-					return err
 				}
+				// else if errors.Is(err, block_validity_prover.ErrBlockUnSynchronization) {
+				// 	// continue
+				// 	return err
+				// }
 
 				const msg = "failed to sync balance prover: %+v"
 				s.log.Fatalf(msg, err.Error())
@@ -151,13 +219,15 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 			err = s.validReceivedTransfer(&transition)
 			if err != nil {
 				if errors.Is(err, block_validity_prover.ErrNoValidityProofByBlockNumber) ||
-					errors.Is(err, ErrApplyReceivedTransferTransitionFail) {
-					const msg = "failed to receive deposit: %+v"
+					errors.Is(err, ErrApplyReceivedTransferTransitionFail) || errors.Is(err, ErrNullifierAlreadyExists) {
+					const msg = "failed to receive transfer: %+v"
 					s.log.Warnf(msg, err.Error())
 					continue
-				} else if errors.Is(err, block_validity_prover.ErrBlockUnSynchronization) {
-					return err
 				}
+				// else if errors.Is(err, block_validity_prover.ErrBlockUnSynchronization) {
+				// 	// continue
+				// 	return err
+				// }
 
 				const msg = "failed to sync balance prover: %+v"
 				s.log.Fatalf(msg, err.Error())
@@ -172,11 +242,12 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 
 func (s *balanceSynchronizer) validSentTx(transition *balance_prover_service.ValidSentTx) error {
 	fmt.Printf("valid sent transaction: %v\n", transition.TxHash)
+	transitionBlockNumber := transition.BlockNumber()
+	fmt.Printf("transitionBlockNumber: %d\n", transitionBlockNumber)
 	err := applySentTransactionTransition(
 		s.log,
 		transition.Tx,
 		s.blockValidityService,
-		s.blockSynchronizer,
 		s.balanceProcessor,
 		s.syncBalanceProver,
 		s.userState,
@@ -194,7 +265,22 @@ func (s *balanceSynchronizer) validReceivedDeposit(
 ) (err error) {
 	fmt.Printf("valid received deposit: %v\n", transition.DepositHash)
 	transitionBlockNumber := transition.BlockNumber()
-	fmt.Printf("transitionBlockNumber: %d", transitionBlockNumber)
+	fmt.Printf("transitionBlockNumber: %d\n", transitionBlockNumber)
+
+	// nullifier already exists
+	nullifierBytes := intMaxTypes.Bytes32{}
+	nullifierBytes.FromBytes(transition.DepositHash[:])
+	isIncluded, err := s.userState.IsIncludedInNullifierTree(nullifierBytes)
+	if err != nil {
+		const msg = "failed to check nullifier: %+v"
+		return fmt.Errorf(msg, err.Error())
+	}
+	if isIncluded {
+		fmt.Printf("WARNING: (validReceiveDeposit) nullifier %s already exists\n", transition.DepositHash.String())
+		var ErrNullifierAlreadyExists = errors.New("nullifier already exists")
+		return errors.Join(ErrNullifierAlreadyExists, err)
+	}
+
 	err = s.syncBalanceProver.SyncNoSend(
 		s.log,
 		s.blockValidityService,
@@ -227,6 +313,21 @@ func (s *balanceSynchronizer) validReceivedTransfer(
 	fmt.Printf("valid received transfer: %v\n", transition.TransferHash)
 	transitionBlockNumber := transition.BlockNumber()
 	fmt.Printf("transitionBlockNumber: %d\n", transitionBlockNumber)
+
+	// nullifier already exists
+	nullifierBytes := intMaxTypes.Bytes32{}
+	nullifierBytes.FromBytes(transition.TransferHash.Marshal())
+	isIncluded, err := s.userState.IsIncludedInNullifierTree(nullifierBytes)
+	if err != nil {
+		const msg = "failed to check nullifier: %+v"
+		return fmt.Errorf(msg, err.Error())
+	}
+	if isIncluded {
+		fmt.Printf("WARNING: nullifier %x already exists\n", transition.TransferHash.Marshal())
+		var ErrNullifierAlreadyExists = errors.New("nullifier already exists")
+		return errors.Join(ErrNullifierAlreadyExists, err)
+	}
+
 	err = s.syncBalanceProver.SyncNoSend(
 		s.log,
 		s.blockValidityService,
@@ -268,12 +369,11 @@ func applyReceivedDepositTransition(
 	fmt.Printf("applyReceivedDepositTransition deposit ID: %d\n", deposit.DepositID)
 	depositInfo, err := blockValidityService.GetDepositInfoByHash(deposit.DepositHash)
 	if err != nil {
-		const msg = "failed to get Deposit Leaf and Index by Hash: %+v"
-		return fmt.Errorf(msg, err.Error())
+		return fmt.Errorf("failed to get deposit leaf and index by hash: %w", err)
 	}
 	if depositInfo.DepositIndex == nil {
-		const msg = "failed to get Deposit Index by Hash: %+v"
-		return fmt.Errorf(msg, "depositIndex is nil")
+		var ErrDepositIndexIsNil = errors.New("deposit index is nil")
+		return fmt.Errorf("failed to get deposit Index by hash: %w", ErrDepositIndexIsNil)
 	}
 
 	depositIndex := *depositInfo.DepositIndex
@@ -294,6 +394,8 @@ func applyReceivedDepositTransition(
 		DepositID:    deposit.DepositID,
 		DepositSalt:  *deposit.Salt,
 	}
+	fmt.Printf("(applyReceivedDepositTransition.AddDepositCase) depositIndex: %+v\n", depositIndex)
+	fmt.Printf("(applyReceivedDepositTransition.AddDepositCase) depositCase: %+v\n", depositCase)
 	err = userState.AddDepositCase(depositIndex, &depositCase)
 	if err != nil {
 		const msg = "failed to add deposit case: %+v"
@@ -312,6 +414,11 @@ func applyReceivedDepositTransition(
 		if err.Error() == messageBalanceProcessorNotInitialized {
 			return errors.New(messageBalanceProcessorNotInitialized)
 		}
+		if err.Error() == ErrNullifierAlreadyExists.Error() {
+			_ = userState.DeleteDepositCase(depositIndex)
+			fmt.Printf("WARNING: (applyReceivedReceiveDepositTransition) nullifier %s already exists\n", depositCase.Deposit.Nullifier().String())
+			return nil
+		}
 
 		return fmt.Errorf("failed to receive deposit: %+v", err.Error())
 	}
@@ -328,22 +435,20 @@ func applyReceivedTransferTransition(
 ) error {
 	fmt.Printf("transfer hash: %d\n", transfer.TransferDetails.TransferWitness.Transfer.Hash())
 
-	senderLastBalanceProofBody, err := base64.StdEncoding.DecodeString(transfer.SenderLastBalanceProofBody)
+	senderEnoughBalanceProofResponse, err := block_synchronizer.GetBackupSenderBalanceProofs(
+		syncBalanceProver.ctx,
+		syncBalanceProver.cfg,
+		syncBalanceProver.log,
+		[]string{transfer.TransferDetails.SenderEnoughBalanceProofBodyHash},
+	)
 	if err != nil {
-		var ErrDecodeSenderBalanceProofBody = errors.New("failed to decode sender balance proof body")
-		return errors.Join(ErrDecodeSenderBalanceProofBody, err)
+		var ErrGetSenderEnoughBalanceProofBodyFail = errors.New("failed to get sender enough balance proof body")
+		return errors.Join(ErrGetSenderEnoughBalanceProofBodyFail, err)
 	}
 
-	reader := bufio.NewReader(bytes.NewReader(transfer.TransferDetails.SenderLastBalancePublicInputs))
-	senderLastBalancePublicInputs, err := intMaxTypes.DecodePublicInputs(reader, uint32(len(transfer.TransferDetails.SenderLastBalancePublicInputs))/int8Key)
+	senderLastBalanceProof, err := recoverSenderLastBalanceProof(senderEnoughBalanceProofResponse.Proofs, transfer.TransferDetails)
 	if err != nil {
-		var ErrDecodeSenderBalancePublicInputs = errors.New("failed to decode sender balance public inputs")
-		return errors.Join(ErrDecodeSenderBalancePublicInputs, err)
-	}
-
-	senderLastBalanceProof := intMaxTypes.Plonky2Proof{
-		Proof:        senderLastBalanceProofBody,
-		PublicInputs: senderLastBalancePublicInputs,
+		return fmt.Errorf("failed to recover sender last balance proof: %w", err)
 	}
 
 	encodedSenderLastBalanceProof, err := senderLastBalanceProof.Base64String()
@@ -352,9 +457,9 @@ func applyReceivedTransferTransition(
 		return errors.Join(ErrEncodeSenderBalanceProof, err)
 	}
 
-	senderBalanceTransitionProof := intMaxTypes.Plonky2Proof{
-		Proof:        senderLastBalanceProofBody,
-		PublicInputs: senderLastBalancePublicInputs,
+	senderBalanceTransitionProof, err := recoverSenderBalanceTransitionProof(senderEnoughBalanceProofResponse.Proofs, transfer.TransferDetails)
+	if err != nil {
+		return fmt.Errorf("failed to recover sender balance transition proof: %w", err)
 	}
 
 	encodedSenderBalanceTransitionProof, err := senderBalanceTransitionProof.Base64String()
@@ -383,54 +488,148 @@ func applyReceivedTransferTransition(
 	return nil
 }
 
+func recoverSenderLastBalanceProof(proofs []block_synchronizer.BackupBalanceProofData, transferDetails *intMaxTypes.TransferDetails) (*intMaxTypes.Plonky2Proof, error) {
+	if len(proofs) == 0 {
+		var ErrSenderEnoughBalanceProofBodyNotFound = errors.New("sender enough balance proof body not found")
+		return nil, ErrSenderEnoughBalanceProofBodyNotFound
+	}
+
+	senderEnoughBalanceProofBody := proofs[0]
+
+	senderLastBalanceProofBody, err := base64.StdEncoding.DecodeString(senderEnoughBalanceProofBody.LastBalanceProofBody)
+	if err != nil {
+		var ErrDecodeSenderBalanceProofBody = errors.New("failed to decode sender balance proof body")
+		return nil, errors.Join(ErrDecodeSenderBalanceProofBody, err)
+	}
+
+	reader := bufio.NewReader(bytes.NewReader(transferDetails.SenderLastBalancePublicInputs))
+	senderLastBalancePublicInputs, err := intMaxTypes.DecodePublicInputs(reader, uint32(len(transferDetails.SenderLastBalancePublicInputs))/int8Key)
+	if err != nil {
+		var ErrDecodeSenderBalancePublicInputs = errors.New("failed to decode sender balance public inputs")
+		return nil, errors.Join(ErrDecodeSenderBalancePublicInputs, err)
+	}
+
+	senderLastBalanceProof := intMaxTypes.Plonky2Proof{
+		Proof:        senderLastBalanceProofBody,
+		PublicInputs: senderLastBalancePublicInputs,
+	}
+
+	return &senderLastBalanceProof, nil
+}
+
+func recoverSenderBalanceTransitionProof(proofs []block_synchronizer.BackupBalanceProofData, transferDetails *intMaxTypes.TransferDetails) (*intMaxTypes.Plonky2Proof, error) {
+	if len(proofs) == 0 {
+		var ErrSenderEnoughBalanceProofBodyNotFound = errors.New("sender enough balance proof body not found")
+		return nil, ErrSenderEnoughBalanceProofBodyNotFound
+	}
+
+	senderBalanceTransitionProofBody, err := base64.StdEncoding.DecodeString(proofs[0].BalanceTransitionProofBody)
+	if err != nil {
+		var ErrDecodeSenderBalanceProofBody = errors.New("failed to decode sender balance proof body")
+		return nil, errors.Join(ErrDecodeSenderBalanceProofBody, err)
+	}
+
+	reader := bufio.NewReader(bytes.NewReader(transferDetails.SenderBalanceTransitionPublicInputs))
+	senderBalanceTransitionPublicInputs, err := intMaxTypes.DecodePublicInputs(reader, uint32(len(transferDetails.SenderBalanceTransitionPublicInputs))/int8Key)
+	if err != nil {
+		var ErrDecodeSenderBalancePublicInputs = errors.New("failed to decode sender balance public inputs")
+		return nil, errors.Join(ErrDecodeSenderBalancePublicInputs, err)
+	}
+
+	senderBalanceTransitionProof := intMaxTypes.Plonky2Proof{
+		Proof:        senderBalanceTransitionProofBody,
+		PublicInputs: senderBalanceTransitionPublicInputs,
+	}
+
+	return &senderBalanceTransitionProof, nil
+}
+
 func applySentTransactionTransition(
 	log logger.Logger,
 	tx *intMaxTypes.TxDetails,
 	blockValidityService block_validity_prover.BlockValidityService,
-	blockSynchronizer block_validity_prover.BlockSynchronizer,
 	balanceProcessor balance_prover_service.BalanceProcessor,
 	syncBalanceProver *SyncBalanceProver,
 	userState UserState,
 ) error {
-	// syncValidityProver.Sync() // sync validity proofs
-	fmt.Printf("transaction hash: %d\n", tx.Hash())
+	log.Infof("applySentTransactionTransition: tx %+v", tx.Tx)
+	log.Infof("user state: %+v", userState)
 
-	// txMerkleProof := tx.TxMerkleProof
-	// transfers := tx.Transfers
-
-	// balanceProverService.SyncBalanceProver
 	txWitness, transferWitnesses, err := MakeTxWitness(blockValidityService, tx)
 	if err != nil {
-		const msg = "failed to send transaction: %+v"
-		return fmt.Errorf(msg, err.Error())
+		return fmt.Errorf("failed to make tx witness: %w", err)
 	}
+
+	// for sanity check
+	if tx.Tx != txWitness.Tx {
+		return errors.New("tx and txWitness.tx are not equal")
+	}
+
 	newSalt, err := new(balance_prover_service.Salt).SetRandom()
 	if err != nil {
-		const msg = "failed to set random: %+v"
-		return fmt.Errorf(msg, err.Error())
+		return fmt.Errorf("failed to set random salt: %w", err)
 	}
 
-	_, err = userState.UpdateOnSendTx(*newSalt, txWitness, transferWitnesses)
+	// Update user state, including salt, nonce, nullifier, and balance
+	sendWitness, err := userState.UpdateOnSendTx(*newSalt, txWitness, transferWitnesses)
 	if err != nil {
-		const msg = "failed to update on SendTx: %+v"
-		return fmt.Errorf(msg, err.Error())
+		return fmt.Errorf("failed to update on send tx: %w", err)
 	}
 
-	err = syncBalanceProver.SyncSend(
-		log,
-		blockValidityService,
-		blockSynchronizer,
-		userState,
-		balanceProcessor,
+	// For debugging, print transfers in sendWitness
+	for _, transfer := range sendWitness.SpentTokenWitness.Transfers {
+		if transfer.Amount.Cmp(big.NewInt(0)) != 0 {
+			log.Debugf("(sendWitness) transfer: %+v\n", transfer)
+		}
+	}
+
+	newBalancePisBlockNumber := sendWitness.GetIncludedBlockNumber()
+	prevBalancePisBlockNumber := sendWitness.GetPrevBalancePisBlockNumber()
+	log.Debugf("(sendWitness): Transition from block %d to block %d", prevBalancePisBlockNumber, newBalancePisBlockNumber)
+	updateWitness, err := blockValidityService.FetchUpdateWitness(
+		userState.PublicKey(),
+		newBalancePisBlockNumber,
+		prevBalancePisBlockNumber,
+		true,
 	)
 	if err != nil {
-		fmt.Printf("prove sent transaction %v\n", err.Error())
-		if err.Error() == messageBalanceProcessorNotInitialized {
-			return errors.New(messageBalanceProcessorNotInitialized)
-		}
-
-		return fmt.Errorf("failed to sync transaction:: %+v", err.Error())
+		return fmt.Errorf("failed to fetch update witness: %w", err)
 	}
 
+	_validityProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(updateWitness.ValidityProof)
+	if err != nil {
+		return fmt.Errorf("failed to create validity proof with pis: %w", err)
+	}
+	updateWitnessValidityPis := new(block_validity_prover.ValidityPublicInputs).FromPublicInputs(_validityProofWithPis.PublicInputs)
+
+	sendWitnessValidityPis := sendWitness.TxWitness.ValidityPis
+	if !updateWitnessValidityPis.Equal(&sendWitnessValidityPis) {
+		log.Errorf("update witness %+v is not equal to send witness %+v", updateWitnessValidityPis, sendWitnessValidityPis)
+		return errors.New("update witness validity proof is not equal to send witness validity proof")
+	}
+
+	if updateWitnessValidityPis.IsValidBlock {
+		log.Debugf("Block %d is valid", updateWitnessValidityPis.PublicState.BlockNumber)
+	} else {
+		log.Debugf("Block %d is invalid", updateWitnessValidityPis.PublicState.BlockNumber)
+	}
+	lastBalanceProof := syncBalanceProver.LastBalanceProof()
+
+	balanceProof, err := balanceProcessor.ProveSend(
+		userState.PublicKey(),
+		sendWitness,
+		updateWitness,
+		lastBalanceProof,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to prove send: %w", err)
+	}
+
+	// userState.UpdatePublicState(balanceProof.PublicInputs.PublicState)
+
+	err = syncBalanceProver.UploadLastBalanceProof(newBalancePisBlockNumber, balanceProof.Proof, userState)
+	if err != nil {
+		return fmt.Errorf("failed to upload last balance proof in SyncSend: %w", err)
+	}
 	return nil
 }

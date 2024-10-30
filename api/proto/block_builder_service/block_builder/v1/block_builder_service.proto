@@ -22,9 +22,13 @@ service BlockBuilderService {
       get: "/v1"
     };
   }
-  // Transaction returns the info about create new transaction
+  // Transaction sends the transaction to the block builder.
   //
-  // ## Transaction returns the info about create new transaction
+  // This endpoint adds the transaction requested by the user to the tx tree.
+  // - If successful, return a message to the user stating 'Transaction accepted and verified.'
+  // - If the request is malformed, return BadRequest.
+  // - If the transaction has already been accepted by the Block Builder, return BadRequest: 'Transaction must be unique.'
+  // - If the correct PoW nonce value is not given, return a BadRequest.
   rpc Transaction(TransactionRequest) returns (TransactionResponse) {
     option (google.api.http) = {
       post: "/v1/transaction"
@@ -33,7 +37,10 @@ service BlockBuilderService {
   }
   // BlockProposed returns the info about requests and retrieves the Merkle proof of a block containing the user's transaction, if available
   //
-  // ## BlockProposed returns the info about requests and retrieves the Merkle proof of a block containing the user's transaction, if available
+  // This endpoint returns the Merkle proof of a block containing the user's transaction, if available.
+  // - If txHash is included in the leaf of the tx tree created by Block Builder, return the root of the tx tree and Merkle proof up to the leaf where the txHash resides.
+  // - If the request is malformed, return BadRequest.
+  // - If txHash is not included in the leaf of the tx tree, return NotFound.
   rpc BlockProposed(BlockProposedRequest) returns (BlockProposedResponse) {
     option (google.api.http) = {
       post: "/v1/block/proposed"
@@ -55,36 +62,30 @@ service BlockBuilderService {
   }
   // BlockSignature returns the info about sends the signature to approve the proposed block by signing the tx tree root
   //
-  // ## BlockSignature returns the info about sends the signature to approve the proposed block by signing the tx tree root
+  // This endpoint stores the signature passed by the user along with the transaction hash.
+  // User sends the signature to approve the proposed block by signing the root hash of tx tree. 
+  // - If the input txHash is not included in the leaf of the block builder's tx tree, return NotFound.
   rpc BlockSignature(BlockSignatureRequest) returns (BlockSignatureResponse) {
     option (google.api.http) = {
       post: "/v1/block/signature"
       body: "*"
     };
   }
+  // BlockStatusByTxTreeRoot returns the info about retrieves the status of a block by its tx tree root
+  //
+  // When the user passes txTreeRoot, it checks whether the corresponding block has been posted.
+  // If it has been posted, return the block number and block hash.
   rpc BlockStatusByTxTreeRoot(BlockStatusByTxTreeRootRequest) returns (BlockStatusByTxTreeRootResponse) {
     option (google.api.http) = {
       get: "/v1/block/status/{tx_tree_root}"
     };
   }
-  // Info returns the info about retrieves the block builder's Scroll address, transaction fee, and difficulty
+  // Info returns the info about the block builder's Scroll address, transaction fee, and difficulty
   //
-  // ## Info returns the info about retrieves the block builder's Scroll address, transaction fee, and difficulty
+  // This endpoint returns the info about the block builder's Scroll address, transaction fee, and difficulty
   rpc Info(InfoRequest) returns (InfoResponse) {
     option (google.api.http) = {
       get: "/v1/info"
-    };
-  }
-
-  // rpc BlockNumberByTxHash(BlockNumberByTxHashRequest) returns (BlockNumberByTxHashResponse) {
-  //   option (google.api.http) = {
-  //     get: "/v1/block/status/{tx_hash}"
-  //   };
-  // }
-
-  rpc DepositStatusByHash(DepositStatusByHashRequest) returns (DepositStatusByHashResponse) {
-    option (google.api.http) = {
-      get: "/v1/deposit/stauts/{deposit_hash}"
     };
   }
 }
@@ -106,8 +107,7 @@ message RecipientTransferDataTransactionRequest {
   string      address = 20 [json_name="address", (tagger.tags)="json:\"address,omitempty\""];
 }
 
-// DEPRECATED
-// TransferDataTransactionRequest describes the data of transaction
+// DEPRECATED: TransferDataTransactionRequest describes the data of transaction
 message TransferDataTransactionRequest {
   // the recipient info
   RecipientTransferDataTransactionRequest recipient = 10 [json_name="recipient", (tagger.tags) = "json:\"recipient,omitempty\""];
@@ -119,22 +119,25 @@ message TransferDataTransactionRequest {
   string salt = 40 [json_name="salt", (tagger.tags) = "json:\"salt,omitempty\""];
 }
 
-// TransactionRequest describes request to get info about the create new transaction
+// TransactionRequest
+//
+// TransactionRequest describes request to get info about the create new transaction.
 message TransactionRequest {
   // the sender's INTMAX address
   string sender = 10 [json_name="sender", (tagger.tags)="json:\"sender,omitempty\""];
-  // the Poseidon hash of transfer tree root and token index
+  // the Poseidon hash of transfer tree root
   string transfers_hash = 20 [json_name="transfersHash", (tagger.tags)="json:\"transfersHash,omitempty\""];
   // the number of transactions executed with this public key
   uint64 nonce = 30 [json_name="nonce", (tagger.tags)="json:\"nonce,omitempty\""];
   // the PoW nonce
   string pow_nonce = 40 [json_name="powNonce", (tagger.tags)="json:\"powNonce,omitempty\""];
-  // DEPRECATED
-  // the transfer data of the transaction
+  // TransferDataTransactionRequest
+  //
+  // DEPRECATED: the transfer data of the transaction
   repeated TransferDataTransactionRequest transfer_data = 50 [json_name="transferData", (tagger.tags)="json:\"transferData,omitempty\""];
-  // the expiration of request
+  // DEPRECATED: the expiration of request
   google.protobuf.Timestamp expiration = 70 [json_name="expiration", (tagger.tags)="json:\"expiration,omitempty\""];
-  // the signature of request (the hash calculated from transfersHash, nonce, powNonce, sender, and expiration)
+  // the signature of request (the hash calculated from transfersHash, nonce, powNonce, and sender)
   string signature = 80 [json_name="signature", (tagger.tags)="json:\"signature,omitempty\""];
 }
 
@@ -164,7 +167,7 @@ message DataTransactionResponse {
   string message = 10 [json_name="message", (tagger.tags)="json:\"message,omitempty\""];
 }
 
-// TransactionRequest describes response to get info about the create new transaction
+// TransactionResponse describes response to get info about the create new transaction
 message TransactionResponse {
   // the success flag
   bool success = 1 [json_name="success", (tagger.tags)="json:\"success,omitempty\""];
@@ -178,9 +181,9 @@ message BlockProposedRequest {
   string sender = 10 [json_name="sender", (tagger.tags)="json:\"sender,omitempty\""];
   // the hash of the user's transaction
   string tx_hash = 20 [json_name="txHash", (tagger.tags)="json:\"txHash,omitempty\""];
-  // the expiration of request
+  // DEPRECATED: the expiration of request
   google.protobuf.Timestamp expiration = 70 [json_name="expiration", (tagger.tags)="json:\"expiration,omitempty\""];
-  // the signature of request (the hash calculated from txHash, sender, and expiration)
+  // the signature of request (the hash calculated from txHash, sender)
   string signature = 80 [json_name="signature", (tagger.tags)="json:\"signature,omitempty\""];
 }
 
@@ -202,20 +205,12 @@ message BlockProposedResponse {
   DataBlockProposedResponse data = 10 [json_name="data", (tagger.tags)="json:\"data,omitempty\""];
 }
 
-// Plonky2ProofOfEnoughBalanceProofOfBlockSignatureRequest describes the Plonky2Proof values for BlockSignatureRequest
-message Plonky2ProofBlockSignatureRequest {
-  // the publicInputs value
-  repeated uint64 public_inputs = 10 [json_name="publicInputs", (tagger.tags)="json:\"publicInputs,omitempty\""];
-  // the proof value
-  bytes proof = 20 [json_name="proof", (tagger.tags)="json:\"proof,omitempty\""];
-}
-
 // EnoughBalanceOfProofBlockSignatureRequest describes the proof of sufficient balance after sending for BlockSignatureRequest
 message EnoughBalanceOfProofBlockSignatureRequest {
   // the previous balance proof value
-  Plonky2ProofBlockSignatureRequest prev_balance_proof = 10 [json_name="prevBalanceProof", (tagger.tags)="json:\"prevBalanceProof,omitempty\""];
+  string prev_balance_proof = 10 [json_name="prevBalanceProof", (tagger.tags)="json:\"prevBalanceProof,omitempty\""];
   // the transfer step proof value
-  Plonky2ProofBlockSignatureRequest transfer_step_proof = 20 [json_name="transferStepProof", (tagger.tags)="json:\"transferStepProof,omitempty\""];
+  string transfer_step_proof = 20 [json_name="transferStepProof", (tagger.tags)="json:\"transferStepProof,omitempty\""];
 }
 
 // BlockSignatureRequest describes request about sends the signature to approve the proposed block by signing the tx tree root
@@ -248,39 +243,27 @@ message BlockSignatureResponse {
   DataBlockSignatureResponse data = 10 [json_name="data", (tagger.tags)="json:\"data,omitempty\""];
 }
 
-
-// BlockStatusRequest describes request about retrieves the status of a block by its tx tree root
+// BlockStatusByTxTreeRootRequest
+//
+// BlockStatusByTxTreeRootRequest describes request about retrieves the status of a block by its tx tree root
 message BlockStatusByTxTreeRootRequest {
   // the transaction tree root hash
   string tx_tree_root = 10 [json_name="txTreeRoot", (tagger.tags)="json:\"txTreeRoot,omitempty\""];
 }
 
-// BlockStatusResponse describes response about retrieves the status of a block by its tx tree root
+// BlockStatusByTxTreeRootResponse
+//
+// BlockStatusByTxTreeRootResponse describes response about retrieves the status of a block by its tx tree root
 message BlockStatusByTxTreeRootResponse {
-  // the status of the block
+  // the flag indicated whether the block is posted
   bool is_posted = 10 [json_name="isPosted", (tagger.tags)="json:\"isPosted,omitempty\""];
 
   // the block number
   uint64 block_number = 20 [json_name="blockNumber", (tagger.tags)="json:\"blockNumber,omitempty\""];
 }
 
-message DepositStatusByHashRequest {
-  string deposit_hash = 10 [json_name="depositHash", (tagger.tags)="json:\"depositHash\""];
-}
-
-message DepositStatusByHashResponse {
-  bool success = 10 [json_name="blockNumber", (tagger.tags)="json:\"blockNumber,omitempty\""];
-  DataDepositStatusByHashResponse data = 20 [json_name="data", (tagger.tags)="data:\"blockNumber,omitempty\""];
-}
-
-message DataDepositStatusByHashResponse {
-  uint32 block_number = 10 [json_name="blockNumber", (tagger.tags)="json:\"blockNumber,omitempty\""];
-}
-
 // InfoRequest describes request about retrieves the block builder's Scroll address, transaction fee, and difficulty
 message InfoRequest {}
-
-
 
 // DataInfoResponse describes the data of response about retrieves the block builder's Scroll address, transaction fee, and difficulty
 message DataInfoResponse {

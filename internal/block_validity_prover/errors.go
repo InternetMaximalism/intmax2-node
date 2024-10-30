@@ -23,9 +23,6 @@ var ErrUnpackCalldataFail = errors.New("failed to unpack calldata")
 // ErrSetTxRootFail error: failed to set tx tree root.
 var ErrSetTxRootFail = errors.New("failed to set tx tree root")
 
-// ErrRegisterPublicKeyFail error: failed to register public key.
-var ErrRegisterPublicKeyFail = errors.New("failed to register public key")
-
 var ErrNewEthereumClientFail = errors.New("failed to create new Ethereum client")
 
 var ErrScrollNetwrokChainLink = errors.New("failed to get Scroll network chain link")
@@ -135,6 +132,9 @@ var ErrGenesisValidityProof = errors.New("genesis validity proof error")
 // ErrNoValidityProofByBlockNumber error: no validity proof by block number.
 var ErrNoValidityProofByBlockNumber = errors.New("no validity proof by block number")
 
+// ErrAccountAlreadyExists error: account already exists.
+var ErrAccountAlreadyExists = errors.New("account already exists")
+
 // ErrAccountTreeGetAccountID error: account id not found in the account tree.
 var ErrAccountTreeGetAccountID = errors.New("account id not found in the account tree")
 
@@ -149,3 +149,15 @@ var ErrAccountMembershipProof = errors.New("account membership proof error")
 
 // ErrBlockTreeProve error: block tree prove error.
 var ErrBlockTreeProve = errors.New("block tree prove error")
+
+// ErrRootBlockNumberNotFound error: root block number not found.
+var ErrRootBlockNumberNotFound = errors.New("root block number not found")
+
+// ErrLeafBlockNumberNotFound error: leaf block number not found.
+var ErrLeafBlockNumberNotFound = errors.New("leaf block number not found")
+
+// ErrBlockContentByBlockNumber error: block content by block number error
+var ErrBlockContentByBlockNumber = errors.New("failed to fetch block content by block number")
+
+// ErrDepositIndexNotFound error: no last deposit index found.
+var ErrDepositIndexNotFound = errors.New("no last deposit index found")

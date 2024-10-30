@@ -27,12 +27,10 @@ func (s *StoreVaultServer) BackupTransfer(ctx context.Context, req *node.BackupT
 	defer span.End()
 
 	input := backupTransfer.UCPostBackupTransferInput{
-		TransferHash:               req.TransferHash,
-		EncryptedTransfer:          req.EncryptedTransfer,
-		SenderLastBalanceProofBody: req.SenderLastBalanceProofBody,
-		SenderTransitionProofBody:  req.SenderBalanceTransitionProofBody,
-		Recipient:                  req.Recipient,
-		BlockNumber:                uint32(req.BlockNumber),
+		TransferHash:      req.TransferHash,
+		EncryptedTransfer: req.EncryptedTransfer,
+		Recipient:         req.Recipient,
+		BlockNumber:       uint32(req.BlockNumber),
 	}
 
 	err := input.Valid()
