@@ -690,6 +690,7 @@ func (w *worker) leafsProcessing(f *os.File) (err error) {
 					Sender: info.TxsList[key].Sender,
 				}
 
+				// isAcc = true if accID > 0
 				var isAcc bool
 				if accID.ToBig().Cmp(new(big.Int)) == 1 {
 					isAcc = true

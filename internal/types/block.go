@@ -490,21 +490,22 @@ type PostNonRegistrationBlockInput struct {
 //		input.MessagePoint,
 //		input.SenderPublicKeys)
 func MakePostRegistrationBlockInput(blockContent *BlockContent) (*PostRegistrationBlockInput, error) {
-	if len(blockContent.Senders) != NumOfSenders {
-		return nil, errors.New("invalid number of senders")
-	}
-
 	txTreeRoot := [numHashBytes]byte{}
 	copy(txTreeRoot[:], blockContent.TxTreeRoot[:])
 
 	senderFlags := [numFlagBytes]byte{}
-	senderPublicKeys := make([]*big.Int, len(blockContent.Senders))
+	senderPublicKeys := make([]*big.Int, NumOfSenders)
 	for i, sender := range blockContent.Senders {
 		if sender.IsSigned {
 			senderFlags[i/int8Key] |= 1 << (i % int8Key)
 		}
 
 		senderPublicKeys[i] = new(big.Int).Set(sender.PublicKey.BigInt())
+	}
+
+	dummyAddress := accounts.NewDummyPublicKey().ToAddress()
+	for i := len(blockContent.Senders); i < NumOfSenders; i++ {
+		senderPublicKeys[i] = new(big.Int).SetBytes(dummyAddress[:])
 	}
 
 	// Follow the ordering of the coordinates in the smart contract.
@@ -543,13 +544,15 @@ func MakePostNonRegistrationBlockInput(blockContent *BlockContent) (*PostNonRegi
 		return nil, err
 	}
 
-	if len(blockContent.Senders) != NumOfSenders {
-		return nil, errors.New("invalid number of senders")
-	}
-
-	senderPublicKeys := make([][]byte, len(blockContent.Senders))
+	senderPublicKeys := make([][]byte, NumOfSenders)
 	for i, sender := range blockContent.Senders {
 		address := sender.PublicKey.ToAddress()
+		copy(senderPublicKeys[i], address[:])
+	}
+
+	dummyAddress := accounts.NewDummyPublicKey().ToAddress()
+	for i := len(blockContent.Senders); i < NumOfSenders; i++ {
+		address := dummyAddress
 		copy(senderPublicKeys[i], address[:])
 	}
 

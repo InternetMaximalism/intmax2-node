@@ -6,7 +6,6 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	intMaxTypes "intmax2-node/internal/types"
-	"time"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -61,18 +60,18 @@ func (input *UCTransactionInput) Valid(cfg *configs.Config, pow PoWNonce) error 
 		// 	}()),
 		// ), input.checkHashWithData(&input.TransfersHash)),
 		validation.Field(&input.Nonce, input.nonceMaxLength(cfg)), // Since the nonce allows 0, validation.Required is not applied
-		validation.Field(&input.Expiration, validation.Required, validation.By(func(value interface{}) error {
-			v, ok := value.(time.Time)
-			if !ok {
-				return ErrValueInvalid
-			}
+		// validation.Field(&input.Expiration, validation.Required, validation.By(func(value interface{}) error {
+		// 	v, ok := value.(time.Time)
+		// 	if !ok {
+		// 		return ErrValueInvalid
+		// 	}
 
-			if time.Now().UTC().UnixNano() > v.UnixNano() {
-				return ErrValueInvalid
-			}
+		// 	if time.Now().UTC().UnixNano() > v.UnixNano() {
+		// 		return ErrValueInvalid
+		// 	}
 
-			return nil
-		})),
+		// 	return nil
+		// })),
 		validation.Field(&input.Signature, validation.Required, validation.By(func(value interface{}) error {
 			v, ok := value.(string)
 			if !ok {

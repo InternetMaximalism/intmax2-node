@@ -307,11 +307,18 @@ func recoverNonRegistrationBlockContent(
 	}
 
 	senders := make([]intMaxTypes.Sender, numOfSenders)
-	for i, sender := range senderPublicKeys {
+	for i, senderAccountId := range senderAccountIds {
 		senders[i] = intMaxTypes.Sender{
-			PublicKey: sender,
-			AccountID: senderAccountIds[i],
+			PublicKey: senderPublicKeys[i],
+			AccountID: senderAccountId,
 			IsSigned:  senderFlags[i],
+		}
+	}
+	for i := len(senderAccountIds); i < numOfSenders; i++ {
+		senders[i] = intMaxTypes.Sender{
+			PublicKey: intMaxAcc.NewDummyPublicKey(),
+			AccountID: dummyAccountID,
+			IsSigned:  false,
 		}
 	}
 

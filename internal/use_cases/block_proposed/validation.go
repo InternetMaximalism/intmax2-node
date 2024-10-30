@@ -5,7 +5,6 @@ import (
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/worker"
 	"strings"
-	"time"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -33,18 +32,18 @@ func (input *UCBlockProposedInput) Valid(w Worker) (err error) {
 			return input.DecodeSender
 		}())),
 		validation.Field(&input.TxHash, validation.Required, input.isHexDecode()),
-		validation.Field(&input.Expiration, validation.Required, validation.By(func(value interface{}) error {
-			v, ok := value.(time.Time)
-			if !ok {
-				return ErrValueInvalid
-			}
+		// validation.Field(&input.Expiration, validation.Required, validation.By(func(value interface{}) error {
+		// 	v, ok := value.(time.Time)
+		// 	if !ok {
+		// 		return ErrValueInvalid
+		// 	}
 
-			if time.Now().UTC().UnixNano() > v.UnixNano() {
-				return ErrValueInvalid
-			}
+		// 	if time.Now().UTC().UnixNano() > v.UnixNano() {
+		// 		return ErrValueInvalid
+		// 	}
 
-			return nil
-		})),
+		// 	return nil
+		// })),
 		validation.Field(&input.Signature, validation.Required, validation.By(func(value interface{}) (err error) {
 			v, ok := value.(string)
 			if !ok {

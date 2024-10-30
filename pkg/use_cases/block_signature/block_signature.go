@@ -92,7 +92,8 @@ func (u *uc) Do(
 	}
 
 	// Backup transaction and transfer
-	blockNumber := uint64(1) // XXX: dummy
+	// XXX: This is the dummy value. The backup data does not include block numbers.
+	blockNumber := uint64(1)
 	sender, err := intMaxAcc.NewPublicKeyFromAddressHex(input.Sender)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)

@@ -228,7 +228,7 @@ func NewServerCmd(s *Server) *cobra.Command {
 					}
 				}()
 				if err = s.BlockPostService.Start(s.Context, tickerEventWatcher); err != nil {
-					const msg = "failed to start Block Validity Prover: %+v"
+					const msg = "failed to start Block Post service: %+v"
 					s.Log.Fatalf(msg, err.Error())
 				}
 			}()
