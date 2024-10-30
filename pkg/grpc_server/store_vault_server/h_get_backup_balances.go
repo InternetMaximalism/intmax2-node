@@ -13,8 +13,6 @@ import (
 )
 
 func (s *StoreVaultServer) GetBackupBalances(ctx context.Context, req *node.GetBackupBalancesRequest) (*node.GetBackupBalancesResponse, error) {
-	fmt.Printf("GetBackupBalances: %v", req)
-	panic("GetBackupBalances")
 	resp := node.GetBackupBalancesResponse{}
 
 	const (

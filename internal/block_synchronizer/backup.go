@@ -1,6 +1,7 @@
 package block_synchronizer
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/go-resty/resty/v2"
+	"github.com/golang/protobuf/jsonpb"
 	"github.com/tidwall/gjson"
 )
 
@@ -595,10 +597,14 @@ func getBackupBalanceRawRequest(
 		}, nil
 	}
 
-	response := new(GetBackupBalancesResponse)
-	if err = json.Unmarshal(resp.Body(), response); err != nil {
+	response := new(node.GetBackupBalancesResponse)
+	if err = jsonpb.Unmarshal(bytes.NewReader(resp.Body()), response); err != nil {
 		return nil, fmt.Errorf(ErrFailedToUnmarshalResponse, err)
 	}
+	// response := new(GetBackupBalancesResponse)
+	// if err = json.Unmarshal(resp.Body(), response); err != nil {
+	// 	return nil, fmt.Errorf(ErrFailedToUnmarshalResponse, err)
+	// }
 
 	if !response.Success {
 		if response.Error == nil {
@@ -608,19 +614,19 @@ func getBackupBalanceRawRequest(
 		return nil, fmt.Errorf("failed to get backup balance: %s", response.Error.Message)
 	}
 
-	if response.Data == nil {
-		return nil, ErrNoAssetsFound
-	}
+	// if response.Data == nil {
+	// 	return nil, ErrNoAssetsFound
+	// }
 
-	if len(response.Data.Balances) == 0 {
-		return nil, ErrNoAssetsFound
-	}
+	// if len(response.Data.Balances) == 0 {
+	// 	return nil, ErrNoAssetsFound
+	// }
 
 	result := new(GetBackupBalanceResponse)
 	result.Success = response.Success
 	balanceData := response.Data.Balances[0] // latest
 	result.Data = &BackupBalanceData{
-		ID:                   balanceData.ID,
+		ID:                   balanceData.Id,
 		BalanceProofBody:     balanceData.EncryptedBalanceProof,
 		EncryptedBalanceData: balanceData.EncryptedBalanceData,
 		EncryptedTxs:         balanceData.EncryptedTxs,

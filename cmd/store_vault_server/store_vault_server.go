@@ -90,7 +90,7 @@ func (s *StoreVaultServer) Init() error {
 		s.Config.GRPC.Addr(), // listen incoming host:port for gRPC server
 		func(s grpc.ServiceRegistrar) {
 			node.RegisterInfoServiceServer(s, srv)
-			// node.RegisterStoreVaultServiceServer(s, srv)
+			node.RegisterStoreVaultServiceServer(s, srv)
 		},
 	)
 
