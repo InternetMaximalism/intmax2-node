@@ -2,8 +2,10 @@ package block_validity_prover
 
 import (
 	"context"
+	"encoding/json"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_post_service"
+	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
@@ -16,6 +18,7 @@ import (
 
 type SQLDriverApp interface {
 	GenericCommandsApp
+	CtrlProcessingJobs
 	BlockContents
 	EventBlockNumbersForValidityProver
 	Deposits
@@ -28,10 +31,16 @@ type GenericCommandsApp interface {
 	Exec(ctx context.Context, input interface{}, executor func(d interface{}, input interface{}) error) (err error)
 }
 
+type CtrlProcessingJobs interface {
+	CreateCtrlProcessingJobs(name string, options json.RawMessage) error
+}
+
 type BlockContents interface {
 	CreateBlockContent(
 		postedBlock *block_post_service.PostedBlock,
 		blockContent *intMaxTypes.BlockContent,
+		l2BlockNumber *uint256.Int,
+		l2BlockHash common.Hash,
 	) (*mDBApp.BlockContentWithProof, error)
 	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
 	BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWithProof, error)
@@ -51,7 +60,7 @@ type Deposits interface {
 	CreateDeposit(depositLeaf intMaxTree.DepositLeaf, depositID uint32) (*mDBApp.Deposit, error)
 	UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error
 	// Deposit(ID string) (*mDBApp.Deposit, error)
-	// DepositByDepositID(depositID uint32) (*mDBApp.Deposit, error)
+	DepositByDepositID(depositID uint32) (*mDBApp.Deposit, error)
 	DepositByDepositHash(depositHash common.Hash) (*mDBApp.Deposit, error)
 	ScanDeposits() ([]*mDBApp.Deposit, error)
 	FetchNextDepositIndex() (uint32, error)
@@ -65,9 +74,9 @@ type Senders interface {
 
 type Accounts interface {
 	CreateAccount(senderID string) (*mDBApp.Account, error)
-	AccountBySenderID(senderID string) (*mDBApp.Account, error)
+	// AccountBySenderID(senderID string) (*mDBApp.Account, error)
 	AccountBySender(publicKey *intMaxAcc.PublicKey) (*mDBApp.Account, error)
-	AccountByAccountID(accountID *uint256.Int) (*mDBApp.Account, error)
+	// AccountByAccountID(accountID *uint256.Int) (*mDBApp.Account, error)
 }
 
 type BlockContainedSenders interface {
@@ -96,6 +105,8 @@ type BuilderBlockContents interface {
 	// CreateBlockContent(
 	// 	postedBlock *block_post_service.PostedBlock,
 	// 	blockContent *intMaxTypes.BlockContent,
+	// 	l2BlockNumber *uint256.Int,
+	// 	l2BlockHash common.Hash,
 	// ) (*mDBApp.BlockContentWithProof, error)
 	// BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
 	// BlockContentByTxRoot(txRoot string) (*mDBApp.BlockContent, error)
@@ -116,7 +127,14 @@ type BlockHistory interface {
 	NextAccountID(blockNumber uint32) (uint64, error)
 	// GetAccountMembershipProof(currentBlockNumber uint32, publicKey *big.Int) (*intMaxTree.IndexedMembershipProof, error)
 	AppendBlockTreeLeaf(block *block_post_service.PostedBlock) (uint32, error)
-	BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.PoseidonMerkleProof, error)
+	BlockTreeRoot(blockNumber uint32) (*intMaxGP.PoseidonHashOut, error)
+	BlockTreeProof(
+		rootBlockNumber, leafBlockNumber uint32,
+	) (
+		*intMaxTree.PoseidonMerkleProof,
+		*intMaxTree.PoseidonHashOut,
+		error,
+	)
 	// CurrentBlockTreeProof(leafBlockNumber uint32) (*intMaxTree.MerkleProof, error)
 	CopyAccountTree(dst *intMaxTree.AccountTree, blockNumber uint32) error
 	CopyBlockHashTree(dst *intMaxTree.BlockHashTree, blockNumber uint32) error

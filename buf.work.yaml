@@ -3,4 +3,5 @@ directories:
   - api/proto//block_builder_service
   - api/proto/store_vault_service
   - api/proto/withdrawal_service
+  - api/proto/block_validity_prover_service
   - third_party/proto_import

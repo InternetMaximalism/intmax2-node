@@ -10,7 +10,6 @@ require (
 	github.com/btcsuite/btcd/btcutil v1.1.5
 	github.com/caarlos0/env/v8 v8.0.0
 	github.com/consensys/gnark-crypto v0.12.1
-	github.com/cosmos/go-bip39 v1.0.0
 	github.com/dimiro1/health v0.0.0-00010101000000-000000000000
 	github.com/ethereum/go-ethereum v1.14.5
 	github.com/go-resty/resty/v2 v2.13.1
@@ -20,7 +19,6 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.0.1
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0
 	github.com/holiman/uint256 v1.2.4
-	github.com/huin/goupnp v1.3.0
 	github.com/iden3/go-iden3-crypto v0.0.16
 	github.com/iotaledger/iota.go v1.0.0
 	github.com/jackc/pgx/v5 v5.6.0
@@ -39,6 +37,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/tidwall/gjson v1.17.1
 	github.com/tidwall/sjson v1.2.5
+	github.com/tyler-smith/go-bip39 v1.1.0
 	github.com/yaronsumel/grpc-throttle v0.0.0-20190317162315-207a473e9394
 	go.etcd.io/bbolt v1.3.10
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.52.0
@@ -83,6 +82,7 @@ require (
 	github.com/go-redis/redis/v8 v8.11.5 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.1.0 // indirect
+	github.com/huin/goupnp v1.3.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect

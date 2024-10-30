@@ -34,6 +34,7 @@ func (s *StoreVaultServer) GetBackupBalances(ctx context.Context, req *node.GetB
 
 	err := input.Valid()
 	if err != nil {
+		fmt.Printf("Error: %v", err)
 		open_telemetry.MarkSpanError(spanCtx, err)
 		return &resp, utils.BadRequest(spanCtx, err)
 	}
@@ -43,6 +44,7 @@ func (s *StoreVaultServer) GetBackupBalances(ctx context.Context, req *node.GetB
 
 		results, err := s.commands.GetBackupBalances(s.config, s.log, q).Do(spanCtx, &input)
 		if err != nil {
+			fmt.Printf("Error: %v", err)
 			open_telemetry.MarkSpanError(spanCtx, err)
 			const msg = "failed to get backup balances: %w"
 			return fmt.Errorf(msg, err)
@@ -52,6 +54,7 @@ func (s *StoreVaultServer) GetBackupBalances(ctx context.Context, req *node.GetB
 		return nil
 	})
 	if err != nil {
+		fmt.Printf("Error: %v", err)
 		const msg = "failed to get backup balances with DB App: %+v"
 		return &resp, utils.Internal(spanCtx, s.log, msg, err)
 	}

@@ -100,6 +100,52 @@ func TransferTransaction(
 		return fmt.Errorf("amount is required")
 	}
 
+	const int10Key = 10
+	amount, ok := new(big.Int).SetString(amountStr, int10Key)
+	if !ok {
+		return fmt.Errorf("failed to convert amount to int: %v", amountStr)
+	}
+
+	if l2Balance.Cmp(amount) < 0 {
+		return fmt.Errorf("insufficient funds for total amount: balance %s, total amount %s", l2Balance, amount)
+	}
+
+	var (
+		amountGasFee  *uint256.Int
+		intMaxAddress string
+	)
+	amountGasFee, intMaxAddress, err = transferFee(ctx, cfg, log, tokenIndex)
+	if err != nil {
+		return fmt.Errorf("failed to get transfer fee: %v", err)
+	}
+	if amountGasFee == nil {
+		return nil
+	}
+
+	zeroTransfer := new(intMaxTypes.Transfer).SetZero()
+	var initialLeaves []*intMaxTypes.Transfer
+
+	// Send transfer transaction
+	var recipientGasFee *intMaxAcc.PublicKey
+	recipientGasFee, err = intMaxAcc.NewPublicKeyFromAddressHex(intMaxAddress)
+	if err != nil {
+		return fmt.Errorf("failed to parse recipient address of gas fee: %v", err)
+	}
+
+	var recipientAddressGasFee *intMaxTypes.GenericAddress
+	recipientAddressGasFee, err = intMaxTypes.NewINTMAXAddress(recipientGasFee.ToAddress().Bytes())
+	if err != nil {
+		return fmt.Errorf("failed to create recipient address of gas fee: %v", err)
+	}
+
+	transferGasFee := intMaxTypes.NewTransferWithRandomSalt(
+		recipientAddressGasFee,
+		tokenIndex,
+		amountGasFee.ToBig(),
+	)
+
+	initialLeaves = append(initialLeaves, transferGasFee)
+
 	// Send transfer transaction
 	var recipient *intMaxAcc.PublicKey
 	recipient, err = intMaxAcc.NewPublicKeyFromAddressHex(recipientAddressStr)
@@ -113,10 +159,6 @@ func TransferTransaction(
 		return fmt.Errorf("failed to create recipient address: %v", err)
 	}
 
-	amount, ok := new(big.Int).SetString(amountStr, base10)
-	if !ok {
-		return fmt.Errorf("failed to convert amount to int: %v", amountStr)
-	}
 	fmt.Printf("L2 Amount: %s\n", amount)
 
 	if l2Balance.Cmp(amount) < 0 {
@@ -128,8 +170,6 @@ func TransferTransaction(
 	if err != nil {
 		return fmt.Errorf("failed to get the block info data: %w", err)
 	}
-
-	zeroTransfer := new(intMaxTypes.Transfer).SetZero()
 
 	// gasFee, gasOK := dataBlockInfo.TransferFee[new(big.Int).SetUint64(uint64(tokenIndex)).String()]
 	feeTokenIndex := 0 // Transfer fees are only accepted at ETH.
@@ -152,7 +192,6 @@ func TransferTransaction(
 		return fmt.Errorf("failed to get gas fee")
 	}
 
-	var amountGasFee uint256.Int
 	err = amountGasFee.Scan(gasFee)
 	if err != nil {
 		return fmt.Errorf("failed to convert string to uint256.Int: %w", err)
@@ -439,38 +478,6 @@ type BackupWithdrawal struct {
 	TxTreeRoot          goldenposeidon.PoseidonHashOut    `json:"txTreeRoot"`
 }
 
-type withdrawalTransfer struct {
-	Recipient common.Address `json:"recipient"`
-
-	TokenIndex uint32 `json:"tokenIndex"`
-
-	// Amount is a decimal string
-	Amount string `json:"amount"`
-
-	Salt *goldenposeidon.PoseidonHashOut `json:"salt"`
-}
-
-type backupWithdrawal struct {
-	SenderAddress string `json:"senderAddress"`
-
-	Transfer withdrawalTransfer `json:"transfer"`
-
-	TransferMerkleProof []*goldenposeidon.PoseidonHashOut `json:"transferMerkleProof"`
-
-	TransferIndex int32 `json:"transferIndex"`
-
-	TransferTreeRoot goldenposeidon.PoseidonHashOut `json:"transferTreeRoot"`
-
-	// Nonce is a decimal string
-	Nonce string `json:"nonce"`
-
-	TxTreeMerkleProof []*goldenposeidon.PoseidonHashOut `json:"txTreeMerkleProof"`
-
-	TxIndex int32 `json:"txIndex"`
-
-	TxTreeRoot goldenposeidon.PoseidonHashOut `json:"txTreeRoot"`
-}
-
 func (bw *BackupWithdrawal) MarshalJSON() ([]byte, error) {
 	if bw.Transfer.Recipient.TypeOfAddress != intMaxAccTypes.EthereumAddressType {
 		return nil, errors.New("recipient address should be ETHEREUM")
@@ -543,6 +550,38 @@ func (bw *BackupWithdrawal) UnmarshalJSON(data []byte) error {
 	bw.TxTreeRoot = withdrawal.TxTreeRoot
 
 	return nil
+}
+
+type withdrawalTransfer struct {
+	Recipient common.Address `json:"recipient"`
+
+	TokenIndex uint32 `json:"tokenIndex"`
+
+	// Amount is a decimal string
+	Amount string `json:"amount"`
+
+	Salt *goldenposeidon.PoseidonHashOut `json:"salt"`
+}
+
+type backupWithdrawal struct {
+	SenderAddress string `json:"senderAddress"`
+
+	Transfer withdrawalTransfer `json:"transfer"`
+
+	TransferMerkleProof []*goldenposeidon.PoseidonHashOut `json:"transferMerkleProof"`
+
+	TransferIndex int32 `json:"transferIndex"`
+
+	TransferTreeRoot goldenposeidon.PoseidonHashOut `json:"transferTreeRoot"`
+
+	// Nonce is a decimal string
+	Nonce string `json:"nonce"`
+
+	TxTreeMerkleProof []*goldenposeidon.PoseidonHashOut `json:"txTreeMerkleProof"`
+
+	TxIndex int32 `json:"txIndex"`
+
+	TxTreeRoot goldenposeidon.PoseidonHashOut `json:"txTreeRoot"`
 }
 
 func MakeWithdrawalBackupData(

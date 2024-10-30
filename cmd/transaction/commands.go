@@ -11,6 +11,8 @@ import (
 	txTransactionsList "intmax2-node/internal/use_cases/tx_transactions_list"
 	txTransfer "intmax2-node/internal/use_cases/tx_transfer"
 	txWithdrawal "intmax2-node/internal/use_cases/tx_withdrawal"
+	txWithdrawalTransferByHash "intmax2-node/internal/use_cases/tx_withdrawal_transfer_by_hash"
+	txWithdrawalTransfersList "intmax2-node/internal/use_cases/tx_withdrawal_transfers_list"
 	ucTxClaim "intmax2-node/pkg/use_cases/tx_claim"
 	ucTxDeposit "intmax2-node/pkg/use_cases/tx_deposit"
 	ucTxDepositByHashIncoming "intmax2-node/pkg/use_cases/tx_deposit_by_hash_incoming"
@@ -19,6 +21,8 @@ import (
 	ucTxTransactionsList "intmax2-node/pkg/use_cases/tx_transactions_list"
 	ucTxTransfer "intmax2-node/pkg/use_cases/tx_transfer"
 	ucTxWithdrawal "intmax2-node/pkg/use_cases/tx_withdrawal"
+	ucTxWithdrawalTransferByHash "intmax2-node/pkg/use_cases/tx_withdrawal_transfer_by_hash"
+	ucTxWithdrawalTransfersList "intmax2-node/pkg/use_cases/tx_withdrawal_transfers_list"
 )
 
 type Commands interface {
@@ -57,6 +61,16 @@ type Commands interface {
 		log logger.Logger,
 		sb ServiceBlockchain,
 	) txWithdrawal.UseCaseTxWithdrawal
+	WithdrawalTransfersList(
+		cfg *configs.Config,
+		log logger.Logger,
+		sb ServiceBlockchain,
+	) txWithdrawalTransfersList.UseCaseTxWithdrawalTransfersList
+	RecipientWithdrawalTransferByHash(
+		cfg *configs.Config,
+		log logger.Logger,
+		sb ServiceBlockchain,
+	) txWithdrawalTransferByHash.UseCaseTxWithdrawalTransferByHash
 	SendClaimWithdrawals(
 		cfg *configs.Config,
 		log logger.Logger,
@@ -124,6 +138,22 @@ func (c *commands) SendWithdrawalTransaction(
 	sb ServiceBlockchain,
 ) txWithdrawal.UseCaseTxWithdrawal {
 	return ucTxWithdrawal.New(cfg, log, sb)
+}
+
+func (c *commands) WithdrawalTransfersList(
+	cfg *configs.Config,
+	log logger.Logger,
+	sb ServiceBlockchain,
+) txWithdrawalTransfersList.UseCaseTxWithdrawalTransfersList {
+	return ucTxWithdrawalTransfersList.New(cfg, log, sb)
+}
+
+func (c *commands) RecipientWithdrawalTransferByHash(
+	cfg *configs.Config,
+	log logger.Logger,
+	sb ServiceBlockchain,
+) txWithdrawalTransferByHash.UseCaseTxWithdrawalTransferByHash {
+	return ucTxWithdrawalTransferByHash.New(cfg, log, sb)
 }
 
 func (c *commands) SendClaimWithdrawals(

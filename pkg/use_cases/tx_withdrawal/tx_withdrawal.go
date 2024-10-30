@@ -48,7 +48,7 @@ func (u *uc) Do(
 	db block_validity_prover.SQLDriverApp, // TODO: Remove this dependency
 ) (err error) {
 	const (
-		hName     = "UseCase TxTransfer"
+		hName     = "UseCase TxWithdrawal"
 		senderKey = "sender"
 	)
 

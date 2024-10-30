@@ -224,7 +224,6 @@ func WithdrawalTransaction(
 		return fmt.Errorf("failed to calculate spent witness: %v", err)
 	}
 
-
 	balanceTransitionProof, err := balanceSynchronizer.ProveSendTransition(spentTokenWitness)
 	if err != nil {
 		return fmt.Errorf("failed to create balance transition proof: %v", err)
@@ -498,4 +497,29 @@ func GetBackupWithdrawal(
 	}
 
 	return withdrawals, nil
+}
+
+func TransfersList(
+	ctx context.Context,
+	cfg *configs.Config,
+	input *GetTransfersListInput,
+	userEthPrivateKey string,
+) (json.RawMessage, error) {
+	wallet, err := mnemonic_wallet.New().WalletFromPrivateKeyHex(userEthPrivateKey)
+	if err != nil {
+		return nil, errors.Join(errorsB.ErrWalletAddressNotRecognized, err)
+	}
+
+	fmt.Printf("User's ETHEREUM Address: %s\n", wallet.WalletAddress.String())
+
+	return GetTransfersListWithRawRequest(ctx, cfg, input, userEthPrivateKey)
+}
+
+func TransferByHash(
+	ctx context.Context,
+	cfg *configs.Config,
+	transferHash string,
+	userEthPrivateKey string,
+) (json.RawMessage, error) {
+	return GetTransferByHashWithRawRequest(ctx, cfg, transferHash, userEthPrivateKey)
 }

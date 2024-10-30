@@ -11,17 +11,11 @@ import (
 	"intmax2-node/internal/logger"
 	intMaxTypes "intmax2-node/internal/types"
 	"intmax2-node/pkg/sql_db/db_app/models"
+	"math/big"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/holiman/uint256"
-)
-
-const (
-	stepDeposits       = "deposits"
-	stepBlockContents  = "block-contents"
-	stepValidityProofs = "validity-proofs"
 )
 
 func (ai *mockBlockBuilder) PublicKeyByAccountID(blockNumber uint32, accountID uint64) (pk *intMaxAcc.PublicKey, err error) {
@@ -52,211 +46,7 @@ func (p *blockValidityProver) BlockBuilder() *mockBlockBuilder {
 	return p.blockBuilder
 }
 
-func (p *blockValidityProver) SyncBlockTree(bps BlockSynchronizer, wg *sync.WaitGroup) (err error) {
-	wg.Add(1)
-	go func() {
-		defer func() {
-			wg.Done()
-		}()
-
-		// startDepositIndex := latestSynchronizedDepositIndex + 1
-		var startDepositIndex uint32
-		startDepositIndex, err = p.FetchNextDepositIndex()
-		if err != nil {
-			const msg = "failed to fetch last deposit index: %+v"
-			p.log.Fatalf(msg, err.Error())
-		}
-
-		timeout := 5 * time.Second
-		ticker := time.NewTicker(timeout)
-		for {
-			select {
-			case <-p.ctx.Done():
-				ticker.Stop()
-				return
-			case <-ticker.C:
-				fmt.Println("balance validity ticker.C")
-				err = p.SyncDepositedEvents()
-				if err != nil {
-					p.log.Fatalf("failed to sync deposited events in balance validity prover: %+v", err)
-				}
-
-				err = p.SyncDepositTree(nil, startDepositIndex)
-				if err != nil {
-					p.log.Fatalf("failed to sync deposit tree in balance validity prover: %+v", err)
-				}
-			}
-		}
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer func() {
-			wg.Done()
-		}()
-
-		tickerEventWatcher := time.NewTicker(p.cfg.BlockValidityProver.TimeoutForEventWatcher)
-		for {
-			select {
-			case <-p.ctx.Done():
-				tickerEventWatcher.Stop()
-				return
-			case <-tickerEventWatcher.C:
-				fmt.Println("block content ticker.C")
-				// sync block content
-				var startBlock uint64
-				startBlock, err := p.LastSeenBlockPostedEventBlockNumber()
-				if err != nil {
-					startBlock = p.cfg.Blockchain.RollupContractDeployedBlockNumber
-				}
-				fmt.Printf("startBlock of LastSeenBlockPostedEventBlockNumber: %d\n", startBlock)
-
-				var endBlock uint64
-				endBlock, err = p.syncBlockContent(bps, startBlock)
-				if err != nil {
-					panic(err)
-				}
-				fmt.Printf("endBlock of LastSeenBlockPostedEventBlockNumber: %d\n", endBlock)
-
-				err = p.SetLastSeenBlockPostedEventBlockNumber(endBlock)
-				if err != nil {
-					var ErrSetLastSeenBlockPostedEventBlockNumberFail = errors.New("set last seen block posted event block number fail")
-					panic(errors.Join(ErrSetLastSeenBlockPostedEventBlockNumberFail, err))
-				}
-
-				fmt.Printf("Block %d is searched\n", endBlock)
-			}
-		}
-	}()
-
-	// wg.Add(1)
-	// go func() {
-	// 	defer func() {
-	// 		wg.Done()
-	// 	}()
-
-	// 	err = p.SyncBlockValidityWitness()
-	// 	if err != nil {
-	// 		var ErrSyncBlockProverWithBlockNumberFail = errors.New("failed to sync block validity witness")
-	// 		panic(errors.Join(ErrSyncBlockProverWithBlockNumberFail, err))
-	// 	}
-	// }()
-
-	wg.Add(1)
-	go func() {
-		defer func() {
-			wg.Done()
-		}()
-
-		err = p.syncBlockValidityProof()
-		if err != nil {
-			var ErrSyncBlockValidityProofFail = errors.New("failed to sync block validity proof")
-			panic(errors.Join(ErrSyncBlockValidityProofFail, err))
-		}
-	}()
-
-	return nil
-}
-
-func (p *blockValidityProver) SyncBlockTreeStep(bps BlockSynchronizer, step string) (err error) {
-	syncDeposits := func() error {
-		var nextSynchronizedDepositIndex uint32
-		nextSynchronizedDepositIndex, err = p.FetchNextDepositIndex()
-		if err != nil {
-			return fmt.Errorf("failed to fetch last deposit index: %+v", err.Error())
-		}
-
-		err = p.SyncDepositedEvents()
-		if err != nil {
-			return fmt.Errorf("failed to sync deposited events: %+v", err.Error())
-		}
-
-		err = p.SyncDepositTree(nil, nextSynchronizedDepositIndex)
-		if err != nil {
-			return fmt.Errorf("failed to sync deposit tree: %w", err)
-		}
-
-		return nil
-	}
-
-	syncBlockContent := func() error {
-		// sync block content
-		var startBlock uint64
-		startBlock, err := p.LastSeenBlockPostedEventBlockNumber()
-		if err != nil {
-			startBlock = p.cfg.Blockchain.RollupContractDeployedBlockNumber
-		}
-		fmt.Printf("startBlock of LastSeenBlockPostedEventBlockNumber: %d\n", startBlock)
-
-		var endBlock uint64
-		endBlock, err = p.syncBlockContent(bps, startBlock)
-		if err != nil {
-			return nil
-		}
-		fmt.Printf("endBlock of LastSeenBlockPostedEventBlockNumber: %d\n", endBlock)
-
-		err = p.SetLastSeenBlockPostedEventBlockNumber(endBlock)
-		if err != nil {
-			var ErrSetLastSeenBlockPostedEventBlockNumberFail = errors.New("set last seen block posted event block number fail")
-			return errors.Join(ErrSetLastSeenBlockPostedEventBlockNumberFail, err)
-		}
-
-		fmt.Printf("Block %d is searched\n", endBlock)
-
-		return nil
-	}
-
-	syncValidityProof := func() error {
-		lastGeneratedProofBlockNumber, err := p.blockBuilder.LastGeneratedProofBlockNumber()
-		if err != nil {
-			var ErrLastGeneratedProofBlockNumberFail = errors.New("last generated proof block number fail")
-			return errors.Join(ErrLastGeneratedProofBlockNumberFail, err)
-		}
-
-		if err := p.generateValidityProof(lastGeneratedProofBlockNumber + 1); err != nil {
-			if errors.Is(err, ErrBlockContentByBlockNumber) {
-				fmt.Printf("WARNING: block content %d is not found\n", lastGeneratedProofBlockNumber+1)
-				return nil
-			}
-
-			if errors.Is(err, ErrRootBlockNumberNotFound) {
-				fmt.Printf("WARNING: root block number %d not found\n", lastGeneratedProofBlockNumber+1)
-				return nil
-			}
-
-			return err
-		}
-
-		fmt.Printf("Block %d is done (syncBlockValidityProof)\n", lastGeneratedProofBlockNumber+1)
-
-		return nil
-	}
-
-	switch step {
-	case stepDeposits:
-		err = syncDeposits()
-		if err != nil {
-			return fmt.Errorf("failed to sync deposits: %v", err)
-		}
-	case stepBlockContents:
-		err = syncBlockContent()
-		if err != nil {
-			return fmt.Errorf("failed to sync block content: %v", err)
-		}
-	case stepValidityProofs:
-		err = syncValidityProof()
-		if err != nil {
-			return fmt.Errorf("failed to sync block validity proof: %v", err)
-		}
-	default:
-		stepNames := []string{stepDeposits, stepBlockContents, stepValidityProofs}
-		return fmt.Errorf("step must be one of %s", strings.Join(stepNames, ", "))
-	}
-
-	return nil
-}
-
-func (p *blockValidityProver) syncBlockContent(bps BlockSynchronizer, startBlock uint64) (lastEventSeenBlockNumber uint64, err error) {
+func (p *blockValidityProver) SyncBlockContent(bps BlockSynchronizer, startBlock uint64) (lastEventSeenBlockNumber uint64, err error) {
 	latestScrollBlockNumber, err := bps.FetchLatestBlockNumber(p.ctx)
 	if err != nil {
 		return startBlock, errors.Join(ErrFetchLatestBlockNumberFail, err)
@@ -276,7 +66,7 @@ func (p *blockValidityProver) syncBlockContent(bps BlockSynchronizer, startBlock
 	}
 
 	if len(events) == 0 {
-		fmt.Printf("Scroll Block %d is synchronized (SyncBlockTree)\n", endBlock)
+		fmt.Printf("Scroll Block %d is synchronized (SyncBlockTree)\n", startBlock)
 		return endBlock, nil
 	}
 
@@ -288,12 +78,14 @@ func (p *blockValidityProver) syncBlockContent(bps BlockSynchronizer, startBlock
 		}
 	}()
 
+	var curBlN uint256.Int
+	_ = curBlN.SetUint64(startBlock)
 	nextBN := startBlock
 	for key := range events {
 		select {
 		case <-p.ctx.Done():
 			p.log.Warnf("Received cancel signal from context, stopping...")
-			return startBlock, p.ctx.Err()
+			return curBlN.Uint64(), p.ctx.Err()
 		case <-tickerEventWatcher.C:
 			fmt.Println("tickerEventWatcher.C")
 			_, err := syncBlockContentWithEvent(p.ctx, p.log, p.blockBuilder, bps, events[key])
@@ -327,6 +119,9 @@ func syncBlockContentWithEvent(
 	if err.Error() != "not found" {
 		return nil, errors.Join(ErrProcessingBlocksFail, err)
 	}
+
+	var blN uint256.Int
+	_ = blN.SetFromBig(new(big.Int).SetUint64(event.Raw.BlockNumber))
 
 	var cd []byte
 	cd, err = bps.FetchScrollCalldataByHash(event.Raw.TxHash)
@@ -362,7 +157,7 @@ func syncBlockContentWithEvent(
 		log.Debugf(msg, intMaxBlockNumber)
 	} else {
 		const msg = "block %d is found (SyncBlockTree, Scroll block number: %d)"
-		log.Debugf(msg, intMaxBlockNumber, event.Raw.BlockNumber)
+		log.Debugf(msg, intMaxBlockNumber, blN)
 	}
 
 	senders := make([]intMaxTypes.ColumnSender, len(blockContent.Senders))
@@ -374,7 +169,8 @@ func syncBlockContentWithEvent(
 		}
 	}
 
-	newBlockContent, err = blockBuilder.CreateBlockContent(postedBlock, blockContent)
+	newBlockContent, err = blockBuilder.CreateBlockContent(
+		ctx, postedBlock, blockContent, &blN, event.Raw.BlockHash)
 	if err != nil {
 		return nil, errors.Join(ErrCreateBlockContentFail, err)
 	}
@@ -541,7 +337,7 @@ func syncBlockContentWithEvent(
 // 	return nil
 // }
 
-func (p *blockValidityProver) syncBlockValidityProof() error {
+func (p *blockValidityProver) SyncBlockValidityProof() error {
 	lastGeneratedProofBlockNumber, err := p.blockBuilder.LastGeneratedProofBlockNumber()
 	if err != nil {
 		var ErrLastGeneratedProofBlockNumberFail = errors.New("last generated proof block number fail")

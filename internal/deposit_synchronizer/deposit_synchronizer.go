@@ -120,17 +120,19 @@ func (w *depositSynchronizer) Start(
 				latestBlock, err := intMaxTypes.FetchLatestIntMaxBlock(rollupCfg, w.ctx)
 				if err != nil {
 					if err.Error() != "no posted blocks found" {
-						return false, err
+						return false, fmt.Errorf("failed to fetch latest block: %w", err)
 					}
 
 					return true, nil
 				}
 				latestDepositTreeRoot, err := intMaxTypes.FetchDepositRoot(rollupCfg, w.ctx)
 				if err != nil {
-					return false, err
+					const msg = "failed to fetch latest deposit tree root: %w"
+					return false, fmt.Errorf(msg, err)
 				}
 
 				if latestBlock.DepositTreeRoot == latestDepositTreeRoot {
+					w.log.Infof("Deposit tree root is the same as the latest block deposit tree root\n")
 					return false, nil
 				}
 
@@ -143,6 +145,7 @@ func (w *depositSynchronizer) Start(
 			var ok bool
 			ok, err = shouldProcess()
 			if err != nil {
+				w.log.Warnf("failed to check if should process: %v\n", err)
 				return err
 			}
 			if !ok {

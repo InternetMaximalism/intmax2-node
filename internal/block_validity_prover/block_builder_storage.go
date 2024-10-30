@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,15 +13,18 @@ import (
 	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/finite_field"
 	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
+	"intmax2-node/internal/l2_batch_index"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
+	errorsDB "intmax2-node/pkg/sql_db/errors"
 	"math/big"
 	"sort"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/holiman/uint256"
 )
 
 type mockBlockBuilder struct {
@@ -54,7 +58,8 @@ func (b *mockBlockBuilder) FetchUpdateWitness(
 		return nil, err
 	}
 
-	blockMerkleProof, err := b.BlockTreeProof(currentBlockNumber, targetBlockNumber)
+	// blockMerkleProof := blockBuilder.GetBlockMerkleProof(currentBlockNumber, targetBlockNumber)
+	blockMerkleProof, _, err := b.BlockTreeProof(currentBlockNumber, targetBlockNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -609,19 +614,25 @@ func (db *mockBlockBuilder) BlockTreeRoot(blockNumber uint32) (*intMaxGP.Poseido
 	return blockHistory.BlockHashTree.GetRoot(), nil
 }
 
-func (db *mockBlockBuilder) BlockTreeProof(rootBlockNumber uint32, leafBlockNumber uint32) (*intMaxTree.PoseidonMerkleProof, error) {
+func (db *mockBlockBuilder) BlockTreeProof(
+	rootBlockNumber, leafBlockNumber uint32,
+) (
+	*intMaxTree.PoseidonMerkleProof,
+	*intMaxTree.PoseidonHashOut,
+	error,
+) {
 	if rootBlockNumber < leafBlockNumber {
-		return nil, fmt.Errorf("root block number should be greater than or equal to leaf block number: %d < %d", rootBlockNumber, leafBlockNumber)
+		return nil, nil, fmt.Errorf("root block number should be greater than or equal to leaf block number: %d < %d", rootBlockNumber, leafBlockNumber)
 	}
 
 	blockHistory, ok := db.MerkleTreeHistory.MerkleTrees[rootBlockNumber]
 	if !ok {
-		return nil, errors.Join(ErrRootBlockNumberNotFound, fmt.Errorf("root block number %d not found (BlockTreeProof)", rootBlockNumber))
+		return nil, nil, errors.Join(ErrRootBlockNumberNotFound, fmt.Errorf("root block number %d not found (BlockTreeProof)", rootBlockNumber))
 	}
 
 	proof, blockTreeRoot, err := blockHistory.BlockHashTree.Prove(leafBlockNumber)
 	if err != nil {
-		return nil, errors.Join(ErrLeafBlockNumberNotFound, err)
+		return nil, nil, errors.Join(ErrLeafBlockNumberNotFound, err)
 	}
 
 	blockHashLeaf := blockHistory.BlockHashTree.Leaves[leafBlockNumber]
@@ -637,7 +648,7 @@ func (db *mockBlockBuilder) BlockTreeProof(rootBlockNumber uint32, leafBlockNumb
 		panic("proof.Verify failed")
 	}
 
-	return &proof, nil
+	return &proof, blockTreeRoot, nil
 }
 
 func (db *mockBlockBuilder) IsSynchronizedDepositIndex(depositIndex uint32) (bool, error) {
@@ -1484,8 +1495,18 @@ func (b *mockBlockBuilder) LastWitnessGeneratedBlockNumber() uint32 {
 	return b.MerkleTreeHistory.lastBlockNumber
 }
 
-func (b *mockBlockBuilder) LastSeenBlockPostedEventBlockNumber() (uint64, error) {
-	event, err := b.db.EventBlockNumberByEventNameForValidityProver("BlockPosted")
+func (b *mockBlockBuilder) LastSeenBlockPostedEventBlockNumber(ctx context.Context) (uint64, error) {
+	var event *mDBApp.EventBlockNumberForValidityProver
+	err := b.db.Exec(ctx, nil, func(d interface{}, _ interface{}) (err error) {
+		q, _ := d.(SQLDriverApp)
+
+		event, err = q.EventBlockNumberByEventNameForValidityProver("BlockPosted")
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 	if err != nil {
 		return 0, err
 	}
@@ -1493,8 +1514,17 @@ func (b *mockBlockBuilder) LastSeenBlockPostedEventBlockNumber() (uint64, error)
 	return event.LastProcessedBlockNumber, err
 }
 
-func (b *mockBlockBuilder) SetLastSeenBlockPostedEventBlockNumber(blockNumber uint64) error {
-	_, err := b.db.UpsertEventBlockNumberForValidityProver("BlockPosted", blockNumber)
+func (b *mockBlockBuilder) SetLastSeenBlockPostedEventBlockNumber(ctx context.Context, blockNumber uint64) error {
+	err := b.db.Exec(ctx, nil, func(d interface{}, _ interface{}) (err error) {
+		q, _ := d.(SQLDriverApp)
+
+		_, err = q.UpsertEventBlockNumberForValidityProver("BlockPosted", blockNumber)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 
 	return err
 }
@@ -1561,7 +1591,7 @@ func (b *mockBlockBuilder) BlockAuxInfo(blockNumber uint32) (*AuxInfo, error) {
 }
 
 func blockAuxInfoFromBlockContent(auxInfo *mDBApp.BlockContentWithProof) (*AuxInfo, error) {
-	decodedAggregatedPublicKeyPoint, err := hexutil.Decode("0x" + auxInfo.AggregatedPublicKey)
+	decodedAggregatedPublicKeyPoint, err := hex.DecodeString(auxInfo.AggregatedPublicKey)
 	if err != nil {
 		return nil, fmt.Errorf("aggregated public key hex decode error: %w", err)
 	}
@@ -1582,7 +1612,7 @@ func blockAuxInfoFromBlockContent(auxInfo *mDBApp.BlockContentWithProof) (*AuxIn
 		return nil, fmt.Errorf("aggregated signature hex decode error: %w", err)
 	}
 	aggregatedSignature := new(bn254.G2Affine)
-	err = aggregatedSignature.Unmarshal([]byte(decodedAggregatedSignature))
+	err = aggregatedSignature.Unmarshal(decodedAggregatedSignature)
 	if err != nil {
 		return nil, fmt.Errorf("aggregated signature unmarshal error: %w", err)
 	}
@@ -1592,13 +1622,13 @@ func blockAuxInfoFromBlockContent(auxInfo *mDBApp.BlockContentWithProof) (*AuxIn
 		return nil, fmt.Errorf("aggregated message point hex decode error: %w", err)
 	}
 	messagePoint := new(bn254.G2Affine)
-	err = messagePoint.Unmarshal([]byte(decodedMessagePoint))
+	err = messagePoint.Unmarshal(decodedMessagePoint)
 	if err != nil {
 		return nil, fmt.Errorf("message point unmarshal error: %w", err)
 	}
 
 	var columnSenders []intMaxTypes.ColumnSender
-	err = json.Unmarshal([]byte(auxInfo.Senders), &columnSenders)
+	err = json.Unmarshal(auxInfo.Senders, &columnSenders)
 	if err != nil {
 		return nil, fmt.Errorf("senders unmarshal error: %w", err)
 	}
@@ -1652,13 +1682,53 @@ func blockAuxInfoFromBlockContent(auxInfo *mDBApp.BlockContentWithProof) (*AuxIn
 }
 
 func (b *mockBlockBuilder) CreateBlockContent(
+	ctx context.Context,
 	postedBlock *block_post_service.PostedBlock,
 	blockContent *intMaxTypes.BlockContent,
-) (*mDBApp.BlockContentWithProof, error) {
-	return b.db.CreateBlockContent(
-		postedBlock,
-		blockContent,
-	)
+	l2BlockNumber *uint256.Int,
+	l2BlockHash common.Hash,
+) (bc *mDBApp.BlockContentWithProof, err error) {
+	err = b.db.Exec(ctx, &bc, func(d interface{}, input interface{}) (err error) {
+		q, _ := d.(SQLDriverApp)
+
+		bc, err = q.BlockContentByBlockNumber(postedBlock.BlockNumber)
+		if err == nil {
+			return nil
+		} else if !errors.Is(err, errorsDB.ErrNotFound) {
+			return err
+		}
+
+		bc, err = q.CreateBlockContent(
+			postedBlock,
+			blockContent,
+			l2BlockNumber,
+			l2BlockHash,
+		)
+		if err != nil {
+			return err
+		}
+
+		_, err = q.UpsertEventBlockNumberForValidityProver("BlockPosted", l2BlockNumber.Uint64())
+		if err != nil {
+			return err
+		}
+
+		const maskL2BlockNumber = `{"l2_block_number":%q}`
+		err = q.CreateCtrlProcessingJobs(
+			fmt.Sprintf("%s%s", l2_batch_index.L2BlockNumberJobMask, l2BlockNumber.ToBig().String()),
+			json.RawMessage(fmt.Sprintf(maskL2BlockNumber, l2BlockNumber.ToBig().String())),
+		)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return bc, nil
 }
 
 func (b *mockBlockBuilder) BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWithProof, error) {

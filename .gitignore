@@ -25,3 +25,4 @@ third_party/OpenAPI/*
 !third_party/OpenAPI/block_builder_service/index.html
 !third_party/OpenAPI/store_vault_service/index.html
 !third_party/OpenAPI/withdrawal_service/index.html
+!third_party/OpenAPI/block_validity_prover_service/index.html

@@ -964,7 +964,7 @@ func (s *mockWallet) GenerateReceiveTransferWitness(
 	}
 
 	// blockMerkleProof, err := blockBuilder.GetBlockMerkleProof(receiverBlockNumber, balancePis.PublicState.BlockNumber)
-	blockMerkleProof, err := blockValidityService.BlockTreeProof(receiverBlockNumber, nextBalancePublicInputs.PublicState.BlockNumber)
+	blockMerkleProof, _, err := blockValidityService.BlockTreeProof(receiverBlockNumber, nextBalancePublicInputs.PublicState.BlockNumber)
 	if err != nil {
 		return nil, err
 	}

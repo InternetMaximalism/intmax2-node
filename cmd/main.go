@@ -5,10 +5,11 @@ import (
 	"intmax2-node/cmd/balance_checker"
 	"intmax2-node/cmd/balance_synchronizer"
 	"intmax2-node/cmd/block_builder"
-	"intmax2-node/cmd/block_validity_synchronizer"
+	"intmax2-node/cmd/block_validity_prover"
 	"intmax2-node/cmd/deposit"
 	"intmax2-node/cmd/ethereum_private_key_wallet"
 	"intmax2-node/cmd/generate_account"
+	"intmax2-node/cmd/intmax_block"
 	"intmax2-node/cmd/intmax_private_key_wallet"
 	"intmax2-node/cmd/messenger"
 	"intmax2-node/cmd/migrator"
@@ -91,7 +92,7 @@ func main() {
 	ns := network_service.New(cfg)
 	hc := health.NewHandler()
 	bbr := block_builder_registry_service.New(cfg, log, bc)
-	storeGPO := gas_price_oracle.NewStoreGPO(cfg, dbApp, bc)
+	storeGPO := gas_price_oracle.NewStoreGPO(cfg, log, dbApp, bc)
 
 	pw := pow.New(cfg.PoW.Difficulty)
 	pWorker := pow.NewWorker(cfg.PoW.Workers, pw)
@@ -114,9 +115,9 @@ func main() {
 			HC:                  &hc,
 			PoW:                 pwNonce,
 			Worker:              w,
+			GPOStorage:          storeGPO,
 			BlockPostService:    blockPostService,
 			DepositSynchronizer: depositSynchronizer,
-			GPOStorage:          storeGPO,
 		}),
 		balance_synchronizer.NewSynchronizerCmd(&balance_synchronizer.Synchronizer{
 			Context: ctx,
@@ -187,13 +188,13 @@ func main() {
 			DbApp:   dbApp,
 			SB:      bc,
 		}),
-		block_validity_synchronizer.NewBlockValiditySynchronizerCmd(&block_validity_synchronizer.BlockValiditySynchronizer{
+		block_validity_prover.NewCmd(&block_validity_prover.Settings{
 			Context: ctx,
 			Cancel:  cancel,
+			WG:      &wg,
 			Config:  cfg,
 			Log:     log,
 			DbApp:   dbApp,
-			WG:      &wg,
 			SB:      bc,
 			HC:      &hc,
 		}),
@@ -207,6 +208,7 @@ func main() {
 			SB:      bc,
 			HC:      &hc,
 		}),
+		intmax_block.NewCmd(ctx, cfg, log),
 	)
 	if err != nil {
 		const msg = "cli: %v"

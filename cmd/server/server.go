@@ -26,8 +26,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-const timeoutFailedToSyncBlockProver = 5
-
 type Server struct {
 	Context             context.Context
 	Cancel              context.CancelFunc
@@ -41,12 +39,11 @@ type Server struct {
 	HC                  *health.Handler
 	PoW                 PoWNonce
 	Worker              Worker
-	DepositSynchronizer DepositSynchronizer
 	GPOStorage          GPOStorage
 	BlockPostService    BlockPostService
+	DepositSynchronizer DepositSynchronizer
 }
 
-// nolint: gocyclo
 func NewServerCmd(s *Server) *cobra.Command {
 	const (
 		use   = "run"
@@ -56,17 +53,11 @@ func NewServerCmd(s *Server) *cobra.Command {
 		Use:   use,
 		Short: short,
 		Run: func(cmd *cobra.Command, args []string) {
-			s.Log.Debugf("Run Block Builder command\n")
+			s.Log.Debugf("Run Block Builder command")
 
 			err := s.Worker.Init()
 			if err != nil {
 				const msg = "init the worker error occurred: %v"
-				s.Log.Fatalf(msg, err.Error())
-			}
-
-			err = s.BlockPostService.Init(s.Context)
-			if err != nil {
-				const msg = "init the Block Validity Prover error occurred: %v"
 				s.Log.Fatalf(msg, err.Error())
 			}
 

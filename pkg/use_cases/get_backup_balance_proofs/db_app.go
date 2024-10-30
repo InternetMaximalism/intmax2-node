@@ -25,6 +25,9 @@ type BackupTransfers interface {
 		recipient, encryptedTransferHash, encryptedTransfer string,
 		blockNumber int64,
 	) (*mDBApp.BackupTransfer, error)
+	GetBackupTransferByRecipientAndTransferDoubleHash(
+		recipient, transferDoubleHash string,
+	) (*mDBApp.BackupTransfer, error)
 	GetBackupTransfer(condition string, value string) (*mDBApp.BackupTransfer, error)
 	GetBackupTransfers(condition string, value interface{}) ([]*mDBApp.BackupTransfer, error)
 }

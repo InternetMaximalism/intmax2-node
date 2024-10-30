@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package block_validity_prover.v1;
+
+// Defines the import path that should be used to import the generated package,
+// and the package name.
+option go_package = ".;block_validity_prover";
+
+enum BlockStatus {
+  // the block hash has been posted on Scroll but not reflected on Ethereum
+  EXECUTED_ON_SCROLL = 0;
+  // the Scroll block that incorporated the INTMAX block has been reflected on Ethereum
+  EXECUTED_ON_ETHEREUM = 1;
+}

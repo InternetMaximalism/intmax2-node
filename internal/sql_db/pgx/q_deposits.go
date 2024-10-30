@@ -56,12 +56,12 @@ func (p *pgx) CreateDeposit(
 	return bDBApp, nil
 }
 
-func (b *pgx) UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error {
+func (p *pgx) UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error {
 	const (
 		q = `UPDATE deposits SET deposit_index = $1 WHERE deposit_hash = $2`
 	)
 
-	_, err := b.exec(b.ctx, q, depositIndex, depositHash.Hex())
+	_, err := p.exec(p.ctx, q, depositIndex, depositHash.Hex())
 	if err != nil {
 		return errPgx.Err(err)
 	}

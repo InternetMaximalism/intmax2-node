@@ -12,7 +12,9 @@ vendor
 docs/swagger/block_builder
 docs/swagger/store_vault
 docs/swagger/withdrawal
+docs/swagger/block_validity_prover
 internal/pb/gen
 third_party/OpenAPI/block_builder_service/block_builder
 third_party/OpenAPI/store_vault_service/store_vault
 third_party/OpenAPI/withdrawal_service/withdrawal
+third_party/OpenAPI/block_validity_prover_service/block_validity_prover

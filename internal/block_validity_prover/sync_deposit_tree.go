@@ -237,9 +237,16 @@ func (p *blockValidityProver) SyncDepositedEvents() error {
 
 		p.log.Debugf("Found %d new deposits\n", len(deposits))
 		for _, d := range deposits {
+			_, err = q.DepositByDepositID(d.DepositId)
+			if err == nil {
+				continue
+			} else if !errors.Is(err, errorsDB.ErrNotFound) {
+				return fmt.Errorf("error get deposit: %w", err)
+			}
+
 			_, err = q.CreateDeposit(*d.DepositLeaf, d.DepositId)
-			if err != nil {
-				return fmt.Errorf("error creating deposit: %v", err.Error())
+			if err != nil && !errors.Is(err, errorsDB.ErrNotUnique) {
+				return fmt.Errorf("error creating deposit: %w", err)
 			}
 		}
 

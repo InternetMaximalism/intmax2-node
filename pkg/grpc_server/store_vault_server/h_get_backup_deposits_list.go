@@ -1,3 +1,4 @@
+// nolint:dupl
 package store_vault_server
 
 import (

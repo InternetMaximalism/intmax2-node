@@ -51,8 +51,14 @@ func (s *externalBlockValidityService) DepositTreeProof(blockNumber uint32, depo
 	return nil, common.Hash{}, ErrNotImplemented
 }
 
-func (s *externalBlockValidityService) BlockTreeProof(rootBlockNumber, leafBlockNumber uint32) (*intMaxTree.PoseidonMerkleProof, error) {
-	return nil, ErrNotImplemented
+func (s *externalBlockValidityService) BlockTreeProof(
+	rootBlockNumber, leafBlockNumber uint32,
+) (
+	*intMaxTree.PoseidonMerkleProof,
+	*intMaxTree.PoseidonHashOut,
+	error,
+) {
+	return nil, nil, ErrNotImplemented
 }
 
 func (s *externalBlockValidityService) ValidityPublicInputs(txRoot common.Hash) (*block_validity_prover.ValidityPublicInputs, []block_validity_prover.SenderLeaf, error) {

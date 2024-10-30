@@ -66,10 +66,6 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 				s.Log.Fatalf(msg, err.Error())
 			}
 
-			if err = blockValidityService.SyncBlockTree(blockSynchronizer, &wg); err != nil {
-				panic(err)
-			}
-
 			wg.Add(1)
 			s.WG.Add(1)
 			go func() {

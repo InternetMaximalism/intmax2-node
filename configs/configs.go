@@ -37,6 +37,7 @@ type Config struct {
 	Swagger               Swagger
 	OpenTelemetry         OpenTelemetry
 	SQLDb                 SQLDb
+	L2BatchIndex          L2BatchIndex
 }
 
 var once sync.Once
@@ -58,6 +59,9 @@ func New() *Config {
 		config.Swagger.Prepare()
 		if config.GasPriceOracle.Delimiter <= intValue0 {
 			config.GasPriceOracle.Delimiter = gasPriceOracleDelimiterDef
+		}
+		if config.GasPriceOracle.ExtraFee < intValue0 {
+			config.GasPriceOracle.ExtraFee = intValue0
 		}
 		if config.APP.PrintConfig {
 			config.print()

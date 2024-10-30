@@ -12,3 +12,6 @@ var OpenAPIStoreVault embed.FS
 
 //go:embed OpenAPI/withdrawal_service/*
 var OpenAPIWithdrawal embed.FS
+
+//go:embed OpenAPI/block_validity_prover_service/*
+var OpenAPIBlockValidityProver embed.FS

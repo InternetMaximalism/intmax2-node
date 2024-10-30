@@ -9,6 +9,7 @@ import (
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
+	"time"
 
 	"github.com/dimiro1/health"
 	"github.com/ethereum/go-ethereum/common"
@@ -40,6 +41,8 @@ type PGX interface {
 	BlockContents
 	CtrlProcessingJobs
 	GasPriceOracle
+	L2BatchIndex
+	RelationshipL2BatchIndexAndBlockContent
 }
 
 type GenericCommands interface {
@@ -130,7 +133,20 @@ type BackupTransfers interface {
 		blockNumber int64,
 	) (*mDBApp.BackupTransfer, error)
 	GetBackupTransfer(condition string, value string) (*mDBApp.BackupTransfer, error)
+	GetBackupTransferByRecipientAndTransferDoubleHash(
+		recipient, transferDoubleHash string,
+	) (*mDBApp.BackupTransfer, error)
 	GetBackupTransfers(condition string, value interface{}) ([]*mDBApp.BackupTransfer, error)
+	GetBackupTransfersByRecipient(
+		recipient string,
+		pagination mDBApp.PaginationOfListOfBackupTransfersInput,
+		sorting mFL.Sorting, orderBy mFL.OrderBy,
+		filters mFL.FiltersList,
+	) (
+		paginator *mDBApp.PaginationOfListOfBackupTransfers,
+		listDBApp mDBApp.ListOfBackupTransfer,
+		err error,
+	)
 }
 
 type BackupTransactions interface {
@@ -256,8 +272,12 @@ type BlockContents interface {
 	CreateBlockContent(
 		postedBlock *block_post_service.PostedBlock,
 		blockContent *intMaxTypes.BlockContent,
+		l2BlockNumber *uint256.Int,
+		l2BlockHash common.Hash,
 	) (*mDBApp.BlockContentWithProof, error)
+	BlockContentIDByL2BlockNumber(l2BlockNumber string) (bcID string, err error)
 	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
+	BlockContentByBlockHash(blockHash string) (*mDBApp.BlockContentWithProof, error)
 	BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWithProof, error)
 	ScanBlockHashAndSenders() (blockHashAndSendersMap map[uint32]mDBApp.BlockHashAndSenders, lastBlockNumber uint32, err error)
 	CreateValidityProof(blockHash common.Hash, validityProof []byte) (*mDBApp.BlockProof, error)
@@ -267,11 +287,31 @@ type BlockContents interface {
 }
 
 type CtrlProcessingJobs interface {
-	CreateCtrlProcessingJobs(name string) error
+	CreateCtrlProcessingJobs(name string, options json.RawMessage) error
 	CtrlProcessingJobs(name string) (*mDBApp.CtrlProcessingJobs, error)
+	CtrlProcessingJobsByMaskName(mask string) (*mDBApp.CtrlProcessingJobs, error)
+	UpdatedAtOfCtrlProcessingJobByName(name string, updatedAt time.Time) (err error)
+	DeleteCtrlProcessingJobByName(name string) (err error)
 }
 
 type GasPriceOracle interface {
 	CreateGasPriceOracle(name string, value *uint256.Int) error
 	GasPriceOracle(name string) (*mDBApp.GasPriceOracle, error)
+}
+
+type L2BatchIndex interface {
+	CreateL2BatchIndex(batchIndex *uint256.Int) (err error)
+	L2BatchIndex(batchIndex *uint256.Int) (*mDBApp.L2BatchIndex, error)
+	UpdOptionsOfBatchIndex(batchIndex *uint256.Int, options json.RawMessage) (err error)
+	UpdL1VerifiedBatchTxHashOfBatchIndex(batchIndex *uint256.Int, hash string) (err error)
+}
+
+type RelationshipL2BatchIndexAndBlockContent interface {
+	CreateRelationshipL2BatchIndexAndBlockContentID(
+		batchIndex *uint256.Int,
+		blockContentID string,
+	) (err error)
+	RelationshipL2BatchIndexAndBlockContentsByBlockContentID(
+		blockContentID string,
+	) (*mDBApp.RelationshipL2BatchIndexBlockContents, error)
 }

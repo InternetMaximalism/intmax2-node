@@ -114,7 +114,7 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 	s.log.Infof("start syncProcessing")
 	balanceTransitionData, err := balance_prover_service.FetchBalanceTransitionData(s.ctx, s.cfg, s.log, intMaxPrivateKey)
 	if err != nil {
-		const msg = "failed to start Balance Prover Service: %+v"
+		const msg = "(FetchBalanceTransitionData) failed to start Balance Prover Service: %+v"
 		s.log.Fatalf(msg, err.Error())
 	}
 
@@ -156,13 +156,13 @@ func (s *balanceSynchronizer) syncProcessing(intMaxPrivateKey *intMaxAcc.Private
 
 	storedBalanceData, err := block_synchronizer.GetBackupBalance(s.ctx, s.cfg, s.userState.PublicKey())
 	if err != nil {
-		const msg = "failed to start Balance Prover Service: %+v"
+		const msg = "(GetBackupBalance) failed to start Balance Prover Service: %+v"
 		s.log.Fatalf(msg, err.Error())
 	}
 
 	err = s.syncBalanceProver.SetEncryptedBalanceData(s.userState, storedBalanceData)
 	if err != nil {
-		const msg = "failed to start Balance Prover Service: %+v"
+		const msg = "(SetEncryptedBalanceData) failed to start Balance Prover Service: %+v"
 		s.log.Fatalf(msg, err.Error())
 	}
 
