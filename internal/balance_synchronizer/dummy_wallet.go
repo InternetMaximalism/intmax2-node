@@ -842,6 +842,7 @@ func (s *mockWallet) ReceiveDepositAndUpdate(
 	if err != nil {
 		return nil, err
 	}
+	fmt.Printf("(ReceiveDepositAndUpdate) privateWitness: %+v\n", privateWitness)
 
 	// delete deposit
 	delete(s.depositCases, depositIndex)
@@ -877,7 +878,8 @@ func (s *mockWallet) ReceiveTransferAndUpdate(
 		transferWitness,
 		senderLastBalanceProof,
 		senderBalanceTransitionProof,
-		false, // skipInsufficientCheck
+		false, // skipInsufficientCheck,
+		true,  // skipSenderProofCheck,
 	)
 	if err != nil {
 		return nil, err
@@ -902,6 +904,7 @@ func (s *mockWallet) GenerateReceiveTransferWitness(
 	senderLastBalanceProof string,
 	senderBalanceTransitionProof string,
 	skipInsufficientCheck bool,
+	skipSenderProofCheck bool,
 ) (*balance_prover_service.ReceiveTransferWitness, error) {
 	transfer := transferWitness.Transfer
 	recipientAddress, err := s.GenericAddress()
@@ -912,45 +915,48 @@ func (s *mockWallet) GenerateReceiveTransferWitness(
 		return nil, errors.New("invalid recipient address")
 	}
 
-	senderLastBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(senderLastBalanceProof)
-	if err != nil {
-		return nil, err
-	}
+	nextBalancePublicInputs := new(balance_prover_service.BalancePublicInputs)
+	if !skipSenderProofCheck {
+		senderLastBalanceProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(senderLastBalanceProof)
+		if err != nil {
+			return nil, err
+		}
 
-	lastBalancePis, err := new(balance_prover_service.BalancePublicInputs).FromPublicInputs(senderLastBalanceProofWithPis.PublicInputs)
-	if err != nil {
-		return nil, err
-	}
+		lastBalancePis, err := new(balance_prover_service.BalancePublicInputs).FromPublicInputs(senderLastBalanceProofWithPis.PublicInputs)
+		if err != nil {
+			return nil, err
+		}
 
-	senderBalanceTransitionProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(senderBalanceTransitionProof)
-	if err != nil {
-		return nil, err
-	}
+		senderBalanceTransitionProofWithPis, err := intMaxTypes.NewCompressedPlonky2ProofFromBase64String(senderBalanceTransitionProof)
+		if err != nil {
+			return nil, err
+		}
 
-	balanceTransitionPis, err := new(balance_prover_service.SenderPublicInputs).FromPublicInputs(senderBalanceTransitionProofWithPis.PublicInputs)
-	if err != nil {
-		return nil, err
-	}
+		balanceTransitionPis, err := new(balance_prover_service.SenderPublicInputs).FromPublicInputs(senderBalanceTransitionProofWithPis.PublicInputs)
+		if err != nil {
+			return nil, err
+		}
 
-	nextBalancePublicInputs, err := lastBalancePis.UpdateWithSendTransition(
-		balanceTransitionPis,
-	)
-	if err != nil {
-		return nil, err
-	}
+		nextBalancePublicInputs, err = lastBalancePis.UpdateWithSendTransition(
+			balanceTransitionPis,
+		)
+		if err != nil {
+			return nil, err
+		}
 
-	// TODO: check sender's balance proof
-	if nextBalancePublicInputs.PublicState.BlockNumber > receiverBlockNumber {
-		return nil, errors.New("receiver's balance proof does not include the incomming tx")
-	}
+		// TODO: check sender's balance proof
+		if nextBalancePublicInputs.PublicState.BlockNumber > receiverBlockNumber {
+			return nil, errors.New("receiver's balance proof does not include the incomming tx")
+		}
 
-	if !nextBalancePublicInputs.LastTxHash.Equal(transferWitness.Tx.Hash()) {
-		return nil, errors.New("last tx hash mismatch")
-	}
+		if !nextBalancePublicInputs.LastTxHash.Equal(transferWitness.Tx.Hash()) {
+			return nil, errors.New("last tx hash mismatch")
+		}
 
-	if !skipInsufficientCheck {
-		if nextBalancePublicInputs.LastTxInsufficientFlags.RandomAccess(int(transfer.TokenIndex)) {
-			return nil, errors.New("tx insufficient check failed")
+		if !skipInsufficientCheck {
+			if nextBalancePublicInputs.LastTxInsufficientFlags.RandomAccess(int(transfer.TokenIndex)) {
+				return nil, errors.New("tx insufficient check failed")
+			}
 		}
 	}
 
@@ -964,7 +970,14 @@ func (s *mockWallet) GenerateReceiveTransferWitness(
 	}
 
 	// blockMerkleProof, err := blockBuilder.GetBlockMerkleProof(receiverBlockNumber, balancePis.PublicState.BlockNumber)
-	blockMerkleProof, _, err := blockValidityService.BlockTreeProof(receiverBlockNumber, nextBalancePublicInputs.PublicState.BlockNumber)
+	var blockNumber uint32
+	if nextBalancePublicInputs.PublicState != nil {
+		blockNumber = nextBalancePublicInputs.PublicState.BlockNumber
+	} else {
+		blockNumber = receiverBlockNumber
+	}
+
+	blockMerkleProof, _, err := blockValidityService.BlockTreeProof(receiverBlockNumber, blockNumber)
 	if err != nil {
 		return nil, err
 	}

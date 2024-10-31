@@ -187,7 +187,10 @@ func ProcessingPostedBlocks(
 		)
 
 		intMaxBlockNumber := events[key].BlockNumber
-		_, err = block_validity_prover.FetchIntMaxBlockContentByCalldata(cd, postedBlock, ai)
+		blockContent, err := block_validity_prover.FetchIntMaxBlockContentByCalldata(cd, postedBlock, ai)
+		if err == nil {
+			err = blockContent.IsValid()
+		}
 		if err != nil {
 			err = errors.Join(ErrFetchIntMaxBlockContentByCalldataFail, err)
 			switch {
@@ -196,6 +199,9 @@ func ProcessingPostedBlocks(
 				lg.WithError(err).Errorf(msg, intMaxBlockNumber.String())
 			case errors.Is(err, ErrCannotDecodeAddress):
 				const msg = "block %q is ErrCannotDecodeAddress"
+				lg.WithError(err).Errorf(msg, intMaxBlockNumber.String())
+			case errors.Is(err, block_validity_prover.ErrInvalidBlockSignature):
+				const msg = "block %q is ErrInvalidBlockSignature"
 				lg.WithError(err).Errorf(msg, intMaxBlockNumber.String())
 			default:
 				const msg = "block %q processing error occurred"

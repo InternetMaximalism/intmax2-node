@@ -93,7 +93,11 @@ func TransferTransaction(
 		return fmt.Errorf("failed to sync balance proof: %w", err)
 	}
 
-	l2Balance := userWalletState.Balance(tokenIndex).BigInt()
+	l2Balance, err := balance_service.GetUserBalance(ctx, cfg, log, userAccount, tokenIndex)
+	if err != nil {
+		return fmt.Errorf("failed to get balance on INTMAX network: %w", err)
+	}
+	// l2Balance := userWalletState.Balance(tokenIndex).BigInt()
 	fmt.Printf("L2 Balance: %s\n", l2Balance)
 
 	if strings.TrimSpace(amountStr) == "" {
@@ -111,10 +115,10 @@ func TransferTransaction(
 	}
 
 	var (
-		amountGasFee  *uint256.Int
-		intMaxAddress string
+		amountGasFee        *uint256.Int
+		blockBuilderAddress string
 	)
-	amountGasFee, intMaxAddress, err = transferFee(ctx, cfg, log, tokenIndex)
+	amountGasFee, blockBuilderAddress, err = transferFee(ctx, cfg, log, tokenIndex)
 	if err != nil {
 		return fmt.Errorf("failed to get transfer fee: %v", err)
 	}
@@ -123,11 +127,10 @@ func TransferTransaction(
 	}
 
 	zeroTransfer := new(intMaxTypes.Transfer).SetZero()
-	var initialLeaves []*intMaxTypes.Transfer
 
 	// Send transfer transaction
 	var recipientGasFee *intMaxAcc.PublicKey
-	recipientGasFee, err = intMaxAcc.NewPublicKeyFromAddressHex(intMaxAddress)
+	recipientGasFee, err = intMaxAcc.NewPublicKeyFromAddressHex(blockBuilderAddress)
 	if err != nil {
 		return fmt.Errorf("failed to parse recipient address of gas fee: %v", err)
 	}
@@ -137,14 +140,6 @@ func TransferTransaction(
 	if err != nil {
 		return fmt.Errorf("failed to create recipient address of gas fee: %v", err)
 	}
-
-	transferGasFee := intMaxTypes.NewTransferWithRandomSalt(
-		recipientAddressGasFee,
-		tokenIndex,
-		amountGasFee.ToBig(),
-	)
-
-	initialLeaves = append(initialLeaves, transferGasFee)
 
 	// Send transfer transaction
 	var recipient *intMaxAcc.PublicKey
@@ -173,18 +168,18 @@ func TransferTransaction(
 
 	// gasFee, gasOK := dataBlockInfo.TransferFee[new(big.Int).SetUint64(uint64(tokenIndex)).String()]
 	feeTokenIndex := 0 // Transfer fees are only accepted at ETH.
-	fmt.Printf("dataBlockInfo.ScrollAddress: %s\n", dataBlockInfo.IntMaxAddress)
-	blockBuilderAddressBytes, err := hexutil.Decode(dataBlockInfo.IntMaxAddress)
-	if err != nil {
-		return fmt.Errorf("failed to decode block builder address: %v", err)
-	}
-	fmt.Printf("blockBuilderAddressBytes: %v\n", blockBuilderAddressBytes)
+	// fmt.Printf("dataBlockInfo.ScrollAddress: %s\n", dataBlockInfo.IntMaxAddress)
+	// blockBuilderAddressBytes, err := hexutil.Decode(dataBlockInfo.IntMaxAddress)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to decode block builder address: %v", err)
+	// }
+	// fmt.Printf("blockBuilderAddressBytes: %v\n", blockBuilderAddressBytes)
 
-	blockBuilderAddress, err := intMaxTypes.NewINTMAXAddress(blockBuilderAddressBytes)
-	if err != nil {
-		return fmt.Errorf("failed to create block builder address: %v", err)
-	}
-	fmt.Printf("blockBuilderAddress: %v\n", blockBuilderAddress)
+	// blockBuilderAddress, err := intMaxTypes.NewINTMAXAddress(blockBuilderAddressBytes)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to create block builder address: %v", err)
+	// }
+	// fmt.Printf("blockBuilderAddress: %v\n", blockBuilderAddress)
 
 	feeTokenIndexStr := strconv.FormatInt(int64(feeTokenIndex), base10)
 	gasFee, gasOK := dataBlockInfo.TransferFee[feeTokenIndexStr]
@@ -200,8 +195,8 @@ func TransferTransaction(
 	// Include the remittance fee at the beginning of the remittance list
 	transfers := []*intMaxTypes.Transfer{
 		intMaxTypes.NewTransferWithRandomSalt(
-			blockBuilderAddress,   // recipientAddress,
-			uint32(feeTokenIndex), // tokenIndex,
+			recipientAddressGasFee, // recipientAddress,
+			uint32(feeTokenIndex),  // tokenIndex,
 			amountGasFee.ToBig(),
 		),
 		intMaxTypes.NewTransferWithRandomSalt(

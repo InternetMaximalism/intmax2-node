@@ -13,7 +13,7 @@ option go_package = ".;store_vault";
 service StoreVaultService {
   // BackupTransfer processes a request for data backup transfer
   //
-  // ## This method handles the transfer of backup data.
+  // This endpoint handles the transfer of backup data.
   rpc BackupTransfer(BackupTransferRequest) returns (BackupTransferResponse) {
     option (google.api.http) = {
       post: "/v1/backups/transfer"
@@ -21,15 +21,15 @@ service StoreVaultService {
     };
   }
 
-  rpc GetBackupTransfers(GetBackupTransfersRequest) returns (GetBackupTransfersResponse) {
-    option (google.api.http) = {
-      get: "/v1/backups/transfer"
-    };
-  }
+  // rpc GetBackupTransfers(GetBackupTransfersRequest) returns (GetBackupTransfersResponse) {
+  //   option (google.api.http) = {
+  //     get: "/v1/backups/transfer"
+  //   };
+  // }
 
   // GetBackupTransfersList processes a request for backup transfers list with pagination and filters
   //
-  // ## This method handles the backup transfers list with pagination and filters.
+  // This endpoint handles the backup transfers list with pagination and filters.
   //
   // Option for `orderBy` (default=`date_create`)
   //
@@ -244,7 +244,7 @@ service StoreVaultService {
 
   // GetBackupTransferByHash processes a request for backup transfer by hash
   //
-  // ## This method handles the backup transfer by hash.
+  // This endpoint handles the backup transfer by hash.
   rpc GetBackupTransferByHash(GetBackupTransferByHashRequest) returns (GetBackupTransferByHashResponse) {
     option (google.api.http) = {
       get: "/v1/backups/transfer/{transfer_hash}"
@@ -253,7 +253,7 @@ service StoreVaultService {
 
   // BackupTransaction processes a request for data backup transaction
   //
-  // ## This method handles the transaction of backup data.
+  // This endpoint handles the transaction of backup data.
   rpc BackupTransaction(BackupTransactionRequest) returns (BackupTransactionResponse) {
     option (google.api.http) = {
       post: "/v1/backups/transaction"
@@ -261,14 +261,14 @@ service StoreVaultService {
     };
   }
 
-  // GetBackupTransactions processes a request for backup transactions list
-  //
-  // ## This method handles the backup transactions list.
-  rpc GetBackupTransactions(GetBackupTransactionsRequest) returns (GetBackupTransactionsResponse) {
-    option (google.api.http) = {
-      get: "/v1/backups/transaction"
-    };
-  }
+  // // GetBackupTransactions processes a request for backup transactions list
+  // //
+  // // ## This method handles the backup transactions list.
+  // rpc GetBackupTransactions(GetBackupTransactionsRequest) returns (GetBackupTransactionsResponse) {
+  //   option (google.api.http) = {
+  //     get: "/v1/backups/transaction"
+  //   };
+  // }
 
   // GetBackupTransactionsList processes a request for backup transactions list with pagination and filters
   //
@@ -482,7 +482,7 @@ service StoreVaultService {
 
   // GetBackupTransactionByHash processes a request for backup transaction by hash
   //
-  // ## This method handles the backup transaction by hash.
+  // This endpoint handles the backup transaction by hash.
   rpc GetBackupTransactionByHash(GetBackupTransactionByHashRequest) returns (GetBackupTransactionByHashResponse) {
     option (google.api.http) = {
       get: "/v1/backups/transaction/{tx_hash}"
@@ -491,7 +491,7 @@ service StoreVaultService {
 
   // BackupDeposit processes a request for data backup deposit
   //
-  // ## This method handles the deposit of backup data.
+  // This endpoint handles the deposit data for the recipient.
   rpc BackupDeposit(BackupDepositRequest) returns (BackupDepositResponse) {
     option (google.api.http) = {
       post: "/v1/backups/deposit"
@@ -499,11 +499,11 @@ service StoreVaultService {
     };
   }
 
-  rpc GetBackupDeposits(GetBackupDepositsRequest) returns (GetBackupDepositsResponse) {
-    option (google.api.http) = {
-      get: "/v1/backups/deposit"
-    };
-  }
+  // rpc GetBackupDeposits(GetBackupDepositsRequest) returns (GetBackupDepositsResponse) {
+  //   option (google.api.http) = {
+  //     get: "/v1/backups/deposit"
+  //   };
+  // }
 
   // GetBackupDepositsList processes a request for backup deposits list with pagination and filters
   //
@@ -1072,7 +1072,7 @@ message GetBackupTransactionsListResponse {
   }
 
   message CursorBase {
-    // the number of block
+    // DEPRECATED: the number of block
     // example = "1"
     string block_number = 10;
     // cursor of next/prev sorting value by pagination
@@ -1105,18 +1105,27 @@ message GetBackupTransactionByHashResponse {
   }
 
   message Transaction {
+    // UUID of the backup transaction data
     string id = 1;
+    // the sender address of the transaction data
     string sender = 2;
+    // the signature of the transaction data
     string signature = 3;
+    // DEPRECATED: The block number associated with the transaction
     uint64 block_number = 4;
+    // The encrypted transaction data
     string encrypted_tx = 5;
+    // The version of the encoding method
     uint32 encoding_version = 6;
+    // The time when the backup was stored
     google.protobuf.Timestamp created_at = 7;
   }
 }
 
 message GetBackupDepositByHashRequest {
+  // DEPRECATED: The recipient address
   string recipient = 1;
+  // The deposit hash
   string deposit_hash = 2;
 }
 
@@ -1129,10 +1138,15 @@ message GetBackupDepositByHashResponse {
   }
 
   message Deposit {
+    // UUID of the backup deposit data
     string id = 1;
+    // 
     string recipient = 2;
+    // DEPRECATED: The block number associated with the transaction
     uint64 block_number = 3;
+    // The encrypted deposit data
     string encrypted_deposit = 4;
+    // The time when the backup was stored
     google.protobuf.Timestamp created_at = 5;
   }
 }
@@ -1145,7 +1159,7 @@ message BackupDepositRequest {
   string recipient = 20;
   // The encrypted deposit data
   string encrypted_deposit = 30;
-  // The block number associated with the deposit
+  // DEPRECATED: The block number associated with the deposit
   uint64 block_number = 40;
 }
 
@@ -1162,36 +1176,39 @@ message BackupDepositResponse {
   }
 }
 
-message GetBackupDepositsRequest {
-  string sender = 1;
-  uint64 start_block_number = 2;
-  uint64 limit = 3;
-}
+// message GetBackupDepositsRequest {
+//   // the recipient address
+//   string sender = 1;
+//   // the start backup time
+//   uint64 start_block_number = 2;
+//   // the limit of backup deposits
+//   uint64 limit = 3;
+// }
 
-message GetBackupDepositsResponse {
-  bool success = 1;
-  Data data = 2;
+// message GetBackupDepositsResponse {
+//   bool success = 1;
+//   Data data = 2;
 
-  message Data {
-    repeated Deposit deposits = 1;
-    Meta meta = 2;
-  }
+//   message Data {
+//     repeated Deposit deposits = 1;
+//     Meta meta = 2;
+//   }
 
-  message Deposit {
-    string id = 1;
-    string recipient = 2;
-    uint64 block_number = 3;
-    string encrypted_deposit = 4;
-    google.protobuf.Timestamp created_at = 5;
-  }
+//   message Deposit {
+//     string id = 1;
+//     string recipient = 2;
+//     uint64 block_number = 3;
+//     string encrypted_deposit = 4;
+//     google.protobuf.Timestamp created_at = 5;
+//   }
 
-  message Meta {
-    uint64 start_block_number = 1;
-    uint64 end_block_number = 2;
-  }
+//   message Meta {
+//     uint64 start_block_number = 1;
+//     uint64 end_block_number = 2;
+//   }
 
-  StoreVaultError error = 3;
-}
+//   StoreVaultError error = 3;
+// }
 
 message GetBackupDepositsListRequest {
   // the pagination value

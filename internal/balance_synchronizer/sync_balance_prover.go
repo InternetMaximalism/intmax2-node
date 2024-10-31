@@ -438,10 +438,6 @@ func (s *SyncBalanceProver) SyncNoSend(
 	}
 	fmt.Printf("lastSentTxBlockNumber: %d\n", lastSentTxBlockNumber)
 	fmt.Printf("prevPublicState.BlockNumber: %d\n", prevPublicState.BlockNumber)
-	// if uint32(lastSentTxBlockNumber) > prevPublicState.BlockNumber && uint32(lastSentTxBlockNumber) < blockNumber {
-	// 	// This indicates that there are unsynchronized transitions that need to be processed in advance.
-	// 	return errors.New("last block number is greater than prev public state block number")
-	// }
 	if uint32(lastSentTxBlockNumber) > prevPublicState.BlockNumber {
 		// This indicates that there are unsynchronized transitions that need to be processed in advance.
 		return errors.New("last block number is greater than prev public state block number")

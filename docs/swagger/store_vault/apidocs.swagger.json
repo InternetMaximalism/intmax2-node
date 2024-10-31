@@ -113,57 +113,9 @@
       }
     },
     "/v1/backups/deposit": {
-      "get": {
-        "operationId": "StoreVaultService_GetBackupDeposits",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1GetBackupDepositsResponse"
-            }
-          },
-          "400": {
-            "description": "Validation error",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "schema": {
-              "$ref": "#/definitions/protobufEmpty"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "sender",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "startBlockNumber",
-            "in": "query",
-            "required": false,
-            "type": "string",
-            "format": "uint64"
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "type": "string",
-            "format": "uint64"
-          }
-        ],
-        "tags": [
-          "StoreVaultService"
-        ]
-      },
       "post": {
         "summary": "BackupDeposit processes a request for data backup deposit",
-        "description": "## This method handles the deposit of backup data.",
+        "description": "This endpoint handles the deposit data for the recipient.",
         "operationId": "StoreVaultService_BackupDeposit",
         "responses": {
           "200": {
@@ -229,12 +181,14 @@
         "parameters": [
           {
             "name": "depositHash",
+            "description": "The deposit hash",
             "in": "path",
             "required": true,
             "type": "string"
           },
           {
             "name": "recipient",
+            "description": "DEPRECATED: The recipient address",
             "in": "query",
             "required": false,
             "type": "string"
@@ -328,59 +282,9 @@
       }
     },
     "/v1/backups/transaction": {
-      "get": {
-        "summary": "GetBackupTransactions processes a request for backup transactions list",
-        "description": "## This method handles the backup transactions list.",
-        "operationId": "StoreVaultService_GetBackupTransactions",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1GetBackupTransactionsResponse"
-            }
-          },
-          "400": {
-            "description": "Validation error",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "schema": {
-              "$ref": "#/definitions/protobufEmpty"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "sender",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "startBlockNumber",
-            "in": "query",
-            "required": false,
-            "type": "string",
-            "format": "uint64"
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "type": "string",
-            "format": "uint64"
-          }
-        ],
-        "tags": [
-          "StoreVaultService"
-        ]
-      },
       "post": {
         "summary": "BackupTransaction processes a request for data backup transaction",
-        "description": "## This method handles the transaction of backup data.",
+        "description": "This endpoint handles the transaction of backup data.",
         "operationId": "StoreVaultService_BackupTransaction",
         "responses": {
           "200": {
@@ -421,7 +325,7 @@
     "/v1/backups/transaction/{txHash}": {
       "get": {
         "summary": "GetBackupTransactionByHash processes a request for backup transaction by hash",
-        "description": "## This method handles the backup transaction by hash.",
+        "description": "This endpoint handles the backup transaction by hash.",
         "operationId": "StoreVaultService_GetBackupTransactionByHash",
         "responses": {
           "200": {
@@ -503,57 +407,9 @@
       }
     },
     "/v1/backups/transfer": {
-      "get": {
-        "operationId": "StoreVaultService_GetBackupTransfers",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/v1GetBackupTransfersResponse"
-            }
-          },
-          "400": {
-            "description": "Validation error",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          },
-          "500": {
-            "description": "Internal server error",
-            "schema": {
-              "$ref": "#/definitions/protobufEmpty"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "sender",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "startBlockNumber",
-            "in": "query",
-            "required": false,
-            "type": "string",
-            "format": "uint64"
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "type": "string",
-            "format": "uint64"
-          }
-        ],
-        "tags": [
-          "StoreVaultService"
-        ]
-      },
       "post": {
         "summary": "BackupTransfer processes a request for data backup transfer",
-        "description": "## This method handles the transfer of backup data.",
+        "description": "This endpoint handles the transfer of backup data.",
         "operationId": "StoreVaultService_BackupTransfer",
         "responses": {
           "200": {
@@ -594,7 +450,7 @@
     "/v1/backups/transfer/{transferHash}": {
       "get": {
         "summary": "GetBackupTransferByHash processes a request for backup transfer by hash",
-        "description": "## This method handles the backup transfer by hash.",
+        "description": "This endpoint handles the backup transfer by hash.",
         "operationId": "StoreVaultService_GetBackupTransferByHash",
         "responses": {
           "200": {
@@ -638,7 +494,7 @@
     "/v1/backups/transfers/list": {
       "post": {
         "summary": "GetBackupTransfersList processes a request for backup transfers list with pagination and filters",
-        "description": "## This method handles the backup transfers list with pagination and filters.\n\nOption for `orderBy` (default=`date_create`)\n\nOption for `sorting`: `asc`, `desc` (default=`desc`)\n\n** **\n\nIn body request need pass array of filters.\n\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Filter must be of this struct:\n   \u003c/summary\u003e\n   ```\n   {\n     \"relation\":   \"string\",\n     \"dataField\": \"string\",\n     \"condition\":  \"string\",\n     \"value\":      \"string\"\n   }\n   ```\n\u003c/details\u003e\n\nOption for `relation`: `and`, `or`\n\nOption for `dataField`:\n * `block_number`\n\nOption condition by `dataField`:\n * `block_number`: `lessThan`, `lessThanOrEqualTo`, `is`, `greaterThanOrEqualTo`, `greaterThan`.\n * `start_backup_time`: `lessThan`, `lessThanOrEqualTo`, `greaterThanOrEqualTo`, `greaterThan`.\n\nFilter `block_number`: `lessThan`, `lessThanOrEqualTo`, `is`, `greaterThanOrEqualTo`, `greaterThan`:\n * for filtering need set the value `value` with specified block number\n example: `value` = `1` (`is`).\n\nFilter `start_backup_time`: `lessThan`, `lessThanOrEqualTo`, `greaterThanOrEqualTo`, `greaterThan`:\n * for filtering need set the value `value` with specified the start backup time\n example: `value` = `2024-06-10T22:00:00.123Z` (`lessThanOrEqualTo`).\n\n** **\n\nIn body request need pass pagination\n\n`perPage` number of items to list per page (min = 0, max=100, default = 100 (if equal 0))\n\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for request must be of this struct:\n   \u003c/summary\u003e\n   ```\n   {\n     \"direction\": \"string\",\n     \"perPage\": \"string\",\n     \"cursor\": {\n       \"blockNumber\": \"string\",\n       \"sortingValue\": \"string\"\n     }\n   }\n   ```\n\u003c/details\u003e\n\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response must be of this struct:\n   \u003c/summary\u003e\n   ```\n   {\n     \"perPage\": \"string\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"string\",\n         \"sortingValue\": \"string\"\n       },\n       \"next\": {\n         \"blockNumber\": \"string\",\n         \"sortingValue\": \"string\"\n       }\n     }\n   }\n   ```\n\u003c/details\u003e\n\nFirst request with empty pagination with request and empty list of items\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response must be of this struct:\n   \u003c/summary\u003e\n   ```\n   {\n     \"perPage\": \"100\",\n     \"cursor\": null\n   }\n   ```\n\u003c/details\u003e\n\nA request with non-empty `pagination` made from a response with a non-empty list of elements and pagination (`sorting` is `asc`)\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response and next request must be of this struct:\n   \u003c/summary\u003e\n   ```\n   Pagination from response\n   {\n     \"perPage\": \"100\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"1\"\n       },\n       \"next\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"100\"\n       }\n     }\n   }\n   Pagination for request from response with next values\n   {\n     \"perPage\": \"100\",\n     \"direction\": \"next\",\n     \"cursor\": {\n       \"blockNumber\": \"1\",\n       \"sorting_value\": \"100\"\n     }\n   }\n   ```\n\u003c/details\u003e\n\nA request with non-empty `pagination` made from a response with a non-empty list of elements and pagination (`sorting` is `desc`)\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response and next request must be of this struct:\n   \u003c/summary\u003e\n   ```\n   Pagination from response\n   {\n     \"perPage\": \"10\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"10\"\n       },\n       \"next\": {\n         \"blockNumber\": \"1\",\n         \"sorting_value\": \"1\"\n       }\n     }\n   }\n   Pagination for request from response with next values\n   {\n     \"perPage\": \"10\",\n     \"direction\": \"next\",\n     \"cursor\": {\n       \"blockNumber\": \"1\",\n       \"sortingValue\": \"1\"\n     }\n   }\n   ```\n\u003c/details\u003e\n\nA request with non-empty pagination made from a response with a non-empty list of items and pagination for the situation when the end of the items list is reached.\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response and next request must be of this struct:\n   \u003c/summary\u003e\n   ```\n   Pagination from response\n   {\n     \"perPage\": \"10\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"10\"\n       },\n       \"next\": {\n         \"blockNumber\": \"1\",\n         \"sorting_value\": \"1\"\n       }\n     }\n   }\n   Pagination for request from response with next values\n   {\n     \"perPage\": \"10\",\n     \"direction\": \"next\",\n     \"cursor\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"1\"\n     }\n   }\n   Pagination from response\n   {\n     \"perPage\": \"10\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"1\"\n       },\n       \"next\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"1\"\n       }\n     }\n   }\n   ```\n\u003c/details\u003e",
+        "description": "This endpoint handles the backup transfers list with pagination and filters.\n\nOption for `orderBy` (default=`date_create`)\n\nOption for `sorting`: `asc`, `desc` (default=`desc`)\n\n** **\n\nIn body request need pass array of filters.\n\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Filter must be of this struct:\n   \u003c/summary\u003e\n   ```\n   {\n     \"relation\":   \"string\",\n     \"dataField\": \"string\",\n     \"condition\":  \"string\",\n     \"value\":      \"string\"\n   }\n   ```\n\u003c/details\u003e\n\nOption for `relation`: `and`, `or`\n\nOption for `dataField`:\n * `block_number`\n\nOption condition by `dataField`:\n * `block_number`: `lessThan`, `lessThanOrEqualTo`, `is`, `greaterThanOrEqualTo`, `greaterThan`.\n * `start_backup_time`: `lessThan`, `lessThanOrEqualTo`, `greaterThanOrEqualTo`, `greaterThan`.\n\nFilter `block_number`: `lessThan`, `lessThanOrEqualTo`, `is`, `greaterThanOrEqualTo`, `greaterThan`:\n * for filtering need set the value `value` with specified block number\n example: `value` = `1` (`is`).\n\nFilter `start_backup_time`: `lessThan`, `lessThanOrEqualTo`, `greaterThanOrEqualTo`, `greaterThan`:\n * for filtering need set the value `value` with specified the start backup time\n example: `value` = `2024-06-10T22:00:00.123Z` (`lessThanOrEqualTo`).\n\n** **\n\nIn body request need pass pagination\n\n`perPage` number of items to list per page (min = 0, max=100, default = 100 (if equal 0))\n\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for request must be of this struct:\n   \u003c/summary\u003e\n   ```\n   {\n     \"direction\": \"string\",\n     \"perPage\": \"string\",\n     \"cursor\": {\n       \"blockNumber\": \"string\",\n       \"sortingValue\": \"string\"\n     }\n   }\n   ```\n\u003c/details\u003e\n\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response must be of this struct:\n   \u003c/summary\u003e\n   ```\n   {\n     \"perPage\": \"string\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"string\",\n         \"sortingValue\": \"string\"\n       },\n       \"next\": {\n         \"blockNumber\": \"string\",\n         \"sortingValue\": \"string\"\n       }\n     }\n   }\n   ```\n\u003c/details\u003e\n\nFirst request with empty pagination with request and empty list of items\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response must be of this struct:\n   \u003c/summary\u003e\n   ```\n   {\n     \"perPage\": \"100\",\n     \"cursor\": null\n   }\n   ```\n\u003c/details\u003e\n\nA request with non-empty `pagination` made from a response with a non-empty list of elements and pagination (`sorting` is `asc`)\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response and next request must be of this struct:\n   \u003c/summary\u003e\n   ```\n   Pagination from response\n   {\n     \"perPage\": \"100\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"1\"\n       },\n       \"next\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"100\"\n       }\n     }\n   }\n   Pagination for request from response with next values\n   {\n     \"perPage\": \"100\",\n     \"direction\": \"next\",\n     \"cursor\": {\n       \"blockNumber\": \"1\",\n       \"sorting_value\": \"100\"\n     }\n   }\n   ```\n\u003c/details\u003e\n\nA request with non-empty `pagination` made from a response with a non-empty list of elements and pagination (`sorting` is `desc`)\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response and next request must be of this struct:\n   \u003c/summary\u003e\n   ```\n   Pagination from response\n   {\n     \"perPage\": \"10\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"10\"\n       },\n       \"next\": {\n         \"blockNumber\": \"1\",\n         \"sorting_value\": \"1\"\n       }\n     }\n   }\n   Pagination for request from response with next values\n   {\n     \"perPage\": \"10\",\n     \"direction\": \"next\",\n     \"cursor\": {\n       \"blockNumber\": \"1\",\n       \"sortingValue\": \"1\"\n     }\n   }\n   ```\n\u003c/details\u003e\n\nA request with non-empty pagination made from a response with a non-empty list of items and pagination for the situation when the end of the items list is reached.\n\u003cdetails\u003e\n   \u003csummary\u003e\n     Pagination for response and next request must be of this struct:\n   \u003c/summary\u003e\n   ```\n   Pagination from response\n   {\n     \"perPage\": \"10\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"10\"\n       },\n       \"next\": {\n         \"blockNumber\": \"1\",\n         \"sorting_value\": \"1\"\n       }\n     }\n   }\n   Pagination for request from response with next values\n   {\n     \"perPage\": \"10\",\n     \"direction\": \"next\",\n     \"cursor\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"1\"\n     }\n   }\n   Pagination from response\n   {\n     \"perPage\": \"10\",\n     \"cursor\": {\n       \"prev\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"1\"\n       },\n       \"next\": {\n         \"blockNumber\": \"1\",\n         \"sortingValue\": \"1\"\n       }\n     }\n   }\n   ```\n\u003c/details\u003e",
         "operationId": "StoreVaultService_GetBackupTransfersList",
         "responses": {
           "200": {
@@ -1000,7 +856,7 @@
         "blockNumber": {
           "type": "string",
           "format": "uint64",
-          "title": "The block number associated with the deposit"
+          "title": "DEPRECATED: The block number associated with the deposit"
         }
       },
       "description": "BackupDepositRequest is the request message for BackupDeposit method."
@@ -1318,21 +1174,25 @@
       "type": "object",
       "properties": {
         "id": {
-          "type": "string"
+          "type": "string",
+          "title": "UUID of the backup deposit data"
         },
         "recipient": {
           "type": "string"
         },
         "blockNumber": {
           "type": "string",
-          "format": "uint64"
+          "format": "uint64",
+          "title": "DEPRECATED: The block number associated with the transaction"
         },
         "encryptedDeposit": {
-          "type": "string"
+          "type": "string",
+          "title": "The encrypted deposit data"
         },
         "createdAt": {
           "type": "string",
-          "format": "date-time"
+          "format": "date-time",
+          "title": "The time when the backup was stored"
         }
       }
     },
@@ -1506,70 +1366,6 @@
         }
       }
     },
-    "v1GetBackupDepositsResponse": {
-      "type": "object",
-      "properties": {
-        "success": {
-          "type": "boolean"
-        },
-        "data": {
-          "$ref": "#/definitions/v1GetBackupDepositsResponseData"
-        },
-        "error": {
-          "$ref": "#/definitions/v1StoreVaultError"
-        }
-      }
-    },
-    "v1GetBackupDepositsResponseData": {
-      "type": "object",
-      "properties": {
-        "deposits": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1GetBackupDepositsResponseDeposit"
-          }
-        },
-        "meta": {
-          "$ref": "#/definitions/v1GetBackupDepositsResponseMeta"
-        }
-      }
-    },
-    "v1GetBackupDepositsResponseDeposit": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "recipient": {
-          "type": "string"
-        },
-        "blockNumber": {
-          "type": "string",
-          "format": "uint64"
-        },
-        "encryptedDeposit": {
-          "type": "string"
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time"
-        }
-      }
-    },
-    "v1GetBackupDepositsResponseMeta": {
-      "type": "object",
-      "properties": {
-        "startBlockNumber": {
-          "type": "string",
-          "format": "uint64"
-        },
-        "endBlockNumber": {
-          "type": "string",
-          "format": "uint64"
-        }
-      }
-    },
     "v1GetBackupTransactionByHashResponse": {
       "type": "object",
       "properties": {
@@ -1593,28 +1389,35 @@
       "type": "object",
       "properties": {
         "id": {
-          "type": "string"
+          "type": "string",
+          "title": "UUID of the backup transaction data"
         },
         "sender": {
-          "type": "string"
+          "type": "string",
+          "title": "the sender address of the transaction data"
         },
         "signature": {
-          "type": "string"
+          "type": "string",
+          "title": "the signature of the transaction data"
         },
         "blockNumber": {
           "type": "string",
-          "format": "uint64"
+          "format": "uint64",
+          "title": "DEPRECATED: The block number associated with the transaction"
         },
         "encryptedTx": {
-          "type": "string"
+          "type": "string",
+          "title": "The encrypted transaction data"
         },
         "encodingVersion": {
           "type": "integer",
-          "format": "int64"
+          "format": "int64",
+          "title": "The version of the encoding method"
         },
         "createdAt": {
           "type": "string",
-          "format": "date-time"
+          "format": "date-time",
+          "title": "The time when the backup was stored"
         }
       }
     },
@@ -1726,7 +1529,7 @@
       "properties": {
         "blockNumber": {
           "type": "string",
-          "title": "the number of block\nexample = \"1\""
+          "title": "DEPRECATED: the number of block\nexample = \"1\""
         },
         "sortingValue": {
           "type": "string",
@@ -1764,77 +1567,6 @@
       }
     },
     "v1GetBackupTransactionsListResponseTransaction": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "sender": {
-          "type": "string"
-        },
-        "signature": {
-          "type": "string"
-        },
-        "blockNumber": {
-          "type": "string",
-          "format": "uint64"
-        },
-        "encryptedTx": {
-          "type": "string"
-        },
-        "encodingVersion": {
-          "type": "integer",
-          "format": "int64"
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time"
-        }
-      }
-    },
-    "v1GetBackupTransactionsResponse": {
-      "type": "object",
-      "properties": {
-        "success": {
-          "type": "boolean"
-        },
-        "data": {
-          "$ref": "#/definitions/v1GetBackupTransactionsResponseData"
-        },
-        "error": {
-          "$ref": "#/definitions/v1StoreVaultError"
-        }
-      }
-    },
-    "v1GetBackupTransactionsResponseData": {
-      "type": "object",
-      "properties": {
-        "transactions": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1GetBackupTransactionsResponseTransaction"
-          }
-        },
-        "meta": {
-          "$ref": "#/definitions/v1GetBackupTransactionsResponseMeta"
-        }
-      }
-    },
-    "v1GetBackupTransactionsResponseMeta": {
-      "type": "object",
-      "properties": {
-        "startBlockNumber": {
-          "type": "string",
-          "format": "uint64"
-        },
-        "endBlockNumber": {
-          "type": "string",
-          "format": "uint64"
-        }
-      }
-    },
-    "v1GetBackupTransactionsResponseTransaction": {
       "type": "object",
       "properties": {
         "id": {
@@ -2050,70 +1782,6 @@
       }
     },
     "v1GetBackupTransfersListResponseTransfer": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "blockNumber": {
-          "type": "string",
-          "format": "uint64"
-        },
-        "recipient": {
-          "type": "string"
-        },
-        "encryptedTransfer": {
-          "type": "string"
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time"
-        }
-      }
-    },
-    "v1GetBackupTransfersResponse": {
-      "type": "object",
-      "properties": {
-        "success": {
-          "type": "boolean"
-        },
-        "data": {
-          "$ref": "#/definitions/v1GetBackupTransfersResponseData"
-        },
-        "error": {
-          "$ref": "#/definitions/v1StoreVaultError"
-        }
-      }
-    },
-    "v1GetBackupTransfersResponseData": {
-      "type": "object",
-      "properties": {
-        "transfers": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/v1GetBackupTransfersResponseTransfer"
-          }
-        },
-        "meta": {
-          "$ref": "#/definitions/v1GetBackupTransfersResponseMeta"
-        }
-      }
-    },
-    "v1GetBackupTransfersResponseMeta": {
-      "type": "object",
-      "properties": {
-        "startBlockNumber": {
-          "type": "string",
-          "format": "uint64"
-        },
-        "endBlockNumber": {
-          "type": "string",
-          "format": "uint64"
-        }
-      }
-    },
-    "v1GetBackupTransfersResponseTransfer": {
       "type": "object",
       "properties": {
         "id": {

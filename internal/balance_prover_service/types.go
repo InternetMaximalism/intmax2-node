@@ -748,6 +748,7 @@ const (
 
 func (s *BalancePublicInputs) FromPublicInputs(publicInputs []ffg.Element) (*BalancePublicInputs, error) {
 	if len(publicInputs) < balancePublicInputsLen {
+		fmt.Printf("invalid length of public inputs: %d < %d\n", len(publicInputs), balancePublicInputsLen)
 		return nil, errors.New("invalid length")
 	}
 

@@ -129,6 +129,7 @@ func DecodePublicInputs(reader *bufio.Reader, numPublicInputs uint32) ([]ffg.Ele
 }
 
 func NewCompressedPlonky2ProofFromBase64String(proof string) (*Plonky2Proof, error) {
+	fmt.Printf("size of proof: %v\n", len(proof))
 	decodedProof, err := base64.StdEncoding.DecodeString(proof)
 	if err != nil {
 		return nil, errors.New("failed to decode transaction")

@@ -14,6 +14,9 @@ var ErrUnknownAccountID = errors.New("account ID is unknown")
 // ErrDecodeCallDataFail error: failed to decode calldata.
 var ErrDecodeCallDataFail = errors.New("failed to decode calldata")
 
+// ErrInvalidBlockSignature error: signature verification failed.
+var ErrInvalidBlockSignature = errors.New("signature verification failed")
+
 // ErrRecoverAccountIDsFromBytesFail error: failed to recover account IDs from bytes.
 var ErrRecoverAccountIDsFromBytesFail = errors.New("failed to recover account IDs from bytes")
 
