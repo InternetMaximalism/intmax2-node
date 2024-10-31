@@ -5,8 +5,9 @@ import "time"
 type UserState struct {
 	ID                 string
 	UserAddress        string
-	EncryptedUserState []byte
+	EncryptedUserState string
 	AuthSignature      string
+	BlockNumber        int64
 	CreatedAt          time.Time
-	ModifiedAt         time.Time
+	UpdatedAt          time.Time
 }

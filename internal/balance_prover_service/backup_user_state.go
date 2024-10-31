@@ -248,7 +248,7 @@ func convertBackupUserStateData(
 	}
 
 	return &BackupUserStateData{
-		Id:                 userState.Id,
+		Id:                 userState.UserStateId,
 		UserAddress:        userAddress,
 		BlockNumber:        userState.BlockNumber,
 		BalanceProof:       &balanceProofWithPis,

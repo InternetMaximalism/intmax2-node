@@ -1,7 +1,6 @@
 package pgx
 
 import (
-	"fmt"
 	errPgx "intmax2-node/internal/sql_db/pgx/errors"
 	"intmax2-node/internal/sql_db/pgx/models"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
@@ -11,87 +10,89 @@ import (
 )
 
 func (p *pgx) CreateBackupUserState(
-	userAddress string,
-	encryptedUserState []byte,
-	authSignature string,
+	userAddress, encryptedUserState, authSignature string,
+	blockNumber int64,
 ) (*mDBApp.UserState, error) {
-	const query = ` INSERT INTO user_states
-	(id, user_address, encrypted_user_state, auth_signature, created_at, modified_at)
-	VALUES ($1, $2, $3, $4, $5, $6) `
+	const (
+		q = ` INSERT INTO user_states (
+              id ,user_address ,encrypted_user_state ,auth_signature ,block_number
+              ) VALUES ($1, $2, $3, $4, $5) `
+	)
 
 	id := uuid.New().String()
-	createdAt := time.Now().UTC()
-	modifiedAt := time.Now().UTC()
 
-	err := p.createBackupEntry(
-		query,
+	err := p.createBackupEntry(q,
 		id,
 		userAddress,
 		encryptedUserState,
 		authSignature,
-		createdAt,
-		modifiedAt,
+		blockNumber,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create spent proof: %w", err)
+		return nil, err
 	}
 
 	return p.GetBackupUserState(id)
 }
 
 func (p *pgx) UpdateBackupUserState(
-	id string,
-	encryptedUserState []byte,
-	authSignature string,
+	id, encryptedUserState, authSignature string,
+	blockNumber int64,
 ) (*mDBApp.UserState, error) {
-	const query = ` UPDATE user_states
-	SET encrypted_user_state = $1, auth_signature = $2, modified_at = $3
-	WHERE id = $4 `
+	const (
+		q = ` UPDATE user_states
+              SET encrypted_user_state = $1 ,auth_signature = $2 ,block_number = $3 ,updated_at = $4
+              WHERE id = $5 `
+	)
 
-	modifiedAt := time.Now().UTC()
-
-	_, err := p.exec(p.ctx, query,
+	_, err := p.exec(p.ctx, q,
 		encryptedUserState,
 		authSignature,
-		modifiedAt,
+		blockNumber,
+		time.Now().UTC(),
 		id,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update spent proof: %w", errPgx.Err(err))
+		return nil, errPgx.Err(err)
 	}
+
 	return p.GetBackupUserState(id)
 }
 
 func (p *pgx) GetBackupUserState(id string) (*mDBApp.UserState, error) {
-	const query = ` SELECT id, user_address, encrypted_user_state, auth_signature, created_at, modified_at
-	FROM user_states WHERE id = $1 `
+	const (
+		q = ` SELECT id
+              ,user_address ,encrypted_user_state ,auth_signature ,block_number ,created_at ,updated_at
+              FROM user_states WHERE id = $1 `
+	)
 
 	var b models.UserState
-	err := errPgx.Err(p.queryRow(p.ctx, query, id).
+	err := errPgx.Err(p.queryRow(p.ctx, q, id).
 		Scan(
 			&b.ID,
 			&b.UserAddress,
 			&b.EncryptedUserState,
 			&b.AuthSignature,
+			&b.BlockNumber,
 			&b.CreatedAt,
-			&b.ModifiedAt,
+			&b.UpdatedAt,
 		))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get spent proof: %w", err)
+		return nil, err
 	}
-	spentProof := p.userStateToDBApp(&b)
-	return &spentProof, nil
+
+	userState := p.userStateToDBApp(&b)
+	return &userState, nil
 }
 
-func (p *pgx) userStateToDBApp(
-	b *models.UserState,
-) mDBApp.UserState {
+func (p *pgx) userStateToDBApp(b *models.UserState) mDBApp.UserState {
 	return mDBApp.UserState{
 		ID:                 b.ID,
 		UserAddress:        b.UserAddress,
 		EncryptedUserState: b.EncryptedUserState,
 		AuthSignature:      b.AuthSignature,
+		BlockNumber:        b.BlockNumber,
 		CreatedAt:          b.CreatedAt,
-		ModifiedAt:         b.ModifiedAt,
+		UpdatedAt:          b.UpdatedAt,
 	}
 }

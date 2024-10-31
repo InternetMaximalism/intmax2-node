@@ -1,18 +1,14 @@
-package store_vault_server
+package post_backup_user_state
 
 import (
 	"context"
-	mFL "intmax2-node/internal/sql_filter/models"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
-
-	"github.com/dimiro1/health"
 )
 
-//go:generate mockgen -destination=mock_db_app.go -package=store_vault_server -source=db_app.go
+//go:generate mockgen -destination=mock_db_app_test.go -package=post_backup_user_state_test -source=db_app.go
 
 type SQLDriverApp interface {
 	GenericCommandsApp
-	ServiceCommands
 	BackupTransfers
 	BackupTransactions
 	BackupDeposits
@@ -26,10 +22,6 @@ type GenericCommandsApp interface {
 	Exec(ctx context.Context, input interface{}, executor func(d interface{}, input interface{}) error) (err error)
 }
 
-type ServiceCommands interface {
-	Check(ctx context.Context) health.Health
-}
-
 type BackupTransfers interface {
 	CreateBackupTransfer(
 		recipient, encryptedTransferHash, encryptedTransfer string,
@@ -40,16 +32,6 @@ type BackupTransfers interface {
 		recipient, transferDoubleHash string,
 	) (*mDBApp.BackupTransfer, error)
 	GetBackupTransfers(condition string, value interface{}) ([]*mDBApp.BackupTransfer, error)
-	GetBackupTransfersByRecipient(
-		recipient string,
-		pagination mDBApp.PaginationOfListOfBackupTransfersInput,
-		sorting mFL.Sorting, orderBy mFL.OrderBy,
-		filters mFL.FiltersList,
-	) (
-		paginator *mDBApp.PaginationOfListOfBackupTransfers,
-		listDBApp mDBApp.ListOfBackupTransfer,
-		err error,
-	)
 }
 
 type BackupTransactions interface {
@@ -60,16 +42,6 @@ type BackupTransactions interface {
 	GetBackupTransaction(condition string, value string) (*mDBApp.BackupTransaction, error)
 	GetBackupTransactionBySenderAndTxDoubleHash(sender, txDoubleHash string) (*mDBApp.BackupTransaction, error)
 	GetBackupTransactions(condition string, value interface{}) ([]*mDBApp.BackupTransaction, error)
-	GetBackupTransactionsBySender(
-		sender string,
-		pagination mDBApp.PaginationOfListOfBackupTransactionsInput,
-		sorting mFL.Sorting, orderBy mFL.OrderBy,
-		filters mFL.FiltersList,
-	) (
-		paginator *mDBApp.PaginationOfListOfBackupTransactions,
-		listDBApp mDBApp.ListOfBackupTransaction,
-		err error,
-	)
 }
 
 type BackupDeposits interface {
@@ -77,21 +49,9 @@ type BackupDeposits interface {
 		recipient, depositHash, encryptedDeposit string,
 		blockNumber int64,
 	) (*mDBApp.BackupDeposit, error)
-	GetBackupDepositByRecipientAndDepositDoubleHash(
-		recipient, depositDoubleHash string,
-	) (*mDBApp.BackupDeposit, error)
+	GetBackupDepositByRecipientAndDepositDoubleHash(recipient, depositDoubleHash string) (*mDBApp.BackupDeposit, error)
 	GetBackupDeposit(conditions []string, values []interface{}) (*mDBApp.BackupDeposit, error)
 	GetBackupDeposits(condition string, value interface{}) ([]*mDBApp.BackupDeposit, error)
-	GetBackupDepositsByRecipient(
-		recipient string,
-		pagination mDBApp.PaginationOfListOfBackupDepositsInput,
-		sorting mFL.Sorting, orderBy mFL.OrderBy,
-		filters mFL.FiltersList,
-	) (
-		paginator *mDBApp.PaginationOfListOfBackupDeposits,
-		listDBApp mDBApp.ListOfBackupDeposit,
-		err error,
-	)
 }
 
 type BackupBalances interface {

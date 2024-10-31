@@ -43,6 +43,8 @@ type PGX interface {
 	GasPriceOracle
 	L2BatchIndex
 	RelationshipL2BatchIndexAndBlockContent
+	BackupUserState
+	BalanceProof
 }
 
 type GenericCommands interface {
@@ -314,4 +316,26 @@ type RelationshipL2BatchIndexAndBlockContent interface {
 	RelationshipL2BatchIndexAndBlockContentsByBlockContentID(
 		blockContentID string,
 	) (*mDBApp.RelationshipL2BatchIndexBlockContents, error)
+}
+
+type BackupUserState interface {
+	CreateBackupUserState(
+		userAddress, encryptedUserState, authSignature string,
+		blockNumber int64,
+	) (*mDBApp.UserState, error)
+	UpdateBackupUserState(
+		id, encryptedUserState, authSignature string,
+		blockNumber int64,
+	) (*mDBApp.UserState, error)
+	GetBackupUserState(id string) (*mDBApp.UserState, error)
+}
+
+type BalanceProof interface {
+	CreateBalanceProof(
+		userStateID, userAddress, privateStateCommitment string,
+		blockNumber int64,
+		balanceProof []byte,
+	) (*mDBApp.BalanceProof, error)
+	GetBalanceProof(id string) (*mDBApp.BalanceProof, error)
+	GetBalanceProofByUserStateID(userStateID string) (*mDBApp.BalanceProof, error)
 }
