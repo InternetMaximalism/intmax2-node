@@ -592,6 +592,36 @@ func (p *balanceProcessor) requestSendBalanceValidityProof(
 	updateWitness *block_validity_prover.UpdateWitness,
 	prevBalanceProof *string,
 ) (string, error) {
+	if sendWitness.TxWitness.Tx.Nonce != sendWitness.SpentTokenWitness.TxNonce {
+		fmt.Printf(
+			"transaction nonce does not match: %d != %d\n",
+			sendWitness.TxWitness.Tx.Nonce,
+			sendWitness.SpentTokenWitness.TxNonce,
+		)
+		panic("transaction nonce does not match")
+	}
+
+	txIndex := sendWitness.TxWitness.TxIndex
+	senderLeaf := sendWitness.TxWitness.SenderLeaves[txIndex]
+	// The sender's public key in the sendWitness should be equal to the one in the sender leaf.
+	if senderLeaf.Sender.BigInt().Cmp(sendWitness.PrevBalancePis.PubKey.BigInt()) != 0 {
+		fmt.Printf("txIndex: %d\n", txIndex)
+		fmt.Printf("senderLeaf: %+v\n", senderLeaf)
+		fmt.Printf("publicState: %+v\n", sendWitness.PrevBalancePis)
+		fmt.Printf(
+			"sender public key does not match: %s != %s\n",
+			senderLeaf.Sender.BigInt(),
+			sendWitness.PrevBalancePis.PubKey.BigInt(),
+		)
+		leftPk, err := intMaxAcc.NewPublicKeyFromAddressInt(senderLeaf.Sender.BigInt())
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("leftPk: %s\n", leftPk.ToAddress().String())
+		fmt.Printf("rightPk: %s\n", sendWitness.PrevBalancePis.PubKey.ToAddress().String())
+		panic("sender public key does not match")
+	}
+
 	requestID := uuid.New().String()
 	requestBody := SendBalanceValidityInput{
 		RequestID:        requestID,

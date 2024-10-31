@@ -254,9 +254,6 @@ type SendWitnessInput struct {
 }
 
 func (input *SendWitnessInput) FromSendWitness(value *SendWitness) *SendWitnessInput {
-	if value.TxWitness.Tx.Nonce != value.SpentTokenWitness.TxNonce {
-		panic("transaction nonce does not match")
-	}
 	spentTokenWitnessInput := new(SpentTokenWitnessInput).FromSpentTokenWitness(value.SpentTokenWitness)
 
 	input.PrevBalancePis = new(BalancePublicInputsInput).FromBalancePublicInputs(value.PrevBalancePis)

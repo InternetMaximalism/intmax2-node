@@ -424,6 +424,7 @@ func (w *mockWallet) UpdateOnSendTx(
 		fmt.Printf("(UpdateOnSendTx) transaction nonce mismatch: %d != %d\n", txWitness.Tx.Nonce, w.nonce)
 		panic("nonce mismatch")
 	}
+	oldTransactionCount := w.nonce
 
 	w.nonce += 1
 	w.salt = newSalt
@@ -462,6 +463,7 @@ func (w *mockWallet) UpdateOnSendTx(
 			InsufficientFlags:   *insufficientFlags,
 			Transfers:           transfers,
 			NewPrivateStateSalt: newSalt,
+			TxNonce:             oldTransactionCount,
 		},
 		PrevBalancePis: prevBalancePis,
 		TxWitness:      *txWitness,
