@@ -94,11 +94,6 @@ func recoverBlockContent(
 			return nil, errors.Join(ErrDecodeCallDataFail, err)
 		}
 
-		err = blockContent.IsValid()
-		if err != nil {
-			return nil, fmt.Errorf("failed to validate block content: %w", err)
-		}
-
 		return blockContent, nil
 	case postNonRegistrationBlockMethod:
 		decodedInput, err := decodePostNonRegistrationBlockCalldata(method, calldata)
@@ -110,11 +105,6 @@ func recoverBlockContent(
 		blockContent, err = recoverNonRegistrationBlockContent(decodedInput, ai, intMaxBlockNumber)
 		if err != nil {
 			return nil, errors.Join(ErrDecodeCallDataFail, err)
-		}
-
-		err = blockContent.IsValid()
-		if err != nil {
-			return nil, fmt.Errorf("failed to validate block content: %w", err)
 		}
 
 		return blockContent, nil

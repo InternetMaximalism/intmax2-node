@@ -257,6 +257,7 @@ func GetUserBalance(
 
 	amount := big.NewInt(0)
 	fmt.Printf("tokenIndex: %v\n", tokenIndex)
+	fmt.Printf("len(AssetLeafEntries): %v\n", len(balanceData.AssetLeafEntries))
 	for _, asset := range balanceData.AssetLeafEntries {
 		fmt.Printf("asset.tokenIndex: %v\n", asset.TokenIndex)
 		if asset.TokenIndex == tokenIndex {

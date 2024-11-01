@@ -341,16 +341,18 @@ func (s *balanceSynchronizer) validReceivedTransfer(
 		s.log.Fatalf(msg, err.Error())
 	}
 
-	err = applyReceivedTransferTransition(
-		transition.Transfer,
-		s.blockValidityService,
-		s.balanceProcessor,
-		s.syncBalanceProver,
-		s.userState,
-	)
-	if err != nil {
-		return errors.Join(ErrApplyReceivedTransferTransitionFail, err)
-	}
+	// TODO: Implement
+	// err = applyReceivedTransferTransition(
+	// 	transition.Transfer,
+	// 	s.blockValidityService,
+	// 	s.balanceProcessor,
+	// 	s.syncBalanceProver,
+	// 	s.userState,
+	// )
+	// if err != nil {
+	// 	return errors.Join(ErrApplyReceivedTransferTransitionFail, err)
+	// }
+	s.log.Warnf("applyReceivedTransferTransition is not implemented\n")
 
 	return nil
 }

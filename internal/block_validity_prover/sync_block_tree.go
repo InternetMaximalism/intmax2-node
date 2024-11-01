@@ -139,6 +139,9 @@ func syncBlockContentWithEvent(
 	// Update account tree
 	var blockContent *intMaxTypes.BlockContent
 	blockContent, err = FetchIntMaxBlockContentByCalldata(cd, postedBlock, blockBuilder)
+	if err == nil {
+		err = blockContent.IsValid()
+	}
 	if err != nil {
 		err = errors.Join(ErrFetchIntMaxBlockContentByCalldataFail, err)
 		switch {
@@ -147,6 +150,9 @@ func syncBlockContentWithEvent(
 			log.WithError(err).Errorf(msg, intMaxBlockNumber)
 		case errors.Is(err, ErrCannotDecodeAddress):
 			const msg = "block %d is ErrCannotDecodeAddress"
+			log.WithError(err).Errorf(msg, intMaxBlockNumber)
+		case errors.Is(err, ErrInvalidBlockSignature):
+			const msg = "block %d is ErrInvalidBlockSignature"
 			log.WithError(err).Errorf(msg, intMaxBlockNumber)
 		default:
 			const msg = "block %d processing error occurred"

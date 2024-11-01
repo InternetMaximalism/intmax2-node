@@ -450,7 +450,7 @@ func backupBalanceProofRawRequest(
 	user string,
 	blockNumber uint32,
 ) (*BackupBalanceData, error) {
-	fmt.Printf("size of balanceProofBody: %d", len(balanceProofBody))
+	fmt.Printf("size of balanceProofBody: %d\n", len(balanceProofBody))
 	ucInput := node.BackupBalanceRequest{
 		User:                  user,
 		EncryptedBalanceProof: balanceProofBody,
@@ -635,7 +635,6 @@ func getBackupBalanceRawRequest(
 		BlockNumber:          balanceData.BlockNumber,
 		CreatedAt:            balanceData.CreatedAt,
 	}
-	fmt.Printf("result.Data: %+v\n", result.Data)
 
 	return result, nil
 }
