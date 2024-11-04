@@ -183,6 +183,12 @@
               "$ref": "#/definitions/rpcStatus"
             }
           },
+          "404": {
+            "description": "Not found error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
           "500": {
             "description": "Internal server error",
             "schema": {
@@ -196,6 +202,14 @@
             "description": "the deposit index of deposit",
             "in": "path",
             "required": true,
+            "type": "string",
+            "format": "int64"
+          },
+          {
+            "name": "blockNumber",
+            "description": "the block number of deposit",
+            "in": "query",
+            "required": false,
             "type": "string",
             "format": "int64"
           }

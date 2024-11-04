@@ -162,5 +162,11 @@ var ErrLeafBlockNumberNotFound = errors.New("leaf block number not found")
 // ErrBlockContentByBlockNumber error: block content by block number error
 var ErrBlockContentByBlockNumber = errors.New("failed to fetch block content by block number")
 
-// ErrDepositIndexNotFound error: no last deposit index found.
-var ErrDepositIndexNotFound = errors.New("no last deposit index found")
+// ErrBlockNumberInvalid error: block number must be valid.
+var ErrBlockNumberInvalid = errors.New("block number must be valid")
+
+// ErrBlockNumberOutOfRange error: block number is out of range.
+var ErrBlockNumberOutOfRange = errors.New("block number is out of range")
+
+// ErrDepositTreeProof error: deposit tree proof error.
+var ErrDepositTreeProof = errors.New("deposit tree proof error")

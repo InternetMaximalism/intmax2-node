@@ -21,6 +21,19 @@ service BlockValidityProverService {
     option (google.api.http) = {
       get: "/v1/deposit-tree-proof/{deposit_index}"
     };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      responses: {
+        key: "404"
+        value: {
+          description: "Not found error"
+          schema: {
+            json_schema: {
+              ref: ".google.rpc.Status"
+            }
+          }
+        }
+      }
+    };
   }
   // BlockTreeProof returns the block Merkle proof
   //
@@ -86,6 +99,8 @@ service BlockValidityProverService {
 message DepositTreeProofRequest {
   // the deposit index of deposit
   int64 deposit_index = 10 [json_name="depositIndex", (tagger.tags)="json:\"depositIndex,omitempty\""];
+  // the block number of deposit
+  int64 block_number = 20 [json_name="blockNumber", (tagger.tags)="json:\"blockNumber,omitempty\""];
 }
 
 // DepositTreeProofResponse describes response to get info about the deposit Merkle proof
