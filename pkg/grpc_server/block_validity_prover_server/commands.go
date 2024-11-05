@@ -4,12 +4,14 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/internal/logger"
 	blockTreeProofByRootAndLeafBlockNumbers "intmax2-node/internal/use_cases/block_tree_proof_by_root_and_leaf_block_numbers"
+	blockValidityProverAccount "intmax2-node/internal/use_cases/block_validity_prover_account"
 	blockValidityProverBlockStatusByBlockHash "intmax2-node/internal/use_cases/block_validity_prover_block_status_by_block_hash"
 	blockValidityProverBlockStatusByBlockNumber "intmax2-node/internal/use_cases/block_validity_prover_block_status_by_block_number"
 	blockValidityProverInfo "intmax2-node/internal/use_cases/block_validity_prover_info"
 	depositTreeProofByDepositIndex "intmax2-node/internal/use_cases/deposit_tree_proof_by_deposit_index"
 	getVersion "intmax2-node/internal/use_cases/get_version"
 	ucBlockTreeProofByRootAndLeafBlockNumbers "intmax2-node/pkg/use_cases/block_tree_proof_by_root_and_leaf_block_numbers"
+	ucBlockValidityProverAccount "intmax2-node/pkg/use_cases/block_validity_prover_account"
 	ucBlockValidityProverBlockStatusByBlockHash "intmax2-node/pkg/use_cases/block_validity_prover_block_status_by_block_hash"
 	ucBlockValidityProverBlockStatusByBlockNumber "intmax2-node/pkg/use_cases/block_validity_prover_block_status_by_block_number"
 	ucBlockValidityProverInfo "intmax2-node/pkg/use_cases/block_validity_prover_info"
@@ -46,6 +48,11 @@ type Commands interface {
 		log logger.Logger,
 		db SQLDriverApp,
 	) blockValidityProverBlockStatusByBlockNumber.UseCaseBlockValidityProverBlockStatusByBlockNumber
+	BlockValidityProverAccount(
+		cfg *configs.Config,
+		log logger.Logger,
+		db SQLDriverApp,
+	) blockValidityProverAccount.UseCaseBlockValidityProverAccount
 }
 
 type commands struct{}
@@ -96,4 +103,12 @@ func (c *commands) BlockValidityProverBlockStatusByBlockNumber(
 	db SQLDriverApp,
 ) blockValidityProverBlockStatusByBlockNumber.UseCaseBlockValidityProverBlockStatusByBlockNumber {
 	return ucBlockValidityProverBlockStatusByBlockNumber.New(cfg, log, db)
+}
+
+func (c *commands) BlockValidityProverAccount(
+	cfg *configs.Config,
+	log logger.Logger,
+	db SQLDriverApp,
+) blockValidityProverAccount.UseCaseBlockValidityProverAccount {
+	return ucBlockValidityProverAccount.New(cfg, log, db)
 }

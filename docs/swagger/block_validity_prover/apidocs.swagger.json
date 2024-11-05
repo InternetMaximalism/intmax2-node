@@ -26,6 +26,45 @@
     "application/json"
   ],
   "paths": {
+    "/v1/account/{address}": {
+      "get": {
+        "summary": "Account returns info of account ID by sender INTMAX address",
+        "description": "## Account returns info of account ID by sender INTMAX address",
+        "operationId": "BlockValidityProverService_Account",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1AccountResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "address",
+            "description": "the INTMAX address",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "BlockValidityProverService"
+        ]
+      }
+    },
     "/v1/block-hash/{blockHash}/status": {
       "get": {
         "summary": "BlockHashStatus returns status by the block hash",
@@ -319,6 +358,35 @@
         }
       },
       "description": "The `Status` type defines a logical error model that is suitable for\ndifferent programming environments, including REST APIs and RPC APIs. It is\nused by [gRPC](https://github.com/grpc). Each `Status` message contains\nthree pieces of data: error code, error message, and error details.\n\nYou can find out more about this error model and how to work with it in the\n[API Design Guide](https://cloud.google.com/apis/design/errors)."
+    },
+    "v1AccountResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "the success flag"
+        },
+        "data": {
+          "$ref": "#/definitions/v1AccountResponseData",
+          "title": "Additional data related to the response"
+        }
+      },
+      "title": "AccountResponse describes response to get info about the of account ID by sender INTMAX address"
+    },
+    "v1AccountResponseData": {
+      "type": "object",
+      "properties": {
+        "isRegistered": {
+          "type": "boolean",
+          "title": "the indication if the address is registered or not"
+        },
+        "accountId": {
+          "type": "integer",
+          "format": "int64",
+          "title": "the account ID. If isRegistered is false, accountId is always zero"
+        }
+      },
+      "title": "Data is the nested message containing detailed response information"
     },
     "v1BlockHashStatusResponse": {
       "type": "object",

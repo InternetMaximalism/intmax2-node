@@ -93,6 +93,14 @@ service BlockValidityProverService {
       }
     };
   }
+  // Account returns info of account ID by sender INTMAX address
+  //
+  // ## Account returns info of account ID by sender INTMAX address
+  rpc Account(AccountRequest) returns (AccountResponse) {
+    option (google.api.http) = {
+      get: "/v1/account/{address}"
+    };
+  }
 }
 
 // DepositTreeProofRequest describes request to get info about the deposit Merkle proof
@@ -220,5 +228,26 @@ message BlockNumberStatusResponse {
     string executed_block_hash_on_scroll = 40 [json_name="executedBlockHashOnScroll", (tagger.tags)="json:\"executedBlockHashOnScroll,omitempty\""];
     // the block hash of the Scroll block posted on Ethereum
     string executed_block_hash_on_ethereum = 50 [json_name="executedBlockHashOnEthereum", (tagger.tags)="json:\"executedBlockHashOnEthereum,omitempty\""];
+  }
+}
+
+// AccountRequest describes request to get info about the of account ID by sender INTMAX address
+message AccountRequest {
+  // the INTMAX address
+  string address = 10 [json_name="address", (tagger.tags)="json:\"address,omitempty\""];
+}
+
+// AccountResponse describes response to get info about the of account ID by sender INTMAX address
+message AccountResponse {
+  // the success flag
+  bool success = 10 [json_name="success", (tagger.tags)="json:\"success,omitempty\""];
+  // Additional data related to the response
+  Data data = 20 [json_name="data", (tagger.tags)="json:\"data,omitempty\""];
+  // Data is the nested message containing detailed response information
+  message Data {
+    // the indication if the address is registered or not
+    bool is_registered = 10 [json_name="isRegistered", (tagger.tags)="json:\"isRegistered,omitempty\""];
+    // the account ID. If isRegistered is false, accountId is always zero
+    uint32 account_id = 20 [json_name="accountId", (tagger.tags)="json:\"accountId,omitempty\""];
   }
 }

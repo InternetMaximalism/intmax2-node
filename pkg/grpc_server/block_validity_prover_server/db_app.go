@@ -16,6 +16,8 @@ type SQLDriverApp interface {
 	BlockContents
 	RelationshipL2BatchIndexAndBlockContent
 	L2BatchIndex
+	Senders
+	Accounts
 }
 
 type GenericCommandsApp interface {
@@ -39,4 +41,12 @@ type RelationshipL2BatchIndexAndBlockContent interface {
 
 type L2BatchIndex interface {
 	L2BatchIndex(batchIndex *uint256.Int) (*mDBApp.L2BatchIndex, error)
+}
+
+type Senders interface {
+	SenderByAddress(address string) (*mDBApp.Sender, error)
+}
+
+type Accounts interface {
+	AccountBySenderID(senderID string) (*mDBApp.Account, error)
 }
