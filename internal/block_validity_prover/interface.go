@@ -43,6 +43,9 @@ type BlockValidityService interface {
 		error,
 	)
 	// ValidityWitness(txRoot string) (*ValidityWitness, error)
+	ValidityPublicInputsByBlockNumber(
+		blockNumber uint32,
+	) (*ValidityPublicInputs, []SenderLeaf, error)
 	ValidityPublicInputs(txRoot common.Hash) (validityPublicInputs *ValidityPublicInputs, senderLeaves []SenderLeaf, err error)
 }
 

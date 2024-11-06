@@ -8,6 +8,7 @@ import (
 	blockValidityProverBalanceUpdateWitness "intmax2-node/internal/use_cases/block_validity_prover_balance_update_witness"
 	blockValidityProverBlockStatusByBlockHash "intmax2-node/internal/use_cases/block_validity_prover_block_status_by_block_hash"
 	blockValidityProverBlockStatusByBlockNumber "intmax2-node/internal/use_cases/block_validity_prover_block_status_by_block_number"
+	blockValidityProverBlockValidityPublicInputs "intmax2-node/internal/use_cases/block_validity_prover_block_validity_public_inputs"
 	blockValidityProverInfo "intmax2-node/internal/use_cases/block_validity_prover_info"
 	depositTreeProofByDepositIndex "intmax2-node/internal/use_cases/deposit_tree_proof_by_deposit_index"
 	getVersion "intmax2-node/internal/use_cases/get_version"
@@ -16,6 +17,7 @@ import (
 	ucBlockValidityProverBalanceUpdateWitness "intmax2-node/pkg/use_cases/block_validity_prover_balance_update_witness"
 	ucBlockValidityProverBlockStatusByBlockHash "intmax2-node/pkg/use_cases/block_validity_prover_block_status_by_block_hash"
 	ucBlockValidityProverBlockStatusByBlockNumber "intmax2-node/pkg/use_cases/block_validity_prover_block_status_by_block_number"
+	ucBlockValidityProverBlockValidityPublicInputs "intmax2-node/pkg/use_cases/block_validity_prover_block_validity_public_inputs"
 	ucBlockValidityProverInfo "intmax2-node/pkg/use_cases/block_validity_prover_info"
 	ucDepositTreeProofByDepositIndex "intmax2-node/pkg/use_cases/deposit_tree_proof_by_deposit_index"
 	ucGetVersion "intmax2-node/pkg/use_cases/get_version"
@@ -60,6 +62,11 @@ type Commands interface {
 		log logger.Logger,
 		bvs BlockValidityService,
 	) blockValidityProverBalanceUpdateWitness.UseCaseBlockValidityProverBalanceUpdateWitness
+	BlockValidityProverBlockValidityPublicInputs(
+		cfg *configs.Config,
+		log logger.Logger,
+		bvs BlockValidityService,
+	) blockValidityProverBlockValidityPublicInputs.UseCaseBlockValidityProverBlockValidityPublicInputs
 }
 
 type commands struct{}
@@ -126,4 +133,12 @@ func (c *commands) BlockValidityProverBalanceUpdateWitness(
 	bvs BlockValidityService,
 ) blockValidityProverBalanceUpdateWitness.UseCaseBlockValidityProverBalanceUpdateWitness {
 	return ucBlockValidityProverBalanceUpdateWitness.New(cfg, log, bvs)
+}
+
+func (c *commands) BlockValidityProverBlockValidityPublicInputs(
+	cfg *configs.Config,
+	log logger.Logger,
+	bvs BlockValidityService,
+) blockValidityProverBlockValidityPublicInputs.UseCaseBlockValidityProverBlockValidityPublicInputs {
+	return ucBlockValidityProverBlockValidityPublicInputs.New(cfg, log, bvs)
 }

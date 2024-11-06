@@ -27,4 +27,11 @@ type BlockValidityService interface {
 		targetBlockNumber uint32,
 		isPrevAccountTree bool,
 	) (*block_validity_prover.UpdateWitness, error)
+	ValidityPublicInputsByBlockNumber(
+		blockNumber uint32,
+	) (
+		validityPublicInputs *block_validity_prover.ValidityPublicInputs,
+		senderLeaves []block_validity_prover.SenderLeaf,
+		err error,
+	)
 }

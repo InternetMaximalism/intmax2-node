@@ -244,6 +244,46 @@
         ]
       }
     },
+    "/v1/block-validity-public-inputs/{blockNumber}": {
+      "get": {
+        "summary": "BlockValidityPublicInputs returns info of data with retrieves the block validity witness based on the specified transaction root",
+        "description": "## BlockValidityPublicInputs returns info of data with retrieves the block validity witness based on the specified transaction root",
+        "operationId": "BlockValidityProverService_BlockValidityPublicInputs",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1BlockValidityPublicInputsResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "blockNumber",
+            "description": "the target block number",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "BlockValidityProverService"
+        ]
+      }
+    },
     "/v1/deposit-tree-proof/{depositIndex}": {
       "get": {
         "summary": "DepositTreeProof returns the deposit Merkle proof",
@@ -404,6 +444,73 @@
         }
       },
       "title": "Leaf data"
+    },
+    "DataPublicState": {
+      "type": "object",
+      "properties": {
+        "blockTreeRoot": {
+          "type": "string",
+          "title": "the merkle root of the block tree"
+        },
+        "prevAccountTreeRoot": {
+          "type": "string",
+          "title": "the merkle root of the previous account state tree"
+        },
+        "accountTreeRoot": {
+          "type": "string",
+          "title": "the merkle root of the current account state tree"
+        },
+        "depositTreeRoot": {
+          "type": "string",
+          "title": "the merkle root of the deposit tree"
+        },
+        "blockHash": {
+          "type": "string",
+          "title": "the hash of the current block"
+        },
+        "blockNumber": {
+          "type": "integer",
+          "format": "int64",
+          "title": "the number of the current block"
+        }
+      },
+      "title": "PublicState return object includes various root hashes and block information"
+    },
+    "DataSender": {
+      "type": "object",
+      "properties": {
+        "publicKey": {
+          "type": "string",
+          "title": "the INTMAX address of the sender"
+        },
+        "isValid": {
+          "type": "boolean",
+          "title": "the boolean indicating if the sender's transaction is valid (the sender signed the tx root and the balance is non-negative)"
+        }
+      },
+      "title": "Sender returns object contains information about sender in the block, including address and validity status"
+    },
+    "DataValidityPublicInputs": {
+      "type": "object",
+      "properties": {
+        "publicState": {
+          "$ref": "#/definitions/DataPublicState",
+          "title": "the object includes various root hashes and block information"
+        },
+        "txTreeRoot": {
+          "type": "string",
+          "title": "the merkle root of the transaction tree"
+        },
+        "senderTreeRoot": {
+          "type": "string",
+          "title": "the merkle root of the sender tree"
+        },
+        "isValidBlock": {
+          "type": "boolean",
+          "title": "the boolean indicating if the block is valid"
+        }
+      },
+      "title": "ValidityPublicInputs returns object contains details about the public inputs for block validity verification"
     },
     "protobufAny": {
       "type": "object",
@@ -694,6 +801,38 @@
           "type": "string",
           "format": "int64",
           "title": "the latest block number for which block validity proof has been created"
+        }
+      },
+      "title": "Data is the nested message containing detailed response information"
+    },
+    "v1BlockValidityPublicInputsResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "the success flag"
+        },
+        "data": {
+          "$ref": "#/definitions/v1BlockValidityPublicInputsResponseData",
+          "title": "Additional data related to the response"
+        }
+      },
+      "title": "BlockValidityPublicInputsResponse describes response to get info about the data with retrieves the block validity witness based on the specified transaction root"
+    },
+    "v1BlockValidityPublicInputsResponseData": {
+      "type": "object",
+      "properties": {
+        "validityPublicInputs": {
+          "$ref": "#/definitions/DataValidityPublicInputs",
+          "title": "the object contains details about the public inputs for block validity verification"
+        },
+        "senders": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/DataSender"
+          },
+          "title": "the object contains information about each sender in the block, including their address and validity status"
         }
       },
       "title": "Data is the nested message containing detailed response information"
