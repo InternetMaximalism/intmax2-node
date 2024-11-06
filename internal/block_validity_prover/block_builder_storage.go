@@ -55,13 +55,13 @@ func (b *mockBlockBuilder) FetchUpdateWitness(
 	if err != nil {
 		fmt.Printf("currentBlockNumber: %d\n", currentBlockNumber)
 		fmt.Printf("latestValidityProof error: %v\n", err)
-		return nil, err
+		return nil, errors.Join(ErrCurrentBlockNumberNotFound, err)
 	}
 
 	// blockMerkleProof := blockBuilder.GetBlockMerkleProof(currentBlockNumber, targetBlockNumber)
 	blockMerkleProof, _, err := b.BlockTreeProof(currentBlockNumber, targetBlockNumber)
 	if err != nil {
-		return nil, err
+		return nil, errors.Join(ErrBlockTreeProofFail, err)
 	}
 
 	var accountMembershipProof *intMaxTree.IndexedMembershipProof
@@ -622,12 +622,18 @@ func (db *mockBlockBuilder) BlockTreeProof(
 	error,
 ) {
 	if rootBlockNumber < leafBlockNumber {
-		return nil, nil, fmt.Errorf("root block number should be greater than or equal to leaf block number: %d < %d", rootBlockNumber, leafBlockNumber)
+		return nil, nil, errors.Join(
+			ErrRootBlockNumberLessThenLeafBlockNumber,
+			fmt.Errorf("%d < %d", rootBlockNumber, leafBlockNumber),
+		)
 	}
 
 	blockHistory, ok := db.MerkleTreeHistory.MerkleTrees[rootBlockNumber]
 	if !ok {
-		return nil, nil, errors.Join(ErrRootBlockNumberNotFound, fmt.Errorf("root block number %d not found (BlockTreeProof)", rootBlockNumber))
+		return nil, nil, errors.Join(
+			ErrRootBlockNumberNotFound,
+			fmt.Errorf("root block number %d not found (BlockTreeProof)", rootBlockNumber),
+		)
 	}
 
 	proof, blockTreeRoot, err := blockHistory.BlockHashTree.Prove(leafBlockNumber)
@@ -678,10 +684,14 @@ func (db *mockBlockBuilder) IsSynchronizedDepositIndex(depositIndex uint32) (boo
 
 func (db *mockBlockBuilder) DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error) {
 	fmt.Printf("blockNumber (DepositTreeProof): %d\n", blockNumber)
-	depositLeaves := db.MerkleTreeHistory.MerkleTrees[blockNumber].DepositLeaves
+	mt, ok := db.MerkleTreeHistory.MerkleTrees[blockNumber]
+	if !ok {
+		return nil, common.Hash{}, ErrBlockNumberInvalid
+	}
+	depositLeaves := mt.DepositLeaves
 
 	if depositIndex >= uint32(len(depositLeaves)) {
-		return nil, common.Hash{}, errors.New("block number is out of range")
+		return nil, common.Hash{}, ErrBlockNumberOutOfRange
 	}
 	fmt.Printf("depositLeaves[%d] = %s (DepositTreeProof)\n", depositIndex, depositLeaves[depositIndex].Hash().String())
 
@@ -692,7 +702,6 @@ func (db *mockBlockBuilder) DepositTreeProof(blockNumber uint32, depositIndex ui
 	}
 	proof, root, err := db.DepositTree.ComputeMerkleProof(depositIndex, leaves)
 	if err != nil {
-		var ErrDepositTreeProof = errors.New("deposit tree proof error")
 		return nil, common.Hash{}, errors.Join(ErrDepositTreeProof, err)
 	}
 	fmt.Printf("deposit tree root (DepositTreeProof): %s\n", root.Hex())
@@ -1542,7 +1551,7 @@ func (b *mockBlockBuilder) ValidityProofByBlockNumber(blockNumber uint32) (*stri
 	blockContent, err := b.db.BlockContentByBlockNumber(blockNumber)
 	if err != nil {
 		fmt.Printf("failed to get validity proof (block number: %d): %v\n", blockNumber, err)
-		return nil, ErrBlockContentByBlockNumber
+		return nil, errors.Join(ErrBlockContentByBlockNumber, err)
 	}
 
 	encodedValidityProof := base64.StdEncoding.EncodeToString(blockContent.ValidityProof)

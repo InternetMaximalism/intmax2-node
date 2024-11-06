@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"intmax2-node/configs"
+	"intmax2-node/internal/block_validity_prover"
 	depositTreeProofByDepositIndex "intmax2-node/internal/use_cases/deposit_tree_proof_by_deposit_index"
 	"intmax2-node/internal/use_cases/mocks"
 	"intmax2-node/pkg/logger"
@@ -65,6 +66,7 @@ func TestHandlerDepositTreeProof(t *testing.T) {
 	cases := []struct {
 		desc         string
 		depositIndex string
+		blockNumber  int64
 		info         *depositTreeProofByDepositIndex.UCDepositTreeProofByDepositIndex
 		prepare      func(info *depositTreeProofByDepositIndex.UCDepositTreeProofByDepositIndex)
 		success      bool
@@ -85,23 +87,72 @@ func TestHandlerDepositTreeProof(t *testing.T) {
 			wantStatus:   http.StatusBadRequest,
 		},
 		{
-			desc:         "depositIndex: must not be less than one. (-1)",
+			desc:         "depositIndex: must not be less than zero. (-1)",
 			depositIndex: "-1",
 			success:      false,
-			message:      `depositIndex: must not be less than one.`,
+			message:      `depositIndex: must not be less than zero.`,
 			wantStatus:   http.StatusBadRequest,
 		},
 		{
-			desc:         "depositIndex: must not be less than one. (0)",
+			desc:         "blockNumber: must not be less than one. (-1)",
 			depositIndex: "0",
+			blockNumber:  -1,
 			success:      false,
-			message:      `depositIndex: must not be less than one.`,
+			message:      `blockNumber: must not be less than one.`,
 			wantStatus:   http.StatusBadRequest,
 		},
-		// TODO: added test for use_case depositTreeProofByDepositIndex after fixed BlockValidityService.DepositTreeProof()
+		{
+			desc:         fmt.Sprintf("Error: %s", block_validity_prover.ErrBlockNumberInvalid),
+			depositIndex: "0",
+			blockNumber:  1,
+			success:      false,
+			prepare: func(info *depositTreeProofByDepositIndex.UCDepositTreeProofByDepositIndex) {
+				cmd.EXPECT().
+					DepositTreeProofByDepositIndex(gomock.Any(), gomock.Any(), gomock.Any()).
+					Return(uc)
+				uc.EXPECT().Do(gomock.Any(), gomock.Any()).Return(nil, block_validity_prover.ErrBlockNumberInvalid)
+			},
+			message:    `no validity proof by block number`,
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			desc:         fmt.Sprintf("Error: %s", block_validity_prover.ErrBlockNumberOutOfRange),
+			depositIndex: "0",
+			blockNumber:  1,
+			success:      false,
+			prepare: func(info *depositTreeProofByDepositIndex.UCDepositTreeProofByDepositIndex) {
+				cmd.EXPECT().
+					DepositTreeProofByDepositIndex(gomock.Any(), gomock.Any(), gomock.Any()).
+					Return(uc)
+				uc.EXPECT().Do(gomock.Any(), gomock.Any()).Return(nil, block_validity_prover.ErrBlockNumberOutOfRange)
+			},
+			message:    `no validity proof by block number`,
+			wantStatus: http.StatusNotFound,
+		},
 		{
 			desc:         "success",
 			depositIndex: "1",
+			success:      true,
+			info: &depositTreeProofByDepositIndex.UCDepositTreeProofByDepositIndex{
+				MerkleProof: &depositTreeProofByDepositIndex.UCDepositTreeProofByDepositIndexMerkleProof{
+					Siblings: []string{
+						uuid.New().String(),
+					},
+				},
+				RootHash: uuid.New().String(),
+			},
+			prepare: func(info *depositTreeProofByDepositIndex.UCDepositTreeProofByDepositIndex) {
+				cmd.EXPECT().
+					DepositTreeProofByDepositIndex(gomock.Any(), gomock.Any(), gomock.Any()).
+					Return(uc)
+				uc.EXPECT().Do(gomock.Any(), gomock.Any()).Return(info, nil)
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			desc:         "success",
+			depositIndex: "1",
+			blockNumber:  1,
 			success:      true,
 			info: &depositTreeProofByDepositIndex.UCDepositTreeProofByDepositIndex{
 				MerkleProof: &depositTreeProofByDepositIndex.UCDepositTreeProofByDepositIndexMerkleProof{
@@ -128,9 +179,13 @@ func TestHandlerDepositTreeProof(t *testing.T) {
 			}
 
 			w := httptest.NewRecorder()
+			url := fmt.Sprintf("http://"+gwServer.Addr+"/v1/deposit-tree-proof/%s", cases[i].depositIndex)
+			if cases[i].blockNumber != 0 {
+				url = fmt.Sprintf("%s?blockNumber=%d", url, cases[i].blockNumber)
+			}
 			r := httptest.NewRequest(
 				http.MethodGet,
-				fmt.Sprintf("http://"+gwServer.Addr+"/v1/deposit-tree-proof/%s", cases[i].depositIndex),
+				url,
 				http.NoBody,
 			)
 

@@ -156,11 +156,28 @@ var ErrBlockTreeProve = errors.New("block tree prove error")
 // ErrRootBlockNumberNotFound error: root block number not found.
 var ErrRootBlockNumberNotFound = errors.New("root block number not found")
 
+// ErrRootBlockNumberLessThenLeafBlockNumber error: root block number should be greater than or equal to leaf block number.
+var ErrRootBlockNumberLessThenLeafBlockNumber = errors.New(
+	"root block number should be greater than or equal to leaf block number",
+)
+
 // ErrLeafBlockNumberNotFound error: leaf block number not found.
 var ErrLeafBlockNumberNotFound = errors.New("leaf block number not found")
 
 // ErrBlockContentByBlockNumber error: block content by block number error
 var ErrBlockContentByBlockNumber = errors.New("failed to fetch block content by block number")
 
-// ErrDepositIndexNotFound error: no last deposit index found.
-var ErrDepositIndexNotFound = errors.New("no last deposit index found")
+// ErrCurrentBlockNumberNotFound error: current block number not found.
+var ErrCurrentBlockNumberNotFound = errors.New("current block number not found")
+
+// ErrBlockNumberInvalid error: block number must be valid.
+var ErrBlockNumberInvalid = errors.New("block number must be valid")
+
+// ErrBlockNumberOutOfRange error: block number is out of range.
+var ErrBlockNumberOutOfRange = errors.New("block number is out of range")
+
+// ErrDepositTreeProof error: deposit tree proof error.
+var ErrDepositTreeProof = errors.New("deposit tree proof error")
+
+// ErrBlockTreeProofFail error: failed to get block tree proof.
+var ErrBlockTreeProofFail = errors.New("failed to get block tree proof")

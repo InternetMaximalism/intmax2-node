@@ -66,7 +66,7 @@ func (p *pgx) SenderByAddress(address string) (*mDBApp.Sender, error) {
 	)
 
 	var sender models.Sender
-	err := errPgx.Err(p.queryRow(p.ctx, q, address).
+	err := errPgx.Err(p.queryRow(p.ctx, q, strings.TrimPrefix(address, "0x")).
 		Scan(
 			&sender.ID,
 			&sender.Address,
@@ -90,7 +90,7 @@ func (p *pgx) SenderByPublicKey(publicKey string) (*mDBApp.Sender, error) {
 	)
 
 	var sender models.Sender
-	err := errPgx.Err(p.queryRow(p.ctx, q, publicKey).
+	err := errPgx.Err(p.queryRow(p.ctx, q, strings.TrimPrefix(publicKey, "0x")).
 		Scan(
 			&sender.ID,
 			&sender.Address,

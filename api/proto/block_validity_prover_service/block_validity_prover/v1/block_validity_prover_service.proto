@@ -21,6 +21,19 @@ service BlockValidityProverService {
     option (google.api.http) = {
       get: "/v1/deposit-tree-proof/{deposit_index}"
     };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      responses: {
+        key: "404"
+        value: {
+          description: "Not found error"
+          schema: {
+            json_schema: {
+              ref: ".google.rpc.Status"
+            }
+          }
+        }
+      }
+    };
   }
   // BlockTreeProof returns the block Merkle proof
   //
@@ -80,12 +93,31 @@ service BlockValidityProverService {
       }
     };
   }
+  // Account returns info of account ID by sender INTMAX address
+  //
+  // ## Account returns info of account ID by sender INTMAX address
+  rpc Account(AccountRequest) returns (AccountResponse) {
+    option (google.api.http) = {
+      get: "/v1/account/{address}"
+    };
+  }
+  // BalanceUpdateWitness returns info of data to update balance proof to specified block number
+  //
+  // ## BalanceUpdateWitness returns info of data to update balance proof to specified block number
+  rpc BalanceUpdateWitness(BalanceUpdateWitnessRequest) returns (BalanceUpdateWitnessResponse) {
+    option (google.api.http) = {
+      post: "/v1/balance-update-witness"
+      body: "*"
+    };
+  }
 }
 
 // DepositTreeProofRequest describes request to get info about the deposit Merkle proof
 message DepositTreeProofRequest {
   // the deposit index of deposit
   int64 deposit_index = 10 [json_name="depositIndex", (tagger.tags)="json:\"depositIndex,omitempty\""];
+  // the block number of deposit
+  int64 block_number = 20 [json_name="blockNumber", (tagger.tags)="json:\"blockNumber,omitempty\""];
 }
 
 // DepositTreeProofResponse describes response to get info about the deposit Merkle proof
@@ -205,5 +237,79 @@ message BlockNumberStatusResponse {
     string executed_block_hash_on_scroll = 40 [json_name="executedBlockHashOnScroll", (tagger.tags)="json:\"executedBlockHashOnScroll,omitempty\""];
     // the block hash of the Scroll block posted on Ethereum
     string executed_block_hash_on_ethereum = 50 [json_name="executedBlockHashOnEthereum", (tagger.tags)="json:\"executedBlockHashOnEthereum,omitempty\""];
+  }
+}
+
+// AccountRequest describes request to get info about the account ID by sender INTMAX address
+message AccountRequest {
+  // the INTMAX address
+  string address = 10 [json_name="address", (tagger.tags)="json:\"address,omitempty\""];
+}
+
+// AccountResponse describes response to get info about the account ID by sender INTMAX address
+message AccountResponse {
+  // the success flag
+  bool success = 10 [json_name="success", (tagger.tags)="json:\"success,omitempty\""];
+  // Additional data related to the response
+  Data data = 20 [json_name="data", (tagger.tags)="json:\"data,omitempty\""];
+  // Data is the nested message containing detailed response information
+  message Data {
+    // the indication if the address is registered or not
+    bool is_registered = 10 [json_name="isRegistered", (tagger.tags)="json:\"isRegistered,omitempty\""];
+    // the account ID. If isRegistered is false, accountId is always zero
+    uint32 account_id = 20 [json_name="accountId", (tagger.tags)="json:\"accountId,omitempty\""];
+  }
+}
+
+// BalanceUpdateWitnessRequest describes request to get info about the data to update balance proof to specified block number
+message BalanceUpdateWitnessRequest {
+  // the INTMAX address
+  string user = 10 [json_name="user", (tagger.tags)="json:\"user,omitempty\""];
+  // the block number of the current balance proof
+  uint32 current_block_number = 20 [json_name="currentBlockNumber", (tagger.tags)="json:\"currentBlockNumber,omitempty\""];
+  // the block number to which the balance proof should be updated
+  uint32 target_block_number = 30 [json_name="targetBlockNumber", (tagger.tags)="json:\"targetBlockNumber,omitempty\""];
+  // indicates whether to use the previous account tree
+  bool is_prev_account_tree = 40 [json_name="isPrevAccountTree", (tagger.tags)="json:\"isPrevAccountTree,omitempty\""];
+}
+
+// BalanceUpdateWitnessResponse describes response to get info about the data to update balance proof to specified block number
+message BalanceUpdateWitnessResponse {
+  // the success flag
+  bool success = 10 [json_name="success", (tagger.tags)="json:\"success,omitempty\""];
+  // Additional data related to the response
+  Data data = 20 [json_name="data", (tagger.tags)="json:\"data,omitempty\""];
+  // Data is the nested message containing detailed response information
+  message Data {
+    // indicates whether to use the previous account tree
+    bool is_prev_account_tree = 10 [json_name="isPrevAccountTree", (tagger.tags)="json:\"isPrevAccountTree,omitempty\""];
+    // the base64-encoded validity proof data
+    string validity_proof = 20 [json_name="validityProof", (tagger.tags)="json:\"validityProof,omitempty\""];
+    // the siblings of the block Merkle proof
+    repeated string block_merkle_proof = 30 [json_name="blockMerkleProof", (tagger.tags)="json:\"blockMerkleProof,omitempty\""];
+    // the proof of account membership
+    AccountMembershipProof account_membership_proof = 40 [json_name="accountMembershipProof", (tagger.tags)="json:\"accountMembershipProof,omitempty\""];
+  }
+
+  // Proof of account membership
+  message AccountMembershipProof {
+    // indicates if the account is included in the tree
+    bool is_included = 10 [json_name="isIncluded", (tagger.tags)="json:\"isIncluded,omitempty\""];
+    // the siblings of account Merkle proof
+    repeated string leaf_proof = 20 [json_name="leafProof", (tagger.tags)="json:\"leafProof,omitempty\""];
+    // the leaf data
+    Leaf leaf = 30 [json_name="leaf", (tagger.tags)="json:\"leaf,omitempty\""];
+  }
+
+  // Leaf data
+  message Leaf {
+    // the key of the leaf
+    string key = 10 [json_name="key", (tagger.tags)="json:\"key,omitempty\""];
+    // the value associated with the leaf
+    uint32 value = 20 [json_name="value", (tagger.tags)="json:\"value,omitempty\""];
+    // the index of the next leaf
+    uint32 next_index = 30 [json_name="nextIndex", (tagger.tags)="json:\"nextIndex,omitempty\""];
+    // the key of the next leaf
+    string next_key = 40 [json_name="nextKey", (tagger.tags)="json:\"nextKey,omitempty\""];
   }
 }

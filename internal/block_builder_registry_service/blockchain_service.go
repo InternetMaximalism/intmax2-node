@@ -6,7 +6,7 @@ import (
 	"github.com/dimiro1/health"
 )
 
-//go:generate mockgen -destination=blockchain_service_test.go -package=block_builder_registry_service_test -source=blockchain_service.go
+//go:generate mockgen -destination=mock_blockchain_service_test.go -package=block_builder_registry_service_test -source=blockchain_service.go
 
 type ServiceBlockchain interface {
 	GenericCommandsSB

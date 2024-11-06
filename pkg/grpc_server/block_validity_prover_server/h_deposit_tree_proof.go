@@ -2,6 +2,8 @@ package block_validity_prover_server
 
 import (
 	"context"
+	"errors"
+	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/open_telemetry"
 	node "intmax2-node/internal/pb/gen/block_validity_prover_service/node"
 	depositTreeProofByDepositIndex "intmax2-node/internal/use_cases/deposit_tree_proof_by_deposit_index"
@@ -30,6 +32,7 @@ func (s *BlockValidityProverServer) DepositTreeProof(
 
 	input := depositTreeProofByDepositIndex.UCDepositTreeProofByDepositIndexInput{
 		DepositIndex: req.DepositIndex,
+		BlockNumber:  req.BlockNumber,
 	}
 
 	err := input.Valid()
@@ -42,6 +45,11 @@ func (s *BlockValidityProverServer) DepositTreeProof(
 	info, err = s.Commands().DepositTreeProofByDepositIndex(s.config, s.log, s.bvs).Do(spanCtx, &input)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
+		if errors.Is(err, block_validity_prover.ErrBlockNumberInvalid) ||
+			errors.Is(err, block_validity_prover.ErrBlockNumberOutOfRange) {
+			return &resp, utils.NotFound(spanCtx, block_validity_prover.ErrNoValidityProofByBlockNumber)
+		}
+
 		const msg = "failed to get deposit tree proof by deposit index: %+v"
 		return &resp, utils.Internal(spanCtx, s.log, msg, err)
 	}

@@ -6,6 +6,7 @@ import "context"
 
 type UCDepositTreeProofByDepositIndexInput struct {
 	DepositIndex int64 `json:"depositIndex"`
+	BlockNumber  int64 `json:"blockNumber"`
 }
 
 type UCDepositTreeProofByDepositIndexMerkleProof struct {
