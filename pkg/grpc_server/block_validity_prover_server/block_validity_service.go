@@ -1,6 +1,7 @@
 package block_validity_prover_server
 
 import (
+	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_validity_prover"
 	intMaxTree "intmax2-node/internal/tree"
 
@@ -20,4 +21,10 @@ type BlockValidityService interface {
 		error,
 	)
 	FetchValidityProverInfo() (*block_validity_prover.ValidityProverInfo, error)
+	FetchUpdateWitness(
+		publicKey *intMaxAcc.PublicKey,
+		currentBlockNumber uint32,
+		targetBlockNumber uint32,
+		isPrevAccountTree bool,
+	) (*block_validity_prover.UpdateWitness, error)
 }

@@ -69,7 +69,8 @@ func (s *BlockValidityProverServer) Account(
 		resp.Data.IsRegistered = true
 		resp.Data.AccountId = uint32(info.AccountID.Uint64())
 	} else if !errors.Is(err, errorsDB.ErrNotFound) &&
-		!errors.Is(err, ucBlockValidityProverAccount.ErrNewAddressFromHexFail) {
+		!errors.Is(err, ucBlockValidityProverAccount.ErrNewAddressFromHexFail) &&
+		!errors.Is(err, ucBlockValidityProverAccount.ErrPublicKeyFromIntMaxAccFail) {
 		open_telemetry.MarkSpanError(spanCtx, err)
 		const msg = "failed to get account by address: %+v"
 		return &resp, utils.Internal(spanCtx, s.log, msg, err)

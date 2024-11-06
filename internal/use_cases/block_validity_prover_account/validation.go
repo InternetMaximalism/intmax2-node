@@ -17,13 +17,18 @@ func (input *UCBlockValidityProverAccountInput) Valid() error {
 }
 
 func (input *UCBlockValidityProverAccountInput) IsAddress() validation.Rule {
-	return validation.By(func(value interface{}) (err error) {
+	return validation.By(func(value interface{}) error {
 		v, ok := value.(string)
 		if !ok {
 			return ErrValueInvalid
 		}
 
-		_, err = intMaxAcc.NewAddressFromHex(v)
+		addr, err := intMaxAcc.NewAddressFromHex(v)
+		if err != nil {
+			return ErrValueInvalid
+		}
+
+		_, err = addr.Public()
 		if err != nil {
 			return ErrValueInvalid
 		}

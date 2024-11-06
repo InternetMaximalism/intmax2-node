@@ -58,6 +58,12 @@ func (u *uc) Do(
 		return nil, errors.Join(ErrNewAddressFromHexFail, err)
 	}
 
+	_, err = address.Public()
+	if err != nil {
+		open_telemetry.MarkSpanError(spanCtx, err)
+		return nil, errors.Join(ErrPublicKeyFromIntMaxAccFail, err)
+	}
+
 	var sender *mDBApp.Sender
 	sender, err = u.db.SenderByAddress(address.String())
 	if err != nil {

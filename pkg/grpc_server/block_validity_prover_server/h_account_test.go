@@ -83,8 +83,14 @@ func TestAccount(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
+			desc:       `address: must be a valid value.`,
+			address:    "0x0000000000000000000000000000000000000000000000000000000000000000",
+			message:    `address: must be a valid value.`,
+			wantStatus: http.StatusBadRequest,
+		},
+		{
 			desc:    `Internal server error`,
-			address: "0x0000000000000000000000000000000000000000000000000000000000000000",
+			address: "0x0000000000000000000000000000000000000000000000000000000000000001",
 			prepare: func(address string, _ *blockValidityProverAccount.UCBlockValidityProverAccount) {
 				dbApp.EXPECT().Exec(gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("fake"))
 			},
@@ -93,7 +99,7 @@ func TestAccount(t *testing.T) {
 		},
 		{
 			desc:    fmt.Sprintf("UC Error: %s", errorsDB.ErrNotFound),
-			address: "0x0000000000000000000000000000000000000000000000000000000000000000",
+			address: "0x0000000000000000000000000000000000000000000000000000000000000001",
 			prepare: func(address string, _ *blockValidityProverAccount.UCBlockValidityProverAccount) {
 				dbApp.EXPECT().Exec(gomock.Any(), gomock.Any(), gomock.Any()).Return(errorsDB.ErrNotFound)
 			},
@@ -102,7 +108,7 @@ func TestAccount(t *testing.T) {
 		},
 		{
 			desc:    fmt.Sprintf("UC Error: %s", ucBlockValidityProverAccount.ErrNewAddressFromHexFail),
-			address: "0x0000000000000000000000000000000000000000000000000000000000000000",
+			address: "0x0000000000000000000000000000000000000000000000000000000000000001",
 			prepare: func(address string, _ *blockValidityProverAccount.UCBlockValidityProverAccount) {
 				dbApp.EXPECT().Exec(gomock.Any(), gomock.Any(), gomock.Any()).Return(ucBlockValidityProverAccount.ErrNewAddressFromHexFail)
 			},
@@ -110,8 +116,17 @@ func TestAccount(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
+			desc:    fmt.Sprintf("UC Error: %s", ucBlockValidityProverAccount.ErrPublicKeyFromIntMaxAccFail),
+			address: "0x0000000000000000000000000000000000000000000000000000000000000001",
+			prepare: func(address string, _ *blockValidityProverAccount.UCBlockValidityProverAccount) {
+				dbApp.EXPECT().Exec(gomock.Any(), gomock.Any(), gomock.Any()).Return(ucBlockValidityProverAccount.ErrPublicKeyFromIntMaxAccFail)
+			},
+			success:    true,
+			wantStatus: http.StatusOK,
+		},
+		{
 			desc:    "success",
-			address: "0x0000000000000000000000000000000000000000000000000000000000000000",
+			address: "0x0000000000000000000000000000000000000000000000000000000000000001",
 			info:    &blockValidityProverAccount.UCBlockValidityProverAccount{AccountID: new(uint256.Int).SetUint64(uint64(1))},
 			prepare: func(address string, input *blockValidityProverAccount.UCBlockValidityProverAccount) {
 				dbApp.EXPECT().Exec(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(

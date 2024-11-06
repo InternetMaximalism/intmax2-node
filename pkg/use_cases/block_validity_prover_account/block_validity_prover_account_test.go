@@ -59,10 +59,20 @@ func TestUCBlockValidityProverAccount(t *testing.T) {
 		{
 			desc: fmt.Sprintf(
 				"Error: %s",
-				errorsDB.ErrNotFound,
+				ucBlockValidityProverAccount.ErrPublicKeyFromIntMaxAccFail,
 			),
 			input: &blockValidityProverAccount.UCBlockValidityProverAccountInput{
 				Address: "0x0000000000000000000000000000000000000000000000000000000000000000",
+			},
+			err: ucBlockValidityProverAccount.ErrPublicKeyFromIntMaxAccFail,
+		},
+		{
+			desc: fmt.Sprintf(
+				"Error: %s",
+				errorsDB.ErrNotFound,
+			),
+			input: &blockValidityProverAccount.UCBlockValidityProverAccountInput{
+				Address: "0x0000000000000000000000000000000000000000000000000000000000000001",
 			},
 			prepare: func(_ *blockValidityProverAccount.UCBlockValidityProverAccount) {
 				db.EXPECT().SenderByAddress(gomock.Any()).Return(nil, errorsDB.ErrNotFound)
@@ -75,13 +85,13 @@ func TestUCBlockValidityProverAccount(t *testing.T) {
 				errorsDB.ErrNotFound,
 			),
 			input: &blockValidityProverAccount.UCBlockValidityProverAccountInput{
-				Address: "0x0000000000000000000000000000000000000000000000000000000000000000",
+				Address: "0x0000000000000000000000000000000000000000000000000000000000000001",
 			},
 			prepare: func(input *blockValidityProverAccount.UCBlockValidityProverAccount) {
 				db.EXPECT().SenderByAddress(gomock.Any()).Return(&mDBApp.Sender{
 					ID:        uuid.New().String(),
-					Address:   "0000000000000000000000000000000000000000000000000000000000000000",
-					PublicKey: "0000000000000000000000000000000000000000000000000000000000000000",
+					Address:   "0000000000000000000000000000000000000000000000000000000000000001",
+					PublicKey: "0000000000000000000000000000000000000000000000000000000000000001",
 					CreatedAt: time.Now().UTC(),
 				}, nil)
 				db.EXPECT().AccountBySenderID(gomock.Any()).Return(nil, errorsDB.ErrNotFound)
@@ -91,7 +101,7 @@ func TestUCBlockValidityProverAccount(t *testing.T) {
 		{
 			desc: "success",
 			input: &blockValidityProverAccount.UCBlockValidityProverAccountInput{
-				Address: "0x0000000000000000000000000000000000000000000000000000000000000000",
+				Address: "0x0000000000000000000000000000000000000000000000000000000000000001",
 			},
 			result: &blockValidityProverAccount.UCBlockValidityProverAccount{
 				AccountID: new(uint256.Int).SetUint64(123),
@@ -99,8 +109,8 @@ func TestUCBlockValidityProverAccount(t *testing.T) {
 			prepare: func(result *blockValidityProverAccount.UCBlockValidityProverAccount) {
 				sender := mDBApp.Sender{
 					ID:        uuid.New().String(),
-					Address:   "0000000000000000000000000000000000000000000000000000000000000000",
-					PublicKey: "0000000000000000000000000000000000000000000000000000000000000000",
+					Address:   "0000000000000000000000000000000000000000000000000000000000000001",
+					PublicKey: "0000000000000000000000000000000000000000000000000000000000000001",
 					CreatedAt: time.Now().UTC(),
 				}
 				db.EXPECT().SenderByAddress(gomock.Any()).Return(&sender, nil)
