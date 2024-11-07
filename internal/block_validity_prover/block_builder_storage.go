@@ -233,6 +233,11 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 		for blockHashAndSendersMap[blockNumber].DepositTreeRoot == depositTreeRootHex && blockNumber <= lastProofGeneratedBlockNumber {
 			fmt.Printf("depositTreeRoots[%d]: %s\n", blockNumber, blockHashAndSendersMap[blockNumber].DepositTreeRoot)
 			merkleTrees[blockNumber].DepositLeaves = depositLeaves
+			_ = db.Exec(context.Background(), nil, func(d interface{}, _ interface{}) error {
+				q := d.(SQLDriverApp)
+				_ = q.BlockContentUpdDepositLeavesCounterByBlockNumber(blockNumber, uint32(len(depositLeaves)))
+				return nil
+			})
 			blockNumber++
 		}
 	}
@@ -252,7 +257,9 @@ func (b *mockBlockBuilder) Exec(ctx context.Context, input interface{}, executor
 }
 
 type DepositLeafWithId struct {
+	Sender      common.Address
 	DepositLeaf *intMaxTree.DepositLeaf
+	DepositHash common.Hash
 	DepositId   uint32
 }
 
@@ -456,6 +463,16 @@ func (db *mockBlockBuilder) SetValidityWitness(_blockNumber uint32, witness *Val
 			depositTreeRoot, _, _ = depositTree.GetCurrentRootCountAndSiblings()
 			fmt.Printf("SetValidityWitness depositTreeRoot: %s\n", depositTreeRoot.String())
 			if depositTreeRoot == witness.BlockWitness.Block.DepositRoot {
+				depositLeavesCounter := len(depositTree.Leaves)
+				if int(witness.BlockWitness.Block.DepositLeavesCounter) != depositLeavesCounter {
+					err = db.BlockContentUpdDepositLeavesCounterByBlockNumber(
+						witness.BlockWitness.Block.BlockNumber,
+						uint32(depositLeavesCounter),
+					)
+					if err != nil {
+						return err
+					}
+				}
 				break
 			}
 		}
@@ -657,31 +674,6 @@ func (db *mockBlockBuilder) BlockTreeProof(
 	return &proof, blockTreeRoot, nil
 }
 
-func (db *mockBlockBuilder) IsSynchronizedDepositIndex(depositIndex uint32) (bool, error) {
-	lastGeneratedProofBlockNumber, err := db.LastGeneratedProofBlockNumber()
-	if err != nil {
-		return false, err
-	}
-	fmt.Printf("lastPostedBlockNumber: %d\n", lastGeneratedProofBlockNumber)
-
-	fmt.Printf("size of MerkleTrees: %d\n", len(db.MerkleTreeHistory.MerkleTrees))
-	merkleTreeHistory, ok := db.MerkleTreeHistory.MerkleTrees[lastGeneratedProofBlockNumber]
-	if !ok {
-		return false, errors.New("block number not found")
-	}
-
-	depositLeaves := merkleTreeHistory.DepositLeaves
-	fmt.Printf("lastGeneratedProofBlockNumber (IsSynchronizedDepositIndex): %d\n", lastGeneratedProofBlockNumber)
-	fmt.Printf("latest deposit index: %d\n", len(depositLeaves))
-	fmt.Printf("depositIndex: %d\n", depositIndex)
-
-	if depositIndex >= uint32(len(depositLeaves)) {
-		return false, nil
-	}
-
-	return true, nil
-}
-
 func (db *mockBlockBuilder) DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error) {
 	fmt.Printf("blockNumber (DepositTreeProof): %d\n", blockNumber)
 	mt, ok := db.MerkleTreeHistory.MerkleTrees[blockNumber]
@@ -735,6 +727,55 @@ func (db *mockBlockBuilder) BlockNumberByDepositIndex(depositIndex uint32, start
 	}
 
 	return 0, errors.New("BlockNumberByDepositIndex: deposit index is out of range")
+}
+
+// BlockNumberByListOfDepositIndex is the function returns the block number list
+// of the first block that was submitted with the specified
+// deposit index included in the deposit tree.
+func (db *mockBlockBuilder) BlockNumberByListOfDepositIndex(
+	startIntMaxBlockNumber *uint32,
+	depositIndex ...uint32,
+) (map[uint32]uint32, error) {
+	lastBlockNumber, err := db.db.LastPostedBlockNumber()
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("lastPostedBlockNumber: %d\n", lastBlockNumber)
+
+	blockNumberList := make(map[uint32]uint32)
+
+	blockNumber := uint32(1)
+	if startIntMaxBlockNumber != nil {
+		blockNumber = *startIntMaxBlockNumber
+	}
+	for ; blockNumber <= lastBlockNumber; blockNumber++ {
+		if len(blockNumberList) == len(depositIndex) {
+			return blockNumberList, nil
+		}
+
+		blockHistory, ok := db.MerkleTreeHistory.MerkleTrees[blockNumber]
+		if !ok {
+			return nil, errors.New("BlockNumberByDepositIndex: block history not found")
+		}
+
+		depositLeaves := blockHistory.DepositLeaves
+		for key := range depositIndex {
+			if len(blockNumberList) == len(depositIndex) {
+				return blockNumberList, nil
+			}
+			if depositIndex[key] < uint32(len(depositLeaves)) {
+				if _, ok = blockNumberList[depositIndex[key]]; !ok {
+					blockNumberList[depositIndex[key]] = blockNumber
+				}
+			}
+		}
+	}
+
+	if len(blockNumberList) != len(depositIndex) {
+		return nil, errors.New("BlockNumberByDepositIndex: deposit index is out of range")
+	}
+
+	return blockNumberList, nil
 }
 
 func (db *mockBlockBuilder) AppendBlockTreeLeaf(block *block_post_service.PostedBlock) (blockNumber uint32, err error) {
@@ -1672,10 +1713,11 @@ func blockAuxInfoFromBlockContent(auxInfo *mDBApp.BlockContentWithProof) (*AuxIn
 	}
 
 	postedBlock := block_post_service.PostedBlock{
-		BlockNumber:   auxInfo.BlockNumber,
-		PrevBlockHash: common.HexToHash("0x" + auxInfo.PrevBlockHash),
-		DepositRoot:   common.HexToHash("0x" + auxInfo.DepositRoot),
-		SignatureHash: common.HexToHash("0x" + auxInfo.SignatureHash), // TODO: Calculate from blockContent
+		BlockNumber:          auxInfo.BlockNumber,
+		PrevBlockHash:        common.HexToHash("0x" + auxInfo.PrevBlockHash),
+		DepositRoot:          common.HexToHash("0x" + auxInfo.DepositRoot),
+		DepositLeavesCounter: auxInfo.DepositLeavesCounter,
+		SignatureHash:        common.HexToHash("0x" + auxInfo.SignatureHash), // TODO: Calculate from blockContent
 	}
 
 	if blockHash := postedBlock.Hash(); blockHash.Hex() != "0x"+auxInfo.BlockHash {
@@ -1748,6 +1790,15 @@ func (b *mockBlockBuilder) BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.Blo
 	return b.db.BlockContentByTxRoot(txRoot)
 }
 
+func (b *mockBlockBuilder) BlockContentUpdDepositLeavesCounterByBlockNumber(
+	blockNumber, depositLeavesCounter uint32,
+) error {
+	return b.db.Exec(context.Background(), nil, func(d interface{}, _ interface{}) error {
+		q := d.(SQLDriverApp)
+		return q.BlockContentUpdDepositLeavesCounterByBlockNumber(blockNumber, depositLeavesCounter)
+	})
+}
+
 func (b *mockBlockBuilder) NextAccountID(blockNumber uint32) (uint64, error) {
 	merkleTreeHistory, ok := b.MerkleTreeHistory.MerkleTrees[blockNumber]
 	if !ok {
@@ -1770,23 +1821,73 @@ func (b *mockBlockBuilder) UpsertEventBlockNumberForValidityProver(eventName str
 	return b.db.UpsertEventBlockNumberForValidityProver(eventName, blockNumber)
 }
 
-func (b *mockBlockBuilder) GetDepositLeafAndIndexByHash(depositHash common.Hash) (depositLeafWithId *DepositLeafWithId, depositIndex *uint32, err error) {
+type DepositLeafAndIndex struct {
+	DepositLeafWithId             *DepositLeafWithId
+	DepositIndex                  *uint32
+	Sender                        string
+	BlockNumberAfterDepositIndex  uint32
+	BlockNumberBeforeDepositIndex uint32
+	IsSync                        bool
+}
+
+func (b *mockBlockBuilder) GetDepositLeafAndIndexByHash(
+	depositHash common.Hash,
+) (depositLeafAndIndex *DepositLeafAndIndex, err error) {
 	fmt.Printf("GetDepositIndexByHash deposit hash: %s\n", depositHash.String())
 	deposit, err := b.db.DepositByDepositHash(depositHash)
 	if err != nil {
-		return nil, new(uint32), err
+		return nil, err
 	}
 
-	depositLeaf := intMaxTree.DepositLeaf{
-		RecipientSaltHash: deposit.RecipientSaltHash,
-		TokenIndex:        deposit.TokenIndex,
-		Amount:            deposit.Amount,
+	return &DepositLeafAndIndex{
+		DepositLeafWithId: &DepositLeafWithId{
+			DepositHash: deposit.DepositHash,
+			DepositId:   deposit.DepositID,
+			DepositLeaf: &intMaxTree.DepositLeaf{
+				RecipientSaltHash: deposit.RecipientSaltHash,
+				TokenIndex:        deposit.TokenIndex,
+				Amount:            deposit.Amount,
+			},
+		},
+		DepositIndex:                  deposit.DepositIndex,
+		Sender:                        deposit.Sender,
+		BlockNumberAfterDepositIndex:  deposit.BlockNumberAfterDepositIndex,
+		BlockNumberBeforeDepositIndex: deposit.BlockNumberBeforeDepositIndex,
+		IsSync:                        deposit.IsSync,
+	}, nil
+}
+
+func (b *mockBlockBuilder) GetListOfDepositLeafAndIndexByHash(
+	depositHash ...common.Hash,
+) (depositLeafAndIndex map[uint32]*DepositLeafAndIndex, err error) {
+	fmt.Printf("GetListOfDepositLeafAndIndexByHash deposit hash list: %v\n", depositHash)
+	var deposits []*mDBApp.Deposit
+	deposits, err = b.db.DepositsListByDepositHash(depositHash...)
+	if err != nil {
+		return nil, err
 	}
 
-	return &DepositLeafWithId{
-		DepositId:   deposit.DepositID,
-		DepositLeaf: &depositLeaf,
-	}, deposit.DepositIndex, nil
+	depositLeafAndIndex = make(map[uint32]*DepositLeafAndIndex)
+	for key := range deposits {
+		depositLeafAndIndex[deposits[key].DepositID] = &DepositLeafAndIndex{
+			Sender: deposits[key].Sender,
+			DepositLeafWithId: &DepositLeafWithId{
+				DepositHash: deposits[key].DepositHash,
+				DepositId:   deposits[key].DepositID,
+				DepositLeaf: &intMaxTree.DepositLeaf{
+					RecipientSaltHash: deposits[key].RecipientSaltHash,
+					TokenIndex:        deposits[key].TokenIndex,
+					Amount:            deposits[key].Amount,
+				},
+			},
+			DepositIndex:                  deposits[key].DepositIndex,
+			BlockNumberAfterDepositIndex:  deposits[key].BlockNumberAfterDepositIndex,
+			BlockNumberBeforeDepositIndex: deposits[key].BlockNumberBeforeDepositIndex,
+			IsSync:                        deposits[key].IsSync,
+		}
+	}
+
+	return depositLeafAndIndex, nil
 }
 
 func (b *mockBlockBuilder) UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error {

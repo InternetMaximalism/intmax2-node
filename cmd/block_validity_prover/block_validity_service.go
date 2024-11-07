@@ -35,4 +35,5 @@ type BlockValidityService interface {
 		err error,
 	)
 	ValidityProofByBlockNumber(blockNumber uint32) (*block_validity_prover.ValidityProof, error)
+	GetDepositsInfoByHash(depositHash ...common.Hash) (map[uint32]*block_validity_prover.DepositInfo, error)
 }

@@ -10,6 +10,7 @@ import (
 	blockValidityProverBlockStatusByBlockNumber "intmax2-node/internal/use_cases/block_validity_prover_block_status_by_block_number"
 	blockValidityProverBlockValidityProof "intmax2-node/internal/use_cases/block_validity_prover_block_validity_proof"
 	blockValidityProverBlockValidityPublicInputs "intmax2-node/internal/use_cases/block_validity_prover_block_validity_public_inputs"
+	blockValidityProverDeposits "intmax2-node/internal/use_cases/block_validity_prover_deposits"
 	blockValidityProverInfo "intmax2-node/internal/use_cases/block_validity_prover_info"
 	depositTreeProofByDepositIndex "intmax2-node/internal/use_cases/deposit_tree_proof_by_deposit_index"
 	getVersion "intmax2-node/internal/use_cases/get_version"
@@ -20,6 +21,7 @@ import (
 	ucBlockValidityProverBlockStatusByBlockNumber "intmax2-node/pkg/use_cases/block_validity_prover_block_status_by_block_number"
 	ucBlockValidityProverBlockValidityProof "intmax2-node/pkg/use_cases/block_validity_prover_block_validity_proof"
 	ucBlockValidityProverBlockValidityPublicInputs "intmax2-node/pkg/use_cases/block_validity_prover_block_validity_public_inputs"
+	ucBlockValidityProverDeposits "intmax2-node/pkg/use_cases/block_validity_prover_deposits"
 	ucBlockValidityProverInfo "intmax2-node/pkg/use_cases/block_validity_prover_info"
 	ucDepositTreeProofByDepositIndex "intmax2-node/pkg/use_cases/deposit_tree_proof_by_deposit_index"
 	ucGetVersion "intmax2-node/pkg/use_cases/get_version"
@@ -34,6 +36,11 @@ type Commands interface {
 		log logger.Logger,
 		bvs BlockValidityService,
 	) depositTreeProofByDepositIndex.UseCaseDepositTreeProofByDepositIndex
+	BlockValidityProverDeposits(
+		cfg *configs.Config,
+		log logger.Logger,
+		bvs BlockValidityService,
+	) blockValidityProverDeposits.UseCaseBlockValidityProverDeposits
 	BlockTreeProofByRootAndLeafBlockNumbers(
 		cfg *configs.Config,
 		log logger.Logger,
@@ -92,6 +99,14 @@ func (c *commands) DepositTreeProofByDepositIndex(
 	bvs BlockValidityService,
 ) depositTreeProofByDepositIndex.UseCaseDepositTreeProofByDepositIndex {
 	return ucDepositTreeProofByDepositIndex.New(cfg, log, bvs)
+}
+
+func (c *commands) BlockValidityProverDeposits(
+	cfg *configs.Config,
+	log logger.Logger,
+	bvs BlockValidityService,
+) blockValidityProverDeposits.UseCaseBlockValidityProverDeposits {
+	return ucBlockValidityProverDeposits.New(cfg, log, bvs)
 }
 
 func (c *commands) BlockTreeProofByRootAndLeafBlockNumbers(

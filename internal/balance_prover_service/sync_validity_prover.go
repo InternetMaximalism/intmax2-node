@@ -34,6 +34,10 @@ func (s *externalBlockValidityService) GetDepositInfoByHash(depositHash common.H
 	return nil, ErrNotImplemented
 }
 
+func (s *externalBlockValidityService) GetDepositsInfoByHash(depositHash ...common.Hash) (map[uint32]*block_validity_prover.DepositInfo, error) {
+	return nil, ErrNotImplemented
+}
+
 func (s *externalBlockValidityService) FetchValidityProverInfo() (*block_validity_prover.ValidityProverInfo, error) {
 	return nil, ErrNotImplemented
 }

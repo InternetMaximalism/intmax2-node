@@ -43,6 +43,7 @@ type PGX interface {
 	GasPriceOracle
 	L2BatchIndex
 	RelationshipL2BatchIndexAndBlockContent
+	EthereumCounterparties
 }
 
 type GenericCommands interface {
@@ -259,11 +260,13 @@ type BackupBalances interface {
 }
 
 type Deposits interface {
-	CreateDeposit(depositLeaf intMaxTree.DepositLeaf, depositID uint32) (*mDBApp.Deposit, error)
+	CreateDeposit(depositLeaf intMaxTree.DepositLeaf, depositID uint32, sender string) (*mDBApp.Deposit, error)
 	UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error
+	UpdateSenderByDepositID(depositID uint32, sender string) error
 	Deposit(ID string) (*mDBApp.Deposit, error)
 	DepositByDepositID(depositID uint32) (*mDBApp.Deposit, error)
 	DepositByDepositHash(depositHash common.Hash) (*mDBApp.Deposit, error)
+	DepositsListByDepositHash(depositHash ...common.Hash) ([]*mDBApp.Deposit, error)
 	ScanDeposits() ([]*mDBApp.Deposit, error)
 	FetchNextDepositIndex() (uint32, error)
 }
@@ -275,6 +278,9 @@ type BlockContents interface {
 		l2BlockNumber *uint256.Int,
 		l2BlockHash common.Hash,
 	) (*mDBApp.BlockContentWithProof, error)
+	BlockContentUpdDepositLeavesCounterByBlockNumber(
+		blockNumber, depositLeavesCounter uint32,
+	) error
 	BlockContentIDByL2BlockNumber(l2BlockNumber string) (bcID string, err error)
 	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
 	BlockContentByBlockHash(blockHash string) (*mDBApp.BlockContentWithProof, error)
@@ -314,4 +320,11 @@ type RelationshipL2BatchIndexAndBlockContent interface {
 	RelationshipL2BatchIndexAndBlockContentsByBlockContentID(
 		blockContentID string,
 	) (*mDBApp.RelationshipL2BatchIndexBlockContents, error)
+}
+
+type EthereumCounterparties interface {
+	CreateEthereumCounterparty(
+		address string,
+	) (*mDBApp.EthereumCounterparty, error)
+	EthereumCounterpartyByAddress(address string) (*mDBApp.EthereumCounterparty, error)
 }

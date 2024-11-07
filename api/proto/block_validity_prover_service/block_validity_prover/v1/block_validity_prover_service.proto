@@ -126,6 +126,15 @@ service BlockValidityProverService {
       get: "/v1/block-validity-proof/{block_number}"
     };
   }
+  // Deposits returns info of data with deposit information from the deposit hash
+  //
+  // ## Deposits returns info of data with deposit information from the deposit hash
+  rpc Deposits(DepositsRequest) returns (DepositsResponse) {
+    option (google.api.http) = {
+      post: "/v1/deposits"
+      body: "*"
+    };
+  }
 }
 
 // DepositTreeProofRequest describes request to get info about the deposit Merkle proof
@@ -442,6 +451,51 @@ message BlockValidityProofResponse {
       string public_key = 10 [json_name="publicKey", (tagger.tags)="json:\"publicKey,omitempty\""];
       // the boolean indicating if the sender's transaction is valid (the sender signed the tx root and the balance is non-negative)
       bool is_valid = 20 [json_name="isValid", (tagger.tags)="json:\"isValid,omitempty\""];
+    }
+  }
+}
+
+// DepositsRequest describes request to get info about the data with deposit information from the deposit hash
+message DepositsRequest {
+  // the root hash of tx tree
+  repeated string deposit_hashes = 10 [json_name="depositHashes", (tagger.tags)="json:\"depositHashes,omitempty\""];
+}
+
+// DepositsResponse describes response to get info about the data with deposit information from the deposit hash
+message DepositsResponse {
+  // the success flag
+  bool success = 10 [json_name="success", (tagger.tags)="json:\"success,omitempty\""];
+  // Additional data related to the response
+  Data data = 20 [json_name="data", (tagger.tags)="json:\"data,omitempty\""];
+  // Data is the nested message containing detailed response information
+  message Data {
+    // the list of deposits
+    repeated Deposit deposits = 10 [json_name="deposits", (tagger.tags)="json:\"deposits,omitempty\""];
+    // the deposit information
+    message Deposit {
+      // the deposit hash requested
+      string deposit_hash = 10 [json_name="depositHash", (tagger.tags)="json:\"depositHash,omitempty\""];
+      // the deposit ID of the deposit
+      uint32 deposit_id = 20 [json_name="depositId", (tagger.tags)="json:\"depositId,omitempty\""];
+      // the index of the deposit in the deposit tree
+      uint32 deposit_index = 30 [json_name="depositIndex", (tagger.tags)="json:\"depositIndex,omitempty\""];
+      // the block number when this deposit was included
+      uint32 block_number = 40 [json_name="blockNumber", (tagger.tags)="json:\"blockNumber,omitempty\""];
+      // the boolean indicating whether this deposit has been synchronized
+      bool is_synchronized = 50 [json_name="isSynchronized", (tagger.tags)="json:\"isSynchronized,omitempty\""];
+      // the ethereum address executing the deposit method of Liquidity contract
+      string from = 60 [json_name="from", (tagger.tags)="json:\"from,omitempty\""];
+      // the object containing details of the deposit
+      DepositLeaf deposit_leaf = 70 [json_name="depositLeaf", (tagger.tags)="json:\"depositLeaf,omitempty\""];
+    }
+    // the object containing details of the deposit
+    message DepositLeaf {
+      // the hash of the recipient's address and salt
+      string recipient_salt_hash = 10 [json_name="recipientSaltHash", (tagger.tags)="json:\"recipientSaltHash,omitempty\""];
+      // the index of the token being deposited
+      uint32 token_index = 20 [json_name="tokenIndex", (tagger.tags)="json:\"tokenIndex,omitempty\""];
+      // the amount of tokens deposited
+      string amount = 30 [json_name="amount", (tagger.tags)="json:\"amount,omitempty\""];
     }
   }
 }

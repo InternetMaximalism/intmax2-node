@@ -25,6 +25,7 @@ type SQLDriverApp interface {
 	Senders
 	Accounts
 	BlockContainedSenders
+	EthereumCounterparties
 }
 
 type GenericCommandsApp interface {
@@ -42,6 +43,9 @@ type BlockContents interface {
 		l2BlockNumber *uint256.Int,
 		l2BlockHash common.Hash,
 	) (*mDBApp.BlockContentWithProof, error)
+	BlockContentUpdDepositLeavesCounterByBlockNumber(
+		blockNumber, depositLeavesCounter uint32,
+	) error
 	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
 	BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWithProof, error)
 	ScanBlockHashAndSenders() (blockHashAndSendersMap map[uint32]mDBApp.BlockHashAndSenders, lastBlockNumber uint32, err error)
@@ -57,11 +61,12 @@ type EventBlockNumbersForValidityProver interface {
 }
 
 type Deposits interface {
-	CreateDeposit(depositLeaf intMaxTree.DepositLeaf, depositID uint32) (*mDBApp.Deposit, error)
+	CreateDeposit(depositLeaf intMaxTree.DepositLeaf, depositID uint32, sender string) (*mDBApp.Deposit, error)
 	UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error
-	// Deposit(ID string) (*mDBApp.Deposit, error)
+	UpdateSenderByDepositID(depositID uint32, sender string) error
 	DepositByDepositID(depositID uint32) (*mDBApp.Deposit, error)
 	DepositByDepositHash(depositHash common.Hash) (*mDBApp.Deposit, error)
+	DepositsListByDepositHash(depositHash ...common.Hash) ([]*mDBApp.Deposit, error)
 	ScanDeposits() ([]*mDBApp.Deposit, error)
 	FetchNextDepositIndex() (uint32, error)
 }
@@ -143,4 +148,11 @@ type BlockHistory interface {
 type BuilderDeposits interface {
 	ScanDeposits() ([]*mDBApp.Deposit, error)
 	UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error
+}
+
+type EthereumCounterparties interface {
+	CreateEthereumCounterparty(
+		address string,
+	) (*mDBApp.EthereumCounterparty, error)
+	EthereumCounterpartyByAddress(address string) (*mDBApp.EthereumCounterparty, error)
 }

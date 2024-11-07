@@ -26,6 +26,8 @@ type PostedBlock struct {
 	BlockNumber uint32 `json:"blockNumber"`
 	// The deposit root at the time of block posting (written in the Rollup contract).
 	DepositRoot common.Hash `json:"depositTreeRoot"`
+	// The counter of deposit leaves by current block number
+	DepositLeavesCounter uint32 `json:"depositLeavesCounter"`
 	// The hash value that the Block Builder must provide to the Rollup contract when posting a new block.
 	SignatureHash common.Hash `json:"signatureHash"`
 }

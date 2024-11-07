@@ -182,46 +182,116 @@ func (d *blockValidityProver) LastPostedBlockNumber() (uint32, error) {
 
 type DepositInfo struct {
 	DepositId      uint32
+	DepositHash    common.Hash
 	DepositIndex   *uint32
 	BlockNumber    *uint32
 	IsSynchronized bool
 	DepositLeaf    *intMaxTree.DepositLeaf
+	Sender         string
 }
 
 func (d *blockValidityProver) GetDepositInfoByHash(depositHash common.Hash) (*DepositInfo, error) {
-	depositLeafWithId, depositIndex, err := d.blockBuilder.GetDepositLeafAndIndexByHash(depositHash)
+	depositLeafAndIndex, err := d.blockBuilder.GetDepositLeafAndIndexByHash(depositHash)
 	if err != nil {
 		var ErrGetDepositLeafAndIndexByHashFail = errors.New("failed to get deposit leaf and index by hash")
 		return nil, errors.Join(ErrGetDepositLeafAndIndexByHashFail, err)
 	}
 
 	depositInfo := DepositInfo{
-		DepositId:    depositLeafWithId.DepositId,
-		DepositIndex: depositIndex,
-		DepositLeaf:  depositLeafWithId.DepositLeaf,
+		DepositId:    depositLeafAndIndex.DepositLeafWithId.DepositId,
+		DepositHash:  depositLeafAndIndex.DepositLeafWithId.DepositHash,
+		DepositIndex: depositLeafAndIndex.DepositIndex,
+		DepositLeaf:  depositLeafAndIndex.DepositLeafWithId.DepositLeaf,
+		Sender:       depositLeafAndIndex.Sender,
 	}
-	if depositIndex != nil {
-		startIntMaxBlockNumber := uint32(1)
 
+	startIntMaxBlockNumber := uint32(1)
+	var checkBlockNumber bool
+	if depositLeafAndIndex.BlockNumberAfterDepositIndex > 0 {
+		depositInfo.BlockNumber = &depositLeafAndIndex.BlockNumberAfterDepositIndex
+	} else if depositLeafAndIndex.BlockNumberBeforeDepositIndex > 0 {
+		checkBlockNumber = true
+		startIntMaxBlockNumber = depositLeafAndIndex.BlockNumberBeforeDepositIndex
+	} else {
+		checkBlockNumber = true
+	}
+	depositInfo.IsSynchronized = depositLeafAndIndex.IsSync
+
+	if checkBlockNumber && depositLeafAndIndex.DepositIndex != nil {
 		var blockNumber uint32
-		blockNumber, err = d.blockBuilder.BlockNumberByDepositIndex(*depositIndex, &startIntMaxBlockNumber)
+		blockNumber, err = d.blockBuilder.BlockNumberByDepositIndex(*depositLeafAndIndex.DepositIndex, &startIntMaxBlockNumber)
 		if err != nil {
 			var ErrBlockNumberByDepositIndexFail = errors.New("failed to get block number by deposit index")
 			return nil, errors.Join(ErrBlockNumberByDepositIndexFail, err)
 		}
 
-		var isSynchronizedDepositIndex bool
-		isSynchronizedDepositIndex, err = d.blockBuilder.IsSynchronizedDepositIndex(*depositIndex)
-		if err != nil {
-			var ErrIsSynchronizedDepositIndexFail = errors.New("failed to check if deposit index is synchronized")
-			return nil, errors.Join(ErrIsSynchronizedDepositIndexFail, err)
-		}
-
 		depositInfo.BlockNumber = &blockNumber
-		depositInfo.IsSynchronized = isSynchronizedDepositIndex
 	}
 
 	return &depositInfo, nil
+}
+
+func (d *blockValidityProver) GetDepositsInfoByHash(depositHash ...common.Hash) (map[uint32]*DepositInfo, error) {
+	list, err := d.blockBuilder.GetListOfDepositLeafAndIndexByHash(depositHash...)
+	if err != nil {
+		var ErrGetListOfDepositLeafAndIndexByHashFail = errors.New("failed to get list of deposit leaf and index by hash")
+		return nil, errors.Join(ErrGetListOfDepositLeafAndIndexByHashFail, err)
+	}
+
+	var depositIndexList []uint32
+	for key := range list {
+		if list[key].DepositIndex != nil {
+			depositIndexList = append(depositIndexList, *list[key].DepositIndex)
+		}
+	}
+
+	startIntMaxBlockNumber := uint32(1)
+	var (
+		checkStartIntMaxBlockNumber, checkBlockNumber bool
+	)
+	depositsInfo := make(map[uint32]*DepositInfo)
+	for key := range list {
+		depositsInfo[list[key].DepositLeafWithId.DepositId] = &DepositInfo{
+			DepositId:    list[key].DepositLeafWithId.DepositId,
+			DepositHash:  list[key].DepositLeafWithId.DepositHash,
+			DepositIndex: list[key].DepositIndex,
+			DepositLeaf:  list[key].DepositLeafWithId.DepositLeaf,
+			Sender:       list[key].Sender,
+		}
+		if list[key].BlockNumberAfterDepositIndex > 0 {
+			depositsInfo[list[key].DepositLeafWithId.DepositId].BlockNumber = &list[key].BlockNumberAfterDepositIndex
+		} else if list[key].BlockNumberBeforeDepositIndex > 0 {
+			checkBlockNumber = true
+			if !checkStartIntMaxBlockNumber {
+				startIntMaxBlockNumber = list[key].BlockNumberBeforeDepositIndex
+				checkStartIntMaxBlockNumber = true
+			} else if list[key].BlockNumberBeforeDepositIndex < startIntMaxBlockNumber {
+				startIntMaxBlockNumber = list[key].BlockNumberBeforeDepositIndex
+			}
+		} else {
+			checkBlockNumber = true
+		}
+		depositsInfo[list[key].DepositLeafWithId.DepositId].IsSynchronized = list[key].IsSync
+	}
+
+	if checkBlockNumber {
+		var blockNumbers map[uint32]uint32
+		blockNumbers, err = d.blockBuilder.BlockNumberByListOfDepositIndex(&startIntMaxBlockNumber, depositIndexList...)
+		if err != nil {
+			var ErrBlockNumberByListOfDepositIndexFail = errors.New("failed to get of block number list by deposit index")
+			return nil, errors.Join(ErrBlockNumberByListOfDepositIndexFail, err)
+		}
+
+		for key := range list {
+			if list[key].DepositIndex != nil {
+				if v, ok := blockNumbers[*list[key].DepositIndex]; ok {
+					depositsInfo[list[key].DepositLeafWithId.DepositId].BlockNumber = &v
+				}
+			}
+		}
+	}
+
+	return depositsInfo, nil
 }
 
 // func (d *blockValidityProver) BlockNumberByDepositIndex(depositIndex uint32) (uint32, error) {
