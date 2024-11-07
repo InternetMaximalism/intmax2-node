@@ -61,6 +61,12 @@ func (s *externalBlockValidityService) BlockTreeProof(
 	return nil, nil, ErrNotImplemented
 }
 
+func (s *externalBlockValidityService) ValidityPublicInputsByBlockNumber(
+	blockNumber uint32,
+) (*block_validity_prover.ValidityPublicInputs, []block_validity_prover.SenderLeaf, error) {
+	return nil, nil, ErrNotImplemented
+}
+
 func (s *externalBlockValidityService) ValidityPublicInputs(txRoot common.Hash) (*block_validity_prover.ValidityPublicInputs, []block_validity_prover.SenderLeaf, error) {
 	return nil, nil, ErrNotImplemented
 }

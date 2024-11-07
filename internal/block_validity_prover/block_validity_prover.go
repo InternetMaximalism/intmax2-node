@@ -309,6 +309,35 @@ func (d *blockValidityProver) ValidityWitness(
 	return validityWitness, err
 }
 
+func (d *blockValidityProver) ValidityWitnessByBlockNumber(
+	blockNumber uint32,
+) (*ValidityWitness, error) {
+	rawBlockContent, err := d.blockBuilder.BlockContentByBlockNumber(blockNumber)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get block content by block number: %w", err)
+	}
+
+	auxInfo, err := blockAuxInfoFromBlockContent(rawBlockContent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get block aux info from block content: %w", err)
+	}
+	blockWitness, err := d.blockBuilder.GenerateBlockWithTxTreeFromBlockContent(
+		auxInfo.BlockContent,
+		auxInfo.PostedBlock,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate block witness: %w", err)
+	}
+
+	fmt.Printf("(validityWitness) blockWitness.AccountMembershipProofs: %v\n", blockWitness.AccountMembershipProofs.IsSome)
+	validityWitness, _, _, err := calculateValidityWitness(d.blockBuilder, blockWitness)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate validity witness: %w", err)
+	}
+
+	return validityWitness, err
+}
+
 // TODO: multiple response
 func (d *blockValidityProver) BlockContentByTxRoot(txRoot common.Hash) (*block_post_service.PostedBlock, error) {
 	blockContent, err := d.blockBuilder.BlockContentByTxRoot(txRoot)
@@ -341,6 +370,20 @@ func (d *blockValidityProver) BlockContentByTxRoot(txRoot common.Hash) (*block_p
 		blockContent.BlockNumber,
 		signatureHash,
 	), nil
+}
+
+func (d *blockValidityProver) ValidityPublicInputsByBlockNumber(
+	blockNumber uint32,
+) (*ValidityPublicInputs, []SenderLeaf, error) {
+	validityWitness, err := d.ValidityWitnessByBlockNumber(blockNumber)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	validityPublicInputs := validityWitness.ValidityPublicInputs()
+	senderLeaves := validityWitness.ValidityTransitionWitness.SenderLeaves
+
+	return validityPublicInputs, senderLeaves, nil
 }
 
 func (d *blockValidityProver) ValidityPublicInputs(txRoot common.Hash) (*ValidityPublicInputs, []SenderLeaf, error) {

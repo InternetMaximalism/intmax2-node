@@ -1740,6 +1740,10 @@ func (b *mockBlockBuilder) CreateBlockContent(
 	return bc, nil
 }
 
+func (b *mockBlockBuilder) BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error) {
+	return b.db.BlockContentByBlockNumber(blockNumber)
+}
+
 func (b *mockBlockBuilder) BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWithProof, error) {
 	return b.db.BlockContentByTxRoot(txRoot)
 }
