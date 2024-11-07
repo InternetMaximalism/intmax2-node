@@ -47,6 +47,7 @@ type BlockValidityService interface {
 		blockNumber uint32,
 	) (*ValidityPublicInputs, []SenderLeaf, error)
 	ValidityPublicInputs(txRoot common.Hash) (validityPublicInputs *ValidityPublicInputs, senderLeaves []SenderLeaf, err error)
+	ValidityProofByBlockNumber(blockNumber uint32) (*ValidityProof, error)
 }
 
 type BlockSynchronizer interface {

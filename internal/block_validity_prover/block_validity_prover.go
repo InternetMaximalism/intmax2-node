@@ -372,6 +372,34 @@ func (d *blockValidityProver) BlockContentByTxRoot(txRoot common.Hash) (*block_p
 	), nil
 }
 
+type ValidityProof struct {
+	ValidityPublicInputs *ValidityPublicInputs
+	SenderLeaf           []SenderLeaf
+	ValidityProof        *string
+}
+
+func (d *blockValidityProver) ValidityProofByBlockNumber(blockNumber uint32) (*ValidityProof, error) {
+	validityProof, err := d.blockBuilder.ValidityProofByBlockNumber(blockNumber)
+	if err != nil {
+		return nil, errors.Join(ErrValidityProofByBlockNumberFail, err)
+	}
+
+	var (
+		validityPublicInputs *ValidityPublicInputs
+		senderLeaf           []SenderLeaf
+	)
+	validityPublicInputs, senderLeaf, err = d.ValidityPublicInputsByBlockNumber(blockNumber)
+	if err != nil {
+		return nil, errors.Join(ErrValidityPublicInputsByBlockNumberFail, err)
+	}
+
+	return &ValidityProof{
+		ValidityPublicInputs: validityPublicInputs,
+		SenderLeaf:           senderLeaf,
+		ValidityProof:        validityProof,
+	}, nil
+}
+
 func (d *blockValidityProver) ValidityPublicInputsByBlockNumber(
 	blockNumber uint32,
 ) (*ValidityPublicInputs, []SenderLeaf, error) {

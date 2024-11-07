@@ -34,4 +34,5 @@ type BlockValidityService interface {
 		senderLeaves []block_validity_prover.SenderLeaf,
 		err error,
 	)
+	ValidityProofByBlockNumber(blockNumber uint32) (*block_validity_prover.ValidityProof, error)
 }

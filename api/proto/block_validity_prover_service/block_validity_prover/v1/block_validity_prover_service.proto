@@ -110,12 +110,20 @@ service BlockValidityProverService {
       body: "*"
     };
   }
-  // BlockValidityPublicInputs returns info of data with retrieves the block validity witness based on the specified transaction root
+  // BlockValidityPublicInputs returns info of data with block validity public inputs
   //
-  // ## BlockValidityPublicInputs returns info of data with retrieves the block validity witness based on the specified transaction root
+  // ## BlockValidityPublicInputs returns info of data with block validity public inputs
   rpc BlockValidityPublicInputs(BlockValidityPublicInputsRequest) returns (BlockValidityPublicInputsResponse) {
     option (google.api.http) = {
       get: "/v1/block-validity-public-inputs/{block_number}"
+    };
+  }
+  // BlockValidityProof returns info of data with block validity proof
+  //
+  // ## BlockValidityPublicInputs returns info of data with block validity proof
+  rpc BlockValidityProof(BlockValidityProofRequest) returns (BlockValidityProofResponse) {
+    option (google.api.http) = {
+      get: "/v1/block-validity-proof/{block_number}"
     };
   }
 }
@@ -322,13 +330,13 @@ message BalanceUpdateWitnessResponse {
   }
 }
 
-// BlockValidityPublicInputsRequest describes request to get info about the data with retrieves the block validity witness based on the specified transaction root
+// BlockValidityPublicInputsRequest describes request to get info about the data with block validity public inputs
 message BlockValidityPublicInputsRequest {
   // the target block number
   uint32 block_number = 10 [json_name="blockNumber", (tagger.tags)="json:\"blockNumber,omitempty\""];
 }
 
-// BlockValidityPublicInputsResponse describes response to get info about the data with retrieves the block validity witness based on the specified transaction root
+// BlockValidityPublicInputsResponse describes response to get info about the data with block validity public inputs
 message BlockValidityPublicInputsResponse {
   // the success flag
   bool success = 10 [json_name="success", (tagger.tags)="json:\"success,omitempty\""];
@@ -340,6 +348,65 @@ message BlockValidityPublicInputsResponse {
     ValidityPublicInputs validity_public_inputs = 10 [json_name="validityPublicInputs", (tagger.tags)="json:\"validityPublicInputs,omitempty\""];
     // the object contains information about each sender in the block, including their address and validity status
     repeated Sender senders = 20 [json_name="senders", (tagger.tags)="json:\"senders,omitempty\""];
+
+    // ValidityPublicInputs returns object contains details about the public inputs for block validity verification
+    message ValidityPublicInputs {
+      // the object includes various root hashes and block information
+      PublicState public_state = 10 [json_name="publicState", (tagger.tags)="json:\"publicState,omitempty\""];
+      // the merkle root of the transaction tree
+      string tx_tree_root = 20 [json_name="txTreeRoot", (tagger.tags)="json:\"txTreeRoot,omitempty\""];
+      // the merkle root of the sender tree
+      string sender_tree_root = 30 [json_name="senderTreeRoot", (tagger.tags)="json:\"senderTreeRoot,omitempty\""];
+      // the boolean indicating if the block is valid
+      bool is_valid_block = 40 [json_name="isValidBlock", (tagger.tags)="json:\"isValidBlock,omitempty\""];
+    }
+
+    // PublicState return object includes various root hashes and block information
+    message PublicState {
+      // the merkle root of the block tree
+      string block_tree_root = 10 [json_name="blockTreeRoot", (tagger.tags)="json:\"blockTreeRoot,omitempty\""];
+      // the merkle root of the previous account state tree
+      string prev_account_tree_root = 20 [json_name="prevAccountTreeRoot", (tagger.tags)="json:\"prevAccountTreeRoot,omitempty\""];
+      // the merkle root of the current account state tree
+      string account_tree_root = 30 [json_name="accountTreeRoot", (tagger.tags)="json:\"accountTreeRoot,omitempty\""];
+      // the merkle root of the deposit tree
+      string deposit_tree_root = 40 [json_name="depositTreeRoot", (tagger.tags)="json:\"depositTreeRoot,omitempty\""];
+      // the hash of the current block
+      string block_hash = 50 [json_name="blockHash", (tagger.tags)="json:\"blockHash,omitempty\""];
+      // the number of the current block
+      uint32 block_number = 60 [json_name="blockNumber", (tagger.tags)="json:\"blockNumber,omitempty\""];
+    }
+
+    // Sender returns object contains information about sender in the block, including address and validity status
+    message Sender {
+      // the INTMAX address of the sender
+      string public_key = 10 [json_name="publicKey", (tagger.tags)="json:\"publicKey,omitempty\""];
+      // the boolean indicating if the sender's transaction is valid (the sender signed the tx root and the balance is non-negative)
+      bool is_valid = 20 [json_name="isValid", (tagger.tags)="json:\"isValid,omitempty\""];
+    }
+  }
+}
+
+// BlockValidityProofRequest describes request to get info about the data with block validity proof
+message BlockValidityProofRequest {
+  // the target block number
+  uint32 block_number = 10 [json_name="blockNumber", (tagger.tags)="json:\"blockNumber,omitempty\""];
+}
+
+// BlockValidityProofResponse describes response to get info about the data with block validity proof
+message BlockValidityProofResponse {
+  // the success flag
+  bool success = 10 [json_name="success", (tagger.tags)="json:\"success,omitempty\""];
+  // Additional data related to the response
+  Data data = 20 [json_name="data", (tagger.tags)="json:\"data,omitempty\""];
+  // Data is the nested message containing detailed response information
+  message Data {
+    // the object contains details about the public inputs for block validity verification
+    ValidityPublicInputs validity_public_inputs = 10 [json_name="validityPublicInputs", (tagger.tags)="json:\"validityPublicInputs,omitempty\""];
+    // the Plonky2 proof encoded in base64 including public inputs
+    string validity_proof = 20 [json_name="validityProof", (tagger.tags)="json:\"validityProof,omitempty\""];
+    // the object contains information about each sender in the block, including their address and validity status
+    repeated Sender senders = 30 [json_name="senders", (tagger.tags)="json:\"senders,omitempty\""];
 
     // ValidityPublicInputs returns object contains details about the public inputs for block validity verification
     message ValidityPublicInputs {

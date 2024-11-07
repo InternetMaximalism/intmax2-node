@@ -8,6 +8,7 @@ import (
 	blockValidityProverBalanceUpdateWitness "intmax2-node/internal/use_cases/block_validity_prover_balance_update_witness"
 	blockValidityProverBlockStatusByBlockHash "intmax2-node/internal/use_cases/block_validity_prover_block_status_by_block_hash"
 	blockValidityProverBlockStatusByBlockNumber "intmax2-node/internal/use_cases/block_validity_prover_block_status_by_block_number"
+	blockValidityProverBlockValidityProof "intmax2-node/internal/use_cases/block_validity_prover_block_validity_proof"
 	blockValidityProverBlockValidityPublicInputs "intmax2-node/internal/use_cases/block_validity_prover_block_validity_public_inputs"
 	blockValidityProverInfo "intmax2-node/internal/use_cases/block_validity_prover_info"
 	depositTreeProofByDepositIndex "intmax2-node/internal/use_cases/deposit_tree_proof_by_deposit_index"
@@ -17,6 +18,7 @@ import (
 	ucBlockValidityProverBalanceUpdateWitness "intmax2-node/pkg/use_cases/block_validity_prover_balance_update_witness"
 	ucBlockValidityProverBlockStatusByBlockHash "intmax2-node/pkg/use_cases/block_validity_prover_block_status_by_block_hash"
 	ucBlockValidityProverBlockStatusByBlockNumber "intmax2-node/pkg/use_cases/block_validity_prover_block_status_by_block_number"
+	ucBlockValidityProverBlockValidityProof "intmax2-node/pkg/use_cases/block_validity_prover_block_validity_proof"
 	ucBlockValidityProverBlockValidityPublicInputs "intmax2-node/pkg/use_cases/block_validity_prover_block_validity_public_inputs"
 	ucBlockValidityProverInfo "intmax2-node/pkg/use_cases/block_validity_prover_info"
 	ucDepositTreeProofByDepositIndex "intmax2-node/pkg/use_cases/deposit_tree_proof_by_deposit_index"
@@ -67,6 +69,11 @@ type Commands interface {
 		log logger.Logger,
 		bvs BlockValidityService,
 	) blockValidityProverBlockValidityPublicInputs.UseCaseBlockValidityProverBlockValidityPublicInputs
+	BlockValidityProverBlockValidityProof(
+		cfg *configs.Config,
+		log logger.Logger,
+		bvs BlockValidityService,
+	) blockValidityProverBlockValidityProof.UseCaseBlockValidityProverBlockValidityProof
 }
 
 type commands struct{}
@@ -141,4 +148,12 @@ func (c *commands) BlockValidityProverBlockValidityPublicInputs(
 	bvs BlockValidityService,
 ) blockValidityProverBlockValidityPublicInputs.UseCaseBlockValidityProverBlockValidityPublicInputs {
 	return ucBlockValidityProverBlockValidityPublicInputs.New(cfg, log, bvs)
+}
+
+func (c *commands) BlockValidityProverBlockValidityProof(
+	cfg *configs.Config,
+	log logger.Logger,
+	bvs BlockValidityService,
+) blockValidityProverBlockValidityProof.UseCaseBlockValidityProverBlockValidityProof {
+	return ucBlockValidityProverBlockValidityProof.New(cfg, log, bvs)
 }
