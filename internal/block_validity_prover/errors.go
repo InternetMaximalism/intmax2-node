@@ -135,6 +135,9 @@ var ErrGenesisValidityProof = errors.New("genesis validity proof error")
 // ErrNoValidityProofByBlockNumber error: no validity proof by block number.
 var ErrNoValidityProofByBlockNumber = errors.New("no validity proof by block number")
 
+// ErrValidityProofByBlockNumberFail error: failed to get validity proof by block number.
+var ErrValidityProofByBlockNumberFail = errors.New("failed to get validity proof by block number")
+
 // ErrAccountAlreadyExists error: account already exists.
 var ErrAccountAlreadyExists = errors.New("account already exists")
 
@@ -181,3 +184,6 @@ var ErrDepositTreeProof = errors.New("deposit tree proof error")
 
 // ErrBlockTreeProofFail error: failed to get block tree proof.
 var ErrBlockTreeProofFail = errors.New("failed to get block tree proof")
+
+// ErrValidityPublicInputsByBlockNumberFail error: failed to get validity public inputs by block number.
+var ErrValidityPublicInputsByBlockNumberFail = errors.New("failed to get validity public inputs by block number")
