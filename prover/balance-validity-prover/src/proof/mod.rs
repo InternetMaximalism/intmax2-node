@@ -11,6 +11,7 @@ use intmax2_zkp::{
             send::spent_circuit::SpentValue,
         },
         validity::validity_circuit::ValidityCircuit,
+        withdrawal::single_withdrawal_circuit::SingleWithdrawalCircuit,
     },
     common::{
         deposit::{get_pubkey_salt_hash, Deposit},
@@ -29,7 +30,7 @@ use intmax2_zkp::{
         },
     },
     ethereum_types::{bytes32::Bytes32, u256::U256, u32limb_trait::U32LimbTrait},
-    utils::leafable::Leafable,
+    utils::{leafable::Leafable, recursively_verifiable::RecursivelyVerifiable},
 };
 use plonky2::plonk::{
     circuit_data::VerifierCircuitData,
@@ -42,7 +43,7 @@ use serde::{Deserialize, Serialize};
 use crate::app::{
     config,
     encode::{decode_plonky2_proof, encode_plonky2_proof},
-    interface::SpentTokenWitness,
+    interface::SpentWitness,
 };
 
 const D: usize = 2;
@@ -77,8 +78,8 @@ impl SerializableUpdateWitness {
 #[serde(rename_all = "camelCase")]
 pub struct SerializableReceiveTransferWitness {
     pub transfer_witness: TransferWitness,
-    pub private_witness: PrivateTransitionWitness,
-    pub balance_proof: String,
+    pub private_transition_witness: PrivateTransitionWitness,
+    pub sender_balance_proof: String,
     pub block_merkle_proof: BlockHashMerkleProof,
 }
 
@@ -87,39 +88,38 @@ impl SerializableReceiveTransferWitness {
         &self,
         balance_circuit_data: &VerifierCircuitData<F, C, D>,
     ) -> anyhow::Result<ReceiveTransferWitness<F, C, D>> {
-        let balance_proof = decode_plonky2_proof(&self.balance_proof, balance_circuit_data)
-            .map_err(|e| anyhow::anyhow!("Failed to decode balance proof: {:?}", e))?;
+        let sender_balance_proof =
+            decode_plonky2_proof(&self.sender_balance_proof, balance_circuit_data)
+                .map_err(|e| anyhow::anyhow!("Failed to decode balance proof: {:?}", e))?;
         Ok(ReceiveTransferWitness {
             transfer_witness: self.transfer_witness.clone(),
-            private_transition_witness: self.private_witness.clone(),
-            sender_balance_proof: balance_proof,
+            private_transition_witness: self.private_transition_witness.clone(),
+            sender_balance_proof,
             block_merkle_proof: self.block_merkle_proof.clone(),
         })
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SerializableWithdrawalWitness {
-    pub transfer_witness: TransferWitness,
-    pub private_witness: PrivateTransitionWitness,
-    pub balance_proof: String,
-    pub block_merkle_proof: BlockHashMerkleProof,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize)]
+// #[serde(rename_all = "camelCase")]
+// pub struct SerializableWithdrawalWitness {
+//     pub transfer_witness: TransferWitness,
+//     pub balance_proof: String,
+// }
 
-impl SerializableWithdrawalWitness {
-    pub fn decode(
-        &self,
-        balance_circuit_data: &VerifierCircuitData<F, C, D>,
-    ) -> anyhow::Result<WithdrawalWitness<F, C, D>> {
-        let balance_proof = decode_plonky2_proof(&self.balance_proof, balance_circuit_data)
-            .map_err(|e| anyhow::anyhow!("Failed to decode balance proof: {:?}", e))?;
-        Ok(WithdrawalWitness {
-            transfer_witness: self.transfer_witness.clone(),
-            balance_proof,
-        })
-    }
-}
+// impl SerializableWithdrawalWitness {
+//     pub fn decode(
+//         &self,
+//         balance_circuit_data: &VerifierCircuitData<F, C, D>,
+//     ) -> anyhow::Result<WithdrawalWitness<F, C, D>> {
+//         let balance_proof = decode_plonky2_proof(&self.balance_proof, balance_circuit_data)
+//             .map_err(|e| anyhow::anyhow!("Failed to decode balance proof: {:?}", e))?;
+//         Ok(WithdrawalWitness {
+//             transfer_witness: self.transfer_witness.clone(),
+//             balance_proof,
+//         })
+//     }
+// }
 
 pub async fn generate_receive_deposit_proof_job(
     full_request_id: String,
@@ -194,14 +194,14 @@ pub async fn generate_balance_update_proof_job(
     balance_processor: &BalanceProcessor<F, C, D>,
     validity_circuit: &ValidityCircuit<F, C, D>,
     conn: &mut redis::aio::Connection,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<String> {
     let balance_circuit_data = balance_processor.balance_circuit.data.verifier_data();
     // let validity_circuit_data = validity_circuit_data.verifier_data();
 
     log::debug!("Proving...");
     let balance_proof = balance_processor
         .prove_update(
-            &validity_circuit,
+            &validity_circuit.data.verifier_data(),
             public_key,
             &balance_update_witness,
             &prev_balance_proof,
@@ -221,7 +221,7 @@ pub async fn generate_balance_update_proof_job(
         .await
         .with_context(|| "Failed to set proof")?;
 
-    Ok(())
+    Ok(encoded_compressed_balance_proof)
 }
 
 pub async fn generate_balance_transfer_proof_job(
@@ -284,7 +284,7 @@ pub async fn generate_balance_send_proof_job(
     log::debug!("Proving...");
     let balance_proof = balance_processor
         .prove_send(
-            &validity_circuit,
+            &validity_circuit.data.verifier_data(),
             public_key,
             tx_witness,
             &balance_update_witness,
@@ -326,7 +326,7 @@ pub async fn generate_balance_send_proof_job(
 }
 
 pub fn generate_balance_spend_proof_job(
-    spent_token_witness: &SpentTokenWitness,
+    spent_token_witness: &SpentWitness,
     balance_processor: &BalanceProcessor<F, C, D>,
 ) -> anyhow::Result<String> {
     let spent_circuit = &balance_processor
@@ -340,7 +340,7 @@ pub fn generate_balance_spend_proof_job(
         spent_token_witness.new_private_state_salt,
         &spent_token_witness.transfers,
         &spent_token_witness.asset_merkle_proofs,
-        spent_token_witness.tx_nonce,
+        spent_token_witness.tx.nonce,
     )
     .with_context(|| "Failed to create spent value")?;
 
@@ -352,6 +352,29 @@ pub fn generate_balance_spend_proof_job(
             .map_err(|e| anyhow::anyhow!("Failed to encode balance proof: {:?}", e))?;
 
     Ok(encoded_compressed_spent_proof)
+}
+
+pub fn generate_balance_withdrawal_proof_job(
+    withdrawal_witness: &WithdrawalWitness<F, C, D>,
+    balance_processor: &BalanceProcessor<F, C, D>,
+    single_withdrawal_circuit: &SingleWithdrawalCircuit<F, C, D>,
+) -> anyhow::Result<String> {
+    let transition_inclusion_value = withdrawal_witness
+        .to_transition_inclusion_value(&balance_processor.get_verifier_data())
+        .map_err(|e| anyhow::anyhow!("failed to create transition inclusion value: {}", e))?;
+
+    log::debug!("Proving...");
+    let single_withdrawal_proof = single_withdrawal_circuit
+        .prove(&transition_inclusion_value)
+        .map_err(|e| anyhow::anyhow!("failed to prove single withdrawal: {}", e))?;
+
+    let encoded_compressed_single_withdrawal_proof = encode_plonky2_proof(
+        single_withdrawal_proof,
+        &single_withdrawal_circuit.circuit_data().verifier_data(),
+    )
+    .map_err(|e| anyhow::anyhow!("Failed to encode balance proof: {:?}", e))?;
+
+    Ok(encoded_compressed_single_withdrawal_proof)
 }
 
 // pub fn generate_balance_single_send_proof_job(

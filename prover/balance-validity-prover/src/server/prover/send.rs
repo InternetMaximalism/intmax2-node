@@ -3,6 +3,7 @@ use crate::{
         encode::decode_plonky2_proof,
         interface::{
             ProofResponse, ProofSendRequest, ProofSendValue, ProofsSendResponse, SendIdQuery,
+            SimpleResponse,
         },
         state::AppState,
     },
@@ -11,7 +12,6 @@ use crate::{
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
 use intmax2_zkp::{
     common::witness::update_witness::UpdateWitness,
-    constants::NUM_TRANSFERS_IN_TX,
     ethereum_types::{u256::U256, u32limb_trait::U32LimbTrait},
 };
 
@@ -136,7 +136,7 @@ async fn generate_proof(
         .map_err(error::ErrorInternalServerError)?;
     // let validity_public_inputs = ValidityPublicInputs::from_pis(&validity_proof.public_inputs);
     let balance_update_witness = UpdateWitness {
-        is_prev_account_tree: req.is_prev_account_tree,
+        is_prev_account_tree: req.balance_update_witness.is_prev_account_tree,
         validity_proof,
         block_merkle_proof: req.balance_update_witness.block_merkle_proof.clone(),
         account_membership_proof: req.balance_update_witness.account_membership_proof.clone(),
@@ -216,7 +216,7 @@ async fn generate_proof(
         .sender_processor
         .spent_circuit;
 
-    let spend_proof = decode_plonky2_proof(&req.spend_proof, &spent_circuit.data.verifier_data())
+    let spent_proof = decode_plonky2_proof(&req.spent_proof, &spent_circuit.data.verifier_data())
         .map_err(error::ErrorInternalServerError)?;
 
     let tx_witness = req.tx_witness.clone();
@@ -237,7 +237,7 @@ async fn generate_proof(
             public_key,
             prev_balance_proof,
             &tx_witness,
-            &spend_proof,
+            &spent_proof,
             &balance_update_witness,
             state
                 .balance_processor

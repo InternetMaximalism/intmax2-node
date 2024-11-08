@@ -16,7 +16,7 @@ actix-web-validator = "5.0.1"
 rand = "0.8.5"
 serde_qs = "0.13.0"
 base64 = "0.22.1"
-intmax2-zkp = { git = "https://github.com/InternetMaximalism/intmax2-zkp", branch = "cli" }
+intmax2-zkp = { git = "https://github.com/InternetMaximalism/intmax2-zkp", rev = "e10caa1402601262a44338bd280b71e182ec1a02" } # cli branch
 plonky2 = { git = "https://github.com/InternetMaximalism/polygon-plonky2.git", branch = "intmax2-dev" }
 tokio = "1.39.2"
 hex = "0.4.3"
@@ -35,5 +35,4 @@ default-features = false
 features = ["tokio-comp", "connection-manager"]
 
 [features]
-dummy_proof = ["intmax2-zkp/dummy_validity_proof", "intmax2-zkp/skip_insufficient_check"]
-
+dummy_proof = ["intmax2-zkp/dummy_validity_proof"]

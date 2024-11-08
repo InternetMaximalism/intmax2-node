@@ -1,17 +1,16 @@
 use crate::{
     app::{
+        encode::decode_plonky2_proof,
         interface::{
-            ErrorResponse, ProofResponse, ProofSpendRequest, ProofSpendValue,
-            ProofWithdrawalRequest, ProofsSpentResponse, SpentIdQuery,
+            ErrorResponse, ProofResponse, ProofWithdrawalRequest, ProofWithdrawalValue,
+            ProofsWithdrawalResponse, WithdrawalIdQuery,
         },
         state::AppState,
     },
     proof::generate_balance_withdrawal_proof_job,
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
-use intmax2_zkp::{
-    common::witness::withdrawal_witness::WithdrawalWitness, constants::NUM_TRANSFERS_IN_TX,
-};
+use intmax2_zkp::common::witness::withdrawal_witness::WithdrawalWitness;
 
 #[get("/proof/withdrawal/{request_id}")]
 async fn get_proof(
@@ -63,7 +62,7 @@ async fn get_proofs(
         .map_err(actix_web::error::ErrorInternalServerError)?;
 
     let query_string = req.query_string();
-    let ids_query = serde_qs::from_str::<SpentIdQuery>(query_string);
+    let ids_query = serde_qs::from_str::<WithdrawalIdQuery>(query_string);
 
     let request_ids = match ids_query {
         Ok(query) => query.request_ids,
@@ -73,21 +72,21 @@ async fn get_proofs(
         }
     };
 
-    let mut proofs: Vec<ProofSpendValue> = Vec::new();
+    let mut proofs: Vec<ProofWithdrawalValue> = Vec::new();
     for request_id in &request_ids {
         let some_proof = redis::Cmd::get(&withdrawal_token_proof_request_id(request_id))
             .query_async::<_, Option<String>>(&mut conn)
             .await
             .map_err(actix_web::error::ErrorInternalServerError)?;
         if let Some(proof) = some_proof {
-            proofs.push(ProofSpendValue {
+            proofs.push(ProofWithdrawalValue {
                 request_id: (*request_id).to_string(),
                 proof,
             });
         }
     }
 
-    let response = ProofsSpentResponse {
+    let response = ProofsWithdrawalResponse {
         success: true,
         proofs,
         error_message: None,
@@ -128,22 +127,41 @@ async fn generate_proof(
 
     let instant = std::time::Instant::now();
 
+    let balance_circuit_data = state
+        .balance_processor
+        .get()
+        .ok_or_else(|| error::ErrorInternalServerError("balance processor not initialized"))?
+        .balance_circuit
+        .data
+        .verifier_data();
+    let single_withdrawal_circuit = state
+        .single_withdrawal_circuit
+        .get()
+        .ok_or_else(|| error::ErrorInternalServerError("balance processor not initialized"))?;
+
     // Validation check of balance_witness
     let transfer_witness = req.transfer_witness.clone();
-    if transfer_witness.transfers.len() != NUM_TRANSFERS_IN_TX {
-        println!(
-            "Invalid number of transfers: {}",
-            transfer_witness.transfers.len()
-        );
-        return Err(error::ErrorBadRequest("Invalid number of transfers"));
-    }
-    if withdrawal_witness.prev_balances.len() != NUM_TRANSFERS_IN_TX {
-        println!(
-            "Invalid number of prev_balances: {}",
-            transfer_witness.prev_balances.len()
-        );
-        return Err(error::ErrorBadRequest("Invalid number of prev_balances"));
-    }
+    let balance_proof = decode_plonky2_proof(&req.balance_proof, &balance_circuit_data)
+        .map_err(error::ErrorInternalServerError)
+        .expect("balance proof decoding failed");
+    balance_circuit_data
+        .verify(balance_proof.clone())
+        .map_err(error::ErrorInternalServerError)
+        .expect("balance proof verification failed");
+    // if transfer_witness.transfers.len() != NUM_TRANSFERS_IN_TX {
+    //     println!(
+    //         "Invalid number of transfers: {}",
+    //         transfer_witness.transfers.len()
+    //     );
+    //     return Err(error::ErrorBadRequest("Invalid number of transfers"));
+    // }
+    // if withdrawal_witness.prev_balances.len() != NUM_TRANSFERS_IN_TX {
+    //     println!(
+    //         "Invalid number of prev_balances: {}",
+    //         transfer_witness.prev_balances.len()
+    //     );
+    //     return Err(error::ErrorBadRequest("Invalid number of prev_balances"));
+    // }
     // if withdrawal_witness.asset_merkle_proofs.len() != NUM_TRANSFERS_IN_TX {
     //     println!(
     //         "Invalid number of asset_merkle_proofs: {}",
@@ -161,7 +179,7 @@ async fn generate_proof(
     // }
 
     let withdrawal_witness = WithdrawalWitness {
-        transfer_witness: spent_token_witness,
+        transfer_witness,
         balance_proof,
     };
     let response = generate_balance_withdrawal_proof_job(
@@ -170,6 +188,7 @@ async fn generate_proof(
             .balance_processor
             .get()
             .expect("balance processor not initialized"),
+        &single_withdrawal_circuit,
     );
     // let response = generate_balance_spend_proof_job(
     //     &send_witness,

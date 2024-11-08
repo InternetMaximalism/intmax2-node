@@ -28,9 +28,9 @@ pub fn setup_routes(cfg: &mut web::ServiceConfig) {
         prover::spend::get_proofs,
         prover::spend::generate_proof,
     ));
-    // cfg.service((
-    //     prover::withdrawal::get_proof,
-    //     prover::withdrawal::get_proofs,
-    //     prover::withdrawal::generate_proof,
-    // ));
+    cfg.service((
+        // prover::withdrawal::get_proof,
+        // prover::withdrawal::get_proofs,
+        prover::withdrawal::generate_proof,
+    ));
 }
