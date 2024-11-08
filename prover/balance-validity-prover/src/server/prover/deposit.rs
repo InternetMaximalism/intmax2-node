@@ -184,7 +184,9 @@ async fn generate_proof(
 
     println!(
         "asset Merkle proof: siblings = {:?}",
-        receive_deposit_witness.private_witness.asset_merkle_proof
+        receive_deposit_witness
+            .private_transition_witness
+            .asset_merkle_proof
     );
     // for (i, sibling) in receive_deposit_witness
     //     .private_witness

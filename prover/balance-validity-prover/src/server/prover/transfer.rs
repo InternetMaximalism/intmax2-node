@@ -132,7 +132,7 @@ async fn generate_proof(
         .decode(&balance_circuit_data)
         .map_err(error::ErrorInternalServerError)?;
     balance_circuit_data
-        .verify(receive_transfer_witness.balance_proof.clone())
+        .verify(receive_transfer_witness.sender_balance_proof.clone())
         .map_err(error::ErrorInternalServerError)?;
     // let balance_public_inputs =
     //     BalancePublicInputs::from_pis(&receive_transfer_witness.balance_proof.public_inputs);

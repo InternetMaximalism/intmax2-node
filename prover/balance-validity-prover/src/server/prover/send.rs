@@ -136,6 +136,7 @@ async fn generate_proof(
         .map_err(error::ErrorInternalServerError)?;
     // let validity_public_inputs = ValidityPublicInputs::from_pis(&validity_proof.public_inputs);
     let balance_update_witness = UpdateWitness {
+        is_prev_account_tree: req.is_prev_account_tree,
         validity_proof,
         block_merkle_proof: req.balance_update_witness.block_merkle_proof.clone(),
         account_membership_proof: req.balance_update_witness.account_membership_proof.clone(),
@@ -181,29 +182,44 @@ async fn generate_proof(
         None
     };
 
-    // Validation check of balance_witness
-    let send_witness = req.send_witness.clone();
-    if send_witness.transfers.len() != NUM_TRANSFERS_IN_TX {
-        println!(
-            "Invalid number of transfers: {}",
-            send_witness.transfers.len()
-        );
-        return Err(error::ErrorBadRequest("Invalid number of transfers"));
-    }
-    if send_witness.prev_balances.len() != NUM_TRANSFERS_IN_TX {
-        println!(
-            "Invalid number of prev_balances: {}",
-            send_witness.prev_balances.len()
-        );
-        return Err(error::ErrorBadRequest("Invalid number of prev_balances"));
-    }
-    if send_witness.asset_merkle_proofs.len() != NUM_TRANSFERS_IN_TX {
-        println!(
-            "Invalid number of asset_merkle_proofs: {}",
-            send_witness.asset_merkle_proofs.len()
-        );
-        return Err(error::ErrorBadRequest("Invalid number of asset_merkle_proofs"));
-    }
+    // // Validation check of balance_witness
+    // let send_witness = req.send_witness.clone();
+    // if send_witness.transfers.len() != NUM_TRANSFERS_IN_TX {
+    //     println!(
+    //         "Invalid number of transfers: {}",
+    //         send_witness.transfers.len()
+    //     );
+    //     return Err(error::ErrorBadRequest("Invalid number of transfers"));
+    // }
+    // if send_witness.prev_balances.len() != NUM_TRANSFERS_IN_TX {
+    //     println!(
+    //         "Invalid number of prev_balances: {}",
+    //         send_witness.prev_balances.len()
+    //     );
+    //     return Err(error::ErrorBadRequest("Invalid number of prev_balances"));
+    // }
+    // if send_witness.asset_merkle_proofs.len() != NUM_TRANSFERS_IN_TX {
+    //     println!(
+    //         "Invalid number of asset_merkle_proofs: {}",
+    //         send_witness.asset_merkle_proofs.len()
+    //     );
+    //     return Err(error::ErrorBadRequest(
+    //         "Invalid number of asset_merkle_proofs",
+    //     ));
+    // }
+
+    let spent_circuit = &state
+        .balance_processor
+        .get()
+        .ok_or_else(|| error::ErrorInternalServerError("balance processor not initialized"))?
+        .balance_transition_processor
+        .sender_processor
+        .spent_circuit;
+
+    let spend_proof = decode_plonky2_proof(&req.spend_proof, &spent_circuit.data.verifier_data())
+        .map_err(error::ErrorInternalServerError)?;
+
+    let tx_witness = req.tx_witness.clone();
 
     let response = ProofResponse {
         success: true,
@@ -220,7 +236,8 @@ async fn generate_proof(
             full_request_id,
             public_key,
             prev_balance_proof,
-            &send_witness,
+            &tx_witness,
+            &spend_proof,
             &balance_update_witness,
             state
                 .balance_processor

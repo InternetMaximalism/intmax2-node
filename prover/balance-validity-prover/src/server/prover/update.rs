@@ -138,6 +138,7 @@ async fn generate_proof(
         .map_err(error::ErrorInternalServerError)?;
     // let validity_public_inputs = ValidityPublicInputs::from_pis(&validity_proof.public_inputs);
     let balance_update_witness = UpdateWitness {
+        is_prev_account_tree: req.is_prev_account_tree,
         validity_proof,
         block_merkle_proof: req.balance_update_witness.block_merkle_proof.clone(),
         account_membership_proof: req.balance_update_witness.account_membership_proof.clone(),

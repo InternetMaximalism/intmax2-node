@@ -5,12 +5,15 @@ use intmax2_zkp::common::transfer::Transfer;
 use intmax2_zkp::common::trees::asset_tree::AssetLeaf;
 use intmax2_zkp::common::trees::asset_tree::AssetMerkleProof;
 use intmax2_zkp::common::witness::receive_deposit_witness::ReceiveDepositWitness;
-use intmax2_zkp::common::witness::send_witness::SendWitness;
+use intmax2_zkp::common::witness::tx_witness::TxWitness;
+// use intmax2_zkp::common::witness::send_witness::SendWitness;
+use intmax2_zkp::common::witness::withdrawal_witness::WithdrawalWitness;
 use serde::Deserialize;
 use serde::Serialize;
 
 use crate::proof::SerializableReceiveTransferWitness;
 use crate::proof::SerializableUpdateWitness;
+use crate::proof::SerializableWithdrawalWitness;
 
 #[derive(Debug, Serialize)]
 pub struct HealthCheckResponse {
@@ -66,8 +69,38 @@ pub struct ProofsDepositResponse {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ProofWithdrawalRequest {
+    pub request_id: String,
+    pub prev_balance_proof: Option<String>,
+    pub receive_withdrawal_witness: SerializableWithdrawalWitness, // WithdrawalWitness<F, C, D>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WithdrawalHashQuery {
+    pub request_ids: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProofWithdrawalValue {
+    pub request_id: String,
+    pub proof: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProofsWithdrawalResponse {
+    pub success: bool,
+    pub proofs: Vec<ProofWithdrawalValue>,
+    pub error_message: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProofUpdateRequest {
     pub request_id: String,
+    pub is_prev_account_tree: bool,
     pub prev_balance_proof: Option<String>,
     pub balance_update_witness: SerializableUpdateWitness,
 }
@@ -127,7 +160,8 @@ pub struct ProofsTransferResponse {
 pub struct ProofSendRequest {
     pub request_id: String,
     pub prev_balance_proof: Option<String>,
-    pub send_witness: SendWitness,
+    pub tx_witness: TxWitness,
+    pub spent_proof: String,
     pub balance_update_witness: SerializableUpdateWitness,
 }
 
@@ -154,21 +188,20 @@ pub struct ProofsSendResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SpentTokenWitness {
+pub struct SpentWitness {
     pub prev_private_state: PrivateState,
     pub prev_balances: Vec<AssetLeaf>,
     pub asset_merkle_proofs: Vec<AssetMerkleProof>,
-    pub insufficient_flags: InsufficientFlags,
     pub transfers: Vec<Transfer>,
     pub new_private_state_salt: Salt,
-    pub tx_nonce: u32,
+    pub tx: Tx,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProofSpendRequest {
     pub request_id: String,
-    pub send_witness: SpentTokenWitness, // TODO: rename to spent_token_witness
+    pub spent_witness: SpentWitness, // TODO: rename to spent_token_witness
 }
 
 #[derive(Debug, Deserialize)]
