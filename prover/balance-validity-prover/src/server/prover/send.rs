@@ -3,7 +3,6 @@ use crate::{
         encode::decode_plonky2_proof,
         interface::{
             ProofResponse, ProofSendRequest, ProofSendValue, ProofsSendResponse, SendIdQuery,
-            SimpleResponse,
         },
         state::AppState,
     },
