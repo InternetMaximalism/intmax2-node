@@ -1,12 +1,8 @@
+use crate::app::errors::{CIRCUIT_INITIALIZATION_ERROR, REDIS_CONNECTION_ERROR};
 use crate::app::interface::{ErrorResponse, HealthCheckResponse};
 use crate::app::state::AppState;
 use actix_web::{get, web, HttpResponse, Responder, Result};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-
-const REDIS_CONNECTION_ERROR: &str =
-    "Redis connection check failed: Unable to establish connection or receive response";
-const CIRCUIT_INITIALIZATION_ERROR: &str =
-    "Circuit initialization error: Required circuits are not properly built";
 
 async fn is_redis_healthy(redis: &redis::Client) -> bool {
     match redis.get_async_connection().await {
