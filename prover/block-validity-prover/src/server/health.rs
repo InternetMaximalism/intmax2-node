@@ -1,7 +1,7 @@
 use crate::app::errors::{CIRCUIT_INITIALIZATION_ERROR, REDIS_CONNECTION_ERROR};
-use crate::app::interface::{ErrorResponse, HealthCheckResponse};
+use crate::app::interface::HealthCheckResponse;
 use crate::app::state::AppState;
-use actix_web::{get, web, HttpResponse, Responder, Result};
+use actix_web::{error, get, web, HttpResponse, Responder, Result};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 async fn is_redis_healthy(redis: &redis::Client) -> bool {
@@ -40,19 +40,13 @@ async fn health_check(
     let start_time = SystemTime::now();
 
     if !is_redis_healthy(&redis).await {
-        return Ok(HttpResponse::InternalServerError().json(ErrorResponse {
-            code: 500,
-            message: REDIS_CONNECTION_ERROR.to_string(),
-            details: vec![],
-        }));
+        return Err(error::ErrorInternalServerError(REDIS_CONNECTION_ERROR));
     }
 
     if !state.validity_processor.get().is_some() {
-        return Ok(HttpResponse::InternalServerError().json(ErrorResponse {
-            code: 500,
-            message: CIRCUIT_INITIALIZATION_ERROR.to_string(),
-            details: vec![],
-        }));
+        return Err(error::ErrorInternalServerError(
+            CIRCUIT_INITIALIZATION_ERROR,
+        ));
     }
 
     Ok(HttpResponse::Ok().json(create_health_response(start_time)))

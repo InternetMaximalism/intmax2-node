@@ -1,4 +1,4 @@
-use intmax2_zkp::common::witness::validity_witness::CompressedValidityWitness;
+use intmax2_zkp::common::witness::compressed::compressed_validity_witness::CompressedValidityWitness;
 use intmax2_zkp::common::witness::validity_witness::ValidityWitness;
 use serde::Deserialize;
 use serde::Serialize;
@@ -8,13 +8,6 @@ pub struct HealthCheckResponse {
     pub message: String,
     pub timestamp: u128,
     pub uptime: f64,
-}
-
-#[derive(Debug, Serialize)]
-pub struct ErrorResponse {
-    pub code: u16,
-    pub message: String,
-    pub details: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]

@@ -10,6 +10,7 @@ use crate::{
     proof::generate_withdrawal_proof_job,
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
+use intmax2_zkp::utils::recursively_verifiable::RecursivelyVerifiable;
 
 #[get("/proof/withdrawal/{id}")]
 async fn get_proof(
@@ -44,26 +45,17 @@ async fn get_proofs(req: HttpRequest, redis: web::Data<redis::Client>) -> Result
         .map_err(actix_web::error::ErrorInternalServerError)?;
 
     let query_string = req.query_string();
-    let ids_query: Result<WithdrawalIdQuery, _> = serde_qs::from_str(query_string);
-    let ids: Vec<String>;
-
-    match ids_query {
-        Ok(query) => {
-            ids = query.ids;
-        }
-        Err(e) => {
-            log::warn!("Failed to deserialize query: {:?}", e);
-            return Ok(HttpResponse::BadRequest().body("Invalid query parameters"));
-        }
-    }
+    let ids_query: WithdrawalIdQuery = serde_qs::from_str(query_string)
+        .map_err(|e| error::ErrorBadRequest(format!("Failed to deserialize query: {e:?}")))?;
+    let request_ids: Vec<String> = ids_query.ids;
 
     let mut proofs: Vec<ProofValue> = Vec::new();
-    for id in &ids {
+    for id in &request_ids {
         let request_id = get_withdrawal_request_id(&id);
         let some_proof = redis::Cmd::get(&request_id)
             .query_async::<_, Option<String>>(&mut conn)
             .await
-            .map_err(actix_web::error::ErrorInternalServerError)?;
+            .map_err(error::ErrorInternalServerError)?;
         if let Some(proof) = some_proof {
             proofs.push(ProofValue {
                 id: (*id).to_string(),
@@ -87,7 +79,6 @@ async fn generate_proof(
     redis: web::Data<redis::Client>,
     state: web::Data<AppState>,
 ) -> Result<impl Responder> {
-    println!("generate_proof /proof/withdrawal");
     let mut redis_conn = redis
         .get_async_connection()
         .await
@@ -97,7 +88,7 @@ async fn generate_proof(
     let old_proof = redis::Cmd::get(&request_id)
         .query_async::<_, Option<String>>(&mut redis_conn)
         .await
-        .map_err(actix_web::error::ErrorInternalServerError)?;
+        .map_err(error::ErrorInternalServerError)?;
     if old_proof.is_some() {
         println!("old_proof is some");
         let response = ProofResponse {
@@ -109,7 +100,6 @@ async fn generate_proof(
         return Ok(HttpResponse::Ok().json(response));
     }
 
-    println!("withdrawal_circuit_data");
     let withdrawal_circuit_data = state
         .withdrawal_processor
         .get()
@@ -117,10 +107,6 @@ async fn generate_proof(
         .withdrawal_circuit
         .data
         .verifier_data();
-    println!(
-        "prev_withdrawal_proof: {}",
-        req.prev_withdrawal_proof.is_some()
-    );
 
     let prev_withdrawal_proof = if let Some(req_prev_withdrawal_proof) = &req.prev_withdrawal_proof
     {
@@ -130,11 +116,11 @@ async fn generate_proof(
         } else {
             let prev_withdrawal_proof =
                 decode_plonky2_proof(req_prev_withdrawal_proof, &withdrawal_circuit_data)
-                    .map_err(error::ErrorInternalServerError)?;
+                    .map_err(error::ErrorBadRequest)?;
             println!("start withdrawal_circuit_data");
             withdrawal_circuit_data
                 .verify(prev_withdrawal_proof.clone())
-                .map_err(error::ErrorInternalServerError)?;
+                .map_err(error::ErrorBadRequest)?;
             println!("end withdrawal_circuit_data");
 
             Some(prev_withdrawal_proof)
@@ -143,22 +129,17 @@ async fn generate_proof(
         None
     };
 
-    let single_withdrawal_proof = decode_plonky2_proof(encoded_proof, circuit_data);
-    req.single_withdrawal_proof
-        .decode(&withdrawal_circuit_data)
-        .map_err(error::ErrorInternalServerError)?;
-
-    let balance_circuit_data = state
-        .balance_circuit
+    let single_withdrawal_circuit = &state
+        .withdrawal_processor
         .get()
-        .ok_or_else(|| error::ErrorInternalServerError("withdrawal circuit is not initialized"))?
-        .data
-        .verifier_data();
+        .expect("withdrawal circuit is not initialized")
+        .single_withdrawal_circuit;
     println!("start withdrawal_witness");
-    let withdrawal_witness = req
-        .withdrawal_witness
-        .decode(&balance_circuit_data)
-        .map_err(error::ErrorInternalServerError)?;
+    let single_withdrawal_proof = decode_plonky2_proof(
+        &req.single_withdrawal_proof,
+        &single_withdrawal_circuit.circuit_data().verifier_data(),
+    )
+    .map_err(error::ErrorBadRequest)?;
     println!("end withdrawal_witness");
 
     // TODO: Validation check of withdrawal_witness

@@ -1,8 +1,10 @@
 use base64::prelude::*;
-use intmax2_zkp::common::witness::transfer_witness::TransferWitness;
+use plonky2::field::extension::Extendable;
 use plonky2::field::goldilocks_field::GoldilocksField;
+use plonky2::hash::hash_types::RichField;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::plonk::circuit_data::VerifierCircuitData;
+use plonky2::plonk::config::GenericConfig;
 use plonky2::plonk::config::PoseidonGoldilocksConfig;
 use plonky2::plonk::proof::CompressedProofWithPublicInputs;
 use plonky2::plonk::proof::ProofWithPublicInputs;
@@ -23,8 +25,11 @@ pub struct SerializableWithdrawalWitness {
     pub single_withdrawal_proof: String,
 }
 
-pub struct SingleWithdrawalWitness<F: GoldilocksField, C: PoseidonGoldilocksConfig, const D: usize>
-{
+pub struct SingleWithdrawalWitness<
+    F: RichField + Extendable<D>,
+    C: GenericConfig<D, F = F>,
+    const D: usize,
+> {
     pub single_withdrawal_proof: ProofWithPublicInputs<F, C, D>,
 }
 

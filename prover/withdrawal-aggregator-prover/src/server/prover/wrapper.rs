@@ -54,26 +54,17 @@ async fn get_proofs(req: HttpRequest, redis: web::Data<redis::Client>) -> Result
         .map_err(actix_web::error::ErrorInternalServerError)?;
 
     let query_string = req.query_string();
-    let ids_query: Result<WithdrawalWrapperIdQuery, _> = serde_qs::from_str(query_string);
-    let ids: Vec<String>;
-
-    match ids_query {
-        Ok(query) => {
-            ids = query.ids;
-        }
-        Err(e) => {
-            log::warn!("Failed to deserialize query: {:?}", e);
-            return Ok(HttpResponse::BadRequest().body("Invalid query parameters"));
-        }
-    }
+    let ids_query: WithdrawalWrapperIdQuery = serde_qs::from_str(query_string)
+        .map_err(|e| error::ErrorBadRequest(format!("Failed to deserialize query: {e:?}")))?;
+    let request_ids: Vec<String> = ids_query.ids;
 
     let mut proofs: Vec<ProofValue> = Vec::new();
-    for id in &ids {
+    for id in &request_ids {
         let request_id = get_withdrawal_wrapper_request_id(&id);
         let some_proof = redis::Cmd::get(&request_id)
             .query_async::<_, Option<String>>(&mut conn)
             .await
-            .map_err(actix_web::error::ErrorInternalServerError)?;
+            .map_err(error::ErrorInternalServerError)?;
         if let Some(proof) = some_proof {
             proofs.push(ProofValue {
                 id: (*id).to_string(),
@@ -127,13 +118,13 @@ async fn generate_proof(
 
     log::debug!("requested proof size: {}", req.withdrawal_proof.len());
     let withdrawal_proof = decode_plonky2_proof(&req.withdrawal_proof, &withdrawal_circuit_data)
-        .map_err(error::ErrorInternalServerError)?;
+        .map_err(error::ErrorBadRequest)?;
     withdrawal_circuit_data
         .verify(withdrawal_proof.clone())
-        .map_err(error::ErrorInternalServerError)?;
+        .map_err(error::ErrorBadRequest)?;
 
     let withdrawal_aggregator =
-        Address::from_hex(&req.withdrawal_aggregator).map_err(error::ErrorInternalServerError)?;
+        Address::from_hex(&req.withdrawal_aggregator).map_err(error::ErrorBadRequest)?;
 
     // TODO: Validation check of withdrawal_witness
 
@@ -144,7 +135,7 @@ async fn generate_proof(
             withdrawal_proof,
             withdrawal_aggregator,
             state
-                .withdrawal_wrapper_processor
+                .withdrawal_processor
                 .get()
                 .expect("withdrawal wrapper circuit is not initialized"),
             &mut redis_conn,
