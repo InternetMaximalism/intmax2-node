@@ -35,4 +35,5 @@ default-features = false
 features = ["tokio-comp", "connection-manager"]
 
 [features]
+default = ["dummy_proof"]
 dummy_proof = ["intmax2-zkp/dummy_validity_proof"]

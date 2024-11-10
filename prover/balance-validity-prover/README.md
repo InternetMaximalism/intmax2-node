@@ -57,7 +57,7 @@ curl "$BALANCE_VALIDITY_PROVER_URL/proofs/0x144b36dd812a1bbd4845c0e2bb7849fc9b39
 
 ```sh
 # generate proof
-curl -X POST -d '{ "requestId": "5", "spentWitness":'$(cat data/spend/spent_witness_0x23af9421582f7f19a52001f5c4f548da245dccd23da780c8b6f14bd285df1941.json)' }' -H "Content-Type: application/json" $BALANCE_VALIDITY_PROVER_URL/proof/spend | jq
+curl -X POST -d '{ "requestId": "5", "spentWitness": '$(cat data/spend/spent_witness_0x23af9421582f7f19a52001f5c4f548da245dccd23da780c8b6f14bd285df1941.json)' }' -H "Content-Type: application/json" $BALANCE_VALIDITY_PROVER_URL/proof/spend | jq
 
 # get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and ID 5.
 curl $BALANCE_VALIDITY_PROVER_URL/proof/0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c/withdrawal/5 | jq

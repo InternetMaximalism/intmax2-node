@@ -1,6 +1,5 @@
 use base64::prelude::*;
 use intmax2_zkp::common::witness::transfer_witness::TransferWitness;
-use intmax2_zkp::common::witness::withdrawal_witness::WithdrawalWitness;
 use plonky2::field::goldilocks_field::GoldilocksField;
 use plonky2::plonk::circuit_data::CommonCircuitData;
 use plonky2::plonk::circuit_data::VerifierCircuitData;
@@ -21,19 +20,23 @@ type F = GoldilocksField;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SerializableWithdrawalWitness {
-    pub transfer_witness: TransferWitness,
-    pub balance_proof: String,
+    pub single_withdrawal_proof: String,
+}
+
+pub struct SingleWithdrawalWitness<F: GoldilocksField, C: PoseidonGoldilocksConfig, const D: usize>
+{
+    pub single_withdrawal_proof: ProofWithPublicInputs<F, C, D>,
 }
 
 impl SerializableWithdrawalWitness {
     pub fn decode(
         &self,
-        balance_circuit_data: &VerifierCircuitData<F, C, D>,
-    ) -> anyhow::Result<WithdrawalWitness<F, C, D>> {
-        let balance_proof = decode_plonky2_proof(&self.balance_proof, balance_circuit_data)?;
-        Ok(WithdrawalWitness {
-            balance_proof,
-            transfer_witness: self.transfer_witness.clone(),
+        withdrawal_circuit_data: &VerifierCircuitData<F, C, D>,
+    ) -> anyhow::Result<SingleWithdrawalWitness<F, C, D>> {
+        let single_withdrawal_proof =
+            decode_plonky2_proof(&self.single_withdrawal_proof, withdrawal_circuit_data)?;
+        Ok(SingleWithdrawalWitness {
+            single_withdrawal_proof,
         })
     }
 }

@@ -12,9 +12,9 @@ pub struct HealthCheckResponse {
 
 #[derive(Debug, Serialize)]
 pub struct ErrorResponse {
-    pub success: bool,
     pub code: u16,
     pub message: String,
+    pub details: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]

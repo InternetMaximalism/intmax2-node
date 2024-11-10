@@ -5,7 +5,7 @@ use intmax2_zkp::{
         withdrawal_processor::WithdrawalProcessor,
         withdrawal_wrapper_processor::WithdrawalWrapperProcessor,
     },
-    common::witness::withdrawal_witness::WithdrawalWitness,
+    common::{withdrawal::Withdrawal, witness::withdrawal_witness::WithdrawalWitness},
     ethereum_types::address::Address,
 };
 use plonky2::{
@@ -21,16 +21,22 @@ type F = GoldilocksField;
 pub async fn generate_withdrawal_proof_job(
     request_id: String,
     prev_withdrawal_proof: Option<ProofWithPublicInputs<F, C, D>>,
-    withdrawal_witness: &WithdrawalWitness<F, C, D>,
+    single_withdrawal_proof: &ProofWithPublicInputs<F, C, D>,
     withdrawal_processor: &WithdrawalProcessor<F, C, D>,
     conn: &mut redis::aio::Connection,
 ) -> anyhow::Result<()> {
     let withdrawal_circuit_data = withdrawal_processor.withdrawal_circuit.data.verifier_data();
 
+    withdrawal_processor
+        .single_withdrawal_circuit
+        .verify(single_withdrawal_proof)
+        .map_err(|e| anyhow::anyhow!("Invalid single withdrawal proof: {:?}", e))?;
+
     log::debug!("Proving...");
     let withdrawal_proof = withdrawal_processor
-        .prove(withdrawal_witness, &prev_withdrawal_proof)
-        .with_context(|| "Failed to prove withdrawal")?;
+        .prove_chain(single_withdrawal_proof, &prev_withdrawal_proof)
+        .map_err(|e| anyhow::anyhow!("Failed to prove withdrawal chain: {}", e))?;
+    let withdrawal = Withdrawal::from_u64_slice(&withdrawal_proof.public_inputs.to_u64_vec());
 
     let encoded_compressed_withdrawal_proof =
         encode_plonky2_proof(withdrawal_proof, &withdrawal_circuit_data)
@@ -74,14 +80,10 @@ pub async fn generate_withdrawal_wrapper_proof_job(
         .get(true)
         .with_expiration(SetExpiry::EX(config::get("proof_expiration")));
 
-    let _ = redis::Cmd::set_options(
-        &request_id,
-        withdrawal_proof_json.clone(),
-        opts,
-    )
-    .query_async::<_, Option<String>>(conn)
-    .await
-    .with_context(|| "Failed to set proof")?;
+    let _ = redis::Cmd::set_options(&request_id, withdrawal_proof_json.clone(), opts)
+        .query_async::<_, Option<String>>(conn)
+        .await
+        .with_context(|| "Failed to set proof")?;
 
     Ok(())
 }

@@ -143,6 +143,11 @@ async fn generate_proof(
         None
     };
 
+    let single_withdrawal_proof = decode_plonky2_proof(encoded_proof, circuit_data);
+    req.single_withdrawal_proof
+        .decode(&withdrawal_circuit_data)
+        .map_err(error::ErrorInternalServerError)?;
+
     let balance_circuit_data = state
         .balance_circuit
         .get()
@@ -163,7 +168,7 @@ async fn generate_proof(
         let response = generate_withdrawal_proof_job(
             request_id,
             prev_withdrawal_proof,
-            &withdrawal_witness,
+            &single_withdrawal_proof,
             state
                 .withdrawal_processor
                 .get()

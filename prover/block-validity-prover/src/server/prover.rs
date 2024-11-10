@@ -3,13 +3,18 @@ use std::io::Write;
 use crate::{
     app::{
         encode::decode_plonky2_proof,
-        interface::{BlockHashQuery, ProofRequest, ProofResponse, ProofValue, ProofsResponse},
+        interface::{
+            BlockHashQuery, ErrorResponse, ProofRequest, ProofResponse, ProofValue, ProofsResponse,
+        },
         state::AppState,
     },
     proof::generate_block_validity_proof_job,
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
-use intmax2_zkp::{circuits::validity::validity_pis::ValidityPublicInputs, common::witness::validity_witness::ValidityWitness};
+use intmax2_zkp::{
+    circuits::validity::validity_pis::ValidityPublicInputs,
+    common::witness::validity_witness::ValidityWitness,
+};
 
 #[get("/proof/{id}")]
 async fn get_proof(
@@ -94,10 +99,31 @@ async fn generate_proof(
         .await
         .map_err(error::ErrorInternalServerError)?;
 
-    let old_proof = redis::Cmd::get(&get_request_id(&req.block_hash))
+    if req.block_hash.is_empty() {
+        log::warn!("block_hash is empty");
+        let response = ErrorResponse {
+            code: 400,
+            message: "block_hash is empty".to_string(),
+            details: vec![],
+        };
+        return Ok(HttpResponse::InternalServerError().json(response));
+    }
+
+    let old_proof = match redis::Cmd::get(&get_request_id(&req.block_hash))
         .query_async::<_, Option<String>>(&mut redis_conn)
         .await
-        .map_err(actix_web::error::ErrorInternalServerError)?;
+    {
+        Ok(proof) => proof,
+        Err(e) => {
+            log::error!("Failed to get proof: {:?}", e);
+            let response = ErrorResponse {
+                code: 400,
+                message: "Failed to get proof".to_string(),
+                details: vec![format!("{e:?}").to_string()],
+            };
+            return Ok(HttpResponse::InternalServerError().json(response));
+        }
+    };
     if old_proof.is_some() {
         let response = ProofResponse {
             success: true,
@@ -178,22 +204,33 @@ async fn generate_proof(
     } else {
         ValidityPublicInputs::genesis()
     };
-    if prev_pis.public_state.account_tree_root != validity_witness.block_witness.prev_account_tree_root {
+    if prev_pis.public_state.account_tree_root
+        != validity_witness.block_witness.prev_account_tree_root
+    {
         let response = ProofResponse {
             success: false,
             proof: None,
             error_message: Some("account tree root is mismatch".to_string()),
         };
-        println!("block tree root is mismatch: {} != {}", prev_pis.public_state.account_tree_root, validity_witness.block_witness.prev_account_tree_root);
+        println!(
+            "block tree root is mismatch: {} != {}",
+            prev_pis.public_state.account_tree_root,
+            validity_witness.block_witness.prev_account_tree_root
+        );
         return Ok(HttpResponse::Ok().json(response));
     }
-    if prev_pis.public_state.block_tree_root != validity_witness.block_witness.prev_block_tree_root {
+    if prev_pis.public_state.block_tree_root != validity_witness.block_witness.prev_block_tree_root
+    {
         let response = ProofResponse {
             success: false,
             proof: None,
             error_message: Some("block tree root is mismatch".to_string()),
         };
-        println!("block tree root is mismatch: {} != {}", prev_pis.public_state.block_tree_root, validity_witness.block_witness.prev_block_tree_root);
+        println!(
+            "block tree root is mismatch: {} != {}",
+            prev_pis.public_state.block_tree_root,
+            validity_witness.block_witness.prev_block_tree_root
+        );
         return Ok(HttpResponse::Ok().json(response));
     }
 
