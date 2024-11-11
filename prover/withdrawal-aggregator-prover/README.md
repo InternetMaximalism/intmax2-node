@@ -23,13 +23,13 @@ curl $WITHDRAWAL_PROVER_URL/health | jq
 
 ```sh
 # generate proof
-curl -X POST -d '{ "id": "1", "withdrawalWitness":'$(cat data/withdrawal_witness_0x96da320fa4cd5e2f5d17f85e58e6e394f8c4b87cbb93e2af1fed50451094d8fd.json)', "prevWithdrawalProof":null }' -H "Content-Type: application/json" $WITHDRAWAL_PROVER_URL/proof/withdrawal | jq
+curl -X POST -d '{ "id": "1", "singleWithdrawalProof": "'$(base64 --input data/single_withdrawal_proof.bin)'", "prevWithdrawalProof": null }' -H "Content-Type: application/json" $WITHDRAWAL_PROVER_URL/proof/withdrawal | jq
 
 # generate proof
-curl -X POST -d '{ "id": "2", "withdrawalWitness":'$(cat data/withdrawal_witness_0x436d3f984fe2d267a6cf8bec2cd062473dd56cec08540115c430474c25f9be4e.json)', "prevWithdrawalProof":"'$(base64 --input data/prev_withdrawal_proof_0x436d3f984fe2d267a6cf8bec2cd062473dd56cec08540115c430474c25f9be4e.bin)'" }' -H "Content-Type: application/json" $WITHDRAWAL_PROVER_URL/proof/withdrawal | jq
+curl -X POST -d '{ "id": "2", "singleWithdrawalProof": "'$(base64 --input data/single_withdrawal_proof.bin)'", "prevWithdrawalProof": '$(cat data/prev_withdrawal_proof.json)' }' -H "Content-Type: application/json" $WITHDRAWAL_PROVER_URL/proof/withdrawal | jq
 
 # get proof
-curl $WITHDRAWAL_PROVER_URL/proof/withdrawal/1 | jq
+curl $WITHDRAWAL_PROVER_URL/proof/withdrawal/1 | jq .data.proof
 
 # get proofs
 curl "$WITHDRAWAL_PROVER_URL/proofs/withdrawal?ids[]=1&ids[]=2" | jq
@@ -39,7 +39,7 @@ curl "$WITHDRAWAL_PROVER_URL/proofs/withdrawal?ids[]=1&ids[]=2" | jq
 
 ```sh
 # generate proof
-curl -X POST -d '{ "id": "1", "withdrawalAggregator":"0x9Fa732B331a5455125c57f9db2E54E03c1CbbA5E", "withdrawalProof":"'$(base64 --input data/prev_withdrawal_proof_0x436d3f984fe2d267a6cf8bec2cd062473dd56cec08540115c430474c25f9be4e.bin)'" }' -H "Content-Type: application/json" $WITHDRAWAL_PROVER_URL/proof/wrapper | jq
+curl -X POST -d '{ "id": "1", "withdrawalAggregator": "0x420a5b76e11e80d97c7eb3a0b16ac7b70672b8c2", "withdrawalProof": "'$(base64 --input data/withdrawal_proof.bin)'" }' -H "Content-Type: application/json" $WITHDRAWAL_PROVER_URL/proof/wrapper | jq
 
 # get proof
 curl $WITHDRAWAL_PROVER_URL/proof/wrapper/1 | jq
