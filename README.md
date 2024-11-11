@@ -214,17 +214,6 @@ Flags:
 
 Use "app deposit [command] --help" for more information about a command.
 ```
-### Command `./intmax2-node deposit analyzer --help`
-```
-# ./intmax2-node deposit analyzer --help
-Run deposit analyzer service
-
-Usage:
-  app deposit analyzer [flags]
-
-Flags:
-  -h, --help   help for analyzer
-```
 ### Command `./intmax2-node store-valut-server run --help`
 ```
 # ./intmax2-node store-valut-server run --help

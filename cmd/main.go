@@ -4,7 +4,6 @@ import (
 	"context"
 	"intmax2-node/cmd/balance_checker"
 	"intmax2-node/cmd/block_builder"
-	"intmax2-node/cmd/deposit"
 	"intmax2-node/cmd/ethereum_private_key_wallet"
 	"intmax2-node/cmd/generate_account"
 	"intmax2-node/cmd/intmax_private_key_wallet"
@@ -112,13 +111,6 @@ func main() {
 			GPOStorage:          storeGPO,
 		}),
 		migrator.NewMigratorCmd(ctx, log, dbApp),
-		deposit.NewDepositCmd(&deposit.Deposit{
-			Context: ctx,
-			Config:  cfg,
-			Log:     log,
-			DbApp:   dbApp,
-			SB:      bc,
-		}),
 		withdrawal.NewWithdrawCmd(&withdrawal.Withdrawal{
 			Context: ctx,
 			Config:  cfg,
