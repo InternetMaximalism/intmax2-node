@@ -35,7 +35,7 @@ func (s *BlockValidityProverServer) Deposits(
 		DepositHashes: req.DepositHashes,
 	}
 
-	err := input.Valid()
+	err := input.Valid(s.config)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
 		return &resp, utils.BadRequest(spanCtx, err)

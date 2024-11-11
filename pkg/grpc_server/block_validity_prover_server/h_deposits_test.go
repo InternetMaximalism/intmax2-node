@@ -73,7 +73,7 @@ func TestHandlerDeposits(t *testing.T) {
 		hashValid     = common.Hash{}
 		hashesInvalid []string
 	)
-	for i := 0; i < 101; i++ {
+	for i := 0; i < cfg.BlockValidityProver.BlockValidityProverMaxValueOfInputDepositsInRequest+1; i++ {
 		hashesInvalid = append(hashesInvalid, uuid.New().String())
 	}
 
@@ -113,9 +113,15 @@ func TestHandlerDeposits(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			desc:       "depositHashes: the length must be between 1 and 100.",
-			body:       fmt.Sprintf(`{"depositHashes":["%s"]}`, strings.Join(hashesInvalid, `","`)),
-			message:    "depositHashes: the length must be between 1 and 100.",
+			desc: fmt.Sprintf(
+				"depositHashes: the length must be between 1 and %d.",
+				cfg.BlockValidityProver.BlockValidityProverMaxValueOfInputDepositsInRequest,
+			),
+			body: fmt.Sprintf(`{"depositHashes":["%s"]}`, strings.Join(hashesInvalid, `","`)),
+			message: fmt.Sprintf(
+				"depositHashes: the length must be between 1 and %d.",
+				cfg.BlockValidityProver.BlockValidityProverMaxValueOfInputDepositsInRequest,
+			),
 			wantStatus: http.StatusBadRequest,
 		},
 		{
