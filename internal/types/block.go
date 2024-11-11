@@ -76,6 +76,8 @@ type ColumnSender struct {
 // BlockContent represents the content of a block, including sender details, transaction root,
 // aggregated signature, and public key.
 type BlockContent struct {
+	IsRegistrationBlock bool
+
 	// SenderType specifies whether senders are identified by PUBLIC_KEY or ACCOUNT_ID
 	SenderType string
 

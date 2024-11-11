@@ -30,6 +30,10 @@ func (s *externalBlockValidityService) BlockContentByTxRoot(txRoot common.Hash) 
 	return nil, ErrNotImplemented
 }
 
+func (s *externalBlockValidityService) AuxInfoListFromBlockContentByTxRoot(txRoot ...common.Hash) (map[common.Hash]*block_validity_prover.AuxInfo, error) {
+	return nil, ErrNotImplemented
+}
+
 func (s *externalBlockValidityService) GetDepositInfoByHash(depositHash common.Hash) (*block_validity_prover.DepositInfo, error) {
 	return nil, ErrNotImplemented
 }

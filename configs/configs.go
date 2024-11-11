@@ -67,6 +67,10 @@ func New() *Config {
 			config.BlockValidityProver.BlockValidityProverMaxValueOfInputDepositsInRequest > blockValidityProverMaxValueOfInputDepositsInRequest {
 			config.BlockValidityProver.BlockValidityProverMaxValueOfInputDepositsInRequest = blockValidityProverMaxValueOfInputDepositsInRequest
 		}
+		if config.BlockValidityProver.BlockValidityProverMaxValueOfInputTxRootInRequest <= intValue0 ||
+			config.BlockValidityProver.BlockValidityProverMaxValueOfInputTxRootInRequest > blockValidityProverMaxValueOfInputTxRootInRequest {
+			config.BlockValidityProver.BlockValidityProverMaxValueOfInputTxRootInRequest = blockValidityProverMaxValueOfInputTxRootInRequest
+		}
 		if config.APP.PrintConfig {
 			config.print()
 		}

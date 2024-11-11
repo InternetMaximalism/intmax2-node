@@ -12,6 +12,7 @@ import (
 	blockValidityProverBlockValidityPublicInputs "intmax2-node/internal/use_cases/block_validity_prover_block_validity_public_inputs"
 	blockValidityProverDeposits "intmax2-node/internal/use_cases/block_validity_prover_deposits"
 	blockValidityProverInfo "intmax2-node/internal/use_cases/block_validity_prover_info"
+	blockValidityProverTxRootStatus "intmax2-node/internal/use_cases/block_validity_prover_tx_root_status"
 	depositTreeProofByDepositIndex "intmax2-node/internal/use_cases/deposit_tree_proof_by_deposit_index"
 	getVersion "intmax2-node/internal/use_cases/get_version"
 	ucBlockTreeProofByRootAndLeafBlockNumbers "intmax2-node/pkg/use_cases/block_tree_proof_by_root_and_leaf_block_numbers"
@@ -23,6 +24,7 @@ import (
 	ucBlockValidityProverBlockValidityPublicInputs "intmax2-node/pkg/use_cases/block_validity_prover_block_validity_public_inputs"
 	ucBlockValidityProverDeposits "intmax2-node/pkg/use_cases/block_validity_prover_deposits"
 	ucBlockValidityProverInfo "intmax2-node/pkg/use_cases/block_validity_prover_info"
+	ucBlockValidityProverTxRootStatus "intmax2-node/pkg/use_cases/block_validity_prover_tx_root_status"
 	ucDepositTreeProofByDepositIndex "intmax2-node/pkg/use_cases/deposit_tree_proof_by_deposit_index"
 	ucGetVersion "intmax2-node/pkg/use_cases/get_version"
 )
@@ -81,6 +83,11 @@ type Commands interface {
 		log logger.Logger,
 		bvs BlockValidityService,
 	) blockValidityProverBlockValidityProof.UseCaseBlockValidityProverBlockValidityProof
+	BlockValidityProverTxRootStatus(
+		cfg *configs.Config,
+		log logger.Logger,
+		bvs BlockValidityService,
+	) blockValidityProverTxRootStatus.UseCaseBlockValidityProverTxRootStatus
 }
 
 type commands struct{}
@@ -171,4 +178,12 @@ func (c *commands) BlockValidityProverBlockValidityProof(
 	bvs BlockValidityService,
 ) blockValidityProverBlockValidityProof.UseCaseBlockValidityProverBlockValidityProof {
 	return ucBlockValidityProverBlockValidityProof.New(cfg, log, bvs)
+}
+
+func (c *commands) BlockValidityProverTxRootStatus(
+	cfg *configs.Config,
+	log logger.Logger,
+	bvs BlockValidityService,
+) blockValidityProverTxRootStatus.UseCaseBlockValidityProverTxRootStatus {
+	return ucBlockValidityProverTxRootStatus.New(cfg, log, bvs)
 }

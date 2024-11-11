@@ -12,3 +12,10 @@ enum BlockStatus {
   // the Scroll block that incorporated the INTMAX block has been reflected on Ethereum
   EXECUTED_ON_ETHEREUM = 1;
 }
+
+enum BlockType {
+  // the block not registered
+  NON_REGISTRATION = 0;
+  // the block registered
+  REGISTRATION = 1;
+}
