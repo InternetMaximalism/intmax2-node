@@ -249,6 +249,7 @@ func (d *blockValidityProver) GetDepositsInfoByHash(depositHash ...common.Hash) 
 	var (
 		checkStartIntMaxBlockNumber, checkBlockNumber bool
 	)
+	var reCheckDepositIndexList []uint32
 	depositsInfo := make(map[uint32]*DepositInfo)
 	for key := range list {
 		depositsInfo[list[key].DepositLeafWithId.DepositId] = &DepositInfo{
@@ -260,23 +261,27 @@ func (d *blockValidityProver) GetDepositsInfoByHash(depositHash ...common.Hash) 
 		}
 		if list[key].BlockNumberAfterDepositIndex > 0 {
 			depositsInfo[list[key].DepositLeafWithId.DepositId].BlockNumber = &list[key].BlockNumberAfterDepositIndex
-		} else if list[key].BlockNumberBeforeDepositIndex > 0 {
-			checkBlockNumber = true
-			if !checkStartIntMaxBlockNumber {
-				startIntMaxBlockNumber = list[key].BlockNumberBeforeDepositIndex
-				checkStartIntMaxBlockNumber = true
-			} else if list[key].BlockNumberBeforeDepositIndex < startIntMaxBlockNumber {
-				startIntMaxBlockNumber = list[key].BlockNumberBeforeDepositIndex
-			}
 		} else {
 			checkBlockNumber = true
+			reCheckDepositIndexList = append(reCheckDepositIndexList, *list[key].DepositIndex)
+			if list[key].BlockNumberBeforeDepositIndex > 0 {
+				if !checkStartIntMaxBlockNumber {
+					startIntMaxBlockNumber = list[key].BlockNumberBeforeDepositIndex
+					checkStartIntMaxBlockNumber = true
+				} else if list[key].BlockNumberBeforeDepositIndex < startIntMaxBlockNumber {
+					startIntMaxBlockNumber = list[key].BlockNumberBeforeDepositIndex
+				}
+			}
 		}
 		depositsInfo[list[key].DepositLeafWithId.DepositId].IsSynchronized = list[key].IsSync
 	}
 
 	if checkBlockNumber {
 		var blockNumbers map[uint32]uint32
-		blockNumbers, err = d.blockBuilder.BlockNumberByListOfDepositIndex(&startIntMaxBlockNumber, depositIndexList...)
+		blockNumbers, err = d.blockBuilder.BlockNumberByListOfDepositIndex(
+			&startIntMaxBlockNumber,
+			reCheckDepositIndexList...,
+		)
 		if err != nil {
 			var ErrBlockNumberByListOfDepositIndexFail = errors.New("failed to get of block number list by deposit index")
 			return nil, errors.Join(ErrBlockNumberByListOfDepositIndexFail, err)
