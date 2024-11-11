@@ -261,7 +261,7 @@ func (d *blockValidityProver) GetDepositsInfoByHash(depositHash ...common.Hash) 
 		}
 		if list[key].BlockNumberAfterDepositIndex > 0 {
 			depositsInfo[list[key].DepositLeafWithId.DepositId].BlockNumber = &list[key].BlockNumberAfterDepositIndex
-		} else {
+		} else if list[key].DepositIndex != nil {
 			checkBlockNumber = true
 			reCheckDepositIndexList = append(reCheckDepositIndexList, *list[key].DepositIndex)
 			if list[key].BlockNumberBeforeDepositIndex > 0 {
