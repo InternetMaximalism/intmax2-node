@@ -128,17 +128,17 @@ func (p *blockValidityProver) SyncDepositTree(latestBlock *uint64, startDepositI
 				for i := range processDepositsCalldata.DepositHashes {
 					depositHash := processDepositsCalldata.DepositHashes[i]
 
-					var depositLeafWithId *DepositLeafWithId
-					depositLeafWithId, _, err = b.GetDepositLeafAndIndexByHash(common.Hash(depositHash))
+					var depositLeafAndIndex *DepositLeafAndIndex
+					depositLeafAndIndex, err = b.GetDepositLeafAndIndexByHash(common.Hash(depositHash))
 					if err != nil {
 						return fmt.Errorf("failed to get deposit leaf by hash: %v", err.Error())
 					}
 
-					if depositLeafWithId.DepositLeaf.Hash() != common.Hash(depositHash) {
-						return fmt.Errorf("DepositLeaf hash mismatch: expected %v, got %v", depositLeafWithId.DepositLeaf.Hash(), common.Hash(depositHash))
+					if depositLeafAndIndex.DepositLeafWithId.DepositLeaf.Hash() != common.Hash(depositHash) {
+						return fmt.Errorf("DepositLeaf hash mismatch: expected %v, got %v", depositLeafAndIndex.DepositLeafWithId.DepositLeaf.Hash(), common.Hash(depositHash))
 					}
 
-					lastDepositRoot, err = b.AppendDepositTreeLeaf(common.Hash(depositHash), depositLeafWithId.DepositLeaf)
+					lastDepositRoot, err = b.AppendDepositTreeLeaf(common.Hash(depositHash), depositLeafAndIndex.DepositLeafWithId.DepositLeaf)
 					if err != nil {
 						return fmt.Errorf("failed to add deposit leaf: %v", err.Error())
 					}
@@ -221,6 +221,7 @@ func (p *blockValidityProver) SyncDepositedEvents() error {
 		var lastEventBlockNumber uint64
 		for _, e := range events {
 			deposits = append(deposits, &DepositLeafWithId{
+				Sender: e.Sender,
 				DepositLeaf: &intMaxTree.DepositLeaf{
 					RecipientSaltHash: e.RecipientSaltHash,
 					TokenIndex:        e.TokenIndex,
@@ -236,15 +237,29 @@ func (p *blockValidityProver) SyncDepositedEvents() error {
 		}
 
 		p.log.Debugf("Found %d new deposits\n", len(deposits))
-		for _, d := range deposits {
-			_, err = q.DepositByDepositID(d.DepositId)
+		for key := range deposits {
+			var ec *mDBApp.EthereumCounterparty
+			ec, err = q.CreateEthereumCounterparty(deposits[key].Sender.String())
+			if err != nil {
+				return fmt.Errorf("error upsert the deposit ethereum counterparty: %w", err)
+			}
+
+			var deposit *mDBApp.Deposit
+			deposit, err = q.DepositByDepositID(deposits[key].DepositId)
 			if err == nil {
+				if strings.EqualFold(strings.TrimSpace(deposit.Sender), "") {
+					err = q.UpdateSenderByDepositID(deposits[key].DepositId, ec.ID)
+					if err != nil {
+						return fmt.Errorf("error update the deposit sender: %w", err)
+					}
+				}
+
 				continue
 			} else if !errors.Is(err, errorsDB.ErrNotFound) {
 				return fmt.Errorf("error get deposit: %w", err)
 			}
 
-			_, err = q.CreateDeposit(*d.DepositLeaf, d.DepositId)
+			_, err = q.CreateDeposit(*deposits[key].DepositLeaf, deposits[key].DepositId, ec.ID)
 			if err != nil && !errors.Is(err, errorsDB.ErrNotUnique) {
 				return fmt.Errorf("error creating deposit: %w", err)
 			}

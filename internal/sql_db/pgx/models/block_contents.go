@@ -8,22 +8,23 @@ import (
 )
 
 type BlockContent struct {
-	BlockContentID      string
-	BlockNumber         int64
-	BlockHash           string
-	PrevBlockHash       string
-	DepositRoot         string
-	SignatureHash       string
-	IsRegistrationBlock bool
-	TxRoot              string
-	AggregatedSignature string
-	AggregatedPublicKey string
-	MessagePoint        string
-	Senders             []byte
-	ValidityProof       []byte
-	BlockNumberL2       *uint256.Int
-	BlockHashL2         sql.NullString
-	CreatedAt           time.Time
+	BlockContentID       string
+	BlockNumber          int64
+	BlockHash            string
+	PrevBlockHash        string
+	DepositRoot          string
+	DepositLeavesCounter int64
+	SignatureHash        string
+	IsRegistrationBlock  bool
+	TxRoot               string
+	AggregatedSignature  string
+	AggregatedPublicKey  string
+	MessagePoint         string
+	Senders              []byte
+	ValidityProof        []byte
+	BlockNumberL2        *uint256.Int
+	BlockHashL2          sql.NullString
+	CreatedAt            time.Time
 }
 
 type BlockProof struct {

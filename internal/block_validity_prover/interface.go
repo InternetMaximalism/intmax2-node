@@ -31,6 +31,7 @@ type BlockValidityProver interface {
 type BlockValidityService interface {
 	BlockContentByTxRoot(txRoot common.Hash) (*block_post_service.PostedBlock, error)
 	GetDepositInfoByHash(depositHash common.Hash) (depositInfo *DepositInfo, err error)
+	GetDepositsInfoByHash(depositHash ...common.Hash) (map[uint32]*DepositInfo, error)
 	FetchValidityProverInfo() (*ValidityProverInfo, error)
 	// Returns an update witness for a given public key and block numbers.
 	FetchUpdateWitness(publicKey *intMaxAcc.PublicKey, currentBlockNumber uint32, targetBlockNumber uint32, isPrevAccountTree bool) (*UpdateWitness, error)

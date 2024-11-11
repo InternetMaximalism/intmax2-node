@@ -156,7 +156,7 @@ func (p *pgx) BlockContent(blockContentID string) (*mDBApp.BlockContentWithProof
              bc.id ,bc.block_hash ,bc.prev_block_hash ,bc.deposit_root ,bc.signature_hash
 			 ,bc.is_registration_block ,bc.senders ,bc.tx_tree_root ,bc.aggregated_public_key
 			 ,bc.aggregated_signature ,bc.message_point ,bc.created_at ,bc.block_number
-			 ,bc.block_number_l2 ,bc.block_hash_l2
+			 ,bc.block_number_l2 ,bc.block_hash_l2 ,bc.deposit_leaves_counter
 			 ,bp.validity_proof
              FROM block_contents bc
 			 LEFT JOIN block_validity_proofs bp ON bc.id = bp.block_content_id
@@ -181,6 +181,7 @@ func (p *pgx) BlockContent(blockContentID string) (*mDBApp.BlockContentWithProof
 			&tmp.BlockNumber,
 			&tmp.BlockNumberL2,
 			&tmp.BlockHashL2,
+			&tmp.DepositLeavesCounter,
 			&tmp.ValidityProof,
 		))
 	if err != nil {
@@ -312,7 +313,7 @@ func (p *pgx) LastBlockValidityProof() (*mDBApp.BlockContentWithProof, error) {
 			 bc.id ,bc.block_hash ,bc.prev_block_hash ,bc.deposit_root ,bc.signature_hash
 			 ,bc.is_registration_block ,bc.senders ,bc.tx_tree_root ,bc.aggregated_public_key
 			 ,bc.aggregated_signature ,bc.message_point ,bc.created_at ,bc.block_number
-			 ,bc.block_number_l2 ,bc.block_hash_l2
+			 ,bc.block_number_l2 ,bc.block_hash_l2 ,bc.deposit_leaves_counter
 			 ,bp.validity_proof
 			 FROM block_contents bc
 			 LEFT JOIN block_validity_proofs bp ON bc.id = bp.block_content_id
@@ -339,6 +340,7 @@ func (p *pgx) LastBlockValidityProof() (*mDBApp.BlockContentWithProof, error) {
 			&tmp.BlockNumber,
 			&tmp.BlockNumberL2,
 			&tmp.BlockHashL2,
+			&tmp.DepositLeavesCounter,
 			&tmp.ValidityProof,
 		))
 	if err != nil {
@@ -356,7 +358,7 @@ func (p *pgx) BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockConten
              bc.id ,bc.block_hash ,bc.prev_block_hash ,bc.deposit_root ,bc.signature_hash
 			 ,bc.is_registration_block ,bc.senders ,bc.tx_tree_root ,bc.aggregated_public_key
 			 ,bc.aggregated_signature ,bc.message_point ,bc.created_at ,bc.block_number
-			 ,bc.block_number_l2 ,bc.block_hash_l2
+			 ,bc.block_number_l2 ,bc.block_hash_l2 ,bc.deposit_leaves_counter
 			 ,bp.validity_proof
              FROM block_contents bc
 			 LEFT JOIN block_validity_proofs bp ON bc.id = bp.block_content_id
@@ -381,6 +383,7 @@ func (p *pgx) BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockConten
 			&tmp.BlockNumber,
 			&tmp.BlockNumberL2,
 			&tmp.BlockHashL2,
+			&tmp.DepositLeavesCounter,
 			&tmp.ValidityProof,
 		))
 	if err != nil {
@@ -398,7 +401,7 @@ func (p *pgx) BlockContentByBlockHash(blockHash string) (*mDBApp.BlockContentWit
              bc.id ,bc.block_hash ,bc.prev_block_hash ,bc.deposit_root ,bc.signature_hash
 			 ,bc.is_registration_block ,bc.senders ,bc.tx_tree_root ,bc.aggregated_public_key
 			 ,bc.aggregated_signature ,bc.message_point ,bc.created_at ,bc.block_number
-			 ,bc.block_number_l2 ,bc.block_hash_l2
+			 ,bc.block_number_l2 ,bc.block_hash_l2 ,bc.deposit_leaves_counter
 			 ,bp.validity_proof
              FROM block_contents bc
 			 LEFT JOIN block_validity_proofs bp ON bc.id = bp.block_content_id
@@ -423,6 +426,7 @@ func (p *pgx) BlockContentByBlockHash(blockHash string) (*mDBApp.BlockContentWit
 			&tmp.BlockNumber,
 			&tmp.BlockNumberL2,
 			&tmp.BlockHashL2,
+			&tmp.DepositLeavesCounter,
 			&tmp.ValidityProof,
 		))
 	if err != nil {
@@ -440,7 +444,7 @@ func (p *pgx) BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWith
              bc.id ,bc.block_hash ,bc.prev_block_hash ,bc.deposit_root ,bc.signature_hash
 			 ,bc.is_registration_block ,bc.senders ,bc.tx_tree_root ,bc.aggregated_public_key
 			 ,bc.aggregated_signature ,bc.message_point ,bc.created_at ,bc.block_number
-			 ,bc.block_number_l2 ,bc.block_hash_l2
+			 ,bc.block_number_l2 ,bc.block_hash_l2 ,bc.deposit_leaves_counter
 			 ,bp.validity_proof
              FROM block_contents bc
 			 LEFT JOIN block_validity_proofs bp ON bc.id = bp.block_content_id
@@ -465,6 +469,7 @@ func (p *pgx) BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWith
 			&tmp.BlockNumber,
 			&tmp.BlockNumberL2,
 			&tmp.BlockHashL2,
+			&tmp.DepositLeavesCounter,
 			&tmp.ValidityProof,
 		))
 	if err != nil {
@@ -476,25 +481,42 @@ func (p *pgx) BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWith
 	return bDBApp, nil
 }
 
+func (p *pgx) BlockContentUpdDepositLeavesCounterByBlockNumber(
+	blockNumber, depositLeavesCounter uint32,
+) error {
+	const (
+		q = ` UPDATE block_contents SET deposit_leaves_counter = $1
+              WHERE deposit_leaves_counter != $2 AND block_number = $3 `
+	)
+
+	_, err := p.exec(p.ctx, q, depositLeavesCounter, depositLeavesCounter, blockNumber)
+	if err != nil {
+		return errPgx.Err(err)
+	}
+
+	return nil
+}
+
 func (p *pgx) blockContentToDBApp(tmp *models.BlockContent) *mDBApp.BlockContentWithProof {
 	blockNumber := uint32(tmp.BlockNumber)
 	m := mDBApp.BlockContentWithProof{
 		BlockContent: mDBApp.BlockContent{
-			BlockContentID:      tmp.BlockContentID,
-			BlockNumber:         blockNumber,
-			BlockHash:           tmp.BlockHash,
-			PrevBlockHash:       tmp.PrevBlockHash,
-			DepositRoot:         tmp.DepositRoot,
-			SignatureHash:       tmp.SignatureHash,
-			IsRegistrationBlock: tmp.IsRegistrationBlock,
-			Senders:             tmp.Senders,
-			TxRoot:              tmp.TxRoot,
-			AggregatedPublicKey: tmp.AggregatedPublicKey,
-			AggregatedSignature: tmp.AggregatedSignature,
-			MessagePoint:        tmp.MessagePoint,
-			BlockNumberL2:       tmp.BlockNumberL2,
-			BlockHashL2:         tmp.BlockHashL2.String,
-			CreatedAt:           tmp.CreatedAt,
+			BlockContentID:       tmp.BlockContentID,
+			BlockNumber:          blockNumber,
+			BlockHash:            tmp.BlockHash,
+			PrevBlockHash:        tmp.PrevBlockHash,
+			DepositRoot:          tmp.DepositRoot,
+			DepositLeavesCounter: uint32(tmp.DepositLeavesCounter),
+			SignatureHash:        tmp.SignatureHash,
+			IsRegistrationBlock:  tmp.IsRegistrationBlock,
+			Senders:              tmp.Senders,
+			TxRoot:               tmp.TxRoot,
+			AggregatedPublicKey:  tmp.AggregatedPublicKey,
+			AggregatedSignature:  tmp.AggregatedSignature,
+			MessagePoint:         tmp.MessagePoint,
+			BlockNumberL2:        tmp.BlockNumberL2,
+			BlockHashL2:          tmp.BlockHashL2.String,
+			CreatedAt:            tmp.CreatedAt,
 		},
 		ValidityProof: tmp.ValidityProof,
 	}

@@ -63,6 +63,10 @@ func New() *Config {
 		if config.GasPriceOracle.ExtraFee < intValue0 {
 			config.GasPriceOracle.ExtraFee = intValue0
 		}
+		if config.BlockValidityProver.BlockValidityProverMaxValueOfInputDepositsInRequest <= intValue0 ||
+			config.BlockValidityProver.BlockValidityProverMaxValueOfInputDepositsInRequest > blockValidityProverMaxValueOfInputDepositsInRequest {
+			config.BlockValidityProver.BlockValidityProverMaxValueOfInputDepositsInRequest = blockValidityProverMaxValueOfInputDepositsInRequest
+		}
 		if config.APP.PrintConfig {
 			config.print()
 		}

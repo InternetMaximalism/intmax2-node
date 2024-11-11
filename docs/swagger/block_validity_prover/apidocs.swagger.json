@@ -378,6 +378,46 @@
         ]
       }
     },
+    "/v1/deposits": {
+      "post": {
+        "summary": "Deposits returns info of data with deposit information from the deposit hash",
+        "description": "## Deposits returns info of data with deposit information from the deposit hash",
+        "operationId": "BlockValidityProverService_Deposits",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DepositsResponse"
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "schema": {
+              "$ref": "#/definitions/protobufEmpty"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1DepositsRequest"
+            }
+          }
+        ],
+        "tags": [
+          "BlockValidityProverService"
+        ]
+      }
+    },
     "/v1/info": {
       "get": {
         "summary": "BlockValidityProverInfo returns info of the block validity prover",
@@ -484,6 +524,62 @@
         }
       },
       "title": "Leaf data"
+    },
+    "DataDeposit": {
+      "type": "object",
+      "properties": {
+        "depositHash": {
+          "type": "string",
+          "title": "the deposit hash requested"
+        },
+        "depositId": {
+          "type": "integer",
+          "format": "int64",
+          "title": "the deposit ID of the deposit"
+        },
+        "depositIndex": {
+          "type": "integer",
+          "format": "int64",
+          "title": "the index of the deposit in the deposit tree"
+        },
+        "blockNumber": {
+          "type": "integer",
+          "format": "int64",
+          "title": "the block number when this deposit was included"
+        },
+        "isSynchronized": {
+          "type": "boolean",
+          "title": "the boolean indicating whether this deposit has been synchronized"
+        },
+        "from": {
+          "type": "string",
+          "title": "the ethereum address executing the deposit method of Liquidity contract"
+        },
+        "depositLeaf": {
+          "$ref": "#/definitions/DataDepositLeaf",
+          "title": "the object containing details of the deposit"
+        }
+      },
+      "title": "the deposit information"
+    },
+    "DataDepositLeaf": {
+      "type": "object",
+      "properties": {
+        "recipientSaltHash": {
+          "type": "string",
+          "title": "the hash of the recipient's address and salt"
+        },
+        "tokenIndex": {
+          "type": "integer",
+          "format": "int64",
+          "title": "the index of the token being deposited"
+        },
+        "amount": {
+          "type": "string",
+          "title": "the amount of tokens deposited"
+        }
+      },
+      "title": "the object containing details of the deposit"
     },
     "protobufAny": {
       "type": "object",
@@ -1020,6 +1116,47 @@
         }
       },
       "title": "MerkleProof is the deposit merkle proof"
+    },
+    "v1DepositsRequest": {
+      "type": "object",
+      "properties": {
+        "depositHashes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "the root hash of tx tree"
+        }
+      },
+      "title": "DepositsRequest describes request to get info about the data with deposit information from the deposit hash"
+    },
+    "v1DepositsResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "title": "the success flag"
+        },
+        "data": {
+          "$ref": "#/definitions/v1DepositsResponseData",
+          "title": "Additional data related to the response"
+        }
+      },
+      "title": "DepositsResponse describes response to get info about the data with deposit information from the deposit hash"
+    },
+    "v1DepositsResponseData": {
+      "type": "object",
+      "properties": {
+        "deposits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/DataDeposit"
+          },
+          "title": "the list of deposits"
+        }
+      },
+      "title": "Data is the nested message containing detailed response information"
     },
     "v1VersionResponse": {
       "type": "object",
