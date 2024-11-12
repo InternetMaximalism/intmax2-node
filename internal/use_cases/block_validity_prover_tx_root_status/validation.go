@@ -15,7 +15,7 @@ func (input *UCBlockValidityProverTxRootStatusInput) Valid(cfg *configs.Config) 
 	const int1Key = 1
 
 	return validation.ValidateStruct(input,
-		validation.Field(&input.TxRoot,
+		validation.Field(&input.TxRoots,
 			validation.Required,
 			validation.Length(int1Key, cfg.BlockValidityProver.BlockValidityProverMaxValueOfInputTxRootInRequest),
 			validation.Each(input.IsTxRoot(cfg)),

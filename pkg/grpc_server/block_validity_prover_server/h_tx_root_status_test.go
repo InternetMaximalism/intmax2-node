@@ -127,31 +127,31 @@ func TestHandlerTxRootStatus(t *testing.T) {
 		wantStatus    int
 	}{
 		{
-			desc:       "txRoot: cannot be blank.",
-			message:    "txRoot: cannot be blank.",
+			desc:       "txRoots: cannot be blank.",
+			message:    "txRoots: cannot be blank.",
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			desc:       "txRoot: cannot be blank.",
-			body:       `{"txRoot":[]}`,
-			message:    "txRoot: cannot be blank.",
+			desc:       "txRoots: cannot be blank.",
+			body:       `{"txRoots":[]}`,
+			message:    "txRoots: cannot be blank.",
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			desc: fmt.Sprintf(
-				"txRoot: the length must be between 1 and %d.",
+				"txRoots: the length must be between 1 and %d.",
 				cfg.BlockValidityProver.BlockValidityProverMaxValueOfInputTxRootInRequest,
 			),
-			body: fmt.Sprintf(`{"txRoot":["%s"]}`, strings.Join(hashesInvalid, `","`)),
+			body: fmt.Sprintf(`{"txRoots":["%s"]}`, strings.Join(hashesInvalid, `","`)),
 			message: fmt.Sprintf(
-				"txRoot: the length must be between 1 and %d.",
+				"txRoots: the length must be between 1 and %d.",
 				cfg.BlockValidityProver.BlockValidityProverMaxValueOfInputTxRootInRequest,
 			),
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			desc:          "txRoot not existing",
-			body:          `{"txRoot":[""]}`,
+			body:          `{"txRoots":[""]}`,
 			success:       true,
 			errorsKey:     "",
 			errorsMessage: `txRoot not existing`,
@@ -159,7 +159,7 @@ func TestHandlerTxRootStatus(t *testing.T) {
 		},
 		{
 			desc:          "txRoot not existing",
-			body:          fmt.Sprintf(`{"txRoot":[%q]}`, invalidHashAsUUID),
+			body:          fmt.Sprintf(`{"txRoots":[%q]}`, invalidHashAsUUID),
 			success:       true,
 			errorsKey:     invalidHashAsUUID,
 			errorsMessage: `txRoot not existing`,
@@ -167,7 +167,7 @@ func TestHandlerTxRootStatus(t *testing.T) {
 		},
 		{
 			desc:          "txRoot not existing",
-			body:          fmt.Sprintf(`{"txRoot":[%q]}`, zeroTxRoot),
+			body:          fmt.Sprintf(`{"txRoots":[%q]}`, zeroTxRoot),
 			success:       true,
 			errorsKey:     zeroTxRoot,
 			errorsMessage: `txRoot not existing`,
@@ -175,7 +175,7 @@ func TestHandlerTxRootStatus(t *testing.T) {
 		},
 		{
 			desc:          "txRoot not existing",
-			body:          fmt.Sprintf(`{"txRoot":[%q]}`, cfg.BlockValidityProver.BlockValidityProverInvalidTxRootInRequest[0]),
+			body:          fmt.Sprintf(`{"txRoots":[%q]}`, cfg.BlockValidityProver.BlockValidityProverInvalidTxRootInRequest[0]),
 			success:       true,
 			errorsKey:     cfg.BlockValidityProver.BlockValidityProverInvalidTxRootInRequest[0],
 			errorsMessage: `txRoot not existing`,
@@ -183,7 +183,7 @@ func TestHandlerTxRootStatus(t *testing.T) {
 		},
 		{
 			desc: "txRoot not existing",
-			body: fmt.Sprintf(`{"txRoot":[%q]}`, hashValid),
+			body: fmt.Sprintf(`{"txRoots":[%q]}`, hashValid),
 			prepare: func(_ []*blockValidityProverTxRootStatus.UCBlockValidityProverTxRootStatus) {
 				cmd.EXPECT().BlockValidityProverTxRootStatus(gomock.Any(), gomock.Any(), gomock.Any()).Return(uc)
 				uc.EXPECT().Do(gomock.Any(), gomock.Any()).Return(nil, nil)
@@ -195,7 +195,7 @@ func TestHandlerTxRootStatus(t *testing.T) {
 		},
 		{
 			desc: "success with UC error `fake`",
-			body: fmt.Sprintf(`{"txRoot":[%q]}`, hashValid),
+			body: fmt.Sprintf(`{"txRoots":[%q]}`, hashValid),
 			prepare: func(_ []*blockValidityProverTxRootStatus.UCBlockValidityProverTxRootStatus) {
 				cmd.EXPECT().BlockValidityProverTxRootStatus(gomock.Any(), gomock.Any(), gomock.Any()).Return(uc)
 				uc.EXPECT().Do(gomock.Any(), gomock.Any()).Return(nil, errors.New("fake"))
@@ -204,7 +204,7 @@ func TestHandlerTxRootStatus(t *testing.T) {
 		},
 		{
 			desc: "success with not empty `data.blocks` and empty `data.errors`",
-			body: fmt.Sprintf(`{"txRoot":[%q]}`, hashValid),
+			body: fmt.Sprintf(`{"txRoots":[%q]}`, hashValid),
 			info: []*blockValidityProverTxRootStatus.UCBlockValidityProverTxRootStatus{
 				{
 					TxTreeRoot: hashValid,
@@ -220,7 +220,7 @@ func TestHandlerTxRootStatus(t *testing.T) {
 		},
 		{
 			desc: "success with not empty `data.blocks` and not empty `data.errors`",
-			body: fmt.Sprintf(`{"txRoot":["%s"]}`, strings.Join([]string{hashValid.String(), zeroTxRoot}, `","`)),
+			body: fmt.Sprintf(`{"txRoots":["%s"]}`, strings.Join([]string{hashValid.String(), zeroTxRoot}, `","`)),
 			info: []*blockValidityProverTxRootStatus.UCBlockValidityProverTxRootStatus{
 				{
 					TxTreeRoot: hashValid,

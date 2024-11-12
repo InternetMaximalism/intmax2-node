@@ -34,8 +34,8 @@ func (u *uc) Do(
 	input *ucBlockValidityProverTxRootStatus.UCBlockValidityProverTxRootStatusInput,
 ) (map[string]*ucBlockValidityProverTxRootStatus.UCBlockValidityProverTxRootStatus, error) {
 	const (
-		hName     = "UseCase BlockValidityProverTxRootStatus"
-		txRootKey = "tx_root"
+		hName      = "UseCase BlockValidityProverTxRootStatus"
+		txRootsKey = "tx_roots"
 	)
 
 	spanCtx, span := open_telemetry.Tracer().Start(ctx, hName)
@@ -47,7 +47,7 @@ func (u *uc) Do(
 	}
 
 	span.SetAttributes(
-		attribute.StringSlice(txRootKey, input.TxRoot),
+		attribute.StringSlice(txRootsKey, input.TxRoots),
 	)
 
 	list, err := u.bvs.AuxInfoListFromBlockContentByTxRoot(input.ConvertTxRoot...)

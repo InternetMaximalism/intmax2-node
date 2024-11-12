@@ -512,7 +512,7 @@ message DepositsResponse {
 // TxRootStatusRequest describes request to get info about the data with information about the block with the specified tx root
 message TxRootStatusRequest {
   // the tx root
-  repeated string tx_root = 10 [json_name="txRoot", (tagger.tags)="json:\"txRoot,omitempty\""];
+  repeated string tx_roots = 10 [json_name="txRoots", (tagger.tags)="json:\"txRoots,omitempty\""];
 }
 
 // TxRootStatusResponse describes response to get info about the data with information about the block with the specified tx root

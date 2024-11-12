@@ -1294,7 +1294,7 @@
     "v1TxRootStatusRequest": {
       "type": "object",
       "properties": {
-        "txRoot": {
+        "txRoots": {
           "type": "array",
           "items": {
             "type": "string"

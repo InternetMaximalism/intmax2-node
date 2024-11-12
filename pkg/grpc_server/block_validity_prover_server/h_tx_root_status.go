@@ -33,7 +33,7 @@ func (s *BlockValidityProverServer) TxRootStatus(
 	defer span.End()
 
 	input := blockValidityProverTxRootStatus.UCBlockValidityProverTxRootStatusInput{
-		TxRoot: req.TxRoot,
+		TxRoots: req.TxRoots,
 	}
 
 	err := input.Valid(s.config)

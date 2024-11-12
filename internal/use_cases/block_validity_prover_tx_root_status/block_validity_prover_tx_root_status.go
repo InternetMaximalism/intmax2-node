@@ -29,7 +29,7 @@ type TxRootError struct {
 }
 
 type UCBlockValidityProverTxRootStatusInput struct {
-	TxRoot        []string                `json:"txRoot"`
+	TxRoots       []string                `json:"txRoots"`
 	ConvertTxRoot []common.Hash           `json:"-"`
 	TxRootErrors  map[string]*TxRootError `json:"-"`
 }
