@@ -1704,6 +1704,7 @@ func blockAuxInfoFromBlockContent(auxInfo *mDBApp.BlockContentWithProof) (*AuxIn
 	}
 
 	blockContent := intMaxTypes.BlockContent{
+		IsRegistrationBlock: auxInfo.IsRegistrationBlock,
 		TxTreeRoot:          common.HexToHash("0x" + auxInfo.TxRoot),
 		AggregatedPublicKey: aggregatedPublicKey,
 		AggregatedSignature: aggregatedSignature,
@@ -1788,6 +1789,10 @@ func (b *mockBlockBuilder) BlockContentByBlockNumber(blockNumber uint32) (*mDBAp
 
 func (b *mockBlockBuilder) BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWithProof, error) {
 	return b.db.BlockContentByTxRoot(txRoot)
+}
+
+func (b *mockBlockBuilder) BlockContentListByTxRoot(txRoot ...common.Hash) ([]*mDBApp.BlockContentWithProof, error) {
+	return b.db.BlockContentListByTxRoot(txRoot...)
 }
 
 func (b *mockBlockBuilder) BlockContentUpdDepositLeavesCounterByBlockNumber(

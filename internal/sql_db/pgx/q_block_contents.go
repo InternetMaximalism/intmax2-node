@@ -481,6 +481,65 @@ func (p *pgx) BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWith
 	return bDBApp, nil
 }
 
+func (p *pgx) BlockContentListByTxRoot(txRoot ...common.Hash) ([]*mDBApp.BlockContentWithProof, error) {
+	const (
+		q = `SELECT
+             bc.id ,bc.block_hash ,bc.prev_block_hash ,bc.deposit_root ,bc.signature_hash
+			 ,bc.is_registration_block ,bc.senders ,bc.tx_tree_root ,bc.aggregated_public_key
+			 ,bc.aggregated_signature ,bc.message_point ,bc.created_at ,bc.block_number
+			 ,bc.block_number_l2 ,bc.block_hash_l2 ,bc.deposit_leaves_counter
+			 ,bp.validity_proof
+             FROM block_contents bc
+			 LEFT JOIN block_validity_proofs bp ON bc.id = bp.block_content_id
+			 WHERE bc.tx_tree_root = any($1)
+			 ORDER BY bc.block_number ASC `
+	)
+
+	txsRoot := make([]string, len(txRoot))
+	for key := range txRoot {
+		txsRoot[key] = txRoot[key].Hex()[2:]
+	}
+
+	rows, err := p.query(p.ctx, q, txsRoot)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	var bDBApp []*mDBApp.BlockContentWithProof
+	for rows.Next() {
+		var tmp models.BlockContent
+		err = errPgx.Err(rows.Scan(
+			&tmp.BlockContentID,
+			&tmp.BlockHash,
+			&tmp.PrevBlockHash,
+			&tmp.DepositRoot,
+			&tmp.SignatureHash,
+			&tmp.IsRegistrationBlock,
+			&tmp.Senders,
+			&tmp.TxRoot,
+			&tmp.AggregatedPublicKey,
+			&tmp.AggregatedSignature,
+			&tmp.MessagePoint,
+			&tmp.CreatedAt,
+			&tmp.BlockNumber,
+			&tmp.BlockNumberL2,
+			&tmp.BlockHashL2,
+			&tmp.DepositLeavesCounter,
+			&tmp.ValidityProof,
+		))
+		if err != nil {
+			return nil, err
+		}
+
+		bDBApp = append(bDBApp, p.blockContentToDBApp(&tmp))
+	}
+
+	return bDBApp, nil
+}
+
 func (p *pgx) BlockContentUpdDepositLeavesCounterByBlockNumber(
 	blockNumber, depositLeavesCounter uint32,
 ) error {

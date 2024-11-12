@@ -135,6 +135,15 @@ service BlockValidityProverService {
       body: "*"
     };
   }
+  // TxRootStatus returns info of data with information about the block with the specified tx root
+  //
+  // ## TxRootStatus returns info of data with information about the block with the specified tx root
+  rpc TxRootStatus(TxRootStatusRequest) returns (TxRootStatusResponse) {
+    option (google.api.http) = {
+      post: "/v1/tx-root/status"
+      body: "*"
+    };
+  }
 }
 
 // DepositTreeProofRequest describes request to get info about the deposit Merkle proof
@@ -496,6 +505,67 @@ message DepositsResponse {
       uint32 token_index = 20 [json_name="tokenIndex", (tagger.tags)="json:\"tokenIndex,omitempty\""];
       // the amount of tokens deposited
       string amount = 30 [json_name="amount", (tagger.tags)="json:\"amount,omitempty\""];
+    }
+  }
+}
+
+// TxRootStatusRequest describes request to get info about the data with information about the block with the specified tx root
+message TxRootStatusRequest {
+  // the tx root
+  repeated string tx_roots = 10 [json_name="txRoots", (tagger.tags)="json:\"txRoots,omitempty\""];
+}
+
+// TxRootStatusResponse describes response to get info about the data with information about the block with the specified tx root
+message TxRootStatusResponse {
+  // the success flag
+  bool success = 10 [json_name="success", (tagger.tags)="json:\"success,omitempty\""];
+  // Additional data related to the response
+  Data data = 20 [json_name="data", (tagger.tags)="json:\"data,omitempty\""];
+  // Data is the nested message containing detailed response information
+  message Data {
+    // the array consisting of the data about blocks
+    repeated Block blocks = 10 [json_name="blocks", (tagger.tags)="json:\"blocks,omitempty\""];
+    // Additional the errors message related to the response
+    repeated Error errors = 20 [json_name="errors", (tagger.tags)="json:\"errors,omitempty\""];
+    // the info consisting of the data about block
+    message Block {
+      // the type of block
+      BlockType block_type = 10 [json_name="blockType", (tagger.tags)="json:\"blockType,omitempty\""];
+      // the requested tx tree root
+      string tx_root = 20 [json_name="txRoot", (tagger.tags)="json:\"txRoot,omitempty\""];
+      // the previous block hash
+      string prev_block_hash = 30 [json_name="prevBlockHash", (tagger.tags)="json:\"prevBlockHash,omitempty\""];
+      // the block number
+      uint32 block_number = 40 [json_name="blockNumber", (tagger.tags)="json:\"blockNumber,omitempty\""];
+      // the deposit root at the time of block posting (written in the Rollup contract)
+      string deposit_root = 50 [json_name="depositRoot", (tagger.tags)="json:\"depositRoot,omitempty\""];
+      // the hash value that the Block Builder must provide to the Rollup contract when posting a new block
+      string signature_hash = 60 [json_name="signatureHash", (tagger.tags)="json:\"signatureHash,omitempty\""];
+      // the elliptic curve expression of txRoot
+      string message_point = 70 [json_name="messagePoint", (tagger.tags)="json:\"messagePoint,omitempty\""];
+      // the block aggregated public key
+      string aggregated_public_key = 80 [json_name="aggregatedPublicKey", (tagger.tags)="json:\"aggregatedPublicKey,omitempty\""];
+      // the block aggregated signature by senders on the message messagePoint
+      string aggregated_signature = 90 [json_name="aggregatedSignature", (tagger.tags)="json:\"aggregatedSignature,omitempty\""];
+      // the object contains information about each sender in the block, including their address and validity status
+      repeated Sender senders = 100 [json_name="senders", (tagger.tags)="json:\"senders,omitempty\""];
+
+      // Sender returns object contains information about sender in the block, including address and validity status
+      message Sender {
+        // the INTMAX address of the sender
+        string public_key = 10 [json_name="publicKey", (tagger.tags)="json:\"publicKey,omitempty\""];
+        // the account ID of the sender
+        uint32 account_id = 20 [json_name="accountId", (tagger.tags)="json:\"accountId,omitempty\""];
+        // the boolean indicating if the sender's transaction is valid (the sender signed the tx root and the balance is non-negative)
+        bool is_signed = 30 [json_name="isSigned", (tagger.tags)="json:\"isSigned,omitempty\""];
+      }
+    }
+    // Error is the nested message containing response information about the block error
+    message Error {
+      // the requested tx tree root
+      string tx_root = 10 [json_name="txRoot", (tagger.tags)="json:\"txRoot,omitempty\""];
+      // the message about error
+      string message = 20 [json_name="message", (tagger.tags)="json:\"message,omitempty\""];
     }
   }
 }

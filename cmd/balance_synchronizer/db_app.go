@@ -153,6 +153,7 @@ type BlockContents interface {
 	) error
 	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)
 	BlockContentByTxRoot(txRoot common.Hash) (*mDBApp.BlockContentWithProof, error)
+	BlockContentListByTxRoot(txRoot ...common.Hash) ([]*mDBApp.BlockContentWithProof, error)
 	ScanBlockHashAndSenders() (blockHashAndSendersMap map[uint32]mDBApp.BlockHashAndSenders, lastBlockNumber uint32, err error)
 	CreateValidityProof(blockHash common.Hash, validityProof []byte) (*mDBApp.BlockProof, error)
 	LastBlockValidityProof() (*mDBApp.BlockContentWithProof, error)

@@ -413,7 +413,6 @@ func (d *blockValidityProver) ValidityWitnessByBlockNumber(
 	return validityWitness, err
 }
 
-// TODO: multiple response
 func (d *blockValidityProver) BlockContentByTxRoot(txRoot common.Hash) (*block_post_service.PostedBlock, error) {
 	blockContent, err := d.blockBuilder.BlockContentByTxRoot(txRoot)
 	if err != nil {
@@ -445,6 +444,27 @@ func (d *blockValidityProver) BlockContentByTxRoot(txRoot common.Hash) (*block_p
 		blockContent.BlockNumber,
 		signatureHash,
 	), nil
+}
+
+func (d *blockValidityProver) AuxInfoListFromBlockContentByTxRoot(txRoot ...common.Hash) (map[common.Hash]*AuxInfo, error) {
+	blockContentList, err := d.blockBuilder.BlockContentListByTxRoot(txRoot...)
+	if err != nil {
+		var ErrBlockContentListByTxRoot = errors.New("failed to get block content list by tx root")
+		return nil, errors.Join(ErrBlockContentListByTxRoot, err)
+	}
+
+	list := make(map[common.Hash]*AuxInfo)
+	for key := range blockContentList {
+		var auxInfo *AuxInfo
+		auxInfo, err = blockAuxInfoFromBlockContent(blockContentList[key])
+		if err != nil {
+			return nil, fmt.Errorf("failed to get block aux info from block content: %w", err)
+		}
+
+		list[auxInfo.BlockContent.TxTreeRoot] = auxInfo
+	}
+
+	return list, nil
 }
 
 type ValidityProof struct {
