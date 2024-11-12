@@ -24,7 +24,7 @@ type SQLDriverApp interface {
 	Deposits
 	Senders
 	Accounts
-	BlockContainedSenders
+	BlockParticipants
 	EthereumCounterparties
 }
 
@@ -80,16 +80,14 @@ type Senders interface {
 
 type Accounts interface {
 	CreateAccount(senderID string) (*mDBApp.Account, error)
-	// AccountBySenderID(senderID string) (*mDBApp.Account, error)
-	AccountBySender(publicKey *intMaxAcc.PublicKey) (*mDBApp.Account, error)
-	// AccountByAccountID(accountID *uint256.Int) (*mDBApp.Account, error)
+	AccountBySenderID(senderID string) (*mDBApp.Account, error)
 }
 
-type BlockContainedSenders interface {
+type BlockParticipants interface {
 	CreateBlockParticipant(
 		blockNumber uint32,
 		senderId string,
-	) (*mDBApp.BlockContainedSender, error)
+	) (*mDBApp.BlockParticipant, error)
 }
 
 type BlockBuilderStorage interface {

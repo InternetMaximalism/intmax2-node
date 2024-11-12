@@ -2,7 +2,6 @@ package block_validity_prover
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
@@ -10,7 +9,8 @@ import (
 	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/logger"
 	intMaxTypes "intmax2-node/internal/types"
-	"intmax2-node/pkg/sql_db/db_app/models"
+	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
+	errorsDB "intmax2-node/pkg/sql_db/errors"
 	"math/big"
 	"strings"
 	"time"
@@ -109,14 +109,12 @@ func syncBlockContentWithEvent(
 	blockBuilder *mockBlockBuilder,
 	bps BlockSynchronizer,
 	event *bindings.RollupBlockPosted,
-) (*models.BlockContentWithProof, error) {
+) (*mDBApp.BlockContentWithProof, error) {
 	intMaxBlockNumber := uint32(event.BlockNumber.Uint64())
 	newBlockContent, err := blockBuilder.db.BlockContentByBlockNumber(intMaxBlockNumber)
 	if err == nil {
 		return newBlockContent, nil
-	}
-
-	if err.Error() != "not found" {
+	} else if !errors.Is(err, errorsDB.ErrNotFound) {
 		return nil, errors.Join(ErrProcessingBlocksFail, err)
 	}
 
@@ -166,15 +164,6 @@ func syncBlockContentWithEvent(
 		log.Debugf(msg, intMaxBlockNumber, blN)
 	}
 
-	senders := make([]intMaxTypes.ColumnSender, len(blockContent.Senders))
-	for i, sender := range blockContent.Senders {
-		senders[i] = intMaxTypes.ColumnSender{
-			PublicKey: hex.EncodeToString(sender.PublicKey.ToAddress().Bytes()),
-			AccountID: sender.AccountID,
-			IsSigned:  sender.IsSigned,
-		}
-	}
-
 	newBlockContent, err = blockBuilder.CreateBlockContent(
 		ctx, postedBlock, blockContent, &blN, event.Raw.BlockHash)
 	if err != nil {
@@ -197,65 +186,6 @@ func syncBlockContentWithEvent(
 	_, invalidReason := validityWitness.BlockWitness.MainValidationPublicInputs()
 	if invalidReason != "" {
 		fmt.Printf("invalid reason: %v\n", invalidReason)
-	} else {
-		dummyPublicKey := intMaxAcc.NewDummyPublicKey()
-		for _, sender := range blockContent.Senders {
-			if sender.IsSigned && !sender.PublicKey.Equal(dummyPublicKey) {
-				address := sender.PublicKey.ToAddress().String()
-				fmt.Printf("address: %s\n", address)
-				err = blockBuilder.db.Exec(ctx, nil, func(d interface{}, _ interface{}) (err error) {
-					q := d.(SQLDriverApp)
-
-					fmt.Printf("sender.PublicKey: %s\n", sender.PublicKey)
-					_, err = q.AccountBySender(sender.PublicKey)
-					if err == nil {
-						fmt.Printf("account already exists: %s\n", address)
-						senderData, err := q.SenderByAddress(address)
-						if err != nil {
-							return errors.Join(ErrSenderByAddressFail, err)
-						}
-
-						_, err = q.CreateBlockParticipant(postedBlock.BlockNumber, senderData.ID)
-						// When a "not unique" error occurs, it means that the combination of sender ID and block number is already registered, so skip it.
-						if err != nil && err.Error() != "not unique" {
-							var ErrCreateBlockContainedSendersFail = errors.New("create block contained senders fail")
-							return errors.Join(ErrCreateBlockContainedSendersFail, err)
-						}
-
-						return nil
-					} else if err.Error() != "not found" {
-						return errors.Join(ErrAccountBySenderIDFail, err)
-					}
-
-					fmt.Printf("AccountBySender error: %v\n", err)
-
-					senderData, err := q.CreateSenders(address, address) // XXX: not found
-					if err != nil {
-						fmt.Printf("(syncBlockContentWithEvent) address: %s\n", address)
-						return errors.Join(ErrCreateSendersFail, err)
-					}
-					fmt.Printf("senderData: %+v\n", senderData)
-					accountData, err := q.CreateAccount(senderData.ID)
-					if err != nil {
-						return errors.Join(ErrCreateAccountFail, err)
-					}
-					accountID := accountData.AccountID.Uint64()
-					fmt.Printf("accountID: %d\n", accountID)
-
-					_, err = q.CreateBlockParticipant(postedBlock.BlockNumber, senderData.ID)
-					if err != nil {
-						var ErrCreateBlockContainedSendersFail = errors.New("create block contained senders fail")
-						return errors.Join(ErrCreateBlockContainedSendersFail, err)
-					}
-
-					return nil
-				})
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
-
 	}
 
 	return newBlockContent, nil
