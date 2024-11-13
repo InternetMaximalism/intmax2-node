@@ -35,7 +35,7 @@ type PGX interface {
 	EventBlockNumbersForValidityProver
 	Senders
 	Accounts
-	BlockContainedSenders
+	BlockParticipants
 	BackupBalances
 	Deposits
 	BlockContents
@@ -241,11 +241,15 @@ type Accounts interface {
 	DelAllAccounts() error
 }
 
-type BlockContainedSenders interface {
+type BlockParticipants interface {
 	CreateBlockParticipant(
 		blockNumber uint32,
 		senderId string,
-	) (*mDBApp.BlockContainedSender, error)
+	) (*mDBApp.BlockParticipant, error)
+	BlockParticipantByBlockNumberAndSenderID(
+		blockNumber uint32,
+		senderId string,
+	) (*mDBApp.BlockParticipant, error)
 }
 
 type BackupBalances interface {

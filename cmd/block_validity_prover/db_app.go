@@ -3,7 +3,6 @@ package block_validity_prover
 import (
 	"context"
 	"encoding/json"
-	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/block_post_service"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
@@ -25,7 +24,7 @@ type SQLDriverApp interface {
 	EventBlockNumbersForValidityProver
 	Senders
 	Accounts
-	BlockContainedSenders
+	BlockParticipants
 	Deposits
 	L2BatchIndex
 	RelationshipL2BatchIndexAndBlockContent
@@ -85,15 +84,14 @@ type Senders interface {
 
 type Accounts interface {
 	CreateAccount(senderID string) (*mDBApp.Account, error)
-	AccountBySender(publicKey *intMaxAcc.PublicKey) (*mDBApp.Account, error)
 	AccountBySenderID(senderID string) (*mDBApp.Account, error)
 }
 
-type BlockContainedSenders interface {
+type BlockParticipants interface {
 	CreateBlockParticipant(
 		blockNumber uint32,
 		senderId string,
-	) (*mDBApp.BlockContainedSender, error)
+	) (*mDBApp.BlockParticipant, error)
 }
 
 type Deposits interface {

@@ -1740,6 +1740,7 @@ func (b *mockBlockBuilder) CreateBlockContent(
 	l2BlockNumber *uint256.Int,
 	l2BlockHash common.Hash,
 ) (bc *mDBApp.BlockContentWithProof, err error) {
+	dummyPublicKey := intMaxAcc.NewDummyPublicKey()
 	err = b.db.Exec(ctx, &bc, func(d interface{}, input interface{}) (err error) {
 		q, _ := d.(SQLDriverApp)
 
@@ -1758,6 +1759,49 @@ func (b *mockBlockBuilder) CreateBlockContent(
 		)
 		if err != nil {
 			return err
+		}
+
+		for key := range blockContent.Senders {
+			if !blockContent.Senders[key].PublicKey.Equal(dummyPublicKey) &&
+				blockContent.Senders[key].IsSigned {
+				var (
+					senderData *mDBApp.Sender
+					address    = blockContent.Senders[key].PublicKey.ToAddress().String()
+				)
+
+				senderData, err = q.SenderByAddress(address)
+				if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
+					return errors.Join(ErrSenderByAddressFail, err)
+				} else if errors.Is(err, errorsDB.ErrNotFound) {
+					var newSenderData *mDBApp.Sender
+					newSenderData, err = q.CreateSenders(address, address)
+					if err != nil {
+						return errors.Join(ErrCreateSendersFail, err)
+					}
+					senderData = &mDBApp.Sender{
+						ID:        newSenderData.ID,
+						Address:   newSenderData.Address,
+						PublicKey: newSenderData.PublicKey,
+						CreatedAt: newSenderData.CreatedAt,
+					}
+				}
+
+				_, err = q.AccountBySenderID(senderData.ID)
+				if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
+					return errors.Join(ErrAccountBySenderIDFail, err)
+				} else if errors.Is(err, errorsDB.ErrNotFound) {
+					_, err = q.CreateAccount(senderData.ID)
+					if err != nil {
+						return errors.Join(ErrCreateAccountFail, err)
+					}
+				}
+
+				_, err = q.CreateBlockParticipant(postedBlock.BlockNumber, senderData.ID)
+				if err != nil {
+					var ErrCreateBlockContainedSendersFail = errors.New("create block contained senders fail")
+					return errors.Join(ErrCreateBlockContainedSendersFail, err)
+				}
+			}
 		}
 
 		_, err = q.UpsertEventBlockNumberForValidityProver("BlockPosted", l2BlockNumber.Uint64())
