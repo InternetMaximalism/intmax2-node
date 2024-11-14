@@ -11,6 +11,7 @@ import (
 //go:generate mockgen -destination=mock_block_validity_service.go -package=block_validity_prover -source=block_validity_service.go
 
 type BlockValidityService interface {
+	LatestSynchronizedBlockNumber() (uint32, error)
 	LatestDepositTreeProofByBlockNumber(depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error)
 	DepositTreeProof(blockNumber uint32, depositIndex uint32) (*intMaxTree.KeccakMerkleProof, common.Hash, error)
 	BlockTreeProof(
@@ -27,6 +28,7 @@ type BlockValidityService interface {
 		targetBlockNumber uint32,
 		isPrevAccountTree bool,
 	) (*block_validity_prover.UpdateWitness, error)
+	FetchNextDepositIndex() (uint32, error)
 	ValidityPublicInputsByBlockNumber(
 		blockNumber uint32,
 	) (

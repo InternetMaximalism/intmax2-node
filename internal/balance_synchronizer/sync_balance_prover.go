@@ -198,8 +198,8 @@ func CalculateNotSyncedBlockNumbers(
 
 func (s *SyncBalanceProver) SyncSend(
 	log logger.Logger,
-	blockValidityService block_validity_prover.BlockValidityService,
-	blockSynchronizer block_validity_prover.BlockSynchronizer,
+	blockValidityService BlockValidityService,
+	blockSynchronizer BlockSynchronizer,
 	wallet UserState,
 	balanceProcessor balance_prover_service.BalanceProcessor,
 	targetBlockNumber uint32,
@@ -235,7 +235,7 @@ func (s *SyncBalanceProver) SyncSend(
 
 func (s *SyncBalanceProver) syncSendOne(
 	log logger.Logger,
-	blockValidityService block_validity_prover.BlockValidityService,
+	blockValidityService BlockValidityService,
 	wallet UserState,
 	balanceProcessor balance_prover_service.BalanceProcessor,
 	blockNumber uint32,
@@ -362,8 +362,8 @@ func ValidateAllBlockNumbersSentTx(
 // and updates the balance prover state if necessary.
 func (s *SyncBalanceProver) SyncNoSend(
 	log logger.Logger,
-	blockValidityService block_validity_prover.BlockValidityService,
-	blockSynchronizer block_validity_prover.BlockSynchronizer,
+	blockValidityService BlockValidityService,
+	blockSynchronizer BlockSynchronizer,
 	wallet UserState,
 	balanceProcessor balance_prover_service.BalanceProcessor,
 	targetBlockNumber uint32,
@@ -483,7 +483,7 @@ func (s *SyncBalanceProver) SyncNoSend(
 func (s *SyncBalanceProver) SyncAll(
 	log logger.Logger,
 	blockValidityService *block_validity_prover.BlockValidityProverMemory,
-	blockSynchronizer block_validity_prover.BlockSynchronizer,
+	blockSynchronizer BlockSynchronizer,
 	wallet UserState,
 	balanceProcessor balance_prover_service.BalanceProcessor,
 ) (err error) {
@@ -509,7 +509,7 @@ func (s *SyncBalanceProver) SyncAll(
 func (s *SyncBalanceProver) ReceiveDeposit(
 	wallet UserState,
 	balanceProcessor balance_prover_service.BalanceProcessor,
-	blockValidityService block_validity_prover.BlockValidityService,
+	blockValidityService BlockValidityService,
 	depositIndex uint32,
 ) error {
 	receiveDepositWitness, err := wallet.ReceiveDepositAndUpdate(blockValidityService, depositIndex)
@@ -580,7 +580,7 @@ func (s *SyncBalanceProver) ReceiveDeposit(
 func (s *SyncBalanceProver) ReceiveTransfer(
 	wallet UserState,
 	balanceProcessor balance_prover_service.BalanceProcessor,
-	blockValidityService block_validity_prover.BlockValidityService,
+	blockValidityService BlockValidityService,
 	transferWitness *intMaxTypes.TransferWitness,
 	senderLastBalanceProof string,
 	senderBalanceTransitionProof string,
@@ -624,8 +624,8 @@ func SyncUserBalance(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
-	sb block_validity_prover.ServiceBlockchain,
-	blockValidityService block_validity_prover.BlockValidityService,
+	sb ServiceBlockchain,
+	blockValidityService BlockValidityService,
 	userWalletState UserState,
 ) (BalanceSynchronizer, error) {
 	blockSynchronizer, err := block_synchronizer.NewBlockSynchronizer(

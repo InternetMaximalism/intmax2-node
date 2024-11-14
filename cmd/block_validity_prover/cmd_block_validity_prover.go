@@ -12,14 +12,15 @@ import (
 )
 
 type Settings struct {
-	Context context.Context
-	Cancel  context.CancelFunc
-	WG      *sync.WaitGroup
-	Config  *configs.Config
-	Log     logger.Logger
-	DbApp   SQLDriverApp
-	SB      ServiceBlockchain
-	HC      *health.Handler
+	Context           context.Context
+	Cancel            context.CancelFunc
+	WG                *sync.WaitGroup
+	Config            *configs.Config
+	Log               logger.Logger
+	DbApp             SQLDriverApp
+	SB                ServiceBlockchain
+	HC                *health.Handler
+	BlockSynchronizer BlockSynchronizer
 }
 
 func NewCmd(s *Settings) *cobra.Command {

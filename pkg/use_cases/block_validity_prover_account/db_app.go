@@ -7,14 +7,14 @@ import (
 //go:generate mockgen -destination=mock_db_app_test.go -package=block_validity_prover_account_test -source=db_app.go
 
 type SQLDriverApp interface {
-	Senders
-	Accounts
+	BlockSenders
+	BlockAccounts
 }
 
-type Senders interface {
-	SenderByAddress(address string) (*mDBApp.Sender, error)
+type BlockSenders interface {
+	BlockSenderByAddress(address string) (*mDBApp.BlockSender, error)
 }
 
-type Accounts interface {
-	AccountBySenderID(senderID string) (*mDBApp.Account, error)
+type BlockAccounts interface {
+	BlockAccountBySenderID(senderID string) (*mDBApp.BlockAccount, error)
 }

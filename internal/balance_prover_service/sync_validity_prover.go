@@ -5,8 +5,8 @@ import (
 	"errors"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
-	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/block_validity_prover"
+	"intmax2-node/internal/intmax_block_content"
 	intMaxTree "intmax2-node/internal/tree"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -19,14 +19,14 @@ type externalBlockValidityService struct {
 	cfg *configs.Config
 }
 
-func NewExternalBlockValidityProver(ctx context.Context, cfg *configs.Config) block_validity_prover.BlockValidityService {
+func NewExternalBlockValidityProver(ctx context.Context, cfg *configs.Config) BlockValidityService {
 	return &externalBlockValidityService{
 		ctx: ctx,
 		cfg: cfg,
 	}
 }
 
-func (s *externalBlockValidityService) BlockContentByTxRoot(txRoot common.Hash) (*block_post_service.PostedBlock, error) {
+func (s *externalBlockValidityService) BlockContentByTxRoot(txRoot common.Hash) (*intmax_block_content.PostedBlock, error) {
 	return nil, ErrNotImplemented
 }
 

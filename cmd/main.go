@@ -22,6 +22,7 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/internal/block_builder_registry_service"
 	"intmax2-node/internal/block_post_service"
+	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/blockchain"
 	"intmax2-node/internal/cli"
 	"intmax2-node/internal/deposit_synchronizer"
@@ -82,12 +83,22 @@ func main() {
 
 	w := worker.New(cfg, log, dbApp)
 	bc := blockchain.New(ctx, cfg, log)
+
 	depositSynchronizer, err := deposit_synchronizer.New(ctx, cfg, log, dbApp, bc)
 	if err != nil {
 		const msg = "deposit synchronizer init: %v"
 		log.Errorf(msg, err)
 		return
 	}
+
+	var blockSynchronizer block_synchronizer.BlockSynchronizer
+	blockSynchronizer, err = block_synchronizer.NewBlockSynchronizer(ctx, cfg, log)
+	if err != nil {
+		const msg = "block synchronizer init: %v"
+		log.Errorf(msg, err)
+		return
+	}
+
 	blockPostService := block_post_service.New(cfg, log, dbApp, bc)
 	ns := network_service.New(cfg)
 	hc := health.NewHandler()
@@ -118,16 +129,18 @@ func main() {
 			GPOStorage:          storeGPO,
 			BlockPostService:    blockPostService,
 			DepositSynchronizer: depositSynchronizer,
+			BlockSynchronizer:   blockSynchronizer,
 		}),
 		balance_synchronizer.NewSynchronizerCmd(&balance_synchronizer.Synchronizer{
-			Context: ctx,
-			Cancel:  cancel,
-			Config:  cfg,
-			Log:     log,
-			DbApp:   dbApp,
-			WG:      &wg,
-			SB:      bc,
-			HC:      &hc,
+			Context:           ctx,
+			Cancel:            cancel,
+			Config:            cfg,
+			Log:               log,
+			DbApp:             dbApp,
+			WG:                &wg,
+			SB:                bc,
+			HC:                &hc,
+			BlockSynchronizer: blockSynchronizer,
 		}),
 		migrator.NewMigratorCmd(ctx, log, dbApp),
 		deposit.NewDepositCmd(&deposit.Deposit{
@@ -189,24 +202,15 @@ func main() {
 			SB:      bc,
 		}),
 		block_validity_prover.NewCmd(&block_validity_prover.Settings{
-			Context: ctx,
-			Cancel:  cancel,
-			WG:      &wg,
-			Config:  cfg,
-			Log:     log,
-			DbApp:   dbApp,
-			SB:      bc,
-			HC:      &hc,
-		}),
-		balance_synchronizer.NewSynchronizerCmd(&balance_synchronizer.Synchronizer{
-			Context: ctx,
-			Cancel:  cancel,
-			Config:  cfg,
-			Log:     log,
-			DbApp:   dbApp,
-			WG:      &wg,
-			SB:      bc,
-			HC:      &hc,
+			Context:           ctx,
+			Cancel:            cancel,
+			WG:                &wg,
+			Config:            cfg,
+			Log:               log,
+			DbApp:             dbApp,
+			SB:                bc,
+			HC:                &hc,
+			BlockSynchronizer: blockSynchronizer,
 		}),
 		intmax_block.NewCmd(ctx, cfg, log),
 	)

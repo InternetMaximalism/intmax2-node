@@ -64,15 +64,15 @@ func (u *uc) Do(
 		return nil, errors.Join(ErrPublicKeyFromIntMaxAccFail, err)
 	}
 
-	var sender *mDBApp.Sender
-	sender, err = u.db.SenderByAddress(address.String())
+	var sender *mDBApp.BlockSender
+	sender, err = u.db.BlockSenderByAddress(address.String())
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
 		return nil, errors.Join(ErrSenderByAddressFail, err)
 	}
 
-	var acc *mDBApp.Account
-	acc, err = u.db.AccountBySenderID(sender.ID)
+	var acc *mDBApp.BlockAccount
+	acc, err = u.db.BlockAccountBySenderID(sender.ID)
 	if err != nil {
 		open_telemetry.MarkSpanError(spanCtx, err)
 		return nil, errors.Join(ErrAccountBySenderIDFail, err)

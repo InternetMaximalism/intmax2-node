@@ -1,4 +1,4 @@
-package block_synchronizer_test
+package block_post_service_test
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/block_validity_prover"
+	"intmax2-node/internal/intmax_block_content"
 	"intmax2-node/pkg/logger"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	"os"
@@ -65,7 +66,11 @@ func TestAccountInfoMap(t *testing.T) {
 	dbApp.EXPECT().GetUnprocessedBlocks().Return(nil, nil).AnyTimes()
 
 	lg := logger.New(cfg.LOG.Level, cfg.LOG.TimeFormat, cfg.LOG.JSON, cfg.LOG.IsLogLine)
-	assert.NoError(t, block_synchronizer.ProcessingPostedBlocks(ctx, cfg, lg, dbApp))
+
+	bps, err := block_synchronizer.NewBlockSynchronizer(ctx, cfg, lg)
+	assert.NoError(t, err)
+
+	assert.NoError(t, block_post_service.ProcessingPostedBlocks(ctx, cfg, lg, dbApp, bps))
 }
 
 func TestFetchNewPostedBlocks(t *testing.T) {
@@ -104,11 +109,11 @@ func TestFetchNewPostedBlocks(t *testing.T) {
 	prevBlockHash := common.Hash{}
 	depositRoot := common.Hash{}
 	signatureHash := common.Hash{}
-	postedBlock := block_post_service.NewPostedBlock(prevBlockHash, depositRoot, uint32(0), signatureHash)
+	postedBlock := intmax_block_content.NewPostedBlock(prevBlockHash, depositRoot, uint32(0), signatureHash)
 
 	accountInfoMap := block_post_service.NewAccountInfo(dbApp)
 	for i, calldata := range calldataJson {
-		_, err = block_validity_prover.FetchIntMaxBlockContentByCalldata(calldata, postedBlock, accountInfoMap)
+		_, err = intmax_block_content.FetchIntMaxBlockContentByCalldata(calldata, postedBlock, accountInfoMap)
 		if err != nil {
 			if errors.Is(err, block_validity_prover.ErrUnknownAccountID) {
 				fmt.Printf("block %d is ErrUnknownAccountID\n", i)

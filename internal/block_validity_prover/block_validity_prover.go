@@ -7,7 +7,7 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/bindings"
-	"intmax2-node/internal/block_post_service"
+	"intmax2-node/internal/intmax_block_content"
 	"intmax2-node/internal/logger"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
@@ -24,19 +24,27 @@ const (
 )
 
 type blockValidityProver struct {
-	ctx          context.Context
-	cfg          *configs.Config
-	log          logger.Logger
-	ethClient    *ethclient.Client
-	scrollClient *ethclient.Client
-	liquidity    *bindings.Liquidity
-	rollup       *bindings.Rollup
-	blockBuilder *mockBlockBuilder
+	ctx               context.Context
+	cfg               *configs.Config
+	log               logger.Logger
+	ethClient         *ethclient.Client
+	scrollClient      *ethclient.Client
+	liquidity         *bindings.Liquidity
+	rollup            *bindings.Rollup
+	blockBuilder      *mockBlockBuilder
+	blockSynchronizer BlockSynchronizer
 }
 
 type BlockValidityProverMemory = blockValidityProver
 
-func NewBlockValidityProver(ctx context.Context, cfg *configs.Config, log logger.Logger, sb ServiceBlockchain, db SQLDriverApp) (BlockValidityProver, error) {
+func NewBlockValidityProver(
+	ctx context.Context,
+	cfg *configs.Config,
+	log logger.Logger,
+	sb ServiceBlockchain,
+	db SQLDriverApp,
+	blockSynchronizer BlockSynchronizer,
+) (BlockValidityProver, error) {
 	ethClient, err := utils.NewClient(cfg.Blockchain.EthereumNetworkRpcUrl)
 	if err != nil {
 		return nil, errors.Join(ErrNewEthereumClientFail, err)
@@ -75,14 +83,15 @@ func NewBlockValidityProver(ctx context.Context, cfg *configs.Config, log logger
 	blockBuilder := NewMockBlockBuilder(cfg, db)
 
 	return &blockValidityProver{
-		ctx:          ctx,
-		cfg:          cfg,
-		log:          log,
-		ethClient:    ethClient,
-		scrollClient: scrollClient,
-		liquidity:    liquidity,
-		rollup:       rollup,
-		blockBuilder: blockBuilder,
+		ctx:               ctx,
+		cfg:               cfg,
+		log:               log,
+		ethClient:         ethClient,
+		scrollClient:      scrollClient,
+		liquidity:         liquidity,
+		rollup:            rollup,
+		blockBuilder:      blockBuilder,
+		blockSynchronizer: blockSynchronizer,
 	}, nil
 }
 
@@ -413,7 +422,7 @@ func (d *blockValidityProver) ValidityWitnessByBlockNumber(
 	return validityWitness, err
 }
 
-func (d *blockValidityProver) BlockContentByTxRoot(txRoot common.Hash) (*block_post_service.PostedBlock, error) {
+func (d *blockValidityProver) BlockContentByTxRoot(txRoot common.Hash) (*intmax_block_content.PostedBlock, error) {
 	blockContent, err := d.blockBuilder.BlockContentByTxRoot(txRoot)
 	if err != nil {
 		var ErrBlockContentByTxRoot = errors.New("failed to get block content by tx root")
@@ -438,7 +447,7 @@ func (d *blockValidityProver) BlockContentByTxRoot(txRoot common.Hash) (*block_p
 	}
 	signatureHash := common.HexToHash("0x" + blockContent.SignatureHash)
 
-	return block_post_service.NewPostedBlock(
+	return intmax_block_content.NewPostedBlock(
 		prevBlockHash,
 		depositRoot,
 		blockContent.BlockNumber,

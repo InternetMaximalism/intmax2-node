@@ -29,9 +29,9 @@ type balanceSynchronizer struct {
 	ctx                  context.Context
 	cfg                  *configs.Config
 	log                  logger.Logger
-	sb                   block_validity_prover.ServiceBlockchain
-	blockSynchronizer    block_validity_prover.BlockSynchronizer
-	blockValidityService block_validity_prover.BlockValidityService
+	sb                   ServiceBlockchain
+	blockSynchronizer    BlockSynchronizer
+	blockValidityService BlockValidityService
 	balanceProcessor     balance_prover_service.BalanceProcessor
 	syncBalanceProver    *SyncBalanceProver
 	userState            UserState
@@ -41,9 +41,9 @@ func NewSynchronizer(
 	ctx context.Context,
 	cfg *configs.Config,
 	log logger.Logger,
-	sb block_validity_prover.ServiceBlockchain,
-	blockSynchronizer block_validity_prover.BlockSynchronizer,
-	blockValidityService block_validity_prover.BlockValidityService,
+	sb ServiceBlockchain,
+	blockSynchronizer BlockSynchronizer,
+	blockValidityService BlockValidityService,
 	balanceProcessor balance_prover_service.BalanceProcessor,
 	syncBalanceProver *SyncBalanceProver,
 	userState UserState,
@@ -359,7 +359,7 @@ func (s *balanceSynchronizer) validReceivedTransfer(
 
 func applyReceivedDepositTransition(
 	deposit *balance_prover_service.DepositDetails,
-	blockValidityService block_validity_prover.BlockValidityService,
+	blockValidityService BlockValidityService,
 	balanceProcessor balance_prover_service.BalanceProcessor,
 	syncBalanceProver *SyncBalanceProver,
 	userState UserState,
@@ -430,7 +430,7 @@ func applyReceivedDepositTransition(
 
 func applyReceivedTransferTransition(
 	transfer *intMaxTypes.TransferDetailsWithProofBody,
-	blockValidityService block_validity_prover.BlockValidityService,
+	blockValidityService BlockValidityService,
 	balanceProcessor balance_prover_service.BalanceProcessor,
 	syncBalanceProver *SyncBalanceProver,
 	userState UserState,
@@ -549,7 +549,7 @@ func recoverSenderBalanceTransitionProof(proofs []block_synchronizer.BackupBalan
 func applySentTransactionTransition(
 	log logger.Logger,
 	tx *intMaxTypes.TxDetails,
-	blockValidityService block_validity_prover.BlockValidityService,
+	blockValidityService BlockValidityService,
 	balanceProcessor balance_prover_service.BalanceProcessor,
 	syncBalanceProver *SyncBalanceProver,
 	userState UserState,

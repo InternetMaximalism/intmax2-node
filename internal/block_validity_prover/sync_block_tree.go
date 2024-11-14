@@ -6,7 +6,7 @@ import (
 	"fmt"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/bindings"
-	"intmax2-node/internal/block_post_service"
+	"intmax2-node/internal/intmax_block_content"
 	"intmax2-node/internal/logger"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
@@ -17,6 +17,10 @@ import (
 
 	"github.com/holiman/uint256"
 )
+
+func (ai *mockBlockBuilder) RegisterPublicKey(_ *intMaxAcc.PublicKey) error {
+	return fmt.Errorf("RegisterPublicKey not implemented")
+}
 
 func (ai *mockBlockBuilder) PublicKeyByAccountID(blockNumber uint32, accountID uint64) (pk *intMaxAcc.PublicKey, err error) {
 	// var accID uint256.Int
@@ -46,72 +50,151 @@ func (p *blockValidityProver) BlockBuilder() *mockBlockBuilder {
 	return p.blockBuilder
 }
 
-func (p *blockValidityProver) SyncBlockContent(bps BlockSynchronizer, startBlock uint64) (lastEventSeenBlockNumber uint64, err error) {
-	latestScrollBlockNumber, err := bps.FetchLatestBlockNumber(p.ctx)
-	if err != nil {
-		return startBlock, errors.Join(ErrFetchLatestBlockNumberFail, err)
-	}
-	fmt.Printf("latestScrollBlockNumber: %d\n", latestScrollBlockNumber)
+func (p *blockValidityProver) SyncBlockContent() (lastEventSeenBlockNumber uint64, err error) {
+	err = p.blockBuilder.Exec(p.ctx, &lastEventSeenBlockNumber, func(d interface{}, in interface{}) error {
+		q, _ := d.(SQLDriverApp)
 
-	const searchBlocksLimitAtOnce = 10000
-	endBlock := startBlock + searchBlocksLimitAtOnce
-	if endBlock > latestScrollBlockNumber {
-		endBlock = latestScrollBlockNumber
-	}
-
-	var events []*bindings.RollupBlockPosted
-	events, _, err = bps.FetchNewPostedBlocks(startBlock, &endBlock)
-	if err != nil {
-		return startBlock, errors.Join(ErrFetchNewPostedBlocksFail, err)
-	}
-
-	if len(events) == 0 {
-		fmt.Printf("Scroll Block %d is synchronized (SyncBlockTree)\n", startBlock)
-		return endBlock, nil
-	}
-
-	timeout := 1 * time.Second
-	tickerEventWatcher := time.NewTicker(timeout)
-	defer func() {
-		if tickerEventWatcher != nil {
-			tickerEventWatcher.Stop()
+		nextBN, ok := in.(*uint64)
+		if !ok {
+			const msg = "error convert value to *uint32"
+			return fmt.Errorf(msg)
 		}
-	}()
 
-	var curBlN uint256.Int
-	_ = curBlN.SetUint64(startBlock)
-	nextBN := startBlock
-	for key := range events {
-		select {
-		case <-p.ctx.Done():
-			p.log.Warnf("Received cancel signal from context, stopping...")
-			return curBlN.Uint64(), p.ctx.Err()
-		case <-tickerEventWatcher.C:
-			fmt.Println("tickerEventWatcher.C")
-			_, err := syncBlockContentWithEvent(p.ctx, p.log, p.blockBuilder, bps, events[key])
-			if err != nil {
-				if strings.HasPrefix(err.Error(), "copy account tree error") {
-					return nextBN, nil
+		var startBlock uint64
+
+		var event *mDBApp.EventBlockNumberForValidityProver
+		event, err = q.EventBlockNumberByEventNameForValidityProver(mDBApp.BlockPostedEvent)
+		switch {
+		case err != nil:
+			if !errors.Is(err, errorsDB.ErrNotFound) {
+				const msg = "error fetching event block number: %w"
+				return fmt.Errorf(msg, err)
+			}
+
+			fallthrough
+		default:
+			var needReset bool
+			if event == nil {
+				needReset = true
+			} else {
+				startBlock = event.LastProcessedBlockNumber
+			}
+			if needReset || startBlock == 0 {
+				err = q.DelAllBlockAccounts()
+				if err != nil {
+					return errors.Join(ErrDelAllAccountsFail, err)
 				}
 
-				return nextBN, errors.Join(ErrProcessingBlocksFail, err)
-			}
-			nextBN = events[key].Raw.BlockNumber
-		}
-	}
+				err = q.ResetSequenceByBlockAccounts()
+				if err != nil {
+					return errors.Join(ErrResetSequenceByAccountsFail, err)
+				}
 
-	return nextBN, nil
+				startBlock = p.cfg.Blockchain.RollupContractDeployedBlockNumber
+			}
+		}
+
+		p.log.Debugf("startBlock of LastSeenBlockPostedEventBlockNumber: %d", startBlock)
+
+		*nextBN = startBlock
+
+		defer func() {
+			if err == nil {
+				p.log.Debugf("endBlock of LastSeenBlockPostedEventBlockNumber: %d", *nextBN)
+			}
+		}()
+
+		var latestScrollBlockNumber uint64
+		latestScrollBlockNumber, err = p.blockSynchronizer.FetchLatestBlockNumber(p.ctx)
+		if err != nil {
+			return errors.Join(ErrFetchLatestBlockNumberFail, err)
+		}
+		p.log.Debugf("latestScrollBlockNumber: %d", latestScrollBlockNumber)
+
+		const searchBlocksLimitAtOnce = 100
+		endBlock := startBlock + searchBlocksLimitAtOnce
+		if endBlock > latestScrollBlockNumber {
+			endBlock = latestScrollBlockNumber
+		}
+
+		var events []*bindings.RollupBlockPosted
+		events, _, err = p.blockSynchronizer.FetchNewPostedBlocks(startBlock, &endBlock)
+		if err != nil {
+			return errors.Join(ErrFetchNewPostedBlocksFail, err)
+		}
+
+		if len(events) == 0 {
+			*nextBN = endBlock
+			p.log.Debugf("Scroll Block %d is synchronized (SyncBlockTree)", endBlock)
+
+			_, err = q.UpsertEventBlockNumberForValidityProver(mDBApp.BlockPostedEvent, endBlock)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}
+
+		tickerEventWatcher := time.NewTicker(200 * time.Millisecond)
+		defer func() {
+			if tickerEventWatcher != nil {
+				tickerEventWatcher.Stop()
+			}
+		}()
+
+		var curBlN uint256.Int
+		_ = curBlN.SetUint64(startBlock)
+
+		var useTickerEventWatcher bool
+		for key := range events {
+			select {
+			case <-p.ctx.Done():
+				p.log.Warnf("Received cancel signal from context, stopping...")
+				*nextBN = curBlN.Uint64()
+				return nil
+			case <-tickerEventWatcher.C:
+				if useTickerEventWatcher {
+					continue
+				}
+
+				useTickerEventWatcher = true
+
+				_, err = syncBlockContentWithEvent(p.ctx, p.log, q, p.blockBuilder, p.blockSynchronizer, events[key])
+				if err != nil {
+					if strings.HasPrefix(err.Error(), "copy account tree error") {
+						return nil
+					}
+
+					return errors.Join(ErrProcessingBlocksFail, err)
+				}
+
+				_, err = q.UpsertEventBlockNumberForValidityProver(mDBApp.BlockPostedEvent, events[key].Raw.BlockNumber)
+				if err != nil {
+					return err
+				}
+
+				*nextBN = events[key].Raw.BlockNumber
+
+				useTickerEventWatcher = false
+			}
+		}
+
+		return nil
+	})
+
+	return lastEventSeenBlockNumber, err
 }
 
 func syncBlockContentWithEvent(
 	ctx context.Context,
 	log logger.Logger,
+	db SQLDriverApp,
 	blockBuilder *mockBlockBuilder,
 	bps BlockSynchronizer,
 	event *bindings.RollupBlockPosted,
 ) (*mDBApp.BlockContentWithProof, error) {
 	intMaxBlockNumber := uint32(event.BlockNumber.Uint64())
-	newBlockContent, err := blockBuilder.db.BlockContentByBlockNumber(intMaxBlockNumber)
+	newBlockContent, err := db.BlockContentByBlockNumber(intMaxBlockNumber)
 	if err == nil {
 		return newBlockContent, nil
 	} else if !errors.Is(err, errorsDB.ErrNotFound) {
@@ -127,7 +210,7 @@ func syncBlockContentWithEvent(
 		return nil, errors.Join(ErrFetchScrollCalldataByHashFail, err)
 	}
 
-	postedBlock := block_post_service.NewPostedBlock(
+	postedBlock := intmax_block_content.NewPostedBlock(
 		event.PrevBlockHash,
 		event.DepositTreeRoot,
 		intMaxBlockNumber,
@@ -136,20 +219,20 @@ func syncBlockContentWithEvent(
 
 	// Update account tree
 	var blockContent *intMaxTypes.BlockContent
-	blockContent, err = FetchIntMaxBlockContentByCalldata(cd, postedBlock, blockBuilder)
+	blockContent, err = intmax_block_content.FetchIntMaxBlockContentByCalldata(cd, postedBlock, blockBuilder)
 	if err == nil {
 		err = blockContent.IsValid()
 	}
 	if err != nil {
 		err = errors.Join(ErrFetchIntMaxBlockContentByCalldataFail, err)
 		switch {
-		case errors.Is(err, ErrUnknownAccountID):
+		case errors.Is(err, intmax_block_content.ErrUnknownAccountID):
 			const msg = "block %d is ErrUnknownAccountID"
 			log.WithError(err).Errorf(msg, intMaxBlockNumber)
-		case errors.Is(err, ErrCannotDecodeAddress):
+		case errors.Is(err, intmax_block_content.ErrCannotDecodeAddress):
 			const msg = "block %d is ErrCannotDecodeAddress"
 			log.WithError(err).Errorf(msg, intMaxBlockNumber)
-		case errors.Is(err, ErrInvalidBlockSignature):
+		case errors.Is(err, intMaxAcc.ErrInvalidBlockSignature):
 			const msg = "block %d is ErrInvalidBlockSignature"
 			log.WithError(err).Errorf(msg, intMaxBlockNumber)
 		default:
@@ -165,7 +248,7 @@ func syncBlockContentWithEvent(
 	}
 
 	newBlockContent, err = blockBuilder.CreateBlockContent(
-		ctx, postedBlock, blockContent, &blN, event.Raw.BlockHash)
+		ctx, db, postedBlock, blockContent, &blN, event.Raw.BlockHash)
 	if err != nil {
 		return nil, errors.Join(ErrCreateBlockContentFail, err)
 	}
@@ -185,7 +268,7 @@ func syncBlockContentWithEvent(
 
 	_, invalidReason := validityWitness.BlockWitness.MainValidationPublicInputs()
 	if invalidReason != "" {
-		fmt.Printf("invalid reason: %v\n", invalidReason)
+		log.Debugf("invalid reason: %v\n", invalidReason)
 	}
 
 	return newBlockContent, nil

@@ -2,14 +2,12 @@ package block_validity_prover
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
 	"intmax2-node/docs/swagger"
-	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/l2_batch_index"
+	"intmax2-node/internal/logger"
 	"intmax2-node/internal/pb/gateway"
 	"intmax2-node/internal/pb/gateway/consts"
 	"intmax2-node/internal/pb/gateway/http_response_modifier"
@@ -60,31 +58,39 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 				}
 			}()
 
-			s.Log.Infof("Start Block Validity Prover")
-			var blockValidityProver block_validity_prover.BlockValidityProver
+			logBVP := s.Log.WithFields(logger.Fields{
+				"module": "block_validity_prover",
+			})
+			logBVP.Infof("Start Block Validity Prover")
+			var blockValidityProver BlockValidityProver
 			blockValidityProver, err = block_validity_prover.NewBlockValidityProver(
-				s.Context, s.Config, s.Log, s.SB, s.DbApp,
+				s.Context, s.Config, logBVP, s.SB, s.DbApp, s.BlockSynchronizer,
 			)
 			if err != nil {
 				const msg = "failed to start Block Validity Prover: %+v"
-				s.Log.Fatalf(msg, err.Error())
+				logBVP.Fatalf(msg, err.Error())
 			}
 
-			blockValidityService, err := block_validity_prover.NewBlockValidityService(
-				s.Context, s.Config, s.Log, s.SB, s.DbApp,
+			logBVS := s.Log.WithFields(logger.Fields{
+				"module": "block_validity_service",
+			})
+			logBVS.Infof("Start Block Validity Service")
+			var blockValidityService BlockValidityService
+			blockValidityService, err = block_validity_prover.NewBlockValidityService(
+				s.Context, s.Config, logBVS, s.SB, s.DbApp,
 			)
 			if err != nil {
 				const msg = "failed to start Block Validity Service: %+v"
-				s.Log.Fatalf(msg, err.Error())
+				logBVS.Fatalf(msg, err.Error())
 			}
 
 			blockNumber, err := blockValidityService.LatestSynchronizedBlockNumber()
 			if err != nil {
 				const msg = "failed to get the latest synchronized block number: %+v"
-				s.Log.Fatalf(msg, err.Error())
+				logBVS.Fatalf(msg, err.Error())
 			}
 			blockNumber += 1
-			fmt.Printf("blockNumber (server): %d\n", blockNumber)
+			logBVS.Debugf("blockNumber (server): %d\n", blockNumber)
 
 			// wg.Add(1)
 			// s.WG.Add(1)
@@ -150,7 +156,7 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 				nextSynchronizedDepositIndex, err = blockValidityService.FetchNextDepositIndex()
 				if err != nil {
 					const msg = "failed to fetch last deposit index: %+v"
-					s.Log.Fatalf(msg, err.Error())
+					logBVS.Fatalf(msg, err.Error())
 				}
 
 				var useTicker bool
@@ -171,29 +177,22 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 								useTicker = false
 							}()
 
-							s.Log.Debugf("balance validity ticker.C")
+							logBVP.Debugf("balance validity ticker.C")
 							err = blockValidityProver.SyncDepositedEvents()
 							if err != nil {
 								const msg = "failed to sync deposited events: %+v"
-								s.Log.Fatalf(msg, err.Error())
+								logBVP.Fatalf(msg, err.Error())
 							}
 
 							err = blockValidityProver.SyncDepositTree(nil, nextSynchronizedDepositIndex)
 							if err != nil {
 								const msg = "failed to sync deposit tree: %+v"
-								s.Log.Fatalf(msg, err.Error())
+								logBVP.Fatalf(msg, err.Error())
 							}
 						}()
 					}
 				}
 			}()
-
-			var bps block_synchronizer.BlockSynchronizer
-			bps, err = block_synchronizer.NewBlockSynchronizer(s.Context, s.Config, s.Log)
-			if err != nil {
-				const msg = "failed to start Block Synchronizer: %+v"
-				s.Log.Fatalf(msg, err.Error())
-			}
 
 			wg.Add(1)
 			go func() {
@@ -201,6 +200,7 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 					wg.Done()
 				}()
 
+				var startSyncBlockContent bool
 				tickerEventWatcher := time.NewTicker(s.Config.BlockValidityProver.TimeoutForEventWatcher)
 				for {
 					select {
@@ -208,29 +208,24 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 						tickerEventWatcher.Stop()
 						return
 					case <-tickerEventWatcher.C:
-						fmt.Println("block content ticker.C")
-						// sync block content
-						var startBlock uint64
-						startBlock, err := blockValidityProver.LastSeenBlockPostedEventBlockNumber()
-						if err != nil {
-							startBlock = s.Config.Blockchain.RollupContractDeployedBlockNumber
+						if startSyncBlockContent {
+							continue
 						}
-						fmt.Printf("startBlock of LastSeenBlockPostedEventBlockNumber: %d\n", startBlock)
+
+						logBVP.Debugf("start block content ticker.C")
+
+						startSyncBlockContent = true
 
 						var endBlock uint64
-						endBlock, err = blockValidityProver.SyncBlockContent(bps, startBlock)
+						endBlock, err = blockValidityProver.SyncBlockContent()
 						if err != nil {
-							panic(err)
-						}
-						fmt.Printf("endBlock of LastSeenBlockPostedEventBlockNumber: %d\n", endBlock)
-
-						err = blockValidityProver.SetLastSeenBlockPostedEventBlockNumber(endBlock)
-						if err != nil {
-							var ErrSetLastSeenBlockPostedEventBlockNumberFail = errors.New("set last seen block posted event block number fail")
-							panic(errors.Join(ErrSetLastSeenBlockPostedEventBlockNumberFail, err))
+							const msg = "failed to sync block content: %+v"
+							logBVP.Fatalf(msg, err.Error())
 						}
 
-						fmt.Printf("Block %d is searched\n", endBlock)
+						logBVP.Debugf("block %d is searched", endBlock)
+
+						startSyncBlockContent = false
 					}
 				}
 			}()
@@ -256,8 +251,8 @@ func blockValidityProverRun(s *Settings) *cobra.Command {
 
 				err = blockValidityProver.SyncBlockValidityProof()
 				if err != nil {
-					var ErrSyncBlockValidityProofFail = errors.New("failed to sync block validity proof")
-					panic(errors.Join(ErrSyncBlockValidityProofFail, err))
+					const msg = "failed to sync block validity proof: %+v"
+					logBVP.Fatalf(msg, err.Error())
 				}
 			}()
 
