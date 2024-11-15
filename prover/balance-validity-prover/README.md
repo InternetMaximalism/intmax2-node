@@ -103,6 +103,12 @@ curl $BALANCE_VALIDITY_PROVER_URL/proof/withdrawal/10 | jq
 curl "$BALANCE_VALIDITY_PROVER_URL/proofs/withdrawal?requestIds[]=10&requestIds[]=11" | jq
 ```
 
+# Verify Spent Proof
+
+```sh
+curl -X POST -d '{ "proof": '$(cat data/spend/spent_proof.txt)' }' -H "Content-Type: application/json" $BALANCE_VALIDITY_PROVER_URL/verify/spend
+```
+
 ## Docker
 
 ```sh

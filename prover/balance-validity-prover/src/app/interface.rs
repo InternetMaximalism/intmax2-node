@@ -229,3 +229,15 @@ pub struct ProofsSpentResponse {
     pub proofs: Vec<ProofSpendValue>,
     pub error_message: Option<String>,
 }
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VerifyProofRequest {
+    pub proof: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VerifyProofResponse {
+    pub success: bool,
+}

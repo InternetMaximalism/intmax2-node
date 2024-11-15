@@ -1,4 +1,4 @@
-use crate::server::{health, prover};
+use crate::server::{health, prover, verifier};
 use actix_web::web;
 
 pub fn setup_routes(cfg: &mut web::ServiceConfig) {
@@ -32,5 +32,9 @@ pub fn setup_routes(cfg: &mut web::ServiceConfig) {
         // prover::withdrawal::get_proof,
         // prover::withdrawal::get_proofs,
         prover::withdrawal::generate_proof,
+    ));
+    cfg.service((
+        verifier::spend::verify_proof,
+        // verifier::withdrawal::verify_proof,
     ));
 }

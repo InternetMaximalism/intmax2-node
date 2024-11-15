@@ -469,6 +469,12 @@ func (w *mockWallet) UpdateOnSendTx(
 		TxWitness:      *txWitness,
 	}
 
+	txIndex := sendWitness.TxWitness.TxIndex
+	senderLeaf := sendWitness.TxWitness.SenderLeaves[txIndex]
+	if senderLeaf.Sender.BigInt().Cmp(sendWitness.PrevBalancePis.PubKey.BigInt()) != 0 {
+		panic("sender leaf sender mismatch")
+	}
+
 	fmt.Printf("txWitness PublicState: %+v\n", txWitness.ValidityPis.PublicState)
 	w.sendWitnesses[sendWitness.GetIncludedBlockNumber()] = &sendWitness
 	w.transferWitnesses[sendWitness.GetIncludedBlockNumber()] = transferWitnesses
