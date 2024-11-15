@@ -8,7 +8,6 @@ import (
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_prover_service"
 	service "intmax2-node/internal/balance_synchronizer"
-	"intmax2-node/internal/block_synchronizer"
 	"intmax2-node/internal/block_validity_prover"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/mnemonic_wallet"
@@ -24,14 +23,15 @@ const (
 )
 
 type Synchronizer struct {
-	Context context.Context
-	Cancel  context.CancelFunc
-	WG      *sync.WaitGroup
-	Config  *configs.Config
-	Log     logger.Logger
-	DbApp   SQLDriverApp
-	SB      ServiceBlockchain
-	HC      *health.Handler
+	Context           context.Context
+	Cancel            context.CancelFunc
+	WG                *sync.WaitGroup
+	Config            *configs.Config
+	Log               logger.Logger
+	DbApp             SQLDriverApp
+	SB                ServiceBlockchain
+	HC                *health.Handler
+	BlockSynchronizer BlockSynchronizer
 }
 
 func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
@@ -53,13 +53,6 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 
 			wg := sync.WaitGroup{}
 
-			blockSynchronizer, err := block_synchronizer.NewBlockSynchronizer(
-				s.Context, s.Config, s.Log,
-			)
-			if err != nil {
-				const msg = "failed to get Block Builder IntMax Address: %+v"
-				s.Log.Fatalf(msg, err.Error())
-			}
 			blockValidityService, err := block_validity_prover.NewBlockValidityService(s.Context, s.Config, s.Log, s.SB, s.DbApp)
 			if err != nil {
 				const msg = "failed to get Block Builder IntMax Address: %+v"
@@ -115,7 +108,7 @@ func NewSynchronizerCmd(s *Synchronizer) *cobra.Command {
 
 				syncBalanceProver := service.NewSyncBalanceProver(s.Context, s.Config, s.Log)
 
-				balanceSynchronizer := service.NewSynchronizer(s.Context, s.Config, s.Log, s.SB, blockSynchronizer, blockValidityService, balanceProcessor, syncBalanceProver, userWalletState)
+				balanceSynchronizer := service.NewSynchronizer(s.Context, s.Config, s.Log, s.SB, s.BlockSynchronizer, blockValidityService, balanceProcessor, syncBalanceProver, userWalletState)
 				err = balanceSynchronizer.Sync(userPrivateKey)
 				if err != nil {
 					const msg = "failed to sync: %+v"

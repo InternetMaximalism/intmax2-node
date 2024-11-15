@@ -8,7 +8,6 @@ import (
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/balance_service"
-	"intmax2-node/internal/block_validity_prover"
 	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
 	"intmax2-node/internal/logger"
 	intMaxTree "intmax2-node/internal/tree"
@@ -229,7 +228,7 @@ func DecodeBackupData(
 
 func (userAllData *BalanceTransitionData) SortValidUserData(
 	log logger.Logger,
-	blockValidityService block_validity_prover.BlockValidityService,
+	blockValidityService BlockValidityService,
 	lastUpdatedBlockNumber uint32,
 ) ([]ValidBalanceTransition, error) {
 	validDeposits, invalidDeposits, err := ExtractValidReceivedDeposits(log, userAllData, lastUpdatedBlockNumber, blockValidityService)
@@ -323,7 +322,7 @@ func ExtractValidSentTransactions(
 	log logger.Logger,
 	userData *BalanceTransitionData,
 	lastUpdatedBlockNumber uint32,
-	blockValidityService block_validity_prover.BlockValidityService,
+	blockValidityService BlockValidityService,
 ) ([]ValidSentTx, []*poseidonHashOut, error) {
 	sentBlockNumbers := make([]ValidSentTx, 0, len(userData.Deposits))
 	invalidTxHashes := make([]*poseidonHashOut, 0, len(userData.Deposits))
@@ -370,7 +369,7 @@ func ExtractValidReceivedDeposits(
 	log logger.Logger,
 	userData *BalanceTransitionData,
 	lastUpdatedBlockNumber uint32,
-	blockValidityService block_validity_prover.BlockValidityService,
+	blockValidityService BlockValidityService,
 ) ([]ValidReceivedDeposit, []common.Hash, error) {
 	sentBlockNumbers := make([]ValidReceivedDeposit, 0, len(userData.Deposits))
 	invalidDepositHashes := make([]common.Hash, 0, len(userData.Deposits))
@@ -417,7 +416,7 @@ func ExtractValidReceivedTransfers(
 	log logger.Logger,
 	userData *BalanceTransitionData,
 	lastUpdatedBlockNumber uint32,
-	blockValidityService block_validity_prover.BlockValidityService,
+	blockValidityService BlockValidityService,
 ) ([]ValidReceivedTransfer, []*poseidonHashOut, error) {
 	receivedBlockNumbers := make([]ValidReceivedTransfer, 0, len(userData.Transfers))
 	invalidTransferHashes := make([]*poseidonHashOut, 0, len(userData.Transfers))

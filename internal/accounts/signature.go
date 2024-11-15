@@ -49,7 +49,7 @@ func VerifySignature(signature *bn254.G2Affine, publicKey *PublicKey, message []
 	}
 
 	if !success {
-		return errors.New("signature verification failed")
+		return ErrInvalidBlockSignature
 	}
 
 	return nil

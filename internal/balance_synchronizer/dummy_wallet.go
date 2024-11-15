@@ -72,11 +72,11 @@ type UserState interface {
 		nullifier intMaxTypes.Bytes32,
 	) (*balance_prover_service.PrivateWitness, error)
 	ReceiveDepositAndUpdate(
-		blockValidityService block_validity_prover.BlockValidityService,
+		blockValidityService BlockValidityService,
 		depositIndex uint32,
 	) (*balance_prover_service.ReceiveDepositWitness, error)
 	ReceiveTransferAndUpdate(
-		blockValidityService block_validity_prover.BlockValidityService,
+		blockValidityService BlockValidityService,
 		lastBlockNumber uint32,
 		transferWitness *intMaxTypes.TransferWitness,
 		senderLastBalanceProof string,
@@ -282,7 +282,7 @@ func (w *mockWallet) SendTx(
 }
 
 func MakeTxWitness(
-	blockValidityService block_validity_prover.BlockValidityService,
+	blockValidityService BlockValidityService,
 	txDetails *intMaxTypes.TxDetails,
 ) (*balance_prover_service.TxWitness, []*intMaxTypes.TransferWitness, error) {
 	s, err := json.Marshal(txDetails)
@@ -778,7 +778,7 @@ func (s *mockWallet) updateOnReceive(witness *balance_prover_service.PrivateWitn
 }
 
 func (s *mockWallet) ReceiveDepositAndUpdate(
-	blockValidityService block_validity_prover.BlockValidityService,
+	blockValidityService BlockValidityService,
 	depositIndex uint32,
 ) (*balance_prover_service.ReceiveDepositWitness, error) {
 	fmt.Printf("-----ReceiveDepositAndUpdate (deposit index: %d)-----\n", depositIndex)
@@ -868,7 +868,7 @@ func (s *mockWallet) ReceiveDepositAndUpdate(
 }
 
 func (s *mockWallet) ReceiveTransferAndUpdate(
-	blockValidityService block_validity_prover.BlockValidityService,
+	blockValidityService BlockValidityService,
 	lastBlockNumber uint32,
 	transferWitness *intMaxTypes.TransferWitness,
 	senderLastBalanceProof string,
@@ -900,7 +900,7 @@ func (s *mockWallet) ReceiveTransferAndUpdate(
 }
 
 func (s *mockWallet) GenerateReceiveTransferWitness(
-	blockValidityService block_validity_prover.BlockValidityService,
+	blockValidityService BlockValidityService,
 	receiverBlockNumber uint32,
 	transferWitness *intMaxTypes.TransferWitness,
 	senderLastBalanceProof string,

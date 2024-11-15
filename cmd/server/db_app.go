@@ -2,7 +2,7 @@ package server
 
 import (
 	"context"
-	block_post_service "intmax2-node/internal/block_post_service"
+	"intmax2-node/internal/intmax_block_content"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 
@@ -16,6 +16,11 @@ import (
 type SQLDriverApp interface {
 	GenericCommandsApp
 	ServiceCommands
+	EventBlockNumbers
+	CtrlEventBlockNumbersJobs
+	EventBlockNumbersErrors
+	Senders
+	Accounts
 	Blocks
 	Deposits
 }
@@ -28,7 +33,50 @@ type ServiceCommands interface {
 	Check(ctx context.Context) health.Health
 }
 
+type EventBlockNumbers interface {
+	UpsertEventBlockNumber(eventName string, blockNumber uint64) (*mDBApp.EventBlockNumber, error)
+	EventBlockNumberByEventName(eventName string) (*mDBApp.EventBlockNumber, error)
+	EventBlockNumbersByEventNames(eventNames []string) ([]*mDBApp.EventBlockNumber, error)
+}
+
+type CtrlEventBlockNumbersJobs interface {
+	CreateCtrlEventBlockNumbersJobs(eventName string) error
+	CtrlEventBlockNumbersJobs(eventName string) (*mDBApp.CtrlEventBlockNumbersJobs, error)
+}
+
+type EventBlockNumbersErrors interface {
+	UpsertEventBlockNumbersErrors(
+		eventName string,
+		blockNumber *uint256.Int,
+		options []byte,
+		updErr error,
+	) error
+	EventBlockNumbersErrors(
+		eventName string,
+		blockNumber *uint256.Int,
+	) (*mDBApp.EventBlockNumbersErrors, error)
+}
+
+type Senders interface {
+	CreateSenders(
+		address, publicKey string,
+	) (*mDBApp.Sender, error)
+	SenderByID(id string) (*mDBApp.Sender, error)
+	SenderByAddress(address string) (*mDBApp.Sender, error)
+	SenderByPublicKey(publicKey string) (*mDBApp.Sender, error)
+}
+
+type Accounts interface {
+	CreateAccount(senderID string) (*mDBApp.Account, error)
+	AccountBySenderID(senderID string) (*mDBApp.Account, error)
+	AccountByAccountID(accountID *uint256.Int) (*mDBApp.Account, error)
+	ResetSequenceByAccounts() error
+	DelAllAccounts() error
+}
+
 type Blocks interface {
+	UpdateBlockStatus(proposalBlockID string, blockHash string, blockNumber uint32) error
+	GetUnprocessedBlocks() ([]*mDBApp.Block, error)
 	BlockByTxRoot(txRoot string) (*mDBApp.Block, error)
 }
 
@@ -40,7 +88,7 @@ type Deposits interface {
 
 type BlockContents interface {
 	CreateBlockContent(
-		postedBlock *block_post_service.PostedBlock,
+		postedBlock *intmax_block_content.PostedBlock,
 		blockContent *intMaxTypes.BlockContent,
 	) (*mDBApp.BlockContentWithProof, error)
 	BlockContentByBlockNumber(blockNumber uint32) (*mDBApp.BlockContentWithProof, error)

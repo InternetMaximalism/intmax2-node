@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	intMaxAcc "intmax2-node/internal/accounts"
-	"intmax2-node/internal/block_post_service"
 	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
+	"intmax2-node/internal/intmax_block_content"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
@@ -22,8 +22,8 @@ type SQLDriverApp interface {
 	BlockContents
 	EventBlockNumbersForValidityProver
 	Deposits
-	Senders
-	Accounts
+	BlockSenders
+	BlockAccounts
 	BlockParticipants
 	EthereumCounterparties
 }
@@ -38,7 +38,7 @@ type CtrlProcessingJobs interface {
 
 type BlockContents interface {
 	CreateBlockContent(
-		postedBlock *block_post_service.PostedBlock,
+		postedBlock *intmax_block_content.PostedBlock,
 		blockContent *intMaxTypes.BlockContent,
 		l2BlockNumber *uint256.Int,
 		l2BlockHash common.Hash,
@@ -72,15 +72,16 @@ type Deposits interface {
 	FetchNextDepositIndex() (uint32, error)
 }
 
-type Senders interface {
-	CreateSenders(address, publicKey string) (*mDBApp.Sender, error)
-	SenderByID(id string) (*mDBApp.Sender, error)
-	SenderByAddress(address string) (*mDBApp.Sender, error)
+type BlockSenders interface {
+	CreateBlockSenders(address, publicKey string) (*mDBApp.BlockSender, error)
+	BlockSenderByAddress(address string) (*mDBApp.BlockSender, error)
 }
 
-type Accounts interface {
-	CreateAccount(senderID string) (*mDBApp.Account, error)
-	AccountBySenderID(senderID string) (*mDBApp.Account, error)
+type BlockAccounts interface {
+	CreateBlockAccount(senderID string) (*mDBApp.BlockAccount, error)
+	BlockAccountBySenderID(senderID string) (*mDBApp.BlockAccount, error)
+	ResetSequenceByBlockAccounts() error
+	DelAllBlockAccounts() error
 }
 
 type BlockParticipants interface {
@@ -88,6 +89,13 @@ type BlockParticipants interface {
 		blockNumber uint32,
 		senderId string,
 	) (*mDBApp.BlockParticipant, error)
+}
+
+type EthereumCounterparties interface {
+	CreateEthereumCounterparty(
+		address string,
+	) (*mDBApp.EthereumCounterparty, error)
+	EthereumCounterpartyByAddress(address string) (*mDBApp.EthereumCounterparty, error)
 }
 
 type BlockBuilderStorage interface {
@@ -101,6 +109,7 @@ type BlockBuilderStorage interface {
 }
 
 type AccountInfo interface {
+	RegisterPublicKey(pk *intMaxAcc.PublicKey) (err error)
 	PublicKeyByAccountID(blockNumber uint32, accountID uint64) (pk *intMaxAcc.PublicKey, err error)
 	AccountBySenderAddress(senderAddress string) (accID *uint256.Int, err error)
 }
@@ -130,7 +139,7 @@ type BlockHistory interface {
 	// GenerateValidityWitness(blockWitness *BlockWitness) (*ValidityWitness, error)
 	NextAccountID(blockNumber uint32) (uint64, error)
 	// GetAccountMembershipProof(currentBlockNumber uint32, publicKey *big.Int) (*intMaxTree.IndexedMembershipProof, error)
-	AppendBlockTreeLeaf(block *block_post_service.PostedBlock) (uint32, error)
+	AppendBlockTreeLeaf(block *intmax_block_content.PostedBlock) (uint32, error)
 	BlockTreeRoot(blockNumber uint32) (*intMaxGP.PoseidonHashOut, error)
 	BlockTreeProof(
 		rootBlockNumber, leafBlockNumber uint32,
@@ -147,11 +156,4 @@ type BlockHistory interface {
 type BuilderDeposits interface {
 	ScanDeposits() ([]*mDBApp.Deposit, error)
 	UpdateDepositIndexByDepositHash(depositHash common.Hash, depositIndex uint32) error
-}
-
-type EthereumCounterparties interface {
-	CreateEthereumCounterparty(
-		address string,
-	) (*mDBApp.EthereumCounterparty, error)
-	EthereumCounterpartyByAddress(address string) (*mDBApp.EthereumCounterparty, error)
 }

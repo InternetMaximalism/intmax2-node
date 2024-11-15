@@ -10,6 +10,7 @@ import (
 	"intmax2-node/internal/bindings"
 	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/hash/goldenposeidon"
+	"intmax2-node/internal/intmax_block_content"
 	"intmax2-node/internal/logger"
 	"intmax2-node/internal/open_telemetry"
 	intMaxTypes "intmax2-node/internal/types"
@@ -34,7 +35,6 @@ type blockPostService struct {
 	dbApp                     SQLDriverApp
 	sb                        ServiceBlockchain
 	lastSeenScrollBlockNumber uint64
-	accountInfoMap            AccountInfo
 }
 
 func New(cfg *configs.Config, log logger.Logger, dbApp SQLDriverApp, sb ServiceBlockchain) BlockPostService {
@@ -44,7 +44,6 @@ func New(cfg *configs.Config, log logger.Logger, dbApp SQLDriverApp, sb ServiceB
 		dbApp:                     dbApp,
 		sb:                        sb,
 		lastSeenScrollBlockNumber: cfg.Blockchain.RollupContractDeployedBlockNumber,
-		accountInfoMap:            NewAccountInfo(dbApp),
 	}
 }
 func (w *blockPostService) Init(ctx context.Context) (err error) {
@@ -228,7 +227,7 @@ func (w *blockPostService) Start(
 				}
 				blockNumber := uint32(eventData.BlockNumber.Uint64())
 
-				postedBlock := NewPostedBlock(
+				postedBlock := intmax_block_content.NewPostedBlock(
 					eventData.PrevBlockHash,
 					eventData.DepositTreeRoot,
 					blockNumber,

@@ -3,7 +3,7 @@ package block_validity_prover
 import (
 	"context"
 	"encoding/json"
-	"intmax2-node/internal/block_post_service"
+	"intmax2-node/internal/intmax_block_content"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
@@ -22,8 +22,8 @@ type SQLDriverApp interface {
 	CtrlProcessingJobs
 	BlockContents
 	EventBlockNumbersForValidityProver
-	Senders
-	Accounts
+	BlockSenders
+	BlockAccounts
 	BlockParticipants
 	Deposits
 	L2BatchIndex
@@ -48,7 +48,7 @@ type CtrlProcessingJobs interface {
 
 type BlockContents interface {
 	CreateBlockContent(
-		postedBlock *block_post_service.PostedBlock,
+		postedBlock *intmax_block_content.PostedBlock,
 		blockContent *intMaxTypes.BlockContent,
 		l2BlockNumber *uint256.Int,
 		l2BlockHash common.Hash,
@@ -73,18 +73,18 @@ type EventBlockNumbersForValidityProver interface {
 	EventBlockNumberByEventNameForValidityProver(eventName string) (*mDBApp.EventBlockNumberForValidityProver, error)
 }
 
-type Senders interface {
-	CreateSenders(
+type BlockSenders interface {
+	CreateBlockSenders(
 		address, publicKey string,
-	) (*mDBApp.Sender, error)
-	SenderByID(id string) (*mDBApp.Sender, error)
-	SenderByAddress(address string) (*mDBApp.Sender, error)
-	// SenderByPublicKey(publicKey string) (*mDBApp.Sender, error)
+	) (*mDBApp.BlockSender, error)
+	BlockSenderByAddress(address string) (*mDBApp.BlockSender, error)
 }
 
-type Accounts interface {
-	CreateAccount(senderID string) (*mDBApp.Account, error)
-	AccountBySenderID(senderID string) (*mDBApp.Account, error)
+type BlockAccounts interface {
+	CreateBlockAccount(senderID string) (*mDBApp.BlockAccount, error)
+	BlockAccountBySenderID(senderID string) (*mDBApp.BlockAccount, error)
+	ResetSequenceByBlockAccounts() error
+	DelAllBlockAccounts() error
 }
 
 type BlockParticipants interface {

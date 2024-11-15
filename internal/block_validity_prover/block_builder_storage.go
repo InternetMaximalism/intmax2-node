@@ -10,9 +10,9 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	intMaxAcc "intmax2-node/internal/accounts"
-	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/finite_field"
 	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
+	"intmax2-node/internal/intmax_block_content"
 	"intmax2-node/internal/l2_batch_index"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
@@ -88,7 +88,7 @@ func (b *mockBlockBuilder) FetchUpdateWitness(
 
 // NewBlockHashTree is a Merkle tree that includes the genesis block in the 0th leaf from the beginning.
 func NewBlockHashTree(height uint8) (*intMaxTree.BlockHashTree, error) {
-	genesisBlock := new(block_post_service.PostedBlock).Genesis()
+	genesisBlock := new(intmax_block_content.PostedBlock).Genesis()
 	genesisBlockHash := intMaxTree.NewBlockHashLeaf(genesisBlock.Hash())
 	initialLeaves := []*intMaxTree.BlockHashLeaf{genesisBlockHash}
 
@@ -108,7 +108,7 @@ func NewMockBlockBuilder(cfg *configs.Config, db SQLDriverApp) *MockBlockBuilder
 		panic(err)
 	}
 
-	genesisBlock := new(block_post_service.PostedBlock).Genesis()
+	genesisBlock := new(intmax_block_content.PostedBlock).Genesis()
 	blockHashTree, err := intMaxTree.NewBlockHashTreeWithInitialLeaves(intMaxTree.BLOCK_HASH_TREE_HEIGHT, []*intMaxTree.BlockHashLeaf{intMaxTree.NewBlockHashLeaf(genesisBlock.Hash())})
 	if err != nil {
 		panic(err)
@@ -300,7 +300,7 @@ func NewSignatureContentFromBlockContent(blockContent *intMaxTypes.BlockContent)
 // TODO: Rename to GenerateBlockWitness
 func (b *mockBlockBuilder) GenerateBlock(
 	blockContent *intMaxTypes.BlockContent,
-	postedBlock *block_post_service.PostedBlock,
+	postedBlock *intmax_block_content.PostedBlock,
 ) (*BlockWitness, error) {
 	signature := NewSignatureContentFromBlockContent(blockContent)
 	publicKeys := make([]intMaxTypes.Uint256, len(blockContent.Senders))
@@ -778,7 +778,7 @@ func (db *mockBlockBuilder) BlockNumberByListOfDepositIndex(
 	return blockNumberList, nil
 }
 
-func (db *mockBlockBuilder) AppendBlockTreeLeaf(block *block_post_service.PostedBlock) (blockNumber uint32, err error) {
+func (db *mockBlockBuilder) AppendBlockTreeLeaf(block *intmax_block_content.PostedBlock) (blockNumber uint32, err error) {
 	blockHashLeaf := intMaxTree.NewBlockHashLeaf(block.Hash())
 	merkleTreeHistory, ok := db.MerkleTreeHistory.MerkleTrees[block.BlockNumber-1]
 	if !ok {
@@ -1007,7 +1007,7 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTree(
 	}
 
 	depositRoot, _, _ := db.DepositTree.GetCurrentRootCountAndSiblings()
-	block := &block_post_service.PostedBlock{
+	block := &intmax_block_content.PostedBlock{
 		PrevBlockHash: postedBlock.Hash(),
 		DepositRoot:   depositRoot,
 		SignatureHash: signature.Hash(),
@@ -1077,13 +1077,13 @@ func IsValidBlockSenders(blockContent *intMaxTypes.BlockContent, prevAccountTree
 
 func (db *mockBlockBuilder) GenerateBlockWithTxTreeFromBlockContentAndPrevBlock(
 	blockContent *intMaxTypes.BlockContent,
-	prevPostedBlock *block_post_service.PostedBlock,
+	prevPostedBlock *intmax_block_content.PostedBlock,
 ) (*BlockWitness, error) {
 	fmt.Printf("-----------GenerateBlockWithTxTreeFromBlockContentAndPrevBlock------------------\n")
 	depositRoot, _, _ := db.DepositTree.GetCurrentRootCountAndSiblings()
 	signature := NewSignatureContentFromBlockContent(blockContent)
 
-	postedBlock := &block_post_service.PostedBlock{
+	postedBlock := &intmax_block_content.PostedBlock{
 		PrevBlockHash: prevPostedBlock.Hash(),
 		DepositRoot:   depositRoot,
 		SignatureHash: signature.Hash(),
@@ -1098,7 +1098,7 @@ func (db *mockBlockBuilder) GenerateBlockWithTxTreeFromBlockContentAndPrevBlock(
 
 func (db *mockBlockBuilder) GenerateBlockWithTxTreeFromBlockContent(
 	blockContent *intMaxTypes.BlockContent,
-	postedBlock *block_post_service.PostedBlock,
+	postedBlock *intmax_block_content.PostedBlock,
 ) (*BlockWitness, error) {
 	prevBlockNumber := postedBlock.BlockNumber - 1
 	fmt.Printf("-----------GenerateBlockWithTxTreeFromBlockContent %d------------------\n", postedBlock.BlockNumber)
@@ -1550,7 +1550,7 @@ func (b *mockBlockBuilder) LastSeenBlockPostedEventBlockNumber(ctx context.Conte
 	err := b.db.Exec(ctx, nil, func(d interface{}, _ interface{}) (err error) {
 		q, _ := d.(SQLDriverApp)
 
-		event, err = q.EventBlockNumberByEventNameForValidityProver("BlockPosted")
+		event, err = q.EventBlockNumberByEventNameForValidityProver(mDBApp.BlockPostedEvent)
 		if err != nil {
 			return err
 		}
@@ -1568,7 +1568,7 @@ func (b *mockBlockBuilder) SetLastSeenBlockPostedEventBlockNumber(ctx context.Co
 	err := b.db.Exec(ctx, nil, func(d interface{}, _ interface{}) (err error) {
 		q, _ := d.(SQLDriverApp)
 
-		_, err = q.UpsertEventBlockNumberForValidityProver("BlockPosted", blockNumber)
+		_, err = q.UpsertEventBlockNumberForValidityProver(mDBApp.BlockPostedEvent, blockNumber)
 		if err != nil {
 			return err
 		}
@@ -1713,7 +1713,7 @@ func blockAuxInfoFromBlockContent(auxInfo *mDBApp.BlockContentWithProof) (*AuxIn
 		SenderType:          senderType,
 	}
 
-	postedBlock := block_post_service.PostedBlock{
+	postedBlock := intmax_block_content.PostedBlock{
 		BlockNumber:          auxInfo.BlockNumber,
 		PrevBlockHash:        common.HexToHash("0x" + auxInfo.PrevBlockHash),
 		DepositRoot:          common.HexToHash("0x" + auxInfo.DepositRoot),
@@ -1735,91 +1735,83 @@ func blockAuxInfoFromBlockContent(auxInfo *mDBApp.BlockContentWithProof) (*AuxIn
 
 func (b *mockBlockBuilder) CreateBlockContent(
 	ctx context.Context,
-	postedBlock *block_post_service.PostedBlock,
+	db SQLDriverApp,
+	postedBlock *intmax_block_content.PostedBlock,
 	blockContent *intMaxTypes.BlockContent,
 	l2BlockNumber *uint256.Int,
 	l2BlockHash common.Hash,
 ) (bc *mDBApp.BlockContentWithProof, err error) {
 	dummyPublicKey := intMaxAcc.NewDummyPublicKey()
-	err = b.db.Exec(ctx, &bc, func(d interface{}, input interface{}) (err error) {
-		q, _ := d.(SQLDriverApp)
+	bc, err = db.BlockContentByBlockNumber(postedBlock.BlockNumber)
+	if err == nil {
+		return bc, nil
+	} else if !errors.Is(err, errorsDB.ErrNotFound) {
+		return nil, err
+	}
 
-		bc, err = q.BlockContentByBlockNumber(postedBlock.BlockNumber)
-		if err == nil {
-			return nil
-		} else if !errors.Is(err, errorsDB.ErrNotFound) {
-			return err
-		}
+	bc, err = db.CreateBlockContent(
+		postedBlock,
+		blockContent,
+		l2BlockNumber,
+		l2BlockHash,
+	)
+	if err != nil {
+		return nil, err
+	}
 
-		bc, err = q.CreateBlockContent(
-			postedBlock,
-			blockContent,
-			l2BlockNumber,
-			l2BlockHash,
-		)
-		if err != nil {
-			return err
-		}
+	for key := range blockContent.Senders {
+		if !blockContent.Senders[key].PublicKey.Equal(dummyPublicKey) &&
+			blockContent.Senders[key].IsSigned {
+			var (
+				senderData *mDBApp.BlockSender
+				address    = blockContent.Senders[key].PublicKey.ToAddress().String()
+			)
 
-		for key := range blockContent.Senders {
-			if !blockContent.Senders[key].PublicKey.Equal(dummyPublicKey) &&
-				blockContent.Senders[key].IsSigned {
-				var (
-					senderData *mDBApp.Sender
-					address    = blockContent.Senders[key].PublicKey.ToAddress().String()
-				)
-
-				senderData, err = q.SenderByAddress(address)
-				if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
-					return errors.Join(ErrSenderByAddressFail, err)
-				} else if errors.Is(err, errorsDB.ErrNotFound) {
-					var newSenderData *mDBApp.Sender
-					newSenderData, err = q.CreateSenders(address, address)
-					if err != nil {
-						return errors.Join(ErrCreateSendersFail, err)
-					}
-					senderData = &mDBApp.Sender{
-						ID:        newSenderData.ID,
-						Address:   newSenderData.Address,
-						PublicKey: newSenderData.PublicKey,
-						CreatedAt: newSenderData.CreatedAt,
-					}
-				}
-
-				_, err = q.AccountBySenderID(senderData.ID)
-				if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
-					return errors.Join(ErrAccountBySenderIDFail, err)
-				} else if errors.Is(err, errorsDB.ErrNotFound) {
-					_, err = q.CreateAccount(senderData.ID)
-					if err != nil {
-						return errors.Join(ErrCreateAccountFail, err)
-					}
-				}
-
-				_, err = q.CreateBlockParticipant(postedBlock.BlockNumber, senderData.ID)
+			senderData, err = db.BlockSenderByAddress(address)
+			if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
+				return nil, errors.Join(ErrSenderByAddressFail, err)
+			} else if errors.Is(err, errorsDB.ErrNotFound) {
+				var newSenderData *mDBApp.BlockSender
+				newSenderData, err = db.CreateBlockSenders(address, address)
 				if err != nil {
-					var ErrCreateBlockContainedSendersFail = errors.New("create block contained senders fail")
-					return errors.Join(ErrCreateBlockContainedSendersFail, err)
+					return nil, errors.Join(ErrCreateSendersFail, err)
+				}
+				senderData = &mDBApp.BlockSender{
+					ID:        newSenderData.ID,
+					Address:   newSenderData.Address,
+					PublicKey: newSenderData.PublicKey,
+					CreatedAt: newSenderData.CreatedAt,
 				}
 			}
-		}
 
-		_, err = q.UpsertEventBlockNumberForValidityProver("BlockPosted", l2BlockNumber.Uint64())
-		if err != nil {
-			return err
-		}
+			_, err = db.BlockAccountBySenderID(senderData.ID)
+			if err != nil && !errors.Is(err, errorsDB.ErrNotFound) {
+				return nil, errors.Join(ErrAccountBySenderIDFail, err)
+			} else if errors.Is(err, errorsDB.ErrNotFound) {
+				_, err = db.CreateBlockAccount(senderData.ID)
+				if err != nil {
+					return nil, errors.Join(ErrCreateAccountFail, err)
+				}
+			}
 
-		const maskL2BlockNumber = `{"l2_block_number":%q}`
-		err = q.CreateCtrlProcessingJobs(
-			fmt.Sprintf("%s%s", l2_batch_index.L2BlockNumberJobMask, l2BlockNumber.ToBig().String()),
-			json.RawMessage(fmt.Sprintf(maskL2BlockNumber, l2BlockNumber.ToBig().String())),
-		)
-		if err != nil {
-			return err
+			_, err = db.CreateBlockParticipant(postedBlock.BlockNumber, senderData.ID)
+			if err != nil {
+				var ErrCreateBlockContainedSendersFail = errors.New("create block contained senders fail")
+				return nil, errors.Join(ErrCreateBlockContainedSendersFail, err)
+			}
 		}
+	}
 
-		return nil
-	})
+	_, err = db.UpsertEventBlockNumberForValidityProver("BlockPosted", l2BlockNumber.Uint64())
+	if err != nil {
+		return nil, err
+	}
+
+	const maskL2BlockNumber = `{"l2_block_number":%q}`
+	err = db.CreateCtrlProcessingJobs(
+		fmt.Sprintf("%s%s", l2_batch_index.L2BlockNumberJobMask, l2BlockNumber.ToBig().String()),
+		json.RawMessage(fmt.Sprintf(maskL2BlockNumber, l2BlockNumber.ToBig().String())),
+	)
 	if err != nil {
 		return nil, err
 	}

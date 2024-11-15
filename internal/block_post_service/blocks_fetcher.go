@@ -1,4 +1,4 @@
-package block_synchronizer
+package block_post_service
 
 import (
 	"context"
@@ -6,13 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"intmax2-node/configs"
+	intMaxAcc "intmax2-node/internal/accounts"
 	"intmax2-node/internal/bindings"
-	"intmax2-node/internal/block_post_service"
-	"intmax2-node/internal/block_validity_prover"
+	"intmax2-node/internal/intmax_block_content"
 	"intmax2-node/internal/logger"
+	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
 	errorsDB "intmax2-node/pkg/sql_db/errors"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/holiman/uint256"
@@ -33,9 +35,13 @@ func StartBlocksFetcher(
 	cfg *configs.Config,
 	lg logger.Logger,
 	dbApp SQLDriverApp,
+	bps BlockSynchronizer,
 	tickerEventWatcher *time.Ticker,
 ) (err error) {
-	err = dbApp.CreateCtrlEventBlockNumbersJobs(mDBApp.BlockPostedEvent)
+	err = dbApp.Exec(ctx, nil, func(d interface{}, _ interface{}) (err error) {
+		q := d.(SQLDriverApp)
+		return q.CreateCtrlEventBlockNumbersJobs(mDBApp.BlockPostedEvent)
+	})
 	if err != nil {
 		return errors.Join(ErrNewCtrlEventBlockNumbersJobsFail, err)
 	}
@@ -75,7 +81,7 @@ func StartBlocksFetcher(
 				return nil
 			}
 
-			err = ProcessingPostedBlocks(ctx, cfg, lg, q)
+			err = ProcessingPostedBlocks(ctx, cfg, lg, q, bps)
 			if err != nil {
 				return errors.Join(ErrProcessingBlocksFail, err)
 			}
@@ -109,13 +115,8 @@ func ProcessingPostedBlocks(
 	cfg *configs.Config,
 	lg logger.Logger,
 	dbApp SQLDriverApp,
+	bps BlockSynchronizer,
 ) (err error) {
-	var bps BlockSynchronizer
-	bps, err = NewBlockSynchronizer(ctx, cfg, lg)
-	if err != nil {
-		return errors.Join(ErrNewBlockPostServiceFail, err)
-	}
-
 	var (
 		bn  uint64
 		ebn *mDBApp.EventBlockNumber
@@ -168,7 +169,7 @@ func ProcessingPostedBlocks(
 		return nil
 	}
 
-	ai := block_post_service.NewAccountInfo(dbApp)
+	ai := NewAccountInfo(dbApp)
 	for key := range events {
 		var blN uint256.Int
 		_ = blN.SetFromBig(new(big.Int).SetUint64(events[key].Raw.BlockNumber))
@@ -179,7 +180,7 @@ func ProcessingPostedBlocks(
 			return errors.Join(ErrFetchScrollCalldataByHashFail, err)
 		}
 
-		postedBlock := block_post_service.NewPostedBlock(
+		postedBlock := intmax_block_content.NewPostedBlock(
 			events[key].PrevBlockHash,
 			events[key].DepositTreeRoot,
 			uint32(events[key].BlockNumber.Uint64()),
@@ -187,20 +188,22 @@ func ProcessingPostedBlocks(
 		)
 
 		intMaxBlockNumber := events[key].BlockNumber
-		blockContent, err := block_validity_prover.FetchIntMaxBlockContentByCalldata(cd, postedBlock, ai)
+
+		var blockContent *intMaxTypes.BlockContent
+		blockContent, err = intmax_block_content.FetchIntMaxBlockContentByCalldata(cd, postedBlock, ai)
 		if err == nil {
 			err = blockContent.IsValid()
 		}
 		if err != nil {
 			err = errors.Join(ErrFetchIntMaxBlockContentByCalldataFail, err)
 			switch {
-			case errors.Is(err, ErrUnknownAccountID):
+			case errors.Is(err, intmax_block_content.ErrUnknownAccountID):
 				const msg = "block %q is ErrUnknownAccountID"
 				lg.WithError(err).Errorf(msg, intMaxBlockNumber.String())
-			case errors.Is(err, ErrCannotDecodeAddress):
+			case errors.Is(err, intmax_block_content.ErrCannotDecodeAddress):
 				const msg = "block %q is ErrCannotDecodeAddress"
 				lg.WithError(err).Errorf(msg, intMaxBlockNumber.String())
-			case errors.Is(err, block_validity_prover.ErrInvalidBlockSignature):
+			case errors.Is(err, intMaxAcc.ErrInvalidBlockSignature):
 				const msg = "block %q is ErrInvalidBlockSignature"
 				lg.WithError(err).Errorf(msg, intMaxBlockNumber.String())
 			default:
@@ -226,11 +229,22 @@ func ProcessingPostedBlocks(
 			continue
 		}
 
+		defaultAddress := intMaxAcc.NewDummyPublicKey().ToAddress().String()
+		for index := range blockContent.Senders {
+			address := blockContent.Senders[index].PublicKey.ToAddress().String()
+			if !strings.EqualFold(address, defaultAddress) {
+				err = ai.RegisterPublicKey(blockContent.Senders[index].PublicKey)
+				if err != nil {
+					return errors.Join(ErrRegisterPublicKeyFail, err)
+				}
+			}
+		}
+
 		const msg = "block %q is found (ProcessingPostedBlocks, Scroll block number: %s)"
 		lg.Debugf(msg, intMaxBlockNumber.String(), blN.String())
 	}
 
-	err = block_post_service.UpdateEventBlockNumber(dbApp, lg, mDBApp.BlockPostedEvent, nextBN.Uint64())
+	err = UpdateEventBlockNumber(dbApp, lg, mDBApp.BlockPostedEvent, nextBN.Uint64())
 	if err != nil {
 		const msg = "failed to update event block number: %v"
 		return fmt.Errorf(msg, err.Error())

@@ -3,8 +3,8 @@ package tree_test
 import (
 	"errors"
 	"fmt"
-	"intmax2-node/internal/block_post_service"
 	intMaxGP "intmax2-node/internal/hash/goldenposeidon"
+	"intmax2-node/internal/intmax_block_content"
 	tree "intmax2-node/internal/tree"
 	"testing"
 
@@ -135,7 +135,7 @@ func (t *BlockHashTree) GetLeaf(index uint32) *tree.BlockHashLeaf {
 }
 
 func TestBlockTreeProof(t *testing.T) {
-	genesisBlock := new(block_post_service.PostedBlock).Genesis()
+	genesisBlock := new(intmax_block_content.PostedBlock).Genesis()
 	blockLeaf0 := tree.NewBlockHashLeaf(genesisBlock.Hash())
 	blockHash1 := common.HexToHash("0x4b44d51735ffd85fa54d6c3cc60352648ab093840fe4095b39afee145bf0c367")
 	blockLeaf1 := tree.NewBlockHashLeaf(blockHash1)

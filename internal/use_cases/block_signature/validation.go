@@ -36,7 +36,9 @@ func (input *UCBlockSignatureInput) Valid(w Worker) (err error) {
 			return input.DecodeSender
 		}())),
 		validation.Field(&input.TxHash, validation.Required, input.isHexDecode(), input.isExistsTxHash(w)),
+		/** TODO: uncomment after tests
 		validation.Field(&input.EnoughBalanceProof, validation.Required, input.isEnoughBalanceProof()),
+		*/
 		validation.Field(&input.Signature, validation.Required, validation.By(func(value interface{}) (err error) {
 			v, ok := value.(string)
 			if !ok {

@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"intmax2-node/internal/block_post_service"
+	"intmax2-node/internal/intmax_block_content"
 	errPgx "intmax2-node/internal/sql_db/pgx/errors"
 	"intmax2-node/internal/sql_db/pgx/models"
 	intMaxTypes "intmax2-node/internal/types"
@@ -18,7 +18,7 @@ import (
 )
 
 func (p *pgx) CreateBlockContent(
-	postedBlock *block_post_service.PostedBlock,
+	postedBlock *intmax_block_content.PostedBlock,
 	blockContent *intMaxTypes.BlockContent,
 	l2BlockNumber *uint256.Int,
 	l2BlockHash common.Hash,

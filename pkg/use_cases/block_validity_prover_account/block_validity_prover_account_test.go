@@ -75,7 +75,7 @@ func TestUCBlockValidityProverAccount(t *testing.T) {
 				Address: "0x0000000000000000000000000000000000000000000000000000000000000001",
 			},
 			prepare: func(_ *blockValidityProverAccount.UCBlockValidityProverAccount) {
-				db.EXPECT().SenderByAddress(gomock.Any()).Return(nil, errorsDB.ErrNotFound)
+				db.EXPECT().BlockSenderByAddress(gomock.Any()).Return(nil, errorsDB.ErrNotFound)
 			},
 			err: errorsDB.ErrNotFound,
 		},
@@ -88,13 +88,13 @@ func TestUCBlockValidityProverAccount(t *testing.T) {
 				Address: "0x0000000000000000000000000000000000000000000000000000000000000001",
 			},
 			prepare: func(input *blockValidityProverAccount.UCBlockValidityProverAccount) {
-				db.EXPECT().SenderByAddress(gomock.Any()).Return(&mDBApp.Sender{
+				db.EXPECT().BlockSenderByAddress(gomock.Any()).Return(&mDBApp.Sender{
 					ID:        uuid.New().String(),
 					Address:   "0000000000000000000000000000000000000000000000000000000000000001",
 					PublicKey: "0000000000000000000000000000000000000000000000000000000000000001",
 					CreatedAt: time.Now().UTC(),
 				}, nil)
-				db.EXPECT().AccountBySenderID(gomock.Any()).Return(nil, errorsDB.ErrNotFound)
+				db.EXPECT().BlockAccountBySenderID(gomock.Any()).Return(nil, errorsDB.ErrNotFound)
 			},
 			err: errorsDB.ErrNotFound,
 		},
@@ -113,8 +113,8 @@ func TestUCBlockValidityProverAccount(t *testing.T) {
 					PublicKey: "0000000000000000000000000000000000000000000000000000000000000001",
 					CreatedAt: time.Now().UTC(),
 				}
-				db.EXPECT().SenderByAddress(gomock.Any()).Return(&sender, nil)
-				db.EXPECT().AccountBySenderID(gomock.Any()).Return(&mDBApp.Account{
+				db.EXPECT().BlockSenderByAddress(gomock.Any()).Return(&sender, nil)
+				db.EXPECT().BlockAccountBySenderID(gomock.Any()).Return(&mDBApp.Account{
 					ID:        uuid.New().String(),
 					AccountID: result.AccountID,
 					SenderID:  sender.ID,

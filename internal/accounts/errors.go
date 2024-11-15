@@ -42,3 +42,6 @@ var ErrDecodePublicKeyFail = errors.New("failed to decode public key")
 
 // ErrUnmarshalPublicKeyFail error: failed to unmarshal public key.
 var ErrUnmarshalPublicKeyFail = errors.New("failed to unmarshal public key")
+
+// ErrInvalidBlockSignature error: signature verification failed.
+var ErrInvalidBlockSignature = errors.New("signature verification failed")

@@ -3,7 +3,7 @@ package balance_synchronizer
 import (
 	"context"
 	"encoding/json"
-	"intmax2-node/internal/block_post_service"
+	"intmax2-node/internal/intmax_block_content"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
 	mDBApp "intmax2-node/pkg/sql_db/db_app/models"
@@ -26,8 +26,8 @@ type SQLDriverApp interface {
 	EventBlockNumbersForValidityProver
 	CtrlEventBlockNumbersJobs
 	EventBlockNumbersErrors
-	Senders
-	Accounts
+	BlockSenders
+	BlockAccounts
 	BlockParticipants
 	Deposits
 	BlockContents
@@ -105,18 +105,18 @@ type EventBlockNumbersErrors interface {
 	) (*mDBApp.EventBlockNumbersErrors, error)
 }
 
-type Senders interface {
-	CreateSenders(
+type BlockSenders interface {
+	CreateBlockSenders(
 		address, publicKey string,
-	) (*mDBApp.Sender, error)
-	SenderByID(id string) (*mDBApp.Sender, error)
-	SenderByAddress(address string) (*mDBApp.Sender, error)
-	SenderByPublicKey(publicKey string) (*mDBApp.Sender, error)
+	) (*mDBApp.BlockSender, error)
+	BlockSenderByAddress(address string) (*mDBApp.BlockSender, error)
 }
 
-type Accounts interface {
-	CreateAccount(senderID string) (*mDBApp.Account, error)
-	AccountBySenderID(senderID string) (*mDBApp.Account, error)
+type BlockAccounts interface {
+	CreateBlockAccount(senderID string) (*mDBApp.BlockAccount, error)
+	BlockAccountBySenderID(senderID string) (*mDBApp.BlockAccount, error)
+	ResetSequenceByBlockAccounts() error
+	DelAllBlockAccounts() error
 }
 
 type BlockParticipants interface {
@@ -140,7 +140,7 @@ type Deposits interface {
 
 type BlockContents interface {
 	CreateBlockContent(
-		postedBlock *block_post_service.PostedBlock,
+		postedBlock *intmax_block_content.PostedBlock,
 		blockContent *intMaxTypes.BlockContent,
 		l2BlockNumber *uint256.Int,
 		l2BlockHash common.Hash,

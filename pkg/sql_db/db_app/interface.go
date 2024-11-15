@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	intMaxAcc "intmax2-node/internal/accounts"
-	"intmax2-node/internal/block_post_service"
+	"intmax2-node/internal/intmax_block_content"
 	mFL "intmax2-node/internal/sql_filter/models"
 	intMaxTree "intmax2-node/internal/tree"
 	intMaxTypes "intmax2-node/internal/types"
@@ -44,6 +44,8 @@ type SQLDb interface {
 	L2BatchIndex
 	RelationshipL2BatchIndexAndBlockContent
 	EthereumCounterparties
+	BlockSenders
+	BlockAccounts
 }
 
 type GenericCommands interface {
@@ -277,7 +279,7 @@ type Deposits interface {
 
 type BlockContents interface {
 	CreateBlockContent(
-		postedBlock *block_post_service.PostedBlock,
+		postedBlock *intmax_block_content.PostedBlock,
 		blockContent *intMaxTypes.BlockContent,
 		l2BlockNumber *uint256.Int,
 		l2BlockHash common.Hash,
@@ -332,4 +334,20 @@ type EthereumCounterparties interface {
 		address string,
 	) (*models.EthereumCounterparty, error)
 	EthereumCounterpartyByAddress(address string) (*models.EthereumCounterparty, error)
+}
+
+type BlockSenders interface {
+	CreateBlockSenders(address, publicKey string) (*models.BlockSender, error)
+	BlockSenderByID(id string) (*models.BlockSender, error)
+	BlockSenderByAddress(address string) (*models.BlockSender, error)
+	BlockSenderByPublicKey(publicKey string) (*models.BlockSender, error)
+}
+
+type BlockAccounts interface {
+	CreateBlockAccount(senderID string) (*models.BlockAccount, error)
+	BlockAccountBySenderID(senderID string) (*models.BlockAccount, error)
+	BlockAccountBySender(publicKey *intMaxAcc.PublicKey) (*models.BlockAccount, error)
+	BlockAccountByAccountID(accountID *uint256.Int) (*models.BlockAccount, error)
+	ResetSequenceByBlockAccounts() error
+	DelAllBlockAccounts() error
 }

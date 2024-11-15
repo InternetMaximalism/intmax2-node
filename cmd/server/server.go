@@ -5,6 +5,7 @@ import (
 	"intmax2-node/configs"
 	"intmax2-node/configs/buildvars"
 	"intmax2-node/docs/swagger"
+	"intmax2-node/internal/block_post_service"
 	errorsB "intmax2-node/internal/blockchain/errors"
 	"intmax2-node/internal/gas_price_oracle"
 	"intmax2-node/internal/logger"
@@ -42,6 +43,7 @@ type Server struct {
 	GPOStorage          GPOStorage
 	BlockPostService    BlockPostService
 	DepositSynchronizer DepositSynchronizer
+	BlockSynchronizer   BlockSynchronizer
 }
 
 func NewServerCmd(s *Server) *cobra.Command {
@@ -229,6 +231,27 @@ func NewServerCmd(s *Server) *cobra.Command {
 				}()
 				if err = s.BlockPostService.Start(s.Context, tickerEventWatcher); err != nil {
 					const msg = "failed to start Block Post service: %+v"
+					s.Log.Fatalf(msg, err.Error())
+				}
+			}()
+
+			wg.Add(1)
+			s.WG.Add(1)
+			go func() {
+				defer func() {
+					wg.Done()
+					s.WG.Done()
+				}()
+				tickerEventWatcher := time.NewTicker(s.Config.BlockPostService.TimeoutForEventWatcher)
+				defer func() {
+					if tickerEventWatcher != nil {
+						tickerEventWatcher.Stop()
+					}
+				}()
+
+				err = block_post_service.StartBlocksFetcher(s.Context, s.Config, s.Log, s.DbApp, s.BlockSynchronizer, tickerEventWatcher)
+				if err != nil {
+					const msg = "failed to start Block Fetcher: %+v"
 					s.Log.Fatalf(msg, err.Error())
 				}
 			}()

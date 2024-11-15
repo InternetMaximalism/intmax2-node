@@ -3,8 +3,8 @@ package block_validity_prover_test
 import (
 	"encoding/json"
 	"fmt"
-	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/block_validity_prover"
+	"intmax2-node/internal/intmax_block_content"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -15,7 +15,7 @@ func TestBlockHash(t *testing.T) {
 	prevBlockHash := common.Hash{}
 	depositRoot := common.HexToHash("0xb6155ab566bbd2e341525fd88c43b4d69572bf4afe7df45cd74d6901a172e41c")
 	signatureHash := common.Hash{}
-	postedBlock := block_post_service.PostedBlock{
+	postedBlock := intmax_block_content.PostedBlock{
 		PrevBlockHash: prevBlockHash,
 		BlockNumber:   0,
 		DepositRoot:   depositRoot,

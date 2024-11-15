@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"intmax2-node/configs"
 	"intmax2-node/internal/accounts"
-	"intmax2-node/internal/block_post_service"
 	"intmax2-node/internal/block_validity_prover"
+	"intmax2-node/internal/intmax_block_content"
 	intMaxTypes "intmax2-node/internal/types"
 	blockValidityProverTxRootStatus "intmax2-node/internal/use_cases/block_validity_prover_tx_root_status"
 	"intmax2-node/pkg/logger"
@@ -120,7 +120,7 @@ func TestUCBlockValidityProverTxRootStatus(t *testing.T) {
 							AggregatedPublicKey: ucResult[hashValid.String()].AggregatedPublicKey,
 							MessagePoint:        ucResult[hashValid.String()].MessagePoint,
 						},
-						PostedBlock: &block_post_service.PostedBlock{
+						PostedBlock: &intmax_block_content.PostedBlock{
 							PrevBlockHash: ucResult[hashValid.String()].PrevBlockHash,
 							BlockNumber:   ucResult[hashValid.String()].BlockNumber,
 							DepositRoot:   ucResult[hashValid.String()].DepositRoot,
