@@ -2,7 +2,8 @@ use crate::app::{config, encode::encode_plonky2_proof};
 use anyhow::Context;
 use intmax2_zkp::{
     circuits::withdrawal::withdrawal_processor::WithdrawalProcessor,
-    ethereum_types::address::Address,
+    ethereum_types::address::Address, utils::wrapper::WrapperCircuit,
+    wrapper_config::plonky2_config::PoseidonBN128GoldilocksConfig,
 };
 use plonky2::{
     field::goldilocks_field::GoldilocksField,
@@ -12,6 +13,7 @@ use redis::{ExistenceCheck, SetExpiry, SetOptions};
 
 const D: usize = 2;
 type C = PoseidonGoldilocksConfig;
+type OuterC = PoseidonBN128GoldilocksConfig;
 type F = GoldilocksField;
 
 pub async fn generate_withdrawal_proof_job(
@@ -67,8 +69,25 @@ pub async fn generate_withdrawal_wrapper_proof_job(
         .prove_wrap(&withdrawal_proof, withdrawal_aggregator)
         .with_context(|| "Failed to prove withdrawal")?;
 
+    let wrapper_circuit1 = WrapperCircuit::<F, C, C, D>::new(
+        &withdrawal_processor
+            .withdrawal_wrapper_circuit
+            .data
+            .verifier_data(),
+        None,
+    );
+    let wrapper_circuit2 =
+        WrapperCircuit::<F, C, OuterC, D>::new(&wrapper_circuit1.data.verifier_data(), None);
+
+    let wrapped_withdrawal_proof1 = wrapper_circuit1
+        .prove(&wrapped_withdrawal_proof)
+        .with_context(|| "Failed to prove withdrawal wrapper")?;
+    let wrapper_withdrawal_proof2 = wrapper_circuit2
+        .prove(&wrapped_withdrawal_proof1)
+        .with_context(|| "Failed to prove withdrawal wrapper")?;
+
     // NOTICE: Not compressing the proof here
-    let withdrawal_proof_json = serde_json::to_string(&wrapped_withdrawal_proof)
+    let withdrawal_proof_json = serde_json::to_string(&wrapper_withdrawal_proof2)
         .with_context(|| "Failed to encode wrapped withdrawal proof")?;
 
     let opts = SetOptions::default()

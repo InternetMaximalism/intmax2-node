@@ -10,7 +10,6 @@ use crate::{
     proof::generate_withdrawal_proof_job,
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
-use intmax2_zkp::utils::recursively_verifiable::RecursivelyVerifiable;
 
 #[get("/proof/withdrawal/{id}")]
 async fn get_proof(
@@ -137,7 +136,7 @@ async fn generate_proof(
     println!("start withdrawal_witness");
     let single_withdrawal_proof = decode_plonky2_proof(
         &req.single_withdrawal_proof,
-        &single_withdrawal_circuit.circuit_data().verifier_data(),
+        &single_withdrawal_circuit.data.verifier_data(),
     )
     .map_err(error::ErrorBadRequest)?;
     println!("end withdrawal_witness");
