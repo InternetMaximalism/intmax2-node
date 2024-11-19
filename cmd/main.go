@@ -4,17 +4,14 @@ import (
 	"context"
 	"intmax2-node/cmd/balance_checker"
 	"intmax2-node/cmd/block_builder"
-	"intmax2-node/cmd/deposit"
 	"intmax2-node/cmd/ethereum_private_key_wallet"
 	"intmax2-node/cmd/generate_account"
 	"intmax2-node/cmd/intmax_private_key_wallet"
-	"intmax2-node/cmd/messenger"
 	"intmax2-node/cmd/migrator"
 	"intmax2-node/cmd/mnemonic_account"
 	"intmax2-node/cmd/server"
 	"intmax2-node/cmd/store_vault_server"
 	"intmax2-node/cmd/transaction"
-	"intmax2-node/cmd/withdrawal"
 	"intmax2-node/cmd/withdrawal_server"
 	"intmax2-node/configs"
 	"intmax2-node/internal/block_builder_registry_service"
@@ -112,20 +109,6 @@ func main() {
 			GPOStorage:          storeGPO,
 		}),
 		migrator.NewMigratorCmd(ctx, log, dbApp),
-		deposit.NewDepositCmd(&deposit.Deposit{
-			Context: ctx,
-			Config:  cfg,
-			Log:     log,
-			DbApp:   dbApp,
-			SB:      bc,
-		}),
-		withdrawal.NewWithdrawCmd(&withdrawal.Withdrawal{
-			Context: ctx,
-			Config:  cfg,
-			Log:     log,
-			DbApp:   dbApp,
-			SB:      bc,
-		}),
 		withdrawal_server.NewServerCmd(&withdrawal_server.WithdrawalServer{
 			Context: ctx,
 			Cancel:  cancel,
@@ -162,13 +145,6 @@ func main() {
 			SB:      bc,
 		}),
 		block_builder.NewCmd(ctx, log, bc, bbr),
-		messenger.NewMessengerCmd(&messenger.Messenger{
-			Context: ctx,
-			Config:  cfg,
-			Log:     log,
-			DbApp:   dbApp,
-			SB:      bc,
-		}),
 	)
 	if err != nil {
 		const msg = "cli: %v"

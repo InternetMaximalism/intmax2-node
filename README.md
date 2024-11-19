@@ -58,18 +58,15 @@ Available Commands:
   balance                     Manage balance
   block_builder               Manage block builder
   completion                  Generate the autocompletion script for the specified shell
-  deposit                     Manage deposit
   ethereum_private_key_wallet Generate Ethereum and IntMax wallets from Ethereum private key
   generate_account            Generate new Ethereum and IntMax accounts
   help                        Help about any command
   intmax_private_key_wallet   Generate IntMax wallet from IntMax private key
-  messenger                   Manage messenger
   migrate                     Execute migration
   mnemonic_account            Generate Ethereum and IntMax accounts from mnemonic
   run                         run command
   store-vault-server          run store valut server command
   tx                          Manage transaction
-  withdrawal                  Manage withdrawal
   withdrawal-server           run withdrawal server command
 
 Flags:
@@ -197,34 +194,6 @@ Usage:
 Flags:
   -h, --help   help for unstake
 ```
-### Command `./intmax2-node deposit --help`
-```
-# ./intmax2-node deposit --help
-Manage deposit
-
-Usage:
-  app deposit [command]
-
-Available Commands:
-  analyzer    Run deposit analyzer service
-  relayer     Run deposit relayer service
-
-Flags:
-  -h, --help   help for deposit
-
-Use "app deposit [command] --help" for more information about a command.
-```
-### Command `./intmax2-node deposit analyzer --help`
-```
-# ./intmax2-node deposit analyzer --help
-Run deposit analyzer service
-
-Usage:
-  app deposit analyzer [flags]
-
-Flags:
-  -h, --help   help for analyzer
-```
 ### Command `./intmax2-node store-valut-server run --help`
 ```
 # ./intmax2-node store-valut-server run --help
@@ -246,39 +215,6 @@ Usage:
 
 Flags:
   -h, --help help for server
-```
-### Command `./intmax2-node withdrawal aggregator --help`
-```
-# ./intmax2-node withdrawal aggregator --help
-Run withdrawal aggregator service
-
-Usage:
-  app withdrawal aggregator [flags]
-
-Flags:
-  -h, --help help for aggregator
-```
-### Command `./intmax2-node messenger withdrawal-relayer --help`
-```
-# ./intmax2-node withdrawal withdrawal-relayer --help
-Run messenger withdrawal-relayer service
-
-Usage:
-  app messenger withdrawal-relayer [flags]
-
-Flags:
-  -h, --help help for withdrawal-relayer
-```
-### Command `./intmax2-node messenger withdrawal-relayer-mock --help`
-```
-# ./intmax2-node withdrawal withdrawal-relayer-mock --help
-Run messenger withdrawal-relayer-mock service
-
-Usage:
-  app messenger withdrawal-relayer-mock [flags]
-
-Flags:
-  -h, --help help for withdrawal-relayer-mock
 ```
 ### Command `./intmax2-node balance get --help`
 ```
