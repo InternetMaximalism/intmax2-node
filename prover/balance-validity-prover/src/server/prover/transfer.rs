@@ -10,12 +10,9 @@ use crate::{
     proof::generate_balance_transfer_proof_job,
 };
 use actix_web::{error, get, post, web, HttpRequest, HttpResponse, Responder, Result};
-use intmax2_zkp::{
-    circuits::balance::balance_pis::BalancePublicInputs,
-    ethereum_types::{u256::U256, u32limb_trait::U32LimbTrait},
-};
+use intmax2_zkp::ethereum_types::{u256::U256, u32limb_trait::U32LimbTrait};
 
-#[get("/proof/{public_key}/transfer/{private_commitment}")]
+#[get("/proof/{public_key}/transfer/{request_id}")]
 async fn get_proof(
     query_params: web::Path<(String, String)>,
     redis: web::Data<redis::Client>,
@@ -26,18 +23,31 @@ async fn get_proof(
         .map_err(actix_web::error::ErrorInternalServerError)?;
 
     let public_key = U256::from_hex(&query_params.0).expect("failed to parse public key");
-
-    let private_commitment = &query_params.1;
+    let request_id = &query_params.1;
     let proof = redis::Cmd::get(&get_balance_transfer_request_id(
         &public_key.to_hex(),
-        &private_commitment,
+        request_id,
     ))
     .query_async::<_, Option<String>>(&mut conn)
     .await
     .map_err(error::ErrorInternalServerError)?;
 
+    if proof.is_none() {
+        let response = ProofResponse {
+            success: false,
+            request_id: request_id.clone(),
+            proof: None,
+            error_message: Some(format!(
+                "balance proof is not generated (private_commitment: {request_id})",
+            )),
+        };
+
+        return Ok(HttpResponse::Ok().json(response));
+    }
+
     let response = ProofResponse {
         success: true,
+        request_id: request_id.clone(),
         proof,
         error_message: None,
     };
@@ -60,28 +70,27 @@ async fn get_proofs(
 
     let query_string = req.query_string();
     let ids_query = serde_qs::from_str::<TransferIdQuery>(query_string);
-    let private_commitments: Vec<String>;
 
-    match ids_query {
-        Ok(query) => {
-            private_commitments = query.private_commitments;
-        }
+    let request_ids: Vec<String> = match ids_query {
+        Ok(query) => query.request_ids,
         Err(e) => {
             log::warn!("Failed to deserialize query: {:?}", e);
             return Ok(HttpResponse::BadRequest().body("Invalid query parameters"));
         }
-    }
+    };
 
     let mut proofs: Vec<ProofTransferValue> = Vec::new();
-    for private_commitment in &private_commitments {
-        let request_id = get_balance_transfer_request_id(&public_key.to_hex(), private_commitment);
-        let some_proof = redis::Cmd::get(&request_id)
-            .query_async::<_, Option<String>>(&mut conn)
-            .await
-            .map_err(actix_web::error::ErrorInternalServerError)?;
+    for request_id in &request_ids {
+        let some_proof = redis::Cmd::get(&get_balance_transfer_request_id(
+            &public_key.to_hex(),
+            request_id,
+        ))
+        .query_async::<_, Option<String>>(&mut conn)
+        .await
+        .map_err(actix_web::error::ErrorInternalServerError)?;
         if let Some(proof) = some_proof {
             proofs.push(ProofTransferValue {
-                private_commitment: (*private_commitment).to_string(),
+                request_id: (*request_id).to_string(),
                 proof,
             });
         }
@@ -123,24 +132,24 @@ async fn generate_proof(
         .decode(&balance_circuit_data)
         .map_err(error::ErrorInternalServerError)?;
     balance_circuit_data
-        .verify(receive_transfer_witness.balance_proof.clone())
+        .verify(receive_transfer_witness.sender_balance_proof.clone())
         .map_err(error::ErrorInternalServerError)?;
-    let balance_public_inputs =
-        BalancePublicInputs::from_pis(&receive_transfer_witness.balance_proof.public_inputs);
+    // let balance_public_inputs =
+    //     BalancePublicInputs::from_pis(&receive_transfer_witness.balance_proof.public_inputs);
 
-    // let block_hash = balance_public_inputs.public_state.block_hash;
-    let private_commitment = balance_public_inputs.private_commitment;
-    let request_id =
-        get_balance_transfer_request_id(&public_key.to_hex(), &private_commitment.to_string());
-    log::debug!("request ID: {:?}", request_id);
-    let old_proof = redis::Cmd::get(&request_id)
+    // let request_id = balance_public_inputs.private_commitment.to_string();
+    let request_id = req.request_id.clone();
+    let full_request_id = get_balance_transfer_request_id(&public_key.to_hex(), &request_id);
+    log::debug!("request ID: {:?}", full_request_id);
+    let old_proof = redis::Cmd::get(&full_request_id)
         .query_async::<_, Option<String>>(&mut redis_conn)
         .await
         .map_err(actix_web::error::ErrorInternalServerError)?;
-    if old_proof.is_some() {
+    if let Some(old_proof) = old_proof {
         let response = ProofResponse {
             success: true,
-            proof: None,
+            request_id,
+            proof: Some(old_proof),
             error_message: Some("balance proof already requested".to_string()),
         };
 
@@ -163,10 +172,20 @@ async fn generate_proof(
 
     // TODO: Validation check of balance_witness
 
+    let response = ProofResponse {
+        success: true,
+        request_id: request_id.clone(),
+        proof: None,
+        error_message: Some(format!(
+            "balance proof (request ID: {}) is generating",
+            request_id
+        )),
+    };
+
     // Spawn a new task to generate the proof
     actix_web::rt::spawn(async move {
         let response = generate_balance_transfer_proof_job(
-            request_id,
+            full_request_id,
             public_key,
             prev_balance_proof,
             &receive_transfer_witness,
@@ -180,7 +199,7 @@ async fn generate_proof(
 
         match response {
             Ok(v) => {
-                log::info!("Proof generation completed");
+                log::info!("Proof generation completed (request ID: {request_id})");
                 Ok(v)
             }
             Err(e) => {
@@ -189,15 +208,6 @@ async fn generate_proof(
             }
         }
     });
-
-    let response = ProofResponse {
-        success: true,
-        proof: None,
-        error_message: Some(format!(
-            "balance proof (private_commitment: {}) is generating",
-            private_commitment
-        )),
-    };
 
     Ok(HttpResponse::Ok().json(response))
 }

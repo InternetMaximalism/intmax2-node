@@ -1,4 +1,5 @@
-use intmax2_zkp::common::witness::validity_witness::CompressedValidityWitness;
+use intmax2_zkp::common::witness::compressed::compressed_validity_witness::CompressedValidityWitness;
+use intmax2_zkp::common::witness::validity_witness::ValidityWitness;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -9,13 +10,6 @@ pub struct HealthCheckResponse {
     pub uptime: f64,
 }
 
-#[derive(Debug, Serialize)]
-pub struct ErrorResponse {
-    pub success: bool,
-    pub code: u16,
-    pub message: String,
-}
-
 #[derive(Debug, Deserialize)]
 pub struct ProofRequest {
     #[serde(rename = "blockHash")]
@@ -23,7 +17,9 @@ pub struct ProofRequest {
     #[serde(rename = "prevValidityProof")]
     pub prev_validity_proof: Option<String>,
     #[serde(rename = "validityWitness")]
-    pub validity_witness: CompressedValidityWitness,
+    pub validity_witness: Option<CompressedValidityWitness>,
+    #[serde(rename = "plainValidityWitness")]
+    pub plain_validity_witness: Option<ValidityWitness>,
 }
 
 #[derive(Debug, Deserialize)]

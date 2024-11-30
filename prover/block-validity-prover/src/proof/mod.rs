@@ -22,17 +22,16 @@ pub async fn generate_block_validity_proof_job(
     validity_processor: &ValidityProcessor<F, C, D>,
     conn: &mut redis::aio::Connection,
 ) -> anyhow::Result<()> {
-    let validity_circuit_data = validity_processor
-        .validity_circuit
-        .data
-        .verifier_data();
+    let validity_circuit_data = validity_processor.validity_circuit.data.verifier_data();
 
     log::info!("Proving...");
     let validity_proof = validity_processor
         .prove(&prev_validity_proof, &validity_witness)
         .with_context(|| "Failed to prove block validity")?;
 
-    let encoded_compressed_validity_proof = encode_plonky2_proof(validity_proof, &validity_circuit_data);
+    let encoded_compressed_validity_proof =
+        encode_plonky2_proof(validity_proof, &validity_circuit_data)
+            .map_err(|e| anyhow::anyhow!("Failed to encode validity proof: {:?}", e))?;
 
     let opts = SetOptions::default()
         .conditional_set(ExistenceCheck::NX)

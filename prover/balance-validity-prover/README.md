@@ -28,61 +28,85 @@ curl $BALANCE_VALIDITY_PROVER_URL/health | jq
 
 ```sh
 # generate proof
-curl -X POST -d '{ "balanceUpdateWitness":'$(cat data/balance_update_witness_0xb0f9cbdf7b1f89cad6d6657520505a117ac69b834d502ca9b1ecfb3f1bfa5556.json)', "prevBalanceProof":null }' -H "Content-Type: application/json" $BALANCE_VALIDITY_PROVER_URL/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/update | jq
+curl -X POST -d '{ "requestId": "1", "balanceUpdateWitness":'$(cat data/update/single_update_witness_0x144b36dd812a1bbd4845c0e2bb7849fc9b398a957af375ccbcd9793b3d593985.json)', "prevBalanceProof":null }' -H "Content-Type: application/json" $BALANCE_VALIDITY_PROVER_URL/proof/0x144b36dd812a1bbd4845c0e2bb7849fc9b398a957af375ccbcd9793b3d593985/update | jq
 
-# generate proof
-curl -X POST -d '{ "balanceUpdateWitness":'$(cat data/balance_update_witness_0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.json)', "prevBalanceProof":"'$(base64 --input data/prev_balance_update_proof_0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.bin)'" }' -H "Content-Type: application/json" $BALANCE_VALIDITY_PROVER_URL/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/update | jq
+# generate proof (invalid)
+curl -X POST -d '{ "requestId": "2", "balanceUpdateWitness":'$(cat data/update/update_witness_0x2257f6e44e3348c608f370172706c0f9ac8c60fa7754f77b1591d76b273b4a5d.json)', "prevBalanceProof":"'$(base64 --input data/update/balance_proof_send_from_spent_0x2257f6e44e3348c608f370172706c0f9ac8c60fa7754f77b1591d76b273b4a5d.bin)'" }' -H "Content-Type: application/json" $BALANCE_VALIDITY_PROVER_URL/proof/0x2257f6e44e3348c608f370172706c0f9ac8c60fa7754f77b1591d76b273b4a5d/update | jq
 
-# generate proof (XXX: invalid)
-curl -X POST -d '{ "balanceUpdateWitness":'$(cat data/balance_update_witness_0x2fc9d0cc9b9a135ea38a2fa0260406dcd4d9e65678c102d7c439e2a50401d217.json)', "prevBalanceProof":"'$(base64 --input data/prev_balance_update_proof_0x2fc9d0cc9b9a135ea38a2fa0260406dcd4d9e65678c102d7c439e2a50401d217.bin)'" }' -H "Content-Type: application/json" $BALANCE_VALIDITY_PROVER_URL/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/update | jq
+# get the proof for public key 0x1d34947cdc0bbe768b1aa157ed75dc608b05012808e511840ee438e0e90d07f4 and ID 1.
+curl $BALANCE_VALIDITY_PROVER_URL/proof/0x144b36dd812a1bbd4845c0e2bb7849fc9b398a957af375ccbcd9793b3d593985/update/1 | jq
 
-# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and block hash 0xb0f9cbdf7b1f89cad6d6657520505a117ac69b834d502ca9b1ecfb3f1bfa5556.
-curl $BALANCE_VALIDITY_PROVER_URL/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/update/0xb0f9cbdf7b1f89cad6d6657520505a117ac69b834d502ca9b1ecfb3f1bfa5556 | jq
-
-# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and block hash 0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c or 0xb0f9cbdf7b1f89cad6d6657520505a117ac69b834d502ca9b1ecfb3f1bfa5556.
-curl "$BALANCE_VALIDITY_PROVER_URL/proofs/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/update?blockHashes[]=0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c&blockHashes[]=0xb0f9cbdf7b1f89cad6d6657520505a117ac69b834d502ca9b1ecfb3f1bfa5556" | jq
+# get the proof for public key 0x1ed9bc61cf8840c7e4a3fa12b330212ab3ab96eef6c07ead0a92c20ac5ed6242 and ID 1, 2.
+curl "$BALANCE_VALIDITY_PROVER_URL/proofs/0x2257f6e44e3348c608f370172706c0f9ac8c60fa7754f77b1591d76b273b4a5d/update?requestIds[]=1&requestIds[]=2" | jq
 ```
 
 ### Receive Deposit
 
 ```sh
 # generate proof
-curl -X POST -d '{ "receiveDepositWitness":'$(cat data/receive_deposit_witness_0.json)', "prevBalanceProof":"'$(base64 --input data/prev_receive_deposit_proof_0.bin)'" }' -H "Content-Type: application/json" $BALANCE_VALIDITY_PROVER_URL/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/deposit | jq
+curl -X POST -d '{ "requestId": "4", "receiveDepositWitness":'$(cat data/deposit/receive_deposit_witness_0x144b36dd812a1bbd4845c0e2bb7849fc9b398a957af375ccbcd9793b3d593985.json)', "prevBalanceProof":"'$(base64 --input data/deposit/balance_proof_receive_deposit_0x144b36dd812a1bbd4845c0e2bb7849fc9b398a957af375ccbcd9793b3d593985.bin)'" }' -H "Content-Type: application/json" $BALANCE_VALIDITY_PROVER_URL/proof/0x144b36dd812a1bbd4845c0e2bb7849fc9b398a957af375ccbcd9793b3d593985/deposit | jq
 
-# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and deposit index 0
-curl $BALANCE_VALIDITY_PROVER_URL/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/deposit/0 | jq
+# get the proof for public key 0x144b36dd812a1bbd4845c0e2bb7849fc9b398a957af375ccbcd9793b3d593985 and deposit index 4
+curl $BALANCE_VALIDITY_PROVER_URL/proof/0x144b36dd812a1bbd4845c0e2bb7849fc9b398a957af375ccbcd9793b3d593985/deposit/4 | jq
 
-# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and deposit index 0 or 1.
-curl "$BALANCE_VALIDITY_PROVER_URL/proofs/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/deposit?depositIndices[]=0&depositIndices[]=1" | jq
+# get the proof for public key 0x144b36dd812a1bbd4845c0e2bb7849fc9b398a957af375ccbcd9793b3d593985 and deposit index 4 or 5.
+curl "$BALANCE_VALIDITY_PROVER_URL/proofs/0x144b36dd812a1bbd4845c0e2bb7849fc9b398a957af375ccbcd9793b3d593985/deposit?requestIds[]=4&depositIndices[]=5" | jq
+```
+
+# Spent Transaction
+
+```sh
+# generate proof
+curl -X POST -d '{ "requestId": "5", "spentWitness": '$(cat data/spend/spent_witness_0x23af9421582f7f19a52001f5c4f548da245dccd23da780c8b6f14bd285df1941.json)' }' -H "Content-Type: application/json" $BALANCE_VALIDITY_PROVER_URL/proof/spend | jq
+
+# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and ID 5.
+curl $BALANCE_VALIDITY_PROVER_URL/proof/0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c/withdrawal/5 | jq
+
+# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and ID 5, 6.
+curl "$BALANCE_VALIDITY_PROVER_URL/proofs/0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c/withdrawal?requestIds[]=5&requestIds[]=6" | jq
 ```
 
 # Send Transaction
 
 ```sh
 # generate proof
-curl -X POST -d '{ "sendWitness":'$(cat data/send_witness_0x2fc9d0cc9b9a135ea38a2fa0260406dcd4d9e65678c102d7c439e2a50401d217.json)', "balanceUpdateWitness":'$(cat data/balance_update_for_send_witness_0x2fc9d0cc9b9a135ea38a2fa0260406dcd4d9e65678c102d7c439e2a50401d217.json)', "prevBalanceProof":"'$(base64 --input data/prev_balance_update_for_send_proof_0x2fc9d0cc9b9a135ea38a2fa0260406dcd4d9e65678c102d7c439e2a50401d217.bin)'" }' -H "Content-Type: application/json" $BALANCE_VALIDITY_PROVER_URL/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/send | jq
+curl -X POST -d '{ "requestId": "7", "txWitness": '$(cat data/send/tx_witness_0x2138b44f80a90601cbf10bce3e3e5fba760ee57153bff8dd546a299dff652fed.json)', "balanceUpdateWitness": '$(cat data/send/update_witness_0x2138b44f80a90601cbf10bce3e3e5fba760ee57153bff8dd546a299dff652fed.json)', "prevBalanceProof": "'$(base64 --input data/send/balance_proof_send_from_spent_0x2138b44f80a90601cbf10bce3e3e5fba760ee57153bff8dd546a299dff652fed.bin)'", "spentProof": "'$(base64 --input data/send/spent_proof_0x2138b44f80a90601cbf10bce3e3e5fba760ee57153bff8dd546a299dff652fed.bin)'" }' -H "Content-Type: application/json" $BALANCE_VALIDITY_PROVER_URL/proof/0x2138b44f80a90601cbf10bce3e3e5fba760ee57153bff8dd546a299dff652fed/send | jq
 
-# generate proof
-curl -X POST -d '{ "sendWitness":'$(cat data/send_witness_0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.json)', "balanceUpdateWitness":'$(cat data/balance_update_for_send_witness_0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.json)', "prevBalanceProof":"'$(base64 --input data/prev_balance_update_for_send_proof_0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.bin)'" }' -H "Content-Type: application/json" $BALANCE_VALIDITY_PROVER_URL/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/send | jq
+# get the proof for public key 0x2138b44f80a90601cbf10bce3e3e5fba760ee57153bff8dd546a299dff652fed and ID 7.
+curl $BALANCE_VALIDITY_PROVER_URL/proof/0x2138b44f80a90601cbf10bce3e3e5fba760ee57153bff8dd546a299dff652fed/send/7 | jq
 
-# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and block hash 0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.
-curl $BALANCE_VALIDITY_PROVER_URL/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/send/0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c | jq
-
-# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and block hash 0x2fc9d0cc9b9a135ea38a2fa0260406dcd4d9e65678c102d7c439e2a50401d217 or 0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c.
-curl "$BALANCE_VALIDITY_PROVER_URL/proofs/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/send?blockHashes[]=0x2fc9d0cc9b9a135ea38a2fa0260406dcd4d9e65678c102d7c439e2a50401d217&blockHashes[]=0xb183d250d266cb05408a4c37d7b3bb20474a439336ac09a892cc29e08f2eba8c" | jq
+# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and ID 7 or 8.
+curl "$BALANCE_VALIDITY_PROVER_URL/proofs/0x2138b44f80a90601cbf10bce3e3e5fba760ee57153bff8dd546a299dff652fed/send?requestIds[]=7&requestIds[]=8" | jq
 ```
 
 ### Receive Transfer (Synchronize Block)
 
 ```sh
 # generate proof
-curl -X POST -d '{ "receiveTransferWitness":'$(cat data/receive_transfer_witness_0x7a00b7dbf1994ff9fb05a5897b7dc459dd9167ee7a4ad049b9850cbaf286bbee.json)', "prevBalanceProof":"'$(base64 --input data/prev_receive_transfer_proof_0x7a00b7dbf1994ff9fb05a5897b7dc459dd9167ee7a4ad049b9850cbaf286bbee.bin)'" }' -H "Content-Type: application/json" $BALANCE_VALIDITY_PROVER_URL/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/transfer | jq
+curl -X POST -d '{ "requestId": "9", "receiveTransferWitness":'$(cat data/transfer/receive_transfer_witness_0x238fd205205a0aee2d499f6bd7c3d97b875669ea9e06cb46a1ccf6513455f480.json)', "prevBalanceProof":"'$(base64 --input data/transfer/prev_balance_proof_receive_transfer_0x238fd205205a0aee2d499f6bd7c3d97b875669ea9e06cb46a1ccf6513455f480.bin)'" }' -H "Content-Type: application/json" $BALANCE_VALIDITY_PROVER_URL/proof/0x238fd205205a0aee2d499f6bd7c3d97b875669ea9e06cb46a1ccf6513455f480/transfer | jq
 
-# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and block hash 0x7a00b7dbf1994ff9fb05a5897b7dc459dd9167ee7a4ad049b9850cbaf286bbee.
-curl $BALANCE_VALIDITY_PROVER_URL/proof/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/transfer/0x7a00b7dbf1994ff9fb05a5897b7dc459dd9167ee7a4ad049b9850cbaf286bbee | jq
+# get the proof for public key 0x238fd205205a0aee2d499f6bd7c3d97b875669ea9e06cb46a1ccf6513455f480 and ID 9.
+curl $BALANCE_VALIDITY_PROVER_URL/proof/0x238fd205205a0aee2d499f6bd7c3d97b875669ea9e06cb46a1ccf6513455f480/transfer/9 | jq
 
-# get the proof for public key 0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37 and block hash 0x7a00b7dbf1994ff9fb05a5897b7dc459dd9167ee7a4ad049b9850cbaf286bbee or 0xc9be81313526e0b29fe953f9b4feba4b05e2446d55fac9da92bda944c799333b.
-curl "$BALANCE_VALIDITY_PROVER_URL/proofs/0x17600a0095835a6637a9532fd68d19b5b2e9c5907de541617a95c198b8fe7c37/transfer?privateCommitments[]=0x7a00b7dbf1994ff9fb05a5897b7dc459dd9167ee7a4ad049b9850cbaf286bbee&privateCommitments[]=0xc9be81313526e0b29fe953f9b4feba4b05e2446d55fac9da92bda944c799333b" | jq
+# get the proof for public key 0x238fd205205a0aee2d499f6bd7c3d97b875669ea9e06cb46a1ccf6513455f480 and ID 9, 10.
+curl "$BALANCE_VALIDITY_PROVER_URL/proofs/0x238fd205205a0aee2d499f6bd7c3d97b875669ea9e06cb46a1ccf6513455f480/transfer?requestIds[]=9&requestIds[]=10" | jq
+```
+
+# Withdrawal Transaction
+
+```sh
+# generate proof
+curl -X POST -d '{ "requestId": "10", "transferWitness":'$(cat data/withdrawal/withdrawal_witness_0x2138b44f80a90601cbf10bce3e3e5fba760ee57153bff8dd546a299dff652fed.json)', "balanceProof":"'$(base64 --input data/withdrawal/balance_proof_withdrawal_0x2138b44f80a90601cbf10bce3e3e5fba760ee57153bff8dd546a299dff652fed.bin)'" }' -H "Content-Type: application/json" $BALANCE_VALIDITY_PROVER_URL/proof/withdrawal | jq
+
+curl $BALANCE_VALIDITY_PROVER_URL/proof/withdrawal/10 | jq
+
+curl "$BALANCE_VALIDITY_PROVER_URL/proofs/withdrawal?requestIds[]=10&requestIds[]=11" | jq
+```
+
+# Verify Spent Proof
+
+```sh
+curl -X POST -d '{ "proof": '$(cat data/spend/spent_proof.txt)' }' -H "Content-Type: application/json" $BALANCE_VALIDITY_PROVER_URL/verify/spend
 ```
 
 ## Docker
