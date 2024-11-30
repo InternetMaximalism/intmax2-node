@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use super::encode::SerializableWithdrawalWitness;
-
 #[derive(Serialize)]
 pub struct HealthCheckResponse {
     pub message: String,
@@ -9,19 +7,20 @@ pub struct HealthCheckResponse {
     pub uptime: f64,
 }
 
-#[derive(Serialize)]
-pub struct ErrorResponse {
-    pub success: bool,
-    pub code: u16,
-    pub message: String,
-}
+// #[derive(Clone, Debug, Deserialize)]
+// #[serde(rename_all = "camelCase")]
+// pub struct WithdrawalProofRequest {
+//     pub id: String,
+//     pub prev_withdrawal_proof: Option<String>,
+//     pub withdrawal_witness: SerializableWithdrawalWitness,
+// }
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WithdrawalProofRequest {
     pub id: String,
     pub prev_withdrawal_proof: Option<String>,
-    pub withdrawal_witness: SerializableWithdrawalWitness,
+    pub single_withdrawal_proof: String,
 }
 
 #[derive(Deserialize)]
@@ -42,7 +41,8 @@ pub struct WithdrawalWrapperIdQuery {
     pub ids: Vec<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProofResponse {
     pub success: bool,
     pub proof: Option<String>,

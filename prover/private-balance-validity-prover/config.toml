@@ -1,0 +1,2 @@
+hostname = 'localhost'
+proof_expiration = 600

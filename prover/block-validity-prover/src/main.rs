@@ -18,7 +18,7 @@ pub mod server;
 async fn main() -> Result<(), std::io::Error> {
     let hostname: String = app::config::get("hostname");
 
-    let log_level =  env::var("RUST_LOG").unwrap_or("info".to_string());
+    let log_level = env::var("RUST_LOG").unwrap_or("info".to_string());
     std::env::set_var("RUST_LOG", log_level);
     env_logger::init();
 
@@ -47,7 +47,7 @@ async fn main() -> Result<(), std::io::Error> {
             .app_data(PathConfig::default().error_handler(handle_error))
             .app_data(QueryConfig::default().error_handler(handle_error))
             .app_data(JsonConfig::default().error_handler(handle_error))
-            .app_data(web::JsonConfig::default().limit(1_000_000)) // 1MB
+            .app_data(web::JsonConfig::default().limit(2_000_000)) // 2MB
             .configure(app::route::setup_routes)
             .wrap(middleware::Logger::default())
     })

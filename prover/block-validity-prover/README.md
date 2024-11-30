@@ -23,13 +23,13 @@ BLOCK_VALIDITY_PROVER_URL="http://localhost:8080"
 curl $BLOCK_VALIDITY_PROVER_URL/health | jq
 
 # generate proof
-curl -X POST -d '{"blockHash":"0x01", "validityWitness":'$(cat data/validity_witness_1.json)', "prevValidityProof":null }' -H "Content-Type: application/json" $BLOCK_VALIDITY_PROVER_URL/proof | jq
+curl -X POST -d '{"blockHash":"0x01", "plainValidityWitness":'$(cat data/validity_witness_1.json)', "prevValidityProof":null }' -H "Content-Type: application/json" $BLOCK_VALIDITY_PROVER_URL/proof | jq
 
 # generate proof
-curl -X POST -d '{"blockHash":"0x02", "validityWitness":'$(cat data/validity_witness_2.json)', "prevValidityProof":"'$(base64 --input data/prev_validity_proof_2.bin)'" }' -H "Content-Type: application/json" $BLOCK_VALIDITY_PROVER_URL/proof | jq
+curl -X POST -d @data/validity_prover_inputs_2.txt -H "Content-Type: application/json" $BLOCK_VALIDITY_PROVER_URL/proof | jq
 
 # generate proof
-curl -X POST -d '{"blockHash":"0x03", "validityWitness":'$(cat data/validity_witness_3.json)', "prevValidityProof":"'$(base64 --input data/prev_validity_proof_3.bin)'" }' -H "Content-Type: application/json" $BLOCK_VALIDITY_PROVER_URL/proof | jq
+curl -X POST -d @data/validity_prover_inputs_3.txt -H "Content-Type: application/json" $BLOCK_VALIDITY_PROVER_URL/proof | jq
 
 # get proof
 curl $BLOCK_VALIDITY_PROVER_URL/proof/0x01 | jq
