@@ -109,11 +109,20 @@ func (ctx *CircuitData) StartProof(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jobId := _jobId.String()
-	var input types.ProofWithPublicInputsRaw
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+	var rawInput struct {
+		Proof string `json:"proof"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&rawInput); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	var input types.ProofWithPublicInputsRaw
+	if err := json.Unmarshal([]byte(rawInput.Proof), &input); err != nil {
+		http.Error(w, "Failed to parse proof JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	mu.Lock()
 	status[jobId] = ProofResponse{Success: true, Proof: nil}
 	mu.Unlock()
