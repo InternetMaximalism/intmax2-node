@@ -25,13 +25,14 @@ type ProveResult struct {
 	Proof        string   `json:"proof"`
 }
 
-type Status struct {
-	Status string      `json:"status"`
-	Result ProveResult `json:"result"`
+type ProofResponse struct {
+	Success      bool         `json:"success"`
+	Proof        *ProveResult `json:"proof"`
+	ErrorMessage *string      `json:"errorMessage"`
 }
 
 var (
-	status = make(map[string]Status)
+	status = make(map[string]ProofResponse)
 	mu     sync.Mutex
 )
 
@@ -63,23 +64,26 @@ func (ctx *CircuitData) prove(jobId string, proofRaw types.ProofWithPublicInputs
 	}
 	witness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
 	if err != nil {
+		errMsg := err.Error()
 		mu.Lock()
-		status[jobId] = Status{Status: "error", Result: ProveResult{}}
+		status[jobId] = ProofResponse{Success: false, Proof: nil, ErrorMessage: &errMsg}
 		mu.Unlock()
 		return err
 	}
 	proof, err := plonk_bn254.Prove(&ctx.Ccs, &ctx.Pk, witness)
 	if err != nil {
+		errMsg := err.Error()
 		mu.Lock()
-		status[jobId] = Status{Status: "error", Result: ProveResult{}}
+		status[jobId] = ProofResponse{Success: false, Proof: nil, ErrorMessage: &errMsg}
 		mu.Unlock()
 		return err
 	}
 	proofHex := hex.EncodeToString(proof.MarshalSolidity())
 	publicInputs, err := extractPublicInputs(witness)
 	if err != nil {
+		errMsg := err.Error()
 		mu.Lock()
-		status[jobId] = Status{Status: "error", Result: ProveResult{}}
+		status[jobId] = ProofResponse{Success: false, Proof: nil, ErrorMessage: &errMsg}
 		mu.Unlock()
 		return err
 	}
@@ -92,7 +96,7 @@ func (ctx *CircuitData) prove(jobId string, proofRaw types.ProofWithPublicInputs
 		Proof:        proofHex,
 	}
 	mu.Lock()
-	status[jobId] = Status{Result: response, Status: "done"}
+	status[jobId] = ProofResponse{Success: true, Proof: &response}
 	mu.Unlock()
 	fmt.Println("Prove done. jobId", jobId)
 	return nil
@@ -111,7 +115,7 @@ func (ctx *CircuitData) StartProof(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	mu.Lock()
-	status[jobId] = Status{Status: "in progress"}
+	status[jobId] = ProofResponse{Success: true, Proof: nil}
 	mu.Unlock()
 	go ctx.prove(jobId, input)
 	json.NewEncoder(w).Encode(map[string]string{"jobId": jobId})
