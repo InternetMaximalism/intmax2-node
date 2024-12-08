@@ -1,3 +1,4 @@
+use intmax2_zkp::common::withdrawal::Withdrawal;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize)]
@@ -41,6 +42,21 @@ pub struct WithdrawalWrapperIdQuery {
     pub ids: Vec<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProofContent {
+    pub proof: String, // public inputs included
+    pub withdrawal: Withdrawal,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WithdrawalProofResponse {
+    pub success: bool,
+    pub proof: Option<ProofContent>,
+    pub error_message: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProofResponse {
@@ -50,9 +66,22 @@ pub struct ProofResponse {
 }
 
 #[derive(Serialize)]
+pub struct WithdrawalProofValue {
+    pub id: String,
+    pub proof: ProofContent,
+}
+
+#[derive(Serialize)]
 pub struct ProofValue {
     pub id: String,
     pub proof: String,
+}
+
+#[derive(Serialize)]
+pub struct WithdrawalProofsResponse {
+    pub success: bool,
+    pub proofs: Vec<WithdrawalProofValue>,
+    pub error_message: Option<String>,
 }
 
 #[derive(Serialize)]

@@ -27,12 +27,62 @@ curl -X POST -d '{ "id": "1", "singleWithdrawalProof": "'$(base64 --input data/s
 
 # generate proof
 curl -X POST -d '{ "id": "2", "singleWithdrawalProof": "'$(base64 --input data/single_withdrawal_proof.bin)'", "prevWithdrawalProof": '$(cat data/prev_withdrawal_proof.json)' }' -H "Content-Type: application/json" $WITHDRAWAL_PROVER_URL/proof/withdrawal | jq
+```
 
-# get proof
-curl $WITHDRAWAL_PROVER_URL/proof/withdrawal/1 | jq .data.proof
+#### get proof
 
-# get proofs
+```
+curl $WITHDRAWAL_PROVER_URL/proof/withdrawal/1 | jq
+```
+
+Response
+
+```json
+{
+  "success": true,
+  "proof": {
+    "proof": "AAA=",
+    "withdrawal": {
+      "recipient": "0xec34f2c34a6ff1c4c739d0d420a64b639c00c399",
+      "tokenIndex": 0,
+      "amount": "10",
+      "nullifier": "0x0df256a220ebc2e8289792fbed2658b213a72b2623868596a32514e01d94f999",
+      "blockHash": "0xc5ee7e8ea7b4934a38cd2e81b4a04b48719b9a7f7af050319e36302ca3e2eea6",
+      "blockNumber": 3
+    }
+  },
+  errorMessage: null
+}
+```
+
+#### get proofs
+```
 curl "$WITHDRAWAL_PROVER_URL/proofs/withdrawal?ids[]=1&ids[]=2" | jq
+```
+
+Response
+
+```json
+{
+  "success": true,
+  "proofs": [
+    {
+      "id": "3",
+      "proof": {
+        "proof": "TAAA...AAA=",
+        "withdrawal": {
+          "recipient": "0xec34f2c34a6ff1c4c739d0d420a64b639c00c399",
+          "tokenIndex": 0,
+          "amount": "10",
+          "nullifier": "0x0df256a220ebc2e8289792fbed2658b213a72b2623868596a32514e01d94f999",
+          "blockHash": "0xc5ee7e8ea7b4934a38cd2e81b4a04b48719b9a7f7af050319e36302ca3e2eea6",
+          "blockNumber": 3
+        }
+      }
+    }
+  ],
+  "error_message": null
+}
 ```
 
 ### Withdrawal Wrapper
