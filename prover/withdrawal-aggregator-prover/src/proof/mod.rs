@@ -1,8 +1,10 @@
-use crate::app::{config, encode::encode_plonky2_proof};
+use crate::app::{config, encode::encode_plonky2_proof, interface::ProofContent};
 use anyhow::Context;
 use intmax2_zkp::{
     circuits::withdrawal::withdrawal_processor::WithdrawalProcessor,
-    ethereum_types::address::Address, utils::wrapper::WrapperCircuit,
+    common::withdrawal::Withdrawal,
+    ethereum_types::address::Address,
+    utils::{conversion::ToU64, wrapper::WrapperCircuit},
     wrapper_config::plonky2_config::PoseidonBN128GoldilocksConfig,
 };
 use plonky2::{
@@ -44,15 +46,19 @@ pub async fn generate_withdrawal_proof_job(
         .conditional_set(ExistenceCheck::NX)
         .get(true)
         .with_expiration(SetExpiry::EX(config::get("proof_expiration")));
+    let withdrawal =
+        Withdrawal::from_u64_slice(&single_withdrawal_proof.public_inputs.to_u64_vec());
+    let proof_content = ProofContent {
+        proof: encoded_compressed_withdrawal_proof.clone(),
+        withdrawal,
+    };
+    let proof_content_json = serde_json::to_string(&proof_content)
+        .with_context(|| "Failed to encode withdrawal proof")?;
 
-    let _ = redis::Cmd::set_options(
-        &request_id,
-        encoded_compressed_withdrawal_proof.clone(),
-        opts,
-    )
-    .query_async::<_, Option<String>>(conn)
-    .await
-    .with_context(|| "Failed to set proof")?;
+    let _ = redis::Cmd::set_options(&request_id, proof_content_json, opts)
+        .query_async::<_, Option<String>>(conn)
+        .await
+        .with_context(|| "Failed to set proof")?;
 
     Ok(())
 }

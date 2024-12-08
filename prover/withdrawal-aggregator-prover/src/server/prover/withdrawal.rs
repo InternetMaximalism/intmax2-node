@@ -2,8 +2,8 @@ use crate::{
     app::{
         encode::decode_plonky2_proof,
         interface::{
-            GenerateProofResponse, ProofResponse, ProofValue, ProofsResponse, WithdrawalIdQuery,
-            WithdrawalProofRequest,
+            GenerateProofResponse, ProofContent, WithdrawalIdQuery, WithdrawalProofRequest,
+            WithdrawalProofResponse, WithdrawalProofValue, WithdrawalProofsResponse,
         },
         state::AppState,
     },
@@ -22,14 +22,26 @@ async fn get_proof(
         .map_err(actix_web::error::ErrorInternalServerError)?;
 
     let request_id = get_withdrawal_request_id(&id);
-    let proof = redis::Cmd::get(&request_id)
+    let proof_with_withdrawal = redis::Cmd::get(&request_id)
         .query_async::<_, Option<String>>(&mut conn)
         .await
         .map_err(error::ErrorInternalServerError)?;
 
-    let response = ProofResponse {
+    if let Some(proof_content_json) = proof_with_withdrawal {
+        let proof_content: ProofContent =
+            serde_json::from_str(&proof_content_json).map_err(error::ErrorInternalServerError)?;
+        let response = WithdrawalProofResponse {
+            success: true,
+            proof: Some(proof_content),
+            error_message: None,
+        };
+
+        return Ok(HttpResponse::Ok().json(response));
+    }
+
+    let response = WithdrawalProofResponse {
         success: true,
-        proof,
+        proof: None,
         error_message: None,
     };
 
@@ -48,22 +60,24 @@ async fn get_proofs(req: HttpRequest, redis: web::Data<redis::Client>) -> Result
         .map_err(|e| error::ErrorBadRequest(format!("Failed to deserialize query: {e:?}")))?;
     let request_ids: Vec<String> = ids_query.ids;
 
-    let mut proofs: Vec<ProofValue> = Vec::new();
+    let mut proofs: Vec<WithdrawalProofValue> = Vec::new();
     for id in &request_ids {
         let request_id = get_withdrawal_request_id(&id);
         let some_proof = redis::Cmd::get(&request_id)
             .query_async::<_, Option<String>>(&mut conn)
             .await
             .map_err(error::ErrorInternalServerError)?;
-        if let Some(proof) = some_proof {
-            proofs.push(ProofValue {
+        if let Some(proof_content_json) = some_proof {
+            let proof_content: ProofContent = serde_json::from_str(&proof_content_json)
+                .map_err(error::ErrorInternalServerError)?;
+            proofs.push(WithdrawalProofValue {
                 id: (*id).to_string(),
-                proof,
+                proof: proof_content,
             });
         }
     }
 
-    let response = ProofsResponse {
+    let response = WithdrawalProofsResponse {
         success: true,
         proofs,
         error_message: None,
@@ -88,11 +102,12 @@ async fn generate_proof(
         .query_async::<_, Option<String>>(&mut redis_conn)
         .await
         .map_err(error::ErrorInternalServerError)?;
-    if old_proof.is_some() {
-        println!("old_proof is some");
-        let response = ProofResponse {
+    if let Some(proof_content_json) = old_proof {
+        let proof_content: ProofContent =
+            serde_json::from_str(&proof_content_json).map_err(error::ErrorInternalServerError)?;
+        let response = WithdrawalProofResponse {
             success: true,
-            proof: old_proof,
+            proof: Some(proof_content),
             error_message: Some("withdrawal proof already exists".to_string()),
         };
 
