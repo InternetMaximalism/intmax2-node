@@ -1,12 +1,13 @@
 package handlers
 
 import (
+	con "context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
 	"net/http"
-	"sync"
+	"time"
 
 	verifierCircuit "gnark-server/circuit"
 	"gnark-server/context"
@@ -18,6 +19,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/qope/gnark-plonky2-verifier/types"
 	"github.com/qope/gnark-plonky2-verifier/variables"
+	"github.com/redis/go-redis/v9"
 )
 
 type ProveResult struct {
@@ -31,12 +33,32 @@ type ProofResponse struct {
 	ErrorMessage *string      `json:"errorMessage"`
 }
 
-var (
-	status = make(map[string]ProofResponse)
-	mu     sync.Mutex
+type CircuitData struct {
+	context.CircuitData
+	RedisClient *redis.Client
+}
+
+const (
+	redisKeyPrefix = "gnark_proof_result:"
+	expiration     = 1 * time.Hour
 )
 
-type CircuitData context.CircuitData
+func getRedisKey(jobId string) string {
+	return fmt.Sprintf("%s%s", redisKeyPrefix, jobId)
+}
+
+func (ctx *CircuitData) storeProofResponse(jobId string, response ProofResponse) error {
+	jsonData, err := json.Marshal(response)
+	if err != nil {
+		return fmt.Errorf("failed to marshal proof response: %v", err)
+	}
+
+	err = ctx.RedisClient.Set(con.Background(), getRedisKey(jobId), string(jsonData), expiration).Err()
+	if err != nil {
+		return fmt.Errorf("failed to store in redis: %v", err)
+	}
+	return nil
+}
 
 func extractPublicInputs(witness witness.Witness) ([]*big.Int, error) {
 	public, err := witness.Public()
@@ -65,39 +87,57 @@ func (ctx *CircuitData) prove(jobId string, proofRaw types.ProofWithPublicInputs
 	witness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
 	if err != nil {
 		errMsg := err.Error()
-		mu.Lock()
-		status[jobId] = ProofResponse{Success: false, Proof: nil, ErrorMessage: &errMsg}
-		mu.Unlock()
+		response := ProofResponse{
+			Success:      false,
+			Proof:        nil,
+			ErrorMessage: &errMsg,
+		}
+		if storeErr := ctx.storeProofResponse(jobId, response); storeErr != nil {
+			return fmt.Errorf("failed to store error response: %v", storeErr)
+		}
 		return err
 	}
 	proof, err := plonk_bn254.Prove(&ctx.Ccs, &ctx.Pk, witness)
 	if err != nil {
 		errMsg := err.Error()
-		mu.Lock()
-		status[jobId] = ProofResponse{Success: false, Proof: nil, ErrorMessage: &errMsg}
-		mu.Unlock()
-		return err
+		response := ProofResponse{
+			Success:      false,
+			Proof:        nil,
+			ErrorMessage: &errMsg,
+		}
+		if storeErr := ctx.storeProofResponse(jobId, response); storeErr != nil {
+			return fmt.Errorf("failed to store error response: %v", storeErr)
+		}
 	}
 	proofHex := hex.EncodeToString(proof.MarshalSolidity())
 	publicInputs, err := extractPublicInputs(witness)
 	if err != nil {
 		errMsg := err.Error()
-		mu.Lock()
-		status[jobId] = ProofResponse{Success: false, Proof: nil, ErrorMessage: &errMsg}
-		mu.Unlock()
-		return err
+		response := ProofResponse{
+			Success:      false,
+			Proof:        nil,
+			ErrorMessage: &errMsg,
+		}
+		if storeErr := ctx.storeProofResponse(jobId, response); storeErr != nil {
+			return fmt.Errorf("failed to store error response: %v", storeErr)
+		}
 	}
 	publicInputsStr := make([]string, len(publicInputs))
 	for i, bi := range publicInputs {
 		publicInputsStr[i] = bi.String()
 	}
-	response := ProveResult{
-		PublicInputs: publicInputsStr,
-		Proof:        proofHex,
+
+	response := ProofResponse{
+		Success: true,
+		Proof: &ProveResult{
+			PublicInputs: publicInputsStr,
+			Proof:        proofHex,
+		},
 	}
-	mu.Lock()
-	status[jobId] = ProofResponse{Success: true, Proof: &response}
-	mu.Unlock()
+	if err := ctx.storeProofResponse(jobId, response); err != nil {
+		return fmt.Errorf("failed to store success response: %v", err)
+	}
+
 	fmt.Println("Prove done. jobId", jobId)
 	return nil
 }
@@ -123,9 +163,12 @@ func (ctx *CircuitData) StartProof(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mu.Lock()
-	status[jobId] = ProofResponse{Success: true, Proof: nil}
-	mu.Unlock()
+	response := ProofResponse{Success: true, Proof: nil}
+	if err := ctx.storeProofResponse(jobId, response); err != nil {
+		fmt.Printf("Failed to store proof response in Redis: %v\n", err)
+		return
+	}
+
 	go ctx.prove(jobId, input)
 	json.NewEncoder(w).Encode(map[string]string{"jobId": jobId})
 }
@@ -137,12 +180,21 @@ func (ctx *CircuitData) GetProof(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid JobId", http.StatusBadRequest)
 		return
 	}
-	mu.Lock()
-	defer mu.Unlock()
-	s, ok := status[jobId]
-	if !ok {
+
+	result, err := ctx.RedisClient.Get(con.Background(), getRedisKey(jobId)).Result()
+	if err == redis.Nil {
 		http.Error(w, "job not found", http.StatusNotFound)
 		return
+	} else if err != nil {
+		http.Error(w, "Failed to get proof status: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
-	json.NewEncoder(w).Encode(s)
+
+	var response ProofResponse
+	if err := json.Unmarshal([]byte(result), &response); err != nil {
+		http.Error(w, "Failed to parse proof response: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(response)
 }
